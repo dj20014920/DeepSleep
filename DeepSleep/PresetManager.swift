@@ -13,7 +13,7 @@ class PresetManager {
 
     func savePreset(name: String, volumes: [Float]) {
         var current = loadPresets()
-        current.removeAll { $0.name == name } // 중복 제거 후 덮어쓰기
+        current.removeAll { $0.name == name } // 중복 제거 후 덮어쓰기ㅣ
         current.append(Preset(name: name, volumes: volumes))
         if let encoded = try? JSONEncoder().encode(current) {
             UserDefaults.standard.set(encoded, forKey: key)

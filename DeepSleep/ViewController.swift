@@ -10,7 +10,6 @@ class ViewController: UIViewController, UITextFieldDelegate {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         setupUI()
-        // viewDidLoad() 끝부분에 추가
         let saveButton = UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped))
         let loadButton = UIBarButtonItem(title: "불러오기", style: .plain, target: self, action: #selector(loadPresetTapped))
         navigationItem.rightBarButtonItems = [saveButton, loadButton]
@@ -36,7 +35,7 @@ class ViewController: UIViewController, UITextFieldDelegate {
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            // ContainerView Constraints
+            // ContainerView Constraints.
             // (중요) 스크롤이 제대로 동작하게 하려면 contentLayoutGuide를 사용하는 것이 좋습니다.
             containerView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),

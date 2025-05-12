@@ -36,7 +36,7 @@ class PresetListViewController: UITableViewController {
         if editingStyle == .delete {
             let presetToDelete = presets[indexPath.row]
             
-            // 삭제 전 알림 표시
+            // 삭제 전 알림 표시ㅣ
             let alert = UIAlertController(
                 title: "프리셋 삭제",
                 message: "'\(presetToDelete.name)' 프리셋을 삭제하시겠습니까?",
