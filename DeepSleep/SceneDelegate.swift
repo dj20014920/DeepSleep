@@ -19,11 +19,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             guard let windowScene = (scene as? UIWindowScene) else { return }
             let window = UIWindow(windowScene: windowScene)
 
-            // 스플래시 전용 LaunchViewController만 루트로 설정
-            window.rootViewController = LaunchViewController()
-
-            self.window = window
-            window.makeKeyAndVisible()
+        // LaunchViewController만 루트로 설정
+                window.rootViewController = LaunchViewController()
+                self.window = window
+                window.makeKeyAndVisible()
         }
 
     func sceneDidDisconnect(_ scene: UIScene) {
