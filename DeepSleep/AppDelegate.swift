@@ -1,45 +1,55 @@
-//
-//  AppDelegate.swift
-//  DeepSleep
-//
-//  Created by 추동준 on 4/15/25.
-//
-
 import UIKit
 import AVFoundation
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-
-
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    // iOS 13 이상부터 SceneDelegate로 UI 진입점을 분리했어도
+    // 여기는 앱 전체 초기화 코드(오디오 세션, 백그라운드 재생 등)를 넣습니다.
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
         configureAudioSession()
+        // 제어 센터(remote control) 이벤트 받기 시작
+        application.beginReceivingRemoteControlEvents()
         return true
     }
 
     // MARK: UISceneSession Lifecycle
 
-    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
-        // Called when a new scene session is being created.
-        // Use this method to select a configuration to create the new scene with.
-        return UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        return UISceneConfiguration(
+            name: "Default Configuration",
+            sessionRole: connectingSceneSession.role
+        )
     }
 
-    func application(_ application: UIApplication, didDiscardSceneSessions sceneSessions: Set<UISceneSession>) {
-        // Called when the user discards a scene session.
-        // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
-        // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
+    func application(
+        _ application: UIApplication,
+        didDiscardSceneSessions sceneSessions: Set<UISceneSession>
+    ) {
+        // 필요 시 릴리즈 로직
     }
+
+    // MARK: - Audio Session 설정
 
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-          try session.setCategory(.playback, mode: .default, options: [])
-          try session.setActive(true)
+            // 백그라운드 재생 허용, 다른 앱과 믹스 가능
+            try session.setCategory(
+                .playback,
+                mode: .default,
+                options: [.mixWithOthers]
+            )
+            try session.setActive(true)
         } catch {
-          print("🔴 AVAudioSession setup failed:", error)
+            print("🔴 AVAudioSession setup failed:", error)
         }
-      }
+    }
 }
-

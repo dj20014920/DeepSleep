@@ -36,6 +36,13 @@ class ViewController: UIViewController, UITextFieldDelegate {
 
         // 3) Media Remote Command 설정
         configureRemoteCommands()
+
+        let timerButton = UIBarButtonItem(title: "타이머", style: .plain,
+                                          target: self,
+                                          action: #selector(showTimer))
+        navigationItem.leftBarButtonItem = timerButton
+
+        
     }
     
     // MARK: - UI 구성
@@ -336,5 +343,18 @@ class ViewController: UIViewController, UITextFieldDelegate {
         var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
         info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+    override var canBecomeFirstResponder: Bool {
+        return true
+    }
+    
+    @objc func showTimer() {
+      let tvc = TimerViewController()
+      navigationController?.pushViewController(tvc, animated: true)
     }
 }

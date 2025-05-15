@@ -12,9 +12,7 @@ final class SoundManager {
         "summer_night.mp3", "lullaby.mp3", "fan.mp3", "white_noise.mp3"
     ]
     
-    private var players: [AVAudioPlayer] = []
-    
-    /// 현재 재생 중인지
+    var players: [AVAudioPlayer] = []    /// 현재 재생 중인지
     var isPlaying: Bool {
         return players.contains { $0.isPlaying }
     }
@@ -30,10 +28,17 @@ final class SoundManager {
         do {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
+            // 인터럽션 관찰
+            NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: session)
         } catch {
             print("⚠️ AudioSession 설정 실패:", error)
         }
     }
+    
     /// 모든 트랙 일괄 재생 / 일시정지
     func playAll() { players.forEach { if !$0.isPlaying { $0.play() } } }
     func pauseAll() { players.forEach { if $0.isPlaying { $0.pause() } } }
@@ -90,4 +95,39 @@ final class SoundManager {
             player.currentTime = 0
         }
     }
+    
+    @objc private func handleInterruption(_ notif: Notification) {
+            guard let info = notif.userInfo,
+                  let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+            switch type {
+            case .began:
+                // 인터럽션 시작: 일시정지
+                pauseAll()
+            case .ended:
+                // 인터럽션 종료: 옵션에 따라 재생 재시도
+                if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
+                   AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
+                    playAll()
+                }
+            @unknown default: break
+            }
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+    
+    func fadeOutAll(duration: TimeInterval = 3.0) {
+            players.forEach { player in
+                // AVAudioPlayer가 백그라운드 Audio 모드에서
+                // 자동으로 볼륨을 줄여줍니다.
+                player.setVolume(0, fadeDuration: duration)
+            }
+            // 끝나고 완전히 멈추고 싶으면,  duration 후에 호출:
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                self.pauseAll()
+            }
+        }
 }
