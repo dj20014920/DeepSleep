@@ -296,12 +296,26 @@
 				INFOPLIST_FILE = DeepSleep/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UIMainStoryboardFile = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/google/_upb",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/safetensors",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/numpy/_core/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/torch/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/tokenizers",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/_core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/coremltools",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/torch/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dj20014920.DeepSleep;
@@ -327,12 +341,26 @@
 				INFOPLIST_FILE = DeepSleep/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UIMainStoryboardFile = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/google/_upb",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/safetensors",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/numpy/_core/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/torch/lib",
+					"$(PROJECT_DIR)/DeepSleep/coreml-env/lib/python3.13/site-packages/tokenizers",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/_core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/coremltools",
+					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/torch/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dj20014920.DeepSleep;
