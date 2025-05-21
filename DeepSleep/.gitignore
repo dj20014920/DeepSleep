@@ -1,1 +1,3 @@
-exported/
+kodialogpt_fp32.onnx
+models/KoDialoGPT/model.safetensors
+exported/Model.mlpackage

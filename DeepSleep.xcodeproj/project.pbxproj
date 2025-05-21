@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E08939502DDDCEC700D4B40A /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = E089394F2DDDCEBB00D4B40A /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E0C6B4FD2DAE551000302666 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E089394F2DDDCEBB00D4B40A /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		E0C6B4E62DAE550E00302666 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E0C6B4FC2DAE551000302666 /* DeepSleepTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepSleepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E0C6B5062DAE551000302666 /* DeepSleepUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepSleepUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +93,7 @@
 		E0C6B4DD2DAE550E00302666 = {
 			isa = PBXGroup;
 			children = (
+				E089394F2DDDCEBB00D4B40A /* README.md */,
 				E0C6B4E82DAE550E00302666 /* DeepSleep */,
 				E0C6B4FF2DAE551000302666 /* DeepSleepTests */,
 				E0C6B5092DAE551000302666 /* DeepSleepUITests */,
@@ -225,6 +231,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E08939502DDDCEC700D4B40A /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
