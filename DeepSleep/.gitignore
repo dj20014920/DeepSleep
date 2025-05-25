@@ -1,9 +1,1 @@
-*.xcconfig
-*.plist
-
-*.xcworkspace
-*.xcuserstate
-*.xcuserdata
-DerivedData/
-.idea/
-Pods/
+Secrets.xcconfig
