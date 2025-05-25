@@ -1,5 +1,11 @@
 import UIKit
+import Foundation
 
+enum ChatMessage {
+    case user(String)
+    case bot(String)
+    case presetRecommendation(presetName: String, message: String)
+}
 class ChatBubbleCell: UITableViewCell {
   static let identifier = "ChatBubbleCell"
   
@@ -52,28 +58,29 @@ class ChatBubbleCell: UITableViewCell {
     fatalError("init(coder:) has not been implemented")
   }
   
-  func configure(with msg: ChatMessage) {
-    switch msg {
-    case .user(let text):
-      bubbleView.backgroundColor = UIColor.systemBlue
-      messageLabel.textColor  = .white
-      messageLabel.text       = text
-      leadingConstraint.isActive  = false
-      trailingConstraint.isActive = true
-      
-    case .bot(let text):
-      bubbleView.backgroundColor = UIColor(white: 0.90, alpha: 1)
-      messageLabel.textColor  = .black
-      messageLabel.text       = text
-      trailingConstraint.isActive = false
-      leadingConstraint.isActive  = true
-      
-    case .presetRecommendation(let preset, let message):
-      bubbleView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
-      messageLabel.textColor  = .white
-      messageLabel.text       = "🎵 \(message)"
-      trailingConstraint.isActive = false
-      leadingConstraint.isActive  = true
+    func configure(with msg: ChatMessage) {
+        leadingConstraint.isActive = false
+        trailingConstraint.isActive = false
+
+        switch msg {
+        case .user(let text):
+            bubbleView.backgroundColor = UIColor.systemBlue
+            messageLabel.textColor  = .white
+            messageLabel.text       = text
+            trailingConstraint.isActive = true
+
+        case .bot(let text):
+            bubbleView.backgroundColor = UIColor(white: 0.90, alpha: 1)
+            messageLabel.textColor  = .black
+            messageLabel.text       = text
+            leadingConstraint.isActive  = true
+
+        case .presetRecommendation(let preset, let message):
+            bubbleView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
+            messageLabel.textColor  = .white
+            messageLabel.text       = "🎵 \(message)"
+            leadingConstraint.isActive  = true
+        }
     }
   }
-}
+

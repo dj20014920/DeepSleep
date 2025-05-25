@@ -38,47 +38,7 @@
 		E0C6B50E2DAE551000302666 /* Exceptions for "DeepSleep" folder in "DeepSleep" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				exporters/.gitignore,
-				exporters/DESIGN_NOTES.md,
-				exporters/LICENSE,
-				exporters/MODELS.md,
-				exporters/README.md,
-				exporters/setup.py,
-				"exporters/src/exporters.egg-info/dependency_links.txt",
-				"exporters/src/exporters.egg-info/PKG-INFO",
-				"exporters/src/exporters.egg-info/requires.txt",
-				"exporters/src/exporters.egg-info/SOURCES.txt",
-				"exporters/src/exporters.egg-info/top_level.txt",
-				exporters/src/exporters/__init__.py,
-				"exporters/src/exporters/__pycache__/__init__.cpython-311.pyc",
-				exporters/src/exporters/coreml/__init__.py,
-				exporters/src/exporters/coreml/__main__.py,
-				"exporters/src/exporters/coreml/__pycache__/__init__.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/__main__.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/config.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/convert.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/features.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/models.cpython-311.pyc",
-				"exporters/src/exporters/coreml/__pycache__/validate.cpython-311.pyc",
-				exporters/src/exporters/coreml/config.py,
-				exporters/src/exporters/coreml/convert.py,
-				exporters/src/exporters/coreml/features.py,
-				exporters/src/exporters/coreml/models.py,
-				exporters/src/exporters/coreml/validate.py,
-				exporters/src/exporters/utils/__init__.py,
-				"exporters/src/exporters/utils/__pycache__/__init__.cpython-311.pyc",
-				"exporters/src/exporters/utils/__pycache__/logging.cpython-311.pyc",
-				exporters/src/exporters/utils/logging.py,
-				exporters/tests/__init__.py,
-				exporters/tests/test_coreml.py,
-				exporters/tests/testing_utils.py,
 				Info.plist,
-				models/KoDialoGPT/config.json,
-				models/KoDialoGPT/generation_config.json,
-				models/KoDialoGPT/model.safetensors,
-				models/KoDialoGPT/special_tokens_map.json,
-				models/KoDialoGPT/tokenizer_config.json,
-				models/KoDialoGPT/tokenizer.json,
 			);
 			target = E0C6B4E52DAE550E00302666 /* DeepSleep */;
 		};
@@ -363,6 +323,12 @@
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/random/lib",
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/coremltools",
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/torch/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/.dylibs",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/.dylibs",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/random/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dj20014920.DeepSleep;
@@ -408,6 +374,12 @@
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/numpy/random/lib",
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/coremltools",
 					"$(PROJECT_DIR)/DeepSleep/venv311/lib/python3.11/site-packages/torch/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/.dylibs",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml/lib/python3.11/site-packages/numpy/random/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/core/lib",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/.dylibs",
+					"$(PROJECT_DIR)/DeepSleep/venv_coreml39/lib/python3.11/site-packages/numpy/random/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dj20014920.DeepSleep;
@@ -421,6 +393,8 @@
 		};
 		E0C6B5122DAE551000302666 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E0C6B4E82DAE550E00302666 /* DeepSleep */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

@@ -1,3 +1,9 @@
-kodialogpt_fp32.onnx
-models/KoDialoGPT/model.safetensors
-exported/Model.mlpackage
+*.xcconfig
+*.plist
+
+*.xcworkspace
+*.xcuserstate
+*.xcuserdata
+DerivedData/
+.idea/
+Pods/

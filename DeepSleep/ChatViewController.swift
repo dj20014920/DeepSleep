@@ -1,167 +1,143 @@
 import UIKit
 
-enum ChatMessage {
-    case user(text: String)
-    case bot(text: String)
-    case presetRecommendation(preset: Preset, message: String)
-}
+class ChatViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {    var messages: [ChatMessage] = []
+    var initialUserText: String? = nil
+    var onPresetApply: ((RecommendationResponse) -> Void)? = nil
+    
+    private let tableView: UITableView = {
+        let tv = UITableView()
+        tv.translatesAutoresizingMaskIntoConstraints = false
+        tv.separatorStyle = .none
+        tv.backgroundColor = .clear
+        tv.register(ChatBubbleCell.self, forCellReuseIdentifier: ChatBubbleCell.identifier)
+        return tv
+    }()
 
-class ChatViewController: UIViewController {
-    private let tableView = UITableView()
-    private let inputField = UITextField()
-    private let sendButton = UIButton(type: .system)
-    private let inputContainer = UIView()
-
-    private var messages: [ChatMessage] = []
-    var onPresetApply: ((Preset) -> Void)?
-    var initialUserText: String?
-
+    private let inputTextField: UITextField = {
+        let textField = UITextField()
+        textField.placeholder = "메시지를 입력하세요"
+        textField.borderStyle = .roundedRect
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        return textField
+    }()
+    
+    private let sendButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("전송", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    private let loadingLabel: UILabel = {
+        let label = UILabel()
+        label.text = "모델 로딩 중..."
+        label.textAlignment = .center
+        label.font = UIFont.systemFont(ofSize: 14)
+        label.textColor = .gray
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        title = "AI 대화"
-
-        setupTableView()
-        setupInputBar()
-        registerKeyboardEvents()
-
-        if let text = initialUserText {
-            append(.user(text: text))
-            requestRecommendation(for: text)
+        view.backgroundColor = .white
+        setupViews()
+        setupConstraints()
+        setupActions()
+        loadChatService()
+    }
+    
+    private func loadChatService() {
+        loadingLabel.isHidden = true
+        sendButton.isEnabled = true
+        inputTextField.isEnabled = true
+        appendChat(.bot("AI와의 대화를 시작해보세요."))
+        // 초기 텍스트 처리
+        if let initialText = self.initialUserText {
+            self.inputTextField.text = initialText
+            self.initialUserText = nil
         }
     }
-
-    private func setupTableView() {
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.dataSource = self
-        tableView.delegate = self
-        tableView.separatorStyle = .none
-        tableView.allowsSelection = false
-        tableView.register(ChatBubbleCell.self, forCellReuseIdentifier: ChatBubbleCell.identifier)
+   
+    private func setupViews() {
+        view.addSubview(inputTextField)
+        view.addSubview(sendButton)
+        view.addSubview(loadingLabel)
         view.addSubview(tableView)
-
-        NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -60)
-        ])
+        tableView.delegate = self
+        tableView.dataSource = self
     }
 
-    private func setupInputBar() {
-        inputContainer.translatesAutoresizingMaskIntoConstraints = false
-        inputContainer.backgroundColor = .secondarySystemBackground
-        view.addSubview(inputContainer)
-
-        inputField.translatesAutoresizingMaskIntoConstraints = false
-        inputField.placeholder = "오늘 기분이나 일기를 입력하세요"
-        inputField.borderStyle = .roundedRect
-
-        sendButton.setTitle("전송", for: .normal)
-        sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
-        sendButton.translatesAutoresizingMaskIntoConstraints = false
-
-        inputContainer.addSubview(inputField)
-        inputContainer.addSubview(sendButton)
-
+    private func setupConstraints() {
         NSLayoutConstraint.activate([
-            inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            inputContainer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            inputContainer.heightAnchor.constraint(equalToConstant: 60),
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            tableView.bottomAnchor.constraint(equalTo: inputTextField.topAnchor, constant: -12),
 
-            inputField.leadingAnchor.constraint(equalTo: inputContainer.leadingAnchor, constant: 16),
-            inputField.centerYAnchor.constraint(equalTo: inputContainer.centerYAnchor),
-            inputField.heightAnchor.constraint(equalToConstant: 36),
+            inputTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            inputTextField.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            inputTextField.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -8),
+            inputTextField.heightAnchor.constraint(equalToConstant: 40),
 
-            sendButton.leadingAnchor.constraint(equalTo: inputField.trailingAnchor, constant: 8),
-            sendButton.trailingAnchor.constraint(equalTo: inputContainer.trailingAnchor, constant: -16),
-            sendButton.centerYAnchor.constraint(equalTo: inputContainer.centerYAnchor),
+            sendButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            sendButton.bottomAnchor.constraint(equalTo: inputTextField.bottomAnchor),
             sendButton.widthAnchor.constraint(equalToConstant: 60),
-
-            inputField.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -8)
+            sendButton.heightAnchor.constraint(equalToConstant: 40)
         ])
     }
 
-    @objc private func sendTapped() {
-        guard let txt = inputField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !txt.isEmpty else { return }
-        append(.user(text: txt))
-        inputField.text = ""
-        requestRecommendation(for: txt)
+    private func setupActions() {
+        sendButton.addTarget(self, action: #selector(sendButtonTapped), for: .touchUpInside)
+        inputTextField.addTarget(self, action: #selector(textFieldReturn), for: .editingDidEndOnExit)
+    }
+    
+    @objc private func textFieldReturn() {
+        sendButtonTapped()
     }
 
-    private func requestRecommendation(for text: String) {
-        ChatService.requestRecommendation(userText: text) { [weak self] result in
-            guard let self = self else { return }
+    @objc private func sendButtonTapped() {
+        guard let userInput = inputTextField.text, !userInput.isEmpty else { return }
+
+        inputTextField.text = ""
+        appendChat(.user(userInput))
+        
+        sendButton.isEnabled = false
+        inputTextField.isEnabled = false
+
+        ReplicateChatService.shared.sendPrompt(userInput) { response in
             DispatchQueue.main.async {
-                switch result {
-                case .failure:
-                    self.append(.bot(text: "죄송해요, 응답에 실패했어요."))
-                case .success(let rec):
-                    self.append(.bot(text: "\(rec.empathy)\n\n오늘의 운세: \(rec.fortune)"))
-                    let preset = Preset(name: rec.presetName, volumes: rec.volumes)
-                    self.append(.presetRecommendation(preset: preset, message: rec.presetName))
+                if let response = response {
+                    self.appendChat(.bot(response))
+                } else {
+                    self.appendChat(.bot("❌ AI 응답을 불러오지 못했어요."))
                 }
+                self.sendButton.isEnabled = true
+                self.inputTextField.isEnabled = true
+                self.inputTextField.becomeFirstResponder()
             }
         }
     }
 
-    private func append(_ msg: ChatMessage) {
-        messages.append(msg)
+    private func appendChat(_ message: ChatMessage) {
+        messages.append(message)
         tableView.reloadData()
-        let index = IndexPath(row: messages.count - 1, section: 0)
-        tableView.scrollToRow(at: index, at: .bottom, animated: true)
-    }
-
-    @objc private func applyTapped(_ sender: UIButton) {
-        if case .presetRecommendation(let preset, _) = messages[sender.tag] {
-            onPresetApply?(preset)
-        }
-    }
-
-    private func registerKeyboardEvents() {
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillShow),
-                                               name: UIResponder.keyboardWillShowNotification,
-                                               object: nil)
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillHide),
-                                               name: UIResponder.keyboardWillHideNotification,
-                                               object: nil)
-    }
-
-    @objc private func keyboardWillShow(_ notification: Notification) {
-        // 생략 가능: 추가할 경우 height 조정
-    }
-
-    @objc private func keyboardWillHide(_ notification: Notification) {
-        // 생략 가능: 원상복귀
+        let indexPath = IndexPath(row: messages.count - 1, section: 0)
+        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
     }
 }
 
-// MARK: - UITableViewDataSource & Delegate
-extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
-    func tableView(_ tv: UITableView, numberOfRowsInSection section: Int) -> Int {
+
+extension ChatViewController {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return messages.count
     }
 
-    func tableView(_ tv: UITableView, cellForRowAt ip: IndexPath) -> UITableViewCell {
-        let msg = messages[ip.row]
-        let cell = tv.dequeueReusableCell(withIdentifier: ChatBubbleCell.identifier, for: ip) as! ChatBubbleCell
-        cell.configure(with: msg)
-
-        if case .presetRecommendation = msg {
-            let btn = UIButton(type: .system)
-            btn.setTitle("적용하기", for: .normal)
-            btn.sizeToFit()
-            btn.tag = ip.row
-            btn.addTarget(self, action: #selector(applyTapped(_:)), for: .touchUpInside)
-            cell.accessoryView = btn
-        } else {
-            cell.accessoryView = nil
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: ChatBubbleCell.identifier, for: indexPath) as? ChatBubbleCell else {
+            return UITableViewCell()
         }
-
+        cell.configure(with: messages[indexPath.row])
         return cell
     }
 }
