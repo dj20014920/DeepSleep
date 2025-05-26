@@ -18,47 +18,93 @@ class ReplicateChatService {
         monitor.start(queue: queue)
     }
 
-    // MARK: - 일반 메시지용 프롬프트
+    // MARK: - 일반 메시지용 프롬프트 (개선됨)
     func sendPrompt(message: String, intent: String, completion: @escaping (String?) -> Void) {
-        let contextPrompt = """
-        너는 감정을 공감하고 위로해주는 따뜻한 한국어 대화 AI야. 친구처럼 자연스럽고 다정한 말투로 이야기해줘.
-        User: \(message)
-        Assistant:
-        """
+        let contextPrompt: String
+        
+        if intent == "diary" {
+            contextPrompt = """
+            당신은 감정을 깊이 이해하고 진심으로 위로해주는 AI 친구입니다.
+            사용자가 일기 형태로 하루의 이야기를 들려주고 있습니다.
+            
+            대화 스타일:
+            - 진심어린 공감과 위로
+            - 부드럽고 따뜻한 어조  
+            - 적절한 이모지 사용 (과하지 않게)
+            - 사용자의 감정을 인정하고 수용
+            - 실용적이면서도 감정적인 조언
+            
+            사용자 메시지: \(message)
+            
+            위 내용을 충분히 들어주고 깊이 공감해주세요.
+            """
+        } else {
+            contextPrompt = """
+            당신은 감정을 이해하고 따뜻하게 위로해주는 AI 친구입니다.
+            친구처럼 자연스럽고 다정한 한국어로 대화해주세요.
+            
+            대화 원칙:
+            - 짧고 자연스러운 응답 (2-3문장)
+            - 진심어린 공감 표현
+            - 적절한 감정 이모지 (1-2개)
+            - 부담스럽지 않은 따뜻함
+            
+            사용자 메시지: \(message)
+            """
+        }
 
         let input: [String: Any] = [
             "prompt": contextPrompt,
-            "temperature": 0.7,
+            "temperature": intent == "diary" ? 0.8 : 0.7,
             "top_p": 0.9,
-            "max_tokens": 300,
-            "system_prompt": "한국어로 대화하는 친근한 AI 어시스턴트입니다."
+            "max_tokens": intent == "diary" ? 400 : 200,
+            "system_prompt": "한국어로 대화하는 친근하고 따뜻한 AI 친구입니다."
         ]
 
         sendToReplicate(input: input, completion: completion)
     }
 
-    // MARK: - 프리셋 추천용 프롬프트
+    // MARK: - 프리셋 추천용 프롬프트 (대폭 개선)
     func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
-        let presetFormat = SoundPresetCatalog.labels.prefix(12).joined(separator: ", ")
         let prompt = """
-        감정: \(emotion)
-        프리셋 요소: \(presetFormat)
-        출력 예시: [추천 프리셋] Rain:80, Wind:60, ...
-        설명 없이 이 형식만 출력해줘.
+        당신은 감정을 이해하고 사운드 테라피를 제공하는 전문가입니다.
+        
+        사용자 상황: \(emotion)
+        
+        12가지 사운드로 맞춤 프리셋을 만들어주세요:
+        1. Rain (빗소리 - 평온, 집중)
+        2. Thunder (천둥 - 강렬함, 드라마틱) 
+        3. Ocean (파도 - 자연, 휴식)
+        4. Fire (모닥불 - 따뜻함, 포근함)
+        5. Steam (증기 - 부드러움)
+        6. WindowRain (창가 빗소리 - 아늑함)
+        7. Forest (숲새소리 - 자연, 생동감)
+        8. Wind (바람 - 시원함, 청량함)
+        9. Night (여름밤 - 로맨틱, 평화)
+        10. Lullaby (자장가 - 수면, 위로)
+        11. Fan (선풍기 - 집중, 백색소음)
+        12. WhiteNoise (백색소음 - 집중, 차단)
+        
+        각 사운드의 볼륨을 0-100으로 설정하여 감정 상태에 최적화된 조합을 만드세요.
+        
+        **출력 형식 (정확히 따라주세요):**
+        [감정에 맞는 프리셋 이름] Rain:80, Thunder:10, Ocean:60, Fire:0, Steam:20, WindowRain:40, Forest:70, Wind:30, Night:50, Lullaby:0, Fan:20, WhiteNoise:30
+        
+        다른 설명 없이 위 형식만 출력해주세요.
         """
 
         let input: [String: Any] = [
             "prompt": prompt,
-            "temperature": 0.3,
+            "temperature": 0.2, // 더 일관된 출력을 위해 낮춤
             "top_p": 0.8,
-            "max_tokens": 100,
-            "system_prompt": "음향 프리셋 추천 전문가"
+            "max_tokens": 150,
+            "system_prompt": "사운드 테라피 전문가로서 정확한 형식으로 프리셋을 추천합니다."
         ]
 
         sendToReplicate(input: input, completion: completion)
     }
 
-    // MARK: - Replicate API 요청 (수정됨)
+    // MARK: - Replicate API 요청 (기존 유지)
     private func sendToReplicate(input: [String: Any], completion: @escaping (String?) -> Void) {
         isNetworkAvailable { isConnected in
             guard isConnected else {
@@ -73,14 +119,12 @@ class ReplicateChatService {
                 return
             }
 
-            // 직접 모델 엔드포인트 사용
             let url = URL(string: "https://api.replicate.com/v1/models/anthropic/claude-3.5-haiku/predictions")!
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            // 요청 바디 - input만 전송
             let body: [String: Any] = [
                 "input": input
             ]
@@ -93,7 +137,7 @@ class ReplicateChatService {
                 completion(nil)
                 return
             }
-
+            
             let session = URLSession(configuration: .default)
 
             func tryCreatePrediction(retriesLeft: Int) {
@@ -110,7 +154,6 @@ class ReplicateChatService {
                         return
                     }
                     
-                    // HTTP 응답 상태 확인
                     if let httpResponse = response as? HTTPURLResponse {
                         print("📡 HTTP Status: \(httpResponse.statusCode)")
                         if httpResponse.statusCode != 201 && httpResponse.statusCode != 200 {
@@ -163,9 +206,9 @@ class ReplicateChatService {
         }
     }
 
-    // MARK: - 결과 폴링 (수정됨)
+    // MARK: - 결과 폴링 (기존 유지)
     private func pollPredictionResult(id: String, token: String, attempts: Int, completion: @escaping (String?) -> Void) {
-        guard attempts < 30 else { // 시도 횟수 감소
+        guard attempts < 30 else {
             print("❌ 결과 polling 실패: 시도 횟수 초과 (\(attempts)회)")
             DispatchQueue.main.async { completion(nil) }
             return
@@ -199,7 +242,6 @@ class ReplicateChatService {
                     
                     switch status {
                     case "succeeded":
-                        // output 처리 방식 개선
                         var result: String?
                         if let outputArray = json["output"] as? [String] {
                             result = outputArray.joined()

@@ -1,11 +1,12 @@
 import UIKit
 import UserNotifications
+import AVFoundation
 
 class TimerViewController: UIViewController {
     
     // MARK: –– UI 컴포넌트
     
-    /// 모드 선택: “분 뒤” / “시각”
+    /// 모드 선택: "타이머" / "예약"
     private let modeControl: UISegmentedControl = {
         let sc = UISegmentedControl(items: ["타이머", "예약"])
         sc.selectedSegmentIndex = 0
@@ -32,12 +33,37 @@ class TimerViewController: UIViewController {
         return lbl
     }()
     
-    /// 타이머 시작/재시작 버튼
+    /// 상태 표시 라벨
+    private let statusLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = .systemFont(ofSize: 16, weight: .medium)
+        lbl.textAlignment = .center
+        lbl.text = ""
+        lbl.textColor = .systemBlue
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+    
+    /// 타이머 시작/정지 버튼
     private let startButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("시작", for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
+        btn.backgroundColor = .systemBlue
+        btn.setTitleColor(.white, for: .normal)
+        btn.layer.cornerRadius = 8
         btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
+    
+    /// 타이머 취소 버튼
+    private let cancelButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setTitle("취소", for: .normal)
+        btn.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        btn.setTitleColor(.systemRed, for: .normal)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.isHidden = true
         return btn
     }()
     
@@ -45,6 +71,8 @@ class TimerViewController: UIViewController {
     
     private var timer: Timer?
     private var endDate: Date?
+    private var isTimerRunning = false
+    private var fadeOutTimer: Timer?
     
     // 포맷터 (분:초 / 시:분:초)
     private let minuteFormatter: DateComponentsFormatter = {
@@ -54,6 +82,7 @@ class TimerViewController: UIViewController {
         f.zeroFormattingBehavior = .pad
         return f
     }()
+    
     private let fullFormatter: DateComponentsFormatter = {
         let f = DateComponentsFormatter()
         f.allowedUnits = [.hour, .minute, .second]
@@ -70,43 +99,105 @@ class TimerViewController: UIViewController {
         title = "타이머"
         
         setupUI()
-        modeControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
-        startButton.addTarget(self, action: #selector(startTapped), for: .touchUpInside)
+        setupTargets()
+        setupAudioSession()
+        requestNotificationPermission()
         
-        // 알림 권한 요청
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // 앱 생명주기 관찰
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterBackground),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-
-        // UserDefaults에 남아있는 endDate가 있으면 복원
-        if endDate == nil {
-            let ts = UserDefaults.standard.double(forKey: "DeepSleep.timerEndDate")
-            if ts > 0 {
-                endDate = Date(timeIntervalSince1970: ts)
-            }
-        }
-        restartTimerIfNeeded()
+        restoreTimerState()
     }
     
-    // MARK: –– UI 세팅
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        timer?.invalidate()
+        fadeOutTimer?.invalidate()
+    }
+    
+    // MARK: –– Setup Methods
+    
+    private func setupAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("오디오 세션 설정 실패: \(error)")
+        }
+    }
+    
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if !granted {
+                DispatchQueue.main.async {
+                    self.showNotificationPermissionAlert()
+                }
+            }
+        }
+    }
+    
+    private func showNotificationPermissionAlert() {
+        let alert = UIAlertController(
+            title: "알림 권한 필요",
+            message: "타이머 종료 시 알림을 받으려면 알림 권한이 필요합니다.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "설정으로 이동", style: .default) { _ in
+            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsUrl)
+            }
+        })
+        alert.addAction(UIAlertAction(title: "나중에", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    private func setupTargets() {
+        modeControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
+        startButton.addTarget(self, action: #selector(startButtonTapped), for: .touchUpInside)
+        cancelButton.addTarget(self, action: #selector(cancelButtonTapped), for: .touchUpInside)
+    }
     
     private func setupUI() {
-        [modeControl, picker, timeLabel, startButton].forEach { view.addSubview($0) }
+        [modeControl, picker, timeLabel, statusLabel, startButton, cancelButton].forEach {
+            view.addSubview($0)
+        }
         
         NSLayoutConstraint.activate([
             modeControl.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             modeControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            modeControl.widthAnchor.constraint(equalToConstant: 200),
             
-            picker.topAnchor.constraint(equalTo: modeControl.bottomAnchor, constant: 20),
+            picker.topAnchor.constraint(equalTo: modeControl.bottomAnchor, constant: 30),
             picker.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            timeLabel.topAnchor.constraint(equalTo: picker.bottomAnchor, constant: 40),
+            timeLabel.topAnchor.constraint(equalTo: picker.bottomAnchor, constant: 50),
             timeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            startButton.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 20),
+            statusLabel.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 10),
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+            startButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 30),
             startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            startButton.widthAnchor.constraint(equalToConstant: 120),
+            startButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            cancelButton.topAnchor.constraint(equalTo: startButton.bottomAnchor, constant: 15),
+            cancelButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
     }
     
@@ -115,91 +206,292 @@ class TimerViewController: UIViewController {
     @objc private func modeChanged() {
         if modeControl.selectedSegmentIndex == 0 {
             picker.datePickerMode = .countDownTimer
+            picker.countDownDuration = 600 // 10분 기본값
         } else {
             picker.datePickerMode = .time
+            // 1시간 후로 기본 설정
+            let oneHourLater = Date().addingTimeInterval(3600)
+            picker.date = oneHourLater
+        }
+        
+        if isTimerRunning {
+            cancelTimer()
         }
     }
     
-    // MARK: –– 시작 버튼
+    // MARK: –– 타이머 컨트롤
     
-    @objc private func startTapped() {
-        // 1) endDate 계산
+    @objc private func startButtonTapped() {
+        if isTimerRunning {
+            // 실행 중인 타이머 정지
+            pauseTimer()
+        } else {
+            // 새 타이머 시작
+            startTimer()
+        }
+    }
+    
+    @objc private func cancelButtonTapped() {
+        cancelTimer()
+    }
+    
+    private func startTimer() {
+        // endDate 계산
         if modeControl.selectedSegmentIndex == 0 {
-            // “분 뒤” 모드
+            // "타이머" 모드
             let interval = picker.countDownDuration
+            guard interval > 0 else {
+                showAlert(title: "시간 설정", message: "타이머 시간을 설정해주세요.")
+                return
+            }
             endDate = Date().addingTimeInterval(interval)
         } else {
-            // “시각” 모드
-            let comps = Calendar.current.dateComponents([.hour, .minute], from: picker.date)
-            endDate = Calendar.current.nextDate(
-                after: Date(),
-                matching: comps,
-                matchingPolicy: .nextTime
-            )
+            // "예약" 모드
+            let targetTime = picker.date
+            let now = Date()
+            
+            // 같은 날인지 확인
+            let calendar = Calendar.current
+            var targetDate = targetTime
+            
+            if targetTime <= now {
+                // 다음 날로 설정
+                targetDate = calendar.date(byAdding: .day, value: 1, to: targetTime)!
+            }
+            
+            endDate = targetDate
         }
+        
         guard let end = endDate else { return }
-        // 알림 스케줄링
+        
+        // UI 업데이트
+        isTimerRunning = true
+        updateUI()
+        
+        // 로컬 알림 스케줄링
         scheduleNotification(at: end)
-        // ③ 로컬 타이머 시작
+        
+        // 페이드아웃 스케줄링
+        scheduleFadeOut(at: end)
+        
+        // UI 타이머 시작
         startLocalTimer()
-        let fadeDuration: TimeInterval = 30.0
-          let delay = max(0, end.timeIntervalSinceNow)
-          DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            SoundManager.shared.fadeOutAll(duration: fadeDuration)
-          }
+        
+        // 상태 저장
+        saveTimerState()
+        
+        print("타이머 시작: \(end)")
     }
     
-    // MARK: –– 내부 타이머
+    private func pauseTimer() {
+        timer?.invalidate()
+        fadeOutTimer?.invalidate()
+        cancelNotification()
+        
+        isTimerRunning = false
+        updateUI()
+        clearTimerState()
+        
+        statusLabel.text = "일시정지됨"
+    }
+    
+    private func cancelTimer() {
+        timer?.invalidate()
+        fadeOutTimer?.invalidate()
+        cancelNotification()
+        
+        isTimerRunning = false
+        endDate = nil
+        timeLabel.text = "00:00"
+        statusLabel.text = ""
+        
+        updateUI()
+        clearTimerState()
+    }
+    
+    private func completeTimer() {
+        timer?.invalidate()
+        fadeOutTimer?.invalidate()
+        
+        isTimerRunning = false
+        endDate = nil
+        timeLabel.text = "00:00"
+        statusLabel.text = "완료! 🎵 사운드가 페이드아웃됩니다"
+        
+        updateUI()
+        clearTimerState()
+        
+        // 완료 햅틱 피드백
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        // 5초 후 상태 메시지 지우기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            if !self.isTimerRunning {
+                self.statusLabel.text = ""
+            }
+        }
+    }
+    
+    // MARK: –– UI 업데이트
+    
+    private func updateUI() {
+        if isTimerRunning {
+            startButton.setTitle("일시정지", for: .normal)
+            startButton.backgroundColor = .systemOrange
+            cancelButton.isHidden = false
+            picker.isUserInteractionEnabled = false
+            modeControl.isUserInteractionEnabled = false
+        } else {
+            startButton.setTitle("시작", for: .normal)
+            startButton.backgroundColor = .systemBlue
+            cancelButton.isHidden = true
+            picker.isUserInteractionEnabled = true
+            modeControl.isUserInteractionEnabled = true
+        }
+    }
+    
+    // MARK: –– 로컬 타이머
     
     private func startLocalTimer() {
         timer?.invalidate()
         updateTimeLabel()
-        timer = Timer.scheduledTimer(
-            withTimeInterval: 1.0,
-            repeats: true
-        ) { [weak self] _ in self?.updateTimeLabel() }
-    }
-    
-    private func restartTimerIfNeeded() {
-        guard let end = endDate, end > Date() else { return }
-        startLocalTimer()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateTimeLabel()
+        }
+        
+        // 백그라운드에서도 실행되도록 RunLoop 설정
+        if let timer = timer {
+            RunLoop.current.add(timer, forMode: .common)
+        }
     }
     
     private func updateTimeLabel() {
         guard let end = endDate else { return }
+        
         let remaining = max(0, end.timeIntervalSinceNow)
         let str = remaining >= 3600
             ? fullFormatter.string(from: remaining)!
             : minuteFormatter.string(from: remaining)!
+        
         timeLabel.text = str
         
+        // 남은 시간에 따른 상태 업데이트
         if remaining <= 0 {
-               timer?.invalidate()
-               timeLabel.text = "00:00"
-               // UserDefaults 정리
-               UserDefaults.standard.removeObject(forKey: "DeepSleep.timerEndDate")
-            SoundManager.shared.fadeOutAll(duration: 30.0)
-
-           }
+            completeTimer()
+        } else if remaining <= 60 {
+            statusLabel.text = "🔔 1분 남았습니다"
+        } else if remaining <= 300 {
+            statusLabel.text = "⏰ 5분 남았습니다"
+        } else {
+            let minutes = Int(remaining / 60)
+            statusLabel.text = "⏱ \(minutes)분 남음"
+        }
     }
     
-    // MARK: –– 로컬 알림
+    // MARK: –– 페이드아웃 처리
+    
+    private func scheduleFadeOut(at endDate: Date) {
+        let fadeDuration: TimeInterval = 30.0 // 30초 페이드아웃
+        let fadeStartTime = endDate.addingTimeInterval(-fadeDuration)
+        let delay = max(0, fadeStartTime.timeIntervalSinceNow)
+        
+        fadeOutTimer?.invalidate()
+        fadeOutTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.startFadeOut(duration: fadeDuration)
+        }
+        
+        print("페이드아웃 예약: \(fadeStartTime) (현재로부터 \(delay)초 후)")
+    }
+    
+    private func startFadeOut(duration: TimeInterval) {
+        print("페이드아웃 시작: \(duration)초 동안")
+        SoundManager.shared.fadeOutAll(duration: duration)
+        statusLabel.text = "🎵 사운드가 서서히 작아집니다..."
+    }
+    
+    // MARK: –– 알림 처리
     
     private func scheduleNotification(at date: Date) {
         let content = UNMutableNotificationContent()
-        content.title = "DeepSleep 타이머 종료"
-        content.body  = "설정하신 타이머 시간이 도착했습니다."
+        content.title = "DeepSleep 타이머 완료"
+        content.body = "설정하신 시간이 되었습니다. 사운드가 서서히 꺼집니다."
         content.sound = .default
+        content.badge = 1
         
         let interval = max(1, date.timeIntervalSinceNow)
-        let trigger = UNTimeIntervalNotificationTrigger(
-            timeInterval: interval, repeats: false
-        )
-        let req = UNNotificationRequest(
-            identifier: "DeepSleep.timer",
-            content: content,
-            trigger: trigger
-        )
-        UNUserNotificationCenter.current().add(req)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: "DeepSleep.timer", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("알림 스케줄링 실패: \(error)")
+            } else {
+                print("알림 스케줄링 성공: \(date)")
+            }
+        }
+    }
+    
+    private func cancelNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["DeepSleep.timer"])
+    }
+    
+    // MARK: –– 상태 저장/복원
+    
+    private func saveTimerState() {
+        guard let endDate = endDate else { return }
+        UserDefaults.standard.set(endDate.timeIntervalSince1970, forKey: "DeepSleep.timerEndDate")
+        UserDefaults.standard.set(isTimerRunning, forKey: "DeepSleep.timerRunning")
+    }
+    
+    private func clearTimerState() {
+        UserDefaults.standard.removeObject(forKey: "DeepSleep.timerEndDate")
+        UserDefaults.standard.removeObject(forKey: "DeepSleep.timerRunning")
+    }
+    
+    private func restoreTimerState() {
+        let timestamp = UserDefaults.standard.double(forKey: "DeepSleep.timerEndDate")
+        let wasRunning = UserDefaults.standard.bool(forKey: "DeepSleep.timerRunning")
+        
+        guard timestamp > 0, wasRunning else { return }
+        
+        let savedEndDate = Date(timeIntervalSince1970: timestamp)
+        
+        if savedEndDate > Date() {
+            // 아직 시간이 남음 - 타이머 재시작
+            endDate = savedEndDate
+            isTimerRunning = true
+            updateUI()
+            startLocalTimer()
+            scheduleFadeOut(at: savedEndDate)
+            print("타이머 복원: \(savedEndDate)")
+        } else {
+            // 시간이 지남 - 완료 처리
+            clearTimerState()
+            print("타이머 만료됨 (앱이 백그라운드에 있는 동안)")
+        }
+    }
+    
+    // MARK: –– 앱 생명주기
+    
+    @objc private func appWillEnterBackground() {
+        // 백그라운드 진입 시 상태 저장
+        if isTimerRunning {
+            saveTimerState()
+        }
+    }
+    
+    @objc private func appDidBecomeActive() {
+        // 포그라운드 복귀 시 상태 복원
+        restoreTimerState()
+    }
+    
+    // MARK: –– 유틸리티
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
     }
 }
