@@ -180,7 +180,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         appendChat(.user("프리셋 추천해줘!"))
         appendChat(.bot("AI가 맞춤 프리셋을 준비 중이에요... 🔍"))
 
-        ReplicateChatService.shared.sendPrompt(systemPrompt) { [weak self] result in
+        ReplicateChatService.shared.sendPrompt(message: systemPrompt, intent: "recommendPreset") { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let response = result,

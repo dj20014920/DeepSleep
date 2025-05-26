@@ -5,13 +5,7 @@ class ReplicateChatService {
     static let shared = ReplicateChatService()
     private init() {}
 
-    private let versionGUID = "40c8f5c03ce250441855e776528bafd11cdb302c6677613acc0942c58dbd0afa"
-    private var systemPrompt: String = ""
-
-    func setSystemPrompt(_ prompt: String) {
-        self.systemPrompt = prompt
-    }
-
+    // MARK: - 네트워크 체크
     func isNetworkAvailable(completion: @escaping (Bool) -> Void) {
         let monitor = NWPathMonitor()
         let queue = DispatchQueue(label: "NetworkMonitor")
@@ -24,7 +18,48 @@ class ReplicateChatService {
         monitor.start(queue: queue)
     }
 
-    func sendPrompt(_ prompt: String, completion: @escaping (String?) -> Void) {
+    // MARK: - 일반 메시지용 프롬프트
+    func sendPrompt(message: String, intent: String, completion: @escaping (String?) -> Void) {
+        let contextPrompt = """
+        너는 감정을 공감하고 위로해주는 따뜻한 한국어 대화 AI야. 친구처럼 자연스럽고 다정한 말투로 이야기해줘.
+        User: \(message)
+        Assistant:
+        """
+
+        let input: [String: Any] = [
+            "prompt": contextPrompt,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 300,
+            "system_prompt": "한국어로 대화하는 친근한 AI 어시스턴트입니다."
+        ]
+
+        sendToReplicate(input: input, completion: completion)
+    }
+
+    // MARK: - 프리셋 추천용 프롬프트
+    func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
+        let presetFormat = SoundPresetCatalog.labels.prefix(12).joined(separator: ", ")
+        let prompt = """
+        감정: \(emotion)
+        프리셋 요소: \(presetFormat)
+        출력 예시: [추천 프리셋] Rain:80, Wind:60, ...
+        설명 없이 이 형식만 출력해줘.
+        """
+
+        let input: [String: Any] = [
+            "prompt": prompt,
+            "temperature": 0.3,
+            "top_p": 0.8,
+            "max_tokens": 100,
+            "system_prompt": "음향 프리셋 추천 전문가"
+        ]
+
+        sendToReplicate(input: input, completion: completion)
+    }
+
+    // MARK: - Replicate API 요청 (수정됨)
+    private func sendToReplicate(input: [String: Any], completion: @escaping (String?) -> Void) {
         isNetworkAvailable { isConnected in
             guard isConnected else {
                 print("❌ 네트워크 연결 안 됨")
@@ -38,172 +73,169 @@ class ReplicateChatService {
                 return
             }
 
-            let fullPrompt = """
-            너는 감정을 공감하고 위로해주는 따뜻한 한국어 대화 AI야. 수면, 힐링, 감정 표현 등 다양한 주제에 대해 이야기하고 공감해줄 수 있어
-            항상 자연스럽고 공감 가는 말투로, 2~3문장으로 대답해줘 도우미처럼 말하지 말고, 친구처럼 대화해줘\(prompt)
-            """
-
-            let url = URL(string: "https://api.replicate.com/v1/predictions")!
+            // 직접 모델 엔드포인트 사용
+            let url = URL(string: "https://api.replicate.com/v1/models/anthropic/claude-3.5-haiku/predictions")!
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let parameters: [String: Any] = [
-                "version": self.versionGUID,
-                "input": [
-                    "text": fullPrompt,
-                    "temperature": 0.7,
-                    "top_p": 0.8,
-                    "max_new_tokens": 600,
-                    "do_sample": true
-                ]
+            // 요청 바디 - input만 전송
+            let body: [String: Any] = [
+                "input": input
             ]
-            request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
+            
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                print("📤 Request body: \(String(data: request.httpBody!, encoding: .utf8) ?? "")")
+            } catch {
+                print("❌ JSON 직렬화 실패: \(error)")
+                completion(nil)
+                return
+            }
 
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 20
-            config.timeoutIntervalForResource = 30
-            let session = URLSession(configuration: config)
+            let session = URLSession(configuration: .default)
 
             func tryCreatePrediction(retriesLeft: Int) {
-                session.dataTask(with: request) { data, _, error in
-                    guard let data = data,
-                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let predictionID = json["id"] as? String else {
+                session.dataTask(with: request) { data, response, error in
+                    if let error = error {
+                        print("❌ 네트워크 오류: \(error)")
                         if retriesLeft > 0 {
-                            print("⚠️ Prediction 생성 실패 → 재시도 (\(retriesLeft))")
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                 tryCreatePrediction(retriesLeft: retriesLeft - 1)
                             }
                         } else {
-                            print("❌ Prediction 생성 실패 (최대 재시도 초과)")
-                            completion(nil)
+                            DispatchQueue.main.async { completion(nil) }
                         }
                         return
                     }
-
-                    print("🧪 Prediction ID: \(predictionID)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.pollPredictionResult(id: predictionID, token: apiToken, attempts: 0, completion: completion)
+                    
+                    // HTTP 응답 상태 확인
+                    if let httpResponse = response as? HTTPURLResponse {
+                        print("📡 HTTP Status: \(httpResponse.statusCode)")
+                        if httpResponse.statusCode != 201 && httpResponse.statusCode != 200 {
+                            if let data = data, let errorString = String(data: data, encoding: .utf8) {
+                                print("❌ API 오류 응답: \(errorString)")
+                            }
+                        }
                     }
-
+                    
+                    guard let data = data else {
+                        print("❌ 데이터 없음")
+                        DispatchQueue.main.async { completion(nil) }
+                        return
+                    }
+                    
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            print("📥 Response: \(json)")
+                            
+                            if let predictionID = json["id"] as? String {
+                                print("✅ Prediction ID: \(predictionID)")
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                    self.pollPredictionResult(id: predictionID, token: apiToken, attempts: 0, completion: completion)
+                                }
+                            } else if let error = json["error"] as? String {
+                                print("❌ API 에러: \(error)")
+                                if retriesLeft > 0 {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                        tryCreatePrediction(retriesLeft: retriesLeft - 1)
+                                    }
+                                } else {
+                                    DispatchQueue.main.async { completion(nil) }
+                                }
+                            }
+                        }
+                    } catch {
+                        print("❌ JSON 파싱 실패: \(error)")
+                        if retriesLeft > 0 {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                tryCreatePrediction(retriesLeft: retriesLeft - 1)
+                            }
+                        } else {
+                            DispatchQueue.main.async { completion(nil) }
+                        }
+                    }
                 }.resume()
             }
 
             tryCreatePrediction(retriesLeft: 3)
         }
     }
-    
-    func sendPrompt(message: String, intent: String, completion: @escaping (String?) -> Void) {
-        let baseInstruction = """
-        너는 감정을 공감하고 위로해주는 따뜻한 한국어 대화 AI야. 수면, 힐링, 감정 표현 등 다양한 주제에 대해 이야기하고 공감해줄 수 있어.
-        항상 자연스럽고 공감 가는 말투로, 2~3문장으로 대답해줘. 도우미처럼 말하지 말고 친구처럼 대화해줘.
-        """
 
-        let appendedInstruction: String
-        if intent == "diary" {
-            appendedInstruction = "이 메시지는 사용자의 감정 일기야. 진심 어린 위로를 2~3문장으로 자연스럽게 건네줘."
-        } else {
-            appendedInstruction = "친근하고 따뜻하게 2~3문장으로 자연스럽게 반응해줘."
-        }
-
-        let fullPrompt = """
-        \(baseInstruction)
-        메시지: \(message)
-        \(appendedInstruction)
-        """
-
-        // 기존 sendPrompt(String, completion:) 호출
-        self.sendPrompt(fullPrompt, completion: completion)
-    }
-    
+    // MARK: - 결과 폴링 (수정됨)
     private func pollPredictionResult(id: String, token: String, attempts: Int, completion: @escaping (String?) -> Void) {
-        // 💡 평균 응답 55~60초 고려 → 최소 70회까지 허용
-        guard attempts < 70 else {
+        guard attempts < 30 else { // 시도 횟수 감소
             print("❌ 결과 polling 실패: 시도 횟수 초과 (\(attempts)회)")
-            DispatchQueue.main.async {
-                completion(nil)
-            }
+            DispatchQueue.main.async { completion(nil) }
             return
         }
 
         let getURL = URL(string: "https://api.replicate.com/v1/predictions/\(id)")!
-        var getRequest = URLRequest(url: getURL)
-        getRequest.httpMethod = "GET"
-        getRequest.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        var request = URLRequest(url: getURL)
+        request.httpMethod = "GET"
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        // 커스텀 세션 설정 (느린 네트워크 고려)
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 20
-        config.timeoutIntervalForResource = 60
-        let session = URLSession(configuration: config)
+        let session = URLSession(configuration: .default)
 
-        session.dataTask(with: getRequest) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("❌ Polling 중 네트워크 오류: \(error.localizedDescription)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                print("❌ Polling 오류: \(error)")
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            
+            guard let data = data else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
                 }
                 return
             }
-
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let status = json["status"] as? String else {
-                print("❌ polling 응답 파싱 실패 또는 데이터 없음")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let status = json["status"] as? String ?? "unknown"
+                    print("📊 Status: \(status) (attempt: \(attempts))")
+                    
+                    switch status {
+                    case "succeeded":
+                        // output 처리 방식 개선
+                        var result: String?
+                        if let outputArray = json["output"] as? [String] {
+                            result = outputArray.joined()
+                        } else if let outputString = json["output"] as? String {
+                            result = outputString
+                        }
+                        
+                        print("✅ 결과: \(result ?? "없음")")
+                        DispatchQueue.main.async {
+                            completion(result)
+                        }
+                        
+                    case "failed", "canceled":
+                        if let error = json["error"] as? String {
+                            print("❌ 실패 사유: \(error)")
+                        }
+                        DispatchQueue.main.async {
+                            completion(nil)
+                        }
+                        
+                    case "starting", "processing":
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
+                        }
+                        
+                    default:
+                        print("⚠️ 알 수 없는 상태: \(status)")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
+                        }
+                    }
                 }
-                return
+            } catch {
+                print("❌ Polling JSON 파싱 실패: \(error)")
+                DispatchQueue.main.async { completion(nil) }
             }
-
-            if status == "succeeded" {
-                print("🧾 전체 응답 json: \(json)")
-                if let outputArray = json["output"] as? [String] {
-                    let result = outputArray.joined()
-                    print("✅ 결과 수신 완료 (배열): \(result)")
-                    DispatchQueue.main.async {
-                        completion(result)
-                    }
-                } else if let result = json["output"] as? String {
-                    print("✅ 결과 수신 완료 (문자열): \(result)")
-                    DispatchQueue.main.async {
-                        completion(result)
-                    }
-                } else {
-                    // 🔁 output 이 아직 준비되지 않았을 경우 → 재시도
-                    print("⏳ succeeded지만 output 없음 → 재시도 (\(attempts + 1))")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
-                    }
-                }
-
-            } else if status == "failed" || status == "canceled" {
-                print("❌ 모델 처리 실패 또는 취소됨. Status: \(status), Error: \(json["error"] ?? "N/A")")
-                DispatchQueue.main.async {
-                    completion(nil)
-                }
-
-            } else {
-                // status == "starting", "processing" 등
-                print("⏳ 결과 대기 중 (\(status))... (\(attempts + 1))")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
-                }
-            }
-
         }.resume()
-    }
-
-    func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
-        let presetFormat = SoundPresetCatalog.labels.prefix(12).joined(separator: ", ")
-        let prompt = """
-        감정: \(emotion)
-        프리셋 요소: \(presetFormat)
-        응답 형식 예시: [프리셋 이름] Rain:80, Wind:60, Fan:40 ...
-        설명 없이 이 형식만 출력해줘.
-        """
-        sendPrompt(prompt, completion: completion)
     }
 }
