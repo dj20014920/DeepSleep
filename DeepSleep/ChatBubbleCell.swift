@@ -1,86 +1,115 @@
 import UIKit
 import Foundation
 
-enum ChatMessage {
-    case user(String)
-    case bot(String)
-    case presetRecommendation(presetName: String, message: String)
-}
 class ChatBubbleCell: UITableViewCell {
-  static let identifier = "ChatBubbleCell"
-  
-  private let bubbleView: UIView = {
-    let v = UIView()
-    v.layer.cornerRadius = 16
-    v.translatesAutoresizingMaskIntoConstraints = false
-    return v
-  }()
-  
-  private let messageLabel: UILabel = {
-    let l = UILabel()
-    l.numberOfLines = 0
-    l.translatesAutoresizingMaskIntoConstraints = false
-    return l
-  }()
-  
-  // 제약은 미리 만들어 두고 activate/deactivate
-  private var leadingConstraint: NSLayoutConstraint!
-  private var trailingConstraint: NSLayoutConstraint!
-  
-  override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-    super.init(style: style, reuseIdentifier: reuseIdentifier)
-    backgroundColor = .clear
-    contentView.addSubview(bubbleView)
-    bubbleView.addSubview(messageLabel)
+    static let identifier = "ChatBubbleCell"
+    private var applyButtonHeightConstraint: NSLayoutConstraint!
+    private let bubbleView: UIView = {
+        let view = UIView()
+        view.layer.cornerRadius = 16
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
     
-    // 공통 제약
-    NSLayoutConstraint.activate([
-      messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
-      messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
-      messageLabel.widthAnchor.constraint(lessThanOrEqualToConstant: UIScreen.main.bounds.width * 0.7),
-      
-      bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
-      bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4)
-    ])
+    private let messageLabel: UILabel = {
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
     
-    // 왼쪽·오른쪽 위치 토글용 제약
-    leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
-    trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+    private let applyButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("프리셋 적용", for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.isHidden = true
+        return button
+    }()
     
-    // label 내부 좌우
-    NSLayoutConstraint.activate([
-      messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
-      messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12)
-    ])
-  }
-  
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-  
-    func configure(with msg: ChatMessage) {
+    // 정렬 제약
+    private var leadingConstraint: NSLayoutConstraint!
+    private var trailingConstraint: NSLayoutConstraint!
+    
+    private var applyAction: (() -> Void)?
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupUI() {
+        backgroundColor = .clear
+        contentView.addSubview(bubbleView)
+        bubbleView.addSubview(messageLabel)
+        bubbleView.addSubview(applyButton)
+        applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 28)
+        applyButtonHeightConstraint.isActive = true
+        // 공통 제약
+        NSLayoutConstraint.activate([
+            messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
+            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
+            messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
+            messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
+            applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 8),
+            applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
+            applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
+            applyButton.heightAnchor.constraint(equalToConstant: 28)
+        ])
+
+        // 버블뷰 자체 제약
+        leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+        trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+        NSLayoutConstraint.activate([
+            bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+            leadingConstraint,
+            trailingConstraint
+        ])
+
+        applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
+        bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.75).isActive = true
+    }
+
+    func configure(with message: ChatMessage) {
+        // 초기화
+        applyButton.isHidden = true
+        applyAction = nil
         leadingConstraint.isActive = false
         trailingConstraint.isActive = false
 
-        switch msg {
+        switch message {
         case .user(let text):
-            bubbleView.backgroundColor = UIColor.systemBlue
-            messageLabel.textColor  = .white
-            messageLabel.text       = text
+            bubbleView.backgroundColor = .systemBlue
+            messageLabel.textColor = .white
+            messageLabel.text = text
+            messageLabel.lineBreakMode = .byWordWrapping
             trailingConstraint.isActive = true
-
+            
         case .bot(let text):
             bubbleView.backgroundColor = UIColor(white: 0.90, alpha: 1)
-            messageLabel.textColor  = .black
-            messageLabel.text       = text
-            leadingConstraint.isActive  = true
-
-        case .presetRecommendation(let preset, let message):
+            messageLabel.textColor = .black
+            messageLabel.text = text
+            messageLabel.lineBreakMode = .byWordWrapping
+            leadingConstraint.isActive = true
+            
+        case .presetRecommendation(_, let msg, let action):
             bubbleView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
-            messageLabel.textColor  = .white
-            messageLabel.text       = "🎵 \(message)"
-            leadingConstraint.isActive  = true
+            messageLabel.textColor = .white
+            messageLabel.text = "🎵 \(msg)"
+            leadingConstraint.isActive = true
+            applyButton.isHidden = false
+            applyButtonHeightConstraint.constant = 28
+            messageLabel.lineBreakMode = .byWordWrapping
+            applyAction = action
         }
     }
-  }
 
+    @objc private func applyTapped() {
+        applyAction?()
+    }
+}

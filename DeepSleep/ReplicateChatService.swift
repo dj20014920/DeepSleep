@@ -1,3 +1,4 @@
+
 import Foundation
 
 class ReplicateChatService {
@@ -8,7 +9,7 @@ class ReplicateChatService {
 
     func sendPrompt(_ prompt: String, completion: @escaping (String?) -> Void) {
         guard let apiToken = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String else {
-            print("❌ API 토큰을 불러오지 못했습니다.")
+            print("❌ API 토큰 불러오기 실패")
             completion(nil)
             return
         }
@@ -33,17 +34,36 @@ class ReplicateChatService {
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             guard let data = data, error == nil else {
-                print("❌ Error: \(error?.localizedDescription ?? "Unknown error")")
+                print("❌ 에러: \(error?.localizedDescription ?? "Unknown error")")
                 completion(nil)
                 return
             }
 
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("✅ Response: \(responseString)")
-                completion(responseString)
-            } else {
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                   let output = json["output"] as? [String],
+                   let finalMessage = output.first {
+                    print("✅ 파싱된 응답: \(finalMessage)")
+                    completion(finalMessage)
+                } else {
+                    print("❌ 응답 파싱 실패")
+                    completion(nil)
+                }
+            } catch {
+                print("❌ JSON 파싱 오류: \(error)")
                 completion(nil)
             }
         }.resume()
+    }
+
+    func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
+        let presetFormat = SoundPresetCatalog.labels.prefix(12).joined(separator: ", ")
+        let prompt = """
+        감정: \(emotion)
+        프리셋 요소: \(presetFormat)
+        응답 형식 예시: [프리셋 이름] Rain:80, Wind:60, Fan:40 ...
+        설명 없이 이 형식만 출력해줘.
+        """
+        sendPrompt(prompt, completion: completion)
     }
 }

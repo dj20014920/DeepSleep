@@ -75,8 +75,8 @@ class ViewController: UIViewController {
     
     @objc private func hashtagTapped() {
         let chatVC = ChatViewController()
-        chatVC.initialUserText = nil  // 해시태그는 직접 문장 입력 유도
-        chatVC.onPresetApply = { (preset: RecommendationResponse) in
+        chatVC.initialUserText = nil
+        chatVC.onPresetApply = { (preset: ChatViewController.RecommendationResponse) in
             for (i, v) in preset.volumes.enumerated() where i < self.sliders.count {
                 self.sliders[i].value = v
                 self.volumeFields[i].text = "\(Int(v))"
@@ -86,11 +86,11 @@ class ViewController: UIViewController {
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }
-    
+
     @objc private func emojiTapped(_ sender: UIButton) {
         let chatVC = ChatViewController()
         chatVC.initialUserText = emojis[sender.tag]
-        chatVC.onPresetApply = { (preset: RecommendationResponse) in
+        chatVC.onPresetApply = { (preset: ChatViewController.RecommendationResponse) in
             for (i, v) in preset.volumes.enumerated() where i < self.sliders.count {
                 self.sliders[i].value = v
                 self.volumeFields[i].text = "\(Int(v))"

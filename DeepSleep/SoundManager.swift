@@ -6,7 +6,7 @@ final class SoundManager {
     static let shared = SoundManager()
     /// 앱 번들에 추가해 둘 사운드 파일 이름 (확장자 포함)
     /// 순서가 ViewController.sliderLabels 순서(A~L)와 1:1 매핑됩니다.
-    private let soundFileNames = [
+    private var soundFileNames = [
         "rain.mp3", "thunder.mp3", "wave.mp3", "bonfire.mp3",
         "steam.mp3", "windowsill_rain.mp3", "forest_bird.mp3", "cold_wind.mp3",
         "summer_night.mp3", "lullaby.mp3", "fan.mp3", "white_noise.mp3"
