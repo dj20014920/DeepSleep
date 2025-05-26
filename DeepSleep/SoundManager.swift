@@ -65,13 +65,25 @@ final class SoundManager {
     
     // MARK: - 전체 제어
     
-    /// 모든 트랙 일괄 재생 / 일시정지
+    /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만)
     func playAll() {
-        players.forEach { if !$0.isPlaying { $0.play() } }
+        for (index, player) in players.enumerated() {
+            // 볼륨이 0보다 큰 플레이어만 재생
+            if player.volume > 0 && !player.isPlaying {
+                player.play()
+            }
+        }
+        print("전체 재생 시작")
     }
     
+    /// 모든 트랙 일괄 일시정지
     func pauseAll() {
-        players.forEach { if $0.isPlaying { $0.pause() } }
+        for player in players {
+            if player.isPlaying {
+                player.pause()
+            }
+        }
+        print("전체 재생 일시정지")
     }
     
     /// 완전 중지 (재생 위치 리셋)
@@ -86,14 +98,20 @@ final class SoundManager {
     
     func play(at index: Int) {
         guard index >= 0, index < players.count else { return }
-        let p = players[index]
-        if !p.isPlaying { p.play() }
+        let player = players[index]
+        if !player.isPlaying && player.volume > 0 {
+            player.play()
+            print("사운드 \(index) 재생 시작")
+        }
     }
     
     func pause(at index: Int) {
         guard index >= 0, index < players.count else { return }
-        let p = players[index]
-        if p.isPlaying { p.pause() }
+        let player = players[index]
+        if player.isPlaying {
+            player.pause()
+            print("사운드 \(index) 일시정지")
+        }
     }
     
     func isPlaying(at index: Int) -> Bool {
@@ -119,11 +137,17 @@ final class SoundManager {
     
     /// 프리셋 적용 (볼륨 설정 + 재생 시작)
     func applyPreset(volumes: [Float]) {
-        // 1. 모든 사운드 재생 시작 (볼륨 0 상태)
-        playAll()
-        
-        // 2. 볼륨 설정
+        // 1. 먼저 볼륨 설정
         setVolumes(volumes)
+        
+        // 2. 볼륨이 0 이상인 사운드만 재생 시작
+        for (index, volume) in volumes.enumerated() {
+            if index < players.count && volume > 0 {
+                play(at: index)
+            } else if index < players.count && volume == 0 {
+                pause(at: index)
+            }
+        }
         
         print("프리셋 적용 완료: \(volumes)")
     }

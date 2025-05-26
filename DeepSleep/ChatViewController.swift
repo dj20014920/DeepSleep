@@ -4,19 +4,16 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     var messages: [ChatMessage] = []
     var initialUserText: String? = nil
     var onPresetApply: ((RecommendationResponse) -> Void)? = nil
+
     private var bottomConstraint: NSLayoutConstraint?
     
     private var dailyChatCount: Int {
-        let today = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
-        let history = UserDefaults.standard.dictionary(forKey: "chatUsage") as? [String: Int] ?? [:]
-        return history[today] ?? 0
+        let todayStats = SettingsManager.shared.getTodayStats()
+        return todayStats.chatCount
     }
 
     private func incrementDailyChatCount() {
-        let today = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
-        var history = UserDefaults.standard.dictionary(forKey: "chatUsage") as? [String: Int] ?? [:]
-        history[today] = (history[today] ?? 0) + 1
-        UserDefaults.standard.set(history, forKey: "chatUsage")
+        SettingsManager.shared.incrementChatUsage()
     }
 
     struct RecommendationResponse {
@@ -41,7 +38,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     private let inputContainerView = UIView()
     private let inputTextField: UITextField = {
         let tf = UITextField()
-        tf.placeholder = "대화를 입력해보세요..."
+        tf.placeholder = "마음을 편하게 말해보세요..."
         tf.borderStyle = .roundedRect
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
@@ -211,9 +208,9 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
     }
 
-    // MARK: - Preset Recommendation (개선됨)
+    // MARK: - Preset Recommendation
     @objc private func presetButtonTapped() {
-        guard PresetLimitManager.shared.canUseToday() else {
+        guard SettingsManager.shared.canUsePresetRecommendationToday() else {
             appendChat(.bot("❌ 오늘 프리셋 추천 횟수를 모두 사용했어요!\n내일 다시 만나요 😊"))
             return
         }
@@ -227,12 +224,12 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }.joined(separator: "\n")
 
         let emotionContext = initialUserText ?? "일반적인 기분"
+        let systemPrompt = buildEmotionalPrompt(emotion: emotionContext, recentChat: recentMessages)
         
         appendChat(.user("지금 기분에 맞는 사운드 추천해줘! 🎵"))
         appendChat(.bot("AI가 당신의 마음을 읽고 있어요... 🔍\n완벽한 사운드 조합을 찾는 중이에요."))
 
-        // ReplicateChatService의 recommendPreset 사용
-        ReplicateChatService.shared.recommendPreset(emotion: "\(emotionContext)\n최근 대화: \(recentMessages)") { [weak self] result in
+        ReplicateChatService.shared.sendPrompt(message: systemPrompt, intent: "recommendPreset") { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let response = result,
@@ -245,16 +242,11 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                         presetName: presetName,
                         message: "🎵 \(presetName)이 준비되었어요!\n\(encouragingMessage)",
                         apply: {
-                            // 사운드 적용
-                            SoundManager.shared.applyPreset(volumes: parsed.volumes)
-                            
-                            // 프리셋 저장 (선택적)
-                            self.saveRecommendedPreset(parsed)
-                            
+                            self.onPresetApply?(parsed)
                             self.navigationController?.popViewController(animated: true)
                         }
                     ))
-                    PresetLimitManager.shared.incrementUsage()
+                    SettingsManager.shared.incrementPresetRecommendationUsage()
                 } else {
                     self.appendChat(.bot("❌ 추천 과정에서 문제가 생겼어요.\n잠시 후 다시 시도해주세요."))
                 }
@@ -312,28 +304,22 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         inputTextField.text = ""
         appendChat(.user(text))
         
-        if dailyChatCount >= 50 {
+        if !SettingsManager.shared.canUseChatToday() {
             appendChat(.bot("❌ 오늘의 채팅 횟수를 모두 사용하셨어요.\n내일 다시 만나요! 😊"))
             return
-        } else if dailyChatCount == 40 {
+        } else if SettingsManager.shared.getTodayStats().chatCount >= 40 {
             appendChat(.bot("⚠️ 오늘 채팅 횟수가 10회 남았어요.\n소중한 시간이니 천천히 대화해요 💝"))
         }
         
         let isDiary = text.count > 30 || text.contains("오늘") || text.contains("하루")
         let intent = isDiary ? "diary" : "chat"
         
-        // 감정 맥락을 포함한 메시지 구성
-        let contextualMessage = buildContextualMessage(userText: text, isDiary: isDiary)
+        let emotionalPrompt = buildChatPrompt(userMessage: text, isDiary: isDiary)
 
-        ReplicateChatService.shared.sendPrompt(message: contextualMessage, intent: intent) { [weak self] response in
+        ReplicateChatService.shared.sendPrompt(message: emotionalPrompt, intent: intent) { [weak self] response in
             DispatchQueue.main.async {
                 if let msg = response {
                     self?.appendChat(.bot(msg))
-                    
-                    // 감정 일기 저장 (선택적)
-                    if isDiary {
-                        self?.saveEmotionDiary(userMessage: text, aiResponse: msg)
-                    }
                 } else {
                     self?.appendChat(.bot("❌ 지금 응답을 불러올 수 없어요.\n잠시 후 다시 시도해주세요."))
                 }
@@ -341,18 +327,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
         incrementDailyChatCount()
     }
-    private func saveEmotionDiary(userMessage: String, aiResponse: String) {
-        let entry = EmotionDiary(
-            date: Date(),
-            emotion: initialUserText ?? "😊",
-            userMessage: userMessage,
-            aiResponse: aiResponse,
-            recommendedPreset: nil
-        )
-        
-        EmotionDiaryManager.shared.saveEntry(entry)
-        print("감정 일기 저장 완료")
-    }
+
     private func buildChatPrompt(userMessage: String, isDiary: Bool) -> String {
         let basePrompt = """
         당신은 감정을 깊이 이해하고 진심으로 위로해주는 AI 친구입니다.
@@ -427,16 +402,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         return RecommendationResponse(volumes: volumes, presetName: presetName)
     }
-    private func getEmotionContext(for emoji: String) -> String {
-        switch emoji {
-        case "😢", "😞", "😔": return "슬픔, 우울함"
-        case "😰", "😱", "😨": return "불안, 걱정"
-        case "😴", "😪": return "피곤함, 졸림"
-        case "😊", "😄", "🥰": return "기쁨, 행복"
-        case "😡", "😤": return "화남, 짜증"
-        default: return "일반적인 상태"
-        }
-    }
+
     private func parseBasicFormat(from response: String) -> RecommendationResponse? {
         // 기본 포맷이 실패했을 때의 감정별 기본 프리셋
         let emotion = initialUserText ?? "😊"
@@ -493,32 +459,6 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         cell.configure(with: messages[indexPath.row])
         return cell
     }
-    private func saveRecommendedPreset(_ response: RecommendationResponse) {
-        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short)
-        let presetName = "\(response.presetName) (\(timestamp))"
-        
-        PresetManager.shared.savePreset(name: presetName, volumes: response.volumes)
-        print("프리셋 저장 완료: \(presetName)")
-    }
-    // MARK: - Helper Methods
-    private func buildContextualMessage(userText: String, isDiary: Bool) -> String {
-        let emotion = initialUserText ?? "😊"
-        let emotionContext = getEmotionContext(for: emotion)
-        
-        let baseMessage = """
-        사용자 감정 상태: \(emotion) (\(emotionContext))
-        사용자 메시지: \(userText)
-        
-        위 내용을 바탕으로 따뜻하고 공감적인 응답을 해주세요.
-        """
-        
-        if isDiary {
-            return baseMessage + "\n\n이것은 일기 형태의 긴 이야기입니다. 충분히 들어주고 깊이 공감해주세요."
-        }
-        
-        return baseMessage
-    }
-    
 }
 
 // MARK: - ChatMessage enum (동일)
@@ -567,40 +507,5 @@ class PresetLimitManager {
         var usage = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
         usage[today] = (usage[today] ?? 0) + 1
         UserDefaults.standard.set(usage, forKey: key)
-    }
-}
-
-struct EmotionDiary: Codable {
-    let date: Date
-    let emotion: String
-    let userMessage: String
-    let aiResponse: String
-    let recommendedPreset: String?
-}
-
-class EmotionDiaryManager {
-    static let shared = EmotionDiaryManager()
-    private let key = "emotionDiary"
-    
-    func saveEntry(_ entry: EmotionDiary) {
-        var entries = loadEntries()
-        entries.append(entry)
-        
-        // 최대 100개 항목만 유지
-        if entries.count > 100 {
-            entries = Array(entries.suffix(100))
-        }
-        
-        if let data = try? JSONEncoder().encode(entries) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
-    }
-    
-    func loadEntries() -> [EmotionDiary] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let entries = try? JSONDecoder().decode([EmotionDiary].self, from: data) else {
-            return []
-        }
-        return entries
     }
 }
