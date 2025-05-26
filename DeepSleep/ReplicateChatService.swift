@@ -9,7 +9,7 @@ class ReplicateChatService {
 
     func sendPrompt(_ prompt: String, completion: @escaping (String?) -> Void) {
         guard let apiToken = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String else {
-            print("❌ API 토큰 불러오기 실패")
+            print("❌ API 토큰 누락")
             completion(nil)
             return
         }
@@ -29,33 +29,62 @@ class ReplicateChatService {
                 "max_new_tokens": 800
             ]
         ]
-
         request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else {
-                print("❌ 에러: \(error?.localizedDescription ?? "Unknown error")")
+        // 1차 요청 (prediction 생성)
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let predictionID = json["id"] as? String else {
+                print("❌ Prediction 생성 실패")
                 completion(nil)
                 return
             }
 
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                   let output = json["output"] as? [String],
-                   let finalMessage = output.first {
-                    print("✅ 파싱된 응답: \(finalMessage)")
-                    completion(finalMessage)
-                } else {
-                    print("❌ 응답 파싱 실패")
-                    completion(nil)
-                }
-            } catch {
-                print("❌ JSON 파싱 오류: \(error)")
-                completion(nil)
-            }
+            print("🧪 Prediction ID: \(predictionID)")
+
+            // 2차 요청 (polling)
+            self.pollPredictionResult(id: predictionID, token: apiToken, attempts: 0, completion: completion)
+
         }.resume()
     }
 
+    private func pollPredictionResult(id: String, token: String, attempts: Int, completion: @escaping (String?) -> Void) {
+        guard attempts < 30 else {
+            print("❌ 결과 polling 실패: 시도 횟수 초과")
+            completion(nil)
+            return
+        }
+
+        let getURL = URL(string: "https://api.replicate.com/v1/predictions/\(id)")!
+        var getRequest = URLRequest(url: getURL)
+        getRequest.httpMethod = "GET"
+        getRequest.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: getRequest) { data, _, _ in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let status = json["status"] as? String else {
+                print("❌ polling 응답 파싱 실패")
+                completion(nil)
+                return
+            }
+
+            if status == "succeeded", let output = json["output"] as? [String], let result = output.first {
+                print("✅ 결과 수신 완료: \(result)")
+                completion(result)
+            } else if status == "failed" {
+                print("❌ 모델 실행 실패")
+                completion(nil)
+            } else {
+                print("⏳ 결과 대기 중... (\(attempts + 1))")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.pollPredictionResult(id: id, token: token, attempts: attempts + 1, completion: completion)
+                }
+            }
+        }.resume()
+    }
+    
     func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
         let presetFormat = SoundPresetCatalog.labels.prefix(12).joined(separator: ", ")
         let prompt = """

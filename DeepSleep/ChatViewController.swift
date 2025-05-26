@@ -10,6 +10,18 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     var messages: [ChatMessage] = []
     var initialUserText: String? = nil
     var onPresetApply: ((RecommendationResponse) -> Void)? = nil
+    private var dailyChatCount: Int {
+        let today = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+        let history = UserDefaults.standard.dictionary(forKey: "chatUsage") as? [String: Int] ?? [:]
+        return history[today] ?? 0
+    }
+
+    private func incrementDailyChatCount() {
+        let today = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+        var history = UserDefaults.standard.dictionary(forKey: "chatUsage") as? [String: Int] ?? [:]
+        history[today] = (history[today] ?? 0) + 1
+        UserDefaults.standard.set(history, forKey: "chatUsage")
+    }
     
     struct RecommendationResponse {
         let volumes: [Float]
@@ -35,7 +47,22 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
     }()
+    
+    let systemIntroPrompt = """
+    당신은 수면 보조 앱 'DeepSleep'의 AI 도우미입니다.
 
+    사용자의 기분 이모지 또는 감정이 담긴 일기 입력을 바탕으로,
+    상대방의 감정에 공감하며 따뜻하게 반응해주는 역할을 합니다.
+
+    당신의 목표는 다음과 같습니다:
+    1. 사용자가 보내는 감정에 진심으로 공감해주고,
+    2. 너무 길지 않게 (2~3줄 이내) 자연스럽고 부드러운 위로의 말을 건네는 것입니다.
+    3. 친절하고 차분한 말투를 유지하며, 사용자와 감정적으로 연결될 수 있도록 응답합니다.
+
+    질문에 답할 때는 너무 분석적이거나 딱딱한 설명은 피해주세요.
+    감정 기반 대화에 집중하고, 필요 시 프리셋 추천은 별도로 요청받을 때만 응답하면 됩니다.
+    """
+    
     private let sendButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("전송", for: .normal)
@@ -58,7 +85,9 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         view.backgroundColor = .white
         setupUI()
         setupConstraints()
-        
+        if let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: String]] {
+            self.messages = saved.compactMap { ChatMessage.from(dictionary: $0) }
+        }
         tableView.delegate = self
         tableView.dataSource = self
         
@@ -224,13 +253,39 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     }
 
     @objc private func sendButtonTapped() {
-        guard let text = inputTextField.text, !text.isEmpty else { return }
+        if dailyChatCount >= 50 {
+            appendChat(.bot("❌ 오늘의 채팅 횟수(50회)를 모두 사용하셨어요. 내일 다시 이용해주세요!"))
+            return
+        } else if dailyChatCount == 40 {
+            appendChat(.bot("ℹ️ 오늘의 채팅 사용량이 10회 남았어요."))
+        }
+        incrementDailyChatCount()
         
+        guard let text = inputTextField.text, !text.isEmpty else { return }
         inputTextField.text = ""
         appendChat(.user(text))
-        
-        // 일반적인 대화 처리
-        ReplicateChatService.shared.sendPrompt(text) { response in
+
+        let isDiary = text.contains("오늘") || text.contains("힘들었") || text.count > 30
+
+        let prompt = isDiary
+        ? """
+        \(systemIntroPrompt)
+
+        사용자가 다음과 같은 감정을 담은 일기를 작성했어요:
+
+        \"\(text)\"
+
+        이 감정에 따뜻하게 공감하며 진심 어린 위로의 말을 2~3줄 이내로 건네주세요.
+        너무 딱딱한 분석이나 조언보다는 감정적인 연결감을 주는 말이 더 좋아요.
+        """
+        : """
+        \(systemIntroPrompt)
+
+        사용자의 질문 또는 메시지: \(text)
+        이에 대해 자연스럽고 감정 친화적인 반응을 2~3줄 이내로 해주세요.
+        """
+
+        ReplicateChatService.shared.sendPrompt(prompt) { response in
             DispatchQueue.main.async {
                 if let msg = response {
                     self.appendChat(.bot(msg))
@@ -250,6 +305,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                 self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
             }
         }
+        UserDefaults.standard.set(messages.map { $0.toDictionary() }, forKey: "chatHistory")
     }
 
     func parseRecommendation(from response: String) -> RecommendationResponse? {
@@ -309,5 +365,30 @@ class PresetLimitManager {
         var usage = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
         usage[today] = (usage[today] ?? 0) + 1
         UserDefaults.standard.set(usage, forKey: key)
+    }
+}
+
+extension ChatMessage {
+    func toDictionary() -> [String: String] {
+        switch self {
+        case .user(let msg):
+            return ["type": "user", "text": msg]
+        case .bot(let msg):
+            return ["type": "bot", "text": msg]
+        case .presetRecommendation(let presetName, let msg, _):
+            return ["type": "preset", "text": msg, "presetName": presetName]
+        }
+    }
+
+    static func from(dictionary: [String: String]) -> ChatMessage? {
+        guard let type = dictionary["type"], let text = dictionary["text"] else { return nil }
+        switch type {
+        case "user": return .user(text)
+        case "bot": return .bot(text)
+        case "preset":
+            let name = dictionary["presetName"] ?? "추천 프리셋"
+            return .presetRecommendation(presetName: name, message: text, apply: {})
+        default: return nil
+        }
     }
 }

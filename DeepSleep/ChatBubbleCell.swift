@@ -3,6 +3,9 @@ import Foundation
 
 class ChatBubbleCell: UITableViewCell {
     static let identifier = "ChatBubbleCell"
+    private var messageLabelBottomConstraint: NSLayoutConstraint!
+    private var messageLabelToButtonConstraint: NSLayoutConstraint!
+    private var applyButtonBottomConstraint: NSLayoutConstraint!
     private var applyButtonHeightConstraint: NSLayoutConstraint!
     private let bubbleView: UIView = {
         let view = UIView()
@@ -49,16 +52,17 @@ class ChatBubbleCell: UITableViewCell {
         bubbleView.addSubview(applyButton)
         applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 28)
         applyButtonHeightConstraint.isActive = true
+        messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
+        messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 8)
+        applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
         // 공통 제약
         NSLayoutConstraint.activate([
             messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
-            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
-            messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
-            messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
-            applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 8),
-            applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
-            applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
-            applyButton.heightAnchor.constraint(equalToConstant: 28)
+                messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
+                messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
+                messageLabelBottomConstraint,
+                applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
+                applyButtonHeightConstraint
         ])
 
         // 버블뷰 자체 제약
@@ -81,6 +85,9 @@ class ChatBubbleCell: UITableViewCell {
         applyAction = nil
         leadingConstraint.isActive = false
         trailingConstraint.isActive = false
+        messageLabelBottomConstraint.isActive = false
+        messageLabelToButtonConstraint.isActive = false
+        applyButtonBottomConstraint.isActive = false
 
         switch message {
         case .user(let text):
@@ -89,14 +96,16 @@ class ChatBubbleCell: UITableViewCell {
             messageLabel.text = text
             messageLabel.lineBreakMode = .byWordWrapping
             trailingConstraint.isActive = true
-            
+            messageLabelBottomConstraint.isActive = true
+
         case .bot(let text):
             bubbleView.backgroundColor = UIColor(white: 0.90, alpha: 1)
             messageLabel.textColor = .black
             messageLabel.text = text
             messageLabel.lineBreakMode = .byWordWrapping
             leadingConstraint.isActive = true
-            
+            messageLabelBottomConstraint.isActive = true
+
         case .presetRecommendation(_, let msg, let action):
             bubbleView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
             messageLabel.textColor = .white
@@ -105,6 +114,9 @@ class ChatBubbleCell: UITableViewCell {
             applyButton.isHidden = false
             applyButtonHeightConstraint.constant = 28
             messageLabel.lineBreakMode = .byWordWrapping
+            applyButton.isHidden = false
+                messageLabelToButtonConstraint.isActive = true
+                applyButtonBottomConstraint.isActive = true
             applyAction = action
         }
     }
