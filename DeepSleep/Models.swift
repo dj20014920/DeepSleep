@@ -84,6 +84,33 @@ struct EmotionDiary: Codable, Identifiable {
     }
 }
 
+struct DiaryContext {
+    let emotion: String
+    let content: String
+    let date: Date
+    
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy년 M월 d일"
+        return formatter.string(from: date)
+    }
+    
+    var contextPrompt: String {
+        return """
+        사용자가 작성한 감정 일기:
+        
+        날짜: \(formattedDate)
+        감정: \(emotion)
+        
+        일기 내용:
+        \(content)
+        
+        위 일기를 읽고 사용자의 감정에 깊이 공감해주시고, 
+        따뜻하고 위로가 되는 대화를 해주세요.
+        마음의 안정을 위한 조언도 함께 해주시면 좋겠습니다.
+        """
+    }
+}
 // MARK: - 사용자 설정 모델
 struct UserSettings: Codable {
     var dailyChatLimit: Int = 50

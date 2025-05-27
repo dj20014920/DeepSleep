@@ -3,6 +3,8 @@ import UIKit
 class ChatViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     var messages: [ChatMessage] = []
     var initialUserText: String? = nil
+    var diaryContext: DiaryContext? = nil
+    var emotionPatternData: String? = nil  // ✅ 감정 패턴 데이터 추가
     var onPresetApply: ((RecommendationResponse) -> Void)? = nil
 
     private var bottomConstraint: NSLayoutConstraint?
@@ -178,16 +180,175 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
     }
 
-    // MARK: - Initial Messages
+    // MARK: - ✅ 완전히 수정된 setupInitialMessages
     private func setupInitialMessages() {
-        if let emoji = initialUserText {
-            appendChat(.user("선택한 기분: \(emoji)"))
-            // 감정에 따른 맞춤 첫 인사
-            let greeting = getEmotionalGreeting(for: emoji)
+        if let diary = diaryContext {
+            // ✅ 일기 분석 모드
+            appendChat(.user("📝 이 일기를 분석해주세요"))
+            
+            let initialResponse = """
+            📖 \(diary.emotion) 이런 기분으로 일기를 써주셨군요.
+            
+            차근차근 마음 이야기를 나눠볼까요? 
+            어떤 부분이 가장 마음에 남으셨나요?
+            """
+            
+            appendChat(.bot(initialResponse))
+            
+            // AI에게 일기 분석 요청
+            requestDiaryAnalysis(diary: diary)
+            
+        } else if let patternData = emotionPatternData {
+            // ✅ 감정 패턴 분석 모드
+            appendChat(.user("📊 최근 감정 패턴을 분석해주세요"))
+            
+            let initialResponse = """
+            📈 최근 30일간의 감정 패턴을 분석해드릴게요.
+            
+            패턴을 살펴보고 있어요... 잠시만 기다려주세요! 💭
+            """
+            
+            appendChat(.bot(initialResponse))
+            
+            // AI에게 패턴 분석 요청
+            requestPatternAnalysis(patternData: patternData)
+            
+        } else if let userText = initialUserText,
+                  userText != "일기_분석_모드" && userText != "감정_패턴_분석_모드" {
+            // ✅ 기존 감정 선택 모드
+            appendChat(.user("선택한 기분: \(userText)"))
+            let greeting = getEmotionalGreeting(for: userText)
             appendChat(.bot(greeting))
         } else {
+            // ✅ 기본 대화 모드
             appendChat(.bot("안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요."))
         }
+    }
+    
+    // MARK: - ✅ 일기 분석 요청 메소드
+    private func requestDiaryAnalysis(diary: DiaryContext) {
+        appendChat(.bot("일기를 깊이 분석하고 있어요... 💭"))
+        
+        let analysisPrompt = """
+        당신은 감정을 이해하고 따뜻하게 위로해주는 심리 상담사입니다.
+        
+        사용자의 일기:
+        감정: \(diary.emotion)
+        날짜: \(diary.formattedDate)
+        내용: \(diary.content)
+        
+        위 일기를 분석하여:
+        1. 사용자의 감정 상태에 깊이 공감
+        2. 긍정적인 부분 찾아 격려
+        3. 힘든 부분이 있다면 위로
+        4. 앞으로를 위한 따뜻한 조언
+        
+        자연스럽고 따뜻한 한국어로 대화해주세요.
+        """
+        
+        ReplicateChatService.shared.sendPrompt(
+            message: analysisPrompt,
+            intent: "diary_analysis"
+        ) { [weak self] response in
+            DispatchQueue.main.async {
+                if let analysis = response {
+                    self?.appendChat(.bot(analysis))
+                } else {
+                    self?.appendChat(.bot("❌ 일기 분석 중 문제가 발생했어요.\n직접 대화로 마음을 나눠볼까요?"))
+                }
+            }
+        }
+    }
+
+    // MARK: - ✅ 새로 추가한 패턴 분석 요청 메소드
+    private func requestPatternAnalysis(patternData: String) {
+        let analysisPrompt = """
+        당신은 전문적인 감정 패턴 분석가이자 심리 상담사입니다.
+        
+        사용자의 감정 패턴 데이터:
+        \(patternData)
+        
+        위 데이터를 분석하여:
+        1. 주요 감정 패턴 해석
+        2. 긍정적인 변화 포인트 발견
+        3. 개선이 필요한 부분 파악
+        4. 감정 건강을 위한 실용적 조언
+        5. 앞으로의 감정 관리 방향 제시
+        
+        따뜻하고 격려적인 어조로, 사용자가 자신의 감정을 더 잘 이해할 수 있도록 도와주세요.
+        전문적이지만 친근한 언어로 설명해주세요.
+        """
+        
+        ReplicateChatService.shared.sendPrompt(
+            message: analysisPrompt,
+            intent: "pattern_analysis"
+        ) { [weak self] response in
+            DispatchQueue.main.async {
+                if let analysis = response {
+                    self?.appendChat(.bot(analysis))
+                    
+                    // 추가 질문 제안
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self?.appendChat(.bot("""
+                        💡 더 궁금한 것이 있다면 언제든 물어보세요:
+                        
+                        • "어떤 요일에 기분이 가장 좋나요?"
+                        • "스트레스 관리 방법을 알려주세요"
+                        • "감정 기복을 줄이는 방법은?"
+                        • "이런 패턴이 정상인가요?"
+                        """))
+                    }
+                } else {
+                    self?.appendChat(.bot("❌ 패턴 분석 중 문제가 발생했어요.\n직접 질문해주시면 도움드릴게요!"))
+                }
+            }
+        }
+    }
+
+    // MARK: - ✅ 통합된 buildChatPrompt 메소드 (중복 제거)
+    private func buildChatPrompt(userMessage: String, isDiary: Bool) -> String {
+        var basePrompt = """
+        당신은 감정을 깊이 이해하고 진심으로 위로해주는 AI 친구입니다.
+        사용자의 감정에 공감하고, 따뜻하고 자연스러운 한국어로 대화해주세요.
+        
+        대화 스타일:
+        - 진심어린 공감과 위로
+        - 부드럽고 따뜻한 어조
+        - 적절한 이모지 사용 (과하지 않게)
+        - 사용자의 감정을 인정하고 수용
+        - 실용적이면서도 감정적인 조언
+        """
+        
+        // ✅ 일기 컨텍스트가 있는 경우 추가
+        if let diary = diaryContext {
+            basePrompt += """
+            
+            참고 정보 - 사용자가 작성한 일기:
+            감정: \(diary.emotion)
+            내용: \(diary.content)
+            
+            이 일기 내용을 바탕으로 더 깊이 있는 대화를 해주세요.
+            """
+        }
+        
+        // ✅ 감정 패턴 데이터가 있는 경우 추가
+        if let patternData = emotionPatternData {
+            basePrompt += """
+            
+            참고 정보 - 사용자의 감정 패턴:
+            \(patternData)
+            
+            이 패턴을 참고하여 더 맞춤화된 대화를 해주세요.
+            """
+        }
+        
+        basePrompt += "\n\n사용자 메시지: \(userMessage)"
+        
+        if isDiary {
+            basePrompt += "\n\n이것은 일기 형태의 긴 이야기인 것 같습니다. 충분히 들어주고 깊이 공감해주세요."
+        }
+        
+        return basePrompt
     }
 
     // MARK: - Emotional Response
@@ -328,28 +489,6 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         incrementDailyChatCount()
     }
 
-    private func buildChatPrompt(userMessage: String, isDiary: Bool) -> String {
-        let basePrompt = """
-        당신은 감정을 깊이 이해하고 진심으로 위로해주는 AI 친구입니다.
-        사용자의 감정에 공감하고, 따뜻하고 자연스러운 한국어로 대화해주세요.
-        
-        대화 스타일:
-        - 진심어린 공감과 위로
-        - 부드럽고 따뜻한 어조
-        - 적절한 이모지 사용 (과하지 않게)
-        - 사용자의 감정을 인정하고 수용
-        - 실용적이면서도 감정적인 조언
-        
-        사용자 메시지: \(userMessage)
-        """
-        
-        if isDiary {
-            return basePrompt + "\n\n이것은 일기 형태의 긴 이야기인 것 같습니다. 충분히 들어주고 깊이 공감해주세요."
-        }
-        
-        return basePrompt
-    }
-
     private func appendChat(_ message: ChatMessage) {
         messages.append(message)
         tableView.reloadData()
@@ -461,7 +600,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     }
 }
 
-// MARK: - ChatMessage enum (동일)
+// MARK: - ChatMessage enum
 enum ChatMessage {
     case user(String)
     case bot(String)
@@ -491,7 +630,7 @@ enum ChatMessage {
     }
 }
 
-// MARK: - PresetLimitManager (동일)
+// MARK: - PresetLimitManager
 class PresetLimitManager {
     static let shared = PresetLimitManager()
     private let key = "presetUsageHistory"

@@ -18,7 +18,7 @@ class ReplicateChatService {
         monitor.start(queue: queue)
     }
 
-    // MARK: - 일반 메시지용 프롬프트 (개선됨)
+    // MARK: - sendPrompt 메소드 (모든 intent 지원)
     func sendPrompt(message: String, intent: String, completion: @escaping (String?) -> Void) {
         let contextPrompt: String
         
@@ -38,6 +38,53 @@ class ReplicateChatService {
             
             위 내용을 충분히 들어주고 깊이 공감해주세요.
             """
+        } else if intent == "diary_analysis" {
+            // ✅ 일기 분석 전용 프롬프트
+            contextPrompt = """
+            당신은 전문적인 감정 분석가이자 따뜻한 상담사입니다.
+            사용자가 작성한 일기를 분석하여 감정적 지지와 위로를 제공해주세요.
+            
+            분석 방향:
+            - 감정 상태에 대한 깊은 공감
+            - 긍정적인 요소 발견 및 격려
+            - 어려운 감정에 대한 따뜻한 위로
+            - 건설적이고 실용적인 조언
+            - 희망적인 미래 전망 제시
+            
+            응답 스타일:
+            - 따뜻하고 이해심 많은 어조
+            - 적절한 감정 이모지 (1-2개)
+            - 3-4문장의 적당한 길이
+            - 사용자의 감정을 먼저 인정
+            
+            분석할 일기 내용: \(message)
+            
+            위 일기를 분석하여 사용자에게 따뜻한 위로와 격려를 해주세요.
+            """
+        } else if intent == "pattern_analysis" {
+            // ✅ 감정 패턴 분석 전용 프롬프트
+            contextPrompt = """
+            당신은 감정 패턴 분석 전문가이자 심리 상담사입니다.
+            사용자의 장기간 감정 데이터를 분석하여 인사이트를 제공해주세요.
+            
+            분석 초점:
+            - 감정 패턴의 의미와 해석
+            - 긍정적인 변화와 성장 포인트
+            - 주의깊게 살펴볼 감정 경향
+            - 감정 건강 개선을 위한 구체적 조언
+            - 개인 맞춤형 감정 관리 전략
+            
+            응답 스타일:
+            - 전문적이지만 따뜻한 어조
+            - 데이터 기반의 객관적 분석
+            - 실용적이고 실행 가능한 조언
+            - 희망적이고 격려적인 메시지
+            - 적절한 구조화 (불릿 포인트 등)
+            
+            분석할 감정 패턴 데이터: \(message)
+            
+            위 패턴을 전문적으로 분석하여 사용자의 감정 건강 향상을 도와주세요.
+            """
         } else {
             contextPrompt = """
             당신은 감정을 이해하고 따뜻하게 위로해주는 AI 친구입니다.
@@ -55,16 +102,16 @@ class ReplicateChatService {
 
         let input: [String: Any] = [
             "prompt": contextPrompt,
-            "temperature": intent == "diary" ? 0.8 : 0.7,
+            "temperature": intent == "diary" || intent == "diary_analysis" ? 0.8 : (intent == "pattern_analysis" ? 0.7 : 0.7),
             "top_p": 0.9,
-            "max_tokens": intent == "diary" ? 400 : 200,
+            "max_tokens": intent == "pattern_analysis" ? 500 : (intent == "diary_analysis" ? 300 : (intent == "diary" ? 400 : 200)),
             "system_prompt": "한국어로 대화하는 친근하고 따뜻한 AI 친구입니다."
         ]
 
         sendToReplicate(input: input, completion: completion)
     }
 
-    // MARK: - 프리셋 추천용 프롬프트 (대폭 개선)
+    // MARK: - 프리셋 추천용 프롬프트 (기존 유지)
     func recommendPreset(emotion: String, completion: @escaping (String?) -> Void) {
         let prompt = """
         당신은 감정을 이해하고 사운드 테라피를 제공하는 전문가입니다.

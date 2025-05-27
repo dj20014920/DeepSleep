@@ -353,26 +353,17 @@ class DiaryWriteViewController: UIViewController {
         
         let chatVC = ChatViewController()
         chatVC.title = "일기 분석 대화"
+            chatVC.diaryContext = DiaryContext(
+            emotion: diaryEntry.selectedEmotion,
+            content: diaryEntry.userMessage,
+            date: diaryEntry.date
+        )
         
-        // AI에게 전달할 일기 내용
-        let diaryContext = """
-        오늘의 감정: \(diaryEntry.selectedEmotion)
+        chatVC.initialUserText = "일기를 분석해줘"
         
-        일기 내용:
-        \(diaryEntry.userMessage)
-        
-        위 일기를 읽고 감정을 공감해주시고, 
-        마음의 위로가 되는 따뜻한 대화를 해주세요.
-        """
-        
-        chatVC.initialUserText = diaryContext
-        
-        // 현재 화면을 닫고 채팅 화면으로 이동
-        dismiss(animated: true) {
-            if let navigationController = UIApplication.shared.windows.first?.rootViewController as? UINavigationController {
-                navigationController.pushViewController(chatVC, animated: true)
-            }
-        }
+        let navController = UINavigationController(rootViewController: chatVC)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
     }
     
     @objc private func cancelTapped() {
