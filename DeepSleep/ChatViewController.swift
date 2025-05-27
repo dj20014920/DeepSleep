@@ -518,14 +518,14 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         var volumes: [Float] = Array(repeating: 0, count: 12)
         
-        // 실제 SoundManager의 사운드 순서에 맞게 매핑
+        // ✅ 수정된 사운드 매핑 (중복 키 제거)
         let soundMapping: [String: Int] = [
             "Rain": 0, "Thunder": 1, "Ocean": 2, "Fire": 3,
             "Steam": 4, "WindowRain": 5, "Forest": 6, "Wind": 7,
             "Night": 8, "Lullaby": 9, "Fan": 10, "WhiteNoise": 11,
-            // 추가 매핑 (다양한 표현 허용)
+            // 추가 매핑 (다양한 표현 허용) - WhiteNoise 중복 제거
             "Wave": 2, "Bonfire": 3, "ColdWind": 7, "SummerNight": 8,
-            "WhiteNoise": 11, "BrownNoise": 11, "PinkNoise": 11
+            "BrownNoise": 11, "PinkNoise": 11, "Noise": 11
         ]
         
         let pairs = valuesString.components(separatedBy: ",")
