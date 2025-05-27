@@ -56,27 +56,17 @@ class ViewController: UIViewController {
         setupNotifications()
         setupGestures()
     }
-    
     private func configureNavBar() {
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            title: "타이머",
-            style: .plain,
-            target: self,
-            action: #selector(showTimer)
-        )
+        // 왼쪽: 타이머 + 일기
+        navigationItem.leftBarButtonItems = [
+            UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer)),
+            UIBarButtonItem(title: "일기", style: .plain, target: self, action: #selector(showDiary))
+        ]
+        
+        // 오른쪽: 저장 + 불러오기
         navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(
-                title: "저장",
-                style: .plain,
-                target: self,
-                action: #selector(savePresetTapped)
-            ),
-            UIBarButtonItem(
-                title: "불러오기",
-                style: .plain,
-                target: self,
-                action: #selector(loadPresetTapped)
-            )
+            UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped)),
+            UIBarButtonItem(title: "불러오기", style: .plain, target: self, action: #selector(loadPresetTapped))
         ]
     }
     
