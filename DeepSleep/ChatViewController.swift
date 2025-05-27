@@ -464,17 +464,14 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         guard let text = inputTextField.text, !text.isEmpty else { return }
         inputTextField.text = ""
         appendChat(.user(text))
-        
         if !SettingsManager.shared.canUseChatToday() {
             appendChat(.bot("❌ 오늘의 채팅 횟수를 모두 사용하셨어요.\n내일 다시 만나요! 😊"))
             return
         } else if SettingsManager.shared.getTodayStats().chatCount >= 40 {
             appendChat(.bot("⚠️ 오늘 채팅 횟수가 10회 남았어요.\n소중한 시간이니 천천히 대화해요 💝"))
         }
-        
         let isDiary = text.count > 30 || text.contains("오늘") || text.contains("하루")
         let intent = isDiary ? "diary" : "chat"
-        
         let emotionalPrompt = buildChatPrompt(userMessage: text, isDiary: isDiary)
 
         ReplicateChatService.shared.sendPrompt(message: emotionalPrompt, intent: intent) { [weak self] response in
