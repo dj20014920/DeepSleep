@@ -255,4 +255,34 @@ class SettingsManager {
             "exportDate": Date()
         ]
     }
+    func canWriteDiaryToday() -> Bool {
+            let today = getTodayDateString()
+            let lastDiaryDate = UserDefaults.standard.string(forKey: "lastDiaryDate")
+            return lastDiaryDate != today
+        }
+        
+        /// 일기 작성 완료 기록
+        func recordDiaryWritten() {
+            let today = getTodayDateString()
+            UserDefaults.standard.set(today, forKey: "lastDiaryDate")
+        }
+        
+        /// 오늘 날짜 문자열 반환
+        private func getTodayDateString() -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter.string(from: Date())
+        }
+        
+        /// 오늘 일기 개수 확인 (기존 일기들 중에서)
+        func getTodayDiaryCount() -> Int {
+            let diaries = loadEmotionDiary()
+            let today = Calendar.current.startOfDay(for: Date())
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+            
+            return diaries.filter { diary in
+                diary.date >= today && diary.date < tomorrow
+            }.count
+        }
 }
+

@@ -49,7 +49,7 @@ extension ViewController {
     @objc func hashtagTapped() {
         let chatVC = ChatViewController()
         chatVC.initialUserText = nil
-        chatVC.onPresetApply = { [weak self] (preset: ChatViewController.RecommendationResponse) in
+        chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
             self?.applyPreset(volumes: preset.volumes, name: preset.presetName)
         }
         navigationController?.pushViewController(chatVC, animated: true)
@@ -58,7 +58,7 @@ extension ViewController {
     @objc func emojiTapped(_ sender: UIButton) {
         let chatVC = ChatViewController()
         chatVC.initialUserText = emojis[sender.tag]
-        chatVC.onPresetApply = { [weak self] (preset: ChatViewController.RecommendationResponse) in
+        chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
             self?.applyPreset(volumes: preset.volumes, name: preset.presetName)
         }
         navigationController?.pushViewController(chatVC, animated: true)

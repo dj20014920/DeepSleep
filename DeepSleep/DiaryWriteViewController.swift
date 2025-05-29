@@ -291,7 +291,7 @@ class DiaryWriteViewController: UIViewController {
             return
         }
         
-        // 일기 저장
+        // ✅ 원래 구조 복원 - userMessage와 aiResponse 사용
         let diaryEntry = EmotionDiary(
             selectedEmotion: selectedEmotion,
             userMessage: diaryTextView.text.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -353,11 +353,9 @@ class DiaryWriteViewController: UIViewController {
         
         let chatVC = ChatViewController()
         chatVC.title = "일기 분석 대화"
-            chatVC.diaryContext = DiaryContext(
-            emotion: diaryEntry.selectedEmotion,
-            content: diaryEntry.userMessage,
-            date: diaryEntry.date
-        )
+        
+        // ✅ DiaryContext 올바른 초기화
+        chatVC.diaryContext = DiaryContext(from: diaryEntry)
         
         chatVC.initialUserText = "일기를 분석해줘"
         
