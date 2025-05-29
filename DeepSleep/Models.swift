@@ -143,6 +143,8 @@ struct UsageStats: Codable {
     let date: String
     var chatCount: Int = 0
     var presetRecommendationCount: Int = 0
+    var patternAnalysisCount: Int = 0
+    var diaryAnalysisCount: Int = 0 
     var timerUsageCount: Int = 0
     var totalSessionTime: TimeInterval = 0
     var mostUsedEmotion: String?

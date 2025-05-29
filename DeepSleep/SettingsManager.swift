@@ -284,5 +284,73 @@ class SettingsManager {
                 diary.date >= today && diary.date < tomorrow
             }.count
         }
-}
+    // MARK: - Pattern Analysis Usage Limits
+    func canUsePatternAnalysisToday() -> Bool {
+            let todayStats = getTodayStats()
+            return todayStats.patternAnalysisCount < 1  // ✅ 하루 1번으로 변경
+        }
+        
+        /// 감정 패턴 분석 사용 횟수 증가
+        func incrementPatternAnalysisUsage() {
+            updateTodayStats { stats in
+                stats.patternAnalysisCount += 1
+            }
+        }
+        
+        /// 오늘 감정 패턴 분석 사용 횟수 조회
+        func getPatternAnalysisUsageToday() -> Int {
+            let todayStats = getTodayStats()
+            return todayStats.patternAnalysisCount
+        }
+        
+        /// 오늘 남은 감정 패턴 분석 횟수 조회
+        func getRemainingPatternAnalysisToday() -> Int {
+            let used = getPatternAnalysisUsageToday()
+            return max(0, 1 - used)  // ✅ 1회에서 사용한 횟수를 뺀 값
+        }
+        
+        /// 감정 패턴 분석 제한 리셋 (개발/테스트용)
+        #if DEBUG
+        func resetPatternAnalysisLimit() {
+            updateTodayStats { stats in
+                stats.patternAnalysisCount = 0
+            }
+            print("✅ 감정 패턴 분석 제한이 리셋되었습니다.")
+        }
+        #endif
+    
+    /// 오늘 일기 분석 대화 사용 가능 여부 (하루 1회 제한)
+        func canUseDiaryAnalysisToday() -> Bool {
+            let todayStats = getTodayStats()
+            return todayStats.diaryAnalysisCount < 1  // 하루 1번 제한
+        }
+        
+        /// 일기 분석 대화 사용 횟수 증가
+        func incrementDiaryAnalysisUsage() {
+            updateTodayStats { stats in
+                stats.diaryAnalysisCount += 1
+            }
+        }
+        
+        /// 오늘 일기 분석 대화 사용 횟수 조회
+        func getDiaryAnalysisUsageToday() -> Int {
+            let todayStats = getTodayStats()
+            return todayStats.diaryAnalysisCount
+        }
+        
+        /// 오늘 남은 일기 분석 대화 횟수 조회
+        func getRemainingDiaryAnalysisToday() -> Int {
+            let used = getDiaryAnalysisUsageToday()
+            return max(0, 1 - used)
+        }
+        
+        #if DEBUG
+        func resetDiaryAnalysisLimit() {
+            updateTodayStats { stats in
+                stats.diaryAnalysisCount = 0
+            }
+            print("✅ 일기 분석 대화 제한이 리셋되었습니다.")
+        }
+        #endif
+    }
 

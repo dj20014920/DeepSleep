@@ -3,7 +3,7 @@ import UIKit
 // MARK: - ChatViewController Analysis Extension
 extension ChatViewController {
     
-    // MARK: - Analysis Methods
+    // MARK: - ✅ 일기 분석 메소드 - intent 정확히 설정
     func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
         appendChat(.bot("일기 분석 중... 💭"))
         
@@ -11,17 +11,25 @@ extension ChatViewController {
         감정:\(diary.emotion) 날짜:\(diary.formattedDate)
         일기:\(diary.content)
         
-        분석: 공감+격려+조언
+        깊이 있는 일기 분석을 해주세요:
+        1. 감정과 상황에 대한 깊은 공감
+        2. 감정 배경과 원인 이해
+        3. 긍정적 측면 발견
+        4. 실용적 조언과 격려
+        5. 감정 관리 방향 제시
+        
+        하루 1회의 소중한 분석이므로 충분히 길고 깊이 있게 분석해주세요.
         """
         
         #if DEBUG
         let estimatedTokens = TokenTracker.shared.estimateTokens(for: analysisPrompt)
-        print("📝 [DIARY-ANALYSIS] 예상 토큰: \(estimatedTokens)")
+        print("📝 [DIARY-ANALYSIS] 예상 토큰: \(estimatedTokens) (2000토큰 허용)")
         #endif
         
+        // ✅ intent를 "diary_analysis"로 정확히 설정 (2000토큰 사용)
         ReplicateChatService.shared.sendPrompt(
             message: analysisPrompt,
-            intent: "diary_analysis"
+            intent: "diary_analysis"  // 이 intent가 2000토큰을 사용함
         ) { [weak self] response in
             DispatchQueue.main.async {
                 if let analysis = response {
@@ -32,6 +40,11 @@ extension ChatViewController {
                         intent: "diary_analysis_success",
                         response: analysis
                     )
+                    
+                    // ✅ 분석 완료 후 추가 안내
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self?.appendChat(.bot("💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!"))
+                    }
                 } else {
                     self?.appendChat(.bot("❌ 분석 실패. 직접 대화로 도와드릴게요."))
                     
@@ -44,6 +57,7 @@ extension ChatViewController {
         }
     }
     
+    // MARK: - ✅ 패턴 분석 메소드 - 기존 유지
     func requestPatternAnalysisWithTracking(patternData: String) {
         let analysisPrompt = """
         감정패턴분석 전문가입니다.
@@ -62,12 +76,13 @@ extension ChatViewController {
         
         #if DEBUG
         let estimatedTokens = TokenTracker.shared.estimateTokens(for: analysisPrompt)
-        print("📊 [PATTERN-ANALYSIS] 예상 토큰: \(estimatedTokens)")
+        print("📊 [PATTERN-ANALYSIS] 예상 토큰: \(estimatedTokens) (2000토큰 허용)")
         #endif
         
+        // ✅ intent를 "pattern_analysis"로 정확히 설정 (2000토큰 사용)
         ReplicateChatService.shared.sendPrompt(
             message: analysisPrompt,
-            intent: "pattern_analysis"
+            intent: "pattern_analysis"  // 이 intent가 2000토큰을 사용함
         ) { [weak self] response in
             DispatchQueue.main.async {
                 if let analysis = response {

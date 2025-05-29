@@ -3,7 +3,7 @@ import UIKit
 // MARK: - EmotionCalendarViewController Diary Extension
 extension EmotionCalendarViewController {
     
-    // MARK: - Diary Detail Methods
+    // MARK: - ✅ 일기 상세보기 - 남은 횟수 표시 추가
     func showDiaryDetail(for date: Date, emotion: String) {
         let calendar = Calendar.current
         let targetEntries = diaryEntries.filter {
@@ -31,8 +31,13 @@ extension EmotionCalendarViewController {
             self.present(responseAlert, animated: true)
         })
         
-        // 새로운 AI 대화 시작 버튼
-        alert.addAction(UIAlertAction(title: "💬 이 일기로 AI와 새 대화", style: .default) { _ in
+        // ✅ 일기 분석 대화 버튼 - 남은 횟수 표시
+        let remainingCount = SettingsManager.shared.getRemainingDiaryAnalysisToday()
+        let diaryAnalysisTitle = remainingCount > 0 ?
+            "💬 이 일기를 AI와 깊이 분석 (남은 횟수: \(remainingCount))" :
+            "💬 일기 분석 대화 (오늘 사용 완료)"
+        
+        alert.addAction(UIAlertAction(title: diaryAnalysisTitle, style: .default) { _ in
             self.startDiaryConversation(with: entry)
         })
         
@@ -47,9 +52,37 @@ extension EmotionCalendarViewController {
         present(alert, animated: true)
     }
     
+    // MARK: - ✅ 일기 대화 시작 - 하루 1회 제한 추가
     func startDiaryConversation(with entry: EmotionDiary) {
+        // ✅ 하루 1회 제한 체크
+        let remainingCount = SettingsManager.shared.getRemainingDiaryAnalysisToday()
+        
+        guard remainingCount > 0 else {
+            let limitAlert = UIAlertController(
+                title: "📝 일일 일기 분석 완료",
+                message: """
+                오늘 일기 분석 대화를 이미 사용하셨습니다.
+                
+                깊이 있는 일기 분석을 위해 하루 1회로 제한하고 있어요.
+                대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
+                
+                내일 다시 이용해보세요! 😊
+                
+                💡 일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?
+                """,
+                preferredStyle: .alert
+            )
+            
+            limitAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(limitAlert, animated: true)
+            return
+        }
+        
+        // ✅ 사용 횟수 증가
+        SettingsManager.shared.incrementDiaryAnalysisUsage()
+        
         let chatVC = ChatViewController()
-        chatVC.title = "일기 대화 - \(DateFormatter.localizedString(from: entry.date, dateStyle: .short, timeStyle: .none))"
+        chatVC.title = "일기 분석 대화 - \(DateFormatter.localizedString(from: entry.date, dateStyle: .short, timeStyle: .none))"
         
         chatVC.diaryContext = DiaryContext(from: entry)
         chatVC.initialUserText = "일기_분석_모드"
@@ -102,7 +135,11 @@ extension EmotionCalendarViewController {
         ])
         
         let closeButton = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeDiaryDetail))
-        let chatButton = UIBarButtonItem(title: "💬 AI 대화", style: .plain, target: self, action: #selector(startChatFromDetail))
+        
+        // ✅ AI 대화 버튼도 제한 체크
+        let remainingCount = SettingsManager.shared.getRemainingDiaryAnalysisToday()
+        let chatButtonTitle = remainingCount > 0 ? "💬 AI 분석" : "💬 분석 완료"
+        let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
         
         detailVC.navigationItem.leftBarButtonItem = closeButton
         detailVC.navigationItem.rightBarButtonItem = chatButton
