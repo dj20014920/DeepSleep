@@ -70,18 +70,18 @@ struct SoundPreset: Codable {
     let name: String
     let volumes: [Float]
     let emotion: String?
-    let createdDate: Date
     let isAIGenerated: Bool
     let description: String?
+    let createdDate: Date
     
     init(name: String, volumes: [Float], emotion: String? = nil, isAIGenerated: Bool = false, description: String? = nil) {
         self.id = UUID()
         self.name = name
         self.volumes = volumes
         self.emotion = emotion
-        self.createdDate = Date()
         self.isAIGenerated = isAIGenerated
         self.description = description
+        self.createdDate = Date()
     }
 }
 

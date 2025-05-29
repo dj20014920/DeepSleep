@@ -22,6 +22,10 @@ class ViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // 기존 프리셋 데이터 마이그레이션 (앱 시작 시 한 번만 실행)
+        PresetManager.shared.migrateLegacyPresetsIfNeeded()
+        
         setupViewController()
     }
     
@@ -56,6 +60,7 @@ class ViewController: UIViewController {
         setupNotifications()
         setupGestures()
     }
+    
     private func configureNavBar() {
         // 왼쪽: 타이머 + 일기
         navigationItem.leftBarButtonItems = [

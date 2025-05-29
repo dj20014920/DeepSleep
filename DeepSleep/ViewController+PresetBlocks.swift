@@ -154,11 +154,13 @@ extension ViewController {
     
     func getRecentPresets() -> [SoundPreset] {
         let allPresets = SettingsManager.shared.loadSoundPresets()
+        // AI 생성 프리셋을 최근 사용한 것으로 간주하고, 최신 순으로 4개까지
         return Array(allPresets.filter { $0.isAIGenerated }.prefix(4))
     }
     
     func getFavoritePresets() -> [SoundPreset] {
         let allPresets = SettingsManager.shared.loadSoundPresets()
+        // 사용자가 직접 저장한 프리셋을 즐겨찾기로 간주하고, 최신 순으로 4개까지
         return Array(allPresets.filter { !$0.isAIGenerated }.prefix(4))
     }
     
@@ -190,13 +192,9 @@ extension ViewController {
     
     func showPresetList() {
         let presetListVC = PresetListViewController()
+        // SoundPreset으로 변경된 콜백
         presetListVC.onPresetSelected = { [weak self] preset in
-            let soundPreset = SoundPreset(
-                name: preset.name,
-                volumes: preset.volumes,
-                isAIGenerated: false
-            )
-            self?.applyPreset(volumes: soundPreset.volumes, name: soundPreset.name)
+            self?.applyPreset(volumes: preset.volumes, name: preset.name)
         }
         navigationController?.pushViewController(presetListVC, animated: true)
     }

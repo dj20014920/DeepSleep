@@ -1,8 +1,8 @@
 import UIKit
 
 class PresetListViewController: UITableViewController {
-    var presets: [Preset] = []
-    var onPresetSelected: ((Preset) -> Void)?
+    var presets: [SoundPreset] = []
+    var onPresetSelected: ((SoundPreset) -> Void)?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -12,22 +12,45 @@ class PresetListViewController: UITableViewController {
     }
 
     func loadPresets() {
-        presets = PresetManager.shared.loadPresets()
+        presets = SettingsManager.shared.loadSoundPresets()
         tableView.reloadData()
     }
 
     // MARK: - TableView 기본 구성
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return presets.count
+        if presets.isEmpty {
+            // 빈 상태 메시지 표시
+            let emptyLabel = UILabel()
+            emptyLabel.text = "저장된 프리셋이 없습니다.\n'저장' 버튼을 눌러 프리셋을 만들어 보세요."
+            emptyLabel.textAlignment = .center
+            emptyLabel.numberOfLines = 0
+            emptyLabel.textColor = .systemGray
+            emptyLabel.font = .systemFont(ofSize: 16)
+            tableView.backgroundView = emptyLabel
+            return 0
+        } else {
+            tableView.backgroundView = nil
+            return presets.count
+        }
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        cell.textLabel?.text = presets[indexPath.row].name
+        let preset = presets[indexPath.row]
+        
+        // 프리셋 이름만 표시 (타입 태그 제거)
+        cell.textLabel?.text = preset.name
+        
+        // 설명이 있으면 상세 텍스트로 표시
+        if let description = preset.description {
+            cell.detailTextLabel?.text = description
+        }
+        
         return cell
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
         onPresetSelected?(presets[indexPath.row])
         navigationController?.popViewController(animated: true)
     }
@@ -36,7 +59,7 @@ class PresetListViewController: UITableViewController {
         if editingStyle == .delete {
             let presetToDelete = presets[indexPath.row]
             
-            // 삭제 전 알림 표시ㅣ
+            // 삭제 전 알림 표시
             let alert = UIAlertController(
                 title: "프리셋 삭제",
                 message: "'\(presetToDelete.name)' 프리셋을 삭제하시겠습니까?",
@@ -45,8 +68,8 @@ class PresetListViewController: UITableViewController {
             
             alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
             alert.addAction(UIAlertAction(title: "삭제", style: .destructive, handler: { _ in
-                // 실제 삭제 로직
-                PresetManager.shared.deletePreset(named: presetToDelete.name)
+                // 실제 삭제 로직 - SettingsManager 사용
+                SettingsManager.shared.deleteSoundPreset(id: presetToDelete.id)
                 self.presets.remove(at: indexPath.row)
                 tableView.deleteRows(at: [indexPath], with: .automatic)
             }))
@@ -54,6 +77,7 @@ class PresetListViewController: UITableViewController {
             present(alert, animated: true)
         }
     }
+    
     // MARK: - 이름 변경 (스와이프 액션)
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let preset = presets[indexPath.row]
@@ -68,27 +92,31 @@ class PresetListViewController: UITableViewController {
                       !newName.isEmpty else { return }
                 
                 if newName != preset.name {
-                    // 이름이 변경되면 덮어쓰기
-                    let newPreset = Preset(name: newName, volumes: preset.volumes)
-                    PresetManager.shared.deletePreset(named: preset.name)
-                    PresetManager.shared.savePreset(name: newName, volumes: preset.volumes)
-                    self?.presets = PresetManager.shared.loadPresets()
-                    self?.tableView.reloadData()
+                    // 기존 프리셋 삭제하고 새 이름으로 저장
+                    let newPreset = SoundPreset(
+                        name: newName,
+                        volumes: preset.volumes,
+                        emotion: preset.emotion,
+                        isAIGenerated: preset.isAIGenerated,
+                        description: preset.description
+                    )
+                    SettingsManager.shared.deleteSoundPreset(id: preset.id)
+                    SettingsManager.shared.saveSoundPreset(newPreset)
+                    self?.loadPresets()
                 }
             }))
             self?.present(alert, animated: true)
             completion(true)
         }
-        renameAction.backgroundColor = .systemBlue
+        renameAction.backgroundColor = UIColor.systemBlue  // UIColor 명시적 지정
 
         // 🔺 삭제 액션
         let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
             let confirm = UIAlertController(title: "삭제 확인", message: "'\(preset.name)' 프리셋을 삭제할까요?", preferredStyle: .alert)
             confirm.addAction(UIAlertAction(title: "취소", style: .cancel))
             confirm.addAction(UIAlertAction(title: "삭제", style: .destructive, handler: { _ in
-                PresetManager.shared.deletePreset(named: preset.name)
-                self?.presets = PresetManager.shared.loadPresets()
-                self?.tableView.reloadData()
+                SettingsManager.shared.deleteSoundPreset(id: preset.id)
+                self?.loadPresets()
             }))
             self?.present(confirm, animated: true)
             completion(true)
@@ -96,6 +124,7 @@ class PresetListViewController: UITableViewController {
 
         return UISwipeActionsConfiguration(actions: [deleteAction, renameAction])
     }
+    
     func showRenameAlert(for indexPath: IndexPath) {
         let oldPreset = presets[indexPath.row]
 
@@ -108,7 +137,16 @@ class PresetListViewController: UITableViewController {
             guard let newName = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !newName.isEmpty else { return }
 
-            PresetManager.shared.renamePreset(oldName: oldPreset.name, newName: newName)
+            // 새 프리셋 생성하고 기존 것 삭제
+            let newPreset = SoundPreset(
+                name: newName,
+                volumes: oldPreset.volumes,
+                emotion: oldPreset.emotion,
+                isAIGenerated: oldPreset.isAIGenerated,
+                description: oldPreset.description
+            )
+            SettingsManager.shared.deleteSoundPreset(id: oldPreset.id)
+            SettingsManager.shared.saveSoundPreset(newPreset)
             self?.loadPresets()
         }))
         present(alert, animated: true)
