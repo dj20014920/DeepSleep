@@ -89,6 +89,7 @@ class DiaryWriteViewController: UIViewController {
     private var selectedEmotion: String = ""
     private var emotionButtons: [UIButton] = []
     private var savedDiaryEntry: EmotionDiary?
+    private var isDiarySaved: Bool = false // ✅ 일기 저장 상태 추가
     
     var onDiarySaved: (() -> Void)?
     
@@ -97,6 +98,7 @@ class DiaryWriteViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupNotifications()
+        setupTapGesture() // ✅ 탭 제스처 추가
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -109,11 +111,11 @@ class DiaryWriteViewController: UIViewController {
         view.backgroundColor = .systemBackground
         title = "일기 쓰기"
         
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "취소",
             style: .plain,
             target: self,
-            action: #selector(cancelTapped)
+            action: #selector(rightBarButtonTapped)
         )
         
         setupScrollView()
@@ -121,6 +123,17 @@ class DiaryWriteViewController: UIViewController {
         setupDiaryTextView()
         setupButtons()
         setupConstraints()
+    }
+    
+    // ✅ 화면 탭으로 키보드 내리기
+    private func setupTapGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
     
     private func setupScrollView() {
@@ -291,7 +304,7 @@ class DiaryWriteViewController: UIViewController {
             return
         }
         
-        // ✅ 원래 구조 복원 - userMessage와 aiResponse 사용
+        // 일기 저장
         let diaryEntry = EmotionDiary(
             selectedEmotion: selectedEmotion,
             userMessage: diaryTextView.text.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -300,6 +313,7 @@ class DiaryWriteViewController: UIViewController {
         
         SettingsManager.shared.saveEmotionDiary(diaryEntry)
         savedDiaryEntry = diaryEntry
+        isDiarySaved = true // ✅ 저장 상태 업데이트
         
         // UI 업데이트
         saveButton.setTitle("✓ 저장 완료", for: .normal)
@@ -307,6 +321,17 @@ class DiaryWriteViewController: UIViewController {
         saveButton.isEnabled = false
         
         aiChatButton.isHidden = false
+        
+        // ✅ 네비게이션 바 버튼을 "완료"로 변경
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "완료",
+            style: .done,
+            target: self,
+            action: #selector(rightBarButtonTapped)
+        )
+        
+        // 키보드 내리기
+        view.endEditing(true)
         
         // 성공 피드백
         let feedback = UINotificationFeedbackGenerator()
@@ -354,9 +379,7 @@ class DiaryWriteViewController: UIViewController {
         let chatVC = ChatViewController()
         chatVC.title = "일기 분석 대화"
         
-        // ✅ DiaryContext 올바른 초기화
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
-        
         chatVC.initialUserText = "일기를 분석해줘"
         
         let navController = UINavigationController(rootViewController: chatVC)
@@ -364,22 +387,29 @@ class DiaryWriteViewController: UIViewController {
         present(navController, animated: true)
     }
     
-    @objc private func cancelTapped() {
-        if !diaryTextView.text.isEmpty || !selectedEmotion.isEmpty {
-            let alert = UIAlertController(
-                title: "작성 중인 일기가 있습니다",
-                message: "저장하지 않고 나가시겠습니까?",
-                preferredStyle: .alert
-            )
-            
-            alert.addAction(UIAlertAction(title: "계속 작성", style: .cancel))
-            alert.addAction(UIAlertAction(title: "나가기", style: .destructive) { [weak self] _ in
-                self?.dismiss(animated: true)
-            })
-            
-            present(alert, animated: true)
-        } else {
+    // ✅ 오른쪽 버튼 액션 - 저장 상태에 따라 다르게 동작
+    @objc private func rightBarButtonTapped() {
+        if isDiarySaved {
+            // 일기가 저장된 경우 - 바로 돌아가기
             dismiss(animated: true)
+        } else {
+            // 일기가 저장되지 않은 경우 - 기존 취소 로직
+            if !diaryTextView.text.isEmpty || !selectedEmotion.isEmpty {
+                let alert = UIAlertController(
+                    title: "작성 중인 일기가 있습니다",
+                    message: "저장하지 않고 나가시겠습니까?",
+                    preferredStyle: .alert
+                )
+                
+                alert.addAction(UIAlertAction(title: "계속 작성", style: .cancel))
+                alert.addAction(UIAlertAction(title: "나가기", style: .destructive) { [weak self] _ in
+                    self?.dismiss(animated: true)
+                })
+                
+                present(alert, animated: true)
+            } else {
+                dismiss(animated: true)
+            }
         }
     }
     
@@ -390,6 +420,17 @@ class DiaryWriteViewController: UIViewController {
         let keyboardHeight = keyboardFrame.height
         scrollView.contentInset.bottom = keyboardHeight
         scrollView.verticalScrollIndicatorInsets.bottom = keyboardHeight
+        
+        // ✅ 텍스트뷰가 키보드에 가려지지 않도록 스크롤
+        if diaryTextView.isFirstResponder {
+            let textViewFrame = diaryTextView.convert(diaryTextView.bounds, to: scrollView)
+            let visibleArea = scrollView.bounds.height - keyboardHeight
+            
+            if textViewFrame.maxY > visibleArea {
+                let scrollOffset = textViewFrame.maxY - visibleArea + 20
+                scrollView.setContentOffset(CGPoint(x: 0, y: scrollOffset), animated: true)
+            }
+        }
     }
     
     @objc private func keyboardWillHide(notification: Notification) {

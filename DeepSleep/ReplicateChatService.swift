@@ -296,12 +296,12 @@ class ReplicateChatService {
     private func getOptimalTokens(for intent: String) -> Int {
             switch intent {
             case "pattern_analysis": return 2200
-            case "diary_analysis": return 200
-            case "diary": return 220
-            case "diary_chat", "analysis_chat", "advice_chat": return 200
-            case "casual_chat": return 200
-            case "recommendPreset": return 200
-            default: return 200
+            case "diary_analysis": return 500
+            case "diary": return 500
+            case "diary_chat", "analysis_chat", "advice_chat": return 500
+            case "casual_chat": return 500
+            case "recommendPreset": return 500
+            default: return 500
             }
     }
     
