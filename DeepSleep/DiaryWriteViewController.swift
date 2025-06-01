@@ -381,12 +381,26 @@ class DiaryWriteViewController: UIViewController {
         
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"
+        chatVC.onPresetApply = { [weak self] recommendation in
+            self?.applyPresetToMainScreen(recommendation)
+        }
         
         let navController = UINavigationController(rootViewController: chatVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
     }
-    
+    private func applyPresetToMainScreen(_ recommendation: RecommendationResponse) {
+        // 메인 SoundViewController에 프리셋 적용
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ApplyPresetFromChat"),
+            object: nil,
+            userInfo: [
+                "volumes": recommendation.volumes,
+                "presetName": recommendation.presetName
+            ]
+        )
+    }
+
     // ✅ 오른쪽 버튼 액션 - 저장 상태에 따라 다르게 동작
     @objc private func rightBarButtonTapped() {
         if isDiarySaved {

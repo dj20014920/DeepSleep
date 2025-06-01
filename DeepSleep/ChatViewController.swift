@@ -275,10 +275,10 @@ extension ChatViewController {
             appendChat(.user("📝 이 일기를 분석해주세요"))
             
             let initialResponse = """
-            📖 \(diary.emotion) 이런 기분으로 일기를 써주셨군요.
+            📖 \(diary.emotion) 이런 기분으로 일기를 써주셨군요 😊
             
             차근차근 마음 이야기를 나눠볼까요? 
-            어떤 부분이 가장 마음에 남으셨나요?
+            어떤 부분이 가장 마음에 남으셨나요? 💭
             """
             
             appendChat(.bot(initialResponse))
@@ -288,7 +288,7 @@ extension ChatViewController {
             appendChat(.user("📊 최근 감정 패턴을 분석해주세요"))
             
             let initialResponse = """
-            📈 최근 30일간의 감정 패턴을 분석해드릴게요.
+            📈 최근 30일간의 감정 패턴을 분석해드릴게요 😊
             
             패턴을 살펴보고 있어요... 잠시만 기다려주세요! 💭
             """
@@ -302,7 +302,7 @@ extension ChatViewController {
             let greeting = getEmotionalGreeting(for: userText)
             appendChat(.bot(greeting))
         } else {
-            appendChat(.bot("안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요."))
+            appendChat(.bot("안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요 ✨"))
         }
     }
     
@@ -317,6 +317,134 @@ extension ChatViewController {
         
         // 주간 메모리 백그라운드 업데이트
         CachedConversationManager.shared.updateWeeklyMemoryAsync()
+    }
+    
+    private func handleInitialUserText(_ text: String) {
+        switch text {
+        case "감정_패턴_분석_모드":
+            startEmotionPatternAnalysis()
+        case "일기_분석_모드":
+            startDiaryAnalysis()
+        default:
+            break
+        }
+    }
+    
+    private func startEmotionPatternAnalysis() {
+        guard let emotionData = emotionPatternData, !emotionData.isEmpty else {
+            appendChat(.bot("아직 감정 기록이 충분하지 않네요 😊 일기를 더 작성해주시면 더 정확한 분석을 도와드릴 수 있어요!"))
+            return
+        }
+        
+        appendChat(.bot("📊 최근 30일간의 감정 패턴을 분석하고 있어요... ✨"))
+        
+        ReplicateChatService.shared.analyzeEmotionPattern(data: emotionData) { [weak self] response in
+            DispatchQueue.main.async {
+                if let response = response {
+                    self?.appendChat(.bot(response))
+                    self?.addQuickEmotionButtons()
+                } else {
+                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다 😅 네트워크 연결을 확인해주세요."))
+                }
+            }
+        }
+    }
+    
+    private func startDiaryAnalysis() {
+        guard let diaryData = diaryContext else { return }
+        
+        let analysisText = """
+        오늘의 감정: \(diaryData.emotion) 
+        일기 내용을 바탕으로 감정을 분석해드릴게요 😊
+        """
+        
+        appendChat(.bot(analysisText))
+        
+        ReplicateChatService.shared.sendPrompt(
+            message: diaryData.content,
+            intent: "diary_analysis"
+        ) { [weak self] response in
+            DispatchQueue.main.async {
+                if let response = response {
+                    self?.appendChat(.bot(response))
+                } else {
+                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다 😅"))
+                }
+            }
+        }
+    }
+    
+    private func addQuickEmotionButtons() {
+        appendChat(.bot("💡 더 자세한 분석을 원하시나요?\n\n🎯 개선 방법\n📈 감정 변화 추이\n💡 스트레스 관리\n\n위 키워드로 질문해보세요! ✨"))
+    }
+
+}
+
+// MARK: - Helper Methods
+extension ChatViewController {
+    func incrementDailyChatCount() {
+        SettingsManager.shared.incrementChatUsage()
+    }
+    
+    @objc private func backButtonTapped() {
+        navigationController?.popViewController(animated: true)
+    }
+    
+    @objc private func closeButtonTapped() {
+        if let presentingViewController = presentingViewController {
+            dismiss(animated: true)
+        } else {
+            navigationController?.popViewController(animated: true)
+        }
+    }
+    
+    // ✅ appendChat 메서드
+    func appendChat(_ message: ChatMessage) {
+        messages.append(message)
+        
+        tableView.reloadData()
+        DispatchQueue.main.async {
+            self.scrollToBottom()
+        }
+        
+        // 기존 히스토리 저장
+        saveChatHistory()
+    }
+    
+    func saveChatHistory() {
+        let dictionaries = messages.map { $0.toDictionary() }
+        UserDefaults.standard.set(dictionaries, forKey: "chatHistory")
+    }
+    
+    func scrollToBottom() {
+        if !messages.isEmpty {
+            let indexPath = IndexPath(row: messages.count - 1, section: 0)
+            tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        }
+    }
+}
+
+// MARK: - Keyboard Handling
+extension ChatViewController {
+    @objc private func keyboardWillShow(notification: Notification) {
+        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            bottomConstraint?.constant = -keyboardFrame.height + view.safeAreaInsets.bottom
+            UIView.animate(withDuration: 0.3) {
+                self.view.layoutIfNeeded()
+                self.scrollToBottom()
+            }
+        }
+    }
+
+    @objc private func keyboardWillHide(notification: Notification) {
+        bottomConstraint?.constant = 0
+        UIView.animate(withDuration: 0.3) {
+            self.view.layoutIfNeeded()
+        }
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
 }
 
@@ -387,264 +515,6 @@ extension ChatViewController {
         present(alert, animated: true)
     }
     #endif
-}
-
-// MARK: - Keyboard Handling
-extension ChatViewController {
-    @objc private func keyboardWillShow(notification: Notification) {
-        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
-            bottomConstraint?.constant = -keyboardFrame.height + view.safeAreaInsets.bottom
-            UIView.animate(withDuration: 0.3) {
-                self.view.layoutIfNeeded()
-                self.scrollToBottom()
-            }
-        }
-    }
-
-    @objc private func keyboardWillHide(notification: Notification) {
-        bottomConstraint?.constant = 0
-        UIView.animate(withDuration: 0.3) {
-            self.view.layoutIfNeeded()
-        }
-    }
-
-    @objc private func dismissKeyboard() {
-        view.endEditing(true)
-    }
-
-    private func scrollToBottom() {
-        if !messages.isEmpty {
-            let indexPath = IndexPath(row: messages.count - 1, section: 0)
-            tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
-        }
-    }
-}
-
-// MARK: - Helper Methods
-extension ChatViewController {
-    func incrementDailyChatCount() {
-        SettingsManager.shared.incrementChatUsage()
-    }
-    
-    @objc private func backButtonTapped() {
-        // 네비게이션 스택에서 pop
-        navigationController?.popViewController(animated: true)
-    }
-    
-    @objc private func closeButtonTapped() {
-        if let presentingViewController = presentingViewController {
-            dismiss(animated: true)
-        } else {
-            // 만약 presentingViewController가 없다면 네비게이션으로 처리
-            navigationController?.popViewController(animated: true)
-        }
-    }
-    
-    private func handleInitialUserText(_ text: String) {
-        switch text {
-        case "감정_패턴_분석_모드":
-            startEmotionPatternAnalysis()
-        case "일기_분석_모드":
-            startDiaryAnalysis()
-        default:
-            break
-        }
-    }
-    
-    private func startEmotionPatternAnalysis() {
-        guard let emotionData = emotionPatternData, !emotionData.isEmpty else {
-            appendChat(.bot("아직 감정 기록이 충분하지 않네요. 일기를 더 작성해주시면 더 정확한 분석을 도와드릴 수 있어요! 😊"))
-            return
-        }
-        
-        appendChat(.bot("📊 최근 30일간의 감정 패턴을 분석하고 있어요..."))
-        
-        ReplicateChatService.shared.analyzeEmotionPattern(data: emotionData) { [weak self] response in
-            DispatchQueue.main.async {
-                if let response = response {
-                    self?.appendChat(.bot(response))
-                    self?.addQuickEmotionButtons()
-                } else {
-                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다. 네트워크 연결을 확인해주세요."))
-                }
-            }
-        }
-    }
-    
-    private func startDiaryAnalysis() {
-        guard let diaryData = diaryContext else { return }
-        
-        let analysisText = """
-        오늘의 감정: \(diaryData.emotion)
-        일기 내용을 바탕으로 감정을 분석해드릴게요.
-        """
-        
-        appendChat(.bot(analysisText))
-        
-        ReplicateChatService.shared.sendPrompt(
-            message: diaryData.content,
-            intent: "diary_analysis"
-        ) { [weak self] response in
-            DispatchQueue.main.async {
-                if let response = response {
-                    self?.appendChat(.bot(response))
-                } else {
-                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다."))
-                }
-            }
-        }
-    }
-    
-    private func addQuickEmotionButtons() {
-        appendChat(.bot("💡 더 자세한 분석을 원하시나요?\n\n🎯 개선 방법\n📈 감정 변화 추이\n💡 스트레스 관리\n\n위 키워드로 질문해보세요!"))
-    }
-    
-    // ✅ appendChat 메서드 (override 제거)
-    func appendChat(_ message: ChatMessage) {
-        messages.append(message)
-        
-        // ✅ 메시지를 일일 저장소에도 저장
-        saveMessageToDaily(message)
-        
-        tableView.reloadData()
-        DispatchQueue.main.async {
-            self.scrollToBottom()
-        }
-        
-        // 기존 히스토리 저장
-        saveChatHistory()
-        
-        // ✅ 긴 대화 자동 관리
-        checkAndHandleLongConversation()
-    }
-    
-    private func saveChatHistory() {
-        let dictionaries = messages.map { $0.toDictionary() }
-        UserDefaults.standard.set(dictionaries, forKey: "chatHistory")
-    }
-    
-    // ✅ 메시지를 일일 저장소에 저장
-    private func saveMessageToDaily(_ message: ChatMessage) {
-        let today = Date()
-        var todayMessages = UserDefaults.standard.loadDailyMessages(for: today)
-        todayMessages.append(message)
-        
-        // 하루 최대 100개 메시지로 제한
-        if todayMessages.count > 100 {
-            todayMessages = Array(todayMessages.suffix(100))
-        }
-        
-        let _ = UserDefaults.standard.saveDailyMessages(todayMessages, for: today)
-    }
-    
-    // ✅ 긴 대화 자동 관리
-    private func checkAndHandleLongConversation() {
-        let totalMessages = messages.count
-        let totalLength = messages.compactMap { message -> String? in
-            switch message {
-            case .user(let text): return text
-            case .bot(let text): return text
-            default: return nil
-            }
-        }.joined(separator: " ").count
-        
-        // 대화가 너무 길어지면 캐시 기반 정리
-        if totalMessages > 40 || totalLength > 4000 {
-            handleLongConversationWithCache()
-        }
-    }
-    
-    // ✅ 캐시 기반 긴 대화 처리
-    private func handleLongConversationWithCache() {
-        // 현재 대화를 요약해서 캐시에 반영
-        CachedConversationManager.shared.updateWeeklyMemoryAsync()
-        
-        // 오래된 메시지들을 압축
-        let recentMessages = Array(messages.suffix(10))
-        let olderMessages = Array(messages.prefix(messages.count - 10))
-        
-        // 오래된 메시지들을 요약으로 변환
-        if !olderMessages.isEmpty {
-            let summary = createConversationSummary(from: olderMessages)
-            let summaryMessage = ChatMessage.bot("📝 이전 대화 요약: \(summary)")
-            
-            // 메시지 목록을 요약 + 최근 메시지로 교체
-            messages = [summaryMessage] + recentMessages
-            
-            tableView.reloadData()
-            
-            appendChat(.bot("""
-            💾 대화가 길어져서 정리했어요.
-            
-            이전 대화의 맥락은 기억하고 있으니, 
-            자연스럽게 대화를 이어가주세요! 😊
-            """))
-            
-            #if DEBUG
-            print("🗄️ 긴 대화 캐시 기반 정리: \(olderMessages.count)개 → 요약")
-            #endif
-        }
-    }
-    
-    // ✅ 대화 요약 생성
-    private func createConversationSummary(from messages: [ChatMessage]) -> String {
-        let userMessages = messages.compactMap { message in
-            if case .user(let text) = message { return text }
-            return nil
-        }
-        
-        let emotions = extractEmotionsFromText(userMessages.joined(separator: " "))
-        let themes = extractThemesFromText(userMessages.joined(separator: " "))
-        
-        return "\(emotions) 감정으로 \(themes.joined(separator: ", ")) 주제의 대화를 나눴어요"
-    }
-    
-    // ✅ 텍스트에서 감정 추출
-    private func extractEmotionsFromText(_ text: String) -> String {
-        let emotionKeywords = [
-            "기쁘": "기쁜", "행복": "행복한", "좋": "좋은", "즐거": "즐거운",
-            "슬프": "슬픈", "우울": "우울한", "힘들": "힘든", "어려": "어려운",
-            "화": "화난", "짜증": "짜증나는", "불안": "불안한", "걱정": "걱정되는",
-            "피곤": "피곤한", "지친": "지친"
-        ]
-        
-        for (keyword, emotion) in emotionKeywords {
-            if text.contains(keyword) {
-                return emotion
-            }
-        }
-        
-        return "평온한"
-    }
-    
-    // ✅ 텍스트에서 주제 추출
-    private func extractThemesFromText(_ text: String) -> [String] {
-        let themeKeywords = [
-            "일": "work", "직장": "work", "회사": "work",
-            "가족": "family", "부모": "family", "형제": "family",
-            "친구": "friends", "동료": "friends",
-            "건강": "health", "운동": "health", "몸": "health",
-            "공부": "study", "학교": "study", "시험": "study",
-            "연애": "love", "사랑": "love", "남친": "love", "여친": "love",
-            "미래": "future", "계획": "future", "꿈": "future"
-        ]
-        
-        var themes: Set<String> = []
-        
-        for (keyword, theme) in themeKeywords {
-            if text.contains(keyword) {
-                themes.insert(theme)
-            }
-        }
-        
-        let themeNames = [
-            "work": "일/직장", "family": "가족", "friends": "인간관계",
-            "health": "건강", "study": "학업", "love": "연애",
-            "future": "미래"
-        ]
-        
-        return Array(themes).compactMap { themeNames[$0] }
-    }
 }
 
 // MARK: - UITableViewDataSource, UITableViewDelegate

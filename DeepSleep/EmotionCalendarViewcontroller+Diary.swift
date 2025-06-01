@@ -86,12 +86,23 @@ extension EmotionCalendarViewController {
         
         chatVC.diaryContext = DiaryContext(from: entry)
         chatVC.initialUserText = "일기_분석_모드"
-        
+        chatVC.onPresetApply = { [weak self] recommendation in
+                self?.applyPresetFromCalendar(recommendation)
+            }
         let navController = UINavigationController(rootViewController: chatVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
     }
-    
+    private func applyPresetFromCalendar(_ recommendation: RecommendationResponse) {
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ApplyPresetFromChat"),
+            object: nil,
+            userInfo: [
+                "volumes": recommendation.volumes,
+                "presetName": recommendation.presetName
+            ]
+        )
+    }
     func showFullDiaryContent(entry: EmotionDiary) {
         let detailVC = UIViewController()
         detailVC.title = "일기 상세"
