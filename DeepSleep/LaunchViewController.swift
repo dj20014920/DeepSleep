@@ -6,7 +6,7 @@ class LaunchViewController: UIViewController {
         view.backgroundColor = .systemBackground
         
         let titleLabel = UILabel()
-        titleLabel.text = "Deep Sleep"
+        titleLabel.text = "EmoZleep"
         titleLabel.font = UIFont.boldSystemFont(ofSize: 32)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false

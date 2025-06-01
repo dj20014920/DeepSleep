@@ -18,7 +18,7 @@ class ChatViewController: UIViewController {
     var diaryContext: DiaryContext? = nil
     var emotionPatternData: String? = nil
     var onPresetApply: ((RecommendationResponse) -> Void)? = nil
-    
+    private var sessionStartTime: Date?
     private var messageCount = 0
     private let maxMessages = 75
     private var bottomConstraint: NSLayoutConstraint?
@@ -73,13 +73,23 @@ class ChatViewController: UIViewController {
         setupNavigationBar()
         setupUI()
         setupConstraints()
-        loadChatHistory()
         setupTableView()
         setupTargets()
-        setupInitialMessages()
         setupNotifications()
         
+        // ✅ 캐시 시스템 초기화
+        initializeCacheSystem()
+        
+        // 토큰 추적기 초기화
         TokenTracker.shared.resetIfNewDay()
+        
+        // 기존 대화 로드
+        loadChatHistory()
+        
+        // 초기 메시지 설정
+        setupInitialMessages()
+        
+        // 초기 사용자 텍스트 처리
         if let initialText = initialUserText {
             handleInitialUserText(initialText)
         }
@@ -93,10 +103,53 @@ class ChatViewController: UIViewController {
         super.viewDidAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
         scrollToBottom()
+        
+        // ✅ 세션 시작 시간 기록
+        sessionStartTime = Date()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // 네비게이션 바가 숨겨져 있다면 다시 표시
+        if navigationController?.isNavigationBarHidden == true {
+            navigationController?.setNavigationBarHidden(false, animated: animated)
+        }
+        refreshCacheStatus()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        view.endEditing(true)
+        recordSessionTime()
+    }
+    
+    // ✅ 세션 시간 기록
+    private func recordSessionTime() {
+        guard let startTime = sessionStartTime else { return }
+        let sessionDuration = Date().timeIntervalSince(startTime)
+        
+        // 최소 10초 이상의 세션만 기록
+        if sessionDuration > 10 {
+            SettingsManager.shared.addSessionTime(sessionDuration)
+            
+            #if DEBUG
+            print("⏱️ 세션 시간 기록: \(Int(sessionDuration))초")
+            #endif
+        }
+        
+        sessionStartTime = nil
     }
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+        
+        // ✅ 최종 세션 시간 기록
+        recordSessionTime()
+        
+        #if DEBUG
+        print("🗑️ ChatViewController 메모리 해제")
+        #endif
     }
 }
 
@@ -107,6 +160,7 @@ extension ChatViewController {
             self.messages = saved.compactMap { ChatMessage.from(dictionary: $0) }
         }
     }
+    
     private func setupNavigationBar() {
         // 네비게이션 바 표시 설정
         navigationController?.setNavigationBarHidden(false, animated: false)
@@ -138,6 +192,22 @@ extension ChatViewController {
         // 네비게이션 바 스타일
         navigationController?.navigationBar.prefersLargeTitles = false
         navigationController?.navigationBar.tintColor = .systemBlue
+    }
+    
+    // ✅ 캐시 시스템 초기화
+    private func initializeCacheSystem() {
+        // 캐시 매니저 초기화
+        CachedConversationManager.shared.initialize()
+        
+        // 만료된 캐시들 정리
+        UserDefaults.standard.cleanExpiredCaches()
+        UserDefaults.standard.cleanOldData(olderThanDays: 7)
+        
+        #if DEBUG
+        print("🗄️ 캐시 시스템 초기화 완료")
+        let debugInfo = CachedConversationManager.shared.getDebugInfo()
+        print(debugInfo)
+        #endif
     }
     
     private func setupTableView() {
@@ -234,6 +304,19 @@ extension ChatViewController {
         } else {
             appendChat(.bot("안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요."))
         }
+    }
+    
+    // ✅ 캐시 상태 새로고침
+    private func refreshCacheStatus() {
+        // 캐시가 유효한지 확인하고 필요시 업데이트
+        let weeklyMemory = CachedConversationManager.shared.loadWeeklyMemory()
+        
+        #if DEBUG
+        print("🔄 캐시 상태 새로고침: \(weeklyMemory.totalMessages)개 메시지 기반")
+        #endif
+        
+        // 주간 메모리 백그라운드 업데이트
+        CachedConversationManager.shared.updateWeeklyMemoryAsync()
     }
 }
 
@@ -342,10 +425,12 @@ extension ChatViewController {
     func incrementDailyChatCount() {
         SettingsManager.shared.incrementChatUsage()
     }
+    
     @objc private func backButtonTapped() {
         // 네비게이션 스택에서 pop
         navigationController?.popViewController(animated: true)
     }
+    
     @objc private func closeButtonTapped() {
         if let presentingViewController = presentingViewController {
             dismiss(animated: true)
@@ -355,22 +440,6 @@ extension ChatViewController {
         }
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        // 네비게이션 바가 숨겨져 있다면 다시 표시
-        if navigationController?.isNavigationBarHidden == true {
-            navigationController?.setNavigationBarHidden(false, animated: animated)
-        }
-    }
-
-    // ✅ viewWillDisappear 추가 (필요한 경우 정리)
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        
-        // 키보드 숨기기
-        view.endEditing(true)
-    }
     private func handleInitialUserText(_ text: String) {
         switch text {
         case "감정_패턴_분석_모드":
@@ -430,18 +499,151 @@ extension ChatViewController {
         appendChat(.bot("💡 더 자세한 분석을 원하시나요?\n\n🎯 개선 방법\n📈 감정 변화 추이\n💡 스트레스 관리\n\n위 키워드로 질문해보세요!"))
     }
     
+    // ✅ appendChat 메서드 (override 제거)
     func appendChat(_ message: ChatMessage) {
         messages.append(message)
+        
+        // ✅ 메시지를 일일 저장소에도 저장
+        saveMessageToDaily(message)
+        
         tableView.reloadData()
         DispatchQueue.main.async {
             self.scrollToBottom()
         }
+        
+        // 기존 히스토리 저장
         saveChatHistory()
+        
+        // ✅ 긴 대화 자동 관리
+        checkAndHandleLongConversation()
     }
     
     private func saveChatHistory() {
         let dictionaries = messages.map { $0.toDictionary() }
         UserDefaults.standard.set(dictionaries, forKey: "chatHistory")
+    }
+    
+    // ✅ 메시지를 일일 저장소에 저장
+    private func saveMessageToDaily(_ message: ChatMessage) {
+        let today = Date()
+        var todayMessages = UserDefaults.standard.loadDailyMessages(for: today)
+        todayMessages.append(message)
+        
+        // 하루 최대 100개 메시지로 제한
+        if todayMessages.count > 100 {
+            todayMessages = Array(todayMessages.suffix(100))
+        }
+        
+        let _ = UserDefaults.standard.saveDailyMessages(todayMessages, for: today)
+    }
+    
+    // ✅ 긴 대화 자동 관리
+    private func checkAndHandleLongConversation() {
+        let totalMessages = messages.count
+        let totalLength = messages.compactMap { message -> String? in
+            switch message {
+            case .user(let text): return text
+            case .bot(let text): return text
+            default: return nil
+            }
+        }.joined(separator: " ").count
+        
+        // 대화가 너무 길어지면 캐시 기반 정리
+        if totalMessages > 40 || totalLength > 4000 {
+            handleLongConversationWithCache()
+        }
+    }
+    
+    // ✅ 캐시 기반 긴 대화 처리
+    private func handleLongConversationWithCache() {
+        // 현재 대화를 요약해서 캐시에 반영
+        CachedConversationManager.shared.updateWeeklyMemoryAsync()
+        
+        // 오래된 메시지들을 압축
+        let recentMessages = Array(messages.suffix(10))
+        let olderMessages = Array(messages.prefix(messages.count - 10))
+        
+        // 오래된 메시지들을 요약으로 변환
+        if !olderMessages.isEmpty {
+            let summary = createConversationSummary(from: olderMessages)
+            let summaryMessage = ChatMessage.bot("📝 이전 대화 요약: \(summary)")
+            
+            // 메시지 목록을 요약 + 최근 메시지로 교체
+            messages = [summaryMessage] + recentMessages
+            
+            tableView.reloadData()
+            
+            appendChat(.bot("""
+            💾 대화가 길어져서 정리했어요.
+            
+            이전 대화의 맥락은 기억하고 있으니, 
+            자연스럽게 대화를 이어가주세요! 😊
+            """))
+            
+            #if DEBUG
+            print("🗄️ 긴 대화 캐시 기반 정리: \(olderMessages.count)개 → 요약")
+            #endif
+        }
+    }
+    
+    // ✅ 대화 요약 생성
+    private func createConversationSummary(from messages: [ChatMessage]) -> String {
+        let userMessages = messages.compactMap { message in
+            if case .user(let text) = message { return text }
+            return nil
+        }
+        
+        let emotions = extractEmotionsFromText(userMessages.joined(separator: " "))
+        let themes = extractThemesFromText(userMessages.joined(separator: " "))
+        
+        return "\(emotions) 감정으로 \(themes.joined(separator: ", ")) 주제의 대화를 나눴어요"
+    }
+    
+    // ✅ 텍스트에서 감정 추출
+    private func extractEmotionsFromText(_ text: String) -> String {
+        let emotionKeywords = [
+            "기쁘": "기쁜", "행복": "행복한", "좋": "좋은", "즐거": "즐거운",
+            "슬프": "슬픈", "우울": "우울한", "힘들": "힘든", "어려": "어려운",
+            "화": "화난", "짜증": "짜증나는", "불안": "불안한", "걱정": "걱정되는",
+            "피곤": "피곤한", "지친": "지친"
+        ]
+        
+        for (keyword, emotion) in emotionKeywords {
+            if text.contains(keyword) {
+                return emotion
+            }
+        }
+        
+        return "평온한"
+    }
+    
+    // ✅ 텍스트에서 주제 추출
+    private func extractThemesFromText(_ text: String) -> [String] {
+        let themeKeywords = [
+            "일": "work", "직장": "work", "회사": "work",
+            "가족": "family", "부모": "family", "형제": "family",
+            "친구": "friends", "동료": "friends",
+            "건강": "health", "운동": "health", "몸": "health",
+            "공부": "study", "학교": "study", "시험": "study",
+            "연애": "love", "사랑": "love", "남친": "love", "여친": "love",
+            "미래": "future", "계획": "future", "꿈": "future"
+        ]
+        
+        var themes: Set<String> = []
+        
+        for (keyword, theme) in themeKeywords {
+            if text.contains(keyword) {
+                themes.insert(theme)
+            }
+        }
+        
+        let themeNames = [
+            "work": "일/직장", "family": "가족", "friends": "인간관계",
+            "health": "건강", "study": "학업", "love": "연애",
+            "future": "미래"
+        ]
+        
+        return Array(themes).compactMap { themeNames[$0] }
     }
 }
 
