@@ -62,10 +62,10 @@ extension ChatViewController {
     // MARK: - ✅ 수정된 presetButtonTapped
     @objc func presetButtonTapped() {
         // ✅ 일일 사용 제한 체크
-        guard PresetLimitManager.shared.canUseToday() else {
+        /*guard PresetLimitManager.shared.canUseToday() else {
             showPresetLimitAlert()
             return
-        }
+        }*/
         
         appendChat(.user("🎵 지금 기분에 맞는 사운드 추천받기"))
         appendChat(.bot("🎶 당신의 감정에 맞는 완벽한 사운드 조합을 찾고 있어요... 잠시만 기다려주세요! ✨"))
@@ -107,8 +107,6 @@ extension ChatViewController {
             return
         }
         
-        // AI 응답 먼저 표시
-        appendChat(.bot(response))
         
         // 프리셋 파싱 시도
         if let recommendation = parsePresetRecommendation(from: response) {
