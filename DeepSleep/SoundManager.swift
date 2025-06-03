@@ -1,19 +1,46 @@
 import Foundation
 import AVFoundation
 
-/// 사운드 파일 이름과 AVAudioPlayer 인스턴스를 관리하는 매니저
+/// 11개 카테고리 + 다중 버전을 지원하는 사운드 매니저
 final class SoundManager {
     static let shared = SoundManager()
     
-    /// 앱 번들에 추가해 둘 사운드 파일 이름 (확장자 포함)
-    /// 순서가 ViewController.sliderLabels 순서(A~L)와 1:1 매핑됩니다.
-    private var soundFileNames = [
-        "rain.mp3", "thunder.mp3", "wave.mp3", "bonfire.mp3",
-        "steam.mp3", "windowsill_rain.mp3", "forest_bird.mp3", "cold_wind.mp3",
-        "summer_night.mp3", "lullaby.mp3", "fan.mp3", "white_noise.mp3"
+    // MARK: - 새로운 11개 카테고리 정의
+    struct SoundCategory {
+        let emoji: String
+        let name: String
+        let files: [String]  // 여러 버전 지원
+        let defaultIndex: Int  // 기본 선택 버전
+        
+        init(emoji: String, name: String, files: [String], defaultIndex: Int = 0) {
+            self.emoji = emoji
+            self.name = name
+            self.files = files
+            self.defaultIndex = min(defaultIndex, files.count - 1)
+        }
+    }
+    
+    /// 11개 사운드 카테고리 (이모지 + 다중 버전)
+    private let soundCategories: [SoundCategory] = [
+        SoundCategory(emoji: "🐱", name: "고양이", files: ["고양이.mp3"]),
+        SoundCategory(emoji: "💨", name: "바람", files: ["바람.mp3"]),
+        SoundCategory(emoji: "🌙", name: "밤", files: ["밤.mp3"]),
+        SoundCategory(emoji: "🔥", name: "불", files: ["불1.mp3"]),
+        SoundCategory(emoji: "🌧️", name: "비", files: ["비.mp3", "비-창문.mp3"]),
+        SoundCategory(emoji: "🏞️", name: "시냇물", files: ["시냇물.mp3"]),
+        SoundCategory(emoji: "✏️", name: "연필", files: ["연필.mp3"]),
+        SoundCategory(emoji: "🌌", name: "우주", files: ["우주.mp3"]),
+        SoundCategory(emoji: "🌀", name: "쿨링팬", files: ["쿨링팬.mp3"]),
+        SoundCategory(emoji: "⌨️", name: "키보드", files: ["키보드1.mp3", "키보드2.mp3"]),
+        SoundCategory(emoji: "🌊", name: "파도", files: ["파도.mp3"])
     ]
     
+    // MARK: - 현재 선택된 버전 추적
+    private var selectedVersions: [Int] = []  // 각 카테고리별 선택된 버전 인덱스
+    
+    // MARK: - AVAudioPlayer 관리
     var players: [AVAudioPlayer] = []
+    private var previewPlayer: AVAudioPlayer?  // 미리듣기용 플레이어
     
     /// 현재 재생 중인지
     var isPlaying: Bool {
@@ -21,8 +48,14 @@ final class SoundManager {
     }
     
     private init() {
+        setupSelectedVersions()
         configureAudioSession()
         loadPlayers()
+    }
+    
+    // MARK: - 초기 설정
+    private func setupSelectedVersions() {
+        selectedVersions = soundCategories.map { $0.defaultIndex }
     }
     
     /// AVAudioSession 설정 (백그라운드 재생, 믹스 옵션 등)
@@ -44,13 +77,19 @@ final class SoundManager {
         }
     }
     
-    /// 번들에 있는 파일들을 AVAudioPlayer로 미리 로드합니다.
+    /// 선택된 버전의 파일들을 AVAudioPlayer로 로드
     private func loadPlayers() {
-        for fileName in soundFileNames {
+        players.removeAll()
+        
+        for (categoryIndex, category) in soundCategories.enumerated() {
+            let versionIndex = selectedVersions[categoryIndex]
+            let fileName = category.files[versionIndex]
+            
             guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
                 print("⚠️ 사운드 파일을 찾을 수 없습니다:", fileName)
                 continue
             }
+            
             do {
                 let player = try AVAudioPlayer(contentsOf: url)
                 player.numberOfLoops = -1    // 무한 루프
@@ -61,14 +100,159 @@ final class SoundManager {
                 print("⚠️ AVAudioPlayer 생성 실패:", error)
             }
         }
+        
+        print("✅ \(players.count)개 사운드 로드 완료")
     }
     
-    // MARK: - 전체 제어
+    // MARK: - 카테고리 정보 접근
+    
+    /// 카테고리 개수
+    var categoryCount: Int {
+        return soundCategories.count
+    }
+    
+    /// 특정 카테고리 정보
+    func getCategory(at index: Int) -> SoundCategory? {
+        guard index >= 0, index < soundCategories.count else { return nil }
+        return soundCategories[index]
+    }
+    
+    /// 카테고리의 이모지 + 이름
+    func getCategoryDisplay(at index: Int) -> String {
+        guard let category = getCategory(at: index) else { return "Unknown" }
+        return "\(category.emoji) \(category.name)"
+    }
+    
+    /// 현재 선택된 버전 정보
+    func getCurrentVersionInfo(at categoryIndex: Int) -> String? {
+        guard let category = getCategory(at: categoryIndex) else { return nil }
+        let versionIndex = selectedVersions[categoryIndex]
+        
+        if category.files.count > 1 {
+            return "\(category.files[versionIndex]) (\(versionIndex + 1)/\(category.files.count))"
+        } else {
+            return category.files[versionIndex]
+        }
+    }
+    
+    // MARK: - 버전 선택 관리
+    
+    /// 특정 카테고리의 버전 변경
+    func selectVersion(categoryIndex: Int, versionIndex: Int) {
+        guard categoryIndex >= 0, categoryIndex < soundCategories.count else { return }
+        guard versionIndex >= 0, versionIndex < soundCategories[categoryIndex].files.count else { return }
+        
+        let wasPlaying = isPlaying(at: categoryIndex)
+        let currentVolume = players.count > categoryIndex ? players[categoryIndex].volume : 0
+        
+        // 기존 플레이어 정지
+        if categoryIndex < players.count {
+            players[categoryIndex].stop()
+        }
+        
+        // 버전 변경
+        selectedVersions[categoryIndex] = versionIndex
+        
+        // 해당 카테고리만 다시 로드
+        reloadPlayer(at: categoryIndex)
+        
+        // 이전 상태 복원
+        if categoryIndex < players.count {
+            players[categoryIndex].volume = currentVolume
+            if wasPlaying && currentVolume > 0 {
+                players[categoryIndex].play()
+            }
+        }
+        
+        print("🔄 카테고리 \(categoryIndex) 버전 변경: \(versionIndex)")
+    }
+    
+    /// 다음 버전으로 변경
+    func selectNextVersion(categoryIndex: Int) {
+        guard let category = getCategory(at: categoryIndex) else { return }
+        let currentVersion = selectedVersions[categoryIndex]
+        let nextVersion = (currentVersion + 1) % category.files.count
+        selectVersion(categoryIndex: categoryIndex, versionIndex: nextVersion)
+    }
+    
+    /// 특정 카테고리의 플레이어만 다시 로드
+    private func reloadPlayer(at categoryIndex: Int) {
+        guard categoryIndex >= 0, categoryIndex < soundCategories.count else { return }
+        
+        let category = soundCategories[categoryIndex]
+        let versionIndex = selectedVersions[categoryIndex]
+        let fileName = category.files[versionIndex]
+        
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+            print("⚠️ 사운드 파일을 찾을 수 없습니다:", fileName)
+            return
+        }
+        
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.numberOfLoops = -1
+            player.volume = 0
+            player.prepareToPlay()
+            
+            // 기존 플레이어 배열에서 교체
+            if categoryIndex < players.count {
+                players[categoryIndex] = player
+            } else {
+                // 배열 크기 확장이 필요한 경우
+                while players.count <= categoryIndex {
+                    players.append(player)
+                }
+            }
+        } catch {
+            print("⚠️ AVAudioPlayer 생성 실패:", error)
+        }
+    }
+    
+    // MARK: - 미리듣기 기능
+    
+    /// 특정 버전 미리듣기 (3초간)
+    func previewVersion(categoryIndex: Int, versionIndex: Int) {
+        guard let category = getCategory(at: categoryIndex) else { return }
+        guard versionIndex >= 0, versionIndex < category.files.count else { return }
+        
+        let fileName = category.files[versionIndex]
+        
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+            print("⚠️ 미리듣기 파일을 찾을 수 없습니다:", fileName)
+            return
+        }
+        
+        do {
+            // 기존 미리듣기 정지
+            previewPlayer?.stop()
+            
+            previewPlayer = try AVAudioPlayer(contentsOf: url)
+            previewPlayer?.volume = 0.3  // 미리듣기는 조금 작게
+            previewPlayer?.play()
+            
+            // 3초 후 자동 정지
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                self.previewPlayer?.stop()
+                self.previewPlayer = nil
+            }
+            
+            print("🔊 미리듣기: \(fileName)")
+        } catch {
+            print("⚠️ 미리듣기 플레이어 생성 실패:", error)
+        }
+    }
+    
+    /// 미리듣기 정지
+    func stopPreview() {
+        previewPlayer?.stop()
+        previewPlayer = nil
+    }
+    
+    // MARK: - 전체 제어 (기존 API 유지)
     
     /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만)
     func playAll() {
         for (index, player) in players.enumerated() {
-            // 볼륨이 0보다 큰 플레이어만 재생
             if player.volume > 0 && !player.isPlaying {
                 player.play()
             }
@@ -92,9 +276,10 @@ final class SoundManager {
             player.stop()
             player.currentTime = 0
         }
+        stopPreview()  // 미리듣기도 정지
     }
     
-    // MARK: - 개별 제어
+    // MARK: - 개별 제어 (기존 API 유지)
     
     func play(at index: Int) {
         guard index >= 0, index < players.count else { return }
@@ -119,7 +304,7 @@ final class SoundManager {
         return players[index].isPlaying
     }
     
-    // MARK: - 볼륨 제어
+    // MARK: - 볼륨 제어 (기존 API 유지)
     
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이.
     func setVolume(at index: Int, volume: Float) {
@@ -152,26 +337,79 @@ final class SoundManager {
         print("프리셋 적용 완료: \(volumes)")
     }
     
-    // MARK: - 페이드아웃
+    // MARK: - 확장된 프리셋 적용 (버전 정보 포함)
+    
+    /// 버전 정보를 포함한 프리셋 적용
+    func applyPresetWithVersions(volumes: [Float], versions: [Int]? = nil) {
+        // 1. 버전 정보가 있으면 먼저 적용
+        if let versions = versions {
+            for (categoryIndex, versionIndex) in versions.enumerated() {
+                if categoryIndex < soundCategories.count {
+                    selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
+                }
+            }
+        }
+        
+        // 2. 볼륨 적용
+        applyPreset(volumes: volumes)
+    }
+    
+    // MARK: - 페이드아웃 (기존 API 유지)
     
     /// 모든 사운드를 부드럽게 페이드아웃
-    /// - Parameter duration: 페이드아웃 지속 시간 (기본값: 30초)
     func fadeOutAll(duration: TimeInterval = 30.0) {
         print("페이드아웃 시작: \(duration)초 동안")
         
         players.forEach { player in
-            // AVAudioPlayer의 내장 페이드아웃 기능 사용
             player.setVolume(0, fadeDuration: duration)
         }
         
-        // 페이드아웃 완료 후 완전히 정지
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             self.pauseAll()
             print("페이드아웃 완료 - 모든 사운드 정지")
         }
     }
     
-    // MARK: - 인터럽션 처리
+    // MARK: - 프리셋 호환성 (기존 API)
+    
+    /// 현재 선택된 버전들 반환
+    func getCurrentVersions() -> [Int] {
+        return selectedVersions
+    }
+    
+    /// 카테고리명으로 인덱스 찾기 (ChatViewController 호환성)
+    func getSoundIndex(for soundName: String) -> Int? {
+        // 기존 매핑 유지 (임시)
+        let legacyMapping: [String: Int] = [
+            "Rain": 4,      // 🌧️ 비
+            "Thunder": 4,   // 🌧️ 비 (천둥 소리가 없으므로 비로 매핑)
+            "Ocean": 10,    // 🌊 파도
+            "Fire": 3,      // 🔥 불
+            "Steam": 5,     // 🏞️ 시냇물 (비슷한 소리)
+            "WindowRain": 4, // 🌧️ 비
+            "Forest": 0,    // 🐱 고양이 (자연 소리로 매핑)
+            "Wind": 1,      // 💨 바람
+            "Night": 2,     // 🌙 밤
+            "Lullaby": 7,   // 🌌 우주 (잔잔한 소리)
+            "Fan": 8,       // 🌀 쿨링팬
+            "WhiteNoise": 9 // ⌨️ 키보드 (화이트노이즈 대체)
+        ]
+        
+        // 새로운 이모지/이름 매핑
+        if let index = soundCategories.firstIndex(where: { $0.name == soundName }) {
+            return index
+        }
+        
+        return legacyMapping[soundName]
+    }
+    
+    /// ChatViewController에서 사용할 표준 사운드 이름들 (업데이트됨)
+    static let standardSoundNames = [
+        "고양이", "바람", "밤", "불", "비", "시냇물",
+        "연필", "우주", "쿨링팬", "키보드", "파도"
+    ]
+    
+    // MARK: - 인터럽션 처리 (기존 유지)
     
     @objc private func handleInterruption(_ notif: Notification) {
         guard let info = notif.userInfo,
@@ -180,11 +418,10 @@ final class SoundManager {
 
         switch type {
         case .began:
-            // 인터럽션 시작: 일시정지
             pauseAll()
+            stopPreview()
             print("오디오 인터럽션 시작 - 일시정지")
         case .ended:
-            // 인터럽션 종료: 옵션에 따라 재생 재시도
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
                AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
                 playAll()
@@ -197,24 +434,6 @@ final class SoundManager {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+        stopPreview()
     }
-}
-
-// MARK: - 사운드 이름 매핑 (ChatViewController에서 사용)
-extension SoundManager {
-    /// 사운드 이름을 인덱스로 변환
-    func getSoundIndex(for soundName: String) -> Int? {
-        let soundMapping: [String: Int] = [
-            "Rain": 0, "Thunder": 1, "Ocean": 2, "Fire": 3,
-            "Steam": 4, "WindowRain": 5, "Forest": 6, "Wind": 7,
-            "Night": 8, "Lullaby": 9, "Fan": 10, "WhiteNoise": 11
-        ]
-        return soundMapping[soundName]
-    }
-    
-    /// ChatViewController에서 사용할 표준 사운드 이름들
-    static let standardSoundNames = [
-        "Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain",
-        "Forest", "Wind", "Night", "Lullaby", "Fan", "WhiteNoise"
-    ]
 }

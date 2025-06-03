@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-// MARK: - 감정 관련 모델
+// MARK: - 감정 관련 모델 (기존 유지)
 struct Emotion {
     let emoji: String
     let name: String
@@ -41,7 +41,7 @@ struct Emotion {
     ]
 }
 
-// MARK: - ✅ 원래 구조 복원된 감정 일기 모델
+// MARK: - ✅ 원래 구조 복원된 감정 일기 모델 (기존 유지)
 struct EmotionDiary: Codable, Identifiable {
     let id: UUID
     let date: Date
@@ -64,7 +64,7 @@ struct EmotionDiary: Codable, Identifiable {
     }
 }
 
-// MARK: - 사운드 프리셋 모델
+// MARK: - ✅ 확장된 사운드 프리셋 모델 (버전 정보 포함)
 struct SoundPreset: Codable {
     let id: UUID
     let name: String
@@ -74,6 +74,11 @@ struct SoundPreset: Codable {
     let description: String?
     let createdDate: Date
     
+    // ✅ 새로 추가: 버전 정보 (11개 카테고리)
+    let selectedVersions: [Int]?  // 각 카테고리별 선택된 버전 인덱스
+    let presetVersion: String     // 프리셋 버전 ("v1.0" = 12개, "v2.0" = 11개)
+    
+    // MARK: - 기존 호환성 초기화 (12개 → 11개 변환 없이 저장)
     init(name: String, volumes: [Float], emotion: String? = nil, isAIGenerated: Bool = false, description: String? = nil) {
         self.id = UUID()
         self.name = name
@@ -82,10 +87,118 @@ struct SoundPreset: Codable {
         self.isAIGenerated = isAIGenerated
         self.description = description
         self.createdDate = Date()
+        
+        // 기존 버전 호환성
+        if volumes.count == 12 {
+            self.presetVersion = "v1.0"  // 기존 12개 프리셋
+            self.selectedVersions = nil  // 버전 정보 없음
+        } else {
+            self.presetVersion = "v2.0"  // 새로운 11개 프리셋
+            self.selectedVersions = SoundPresetCatalog.defaultVersionSelection  // 기본 버전
+        }
+    }
+    
+    // MARK: - 새로운 초기화 (버전 정보 포함)
+    init(name: String, volumes: [Float], selectedVersions: [Int], emotion: String? = nil, isAIGenerated: Bool = false, description: String? = nil) {
+        self.id = UUID()
+        self.name = name
+        self.volumes = volumes
+        self.selectedVersions = selectedVersions
+        self.emotion = emotion
+        self.isAIGenerated = isAIGenerated
+        self.description = description
+        self.createdDate = Date()
+        self.presetVersion = "v2.0"  // 항상 새 버전
+    }
+    
+    // MARK: - 버전 호환성 메서드
+    
+    /// 11개 카테고리용 볼륨 배열 반환
+    var compatibleVolumes: [Float] {
+        if presetVersion == "v1.0" && volumes.count == 12 {
+            // 기존 12개를 11개로 변환
+            return SoundPresetCatalog.convertLegacyVolumes(volumes)
+        } else {
+            // 이미 11개이거나 새 버전
+            return volumes
+        }
+    }
+    
+    /// 현재 선택된 버전들 반환 (없으면 기본값)
+    var compatibleVersions: [Int] {
+        return selectedVersions ?? SoundPresetCatalog.defaultVersionSelection
+    }
+    
+    /// 프리셋이 새로운 11개 카테고리 형식인지 확인
+    var isNewFormat: Bool {
+        return presetVersion == "v2.0"
+    }
+    
+    /// 레거시 형식에서 새 형식으로 업그레이드
+    func upgraded() -> SoundPreset {
+        if isNewFormat {
+            return self  // 이미 새 형식
+        }
+        
+        return SoundPreset(
+            name: name,
+            volumes: compatibleVolumes,
+            selectedVersions: SoundPresetCatalog.defaultVersionSelection,
+            emotion: emotion,
+            isAIGenerated: isAIGenerated,
+            description: description
+        )
     }
 }
 
-// MARK: - 일기 컨텍스트 모델
+// MARK: - ✅ 프리셋 버전 관리
+struct PresetManager {
+    static let shared = PresetManager()
+    
+    private init() {}
+    
+    /// 기존 프리셋들을 새 형식으로 마이그레이션
+    func migrateLegacyPresetsIfNeeded() {
+        let userDefaults = UserDefaults.standard
+        let migrationKey = "presetMigrationV2Completed"
+        
+        guard !userDefaults.bool(forKey: migrationKey) else {
+            print("✅ 프리셋 마이그레이션 이미 완료됨")
+            return
+        }
+        
+        let existingPresets = SettingsManager.shared.loadSoundPresets()
+        var migratedCount = 0
+        
+        for preset in existingPresets {
+            if !preset.isNewFormat {
+                let upgradedPreset = preset.upgraded()
+                SettingsManager.shared.saveSoundPreset(upgradedPreset)
+                migratedCount += 1
+            }
+        }
+        
+        userDefaults.set(true, forKey: migrationKey)
+        print("✅ 프리셋 마이그레이션 완료: \(migratedCount)개 업그레이드")
+    }
+    
+    /// 새로운 버전 정보를 포함한 프리셋 저장
+    func savePresetWithVersions(name: String, volumes: [Float], versions: [Int], emotion: String? = nil, isAIGenerated: Bool = false) {
+        let preset = SoundPreset(
+            name: name,
+            volumes: volumes,
+            selectedVersions: versions,
+            emotion: emotion,
+            isAIGenerated: isAIGenerated,
+            description: isAIGenerated ? "AI 추천 프리셋" : "사용자 저장 프리셋"
+        )
+        
+        SettingsManager.shared.saveSoundPreset(preset)
+        print("✅ 새 형식 프리셋 저장: \(name)")
+    }
+}
+
+// MARK: - 일기 컨텍스트 모델 (기존 유지)
 struct DiaryContext {
     let emotion: String
     let content: String
@@ -121,7 +234,7 @@ struct DiaryContext {
     }
 }
 
-// MARK: - 사용자 설정 모델
+// MARK: - 사용자 설정 모델 (기존 유지)
 struct UserSettings: Codable {
     var dailyChatLimit: Int = 50
     var dailyPresetLimit: Int = 3
@@ -138,13 +251,13 @@ struct UserSettings: Codable {
     }
 }
 
-// MARK: - 사용 통계 모델
+// MARK: - 사용 통계 모델 (기존 유지)
 struct UsageStats: Codable {
     let date: String
     var chatCount: Int = 0
     var presetRecommendationCount: Int = 0
     var patternAnalysisCount: Int = 0
-    var diaryAnalysisCount: Int = 0 
+    var diaryAnalysisCount: Int = 0
     var timerUsageCount: Int = 0
     var totalSessionTime: TimeInterval = 0
     var mostUsedEmotion: String?
@@ -155,7 +268,7 @@ struct UsageStats: Codable {
     }
 }
 
-// MARK: - AI 응답 모델
+// MARK: - AI 응답 모델 (확장됨)
 struct AIResponse {
     let message: String
     let preset: SoundPreset?
@@ -174,7 +287,27 @@ struct AIResponse {
     }
 }
 
-// MARK: - 알림 모델
+// MARK: - ✅ 확장된 추천 응답 모델 (기존과 충돌 방지)
+struct EnhancedRecommendationResponse {
+    let volumes: [Float]
+    let presetName: String
+    let selectedVersions: [Int]?  // 버전 정보 추가
+    let confidence: Float
+    
+    init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, confidence: Float = 1.0) {
+        self.volumes = volumes
+        self.presetName = presetName
+        self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersionSelection
+        self.confidence = confidence
+    }
+    
+    // 기존 RecommendationResponse와 호환성을 위한 변환
+    func toLegacyFormat() -> (volumes: [Float], presetName: String) {
+        return (volumes: volumes, presetName: presetName)
+    }
+}
+
+// MARK: - 알림 모델 (기존 유지)
 struct DeepSleepNotification: Codable {
     let id: UUID
     let title: String
@@ -200,7 +333,7 @@ struct DeepSleepNotification: Codable {
     }
 }
 
-// MARK: - ✅ 감정 패턴 분석 모델
+// MARK: - ✅ 감정 패턴 분석 모델 (기존 유지)
 struct EmotionPattern: Codable {
     let startDate: Date
     let endDate: Date
@@ -398,6 +531,66 @@ extension Array where Element == EmotionDiary {
     }
 }
 
+// MARK: - ✅ SoundPreset 확장
+extension SoundPreset {
+    
+    /// 프리셋의 주요 사운드 카테고리들 (볼륨이 높은 순)
+    var dominantCategories: [(emoji: String, name: String, volume: Float)] {
+        let volumes = compatibleVolumes
+        let categoryCount = min(volumes.count, SoundPresetCatalog.categoryCount)
+        
+        var results: [(emoji: String, name: String, volume: Float)] = []
+        
+        for i in 0..<categoryCount {
+            if volumes[i] > 0 {
+                results.append((
+                    emoji: SoundPresetCatalog.categoryEmojis[i],
+                    name: SoundPresetCatalog.categoryNames[i],
+                    volume: volumes[i]
+                ))
+            }
+        }
+        
+        return results.sorted { $0.volume > $1.volume }
+    }
+    
+    /// 프리셋 요약 텍스트
+    var summaryText: String {
+        let dominant = dominantCategories.prefix(3)
+        if dominant.isEmpty {
+            return "🔇 무음"
+        }
+        
+        let descriptions = dominant.map { "\($0.emoji)\($0.name)" }
+        return descriptions.joined(separator: " + ")
+    }
+    
+    /// 프리셋의 전체 볼륨 레벨
+    var totalVolumeLevel: VolumeLevel {
+        let totalVolume = compatibleVolumes.reduce(0, +)
+        switch totalVolume {
+        case 0:
+            return .silent
+        case 1..<100:
+            return .low
+        case 100..<300:
+            return .medium
+        case 300..<600:
+            return .high
+        default:
+            return .veryHigh
+        }
+    }
+    
+    enum VolumeLevel: String {
+        case silent = "무음"
+        case low = "낮음"
+        case medium = "보통"
+        case high = "높음"
+        case veryHigh = "매우 높음"
+    }
+}
+
 // MARK: - ✅ SettingsManager 확장을 위한 프로토콜
 protocol EmotionDiaryManaging {
     func saveEmotionDiary(_ entry: EmotionDiary)
@@ -554,6 +747,8 @@ enum DeepSleepError: LocalizedError {
     case loadFailure
     case networkError
     case permissionDenied
+    case presetVersionMismatch
+    case soundFileNotFound
     
     var errorDescription: String? {
         switch self {
@@ -569,6 +764,10 @@ enum DeepSleepError: LocalizedError {
             return "네트워크 오류가 발생했습니다."
         case .permissionDenied:
             return "권한이 거부되었습니다."
+        case .presetVersionMismatch:
+            return "프리셋 버전이 호환되지 않습니다."
+        case .soundFileNotFound:
+            return "사운드 파일을 찾을 수 없습니다."
         }
     }
 }
@@ -594,5 +793,13 @@ struct DeepSleepConstants {
         static let maxDiaryCount = 500
         static let recentDiaryCount = 10
         static let analysisDefaultPeriod = 30
+    }
+    
+    struct Sound {
+        static let categoryCount = 11  // 새로운 11개 카테고리
+        static let previewDuration: TimeInterval = 3.0
+        static let defaultFadeOutDuration: TimeInterval = 30.0
+        static let maxVolume: Float = 100.0
+        static let minVolume: Float = 0.0
     }
 }
