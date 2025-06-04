@@ -116,9 +116,4 @@ extension ViewController {
         let vc = TimerViewController()
         navigationController?.pushViewController(vc, animated: true)
     }
-    
-    @objc func showDiary() {
-        let diaryVC = EmotionDiaryViewController()
-        navigationController?.pushViewController(diaryVC, animated: true)
-    }
 }

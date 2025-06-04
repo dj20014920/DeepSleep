@@ -4,6 +4,8 @@ import MediaPlayer
 
 class ViewController: UIViewController {
     
+    let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
+    
     // MARK: - Properties (11개 카테고리로 업데이트)
     
     /// 새로운 11개 이모지 라벨 (기존 A-L 대신)
@@ -22,8 +24,7 @@ class ViewController: UIViewController {
     var sliders: [UISlider] = []
     var volumeFields: [UITextField] = []
     var playButtons: [UIButton] = []
-    var versionButtons: [UIButton?] = []  // 다중 버전 카테고리만 버튼 존재
-    var previewButtons: [UIButton] = []   // 미리듣기 버튼들
+    var previewSeekSliders: [UISlider] = [] // 미리듣기 탐색 슬라이더들
     
     // 프리셋 블록 UI 요소들 (기존 유지)
     var recentPresetButtons: [UIButton] = []
@@ -32,10 +33,18 @@ class ViewController: UIViewController {
     
     // 실시간 재생 상태 모니터링 (기존 유지)
     var playbackMonitorTimer: Timer?
+    
+    // 현재 미리듣기 상태
+    var currentlyPreviewingIndex: Int? = nil
+    var previewSliderUpdateTimer: Timer?
+
+    var globalVolume: Float = 0.75 // 기본 글로벌 볼륨 (0.0 ~ 1.0) - 0.01에서 0.75로 변경
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("👍 [ViewController] viewDidLoad() - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        print("✅ ViewController [\(instanceUUID)] viewDidLoad.") // UUID 로깅 추가
         
         // 데이터 일관성 검증 (Debug 모드에서만)
         #if DEBUG
@@ -46,15 +55,33 @@ class ViewController: UIViewController {
         #endif
         
         // 기존 프리셋 데이터 마이그레이션 (앱 시작 시 한 번만 실행)
-        PresetManager.shared.migrateLegacyPresetsIfNeeded()
+        migratePresets()
         
         setupViewController()
     }
     
+    // MARK: - 프리셋 마이그레이션
+    private func migratePresets() {
+        // 1. 레거시 프리셋 마이그레이션 (12개 → 11개)
+        PresetManager.shared.migrateLegacyPresetsIfNeeded()
+        
+        // 2. 버전 정보 마이그레이션
+        SettingsManager.shared.migratePresetsIfNeeded()
+        
+        print("✅ 프리셋 마이그레이션 완료")
+    }
+    
     // MARK: - viewWillAppear 중복 제거 - Extension에서 처리
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        print("👍 [ViewController] viewWillAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        startPlaybackStateMonitoring()
+    }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        print("👍 [ViewController] viewDidAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
         startPlaybackStateMonitoring()
     }
     
@@ -62,7 +89,7 @@ class ViewController: UIViewController {
         super.viewWillDisappear(animated)
         stopPlaybackStateMonitoring()
     }
-    
+
     deinit {
         NotificationCenter.default.removeObserver(self)
         stopPlaybackStateMonitoring()
@@ -83,10 +110,9 @@ class ViewController: UIViewController {
     }
     
     private func configureNavBar() {
-        // 왼쪽: 타이머 + 일기
+        // 왼쪽: 타이머
         navigationItem.leftBarButtonItems = [
-            UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer)),
-            UIBarButtonItem(title: "일기", style: .plain, target: self, action: #selector(showDiary))
+            UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
         ]
         
         // 오른쪽: 저장 + 불러오기
@@ -107,6 +133,13 @@ class ViewController: UIViewController {
             self,
             selector: #selector(keyboardWillHide),
             name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        // ✅ ApplyPresetFromChat 알림 옵저버 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleApplyPresetFromChat(_:)),
+            name: NSNotification.Name("ApplyPresetFromChat"),
             object: nil
         )
     }
@@ -153,10 +186,13 @@ class ViewController: UIViewController {
     func applyLegacyPreset(volumes12: [Float], name: String) {
         if volumes12.count == 12 {
             let convertedVolumes = SoundPresetCatalog.convertLegacyVolumes(volumes12)
-            applyPreset(volumes: convertedVolumes, name: name)
+            // 레거시 프리셋은 기본 버전을 사용하거나, 별도의 버전 변환 로직이 필요할 수 있음
+            // 여기서는 nil을 전달하여 applyPreset 내부에서 기본값을 사용하도록 함
+            applyPreset(volumes: convertedVolumes, versions: nil, name: name)
             print("✅ 12개 → 11개 프리셋 변환 적용: \(name)")
         } else {
-            applyPreset(volumes: volumes12, name: name)
+            // 12개가 아닌 다른 개수의 레거시 볼륨은 버전 정보 없이 적용 시도
+            applyPreset(volumes: volumes12, versions: nil, name: name)
         }
     }
     
@@ -200,18 +236,15 @@ class ViewController: UIViewController {
     // MARK: - 기존 인터페이스 메서드들 (반드시 유지)
     
     @objc func fadeOutTapped() {
-        SoundManager.shared.fadeOutAll()
-        
+        SoundManager.shared.pauseAll()
         // UI 업데이트를 위한 타이머
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
             self?.updatePlayButtonStates()
-            
             // 30초 후 타이머 정리
             DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
                 timer.invalidate()
             }
         }
-        
         provideMediumHapticFeedback()
         print("🌅 페이드아웃 시작")
     }
@@ -239,8 +272,9 @@ class ViewController: UIViewController {
             randomVolumes.append(randomVolume)
         }
         
-        applyPreset(volumes: randomVolumes, name: "🎲 랜덤 프리셋")
-        print("🎲 랜덤 프리셋 생성")
+        // 랜덤 프리셋은 모든 카테고리의 기본 버전을 사용
+        applyPreset(volumes: randomVolumes, versions: SoundPresetCatalog.defaultVersionSelection, name: "🎲 랜덤 프리셋")
+        print("✅ 랜덤 프리셋 생성")
     }
     
     // MARK: - 볼륨 컨트롤 단축키들 (기존 기능)
@@ -430,18 +464,122 @@ class ViewController: UIViewController {
     
     private func applySamplePreset() {
         let samplePresets = SoundPresetCatalog.samplePresets
-        let randomPreset = samplePresets.randomElement()!
-        applyPreset(volumes: randomPreset.value, name: randomPreset.key)
+        guard let randomPreset = samplePresets.randomElement() else { return }
+        // 샘플 프리셋의 경우, SoundPresetCatalog에 버전 정보가 있다면 가져오고, 없다면 기본값 사용
+        // 현재 SoundPresetCatalog.samplePresets는 볼륨 정보만 있으므로 기본 버전 사용
+        applyPreset(volumes: randomPreset.value, versions: SoundPresetCatalog.defaultVersionSelection, name: randomPreset.key)
         print("🎲 랜덤 샘플 프리셋 적용: \(randomPreset.key)")
     }
     
     private func testAllSounds() {
         let testVolumes: [Float] = Array(repeating: 30, count: SoundPresetCatalog.categoryCount)
-        applyPreset(volumes: testVolumes, name: "🧪 테스트 모드")
+        // 모든 사운드 테스트는 기본 버전을 사용
+        applyPreset(volumes: testVolumes, versions: SoundPresetCatalog.defaultVersionSelection, name: "🧪 테스트 모드")
         print("🧪 모든 사운드 30% 볼륨으로 테스트")
     }
     #endif
+    
+    // "일기" 버튼 클릭 시 EmotionDiaryViewController (또는 메인 일기 화면 컨트롤러)를 표시하도록 수정
+    @objc func showDiary() {
+        // EmotionDiaryViewController의 실제 클래스 이름으로 변경해야 할 수 있습니다.
+        let diaryVC = EmotionDiaryViewController() 
+        // diaryVC.title = "감정 일기" // 필요에 따라 타이틀 설정
+        navigationController?.pushViewController(diaryVC, animated: true)
+        provideLightHapticFeedback()
+    }
+
+    // MARK: - Notification Handlers
+    @objc private func handleApplyPresetFromChat(_ notification: Notification) {
+        print("🎵 ViewController [\(self.instanceUUID)] received ApplyPresetFromChat notification.") // UUID 로깅 추가
+
+        guard let userInfo = notification.userInfo,
+              let volumes = userInfo["volumes"] as? [Float],
+              let presetName = userInfo["presetName"] as? String,
+              let selectedVersions = userInfo["selectedVersions"] as? [Int] else {
+            print("⚠️ [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 오류: userInfo 파싱 실패. Info: \(String(describing: notification.userInfo))")
+            DispatchQueue.main.async {
+                print("Error: Toast - Preset application failed due to userInfo parsing. (Instance: \(self.instanceUUID))")
+            }
+            return
+        }
+
+        print("🎵 [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 성공: \(presetName)")
+        let threadInfo = Thread.isMainThread ? "Main Thread" : "Background Thread"
+        print("  - Instance: \(self.instanceUUID)")
+        print("  - 알림 수신 스레드: \(threadInfo)")
+        print("  - Volumes: \(volumes)")
+        print("  - Selected Versions: \(selectedVersions)")
+
+        DispatchQueue.main.async { [weak self] in 
+            guard let strongSelf = self else {
+                // 이 시점에서는 strongSelf가 nil이므로 instanceUUID에 접근하기 어려울 수 있습니다.
+                print("  [ViewController] self is nil before calling applyPreset on main thread. Aborting for preset: \(presetName).")
+                return
+            }
+            print("  [ViewController [\(strongSelf.instanceUUID)]] 메인 스레드에서 applyPreset 호출 예정: \(presetName)")
+            strongSelf.applyPreset(volumes: volumes, versions: selectedVersions, name: presetName)
+            strongSelf.switchToMainSoundTab()
+        }
+    }
+
+    private func switchToMainSoundTab(attempt: Int = 0) {
+        print("👍 [ViewController] switchToMainSoundTab - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController)), parent: \(String(describing: self.parent)), presentingViewController: \(String(describing: self.presentingViewController))")
+        let currentInstanceUUID = self.instanceUUID // 현재 함수의 UUID도 로깅
+        if let tabBarController = self.tabBarController {
+            if tabBarController.selectedIndex != 0 {
+                print("  [ViewController [\(currentInstanceUUID)]] 메인 사운드 탭(0번)으로 전환합니다.")
+                tabBarController.selectedIndex = 0
+            } else {
+                print("  [ViewController [\(currentInstanceUUID)]] 이미 메인 사운드 탭(0번)입니다.")
+            }
+        } else {
+            if attempt < 5 { // 최대 5번 (0.5초) 시도
+                print("  [ViewController [\(currentInstanceUUID)]] TabBarController를 찾을 수 없습니다. (시도: \(attempt + 1)) 0.1초 후 재시도합니다.")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.switchToMainSoundTab(attempt: attempt + 1)
+                }
+            } else {
+                print("  [ViewController [\(currentInstanceUUID)]] TabBarController를 여러 번 시도했지만 찾을 수 없었습니다.")
+            }
+        }
+    }
 }
 
-// MARK: - Extension에서 구현되는 메서드들은 실제 Extension에서만 정의됨
-// ViewController+SliderControls.swift, ViewController+PlaybackControls.swift 등에서 구현됨
+// MARK: - 프리셋 적용 (볼륨 및 버전)
+extension ViewController {
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String) {
+        print("🎶 ViewController [\(self.instanceUUID)] - 프리셋 적용 시작: \(name)")
+        print("  - 볼륨: \(volumes)")
+        
+        let actualVersions = versions ?? SoundPresetCatalog.defaultVersionSelection
+        if versions != nil {
+            print("  - 버전: \(actualVersions)")
+        } else {
+            print("  - 버전: 기본값 사용 \(actualVersions)")
+        }
+
+        guard volumes.count == SoundPresetCatalog.categoryCount,
+              actualVersions.count == SoundPresetCatalog.categoryCount else {
+            print("❌ ViewController [\(self.instanceUUID)] - 프리셋 적용 오류: 볼륨 또는 버전 배열 크기가 카테고리 수와 일치하지 않음")
+            // showToast(message: "프리셋 적용 오류") 
+            return
+        }
+
+        updateAllSlidersAndFields(volumes: volumes, versions: actualVersions)
+        
+        for i in 0..<SoundPresetCatalog.categoryCount {
+            SettingsManager.shared.updateSelectedVersion(for: i, to: actualVersions[i])
+            SoundManager.shared.setVolume(at: i, volume: Float(volumes[i] / 100.0))
+            if volumes[i] > 0 {
+                print("  ViewController [\(self.instanceUUID)] - 사운드 \(i) 재생 시작 (호출 전)") // SoundManager 호출 전 로그
+                SoundManager.shared.play(at: i)
+            } else {
+                SoundManager.shared.pause(at: i)
+            }
+        }
+        
+        updatePlayButtonStates()
+        showToast(message: "\'\(name)\' 프리셋이 적용되었습니다.")
+        provideMediumHapticFeedback()
+    }
+}

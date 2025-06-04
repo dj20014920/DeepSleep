@@ -36,7 +36,7 @@ extension EmotionDiaryViewController {
         // 최근 10개 일기만 표시
         let recentDiaries = Array(diaryEntries.prefix(10))
         
-        for (index, diary) in recentDiaries.enumerated() {
+        for (_, diary) in recentDiaries.enumerated() {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "MM/dd"
             let dateString = dateFormatter.string(from: diary.date)

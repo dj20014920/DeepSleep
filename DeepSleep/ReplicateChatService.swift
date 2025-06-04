@@ -60,16 +60,28 @@ class ReplicateChatService {
             useCache: useCache
         )
         
+        let systemPromptForPreset = """
+        당신은 사용자의 감정 상태와 주어진 사운드 상세 설명을 기반으로 최적의 사운드 조합을 추천하는 전문 사운드 큐레이터입니다.
+        11가지 사운드 카테고리에 대해 각각 0부터 100 사이의 볼륨 값을 추천해야 합니다.
+        다중 버전이 있는 사운드('비', '키보드')의 경우, 추천하는 버전 이름(예: V1, V2)도 함께 명시해주세요. (예: 비:75(V2))
+        감정에 깊이 공감하며, 창의적이고 효과적인 사운드 프리셋을 제안해주세요.
+        """
+
         let input: [String: Any] = [
             "prompt": presetPrompt,
-            "temperature": 0.3,
-            "top_p": 0.8,
-            "max_tokens": useCache ? 150 : 200,  // 캐시 사용 시 더 효율적으로
-            "system_prompt": "사운드 큐레이터. 12가지 사운드 볼륨을 정확히 추천하세요."
+            "temperature": 0.4, // 약간 더 창의적인 답변 유도
+            "top_p": 0.85,
+            "max_tokens": useCache ? 200 : 350,  // 상세 설명 추가로 토큰 증가, 캐시 시 더 효율적
+            "system_prompt": systemPromptForPreset
         ]
         
         #if DEBUG
         print("🎵 [CACHED-PRESET] UseCache: \(useCache), Emotion: \(emotionContext)")
+        if !useCache {
+            print("--- 상세 프롬프트 시작 ---")
+            print(presetPrompt)
+            print("--- 상세 프롬프트 끝 ---")
+        }
         #endif
         
         sendToReplicate(input: input, completion: completion)
@@ -111,41 +123,83 @@ class ReplicateChatService {
     
     // ✅ 캐시 기반 프리셋 프롬프트 구성
     private func buildCachedPresetPrompt(cachedPrompt: String, emotionContext: String, useCache: Bool) -> String {
+        let soundDetails = getSoundDetailsForAIPrompt()
+        let soundListString = SoundPresetCatalog.newStandardSoundNames.joined(separator: ", ")
+
+        // AI가 따라야 할 응답 형식 (버전 정보 포함 가능)
+        // 예: [행복한 아침] 고양이:30,바람:0,밤:0,불:0,비:70(V1),시냇물:60,연필:0,우주:0,쿨링팬:0,키보드:0,파도:40
+        // 또는 버전이 없는 경우: [집중하는 오후] 연필:50,쿨링팬:60,키보드:70(V2) (나머지 0으로 간주)
+        let responseFormatInstruction = """
+        응답은 다음 형식 중 하나를 따라야 합니다:
+        1. `[프리셋이름] 카테고리1:값,카테고리2:값,...,카테고리N:값` (모든 11개 카테고리 명시)
+        2. `[프리셋이름] 카테고리X:값(버전X),카테고리Y:값,카테고리Z:값(버전Z)` (주요 사운드만 명시, 나머지는 0으로 간주)
+        다중 버전 사운드(비, 키보드)는 추천 시 `(V1)` 또는 `(V2)`와 같이 버전을 명시해주세요. (예: `비:75(V2)`)
+        11개 사운드 목록: \(soundListString)
+        """
+
         if useCache {
             // 캐시된 맥락이 있을 때 - 간단한 요청
             return """
             \(cachedPrompt)
             
-            위 대화 맥락을 바탕으로 현재 감정에 맞는 12가지 사운드 볼륨(0-100)을 추천해주세요.
-            사운드: Rain,Thunder,Ocean,Fire,Steam,WindowRain,Forest,Wind,Night,Lullaby,Fan,WhiteNoise
+            위 대화 맥락과 현재 감정(\(emotionContext))을 바탕으로 다음 11가지 사운드의 볼륨(0-100)과 필요한 경우 버전(V1/V2)을 추천해주세요.
+            사운드 목록: \(soundListString)
             
-            응답 형식: [프리셋명] Rain:값,Thunder:값,Ocean:값,Fire:값,Steam:값,WindowRain:값,Forest:값,Wind:값,Night:값,Lullaby:값,Fan:값,WhiteNoise:값
+            \(responseFormatInstruction)
             """
         } else {
             // 새 캐시 생성 시 - 상세한 설명
             return """
-            감정 기반 사운드 큐레이터로서 현재 사용자의 감정(\(emotionContext))에 맞는 12가지 사운드 조합을 추천해주세요.
+            당신은 사용자의 감정 상태(\(emotionContext))에 맞는 최적의 사운드 조합을 추천하는 전문 사운드 큐레이터입니다.
+            아래 제공되는 각 사운드 카테고리의 상세 설명을 참고하여, 사용자의 현재 감정을 가장 잘 지원할 수 있는 11가지 사운드의 볼륨(0-100) 조합과,
+            다중 버전 사운드('비', '키보드')의 경우 가장 적합한 버전(V1 또는 V2)을 함께 추천해주세요.
+            프리셋 이름도 감정과 상황에 맞게 창의적으로 지어주세요.
+
+            \(soundDetails)
             
-            사운드 설명:
-            - Rain: 빗소리 (평온, 집중)
-            - Thunder: 천둥소리 (강렬함, 드라마틱)  
-            - Ocean: 파도소리 (자연, 휴식)
-            - Fire: 모닥불소리 (따뜻함, 포근함)
-            - Steam: 증기소리 (부드러움)
-            - WindowRain: 창가 빗소리 (아늑함)
-            - Forest: 숲새소리 (자연, 생동감)
-            - Wind: 바람소리 (시원함, 청량함)
-            - Night: 여름밤소리 (로맨틱, 평화)
-            - Lullaby: 자장가 (수면, 위로)
-            - Fan: 선풍기소리 (집중, 화이트노이즈)
-            - WhiteNoise: 백색소음 (집중, 차단)
-            
-            감정에 진심으로 공감하며 그 감정을 달래거나 증진시킬 수 있는 사운드 조합을 추천해주세요.
-            각 사운드의 볼륨을 0-100으로 설정하세요.
-            
-            응답 형식: [감정에 맞는 프리셋 이름] Rain:값,Thunder:값,Ocean:값,Fire:값,Steam:값,WindowRain:값,Forest:값,Wind:값,Night:값,Lullaby:값,Fan:값,WhiteNoise:값
+            \(responseFormatInstruction)
             """
         }
+    }
+    
+    // AI 프롬프트에 사용될 사운드 상세 정보를 반환하는 함수
+    private func getSoundDetailsForAIPrompt() -> String {
+        // SoundPresetCatalog의 newStandardSoundNames를 참조하여 순서 일관성 유지
+        let soundCategories = SoundPresetCatalog.newStandardSoundNames
+        
+        // 사용자가 제공한 상세 설명을 여기에 통합합니다.
+        // 실제 앱에서는 이 데이터를 SoundPresetCatalog나 별도의 설정 파일에서 가져올 수 있습니다.
+        return """
+        ## 🎵 사운드 카테고리 상세 설명 (음향심리학 기반)
+
+        당신이 사용할 수 있는 11가지 사운드 카테고리는 다음과 같습니다:
+        \(soundCategories.enumerated().map { "\($0 + 1). \($1)" }.joined(separator: "\n"))
+
+        ### 기본 카테고리 (9개)
+        | 카테고리 | 주요 용도 | 감정 효과 | 최적 감정 | 피해야 할 감정 | 최적 볼륨 제안 |
+        |----------|-----------|-----------|-----------|----------------|---------------|
+        | 🐱 고양이 | 편안함, 치유 | 스트레스 완화, 옥시토신 분비 | 😊😢😰😴 | 없음 | 40-80% |
+        | 💨 바람   | 청량감, 집중 | 집중력 향상, 알파파 활성화 | 😊😠 | 😴 | 30-70% |
+        | 🌙 밤     | 평온, 수면 | 멜라토닌 분비, 수면 유도 | 😢😰😴 | 😊 | 50-90% |
+        | 🔥 불     | 따뜻함, 안정 | 안정감 증대, 세로토닌 증가 | 😊😢 | 😠😰 | 20-60% |
+        | 🏞️ 시냇물 | 자연, 휴식 | 평온함 증진, 코르티솔 감소 | 😊😢 | 없음 | 30-70% |
+        | ✏️ 연필   | 집중, 창작 | 창작 집중력, 베타파 자극 | 😊 | 😢😠😰😴 | 10-50% |
+        | 🌌 우주   | 명상, 사색 | 명상 유도, 델타파 활성화 | 😴 | 😊 | 60-100% |
+        | 🌀 쿨링팬 | 화이트노이즈 | 소음 차단, 집중력 향상 | 😰 | 없음 | 20-60% |
+        | 🌊 파도   | 휴식, 자연 | 긴장 완화, 엔도르핀 분비 | 😠 | 없음 | 40-80% |
+
+        ### 다중 버전 카테고리 (2개) - 버전 이름은 (V1), (V2) 등으로 응답
+        | 카테고리 | 버전1 이름 (V1) | 버전2 이름 (V2) | 선택 기준 | 추천 상황 |
+        |----------|-----------------|-----------------|-----------|-----------|
+        | 🌧️ 비    | 일반 빗소리 (V1) | 창문 빗소리 (V2) | 실내/실외 분위기 | 집중작업(V1) vs 휴식(V2) |
+        | ⌨️ 키보드  | 메카니컬 (V1)  | 멤브레인 (V2)  | 타이핑 리듬 차이 | 강한 집중(V1) vs 부드러운 작업(V2) |
+
+        **매우 중요**:
+        - 추천 시 반드시 위에 명시된 11개 카테고리 이름을 사용하세요.
+        - '비' 또는 '키보드' 사운드를 추천할 경우, 반드시 버전 정보(V1 또는 V2)를 괄호 안에 명시해야 합니다. (예: `비:80(V2)`, `키보드:50(V1)`)
+        - 다른 사운드는 버전 정보를 명시할 필요 없습니다.
+        - 각 카테고리 설명에 있는 "최적 볼륨 제안"은 참고용이며, 사용자의 감정과 상황에 따라 더 창의적인 볼륨을 설정할 수 있습니다.
+        """
     }
     
     // MARK: - 네트워크 체크

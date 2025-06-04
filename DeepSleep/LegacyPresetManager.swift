@@ -6,7 +6,7 @@ struct Preset: Codable {
     let volumes: [Float]
 }
 
-class LegacyPresetManager {  // ✅ PresetManager → LegacyPresetManager로 변경
+class LegacyPresetManager {
     static let shared = LegacyPresetManager()
     private let legacyPresetKey = "presets" // 기존 키 유지
 

@@ -410,6 +410,22 @@ class EditDiaryViewController: UIViewController {
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"
         
+        chatVC.onPresetApply = { [weak self] recommendation in
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ApplyPresetFromChat"),
+                object: nil,
+                userInfo: [
+                    "volumes": recommendation.volumes,
+                    "presetName": recommendation.presetName,
+                    "selectedVersions": recommendation.selectedVersions
+                ]
+            )
+            
+            self?.presentedViewController?.dismiss(animated: true) { [weak self] in
+                self?.dismiss(animated: true, completion: nil)
+            }
+        }
+        
         let navController = UINavigationController(rootViewController: chatVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)

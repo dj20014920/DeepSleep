@@ -266,8 +266,10 @@ struct SoundPresetCatalog {
     
     // MARK: - 버전 정보 관리
     
-    /// 기본 버전 설정 (모든 카테고리 첫 번째 버전)
-    static let defaultVersionSelection: [Int] = defaultVersions
+    /// 기본 버전 선택 (각 카테고리의 첫 번째 버전)
+    static var defaultVersionSelection: [Int] {
+        return defaultVersions
+    }
     
     /// 다중 버전이 있는 카테고리 인덱스들
     static let multiVersionCategories: [Int] = [4, 9]  // 비(2개), 키보드(2개)

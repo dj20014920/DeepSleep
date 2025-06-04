@@ -47,10 +47,27 @@ class ChatBubbleCell: UITableViewCell {
         return button
     }()
     
+    // ✅ 새로운 옵션 버튼들을 위한 스택뷰
+    private let optionButtonStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 8
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.isHidden = true
+        return stackView
+    }()
+    
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
     
     private var applyAction: (() -> Void)?
+    
+    // ✅ 옵션 액션들을 저장할 프로퍼티들
+    private var saveAction: (() -> Void)?
+    private var feedbackAction: (() -> Void)?
+    private var goToMainAction: (() -> Void)?
+    private var continueAction: (() -> Void)?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -68,6 +85,7 @@ class ChatBubbleCell: UITableViewCell {
         contentView.addSubview(bubbleView)
         bubbleView.addSubview(messageLabel)
         bubbleView.addSubview(applyButton)
+        bubbleView.addSubview(optionButtonStackView) // ✅ 새로운 스택뷰 추가
         
         // 제약 조건 설정
         messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
@@ -83,8 +101,15 @@ class ChatBubbleCell: UITableViewCell {
             
             applyButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
             applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
-            applyButtonHeightConstraint
-        ]);
+            applyButtonHeightConstraint,
+            
+            // ✅ 옵션 버튼 스택뷰 제약 조건
+            optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12),
+            optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
+            optionButtonStackView.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
+            optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12),
+            optionButtonStackView.heightAnchor.constraint(equalToConstant: 200) // 4개 버튼 * 50 높이
+        ])
 
         // bubbleView 제약
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
@@ -109,7 +134,9 @@ class ChatBubbleCell: UITableViewCell {
         // 초기화
         resetConstraints()
         applyButton.isHidden = true
+        optionButtonStackView.isHidden = true // ✅ 옵션 스택뷰도 숨기기
         applyAction = nil
+        clearOptionActions() // ✅ 옵션 액션들 초기화
 
         switch message {
         case .user(let text):
@@ -118,6 +145,15 @@ class ChatBubbleCell: UITableViewCell {
             configureBotMessage(text)
         case .presetRecommendation(_, let msg, let action):
             configurePresetMessage(msg, action: action)
+        case .postPresetOptions(let presetName, let onSave, let onFeedback, let onGoToMain, let onContinueChat):
+            // ✅ 새로운 postPresetOptions 케이스 처리
+            configurePostPresetOptions(
+                presetName: presetName,
+                onSave: onSave,
+                onFeedback: onFeedback,
+                onGoToMain: onGoToMain,
+                onContinueChat: onContinueChat
+            )
         }
         
         // 애니메이션 효과
@@ -133,6 +169,20 @@ class ChatBubbleCell: UITableViewCell {
         messageLabelBottomConstraint.isActive = false
         messageLabelToButtonConstraint.isActive = false
         applyButtonBottomConstraint.isActive = false
+    }
+    
+    // ✅ 옵션 액션들 초기화
+    private func clearOptionActions() {
+        saveAction = nil
+        feedbackAction = nil
+        goToMainAction = nil
+        continueAction = nil
+        
+        // 기존 버튼들 제거
+        optionButtonStackView.arrangedSubviews.forEach { subview in
+            optionButtonStackView.removeArrangedSubview(subview)
+            subview.removeFromSuperview()
+        }
     }
     
     private func configureUserMessage(_ text: String) {
@@ -202,6 +252,119 @@ class ChatBubbleCell: UITableViewCell {
         addPulseAnimation()
     }
     
+    // ✅ 새로운 postPresetOptions 구성 메서드
+    private func configurePostPresetOptions(
+        presetName: String,
+        onSave: @escaping () -> Void,
+        onFeedback: @escaping () -> Void,
+        onGoToMain: @escaping () -> Void,
+        onContinueChat: @escaping () -> Void
+    ) {
+        // AI 메시지 스타일 기본 적용
+        bubbleView.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.1)
+        messageLabel.textColor = .label
+        messageLabel.text = "🎶 새로운 사운드 조합이 재생되고 있어요!\n\n이제 어떻게 하고 싶으신가요?"
+        messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        
+        // 왼쪽 정렬
+        leadingConstraint.isActive = true
+        
+        // 옵션 버튼 스택뷰 표시
+        optionButtonStackView.isHidden = false
+        
+        // 액션들 저장
+        saveAction = onSave
+        feedbackAction = onFeedback
+        goToMainAction = onGoToMain
+        continueAction = onContinueChat
+        
+        // 4개의 옵션 버튼 생성
+        let saveButton = createOptionButton(
+            title: "💾 저장하기",
+            backgroundColor: .systemBlue,
+            action: #selector(saveOptionTapped)
+        )
+        
+        let feedbackButton = createOptionButton(
+            title: "💬 피드백",
+            backgroundColor: .systemOrange,
+            action: #selector(feedbackOptionTapped)
+        )
+        
+        let continueButton = createOptionButton(
+            title: "💭 계속 대화",
+            backgroundColor: .systemGreen,
+            action: #selector(continueOptionTapped)
+        )
+        
+        let mainButton = createOptionButton(
+            title: "🏠 메인으로",
+            backgroundColor: .systemGray,
+            action: #selector(mainOptionTapped)
+        )
+        
+        // 버튼들을 스택뷰에 추가
+        [saveButton, feedbackButton, continueButton, mainButton].forEach {
+            optionButtonStackView.addArrangedSubview($0)
+        }
+        
+        // 부드러운 그림자 효과
+        bubbleView.layer.shadowColor = UIColor.black.cgColor
+        bubbleView.layer.shadowOffset = CGSize(width: 0, height: 2)
+        bubbleView.layer.shadowOpacity = 0.1
+        bubbleView.layer.shadowRadius = 5
+    }
+    
+    // ✅ 옵션 버튼 생성 헬퍼 메서드
+    private func createOptionButton(
+        title: String,
+        backgroundColor: UIColor,
+        action: Selector
+    ) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = backgroundColor
+        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 버튼 액션 설정
+        button.addTarget(self, action: action, for: .touchUpInside)
+        
+        // 버튼 높이 제약
+        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        
+        return button
+    }
+    
+    // ✅ 옵션 버튼 액션 메서드들
+    @objc private func saveOptionTapped() {
+        provideButtonFeedback()
+        saveAction?()
+    }
+    
+    @objc private func feedbackOptionTapped() {
+        provideButtonFeedback()
+        feedbackAction?()
+    }
+    
+    @objc private func continueOptionTapped() {
+        provideButtonFeedback()
+        continueAction?()
+    }
+    
+    @objc private func mainOptionTapped() {
+        provideButtonFeedback()
+        goToMainAction?()
+    }
+    
+    // ✅ 버튼 피드백 헬퍼 메서드
+    private func provideButtonFeedback() {
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+    }
+    
     private func addGradientToBubble(colors: [CGColor]) {
         // 기존 그라데이션 레이어 제거
         bubbleView.layer.sublayers?.removeAll { $0 is CAGradientLayer }
@@ -260,5 +423,7 @@ class ChatBubbleCell: UITableViewCell {
         // 상태 초기화
         applyAction = nil
         applyButton.isHidden = true
+        optionButtonStackView.isHidden = true // ✅ 옵션 스택뷰도 숨기기
+        clearOptionActions() // ✅ 옵션 액션들 초기화
     }
 }

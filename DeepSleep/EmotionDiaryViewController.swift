@@ -48,9 +48,26 @@ class EmotionDiaryViewController: UIViewController {
         return stackView
     }()
     
+    // AI 분석 버튼들
+    private let aiAnalyzeSelectedDiaryButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("선택 일기 AI 분석", for: .normal)
+        button.isEnabled = false // 처음에는 비활성화
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
+    private let aiAnalyzeMonthlyEmotionsButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("최근 30일 감정 AI 분석", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
     // MARK: - Properties
     internal var diaryEntries: [EmotionDiary] = []
     private var currentView: Int = 0
+    private var selectedDiaryForAnalysis: EmotionDiary? = nil // 선택된 일기 저장
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -147,8 +164,20 @@ class EmotionDiaryViewController: UIViewController {
     private func setupInsightView() {
         contentView.addSubview(insightStackView)
         
+        // AI 분석 버튼 액션 연결
+        aiAnalyzeSelectedDiaryButton.addTarget(self, action: #selector(analyzeSelectedDiaryTapped), for: .touchUpInside)
+        aiAnalyzeMonthlyEmotionsButton.addTarget(self, action: #selector(analyzeMonthlyEmotionsTapped), for: .touchUpInside)
+
+        // 버튼들을 스택뷰에 추가
+        let aiButtonStackView = UIStackView(arrangedSubviews: [aiAnalyzeSelectedDiaryButton, aiAnalyzeMonthlyEmotionsButton])
+        aiButtonStackView.axis = .vertical
+        aiButtonStackView.spacing = 10
+        aiButtonStackView.distribution = .fillEqually
+        
+        insightStackView.addArrangedSubview(aiButtonStackView) // 기존 인사이트 뷰 스택에 추가
+        
         NSLayoutConstraint.activate([
-            insightStackView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            insightStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20), // 여백 추가
             insightStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             insightStackView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -16)
@@ -175,6 +204,8 @@ class EmotionDiaryViewController: UIViewController {
         
         if currentView == 2 {
             updateInsightView()
+            // 인사이트 뷰가 표시될 때 선택된 일기 분석 버튼 상태 업데이트
+            aiAnalyzeSelectedDiaryButton.isEnabled = selectedDiaryForAnalysis != nil
         }
     }
     
@@ -198,11 +229,11 @@ class EmotionDiaryViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
         alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
             // 감정 일기 데이터 삭제
-            UserDefaults.standard.removeObject(forKey: "emotionDiary")
+            SettingsManager.shared.resetAllDiaryEntries() // (가정) SettingsManager에 해당 함수 필요
             self?.loadDiaryData()
-            
-            let feedback = UINotificationFeedbackGenerator()
-            feedback.notificationOccurred(.success)
+            self?.selectedDiaryForAnalysis = nil // 선택된 일기 초기화
+            self?.aiAnalyzeSelectedDiaryButton.isEnabled = false // 버튼 비활성화
+            print("🗑️ 모든 일기 삭제됨")
         })
         
         present(alert, animated: true)
@@ -217,5 +248,105 @@ class EmotionDiaryViewController: UIViewController {
     // 스크롤 뷰 콘텐츠 사이즈 업데이트 메서드 추가
     internal func updateScrollViewContentSize() {
         scrollView.layoutIfNeeded()
+    }
+    
+    // MARK: - AI 분석 액션
+
+    @objc private func analyzeSelectedDiaryTapped() {
+        guard let diary = selectedDiaryForAnalysis else {
+            // 사용자에게 알림 (예: 토스트 메시지)
+            showSimpleToast(message: "분석할 일기를 먼저 선택해주세요.")
+            return
+        }
+
+        let chatVC = ChatViewController()
+        // EmotionDiary 객체에서 DiaryContext를 생성하는 편의 생성자 사용
+        let diaryContext = DiaryContext(from: diary) // 'diary'는 EmotionDiary 타입이어야 함
+        chatVC.diaryContext = diaryContext
+        chatVC.initialUserText = "선택된 일기 심층 분석"
+
+        configureChatVCPresetCallback(for: chatVC)
+        navigationController?.pushViewController(chatVC, animated: true)
+    }
+
+    @objc private func analyzeMonthlyEmotionsTapped() {
+        let allEntries = SettingsManager.shared.loadEmotionDiary()
+        let calendar = Calendar.current
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date()) else {
+            showSimpleToast(message: "날짜 계산 오류")
+            return
+        }
+
+        let recentEntries = allEntries.filter { $0.date >= thirtyDaysAgo }
+        if recentEntries.isEmpty {
+            showSimpleToast(message: "최근 30일간의 일기 데이터가 없습니다.")
+            return
+        }
+
+        // emotionPatternData 생성 (예: "2023-10-27:😊,2023-10-26:😢")
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let patternData = recentEntries.map { "\(dateFormatter.string(from: $0.date)):\($0.selectedEmotion)" }.joined(separator: ",")
+
+        let chatVC = ChatViewController()
+        chatVC.emotionPatternData = patternData
+        chatVC.initialUserText = "최근 30일 감정 패턴 분석"
+        
+        configureChatVCPresetCallback(for: chatVC)
+        navigationController?.pushViewController(chatVC, animated: true)
+    }
+
+    private func configureChatVCPresetCallback(for chatVC: ChatViewController) {
+        // 네비게이션 스택에서 ViewController (메인 화면) 인스턴스를 찾습니다.
+        guard let navigationController = self.navigationController else {
+            print("⚠️ NavigationController가 없습니다.")
+            return
+        }
+
+        // 네비게이션 스택의 모든 뷰 컨트롤러를 확인
+        print("📱 현재 네비게이션 스택:")
+        navigationController.viewControllers.forEach { print("- \(type(of: $0))") }
+
+        // 메인 ViewController 찾기 (스택의 맨 아래에서부터 찾기)
+        if let mainVC = navigationController.viewControllers.first(where: { $0 is ViewController }) as? ViewController {
+            print("✅ Main ViewController 찾음")
+            
+            // 약한 참조로 클로저 캡처
+            chatVC.onPresetApply = { [weak mainVC, weak navigationController] recommendation in
+                guard let mainVC = mainVC else {
+                    print("⚠️ Main ViewController가 해제되었습니다.")
+                    return
+                }
+                
+                print("🎵 프리셋 적용 시작: \(recommendation.presetName)")
+                print("볼륨: \(recommendation.volumes)")
+                print("버전: \(recommendation.selectedVersions ?? [])")
+                
+                mainVC.applyPreset(
+                    volumes: recommendation.volumes,
+                    versions: recommendation.selectedVersions,
+                    name: recommendation.presetName
+                )
+                
+                // 메인 화면으로 돌아가기 전에 잠시 대기
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    navigationController?.popToViewController(mainVC, animated: true)
+                }
+                
+                print("✅ 프리셋 적용 완료")
+            }
+        } else {
+            print("⚠️ Main ViewController를 찾을 수 없습니다.")
+        }
+    }
+    
+    // 간단한 토스트 메시지 (ViewController의 showToast 활용)
+    private func showSimpleToast(message: String) {
+        if let mainVC = navigationController?.viewControllers.first(where: { $0 is ViewController }) as? ViewController {
+            mainVC.showToast(message: message)
+        } else {
+            // ViewController를 찾지 못한 경우의 대체 처리 (예: print 또는 자체 간단 토스트)
+            print("Toast: \(message) (MainVC not found)")
+        }
     }
 }

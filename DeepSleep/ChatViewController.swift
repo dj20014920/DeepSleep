@@ -4,10 +4,12 @@ import UIKit
 struct RecommendationResponse {
     let volumes: [Float]
     let presetName: String
+    let selectedVersions: [Int]
     
-    init(volumes: [Float], presetName: String = "맞춤 프리셋") {
+    init(volumes: [Float], presetName: String = "맞춤 프리셋", selectedVersions: [Int]? = nil) {
         self.volumes = volumes
         self.presetName = presetName
+        self.selectedVersions = selectedVersions ?? Array(repeating: 0, count: SoundPresetCatalog.categoryCount)
     }
 }
 
@@ -157,7 +159,16 @@ class ChatViewController: UIViewController {
 extension ChatViewController {
     private func loadChatHistory() {
         if let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: String]] {
-            self.messages = saved.compactMap { ChatMessage.from(dictionary: $0) }
+            self.messages = saved.compactMap { dict -> ChatMessage? in
+                guard let message = ChatMessage.from(dictionary: dict) else { return nil }
+                
+                // ✅ 프리셋 적용 완료 메시지 필터링 로직 추가
+                if case .bot(let text) = message,
+                   text.hasPrefix("✅ ") && text.contains("프리셋이 적용되었습니다!") {
+                    return nil // 이 메시지는 로드하지 않음
+                }
+                return message
+            }
         }
     }
     
@@ -391,7 +402,7 @@ extension ChatViewController {
     }
     
     @objc private func closeButtonTapped() {
-        if let presentingViewController = presentingViewController {
+        if self.presentingViewController != nil {
             dismiss(animated: true)
         } else {
             navigationController?.popViewController(animated: true)

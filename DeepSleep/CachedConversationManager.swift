@@ -197,7 +197,7 @@ class CachedConversationManager {
     
     // MARK: - ✅ 캐시 관리
     func updateCacheAfterResponse() {
-        if var cache = currentCache {
+        if let cache = currentCache {
             // 대화 횟수 증가 및 타이머 리셋
             currentCache = CachedConversation(
                 cacheId: cache.cacheId,
@@ -237,19 +237,25 @@ class CachedConversationManager {
             return isTimeValid && isTokenValid
         }
     
-    // MARK: - ✅ 데이터 관리
+    // MARK: - ✅ 데이터 관리 (수정된 부분)
     private func getRecentMessages() -> [String] {
-            // UserDefaults 확장 메서드 사용
-            let todayMessages = UserDefaults.standard.loadDailyMessages(for: Date())
-            
-            return Array(todayMessages.suffix(5)).compactMap { message in
-                switch message {
-                case .user(let text): return "사용자: \(text)"
-                case .bot(let text): return "AI: \(text)"
-                case .presetRecommendation(_, let msg, _): return "AI: \(msg)"
-                }
+        // UserDefaults 확장 메서드 사용
+        let todayMessages = UserDefaults.standard.loadDailyMessages(for: Date())
+        
+        return Array(todayMessages.suffix(5)).compactMap { message in
+            switch message {
+            case .user(let text):
+                return "사용자: \(text)"
+            case .bot(let text):
+                return "AI: \(text)"
+            case .presetRecommendation(_, let msg, _):
+                return "AI: \(msg)"
+            case .postPresetOptions(let presetName, _, _, _, _):
+                // ✅ 새로운 postPresetOptions 케이스 추가
+                return "AI: 프리셋 '\(presetName)' 옵션 제공"
             }
         }
+    }
     
     // MARK: - ✅ WeeklyMemory 로드 (단일 정의)
     func loadWeeklyMemory() -> WeeklyMemory {
@@ -288,13 +294,25 @@ class CachedConversationManager {
     
     private func createDailySummary(messages: [ChatMessage], date: Date) -> String {
         let userMessages = messages.compactMap { message in
-            if case .user(let text) = message { return text }
-            return nil
+            switch message {
+            case .user(let text):
+                return text
+            case .bot, .presetRecommendation, .postPresetOptions:
+                // ✅ 다른 케이스들은 사용자 메시지가 아니므로 nil 반환
+                return nil
+            }
         }
         
-        let aiMessages = messages.compactMap { message in
-            if case .bot(let text) = message { return text }
-            return nil
+        let botMessages = messages.compactMap { message in
+            switch message {
+            case .bot(let text):
+                return text
+            case .presetRecommendation(_, let msg, _):
+                return msg
+            case .user, .postPresetOptions:
+                // ✅ 사용자 메시지와 옵션 메시지는 bot 메시지가 아니므로 nil 반환
+                return nil
+            }
         }
         
         let emotions = extractEmotionsFromMessages(userMessages)
@@ -327,13 +345,25 @@ class CachedConversationManager {
     
     private func analyzeWeeklyMessages(_ messages: [ChatMessage]) -> WeeklyMemory {
         let userTexts = messages.compactMap { message in
-            if case .user(let text) = message { return text }
-            return nil
+            switch message {
+            case .user(let text):
+                return text
+            case .bot, .presetRecommendation, .postPresetOptions:
+                // ✅ 사용자 텍스트가 아닌 경우 nil 반환
+                return nil
+            }
         }
         
         let aiTexts = messages.compactMap { message in
-            if case .bot(let text) = message { return text }
-            return nil
+            switch message {
+            case .bot(let text):
+                return text
+            case .presetRecommendation(_, let msg, _):
+                return msg
+            case .user, .postPresetOptions:
+                // ✅ AI 텍스트가 아닌 경우 nil 반환
+                return nil
+            }
         }
         
         return WeeklyMemory(
@@ -351,7 +381,7 @@ class CachedConversationManager {
         let allText = texts.joined(separator: " ")
         let positiveCount = countWords(in: allText, words: ["기쁘", "행복", "좋", "만족", "즐거", "웃"])
         let negativeCount = countWords(in: allText, words: ["힘들", "슬프", "우울", "화", "스트레스", "걱정"])
-        let neutralCount = countWords(in: allText, words: ["그냥", "보통", "괜찮", "평범"])
+        _ = countWords(in: allText, words: ["그냥", "보통", "괜찮", "평범"])
         
         if positiveCount > negativeCount + 2 {
             return "전반적으로 긍정적이고 밝은 성향"

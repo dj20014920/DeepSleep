@@ -1,10 +1,19 @@
+// MARK: - ChatMessage.swift 수정 (기존 케이스에 새로운 케이스 추가)
+
 import Foundation
 
-// MARK: - ChatMessage enum
+// MARK: - ChatMessage enum (기존 + 새로운 케이스 추가)
 enum ChatMessage {
     case user(String)
     case bot(String)
     case presetRecommendation(presetName: String, message: String, apply: () -> Void)
+    case postPresetOptions(
+        presetName: String,
+        onSave: () -> Void,
+        onFeedback: () -> Void,
+        onGoToMain: () -> Void,
+        onContinueChat: () -> Void
+    )
 
     func toDictionary() -> [String: String] {
         switch self {
@@ -14,6 +23,8 @@ enum ChatMessage {
             return ["type": "bot", "text": msg]
         case .presetRecommendation(let presetName, let msg, _):
             return ["type": "preset", "text": msg, "presetName": presetName]
+        case .postPresetOptions(let presetName, _, _, _, _):
+            return ["type": "postPresetOptions", "text": "프리셋 옵션", "presetName": presetName]
         }
     }
 
@@ -25,12 +36,35 @@ enum ChatMessage {
         case "preset":
             let name = dictionary["presetName"] ?? "추천 프리셋"
             return .presetRecommendation(presetName: name, message: text, apply: {})
+        case "postPresetOptions":
+            let name = dictionary["presetName"] ?? "적용된 프리셋"
+            return .postPresetOptions(
+                presetName: name,
+                onSave: {},
+                onFeedback: {},
+                onGoToMain: {},
+                onContinueChat: {}
+            )
         default: return nil
         }
     }
 }
 
-// MARK: - PresetLimitManager
+// MARK: - QuickActionButton 구조체 정의
+struct QuickActionButton {
+    let title: String
+    let style: ButtonStyle
+    let action: () -> Void
+    
+    enum ButtonStyle {
+        case primary
+        case secondary
+        case accent
+        case destructive
+    }
+}
+
+// MARK: - PresetLimitManager (기존 유지)
 class PresetLimitManager {
     static let shared = PresetLimitManager()
     private let key = "presetUsageHistory"

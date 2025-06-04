@@ -324,7 +324,16 @@ class EmotionAnalysisChatViewController: UIViewController {
         button.setTitleColor(.systemBlue, for: .normal)
         button.layer.cornerRadius = 8
         button.titleLabel?.font = .systemFont(ofSize: 14)
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        
+        // contentEdgeInsets 대신 UIButton.Configuration 사용
+        if #available(iOS 15.0, *) {
+            var config = button.configuration ?? UIButton.Configuration.plain() // 기본 plain 스타일 사용
+            config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+            button.configuration = config
+        } else {
+            // iOS 15 미만에서는 기존 방식 사용
+            button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        }
         
         button.addAction(UIAction { [weak self] _ in
             self?.handleQuickAction(title: title, intent: intent)

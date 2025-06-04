@@ -407,7 +407,7 @@ class TimerViewController: UIViewController {
     
     private func startFadeOut(duration: TimeInterval) {
         print("페이드아웃 시작: \(duration)초 동안")
-        SoundManager.shared.fadeOutAll(duration: duration)
+        SoundManager.shared.pauseAll()
         statusLabel.text = "🎵 사운드가 서서히 작아집니다..."
     }
     

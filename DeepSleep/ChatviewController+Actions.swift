@@ -1,6 +1,6 @@
 import UIKit
 
-// MARK: - ChatViewController Actions Extension
+// MARK: - ChatViewController Actions Extension (수정됨)
 extension ChatViewController {
     
     // MARK: - ✅ 기존 sendButtonTapped 유지
@@ -61,7 +61,7 @@ extension ChatViewController {
     
     // MARK: - ✅ 수정된 presetButtonTapped
     @objc func presetButtonTapped() {
-        // ✅ 일일 사용 제한 체크
+        // ✅ 일일 사용 제한 체크 (일단 주석처리하고 나중에 활성화)
         /*guard PresetLimitManager.shared.canUseToday() else {
             showPresetLimitAlert()
             return
@@ -106,58 +106,119 @@ extension ChatViewController {
             appendChat(.bot("죄송해요, 프리셋 추천 중 문제가 발생했습니다 😅 네트워크 연결을 확인해주세요."))
             return
         }
-        
-        
-        // 프리셋 파싱 시도
-        if let recommendation = parsePresetRecommendation(from: response) {
-            showPresetApplyButton(recommendation: recommendation)
+
+        // 프리셋 파싱 시도 (self.parseRecommendation은 EnhancedRecommendationResponse? 반환)
+        if let enhancedRecommendation = self.parseRecommendation(from: response) {
+            // EnhancedRecommendationResponse를 RecommendationResponse로 변환
+            let recommendationToApply = RecommendationResponse(
+                volumes: enhancedRecommendation.volumes,
+                presetName: enhancedRecommendation.presetName,
+                selectedVersions: enhancedRecommendation.selectedVersions ?? SoundPresetCatalog.defaultVersionSelection
+            )
+            showPresetApplyButton(recommendation: recommendationToApply)
         } else {
             // 파싱 실패 시 기본 프리셋 제공
             let defaultRecommendation = createDefaultRecommendation()
             showPresetApplyButton(recommendation: defaultRecommendation)
         }
-        
+
         // ✅ 사용 횟수 증가
         PresetLimitManager.shared.incrementUsage()
     }
     
-    // MARK: - ✅ 적용 버튼 표시 (수정됨)
+    
+    
+    // MARK: - 프리셋 적용 프로세스
     private func showPresetApplyButton(recommendation: RecommendationResponse) {
-        let encouragingMessage = getPresetEncouragingMessage(for: recommendation.presetName)
-        let displayMessage = """
-        🎵 완벽한 사운드 조합을 찾았어요!
+            let encouragingMessage = getPresetEncouragingMessage(for: recommendation.presetName)
+            let displayMessage = """
+            🎵 완벽한 사운드 조합을 찾았어요!
+            
+            📀 프리셋: \(recommendation.presetName)
+            
+            \(encouragingMessage)
+            """
+            
+            let applyMessage = ChatMessage.presetRecommendation(
+                presetName: recommendation.presetName,
+                message: displayMessage,
+                apply: { [weak self] in
+                    self?.applyPresetRecommendation(recommendation)
+                }
+            )
+            
+            // ✅ appendChat 메서드를 사용하여 UI 업데이트 처리
+            appendChat(applyMessage)
+        }
         
-        📀 프리셋: \(recommendation.presetName)
-        
-        \(encouragingMessage)
-        """
-        
-        let applyMessage = ChatMessage.presetRecommendation(
-            presetName: recommendation.presetName,
-            message: displayMessage,
-            apply: { [weak self] in
-                self?.applyPresetRecommendation(recommendation)
+        // MARK: - ✅ 프리셋 적용
+        private func applyPresetRecommendation(_ recommendation: RecommendationResponse) {
+            // 적용 완료 메시지
+            appendChat(.bot("✅ '\\(recommendation.presetName)' 프리셋이 적용되었습니다! 🎶\\n\\n새로운 사운드 조합을 즐겨보세요 ✨"))
+            
+            // 햅틱 피드백
+            let feedback = UINotificationFeedbackGenerator()
+            feedback.notificationOccurred(.success)
+            
+            // MARK: - 디버깅 코드 추가
+            if onPresetApply == nil {
+                print("🚨 [DEBUG] onPresetApply is nil. This is likely the cause of the issue: 메인 화면으로 돌아가고 프리셋을 재생하는 콜백이 설정되지 않았습니다.")
+                // 사용자에게도 간단한 문제 상황 알림 (개발자 확인 필요 메시지)
+                appendChat(.bot("⚠️ 프리셋 적용 후 다음 단계로 진행하는 과정에 문제가 발생했어요. (개발자 확인 필요)"))
+            } else {
+                print("✅ [DEBUG] onPresetApply is NOT nil. Recommendation to apply: \(recommendation)")
             }
-        )
-        
-        // ✅ appendChat 메서드를 사용하여 UI 업데이트 처리
-        appendChat(applyMessage)
+            // MARK: - 디버깅 코드 끝
+                
+            // 콜백 호출 (메인 화면으로 프리셋 전달)
+            onPresetApply?(recommendation)
+        }
+    
+    // MARK: - ✅ 프리셋 조정 요청 처리
+    private func handlePresetAdjustmentRequest(_ userMessage: String, currentRecommendation: RecommendationResponse) {
+        // 사용자의 피드백을 바탕으로 프리셋 조정
+        if userMessage.contains("더 조용") || userMessage.contains("볼륨 낮춰") {
+            adjustPresetVolumes(currentRecommendation, adjustment: -20)
+        } else if userMessage.contains("더 크게") || userMessage.contains("볼륨 높여") {
+            adjustPresetVolumes(currentRecommendation, adjustment: 20)
+        } else if userMessage.contains("다른 스타일") || userMessage.contains("다른 추천") {
+            requestNewPresetStyle()
+        } else {
+            // 일반적인 피드백 처리
+            appendChat(.bot("소중한 피드백 감사해요! 😊 더 나은 추천을 위해 참고하겠습니다."))
+        }
     }
     
-    // MARK: - ✅ 프리셋 적용
-    private func applyPresetRecommendation(_ recommendation: RecommendationResponse) {
-        // 적용 완료 메시지
-        appendChat(.bot("✅ '\(recommendation.presetName)' 프리셋이 적용되었습니다! 🎶\n\n새로운 사운드 조합을 즐겨보세요 ✨"))
+    private func adjustPresetVolumes(_ recommendation: RecommendationResponse, adjustment: Int) {
+        let adjustedVolumes = recommendation.volumes.map { volume in
+            max(0, min(100, volume + Float(adjustment)))
+        }
         
-        // 햅틱 피드백
-        let feedback = UINotificationFeedbackGenerator()
-        feedback.notificationOccurred(.success)
+        let adjustedRecommendation = RecommendationResponse(
+            volumes: adjustedVolumes,
+            presetName: recommendation.presetName + " (조정됨)",
+            selectedVersions: recommendation.selectedVersions
+        )
         
-        // 프리셋 저장 옵션 표시
-        showSavePresetOption(recommendation: recommendation)
+        // 조정된 프리셋 적용
+        onPresetApply?(adjustedRecommendation)
         
-        // 콜백 호출 (메인 화면으로 프리셋 전달)
-        onPresetApply?(recommendation)
+        appendChat(.bot("🔧 볼륨을 조정해드렸어요! 이제 어떠신가요?"))
+    }
+    
+    private func requestNewPresetStyle() {
+        appendChat(.bot("""
+        🎨 다른 스타일의 사운드 조합을 원하시는군요!
+        
+        어떤 느낌을 원하시나요?
+        • 더 활기찬 느낌
+        • 더 차분한 느낌  
+        • 자연의 소리 위주
+        • 도시적인 느낌
+        • 완전히 새로운 스타일
+        
+        원하시는 스타일을 알려주시면 새로운 조합을 추천해드릴게요! ✨
+        """))
     }
     
     // MARK: - ✅ 프리셋 제한 알림
@@ -179,56 +240,8 @@ extension ChatViewController {
         present(alert, animated: true)
     }
     
-    // MARK: - ✅ 프리셋 저장 옵션
-    private func showSavePresetOption(recommendation: RecommendationResponse) {
-        let alert = UIAlertController(
-            title: "💾 프리셋 저장",
-            message: "이 사운드 조합을 저장하시겠습니까?\n나중에 쉽게 다시 사용할 수 있어요!",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "저장 안함", style: .cancel))
-        alert.addAction(UIAlertAction(title: "저장하기", style: .default) { [weak self] _ in
-            self?.savePresetWithCustomName(recommendation)
-        })
-        
-        present(alert, animated: true)
-    }
+    // MARK: - ✅ Helper Methods (누락된 메서드들 추가)
     
-    private func savePresetWithCustomName(_ recommendation: RecommendationResponse) {
-        let alert = UIAlertController(
-            title: "프리셋 이름",
-            message: "저장할 프리셋의 이름을 입력하세요",
-            preferredStyle: .alert
-        )
-        
-        alert.addTextField { textField in
-            textField.text = recommendation.presetName
-            textField.placeholder = "프리셋 이름"
-        }
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "저장", style: .default) { [weak self] _ in
-            guard let name = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !name.isEmpty else { return }
-            
-            let preset = SoundPreset(
-                name: name,
-                volumes: recommendation.volumes,
-                emotion: self?.getCurrentEmotion(),
-                isAIGenerated: true,
-                description: "AI가 추천한 맞춤 프리셋"
-            )
-            
-            SettingsManager.shared.saveSoundPreset(preset)
-            
-            self?.appendChat(.bot("💾 '\(name)' 프리셋이 저장되었습니다! 언제든 다시 사용하실 수 있어요 😊"))
-        })
-        
-        present(alert, animated: true)
-    }
-    
-    // MARK: - ✅ Helper Methods
     private func getRecentChatForPreset() -> String {
         let recentMessages = messages.suffix(6)
         
@@ -246,6 +259,7 @@ extension ChatViewController {
         return chatText.isEmpty ? "일반적인 대화" : chatText
     }
     
+    // MARK: - getCurrentEmotion 메서드 추가
     private func getCurrentEmotion() -> String {
         if let diary = diaryContext {
             return diary.emotion
@@ -273,77 +287,7 @@ extension ChatViewController {
         return "😊 평온한"
     }
     
-    // ✅ 캐시 기반 감정 프롬프트 (수정됨)
-    private func buildCachedEmotionalPrompt(currentEmotion: String, recentChat: String) -> String {
-        return """
-        현재 감정: \(currentEmotion)
-        최근 대화: \(recentChat)
-        
-        위 맥락을 바탕으로 현재 감정에 맞는 12가지 사운드 볼륨을 추천해주세요.
-        사운드: Rain,Thunder,Ocean,Fire,Steam,WindowRain,Forest,Wind,Night,Lullaby,Fan,WhiteNoise
-        
-        응답 형식: [프리셋명] Rain:값,Thunder:값,Ocean:값,Fire:값,Steam:값,WindowRain:값,Forest:값,Wind:값,Night:값,Lullaby:값,Fan:값,WhiteNoise:값
-        """
-    }
-    
-    // ✅ 일반 감정 프롬프트 (이름 변경)
-    private func buildPresetEmotionalPrompt(emotion: String, recentChat: String) -> String {
-        return """
-        사용자 감정: \(emotion)
-        대화 맥락: \(recentChat)
-        
-        현재 감정 상태에 최적화된 12가지 자연 사운드 조합을 추천해주세요.
-        각 사운드별 볼륨(0-100)을 지정해주세요.
-        
-        사운드 종류: Rain,Thunder,Ocean,Fire,Steam,WindowRain,Forest,Wind,Night,Lullaby,Fan,WhiteNoise
-        
-        응답 형식: [프리셋명] Rain:값,Thunder:값,Ocean:값,Fire:값,Steam:값,WindowRain:값,Forest:값,Wind:값,Night:값,Lullaby:값,Fan:값,WhiteNoise:값
-        """
-    }
-    
-    // ✅ 프리셋 추천 파싱 (이름 변경)
-    private func parsePresetRecommendation(from response: String) -> RecommendationResponse? {
-        // [프리셋명] 형태로 프리셋명 추출
-        let presetNamePattern = #"\[(.*?)\]"#
-        let presetNameRegex = try? NSRegularExpression(pattern: presetNamePattern)
-        let presetNameMatch = presetNameRegex?.firstMatch(in: response, range: NSRange(response.startIndex..., in: response))
-        
-        let presetName: String
-        if let match = presetNameMatch,
-           let range = Range(match.range(at: 1), in: response) {
-            presetName = String(response[range])
-        } else {
-            presetName = "맞춤 프리셋"
-        }
-        
-        // 볼륨 값들 추출
-        let volumePattern = #"(Rain|Thunder|Ocean|Fire|Steam|WindowRain|Forest|Wind|Night|Lullaby|Fan|WhiteNoise):(\d+)"#
-        let volumeRegex = try? NSRegularExpression(pattern: volumePattern)
-        let matches = volumeRegex?.matches(in: response, range: NSRange(response.startIndex..., in: response)) ?? []
-        
-        var volumes: [String: Float] = [:]
-        for match in matches {
-            if let soundRange = Range(match.range(at: 1), in: response),
-               let valueRange = Range(match.range(at: 2), in: response) {
-                let sound = String(response[soundRange])
-                let value = Float(String(response[valueRange])) ?? 50.0
-                volumes[sound] = min(100, max(0, value))
-            }
-        }
-        
-        // 모든 사운드에 대한 볼륨 배열 생성
-        let soundOrder = ["Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain", "Forest", "Wind", "Night", "Lullaby", "Fan", "WhiteNoise"]
-        let volumeArray = soundOrder.map { volumes[$0] ?? 50.0 }
-        
-        // 최소 8개 이상의 유효한 볼륨 값이 있어야 성공으로 간주
-        if volumes.count >= 8 {
-            return RecommendationResponse(volumes: volumeArray, presetName: presetName)
-        }
-        
-        return nil
-    }
-    
-    // ✅ 격려 메시지 생성 (이름 변경)
+    // MARK: - getPresetEncouragingMessage 메서드 추가
     private func getPresetEncouragingMessage(for presetName: String) -> String {
         let encouragingMessages = [
             "이 조합이 마음에 평안을 가져다줄 거예요 🌙",
@@ -356,41 +300,97 @@ extension ChatViewController {
         return encouragingMessages.randomElement() ?? encouragingMessages[0]
     }
     
+    // MARK: - createDefaultRecommendation 메서드 추가
     private func createDefaultRecommendation() -> RecommendationResponse {
         let emotion = getCurrentEmotion()
         
+        // 11개 카테고리 기준으로 볼륨 설정
         switch emotion {
         case let e where e.contains("😢") || e.contains("😞") || e.contains("😔"):
             return RecommendationResponse(
-                volumes: [70, 5, 80, 15, 10, 60, 85, 25, 40, 75, 30, 50],
-                presetName: "마음을 달래는 소리"
+                volumes: [70, 5, 80, 15, 60, 85, 25, 40, 75, 30, 50],
+                presetName: "마음을 달래는 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         case let e where e.contains("😰") || e.contains("😱") || e.contains("😨"):
             return RecommendationResponse(
-                volumes: [85, 0, 60, 5, 15, 40, 75, 20, 50, 70, 40, 80],
-                presetName: "불안을 진정시키는 소리"
+                volumes: [85, 0, 60, 5, 40, 75, 20, 50, 70, 40, 80],
+                presetName: "불안을 진정시키는 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         case let e where e.contains("😴") || e.contains("😪"):
             return RecommendationResponse(
-                volumes: [40, 0, 30, 10, 20, 70, 30, 35, 60, 95, 60, 85],
-                presetName: "깊은 잠을 위한 소리"
+                volumes: [40, 0, 30, 10, 70, 30, 35, 60, 95, 60, 85],
+                presetName: "깊은 잠을 위한 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         case let e where e.contains("😊") || e.contains("😄") || e.contains("🥰"):
             return RecommendationResponse(
-                volumes: [60, 15, 70, 30, 25, 30, 80, 50, 55, 40, 25, 35],
-                presetName: "기쁨을 더하는 소리"
+                volumes: [60, 15, 70, 30, 30, 80, 50, 55, 40, 25, 35],
+                presetName: "기쁨을 더하는 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         case let e where e.contains("😡") || e.contains("😤"):
             return RecommendationResponse(
-                volumes: [80, 20, 75, 10, 5, 50, 60, 70, 35, 40, 50, 65],
-                presetName: "화를 가라앉히는 소리"
+                volumes: [80, 20, 75, 10, 50, 60, 70, 35, 40, 50, 65],
+                presetName: "화를 가라앉히는 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         default:
             return RecommendationResponse(
-                volumes: [65, 10, 55, 20, 15, 40, 70, 45, 50, 50, 35, 45],
-                presetName: "평온한 마음의 소리"
+                volumes: [65, 10, 55, 20, 40, 70, 45, 50, 50, 35, 45],
+                presetName: "평온한 마음의 소리",
+                selectedVersions: SoundPresetCatalog.defaultVersionSelection
             )
         }
+    }
+    
+    // ✅ 캐시 기반 감정 프롬프트 (11개 카테고리, 한글 이름 및 설명 사용으로 수정)
+    private func buildCachedEmotionalPrompt(currentEmotion: String, recentChat: String) -> String {
+        let soundCategories = SoundPresetCatalog.categoryNames.joined(separator: ",")
+        let categoryDetails = SoundPresetCatalog.categoryDescriptions.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        
+        return """
+        현재 사용자의 감정: \(currentEmotion)
+        최근 사용자와의 대화:
+        \(recentChat)
+
+        당신은 사용자의 감정에 깊이 공감하고, 가장 적절한 사운드 테라피를 제안하는 사운드 큐레이터입니다.
+        아래 제공된 사운드 카테고리 목록과 각 카테고리에 대한 설명을 참고하여, 현재 사용자의 감정 상태에 가장 도움이 될 만한 11가지 사운드의 볼륨(0~100 사이 정수) 조합을 추천해주세요.
+        사용자가 편안함을 느끼고 감정을 조절하는 데 도움이 되는 조합을 만드는 것이 중요합니다. 너무 자극적이거나 불쾌한 조합은 피해주세요.
+
+        사용 가능한 사운드 카테고리 (총 11개):
+        \(categoryDetails)
+
+        프리셋 이름은 사용자의 감정과 추천된 사운드 조합의 특징을 잘 나타내는 창의적이고 감성적인 이름으로 지어주세요. (예: "고요한 새벽의 위로", "따스한 햇살 한 스푼")
+
+        응답 형식은 반드시 다음 형식을 따라야 합니다:
+        [프리셋명] \(SoundPresetCatalog.categoryNames[0]):값,\(SoundPresetCatalog.categoryNames[1]):값,\(SoundPresetCatalog.categoryNames[2]):값,\(SoundPresetCatalog.categoryNames[3]):값,\(SoundPresetCatalog.categoryNames[4]):값,\(SoundPresetCatalog.categoryNames[5]):값,\(SoundPresetCatalog.categoryNames[6]):값,\(SoundPresetCatalog.categoryNames[7]):값,\(SoundPresetCatalog.categoryNames[8]):값,\(SoundPresetCatalog.categoryNames[9]):값,\(SoundPresetCatalog.categoryNames[10]):값
+        """
+    }
+    
+    // ✅ 일반 감정 프롬프트 (11개 카테고리, 한글 이름 및 설명 사용으로 수정)
+    private func buildPresetEmotionalPrompt(emotion: String, recentChat: String) -> String {
+        let soundCategories = SoundPresetCatalog.categoryNames.joined(separator: ",")
+        let categoryDetails = SoundPresetCatalog.categoryDescriptions.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+
+        return """
+        현재 사용자의 감정: \(emotion)
+        최근 사용자와의 대화:
+        \(recentChat)
+
+        당신은 사용자의 감정에 깊이 공감하고, 가장 적절한 사운드 테라피를 제안하는 사운드 큐레이터입니다.
+        아래 제공된 사운드 카테고리 목록과 각 카테고리에 대한 설명을 참고하여, 현재 사용자의 감정 상태에 가장 도움이 될 만한 11가지 사운드의 볼륨(0~100 사이 정수) 조합을 추천해주세요.
+        사용자가 편안함을 느끼고 감정을 조절하는 데 도움이 되는 조합을 만드는 것이 중요합니다. 너무 자극적이거나 불쾌한 조합은 피해주세요.
+
+        사용 가능한 사운드 카테고리 (총 11개):
+        \(categoryDetails)
+
+        프리셋 이름은 사용자의 감정과 추천된 사운드 조합의 특징을 잘 나타내는 창의적이고 감성적인 이름으로 지어주세요. (예: "고요한 새벽의 위로", "따스한 햇살 한 스푼")
+
+        응답 형식은 반드시 다음 형식을 따라야 합니다:
+        [프리셋명] \(SoundPresetCatalog.categoryNames[0]):값,\(SoundPresetCatalog.categoryNames[1]):값,\(SoundPresetCatalog.categoryNames[2]):값,\(SoundPresetCatalog.categoryNames[3]):값,\(SoundPresetCatalog.categoryNames[4]):값,\(SoundPresetCatalog.categoryNames[5]):값,\(SoundPresetCatalog.categoryNames[6]):값,\(SoundPresetCatalog.categoryNames[7]):값,\(SoundPresetCatalog.categoryNames[8]):값,\(SoundPresetCatalog.categoryNames[9]):값,\(SoundPresetCatalog.categoryNames[10]):값
+        """
     }
     
     // MARK: - ✅ 기존 Helper Methods 유지
@@ -456,5 +456,4 @@ extension ChatViewController {
             return "casual_chat"  // 일반 대화
         }
     }
-
 }

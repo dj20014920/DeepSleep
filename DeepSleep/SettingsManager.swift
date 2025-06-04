@@ -13,6 +13,7 @@ class SettingsManager {
         static let soundPresets = "soundPresets"
         static let lastOpenDate = "lastOpenDate"
         static let onboardingCompleted = "onboardingCompleted"
+        static let selectedSoundVersions = "selectedSoundVersions"
     }
     
     private init() {
@@ -112,6 +113,12 @@ class SettingsManager {
         return emotionCount
     }
     
+    // MARK: - Emotion Diary - 전체 삭제 추가
+    func resetAllDiaryEntries() {
+        userDefaults.removeObject(forKey: Keys.emotionDiary)
+        print("🗑️ 모든 감정 일기 데이터가 UserDefaults에서 삭제되었습니다.")
+    }
+    
     // MARK: - Sound Presets
     func saveSoundPreset(_ preset: SoundPreset) {
         var presets = loadSoundPresets()
@@ -140,6 +147,38 @@ class SettingsManager {
         if let encoded = try? JSONEncoder().encode(presets) {
             userDefaults.set(encoded, forKey: Keys.soundPresets)
         }
+    }
+    
+    // MARK: - 프리셋 마이그레이션
+    func migratePresetsIfNeeded() {
+        let migrationKey = "settingsManagerPresetMigrationCompleted"
+        
+        guard !userDefaults.bool(forKey: migrationKey) else {
+            print("✅ SettingsManager 프리셋 마이그레이션 이미 완료됨")
+            return
+        }
+        
+        let presets = loadSoundPresets()
+        var migratedCount = 0
+        
+        for preset in presets {
+            if preset.selectedVersions == nil {
+                // 버전 정보가 없는 프리셋에 기본 버전 정보 추가
+                let newPreset = SoundPreset(
+                    name: preset.name,
+                    volumes: preset.volumes,
+                    selectedVersions: SoundPresetCatalog.defaultVersionSelection,
+                    emotion: preset.emotion,
+                    isAIGenerated: preset.isAIGenerated,
+                    description: preset.description
+                )
+                saveSoundPreset(newPreset)
+                migratedCount += 1
+            }
+        }
+        
+        userDefaults.set(true, forKey: migrationKey)
+        print("✅ SettingsManager 프리셋 마이그레이션 완료: \(migratedCount)개 업그레이드")
     }
     
     // MARK: - Usage Limits
@@ -255,102 +294,114 @@ class SettingsManager {
             "exportDate": Date()
         ]
     }
+    
     func canWriteDiaryToday() -> Bool {
-            let today = getTodayDateString()
-            let lastDiaryDate = UserDefaults.standard.string(forKey: "lastDiaryDate")
-            return lastDiaryDate != today
-        }
+        let today = getTodayDateString()
+        let lastDiaryDate = UserDefaults.standard.string(forKey: "lastDiaryDate")
+        return lastDiaryDate != today
+    }
+    
+    func recordDiaryWritten() {
+        let today = getTodayDateString()
+        UserDefaults.standard.set(today, forKey: "lastDiaryDate")
+    }
+    
+    private func getTodayDateString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+    
+    func getTodayDiaryCount() -> Int {
+        let diaries = loadEmotionDiary()
+        let today = Calendar.current.startOfDay(for: Date())
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
         
-        /// 일기 작성 완료 기록
-        func recordDiaryWritten() {
-            let today = getTodayDateString()
-            UserDefaults.standard.set(today, forKey: "lastDiaryDate")
-        }
-        
-        /// 오늘 날짜 문자열 반환
-        private func getTodayDateString() -> String {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            return formatter.string(from: Date())
-        }
-        
-        /// 오늘 일기 개수 확인 (기존 일기들 중에서)
-        func getTodayDiaryCount() -> Int {
-            let diaries = loadEmotionDiary()
-            let today = Calendar.current.startOfDay(for: Date())
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
-            
-            return diaries.filter { diary in
-                diary.date >= today && diary.date < tomorrow
-            }.count
-        }
+        return diaries.filter { diary in
+            diary.date >= today && diary.date < tomorrow
+        }.count
+    }
+    
+    // MARK: - Category Sound Versions
+    
+    /// 특정 카테고리의 선택된 사운드 버전을 업데이트합니다.
+    /// - Parameters:
+    ///   - categoryIndex: 업데이트할 사운드 카테고리 인덱스
+    ///   - versionIndex: 선택된 버전 인덱스 (0부터 시작)
+    func updateSelectedVersion(for categoryIndex: Int, to versionIndex: Int) {
+        var versions = userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
+        versions["\(categoryIndex)"] = versionIndex
+        userDefaults.set(versions, forKey: Keys.selectedSoundVersions)
+    }
+    
+    /// 특정 카테고리의 선택된 사운드 버전을 가져옵니다.
+    /// - Parameter categoryIndex: 조회할 사운드 카테고리 인덱스
+    /// - Returns: 선택된 버전 인덱스. 저장된 값이 없으면 기본값 0을 반환합니다.
+    func getSelectedVersion(for categoryIndex: Int) -> Int {
+        let versions = userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
+        return versions["\(categoryIndex)"] ?? 0 // 기본값 0 반환
+    }
+    
     // MARK: - Pattern Analysis Usage Limits
     func canUsePatternAnalysisToday() -> Bool {
-            let todayStats = getTodayStats()
-            return todayStats.patternAnalysisCount < 1  // ✅ 하루 1번으로 변경
+        let todayStats = getTodayStats()
+        return todayStats.patternAnalysisCount < 1  // ✅ 하루 1번으로 변경
+    }
+    
+    func incrementPatternAnalysisUsage() {
+        updateTodayStats { stats in
+            stats.patternAnalysisCount += 1
         }
-        
-        /// 감정 패턴 분석 사용 횟수 증가
-        func incrementPatternAnalysisUsage() {
-            updateTodayStats { stats in
-                stats.patternAnalysisCount += 1
-            }
+    }
+    
+    func getPatternAnalysisUsageToday() -> Int {
+        let todayStats = getTodayStats()
+        return todayStats.patternAnalysisCount
+    }
+    
+    func getRemainingPatternAnalysisToday() -> Int {
+        let used = getPatternAnalysisUsageToday()
+        return max(0, 1 - used)  // ✅ 1회에서 사용한 횟수를 뺀 값
+    }
+    
+    #if DEBUG
+    func resetPatternAnalysisLimit() {
+        updateTodayStats { stats in
+            stats.patternAnalysisCount = 0
         }
-        
-        /// 오늘 감정 패턴 분석 사용 횟수 조회
-        func getPatternAnalysisUsageToday() -> Int {
-            let todayStats = getTodayStats()
-            return todayStats.patternAnalysisCount
-        }
-        
-        /// 오늘 남은 감정 패턴 분석 횟수 조회
-        func getRemainingPatternAnalysisToday() -> Int {
-            let used = getPatternAnalysisUsageToday()
-            return max(0, 1 - used)  // ✅ 1회에서 사용한 횟수를 뺀 값
-        }
-        
-        /// 감정 패턴 분석 제한 리셋 (개발/테스트용)
-        #if DEBUG
-        func resetPatternAnalysisLimit() {
-            updateTodayStats { stats in
-                stats.patternAnalysisCount = 0
-            }
-            print("✅ 감정 패턴 분석 제한이 리셋되었습니다.")
-        }
-        #endif
+        print("✅ 감정 패턴 분석 제한이 리셋되었습니다.")
+    }
+    #endif
     
     /// 오늘 일기 분석 대화 사용 가능 여부 (하루 1회 제한)
-        func canUseDiaryAnalysisToday() -> Bool {
-            let todayStats = getTodayStats()
-            return todayStats.diaryAnalysisCount < 1  // 하루 1번 제한
-        }
-        
-        /// 일기 분석 대화 사용 횟수 증가
-        func incrementDiaryAnalysisUsage() {
-            updateTodayStats { stats in
-                stats.diaryAnalysisCount += 1
-            }
-        }
-        
-        /// 오늘 일기 분석 대화 사용 횟수 조회
-        func getDiaryAnalysisUsageToday() -> Int {
-            let todayStats = getTodayStats()
-            return todayStats.diaryAnalysisCount
-        }
-        
-        /// 오늘 남은 일기 분석 대화 횟수 조회
-        func getRemainingDiaryAnalysisToday() -> Int {
-            let used = getDiaryAnalysisUsageToday()
-            return max(0, 1 - used)
-        }
-        
-        #if DEBUG
-        func resetDiaryAnalysisLimit() {
-            updateTodayStats { stats in
-                stats.diaryAnalysisCount = 0
-            }
-            print("✅ 일기 분석 대화 제한이 리셋되었습니다.")
-        }
-        #endif
+    func canUseDiaryAnalysisToday() -> Bool {
+        let todayStats = getTodayStats()
+        return todayStats.diaryAnalysisCount < 1  // 하루 1번 제한
     }
+    
+    func incrementDiaryAnalysisUsage() {
+        updateTodayStats { stats in
+            stats.diaryAnalysisCount += 1
+        }
+    }
+    
+    func getDiaryAnalysisUsageToday() -> Int {
+        let todayStats = getTodayStats()
+        return todayStats.diaryAnalysisCount
+    }
+    
+    func getRemainingDiaryAnalysisToday() -> Int {
+        let used = getDiaryAnalysisUsageToday()
+        return max(0, 1 - used)
+    }
+    
+    #if DEBUG
+    func resetDiaryAnalysisLimit() {
+        updateTodayStats { stats in
+            stats.diaryAnalysisCount = 0
+        }
+        print("✅ 일기 분석 대화 제한이 리셋되었습니다.")
+    }
+    #endif
+}
 
