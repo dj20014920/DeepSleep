@@ -38,13 +38,13 @@ class LaunchViewController: UIViewController {
             diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
             
             // 3. 감정 캘린더 화면 (EmotionCalendarViewController) - 예시
-            let calendarVC = EmotionCalendarViewController() // Storyboard나 XIB를 사용한다면 해당 방식으로 초기화
-            let calendarNav = UINavigationController(rootViewController: calendarVC)
-            calendarNav.navigationBar.prefersLargeTitles = true
-            calendarNav.tabBarItem = UITabBarItem(title: "캘린더", image: UIImage(systemName: "calendar"), tag: 2)
+            let todoCalendarVC = TodoCalendarViewController() // 새로운 뷰 컨트롤러로 변경
+            let todoCalendarNav = UINavigationController(rootViewController: todoCalendarVC)
+            todoCalendarNav.navigationBar.prefersLargeTitles = true
+            todoCalendarNav.tabBarItem = UITabBarItem(title: "내 일정", image: UIImage(systemName: "calendar.badge.plus"), tag: 2) // 이름과 아이콘 변경
             
             // TabBarController에 뷰 컨트롤러들 설정
-            tabBarController.viewControllers = [mainNav, diaryNav, calendarNav]
+            tabBarController.viewControllers = [mainNav, diaryNav, todoCalendarNav] // 수정된 네비게이션 컨트롤러로 변경
             tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
 
             // 현재 윈도우 참조

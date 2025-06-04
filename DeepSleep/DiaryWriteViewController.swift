@@ -91,6 +91,7 @@ class DiaryWriteViewController: UIViewController {
     private var savedDiaryEntry: EmotionDiary?
     private var isDiarySaved: Bool = false // ✅ 일기 저장 상태 추가
     
+    var diaryToEdit: EmotionDiary?
     var onDiarySaved: (() -> Void)?
     
     // MARK: - Lifecycle
@@ -99,6 +100,7 @@ class DiaryWriteViewController: UIViewController {
         setupUI()
         setupNotifications()
         setupTapGesture() // ✅ 탭 제스처 추가
+        configureForEditing() // <--- 추가된 메서드 호출
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -109,7 +111,7 @@ class DiaryWriteViewController: UIViewController {
     // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = .systemBackground
-        title = "일기 쓰기"
+        // title = "일기 쓰기" // configureForEditing에서 설정하도록 이동
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "취소",
@@ -287,6 +289,7 @@ class DiaryWriteViewController: UIViewController {
         sender.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         
         selectedEmotion = emotions[sender.tag]
+        updateSelectedEmotionButtonUI(selectedEmoji: selectedEmotion) // UI 업데이트 분리
         
         // 햅틱 피드백
         let feedback = UIImpactFeedbackGenerator(style: .light)
@@ -304,25 +307,44 @@ class DiaryWriteViewController: UIViewController {
             return
         }
         
-        // 일기 저장
-        let diaryEntry = EmotionDiary(
-            selectedEmotion: selectedEmotion,
-            userMessage: diaryTextView.text.trimmingCharacters(in: .whitespacesAndNewlines),
-            aiResponse: "저장된 일기입니다. AI와 대화하기를 눌러 분석을 받아보세요."
-        )
+        let diaryMessage = diaryTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentDiaryEntry: EmotionDiary
+
+        if let existingDiary = diaryToEdit {
+            // 수정 모드: 기존 ID 사용, 날짜는 유지하거나 현재로 업데이트 (여기서는 기존 날짜 유지)
+            currentDiaryEntry = EmotionDiary(
+                id: existingDiary.id, // 기존 ID 사용
+                selectedEmotion: selectedEmotion,
+                userMessage: diaryMessage,
+                aiResponse: existingDiary.aiResponse, // AI 응답은 유지하거나 초기화 (여기서는 유지)
+                date: existingDiary.date // 기존 날짜 사용
+            )
+        } else {
+            // 새 일기 모드
+            currentDiaryEntry = EmotionDiary(
+                selectedEmotion: selectedEmotion,
+                userMessage: diaryMessage,
+                aiResponse: "저장된 일기입니다. AI와 대화하기를 눌러 분석을 받아보세요."
+                // date는 기본값으로 현재 날짜 사용됨
+            )
+        }
         
-        SettingsManager.shared.saveEmotionDiary(diaryEntry)
-        savedDiaryEntry = diaryEntry
-        isDiarySaved = true // ✅ 저장 상태 업데이트
-        
+        SettingsManager.shared.saveEmotionDiary(currentDiaryEntry) // 저장 (ID가 같으면 덮어쓰기 가정)
+        savedDiaryEntry = currentDiaryEntry
+        isDiarySaved = true
+
         // UI 업데이트
-        saveButton.setTitle("✓ 저장 완료", for: .normal)
+        saveButton.setTitle("✓ 수정 완료", for: .normal) // 수정 모드일 수도 있으므로 "수정 완료" 또는 "저장 완료"
+        if diaryToEdit != nil {
+            saveButton.setTitle("✓ 수정 완료", for: .normal)
+        } else {
+            saveButton.setTitle("✓ 저장 완료", for: .normal)
+        }
         saveButton.backgroundColor = .systemGreen
         saveButton.isEnabled = false
         
         aiChatButton.isHidden = false
         
-        // ✅ 네비게이션 바 버튼을 "완료"로 변경
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "완료",
             style: .done,
@@ -330,17 +352,17 @@ class DiaryWriteViewController: UIViewController {
             action: #selector(rightBarButtonTapped)
         )
         
-        // 키보드 내리기
         view.endEditing(true)
         
-        // 성공 피드백
         let feedback = UINotificationFeedbackGenerator()
         feedback.notificationOccurred(.success)
         
-        // 콜백 호출
         onDiarySaved?()
         
-        showAlert(title: "📝 일기가 저장되었습니다", message: "AI와 대화하기 버튼을 눌러 감정 분석을 받아보세요!")
+        showAlert(
+            title: diaryToEdit == nil ? "📝 일기가 저장되었습니다" : "📝 일기가 수정되었습니다",
+            message: "AI와 대화하기 버튼을 눌러 감정 분석을 받아보세요!"
+        )
     }
     
     @objc private func showAIChatAlert() {
@@ -474,6 +496,54 @@ class DiaryWriteViewController: UIViewController {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         present(alert, animated: true)
+    }
+    
+    // MARK: - Configuration for Editing
+    private func configureForEditing() {
+        if let diary = diaryToEdit {
+            title = "일기 수정"
+            diaryTextView.text = diary.userMessage
+            placeholderLabel.isHidden = !diary.userMessage.isEmpty
+            selectedEmotion = diary.selectedEmotion
+            updateSelectedEmotionButtonUI(selectedEmoji: diary.selectedEmotion) // 감정 버튼 UI 업데이트
+
+            savedDiaryEntry = diary // AI 채팅을 위해 미리 설정
+            isDiarySaved = true // 수정 모드에서는 이미 저장된 상태로 간주 (AI 채팅 버튼 활성화 등)
+
+            saveButton.setTitle("일기 수정", for: .normal)
+            aiChatButton.isHidden = false // 수정 모드에서는 AI 채팅 버튼 바로 표시
+            
+            // 네비게이션 바 버튼도 "완료" 상태로 시작할 수 있음 (저장 후와 동일하게)
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: "완료",
+                style: .done,
+                target: self,
+                action: #selector(rightBarButtonTapped)
+            )
+        } else {
+            title = "일기 쓰기"
+            // 새 일기 작성 시 기본 placeholder 및 버튼 상태 유지
+            placeholderLabel.isHidden = diaryTextView.text.isEmpty
+            aiChatButton.isHidden = true
+             navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: "취소",
+                style: .plain,
+                target: self,
+                action: #selector(rightBarButtonTapped)
+            )
+        }
+    }
+    
+    private func updateSelectedEmotionButtonUI(selectedEmoji: String) {
+        emotionButtons.forEach { button in
+            if button.title(for: .normal) == selectedEmoji {
+                button.layer.borderColor = UIColor.systemBlue.cgColor
+                button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+            } else {
+                button.layer.borderColor = UIColor.clear.cgColor
+                button.backgroundColor = .systemBackground
+            }
+        }
     }
 }
 

@@ -127,7 +127,7 @@ class ReplicateChatService {
         let soundListString = SoundPresetCatalog.newStandardSoundNames.joined(separator: ", ")
 
         // AI가 따라야 할 응답 형식 (버전 정보 포함 가능)
-        // 예: [행복한 아침] 고양이:30,바람:0,밤:0,불:0,비:70(V1),시냇물:60,연필:0,우주:0,쿨링팬:0,키보드:0,파도:40
+        // 예: [프리셋이름] 카테고리1:값,카테고리2:값,...,카테고리N:값
         // 또는 버전이 없는 경우: [집중하는 오후] 연필:50,쿨링팬:60,키보드:70(V2) (나머지 0으로 간주)
         let responseFormatInstruction = """
         응답은 다음 형식 중 하나를 따라야 합니다:
@@ -708,44 +708,72 @@ class ReplicateChatService {
         URLSession.shared.dataTask(with: request) { data, response, error in
             guard let data = data, error == nil else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                    if attempts > 0 {
+                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                    } else {
+                        DispatchQueue.main.async { completion(nil) }
+                    }
                 }
                 return
             }
             
             do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    let status = json["status"] as? String ?? "unknown"
-                    
-                    switch status {
-                    case "succeeded":
-                        var result: String?
-                        if let outputArray = json["output"] as? [String] {
-                            result = outputArray.joined()
-                        } else if let outputString = json["output"] as? String {
-                            result = outputString
-                        }
-                        
-                        print("✅ 응답 완료")
-                        DispatchQueue.main.async { completion(result) }
-                        
-                    case "failed", "canceled":
-                        print("❌ 실패")
+                let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: data)
+                
+                switch statusResponse.status?.lowercased() {
+                case "succeeded":
+                    guard let outputContainerValue = statusResponse.output else {
+                        print("❌ Output field is nil in 'succeeded' case (pollPredictionResult).")
                         DispatchQueue.main.async { completion(nil) }
-                        
-                    case "starting", "processing":
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                        }
-                        
-                    default:
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                        }
+                        return
+                    }
+                    
+                    // outputContainerValue는 AnyDecodableValue 타입이어야 합니다.
+                    // .value 를 통해 실제 Any 타입의 값을 가져옵니다.
+                    let actualOutputAsAny: Any = outputContainerValue.value
+
+                    if let stringArray = actualOutputAsAny as? [String] {
+                        print("✅ (Poll) AI Advice (Array<String>): \\(stringArray.joined())")
+                        DispatchQueue.main.async { completion(stringArray.joined()) }
+                    } else if let stringValue = actualOutputAsAny as? String {
+                        print("✅ (Poll) AI Advice (String): \\(stringValue)")
+                        DispatchQueue.main.async { completion(stringValue) }
+                    } else {
+                        print("❌ (Poll) Unexpected output type in 'succeeded' case. Type: \\(type(of: actualOutputAsAny)). Value: \\(String(describing: actualOutputAsAny))")
+                        DispatchQueue.main.async { completion(nil) }
+                    }
+                    
+                case "failed", "canceled":
+                    let errorMsg = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
+                    let logsOutput = statusResponse.logs ?? "N/A"
+                    print("❌ (Poll) Prediction 최종 상태 실패/취소: \\(errorMsg), Logs: \\(logsOutput)")
+                    DispatchQueue.main.async { completion(nil) }
+                    
+                case "starting", "processing":
+                    if attempts >= 25 - 1 {
+                        print("❌ (Poll) Prediction 타임아웃 (최대 시도 \\(attempts + 1)회 도달)")
+                        DispatchQueue.main.async { completion(nil) }
+                        return
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                    }
+                    
+                default:
+                    let currentStatus = statusResponse.status ?? "N/A"
+                    let currentLogs = statusResponse.logs ?? "N/A"
+                    print("⚠️ (Poll) Prediction 알 수 없는 상태: \\(currentStatus), Logs: \\(currentLogs)")
+                    if attempts >= 25 - 1 {
+                        print("❌ (Poll) Prediction 타임아웃 (알 수 없는 상태, 루프 종료)")
+                        DispatchQueue.main.async { completion(nil) }
+                        return
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
                     }
                 }
             } catch {
-                print("❌ 파싱 실패")
+                print("❌ (Poll) JSON 디코딩 또는 처리 실패: \\(error.localizedDescription)")
                 DispatchQueue.main.async { completion(nil) }
             }
         }.resume()
@@ -927,5 +955,240 @@ class ReplicateChatService {
             return String(prompt.prefix(maxLength)) + "..."
         }
         return prompt
+    }
+
+    // MARK: - AI 조언 관련 메서드
+    private var apiKey: String { // Bundle에서 로드하도록 수정
+        guard let key = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String, !key.isEmpty else {
+            // fatalError() 보다는 오류를 던지거나 기본값을 제공하는 것이 좋습니다.
+            // 여기서는 getAIAdvice 시작 시점에 guard 문으로 처리하므로, 여기서는 단순히 빈 문자열 반환 (사용되지 않도록)
+            print("🚨 REPLICATE_API_TOKEN이 Info.plist에 설정되지 않았거나 비어있습니다.")
+            return ""
+        }
+        return key
+    }
+
+    enum ServiceError: Error, LocalizedError {
+        case invalidAPIKey
+        case invalidModelIdentifier
+        case replicateAPIError(String)
+        case predictionFailed(String)
+        case predictionProcessingError(String)
+        case predictionTimeout
+        case outputParsingFailed
+        case requestCreationFailed
+        case unexpectedResponseStructure
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidAPIKey: return "Replicate API 키가 유효하지 않거나 설정되지 않았습니다."
+            case .invalidModelIdentifier: return "Replicate 모델 식별자 또는 버전이 유효하지 않습니다."
+            case .replicateAPIError(let message): return "Replicate API 통신 오류: \(message)"
+            case .predictionFailed(let status): return "AI 모델 예측 실패 (상태: \(status)). Replicate 대시보드에서 상세 로그를 확인하세요."
+            case .predictionProcessingError(let message): return "AI 모델 입력 처리 오류: \(message)"
+            case .predictionTimeout: return "AI 모델 응답 시간 초과."
+            case .outputParsingFailed: return "AI 모델 응답에서 결과를 파싱하는 데 실패했습니다."
+            case .requestCreationFailed: return "API 요청 객체 생성에 실패했습니다."
+            case .unexpectedResponseStructure: return "Replicate API로부터 예상치 못한 응답 구조를 받았습니다."
+            }
+        }
+    }
+
+    /// AI 모델로부터 할 일 관련 조언을 얻습니다. (Replicate API, Polling 방식)
+    func getAIAdvice(prompt: String, systemPrompt: String?) async throws -> String {
+        let currentApiKey = self.apiKey // 프로퍼티 호출
+
+        guard !currentApiKey.isEmpty else { throw ServiceError.invalidAPIKey }
+
+        // 모델 정보를 sendToReplicate 함수와 동일하게 설정합니다.
+        // anthropic/claude-3.5-haiku 모델의 기본 버전을 사용합니다.
+        let modelOwnerAndName = "anthropic/claude-3.5-haiku"
+
+        // Prediction 생성 URL (모델 지정 방식)
+        // 모델 버전 해시를 명시하지 않고, 해당 모델의 기본 버전을 사용합니다.
+        guard let predictionCreationUrl = URL(string: "https://api.replicate.com/v1/models/\(modelOwnerAndName)/predictions") else {
+            throw ServiceError.requestCreationFailed
+        }
+
+        var request = URLRequest(url: predictionCreationUrl)
+        request.httpMethod = "POST"
+        request.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+
+        var inputPayload: [String: Any] = ["prompt": prompt]
+        if let sysPrompt = systemPrompt, !sysPrompt.isEmpty {
+            inputPayload["system_prompt"] = sysPrompt
+        }
+        
+        // API 요청 Body 구성 시 'version' 필드를 제거하고 'input'만 전달합니다.
+        // sendToReplicate 함수와 동일한 구조로 맞춥니다.
+        let body: [String: Any] = [
+            "input": inputPayload
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            throw ServiceError.requestCreationFailed
+        }
+        
+        let (initialData, initialResponse) = try await URLSession.shared.data(for: request)
+
+        guard let httpInitialResponse = initialResponse as? HTTPURLResponse else {
+            throw ServiceError.replicateAPIError("초기 요청에 대한 유효하지 않은 HTTP 응답입니다.")
+        }
+
+        guard httpInitialResponse.statusCode == 201 else { // 201 Created
+            var errorDetail = "Prediction 생성 실패 (HTTP \(httpInitialResponse.statusCode))"
+            if let responseData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: initialData) {
+                errorDetail += ": \(responseData.detail ?? "알 수 없는 Replicate API 오류")"
+            }
+            throw ServiceError.replicateAPIError(errorDetail)
+        }
+
+        // 2. Prediction 결과 폴링
+        guard let predictionResponse = try? JSONDecoder().decode(ReplicatePredictionResponse.self, from: initialData),
+              let getUrlString = predictionResponse.urls?.get, // 이 URL은 prediction ID를 포함한 GET 요청 URL
+              let getUrl = URL(string: getUrlString) else {
+            throw ServiceError.unexpectedResponseStructure
+        }
+        
+        // predictionResponse.id를 사용할 수도 있지만, urls.get 이 더 직접적입니다.
+        guard let predictionId = predictionResponse.id else {
+             throw ServiceError.unexpectedResponseStructure // ID가 없으면 폴링 불가
+        }
+
+
+        let maxAttempts = 25 // 약 25초 타임아웃 (딜레이 고려)
+        let delayBetweenAttempts: TimeInterval = 1.0 // 1초
+
+        for attempt in 0..<maxAttempts {
+            // 폴링 요청은 predictionResponse.urls.get으로 받은 URL 사용
+            var pollingRequest = URLRequest(url: getUrl)
+            pollingRequest.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
+            pollingRequest.addValue("application/json", forHTTPHeaderField: "Accept") // Content-Type 불필요
+
+            let (pollData, pollResponse) = try await URLSession.shared.data(for: pollingRequest)
+            
+            guard let httpPollResponse = pollResponse as? HTTPURLResponse, httpPollResponse.statusCode == 200 else {
+                // 여기서도 상세 오류 로깅 가능
+                let statusCode = (pollResponse as? HTTPURLResponse)?.statusCode ?? 0
+                var errorDetail = "Prediction 폴링 실패 (HTTP \(statusCode))"
+                 if let responseErrorData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: pollData) {
+                    errorDetail += ": \(responseErrorData.detail ?? "알 수 없는 Replicate API 오류")"
+                } else if let responseString = String(data: pollData, encoding: .utf8) {
+                     errorDetail += "\nResponse: \(responseString)"
+                 }
+                print("Poll Error Detail: \(errorDetail)")
+                throw ServiceError.replicateAPIError("Prediction 폴링 실패 (HTTP \(statusCode))")
+            }
+
+            let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: pollData)
+
+            switch statusResponse.status?.lowercased() {
+            case "succeeded":
+                guard let outputContainer = statusResponse.output else {
+                    print("❌ Output field is nil in 'succeeded' case.")
+                    throw ServiceError.outputParsingFailed
+                }
+
+                // Claude Haiku는 주로 문자열 배열로 응답합니다.
+                if let stringArray = outputContainer.value as? [String] {
+                    print("✅ AI Advice (Array<String>): \\(stringArray.joined())")
+                    return stringArray.joined()
+                } 
+                // 간혹 단일 문자열로 올 수도 있습니다.
+                else if let stringValue = outputContainer.value as? String {
+                    print("✅ AI Advice (String): \\(stringValue)")
+                    return stringValue
+                } 
+                // 만약 예상치 못한 다른 타입이라면
+                else {
+                    print("❌ Unexpected output type in 'succeeded' case: \\(type(of: outputContainer.value)). Value: \\(outputContainer.value)")
+                    throw ServiceError.outputParsingFailed
+                }
+            case "failed", "canceled":
+                let errorMsg = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
+                let logsOutput = statusResponse.logs ?? "N/A"
+                print("❌ Prediction 최종 상태 실패/취소: \\(errorMsg), Logs: \\(logsOutput)")
+                throw ServiceError.predictionFailed(statusResponse.status ?? "N/A")
+            case "starting", "processing":
+                if attempt == maxAttempts - 1 {
+                    print("❌ Prediction 타임아웃 (최대 시도 \\(maxAttempts)회 도달)")
+                    throw ServiceError.predictionTimeout
+                }
+                try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
+            default:
+                let unknownStatus = statusResponse.status ?? "알 수 없음"
+                let currentLogs = statusResponse.logs ?? "N/A"
+                print("⚠️ Prediction 알 수 없는 상태 (in getAIAdvice loop): \\(unknownStatus), Logs: \\(currentLogs)")
+                if attempt == maxAttempts - 1 {
+                    print("❌ Prediction 타임아웃 (알 수 없는 상태에서 최대 시도 \\(maxAttempts)회 도달)")
+                    throw ServiceError.predictionTimeout
+                }
+                try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
+            }
+        }
+        // 루프가 정상적으로 끝나면 (maxAttempts에 도달했지만 succeeded, failed, canceled가 아닌 경우) 타임아웃으로 처리
+        print("❌ Prediction 타임아웃 (루프 종료)")
+        throw ServiceError.predictionTimeout
+    }
+}
+
+// MARK: - Replicate API 응답 구조체들
+
+struct ReplicatePredictionResponse: Decodable {
+    let id: String?
+    let version: String?
+    let urls: ReplicateURLs?
+    let createdAt: String?
+    let startedAt: String?
+    let completedAt: String?
+    let status: String?
+    let output: AnyDecodableValue?
+    let error: String?
+    let logs: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, version, urls, status, output, error, logs
+        case createdAt = "created_at"
+        case startedAt = "started_at"
+        case completedAt = "completed_at"
+    }
+}
+
+struct ReplicateURLs: Decodable {
+    let get: String?
+    let cancel: String?
+}
+
+struct ReplicateErrorResponse: Decodable {
+    let detail: String?
+}
+
+struct AnyDecodableValue: Decodable {
+    let value: Any
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let stringValue = try? container.decode(String.self) {
+            value = stringValue
+        } else if let arrayValue = try? container.decode([String].self) {
+            value = arrayValue
+        } else if let intValue = try? container.decode(Int.self) {
+            value = intValue
+        } else if let doubleValue = try? container.decode(Double.self) {
+            value = doubleValue
+        } else if let boolValue = try? container.decode(Bool.self) {
+            value = boolValue
+        } else if let dictionaryValue = try? container.decode([String: AnyDecodableValue].self) {
+            value = dictionaryValue.mapValues { $0.value }
+        } else if let arrayDictionaryValue = try? container.decode([[String: AnyDecodableValue]].self) {
+            value = arrayDictionaryValue.map { dictArray in dictArray.mapValues { $0.value } }
+        }
+        else {
+            throw DecodingError.typeMismatch(AnyDecodableValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unsupported type for AnyDecodableValue"))
+        }
     }
 }

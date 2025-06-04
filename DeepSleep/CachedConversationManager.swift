@@ -24,7 +24,7 @@ class CachedConversationManager {
     }
     
     // MARK: - 캐시 관리 (✅ internal로 변경)
-    var currentCache: CachedConversation?  // ✅ private 제거
+    var currentCache: CachedConversation?  // ✅ private 제거. (실제로는 internal 접근 수준이 적절할 수 있습니다.)
     private let cacheExpiryTime: TimeInterval = 300 // 5분 (Claude 캐시 TTL)
     private let maxCacheTokens = 3000 // 캐시 최대 토큰 제한
     
@@ -242,19 +242,34 @@ class CachedConversationManager {
         // UserDefaults 확장 메서드 사용
         let todayMessages = UserDefaults.standard.loadDailyMessages(for: Date())
         
-        return Array(todayMessages.suffix(5)).compactMap { message in
+        // ArraySlice를 Array로 변환하여 compactMap 호출
+        return Array(todayMessages.suffix(5)).compactMap { (message: ChatMessage) -> String? in
             switch message {
             case .user(let text):
                 return "사용자: \(text)"
             case .bot(let text):
                 return "AI: \(text)"
-            case .presetRecommendation(_, let msg, _):
-                return "AI: \(msg)"
+            case .presetRecommendation(let presetName, let msg, _):
+                return "AI (프리셋 추천): \(msg)"
             case .postPresetOptions(let presetName, _, _, _, _):
-                // ✅ 새로운 postPresetOptions 케이스 추가
-                return "AI: 프리셋 '\(presetName)' 옵션 제공"
+                return "시스템 (프리셋 옵션): \(presetName)"
             }
         }
+    }
+    
+    // MARK: - ✅ 주간 히스토리 공개 메서드 (새로 추가)
+    public func getFormattedWeeklyHistory() -> String {
+        // 내부적으로 buildWeeklyHistory()를 호출하여 결과를 반환합니다.
+        // 이 메서드는 AddEditTodoViewController에서 AI 조언 컨텍스트를 가져오기 위해 사용됩니다.
+        let history = buildWeeklyHistory()
+        if history.isEmpty {
+            // 만약 buildWeeklyHistory가 비어있는 문자열을 반환할 가능성이 있다면,
+            // 여기서 기본 메시지나 빈 문자열에 대한 처리를 할 수 있습니다.
+            // 예를 들어, "사용자 활동 기록이 아직 충분하지 않습니다." 와 같은 메시지를 반환할 수 있습니다.
+            print("DEBUG: buildWeeklyHistory() returned an empty string.")
+            return ""
+        }
+        return history
     }
     
     // MARK: - ✅ WeeklyMemory 로드 (단일 정의)

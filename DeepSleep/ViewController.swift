@@ -102,6 +102,7 @@ class ViewController: UIViewController {
         setupEmojiSelector()
         setupSliderUI()
         setupPresetBlocks()
+        updatePresetBlocks()
         configureRemoteCommands()
         setupNotifications()
         setupGestures()

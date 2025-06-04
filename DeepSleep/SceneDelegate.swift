@@ -17,6 +17,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                    options connectionOptions: UIScene.ConnectionOptions) {
 
             guard let windowScene = (scene as? UIWindowScene) else { return }
+            
+            // 앱 시작 시 오래된 AI 조언 정리
+            TodoManager.shared.cleanupOldAIAdvices()
+
             let window = UIWindow(windowScene: windowScene)
 
         // LaunchViewController만 루트로 설정

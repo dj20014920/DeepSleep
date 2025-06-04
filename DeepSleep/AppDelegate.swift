@@ -1,8 +1,9 @@
 import UIKit
 import AVFoundation
+import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     // iOS 13 이상부터 SceneDelegate로 UI 진입점을 분리했어도
     // 여기는 앱 전체 초기화 코드(오디오 세션, 백그라운드 재생 등)를 넣습니다.
@@ -13,7 +14,53 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         configureAudioSession()
         // 제어 센터(remote control) 이벤트 받기 시작
         application.beginReceivingRemoteControlEvents()
+        
+        // 알림 센터 delegate 설정
+        UNUserNotificationCenter.current().delegate = self
+        
+        // 알림 권한 요청
+        requestNotificationAuthorization()
+        
+        // 앱 시작 시 모든 알림 재스케줄링
+        TodoManager.shared.rescheduleAllNotifications()
+        
         return true
+    }
+
+    // MARK: - Notification Authorization & Handling
+    func requestNotificationAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("🔔 알림 권한 허용됨")
+            } else if let error = error {
+                print("🔔 알림 권한 요청 오류: \(error.localizedDescription)")
+            } else {
+                print("🔔 알림 권한 거부됨")
+            }
+        }
+    }
+    
+    // 앱이 foreground에 있을 때 알림을 수신하면 호출됨
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // 앱이 실행 중일 때도 알림을 표시하도록 설정 (alert, sound, badge 모두 사용)
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .list, .sound, .badge])
+        } else {
+            completionHandler([.alert, .sound, .badge])
+        }
+    }
+
+    // 사용자가 알림을 탭했을 때 호출됨
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        // TODO: 알림을 통해 특정 Todo 항목으로 이동하는 등의 액션 처리
+        print("🔔 알림 탭: \(userInfo)")
+        
+        completionHandler()
     }
 
     // MARK: UISceneSession Lifecycle
