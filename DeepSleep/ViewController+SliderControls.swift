@@ -24,6 +24,12 @@ extension ViewController {
         controlsStack.spacing = 12
         controlsStack.translatesAutoresizingMaskIntoConstraints = false
 
+        // 오디오 모드 버튼을 첫 번째로 배치
+        audioModeButton = UIButton(type: .system)
+        audioModeButton.setImage(UIImage(systemName: "speaker.wave.3"), for: .normal)
+        audioModeButton.addTarget(self, action: #selector(audioModeButtonTapped), for: .touchUpInside)
+        updateAudioModeButtonTitle()
+
         let playAll = UIButton(type: .system)
         playAll.setImage(UIImage(systemName: "play.fill"), for: .normal)
         playAll.addTarget(self, action: #selector(playAllTapped), for: .touchUpInside)
@@ -32,7 +38,7 @@ extension ViewController {
         pauseAll.setImage(UIImage(systemName: "pause.fill"), for: .normal)
         pauseAll.addTarget(self, action: #selector(pauseAllTapped), for: .touchUpInside)
 
-        [playAll, pauseAll].forEach { controlsStack.addArrangedSubview($0) }
+        [audioModeButton, playAll, pauseAll].forEach { controlsStack.addArrangedSubview($0) }
         containerView.addSubview(controlsStack)
 
         NSLayoutConstraint.activate([

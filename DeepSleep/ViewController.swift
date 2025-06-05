@@ -39,6 +39,9 @@ class ViewController: UIViewController {
     var previewSliderUpdateTimer: Timer?
 
     var globalVolume: Float = 0.75 // 기본 글로벌 볼륨 (0.0 ~ 1.0) - 0.01에서 0.75로 변경
+    
+    // 오디오 모드 버튼
+    var audioModeButton: UIButton!
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -76,7 +79,11 @@ class ViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         print("👍 [ViewController] viewWillAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        
+        updatePlayButtonStates()
         startPlaybackStateMonitoring()
+        updatePresetBlocks()
+        updateAudioModeButtonTitle() // 오디오 모드 버튼 제목 업데이트
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -543,6 +550,87 @@ class ViewController: UIViewController {
                 print("  [ViewController [\(currentInstanceUUID)]] TabBarController를 여러 번 시도했지만 찾을 수 없었습니다.")
             }
         }
+    }
+
+    // MARK: - 오디오 모드 관리
+    
+    /// 오디오 모드 버튼 제목 업데이트
+    func updateAudioModeButtonTitle() {
+        let currentMode = SoundManager.shared.audioPlaybackMode
+        audioModeButton.setTitle(currentMode.displayName, for: .normal)
+        audioModeButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+    }
+    
+    /// 오디오 모드 선택 버튼 액션
+    @objc func audioModeButtonTapped() {
+        showAudioModeSelectionAlert()
+    }
+    
+    /// 오디오 모드 선택 액션 시트 표시
+    func showAudioModeSelectionAlert() {
+        let alertController = UIAlertController(
+            title: "🔊 오디오 재생 모드 선택",
+            message: "원하는 재생 방식을 선택해주세요",
+            preferredStyle: .actionSheet
+        )
+        
+        // 각 모드별 액션 추가
+        for mode in AudioPlaybackMode.allCases {
+            let action = UIAlertAction(title: mode.displayName, style: .default) { [weak self] _ in
+                self?.selectAudioMode(mode)
+            }
+            
+            // 현재 선택된 모드 표시
+            if mode == SoundManager.shared.audioPlaybackMode {
+                action.setValue(UIImage(systemName: "checkmark"), forKey: "image")
+            }
+            
+            alertController.addAction(action)
+        }
+        
+        // 취소 버튼
+        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        // iPad 지원
+        if let popover = alertController.popoverPresentationController {
+            popover.sourceView = audioModeButton
+            popover.sourceRect = audioModeButton.bounds
+        }
+        
+        present(alertController, animated: true)
+    }
+    
+    /// 선택된 오디오 모드로 변경
+    func selectAudioMode(_ mode: AudioPlaybackMode) {
+        // 모드 상세 설명 표시
+        showModeDescriptionAlert(mode: mode) { [weak self] in
+            // 사용자가 확인을 누르면 모드 변경
+            SoundManager.shared.setAudioPlaybackMode(mode)
+            self?.updateAudioModeButtonTitle()
+            self?.provideMediumHapticFeedback()
+            
+            let feedbackMessage = "\(mode.displayName) 모드가 적용되었습니다"
+            if let sliderExt = self as? ViewController {
+                sliderExt.showToast(message: feedbackMessage)
+            }
+        }
+    }
+    
+    /// 모드 상세 설명 알림 표시
+    func showModeDescriptionAlert(mode: AudioPlaybackMode, completion: @escaping () -> Void) {
+        let alertController = UIAlertController(
+            title: "🎵 \(mode.displayName)",
+            message: mode.description,
+            preferredStyle: .alert
+        )
+        
+        alertController.addAction(UIAlertAction(title: "적용", style: .default) { _ in
+            completion()
+        })
+        
+        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        present(alertController, animated: true)
     }
 }
 

@@ -2,9 +2,39 @@ import Foundation
 import AVFoundation
 import MediaPlayer
 
+/// 오디오 재생 모드
+enum AudioPlaybackMode: Int, CaseIterable {
+    case exclusive = 0      // 독점 재생 (다른 음악 정지, Now Playing 표시됨)
+    case mixWithOthers = 1  // 다른 음악과 혼합 재생 (Now Playing 표시 안됨)
+    
+    var displayName: String {
+        switch self {
+        case .exclusive:
+            return "집중 모드"
+        case .mixWithOthers:
+            return "혼합 모드"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .exclusive:
+            return "다른 음악을 정지하고 수면 사운드만 재생합니다.\n제어 센터와 잠금 화면에 표시됩니다."
+        case .mixWithOthers:
+            return "다른 음악과 함께 백그라운드로 재생합니다.\n음악을 들으면서 수면 사운드도 함께 들을 수 있습니다."
+        }
+    }
+}
+
 /// 11개 카테고리 + 다중 버전을 지원하는 사운드 매니저
 final class SoundManager {
     static let shared = SoundManager()
+    
+    // MARK: - 오디오 모드 설정
+    private var currentAudioMode: AudioPlaybackMode = .exclusive // 기본값: Now Playing 표시를 위해 독점 모드
+    
+    // UserDefaults 키
+    private let audioModeKey = "AudioPlaybackMode"
     
     // MARK: - 새로운 11개 카테고리 정의
     struct SoundCategory {
@@ -56,6 +86,9 @@ final class SoundManager {
     }
     
     private init() {
+        // 저장된 오디오 모드 불러오기
+        loadSavedAudioMode()
+        
         setupSelectedVersions()
         configureAudioSession()
         loadPlayers()
@@ -71,8 +104,26 @@ final class SoundManager {
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            // 모드에 따라 다른 옵션 설정
+            let options: AVAudioSession.CategoryOptions
+            switch currentAudioMode {
+            case .exclusive:
+                options = [] // 다른 앱 오디오 정지, Now Playing 표시
+                print("🔊 [AudioSession] 독점 재생 모드 설정")
+            case .mixWithOthers:
+                options = [.mixWithOthers] // 다른 앱과 혼합 재생
+                print("🔊 [AudioSession] 혼합 재생 모드 설정")
+            }
+            
+            try session.setCategory(.playback, mode: .default, options: options)
             try session.setActive(true)
+            
+            // 오디오 세션 설정 상태 확인
+            print("✅ [AudioSession] 오디오 세션 설정 완료")
+            print("  - Category: \(session.category)")
+            print("  - Options: \(session.categoryOptions)")
+            print("  - SampleRate: \(session.sampleRate)")
+            print("  - OutputVolume: \(session.outputVolume)")
             
             // 인터럽션 관찰
             NotificationCenter.default.addObserver(
@@ -84,6 +135,26 @@ final class SoundManager {
         } catch {
             print("⚠️ AudioSession 설정 실패:", error)
         }
+    }
+    
+    /// 오디오 재생 모드 변경
+    public func setAudioPlaybackMode(_ mode: AudioPlaybackMode) {
+        if currentAudioMode != mode {
+            currentAudioMode = mode
+            saveAudioMode() // 설정 저장
+            print("🔄 [AudioSession] 오디오 모드 변경: \(mode.displayName)")
+            configureAudioSession() // 즉시 적용
+            
+            // 현재 재생 중이라면 NowPlayingInfo 업데이트
+            if activePlayerCount > 0 {
+                updateNowPlayingPlaybackStatus()
+            }
+        }
+    }
+    
+    /// 현재 오디오 모드 조회
+    public var audioPlaybackMode: AudioPlaybackMode {
+        return currentAudioMode
     }
     
     /// 선택된 버전의 파일들을 AVAudioPlayer로 로드
@@ -290,16 +361,32 @@ final class SoundManager {
     
     /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만)
     func playAll() {
+        print("🔊 SoundManager: playAll() 호출됨")
+        print("  - 총 플레이어 수: \(players.count)")
+        
         var playedSomething = false
-        for (_, player) in players.enumerated() {
+        for (index, player) in players.enumerated() {
+            print("  - 플레이어 \(index): volume=\(player.volume), isPlaying=\(player.isPlaying)")
+            
             if player.volume > 0 && !player.isPlaying {
-                player.play() // player.play()는 개별 play(at:)를 호출하지 않으므로 직접적인 nowPlayingInfo 업데이트 안됨
+                player.play()
                 playedSomething = true
+                print("    ✅ 플레이어 \(index) 재생 시작됨")
+            } else if player.volume > 0 && player.isPlaying {
+                print("    ℹ️ 플레이어 \(index) 이미 재생 중")
+            } else if player.volume == 0 {
+                print("    ⏭️ 플레이어 \(index) 볼륨 0으로 건너뜀")
             }
         }
-        print("🔊 SoundManager: playAll() 호출됨")
+        
+        print("  - playedSomething: \(playedSomething)")
+        print("  - activePlayerCount (after): \(activePlayerCount)")
+        
         if playedSomething {
             updateNowPlayingPlaybackStatus() // 전체 재생 상태 업데이트
+            print("  - NowPlayingInfo 업데이트 완료")
+        } else {
+            print("  - 재생할 플레이어가 없어 NowPlayingInfo 업데이트 건너뜀")
         }
     }
     
@@ -613,16 +700,17 @@ final class SoundManager {
     /// 내부 재생 상태 변화에 따라 NowPlayingInfo 업데이트
     private func updateNowPlayingPlaybackStatus(isPlayingOverride: Bool? = nil) {
         print("🔵 [NowPlayingInfo DEBUG] updateNowPlayingPlaybackStatus 시작. isPlayingOverride: \(String(describing: isPlayingOverride)), currentPresetName: \(currentPresetName ?? "nil")")
+        
         var nowPlayingInfo = [String: Any]()
         let actuallyPlaying = activePlayerCount > 0
         let isEffectivelyPlaying = isPlayingOverride ?? actuallyPlaying
         
-        print("🔵 [NowPlayingInfo DEBUG] actuallyPlaying: \\(actuallyPlaying), isEffectivelyPlaying: \\(isEffectivelyPlaying), activePlayerCount: \\(activePlayerCount)")
+        print("🔵 [NowPlayingInfo DEBUG] actuallyPlaying: \(actuallyPlaying), isEffectivelyPlaying: \(isEffectivelyPlaying), activePlayerCount: \(activePlayerCount)")
 
         if let presetName = self.currentPresetName, !presetName.isEmpty {
             nowPlayingInfo[MPMediaItemPropertyTitle] = presetName
-            print("🔵 [NowPlayingInfo DEBUG] Title 설정: \\(presetName)")
-        } else if isEffectivelyPlaying {
+            print("🔵 [NowPlayingInfo DEBUG] Title 설정: \(presetName)")
+        } else if isEffectivelyPlaying { // 재생 중일 때만 기본 제목 설정
             nowPlayingInfo[MPMediaItemPropertyTitle] = "EmoZleep 사운드" // 앱 이름 변경 반영
             print("🔵 [NowPlayingInfo DEBUG] Title 기본값 설정: EmoZleep 사운드")
         } else {
@@ -640,11 +728,11 @@ final class SoundManager {
         
         // 앨범 아트
         var artworkSet = false
-        if let artworkImage = UIImage(named: "NowPlayingArtwork") {
-            let artwork = MPMediaItemArtwork(boundsSize: artworkImage.size) { _ in artworkImage }
+        if let image = UIImage(named: "NowPlayingArtwork") {
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
             nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
             artworkSet = true
-            print("🖼️ [NowPlayingInfo DEBUG] NowPlayingArtwork 로드 성공. Artwork 객체: \\(artwork)")
+            print("🖼️ [NowPlayingInfo DEBUG] NowPlayingArtwork 로드 성공. Artwork 객체: \(artwork)")
         } else {
             print("🔴 [NowPlayingInfo DEBUG] NowPlayingArtwork 로드 실패.")
         }
@@ -652,24 +740,48 @@ final class SoundManager {
         // 재생 상태 및 시간
         let playbackRate = isEffectivelyPlaying ? 1.0 : 0.0
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate
-        print("🔵 [NowPlayingInfo DEBUG] PlaybackRate 설정: \\(playbackRate)")
+        print("🔵 [NowPlayingInfo DEBUG] PlaybackRate 설정: \(playbackRate)")
 
         if isEffectivelyPlaying,
            let firstActivePlayer = players.first(where: { $0.isPlaying && $0.volume > 0 }) {
-            print("🔵 [NowPlayingInfo DEBUG] firstActivePlayer 정보: duration=\\(firstActivePlayer.duration), currentTime=\\(firstActivePlayer.currentTime), isPlaying=\\(firstActivePlayer.isPlaying), volume=\\(firstActivePlayer.volume)")
+            print("🔵 [NowPlayingInfo DEBUG] firstActivePlayer 정보: duration=\(firstActivePlayer.duration), currentTime=\(firstActivePlayer.currentTime), isPlaying=\(firstActivePlayer.isPlaying), volume=\(firstActivePlayer.volume)")
             nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = firstActivePlayer.duration
             nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = firstActivePlayer.currentTime
-            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 설정: \\(firstActivePlayer.duration)")
-            print("🔵 [NowPlayingInfo DEBUG] ElapsedPlaybackTime 설정: \\(firstActivePlayer.currentTime)")
+            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 설정: \(firstActivePlayer.duration)")
+            print("🔵 [NowPlayingInfo DEBUG] ElapsedPlaybackTime 설정: \(firstActivePlayer.currentTime)")
         } else {
+            // 재생 중이 아니거나 활성 플레이어가 없으면 재생 시간 관련 정보를 0 또는 nil로 설정
             nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = 0
             nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
-            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 및 ElapsedPlaybackTime을 0으로 설정 (활성 플레이어 없음 또는 재생 중 아님). isEffectivelyPlaying: \\(isEffectivelyPlaying)")
+            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 및 ElapsedPlaybackTime을 0으로 설정 (활성 플레이어 없음 또는 재생 중 아님). isEffectivelyPlaying: \(isEffectivelyPlaying)")
         }
         
         print("🔵 [NowPlayingInfo DEBUG] 최종 nowPlayingInfo 딕셔셔너리 (설정 전):")
         for (key, value) in nowPlayingInfo {
-            print("  - Key: \\(key), Value: \\(value), Type: \\(type(of: value))")
+            // value를 String(describing:)으로 감싸서 모든 타입을 안전하게 출력
+            print("  - Key: \(key), Value: \(String(describing: value)), Type: \(type(of: value))")
+        }
+
+        // 오디오 세션 상태 확인
+        let session = AVAudioSession.sharedInstance()
+        print("🔵 [NowPlayingInfo DEBUG] 설정 직전 오디오 세션 상태:")
+        print("  - Category: \(session.category)")
+        print("  - 실제 재생 중인 플레이어 수: \(players.filter { $0.isPlaying }.count)")
+        print("  - 볼륨 > 0인 플레이어 수: \(players.filter { $0.volume > 0 }.count)")
+
+        // 실제로 재생 중인 플레이어가 없으면 NowPlayingInfo 설정하지 않음
+        let actualPlayingPlayers = players.filter { $0.isPlaying && $0.volume > 0 }
+        if actualPlayingPlayers.isEmpty && isEffectivelyPlaying {
+            print("⚠️ [NowPlayingInfo DEBUG] 실제 재생 중인 플레이어가 없음에도 isEffectivelyPlaying=true. NowPlayingInfo 설정 취소")
+            return
+        }
+
+        // 오디오 세션 재활성화 시도
+        do {
+            try session.setActive(true)
+            print("🔵 [NowPlayingInfo DEBUG] 오디오 세션 활성화 확인 완료")
+        } catch {
+            print("🔴 [NowPlayingInfo DEBUG] 오디오 세션 활성화 실패: \(error)")
         }
 
         DispatchQueue.main.async {
@@ -683,22 +795,16 @@ final class SoundManager {
             } else {
                 infoDescription = "nil (정보 없음)"
             }
-            // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분
+            // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분 (컴파일 오류 방지)
             print("✅ [NowPlayingInfo] 정보 설정 완료 (메인 스레드에서). 설정된 값:", infoDescription)
             
             // iOS 8+ 정보 사라짐 문제 해결 시도 (0.2초 후 재설정)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 // 현재 상태를 다시 가져와서 설정 (nowPlayingInfo 변수는 클로저 캡처 시점의 값일 수 있음)
                 var currentInfoToResend = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-                // 만약 nil로 설정된 상태라면, 이전에 유효했던 값을 다시 보내는 것은 의미가 없으므로,
-                // 또는 현재 재생 상태에 따라 다시 빌드해야 할 수도 있음.
-                // 여기서는 간단히 현재 infoCenter의 값을 다시 설정 시도.
-                // 또는, 이 시점에서 self.updateNowPlayingPlaybackStatus()를 다시 호출하는 것을 고려할 수도 있으나 무한 루프 위험.
-                // 지금은 단순히 현재 설정된 값을 다시 설정하는 것으로 유지.
-                // 만약 nil로 설정된 후라면, 이 재설정은 의미가 없을 수 있음.
                 if !currentInfoToResend.isEmpty { // nil이 아닌 경우에만 재설정
                    MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfoToResend
-                   // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분, 딕셔너리는 String(describing:) 사용
+                   // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분, 딕셔너리는 String(describing:) 사용 (컴파일 오류 방지)
                    print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 (0.2초 후, 메인 스레드). 재설정 값:", String(describing: currentInfoToResend))
                 } else {
                    print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 건너뜀 (0.2초 후, 현재 infoCenter가 nil임).")
@@ -711,6 +817,29 @@ final class SoundManager {
     func isPlaying(for categoryIndex: Int) -> Bool {
         guard categoryIndex >= 0, categoryIndex < players.count else { return false }
         return players[categoryIndex].isPlaying && players[categoryIndex].volume > 0
+    }
+
+    // MARK: - 설정 저장/불러오기
+    
+    /// 저장된 오디오 모드 불러오기
+    private func loadSavedAudioMode() {
+        let savedModeRawValue = UserDefaults.standard.integer(forKey: audioModeKey)
+        if let savedMode = AudioPlaybackMode(rawValue: savedModeRawValue) {
+            currentAudioMode = savedMode
+            print("📱 [Settings] 저장된 오디오 모드 불러옴: \(savedMode.displayName)")
+        } else {
+            // 기본값 사용 및 저장
+            currentAudioMode = .exclusive
+            saveAudioMode()
+            print("📱 [Settings] 기본 오디오 모드 설정: \(currentAudioMode.displayName)")
+        }
+    }
+    
+    /// 현재 오디오 모드 저장
+    private func saveAudioMode() {
+        UserDefaults.standard.set(currentAudioMode.rawValue, forKey: audioModeKey)
+        UserDefaults.standard.synchronize()
+        print("💾 [Settings] 오디오 모드 저장됨: \(currentAudioMode.displayName)")
     }
 }
 
