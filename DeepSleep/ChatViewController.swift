@@ -62,6 +62,8 @@ class ChatViewController: UIViewController {
         return btn
     }()
     
+    // ✅ 화면 하단 로딩 시스템 제거 (채팅 버블 내 고양이로 대체)
+    
     // MARK: - Computed Properties
     private var dailyChatCount: Int {
         let todayStats = SettingsManager.shared.getTodayStats()
@@ -249,7 +251,11 @@ extension ChatViewController {
         view.addSubview(tableView)
         view.addSubview(presetButton)
         view.addSubview(inputContainerView)
+        
+        // ✅ 화면 하단 로딩 시스템 제거됨
     }
+    
+
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
@@ -397,6 +403,8 @@ extension ChatViewController {
         SettingsManager.shared.incrementChatUsage()
     }
     
+    // ✅ 화면 하단 로딩 시스템 제거됨 (채팅 버블 내 고양이로 대체)
+    
     @objc private func backButtonTapped() {
         navigationController?.popViewController(animated: true)
     }
@@ -414,8 +422,12 @@ extension ChatViewController {
             self.scrollToBottom()
         }
         
-        // 기존 히스토리 저장
-        saveChatHistory()
+        // 기존 히스토리 저장 (로딩 메시지는 저장하지 않음)
+        if case .loading = message {
+            // 로딩 메시지는 저장하지 않음
+        } else {
+            saveChatHistory()
+        }
     }
     
     func saveChatHistory() {
@@ -427,6 +439,17 @@ extension ChatViewController {
         if !messages.isEmpty {
             let indexPath = IndexPath(row: messages.count - 1, section: 0)
             tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        }
+    }
+    
+    // ✅ 마지막 로딩 메시지 제거
+    func removeLastLoadingMessage() {
+        if let lastIndex = messages.lastIndex(where: { 
+            if case .loading = $0 { return true }
+            return false 
+        }) {
+            messages.remove(at: lastIndex)
+            tableView.reloadData()
         }
     }
 }

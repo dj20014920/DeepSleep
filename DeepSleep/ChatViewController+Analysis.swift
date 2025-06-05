@@ -5,7 +5,7 @@ extension ChatViewController {
     
     // MARK: - ✅ 일기 분석 메소드 - intent 정확히 설정
     func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
-        appendChat(.bot("일기 분석 중... 💭"))
+        appendChat(.loading)
         
         let analysisPrompt = """
         감정:\(diary.emotion) 날짜:\(diary.formattedDate)
@@ -32,6 +32,8 @@ extension ChatViewController {
             intent: "diary_analysis"  // 이 intent가 2000토큰을 사용함
         ) { [weak self] response in
             DispatchQueue.main.async {
+                self?.removeLastLoadingMessage()
+                
                 if let analysis = response {
                     self?.appendChat(.bot(analysis))
                     
@@ -85,6 +87,8 @@ extension ChatViewController {
             intent: "pattern_analysis"  // 이 intent가 2000토큰을 사용함
         ) { [weak self] response in
             DispatchQueue.main.async {
+                self?.removeLastLoadingMessage()
+                
                 if let analysis = response {
                     self?.appendChat(.bot(analysis))
                     

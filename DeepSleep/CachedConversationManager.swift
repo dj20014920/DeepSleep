@@ -254,6 +254,8 @@ class CachedConversationManager {
                 return "사용자: \(text)"
             case .bot(let text):
                 return "AI: \(text)"
+            case .loading:
+                return nil // 로딩 메시지는 캐시에 포함하지 않음
             case .presetRecommendation(let presetName, let msg, _):
                 return "AI (프리셋 추천): \(msg)"
             case .postPresetOptions(let presetName, _, _, _, _):
@@ -302,7 +304,7 @@ class CachedConversationManager {
             switch message {
             case .user(let text):
                 return text
-            case .bot, .presetRecommendation, .postPresetOptions:
+            case .bot, .presetRecommendation, .postPresetOptions, .loading:
                 // ✅ 다른 케이스들은 사용자 메시지가 아니므로 nil 반환
                 return nil
             }
@@ -314,8 +316,8 @@ class CachedConversationManager {
                 return text
             case .presetRecommendation(_, let msg, _):
                 return msg
-            case .user, .postPresetOptions:
-                // ✅ 사용자 메시지와 옵션 메시지는 bot 메시지가 아니므로 nil 반환
+            case .user, .postPresetOptions, .loading:
+                // ✅ 사용자 메시지와 옵션 메시지, 로딩 메시지는 bot 메시지가 아니므로 nil 반환
                 return nil
             }
         }
@@ -353,7 +355,7 @@ class CachedConversationManager {
             switch message {
             case .user(let text):
                 return text
-            case .bot, .presetRecommendation, .postPresetOptions:
+            case .bot, .presetRecommendation, .postPresetOptions, .loading:
                 // ✅ 사용자 텍스트가 아닌 경우 nil 반환
                 return nil
             }
@@ -365,7 +367,7 @@ class CachedConversationManager {
                 return text
             case .presetRecommendation(_, let msg, _):
                 return msg
-            case .user, .postPresetOptions:
+            case .user, .postPresetOptions, .loading:
                 // ✅ AI 텍스트가 아닌 경우 nil 반환
                 return nil
             }

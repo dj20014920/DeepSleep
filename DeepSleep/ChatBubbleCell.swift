@@ -1,6 +1,120 @@
 import UIKit
 import Foundation
 
+// MARK: - ChatBubbleCell Implementation
+
+// MARK: - ✅ GIF 고양이 뷰
+class GifCatView: UIView {
+    private let imageView = UIImageView()
+    private var catDirection: CGFloat = 1
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupImageView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupImageView()
+    }
+    
+    private func setupImageView() {
+        // 이미지뷰 설정
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.backgroundColor = .clear
+        addSubview(imageView)
+        
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        
+        // GIF 로드
+        setupGifCat()
+    }
+    
+    func setupGifCat() {
+        print("🔍 Bundle에서 cat.gif 찾기 시작...")
+        
+        // 기존 애니메이션 정지
+        imageView.stopAnimating()
+        imageView.animationImages = nil
+        
+        // 1차: Bundle.main.path 방법들
+        let searchMethods = [
+            ("Bundle 루트", { Bundle.main.path(forResource: "cat", ofType: "gif") }),
+            ("Bundle URL", { Bundle.main.url(forResource: "cat", withExtension: "gif")?.path }),
+            ("Bundle with extension", { Bundle.main.path(forResource: "cat.gif", ofType: nil) })
+        ]
+        
+        for (method, pathFunc) in searchMethods {
+            if let gifPath = pathFunc() {
+                print("✅ \(method)에서 GIF 찾음: \(gifPath)")
+                if loadGifFromPath(gifPath) {
+                    return
+                }
+            } else {
+                print("❌ \(method) 실패")
+            }
+        }
+        
+        print("❌ Bundle에서 GIF 파일을 찾을 수 없음")
+        // GIF 없으면 빈 상태로 두기
+        imageView.backgroundColor = UIColor.clear
+    }
+    
+    private func loadGifFromPath(_ path: String) -> Bool {
+        guard let gifData = NSData(contentsOfFile: path),
+              let source = CGImageSourceCreateWithData(gifData, nil) else {
+            print("❌ GIF 데이터 로드 실패: \(path)")
+            return false
+        }
+        
+        var images: [UIImage] = []
+        let count = CGImageSourceGetCount(source)
+        print("✅ GIF 프레임 수: \(count)")
+        
+        for i in 0..<count {
+            if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
+                images.append(UIImage(cgImage: cgImage))
+            }
+        }
+        
+        if !images.isEmpty {
+            print("✅ GIF 애니메이션 설정 성공! 프레임: \(images.count)개")
+            DispatchQueue.main.async {
+                self.imageView.animationImages = images
+                self.imageView.animationDuration = Double(images.count) * 0.1
+                self.imageView.animationRepeatCount = 0
+                self.imageView.startAnimating()
+                self.imageView.contentMode = .scaleAspectFit
+                self.imageView.backgroundColor = .clear
+            }
+            return true
+        } else {
+            print("❌ GIF 프레임 변환 실패")
+            return false
+        }
+    }
+     
+     
+     
+     func updateDirection(_ direction: CGFloat) {
+        catDirection = direction
+        // 방향에 따라 고양이 뒤집기
+        UIView.animate(withDuration: 0.2) {
+            if direction < 0 {
+                self.transform = CGAffineTransform(scaleX: -1, y: 1)
+            } else {
+                self.transform = CGAffineTransform.identity
+            }
+        }
+    }
+}
+
 class ChatBubbleCell: UITableViewCell {
     static let identifier = "ChatBubbleCell"
     
@@ -21,8 +135,13 @@ class ChatBubbleCell: UITableViewCell {
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ✅ 버블 크기 최적화: 텍스트 크기에 맞게 조정
+        label.setContentHuggingPriority(.defaultHigh, for: .horizontal) // 수평으로 꽉 차지 않도록
         label.setContentHuggingPriority(.defaultLow, for: .vertical)
         label.setContentCompressionResistancePriority(.required, for: .vertical)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        
         return label
     }()
     
@@ -58,6 +177,20 @@ class ChatBubbleCell: UITableViewCell {
         return stackView
     }()
     
+    // ✅ 로딩 애니메이션 관련 UI 컴포넌트들 (GIF 고양이로 변경)
+    private let loadingContainer = UIView()
+    private let gifCatView = GifCatView() // GIF 고양이
+    private let loadingTextLabel = UILabel()
+    private let typingDotsLabel = UILabel()
+    private let thinkingLabel = UILabel() // 생각중... 텍스트
+    
+    // ✅ 애니메이션 관련 프로퍼티들
+    private var catAnimationTimer: Timer?
+    private var typingDotsTimer: Timer?
+    private var currentCatPosition: CGFloat = 0
+    private var catDirection: CGFloat = 1
+    private var dotCount = 0
+    
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
     
@@ -87,16 +220,55 @@ class ChatBubbleCell: UITableViewCell {
         bubbleView.addSubview(applyButton)
         bubbleView.addSubview(optionButtonStackView) // ✅ 새로운 스택뷰 추가
         
+        // ✅ 로딩 컨테이너 설정
+        bubbleView.addSubview(loadingContainer)
+        loadingContainer.addSubview(gifCatView)
+        loadingContainer.addSubview(loadingTextLabel)
+        loadingContainer.addSubview(typingDotsLabel)
+        loadingContainer.addSubview(thinkingLabel)
+        
+        bubbleView.layer.cornerRadius = 12
+        bubbleView.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        applyButton.translatesAutoresizingMaskIntoConstraints = false
+        optionButtonStackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ✅ 로딩 관련 컴포넌트들 설정
+        loadingContainer.translatesAutoresizingMaskIntoConstraints = false
+        gifCatView.translatesAutoresizingMaskIntoConstraints = false
+        loadingTextLabel.translatesAutoresizingMaskIntoConstraints = false
+        typingDotsLabel.translatesAutoresizingMaskIntoConstraints = false
+        thinkingLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ✅ GIF 고양이 뷰 설정
+        gifCatView.backgroundColor = .clear
+        
+        // ✅ 로딩 텍스트 라벨 설정 (숨김)
+        loadingTextLabel.isHidden = true
+        
+        // ✅ 타이핑 텍스트 라벨 설정 (Claude 스타일)
+        typingDotsLabel.text = "생각 중▊"
+        typingDotsLabel.font = .systemFont(ofSize: 11, weight: .regular)
+        typingDotsLabel.textColor = .systemGray
+        typingDotsLabel.textAlignment = .left
+        
+        // ✅ 생각중 라벨 설정
+        thinkingLabel.text = "생각중..."
+        thinkingLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        thinkingLabel.textColor = .systemGray
+        thinkingLabel.textAlignment = .left
+        thinkingLabel.alpha = 0 // 처음에는 숨김
+        
         // 제약 조건 설정
-        messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
+        messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
         applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 32)
         messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
         applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
 
         NSLayoutConstraint.activate([
-            messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 12),
-            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
-            messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
+            messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
+            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
+            messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -12),
             messageLabelBottomConstraint,
             
             applyButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
@@ -106,24 +278,46 @@ class ChatBubbleCell: UITableViewCell {
             // ✅ 옵션 버튼 스택뷰 제약 조건
             optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12),
             optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
-            optionButtonStackView.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
-            optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12),
+            optionButtonStackView.trailingAnchor.constraint(lessThanOrEqualTo: bubbleView.trailingAnchor, constant: -16),
+            optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16),
             optionButtonStackView.heightAnchor.constraint(equalToConstant: 200) // 4개 버튼 * 50 높이
         ])
 
-        // bubbleView 제약
+        // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트)
+        NSLayoutConstraint.activate([
+            loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
+            loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
+            loadingContainer.widthAnchor.constraint(equalToConstant: 120), // 2배 크게 + 텍스트 공간
+            loadingContainer.heightAnchor.constraint(equalToConstant: 60), // 2배 크게 + 여유 공간
+            loadingContainer.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8), // ✅ 버블 크기 결정
+            
+            // ✅ 고양이 뷰 (2배 크게)
+            gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
+            gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor),
+            gifCatView.widthAnchor.constraint(equalToConstant: 48), // 24 * 2
+            gifCatView.heightAnchor.constraint(equalToConstant: 48), // 24 * 2
+            
+            // ✅ 생각중 라벨 (고양이 시작 위치 왼쪽 밑에)
+            thinkingLabel.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
+            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
+            thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -8)
+        ])
+        
+        // bubbleView 제약조건 복원
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
         trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         
         NSLayoutConstraint.activate([
-            bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
-            bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            leadingConstraint,
-            trailingConstraint
+            bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 2),
+            bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2)
         ])
-
+        
         // 최대 너비 제한
         let bubbleWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.85)
+        
+        // 초기 상태에서 로딩 컨테이너 숨김
+        loadingContainer.isHidden = true
+        
         bubbleWidthConstraint.priority = .required
         bubbleWidthConstraint.isActive = true
         
@@ -137,12 +331,15 @@ class ChatBubbleCell: UITableViewCell {
         optionButtonStackView.isHidden = true // ✅ 옵션 스택뷰도 숨기기
         applyAction = nil
         clearOptionActions() // ✅ 옵션 액션들 초기화
+        stopLoadingAnimation() // ✅ 기존 로딩 애니메이션 정지
 
         switch message {
         case .user(let text):
             configureUserMessage(text)
         case .bot(let text):
             configureBotMessage(text)
+        case .loading: // ✅ 로딩 케이스 처리
+            configureLoadingMessage()
         case .presetRecommendation(_, let msg, let action):
             configurePresetMessage(msg, action: action)
         case .postPresetOptions(let presetName, let onSave, let onFeedback, let onGoToMain, let onContinueChat):
@@ -156,11 +353,15 @@ class ChatBubbleCell: UITableViewCell {
             )
         }
         
-        // 애니메이션 효과
-        bubbleView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-        UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut], animations: {
-            self.bubbleView.transform = .identity
-        })
+        // 애니메이션 효과 (로딩이 아닐 때만)
+        if case .loading = message {
+            // 로딩일 때는 애니메이션 효과 없음
+        } else {
+            bubbleView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut], animations: {
+                self.bubbleView.transform = .identity
+            })
+        }
     }
     
     private func resetConstraints() {
@@ -169,6 +370,22 @@ class ChatBubbleCell: UITableViewCell {
         messageLabelBottomConstraint.isActive = false
         messageLabelToButtonConstraint.isActive = false
         applyButtonBottomConstraint.isActive = false
+        
+        // 로딩 컨테이너 완전히 숨기기 및 상태 초기화
+        loadingContainer.isHidden = true
+        loadingContainer.alpha = 0
+        messageLabel.isHidden = false
+        
+        // 로딩 애니메이션 정지
+        stopLoadingAnimation()
+        
+        // 고양이 위치 및 상태 완전 초기화
+        gifCatView.transform = .identity
+        thinkingLabel.alpha = 0
+        currentCatPosition = 0
+        
+        // 버블뷰 배경색 복원 (투명했을 수 있음)
+        bubbleView.backgroundColor = .systemGray6
     }
     
     // ✅ 옵션 액션들 초기화
@@ -186,7 +403,12 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configureUserMessage(_ text: String) {
-        // 사용자 메시지 스타일
+        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
+        loadingContainer.isHidden = true
+        loadingContainer.alpha = 0
+        messageLabel.isHidden = false
+        
+        // 사용자 메시지 스타일 - 정상 크기로 복원
         bubbleView.backgroundColor = .systemBlue
         messageLabel.textColor = .white
         messageLabel.text = text
@@ -204,7 +426,12 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configureBotMessage(_ text: String) {
-        // AI 메시지 스타일
+        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
+        loadingContainer.isHidden = true
+        loadingContainer.alpha = 0
+        messageLabel.isHidden = false
+        
+        // AI 메시지 스타일 - 정상 크기로 복원
         bubbleView.backgroundColor = UIColor(white: 0.95, alpha: 1)
         messageLabel.textColor = .label
         messageLabel.text = text
@@ -222,7 +449,12 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configurePresetMessage(_ msg: String, action: @escaping () -> Void) {
-        // 프리셋 추천 메시지 스타일
+        // 로딩 컨테이너 완전히 숨기고 프리셋 메시지 표시
+        loadingContainer.isHidden = true
+        loadingContainer.alpha = 0
+        messageLabel.isHidden = false
+        
+        // 프리셋 추천 메시지 스타일 - 정상 크기로 복원
         bubbleView.backgroundColor = UIColor.systemGreen
         messageLabel.textColor = .white
         messageLabel.text = msg
@@ -415,6 +647,9 @@ class ChatBubbleCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         
+        // 애니메이션 완전 정지
+        stopLoadingAnimation()
+        
         // 레이어 정리
         bubbleView.layer.sublayers?.removeAll { $0 is CAGradientLayer }
         bubbleView.layer.shadowOpacity = 0
@@ -423,7 +658,136 @@ class ChatBubbleCell: UITableViewCell {
         // 상태 초기화
         applyAction = nil
         applyButton.isHidden = true
-        optionButtonStackView.isHidden = true // ✅ 옵션 스택뷰도 숨기기
-        clearOptionActions() // ✅ 옵션 액션들 초기화
+        optionButtonStackView.isHidden = true
+        clearOptionActions()
+        
+        // 고양이 상태 초기화
+        gifCatView.transform = .identity
+        thinkingLabel.alpha = 0
+        currentCatPosition = 0
+        loadingContainer.isHidden = true
+        
+        // GIF 재시작을 위한 리셋
+        gifCatView.setupGifCat()
+    }
+    
+    // MARK: - ✅ 로딩 애니메이션 관련 함수들
+    
+    /// 로딩 애니메이션 시작
+    func startLoadingAnimation() {
+        loadingContainer.isHidden = false
+        messageLabel.isHidden = true
+        
+        // 기존 텍스트들 숨기기
+        typingDotsLabel.isHidden = true
+        
+        // "생각중..." 텍스트를 처음부터 표시
+        thinkingLabel.alpha = 1.0
+        
+        startCatAnimation()
+        // typingDotsAnimation은 제거 - thinkingLabel만 사용
+    }
+    
+    /// 로딩 애니메이션 정지
+    func stopLoadingAnimation() {
+        loadingContainer.isHidden = true
+        messageLabel.isHidden = false
+        
+        catAnimationTimer?.invalidate()
+        typingDotsTimer?.invalidate()
+        catAnimationTimer = nil
+        typingDotsTimer = nil
+        
+        // 생각중 텍스트 초기화
+        thinkingLabel.alpha = 0
+        currentCatPosition = 0
+        gifCatView.transform = .identity
+    }
+    
+    /// 고양이 오른쪽으로 계속 이동 애니메이션 (답변이 올 때까지)
+    private func startCatAnimation() {
+        let moveDistance: CGFloat = 2.5 // 한번에 이동할 거리 (기존 5px의 절반)
+        
+        catAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
+            guard let self = self else { 
+                timer.invalidate()
+                return 
+            }
+            
+            // 현재 위치에서 계속 오른쪽으로 이동
+            self.currentCatPosition += moveDistance
+            
+            // 부드러운 연속 애니메이션으로 위치 업데이트
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.curveLinear], animations: {
+                self.gifCatView.transform = CGAffineTransform(translationX: self.currentCatPosition, y: 0)
+            })
+        }
+    }
+    
+    /// 고양이가 멈춘 후 생각중 텍스트 표시 (더이상 사용하지 않음 - 처음부터 표시)
+    private func showThinkingText() {
+        // 이제 "생각중..." 텍스트는 애니메이션 시작과 함께 표시됨
+        thinkingLabel.alpha = 1.0
+    }
+    
+    /// 타이핑 효과 애니메이션 (Claude 스타일)
+    private func startTypingDotsAnimation() {
+        let phrases = ["생각 중", "분석 중", "응답 생성", "거의 완료"]
+        var currentPhrase = ""
+        var phraseIndex = 0
+        var charIndex = 0
+        
+        typingDotsTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            if charIndex < phrases[phraseIndex].count {
+                // 글자 하나씩 추가
+                let index = phrases[phraseIndex].index(phrases[phraseIndex].startIndex, offsetBy: charIndex)
+                currentPhrase = String(phrases[phraseIndex].prefix(through: index))
+                charIndex += 1
+            } else {
+                // 다음 문구로 이동
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    phraseIndex = (phraseIndex + 1) % phrases.count
+                    charIndex = 0
+                    currentPhrase = ""
+                }
+            }
+            
+            // 타이핑 커서 효과
+            let cursor = charIndex % 2 == 0 ? "▊" : ""
+            self.typingDotsLabel.text = currentPhrase + cursor
+        }
+    }
+    
+    // ✅ 로딩 메시지 구성 (큰 고양이 + 생각중 텍스트)
+    private func configureLoadingMessage() {
+        // 왼쪽 정렬 (AI 메시지 위치)
+        leadingConstraint.isActive = true
+        
+        // 로딩 컨테이너를 위한 최소한의 크기 설정 (다른 UI에 영향 주지 않도록)
+        bubbleView.backgroundColor = UIColor.clear
+        messageLabel.text = ""
+        messageLabel.isHidden = true
+        
+        // 다른 UI 요소들 숨기기
+        applyButton.isHidden = true
+        optionButtonStackView.isHidden = true
+        
+        // 로딩 컨테이너만 표시
+        loadingContainer.isHidden = false
+        loadingContainer.alpha = 1.0
+        
+        // 기존 애니메이션이 있다면 정지
+        stopLoadingAnimation()
+        
+        // 고양이 위치 초기화
+        gifCatView.transform = .identity
+        currentCatPosition = 0
+        
+        // 고양이 GIF 시작
+        startLoadingAnimation()
+        
+        print("🐱 로딩 메시지 설정 완료 - 고양이 GIF 시작")
     }
 }

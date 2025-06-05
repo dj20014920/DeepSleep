@@ -6,6 +6,7 @@ import Foundation
 enum ChatMessage {
     case user(String)
     case bot(String)
+    case loading
     case presetRecommendation(presetName: String, message: String, apply: () -> Void)
     case postPresetOptions(
         presetName: String,
@@ -21,6 +22,8 @@ enum ChatMessage {
             return ["type": "user", "text": msg]
         case .bot(let msg):
             return ["type": "bot", "text": msg]
+        case .loading:
+            return ["type": "loading", "text": ""]
         case .presetRecommendation(let presetName, let msg, _):
             return ["type": "preset", "text": msg, "presetName": presetName]
         case .postPresetOptions(let presetName, _, _, _, _):
@@ -33,6 +36,7 @@ enum ChatMessage {
         switch type {
         case "user": return .user(text)
         case "bot": return .bot(text)
+        case "loading": return nil
         case "preset":
             let name = dictionary["presetName"] ?? "추천 프리셋"
             return .presetRecommendation(presetName: name, message: text, apply: {})

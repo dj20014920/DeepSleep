@@ -181,7 +181,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         mainStackView.addArrangedSubview(aiAdviceStackView) // 스택뷰 추가
         mainStackView.setCustomSpacing(4, after: aiHelpActivityIndicator)
         mainStackView.setCustomSpacing(16, after: aiAdviceStackView) // 스택뷰와 저장 버튼 간 간격 추가
-
+        
         mainStackView.addArrangedSubview(saveButton)
         mainStackView.setCustomSpacing(30, after: notesTextView) // 저장 버튼 위 간격 추가
 

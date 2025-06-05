@@ -16,6 +16,9 @@ extension ChatViewController {
             appendChat(.bot("⚠️ 오늘 채팅 횟수가 10회 남았어요.\n소중한 시간이니 천천히 대화해요 💝"))
         }
         
+        // ✅ 로딩 메시지 표시
+        appendChat(.loading)
+        
         // ✅ 캐시 매니저를 통한 최적화된 프롬프트 생성
         let cachedPrompt = CachedConversationManager.shared.buildCachedPrompt(
             newMessage: text,
@@ -34,6 +37,9 @@ extension ChatViewController {
             intent: determineChatIntent(from: text)
         ) { [weak self] response in
             DispatchQueue.main.async {
+                // ✅ 로딩 메시지 제거
+                self?.removeLastLoadingMessage()
+                
                 if let msg = response, !msg.isEmpty {
                     let completeResponse = self?.ensureCompleteResponse(msg, intent: self?.determineChatIntent(from: text) ?? "chat") ?? msg
                     
@@ -68,7 +74,9 @@ extension ChatViewController {
         }*/
         
         appendChat(.user("🎵 지금 기분에 맞는 사운드 추천받기"))
-        appendChat(.bot("🎶 당신의 감정에 맞는 완벽한 사운드 조합을 찾고 있어요... 잠시만 기다려주세요! ✨"))
+        
+        // ✅ 로딩 메시지 표시
+        appendChat(.loading)
         
         // 최근 대화 내용 수집
         let recentChat = getRecentChatForPreset()
@@ -95,6 +103,9 @@ extension ChatViewController {
             emotionContext: currentEmotion
         ) { [weak self] response in
             DispatchQueue.main.async {
+                // ✅ 로딩 메시지 제거
+                self?.removeLastLoadingMessage()
+                
                 self?.handlePresetRecommendationResponse(response)
             }
         }
