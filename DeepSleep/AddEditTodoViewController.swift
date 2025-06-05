@@ -294,15 +294,16 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             // TodoItem이 struct이므로 아래와 같이 명시적 할당 필요
             todo.aiAdvices = self.currentTodoAdvices 
 
-            TodoManager.shared.updateTodo(todo) { [weak self] updatedTodo, error in
+            TodoManager.shared.updateTodo(todo) { [weak self] (updatedItem: TodoItem?, error: Error?) in
                 DispatchQueue.main.async {
+                    guard let self = self else { return }
                     if let error = error {
-                        self?.handleTodoManagerError(error, forAction: "수정")
-                    } else if updatedTodo != nil {
-                        self?.delegate?.didSaveTodo()
-                        self?.dismiss(animated: true, completion: nil)
+                        self.handleTodoManagerError(error, forAction: "수정")
+                    } else if updatedItem != nil {
+                        self.delegate?.didSaveTodo()
+                        self.dismiss(animated: true, completion: nil)
                     } else {
-                         self?.showAlert(title: "오류", message: "할 일 수정에 실패했습니다. (알 수 없는 원인)")
+                        self.showAlert(title: "오류", message: "할 일 수정에 실패했습니다. (알 수 없는 원인)")
                     }
                 }
             }
@@ -437,8 +438,14 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             return
         }
 
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory() // 주간 컨텍스트 로드
         let prompt = "다음 할 일에 대한 구체적이고 실행 가능한 조언을 1-2문장으로 짧고 친근하게 해줘: \n제목: \(todoToEdit?.title ?? "알 수 없음")\n마감일: \(todoToEdit?.dueDateString ?? "알 수 없음")\n메모: \(todoToEdit?.notes ?? "없음")"
-        let systemPrompt = "당신은 사용자의 할 일 관리를 돕는 친절한 AI 어시스턴트입니다. 할 일을 더 잘 완료할 수 있도록 동기를 부여하고 실용적인 팁을 제공해주세요."
+        let systemPrompt = """
+        당신은 사용자의 할 일 관리를 돕는 친절한 AI 어시스턴트입니다. 할 일을 더 잘 완료할 수 있도록 동기를 부여하고 실용적인 팁을 제공해주세요.
+
+        다음은 사용자의 지난 활동 요약입니다. 이를 참고하여 조언해주세요:
+        \(weeklyContext)
+        """
 
         aiHelpActivityIndicator.startAnimating()
         aiHelpButton.isEnabled = false
@@ -460,18 +467,13 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
                     self.todoToEdit?.aiAdvicesGeneratedAt = Date() // 이 줄 추가
                     
                     if let todoToUpdateWithAdvice = self.todoToEdit {
-                        TodoManager.shared.updateTodo(todoToUpdateWithAdvice) { (updatedItemAfterAdviceSave: TodoItem?, errorDuringAdviceSave: Error?) in
-                            // 여기서 UI 업데이트나 에러 처리는 선택적입니다.
-                            // 예를 들어, 저장 실패 시 사용자에게 알릴 수 있습니다.
-                            if let error = errorDuringAdviceSave {
+                        TodoManager.shared.updateTodo(todoToUpdateWithAdvice) { (updatedItem, error) in
+                            if let error = error {
                                 print("AI 조언 저장 실패: \(error.localizedDescription)")
-                                // 필요하다면 사용자에게 알림 표시
-                                // self.showAlert(title: "오류", message: "AI 조언을 저장하는 데 실패했습니다.")
-                                // 실패 시 currentTodoAdvices에서 마지막 조언 제거 및 UI 롤백도 고려 가능
-                            } else if updatedItemAfterAdviceSave != nil {
-                                print("AI 조언이 성공적으로 저장되었습니다.")
+                            } else if updatedItem != nil {
+                                print("AI 조언이 성공적으로 저장 및 업데이트되었습니다.")
                             } else {
-                                print("AI 조언 저장 후 알 수 없는 결과가 반환되었습니다.")
+                                print("AI 조언 저장/업데이트 후 nil이 반환되었습니다.")
                             }
                         }
                     }

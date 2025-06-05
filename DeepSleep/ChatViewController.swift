@@ -401,12 +401,8 @@ extension ChatViewController {
         navigationController?.popViewController(animated: true)
     }
     
-    @objc private func closeButtonTapped() {
-        if self.presentingViewController != nil {
-            dismiss(animated: true)
-        } else {
-            navigationController?.popViewController(animated: true)
-        }
+    @objc func closeButtonTapped() {
+        dismiss(animated: true, completion: nil)
     }
     
     // ✅ appendChat 메서드

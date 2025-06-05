@@ -164,10 +164,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         let allDiaries = SettingsManager.shared.loadEmotionDiary()
         selectedDateDiary = allDiaries.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
         
-        // tableView.reloadData() // updateEmptyStateView 내부 또는 말미에서 호출됨
         calendar.reloadData() // 이벤트 점 표시 업데이트
-        updateEmptyStateView() // 데이터 로드 후 빈 화면 상태 업데이트
         
+        // 수정: updateEmptyStateView -> updateEmptyStateLabelVisibility 호출 후 tableView.reloadData() 명시적 호출
+        updateEmptyStateLabelVisibility() 
+        tableView.reloadData() // 데이터 로드 후 테이블 전체 새로고침
+
+        // 수정: 문자열 보간 오류 수정
         print("선택된 날짜 \(date.description(with: Locale(identifier: "ko_KR"))): 할 일 \(selectedDateTodos.count)개, 일기 \(selectedDateDiary != nil ? "있음" : "없음")")
         updateOverallAdviceButtonUI()
     }
@@ -323,20 +326,46 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard CalendarSection(rawValue: indexPath.section) == .todos, editingStyle == .delete else { return }
         
-        let todoToDelete = selectedDateTodos[indexPath.row]
+        let todoToDelete = selectedDateTodos[indexPath.row] // 삭제할 아이템 미리 참조
         
-        // TodoManager를 통해 삭제하고 에러 처리
         TodoManager.shared.deleteTodo(withId: todoToDelete.id) { [weak self] success, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if success {
-                    // 로컬 데이터 소스에서도 삭제 및 테이블뷰 업데이트
-                    self.selectedDateTodos.remove(at: indexPath.row)
-                    tableView.deleteRows(at: [indexPath], with: .fade)
-                    self.calendar.reloadData() // 이벤트 점 업데이트
+                    // 1. 데이터 소스 업데이트 (배열에서 아이템 제거)
+                    // indexPath.row 대신 todoToDelete.id로 다시 찾는 것이 더 안전할 수 있으나,
+                    // commit editingStyle의 indexPath는 삭제 직전의 유효한 인덱스여야 함.
+                    // 만약 selectedDateTodos가 다른 곳에서 동시에 변경될 가능성이 있다면 id로 찾는 것이 더 안전.
+                    // 여기서는 tableView가 제공한 indexPath를 신뢰하고 사용하되, 범위 체크를 추가할 수 있음.
+                    if self.selectedDateTodos.indices.contains(indexPath.row) && self.selectedDateTodos[indexPath.row].id == todoToDelete.id {
+                        self.selectedDateTodos.remove(at: indexPath.row)
+                        // 2. UITableView 애니메이션과 함께 특정 행 삭제
+        tableView.deleteRows(at: [indexPath], with: .fade)
+                    } else {
+                        // 데이터 불일치 또는 이미 삭제된 경우 등 예외 상황, 테이블 전체 리로드로 안전하게 처리
+                        print("⚠️ 삭제하려는 항목이 예상 위치에 없거나 ID가 다릅니다. 테이블을 전체 리로드합니다.")
+                        // 이 경우 loadData를 다시 호출하여 selectedDateTodos를 최신화하고 tableView.reloadData()를 유도
+                        self.loadData(for: self.selectedDate) // loadData가 tableView.reloadData() 호출
+                        // 부분 성공에 대한 에러 처리는 여기서도 필요할 수 있음
+                        if let error = error {
+                           self.handleTodoManagerError(error, forAction: "삭제 (부분 성공, 데이터 불일치)")
+                        }
+                        return // 추가 UI 업데이트는 loadData가 처리하므로 여기서 종료
+                    }
                     
-                    // 만약 삭제 후 해당 날짜에 아무 데이터도 없다면 빈 화면 처리 업데이트
-                    self.updateEmptyStateView()
+                    // 3. 캘린더 이벤트 점 업데이트
+                    self.calendar.reloadData()
+                    
+                    // 4. 빈 상태 레이블 가시성 업데이트 (reloadData 없이)
+                    self.updateEmptyStateLabelVisibility()
+                    
+                    // 5. 할 일 섹션 헤더 업데이트 (전체 reloadData 대신 섹션만 리로드)
+                    if let todosSection = CalendarSection.todos.rawValue as Int? {
+                         tableView.reloadSections(IndexSet(integer: todosSection), with: .none)
+                    }
+                    
+                    // 6. 전체 조언 버튼 UI 업데이트 (선택적)
+                    self.updateOverallAdviceButtonUI()
                     
                     if let error = error { // 로컬 삭제는 성공했으나, 캘린더 연동 등에 문제가 있었을 경우
                         self.handleTodoManagerError(error, forAction: "삭제 (부분 성공)")
@@ -344,13 +373,10 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 } else if let error = error {
                     self.handleTodoManagerError(error, forAction: "삭제")
                 } else {
-                    // success false인데 error도 nil인 경우 (예상치 못한 상황)
                     self.showAlert(title: "오류", message: "할 일 삭제 중 알 수 없는 오류가 발생했습니다.")
                 }
             }
         }
-        loadData(for: selectedDate)
-        updateOverallAdviceButtonUI()
     }
     
     // MARK: - AddEditTodoDelegate
@@ -417,13 +443,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         label.font = .systemFont(ofSize: 18, weight: .medium)
         label.textColor = .secondaryLabel
         label.numberOfLines = 0
-        // 초기에는 숨김
         label.isHidden = true 
         tableView.backgroundView = label
         emptyStateLabel = label
     }
 
-    private func updateEmptyStateView() {
+    // 수정: 함수 이름 변경 및 tableView.reloadData() 호출 제거
+    private func updateEmptyStateLabelVisibility() {
         let hasData = (selectedDateDiary != nil || !selectedDateTodos.isEmpty)
         if hasData {
             emptyStateLabel?.isHidden = true
@@ -437,8 +463,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             emptyStateLabel?.text = messages.randomElement() ?? "데이터가 없습니다."
             emptyStateLabel?.isHidden = false
         }
-        // 테이블뷰 헤더도 데이터 유무에 따라 업데이트 (예: "할 일 (없음)" 등)
-        tableView.reloadData() // 섹션 헤더 업데이트 위해
+        // tableView.reloadData() // 여기서 호출하지 않음
     }
 
     // MARK: - AI Overall Advice Button Actions (New)

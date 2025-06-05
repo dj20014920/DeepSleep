@@ -18,13 +18,24 @@ extension ViewController {
     }
 
     @objc func playAllTapped() {
+        print("▶️ ViewController: playAllTapped() 호출됨")
         SoundManager.shared.playAll()
+        // SoundManager.shared.playAll() 내부의 개별 play()가 nowPlayingInfo를 업데이트하지만,
+        // 여기서는 명시적으로 프리셋 이름과 전체 재생 상태를 한 번 더 업데이트합니다.
+        print("▶️ ViewController: playAllTapped() - SoundManager.shared.updateNowPlayingInfo 호출 직전")
+        SoundManager.shared.updateNowPlayingInfo(presetName: "DeepSleep 믹스", isPlayingOverride: true)
         updatePlayButtonStates()
         provideMediumHapticFeedback()
     }
 
     @objc func pauseAllTapped() {
+        print("⏸️ ViewController: pauseAllTapped() 호출됨")
         SoundManager.shared.pauseAll()
+        // SoundManager.shared.pauseAll() 내부의 개별 pause()가 nowPlayingInfo를 업데이트하지만,
+        // 여기서는 명시적으로 전체 정지 상태를 한 번 더 업데이트합니다.
+        // currentPresetName은 SoundManager가 내부적으로 유지하고 있는 것을 사용합니다.
+        print("⏸️ ViewController: pauseAllTapped() - SoundManager.shared.updateNowPlayingInfo 호출 직전")
+        SoundManager.shared.updateNowPlayingInfo(presetName: SoundManager.shared.currentPresetName, isPlayingOverride: false)
         updatePlayButtonStates()
         provideMediumHapticFeedback()
     }
@@ -53,6 +64,8 @@ extension ViewController {
     }
     
     // MARK: - Remote Commands (제어 센터)
+    // 이 함수는 SoundManager에서 처리하므로 삭제합니다.
+    /*
     func configureRemoteCommands() {
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.addTarget { _ in SoundManager.shared.playAll(); return .success }
@@ -70,4 +83,5 @@ extension ViewController {
             return .success
         }
     }
+    */
 }

@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import MediaPlayer
 
 /// 11개 카테고리 + 다중 버전을 지원하는 사운드 매니저
 final class SoundManager {
@@ -20,7 +21,13 @@ final class SoundManager {
         }
     }
     var previewPlayer: AVAudioPlayer?
-    private(set) var previewingCategoryIndex: Int? = nil
+        private(set) var previewingCategoryIndex: Int? = nil
+
+    // MARK: - Now Playing Info
+    var currentPresetName: String? = nil
+    private var activePlayerCount: Int { // 실제 재생 중인 (볼륨 > 0) 플레이어 수
+        return players.filter { $0.isPlaying && $0.volume > 0 }.count
+    }
 
     /// 11개 사운드 카테고리 (이모지 + 다중 버전)
     private let soundCategories: [SoundCategory] = [
@@ -49,109 +56,61 @@ final class SoundManager {
     }
     
     private init() {
-        print("👍 [SoundManager] init() 호출됨.")
         setupSelectedVersions()
         configureAudioSession()
         loadPlayers()
+        setupRemoteTransportControls()
     }
     
     // MARK: - 초기 설정
     private func setupSelectedVersions() {
         selectedVersions = soundCategories.map { $0.defaultIndex }
-        print("👍 [SoundManager] 기본 버전 설정 완료: \(selectedVersions)")
     }
     
     /// AVAudioSession 설정 (백그라운드 재생, 믹스 옵션 등)
     private func configureAudioSession() {
-        print("👍 [SoundManager] configureAudioSession() 호출됨.")
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            print("  ✅ [SoundManager] AVAudioSession Category 설정 완료: .playback, .mixWithOthers")
             try session.setActive(true)
-            print("  ✅ [SoundManager] AVAudioSession Active 설정 완료.")
             
+            // 인터럽션 관찰
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleInterruption),
                 name: AVAudioSession.interruptionNotification,
                 object: session
             )
-            print("  ✅ [SoundManager] AVAudioSession Interruption Observer 등록 완료.")
         } catch {
-            print("⚠️ [SoundManager] AVAudioSession 설정 실패: \(error.localizedDescription)")
+            print("⚠️ AudioSession 설정 실패:", error)
         }
     }
     
     /// 선택된 버전의 파일들을 AVAudioPlayer로 로드
     private func loadPlayers() {
-        print("👍 [SoundManager] loadPlayers() 호출됨.")
-        
-        // 디버깅 정보 출력
-        print("📁 [DEBUG] Bundle path: \(Bundle.main.bundlePath)")
-        if let resourcePath = Bundle.main.resourcePath {
-            print("📁 [DEBUG] Resource path: \(resourcePath)")
-            do {
-                let allFiles = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
-                print("📁 [DEBUG] All files in bundle: \(allFiles.prefix(10))") // 처음 10개만 출력
-                
-                let soundPath = resourcePath + "/Sound"
-                if FileManager.default.fileExists(atPath: soundPath) {
-                    let soundFiles = try FileManager.default.contentsOfDirectory(atPath: soundPath)
-                    print("📁 [DEBUG] Files in Sound directory: \(soundFiles)")
-                } else {
-                    print("⚠️ [DEBUG] Sound directory does not exist at: \(soundPath)")
-                }
-            } catch {
-                print("⚠️ [DEBUG] Error listing files: \(error)")
-            }
-        }
-        
         players.removeAll()
         
         for (categoryIndex, category) in soundCategories.enumerated() {
             let versionIndex = selectedVersions[categoryIndex]
             let fileName = category.files[versionIndex]
             
-            print("  🔄 [SoundManager] Loading player for category \(categoryIndex) ('\(category.name)') - Version: \(versionIndex), File: '\(fileName)'")
-            
-            let fileNameWithoutExtension = String(fileName.dropLast(4)) // .mp3 제거
-            
-            var url: URL?
-            
-            // 번들 루트에서 파일 찾기 (Sound 폴더 없음)
-            if let foundURL = Bundle.main.url(forResource: fileNameWithoutExtension, withExtension: "mp3") {
-                url = foundURL
-                print("    ✅ [SoundManager] 파일 발견 (루트 - 확장자분리): \(foundURL.path)")
-            } else if let foundURL = Bundle.main.url(forResource: fileName, withExtension: nil) {
-                url = foundURL
-                print("    ✅ [SoundManager] 파일 발견 (루트 - 전체파일명): \(foundURL.path)")
-            } else {
-                print("    ❌ [SoundManager] 사운드 파일을 찾을 수 없습니다: '\(fileName)'")
-                print("    🔍 [SoundManager] 시도한 방법들:")
-                print("      - forResource: '\(fileNameWithoutExtension)', withExtension: 'mp3' (번들 루트)")
-                print("      - forResource: '\(fileName)', withExtension: nil (번들 루트)")
+            guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+                print("⚠️ 사운드 파일을 찾을 수 없습니다:", fileName)
                 continue
             }
             
-            guard let finalURL = url else { continue }
-            
             do {
-                let player = try AVAudioPlayer(contentsOf: finalURL)
+                let player = try AVAudioPlayer(contentsOf: url)
                 player.numberOfLoops = -1    // 무한 루프
                 player.volume = 0            // 초기 볼륨 0
-                print("    👍 [SoundManager] AVAudioPlayer 인스턴스 생성 성공 for '\(fileName)'. Duration: \(player.duration)")
-                if player.prepareToPlay() {
-                    print("    ✅ [SoundManager] player.prepareToPlay() 성공 for '\(fileName)'.")
-                } else {
-                    print("    ⚠️ [SoundManager] player.prepareToPlay() 실패 for '\(fileName)'.")
-                }
+                player.prepareToPlay()
                 players.append(player)
             } catch {
-                print("    ⚠️ [SoundManager] AVAudioPlayer 생성 실패 for '\(fileName)': \(error.localizedDescription)")
+                print("⚠️ AVAudioPlayer 생성 실패:", error)
             }
         }
-        print("✅ [SoundManager] \(players.count)개 사운드 로드 완료.")
+        
+        print("✅ \(players.count)개 사운드 로드 완료")
     }
     
     // MARK: - 카테고리 정보 접근
@@ -189,40 +148,32 @@ final class SoundManager {
     
     /// 특정 카테고리의 버전 변경
     func selectVersion(categoryIndex: Int, versionIndex: Int) {
-        guard categoryIndex >= 0, categoryIndex < soundCategories.count else {
-            print("⚠️ [SoundManager] selectVersion: 유효하지 않은 카테고리 인덱스 \(categoryIndex)")
-            return
-        }
-        let category = soundCategories[categoryIndex]
-        guard versionIndex >= 0, versionIndex < category.files.count else {
-            print("⚠️ [SoundManager] selectVersion: 카테고리 '\(category.name)'에 유효하지 않은 버전 인덱스 \(versionIndex)")
-            return
-        }
-        
-        print("🔄 [SoundManager] selectVersion 호출됨 - Category: \(categoryIndex) ('\(category.name)'), NewVersionIndex: \(versionIndex)")
+        guard categoryIndex >= 0, categoryIndex < soundCategories.count else { return }
+        guard versionIndex >= 0, versionIndex < soundCategories[categoryIndex].files.count else { return }
         
         let wasPlaying = isPlaying(at: categoryIndex)
         let currentVolume = players.count > categoryIndex ? players[categoryIndex].volume : 0
         
+        // 기존 플레이어 정지
         if categoryIndex < players.count {
-            print("  ➡️ [SoundManager] 기존 플레이어 정지 (index: \(categoryIndex))")
             players[categoryIndex].stop()
         }
         
+        // 버전 변경
         selectedVersions[categoryIndex] = versionIndex
-        print("  ✅ [SoundManager] selectedVersions 업데이트됨: \(selectedVersions)")
         
+        // 해당 카테고리만 다시 로드
         reloadPlayer(at: categoryIndex)
         
+        // 이전 상태 복원
         if categoryIndex < players.count {
             players[categoryIndex].volume = currentVolume
-            print("  👍 [SoundManager] 볼륨 복원 (index: \(categoryIndex), volume: \(currentVolume))")
             if wasPlaying && currentVolume > 0 {
-                print("  ▶️ [SoundManager] 이전 재생 상태 복원 시도 (index: \(categoryIndex))")
-                play(at: categoryIndex) // play 함수 내부에서 재생 조건 다시 확인
+                players[categoryIndex].play()
             }
         }
-        print("✅ [SoundManager] 카테고리 \(categoryIndex) ('\(category.name)') 버전 변경 완료 to \(versionIndex).")
+        
+        print("🔄 카테고리 \(categoryIndex) 버전 변경: \(versionIndex)")
     }
     
     /// 다음 버전으로 변경
@@ -235,57 +186,34 @@ final class SoundManager {
     
     /// 특정 카테고리의 플레이어만 다시 로드
     private func reloadPlayer(at categoryIndex: Int) {
-        guard categoryIndex >= 0, categoryIndex < soundCategories.count else {
-            print("⚠️ [SoundManager] reloadPlayer: 유효하지 않은 카테고리 인덱스 \(categoryIndex)")
-            return
-        }
+        guard categoryIndex >= 0, categoryIndex < soundCategories.count else { return }
         
         let category = soundCategories[categoryIndex]
         let versionIndex = selectedVersions[categoryIndex]
         let fileName = category.files[versionIndex]
         
-        print("  🔄 [SoundManager] reloadPlayer for category \(categoryIndex) ('\(category.name)') - Version: \(versionIndex), File: '\(fileName)'")
-
-        let fileNameWithoutExtension = String(fileName.dropLast(4)) // .mp3 제거
-        
-        var url: URL?
-        
-        // 번들 루트에서 파일 찾기 (loadPlayers와 동일한 로직)
-        if let foundURL = Bundle.main.url(forResource: fileNameWithoutExtension, withExtension: "mp3") {
-            url = foundURL
-            print("      ✅ [SoundManager] reloadPlayer: 파일 발견 (루트 - 확장자분리): \(foundURL.path)")
-        } else if let foundURL = Bundle.main.url(forResource: fileName, withExtension: nil) {
-            url = foundURL
-            print("      ✅ [SoundManager] reloadPlayer: 파일 발견 (루트 - 전체파일명): \(foundURL.path)")
-        } else {
-            print("      ❌ [SoundManager] reloadPlayer: 사운드 파일을 찾을 수 없습니다: '\(fileName)'")
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+            print("⚠️ 사운드 파일을 찾을 수 없습니다:", fileName)
             return
         }
         
-        guard let finalURL = url else { return }
-        
         do {
-            let player = try AVAudioPlayer(contentsOf: finalURL)
+            let player = try AVAudioPlayer(contentsOf: url)
             player.numberOfLoops = -1
-            player.volume = 0 // 재로드 시 볼륨은 0으로 초기화 (selectVersion에서 복원)
-            print("      👍 [SoundManager] reloadPlayer: AVAudioPlayer 인스턴스 생성 성공 for '\(fileName)'. Duration: \(player.duration)")
-            if player.prepareToPlay() {
-                print("      ✅ [SoundManager] reloadPlayer: player.prepareToPlay() 성공 for '\(fileName)'.")
-            } else {
-                print("      ⚠️ [SoundManager] reloadPlayer: player.prepareToPlay() 실패 for '\(fileName)'.")
-            }
+            player.volume = 0
+            player.prepareToPlay()
             
+            // 기존 플레이어 배열에서 교체
             if categoryIndex < players.count {
                 players[categoryIndex] = player
             } else {
-                while players.count <= categoryIndex { // 배열이 작으면 확장
-                    players.append(player) // 임시 플레이스홀더 추가 후 교체해야 할 수도 있음
+                // 배열 크기 확장이 필요한 경우
+                while players.count <= categoryIndex {
+                    players.append(player)
                 }
-                players[categoryIndex] = player
             }
-            print("      ✅ [SoundManager] reloadPlayer: Player 교체/추가 완료 (index: \(categoryIndex))")
         } catch {
-            print("    ⚠️ [SoundManager] reloadPlayer: AVAudioPlayer 생성 실패 for '\(fileName)': \(error.localizedDescription)")
+            print("⚠️ AVAudioPlayer 생성 실패:", error)
         }
     }
     
@@ -293,34 +221,20 @@ final class SoundManager {
     
     /// 특정 버전 미리듣기 (무한 반복)
     func previewVersion(categoryIndex: Int, versionIndex: Int, fromTime: TimeInterval = 0) {
-        guard let category = getCategory(at: categoryIndex) else {
-            print("⚠️ [SoundManager] previewVersion: 유효하지 않은 카테고리 인덱스 \(categoryIndex)")
+        guard let category = getCategory(at: categoryIndex) else { 
+            print("⚠️ 미리듣기 오류: 유효하지 않은 카테고리 인덱스 \(categoryIndex)")
             return
         }
-        guard versionIndex >= 0, versionIndex < category.files.count else {
-            print("⚠️ [SoundManager] previewVersion: 카테고리 '\(category.name)'에 유효하지 않은 버전 인덱스 \(versionIndex)")
+        guard versionIndex >= 0, versionIndex < category.files.count else { 
+            print("⚠️ 미리듣기 오류: 카테고리 \(category.name)에 유효하지 않은 버전 인덱스 \(versionIndex)")
             return
         }
         
         let fileName = category.files[versionIndex]
-        print("🔊 [SoundManager] previewVersion 호출됨 - Category: \(category.name), File: '\(fileName)', StartTime: \(fromTime)s")
-
-        let fileNameWithoutExtension = String(fileName.dropLast(4)) // .mp3 제거
-        
-        var url: URL?
-        
-        // 번들 루트에서 파일 찾기
-        if let foundURL = Bundle.main.url(forResource: fileNameWithoutExtension, withExtension: "mp3") {
-            url = foundURL
-        } else if let foundURL = Bundle.main.url(forResource: fileName, withExtension: nil) {
-            url = foundURL
-        } else {
-            print("  ⚠️ [SoundManager] previewVersion: 미리듣기 파일을 찾을 수 없습니다: '\(fileName)'")
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+            print("⚠️ 미리듣기 파일을 찾을 수 없습니다: \(fileName)")
             return
         }
-        
-        guard let finalURL = url else { return }
-        print("    ✅ [SoundManager] previewVersion: 파일 URL 확인됨: \(finalURL.path)")
         
         // 기존 미리듣기가 있다면 중지
         if previewPlayer != nil {
@@ -328,24 +242,17 @@ final class SoundManager {
         }
         
         do {
-            previewPlayer = try AVAudioPlayer(contentsOf: finalURL)
+            previewPlayer = try AVAudioPlayer(contentsOf: url)
             previewPlayer?.numberOfLoops = -1 // 무한 반복 설정
             previewPlayer?.volume = 0.6      // 미리듣기 볼륨
             previewPlayer?.currentTime = fromTime // 재생 시작 시간 설정
-            print("    👍 [SoundManager] previewVersion: AVAudioPlayer 인스턴스 생성 성공. Duration: \(previewPlayer?.duration ?? 0)")
-            if previewPlayer?.prepareToPlay() == true {
-                 print("    ✅ [SoundManager] previewVersion: player.prepareToPlay() 성공.")
-            } else {
-                 print("    ⚠️ [SoundManager] previewVersion: player.prepareToPlay() 실패.")
-            }
-            if previewPlayer?.play() == true {
-                print("    ▶️ [SoundManager] previewVersion: 미리듣기 재생 시작 성공.")
-            } else {
-                print("    ❌ [SoundManager] previewVersion: 미리듣기 재생 시작 실패.")
-            }
+            previewPlayer?.prepareToPlay()
+            previewPlayer?.play()
             previewingCategoryIndex = categoryIndex // 현재 미리듣기 중인 카테고리 인덱스 저장
+            
+            print("🔊 미리듣기 시작 (무한 반복): \(fileName) at \(fromTime)s")
         } catch {
-            print("  ⚠️ [SoundManager] previewVersion: 미리듣기 플레이어 생성 실패: \(error.localizedDescription) - 파일: '\(fileName)'")
+            print("⚠️ 미리듣기 플레이어 생성 실패: \(error.localizedDescription) - 파일: \(fileName)")
             previewPlayer = nil // 실패 시 nil로 확실히 설정
             previewingCategoryIndex = nil
         }
@@ -353,19 +260,19 @@ final class SoundManager {
 
     func seekPreview(to time: TimeInterval) {
         guard let player = previewPlayer else {
-            print("⚠️ [SoundManager] seekPreview: 플레이어가 존재하지 않습니다.")
+            print("⚠️ 미리듣기 탐색 오류: 플레이어가 존재하지 않습니다.")
             return
         }
         // 재생 시간이 음원 길이를 넘지 않도록 보정
         let newTime = max(0, min(time, player.duration))
         player.currentTime = newTime
-        print("🔊 [SoundManager] 미리듣기 탐색: \(newTime)s (요청: \(time)s), Duration: \(player.duration)s")
+        // print("🔊 미리듣기 탐색: \(newTime)s (요청: \(time)s)") // 디버깅용
     }
 
     func stopPreview() {
         if let player = previewPlayer, player.isPlaying {
             player.stop()
-            print("🔇 [SoundManager] 미리듣기 중지됨.")
+            print("🔇 미리듣기 중지")
         }
         previewPlayer = nil
         previewingCategoryIndex = nil
@@ -379,95 +286,66 @@ final class SoundManager {
         return previewPlayer?.currentTime ?? 0
     }
     
-    // MARK: - 전체 제어
+    // MARK: - 전체 제어 (기존 API 유지)
     
     /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만)
     func playAll() {
-        print("▶️ [SoundManager] playAll() 호출됨.")
-        var playedCount = 0
-        for (index, player) in players.enumerated() {
+        var playedSomething = false
+        for (_, player) in players.enumerated() {
             if player.volume > 0 && !player.isPlaying {
-                print("  ▶️ [SoundManager] Playing sound for index \(index) ('\(getCategoryDisplay(at: index))') at volume \(player.volume)")
-                if player.play() {
-                    playedCount += 1
-                } else {
-                    print("    ❌ [SoundManager] playAll: Failed to play sound for index \(index)")
-                }
+                player.play() // player.play()는 개별 play(at:)를 호출하지 않으므로 직접적인 nowPlayingInfo 업데이트 안됨
+                playedSomething = true
             }
         }
-        print("  ✅ [SoundManager] playAll: \(playedCount)개 사운드 재생 시작됨.")
+        print("🔊 SoundManager: playAll() 호출됨")
+        if playedSomething {
+            updateNowPlayingPlaybackStatus() // 전체 재생 상태 업데이트
+        }
     }
     
     /// 모든 트랙 일괄 일시정지
     func pauseAll() {
-        print("⏸️ [SoundManager] pauseAll() 호출됨.")
-        var pausedCount = 0
+        var pausedSomething = false
         for player in players {
             if player.isPlaying {
                 player.pause()
-                pausedCount += 1
+                pausedSomething = true
             }
         }
-        print("  ✅ [SoundManager] pauseAll: \(pausedCount)개 사운드 일시정지됨.")
+        print("🔇 SoundManager: pauseAll() 호출됨")
+        if pausedSomething {
+            updateNowPlayingPlaybackStatus() // 전체 정지 상태 업데이트
+        }
     }
     
     /// 완전 중지 (재생 위치 리셋)
     func stopAll() {
-        print("⏹️ [SoundManager] stopAll() 호출됨.")
-        var stoppedCount = 0
         for player in players {
-            if player.isPlaying {
-                player.stop()
-                stoppedCount += 1
-            }
+            player.stop()
             player.currentTime = 0
         }
-        print("  ✅ [SoundManager] stopAll: \(stoppedCount)개 사운드 중지 및 초기화됨.")
         stopPreview()  // 미리듣기도 정지
     }
     
-    // MARK: - 개별 제어
+    // MARK: - 개별 제어 (기존 API 유지)
     
     func play(at index: Int) {
-        guard index >= 0, index < players.count else {
-            print("🚫 [SoundManager] Play Error: Invalid index \(index). Player count: \(players.count)")
-            return
-        }
+        guard index >= 0, index < players.count else { return }
         let player = players[index]
-        let categoryInfo = getCategoryDisplay(at: index)
-        let currentVersionInfo = getCurrentVersionInfo(at: index) ?? "N/A"
-        
-        print("▶️ [SoundManager] play(at: \(index)) 호출됨 - Category: '\(categoryInfo)', Version: '\(currentVersionInfo)'")
-        print("  Player Info - URL: \(player.url?.lastPathComponent ?? "N/A"), Volume: \(player.volume), IsPlaying: \(player.isPlaying), Duration: \(player.duration), CurrentTime: \(player.currentTime)")
-
-        if !player.isPlaying {
-            if player.volume > 0 {
-                if player.play() {
-                    print("  ✅ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 재생 시작 성공.")
-                } else {
-                    print("  ❌ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 재생 시작 실패.")
-                }
-            } else {
-                print("  ℹ️ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 볼륨이 0이므로 재생하지 않음.")
-            }
-        } else {
-            print("  ℹ️ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 이미 재생 중.")
+        if !player.isPlaying && player.volume > 0 {
+            player.play()
+            print("사운드 \(index) 재생 시작")
+            updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
         }
     }
     
     func pause(at index: Int) {
-        guard index >= 0, index < players.count else {
-             print("🚫 [SoundManager] Pause Error: Invalid index \(index). Player count: \(players.count)")
-            return
-        }
+        guard index >= 0, index < players.count else { return }
         let player = players[index]
-        let categoryInfo = getCategoryDisplay(at: index)
-        print("⏸️ [SoundManager] pause(at: \(index)) 호출됨 - Category: '\(categoryInfo)'")
         if player.isPlaying {
             player.pause()
-            print("  ✅ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 일시정지됨.")
-        } else {
-            print("  ℹ️ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 이미 일시정지 상태임.")
+            print("사운드 \(index) 일시정지")
+            updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
         }
     }
     
@@ -476,61 +354,73 @@ final class SoundManager {
         return players[index].isPlaying
     }
     
-    // MARK: - 볼륨 제어
+    // MARK: - 볼륨 제어 (기존 API 유지)
     
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이.
     func setVolume(at index: Int, volume: Float) {
-        guard index >= 0, index < players.count else {
-            print("🚫 [SoundManager] SetVolume Error: Invalid index \(index). Player count: \(players.count)")
-            return
-        }
-        let categoryInfo = getCategoryDisplay(at: index)
-        // SoundManager 내부에서는 볼륨을 0.0 ~ 1.0으로 관리
-        let internalVolume = max(0.0, min(1.0, volume / 100.0))
-        
-        print("🔊 [SoundManager] setVolume(at: \(index), volume: \(volume) (internal: \(internalVolume))) 호출됨 - Category: '\(categoryInfo)'")
-        players[index].volume = internalVolume
-        print("  ✅ [SoundManager] 사운드 \(index) ('\(categoryInfo)') 볼륨 설정됨: \(players[index].volume) (요청된 외부 값: \(volume))")
+        guard index >= 0, index < players.count else { return }
+        players[index].volume = volume / 100.0
     }
     
     /// 배열 단위로 한 번에 설정
     func setVolumes(_ volumes: [Float]) {
-        print("🔊 [SoundManager] setVolumes(\(volumes)) 호출됨.")
         for (i, v) in volumes.enumerated() {
-            setVolume(at: i, volume: v) // 내부에서 0~1 스케일로 변환됨
+            setVolume(at: i, volume: v)
         }
-        print("  ✅ [SoundManager] 전체 볼륨 설정 완료.")
+        print("볼륨 설정 완료: \(volumes)")
     }
     
-    /// 프리셋 적용
+    /// 프리셋 적용 (볼륨 설정 + 재생 시작)
     func applyPreset(volumes: [Float]) {
-        print("🎶 [SoundManager] applyPreset(volumes: \(volumes)) 호출됨.")
         // 1. 먼저 볼륨 설정
-        setVolumes(volumes) // 각 setVolume 호출 시 로그 출력됨
+        setVolumes(volumes)
         
-        // 2. 볼륨이 0 이상인 사운드만 재생 시작 (또는 이미 재생 중이면 그대로 둠)
-        print("  🔄 [SoundManager] applyPreset: 각 사운드 재생 상태 확인 및 조정 시작...")
+        // 2. 볼륨이 0 이상인 사운드만 재생 시작
         for (index, volume) in volumes.enumerated() {
-            if index < players.count {
-                let player = players[index]
-                let categoryInfo = getCategoryDisplay(at: index)
-                if volume > 0 {
-                    if !player.isPlaying { // 볼륨이 있고, 재생 중이 아니면 재생
-                        print("    ▶️ [SoundManager] applyPreset: 사운드 \(index) ('\(categoryInfo)') 재생 시작 (볼륨: \(volume))")
-                        play(at: index) // play 함수 내부에서 상세 로그 출력
-                    } else {
-                         print("    ℹ️ [SoundManager] applyPreset: 사운드 \(index) ('\(categoryInfo)') 이미 재생 중 (볼륨: \(volume))")
-                    }
-                } else { // 볼륨이 0이면 일시정지
-                    print("    ⏸️ [SoundManager] applyPreset: 사운드 \(index) ('\(categoryInfo)') 볼륨 0이므로 일시정지")
-                    pause(at: index) // pause 함수 내부에서 상세 로그 출력
+            if index < players.count && volume > 0 {
+                play(at: index)
+            } else if index < players.count && volume == 0 {
+                pause(at: index)
+            }
+        }
+        
+        print("프리셋 적용 완료: \(volumes)")
+    }
+    
+    // MARK: - 확장된 프리셋 적용 (버전 정보 포함)
+    
+    /// 버전 정보를 포함한 프리셋 적용
+    func applyPresetWithVersions(volumes: [Float], versions: [Int]? = nil) {
+        // 1. 버전 정보가 있으면 먼저 적용
+        if let versions = versions {
+            for (categoryIndex, versionIndex) in versions.enumerated() {
+                if categoryIndex < soundCategories.count {
+                    selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
                 }
             }
         }
-        print("  ✅ [SoundManager] 프리셋 적용 및 재생 상태 조정 완료.")
+        
+        // 2. 볼륨 적용
+        applyPreset(volumes: volumes)
     }
     
-    // MARK: - 프리셋 호환성
+    // MARK: - 페이드아웃 (기존 API 유지)
+    
+    /// 모든 사운드를 부드럽게 페이드아웃
+    func fadeOutAll(duration: TimeInterval = 30.0) {
+        print("페이드아웃 시작: \(duration)초 동안")
+        
+        players.forEach { player in
+            player.setVolume(0, fadeDuration: duration)
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            self.pauseAll()
+            print("페이드아웃 완료 - 모든 사운드 정지")
+        }
+    }
+    
+    // MARK: - 프리셋 호환성 (기존 API)
     
     /// 현재 선택된 버전들 반환
     func getCurrentVersions() -> [Int] {
@@ -569,39 +459,258 @@ final class SoundManager {
         "연필", "우주", "쿨링팬", "키보드", "파도"
     ]
     
-    // MARK: - 인터럽션 처리
+    // MARK: - 인터럽션 처리 (기존 유지)
     
     @objc private func handleInterruption(_ notif: Notification) {
         guard let info = notif.userInfo,
               let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
-            print("⚠️ [SoundManager] handleInterruption: 알림 정보 파싱 실패.")
-            return
-        }
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
 
         switch type {
         case .began:
-            print("🔔 [SoundManager] 오디오 인터럽션 시작 - 일시정지 시도.")
-            pauseAll() // 내부에서 로그 출력
-            stopPreview() // 내부에서 로그 출력
+            pauseAll()
+            stopPreview()
+            print("오디오 인터럽션 시작 - 일시정지")
         case .ended:
-            print("🔔 [SoundManager] 오디오 인터럽션 종료.")
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
                AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
-                print("  ➡️ [SoundManager] 재생 재시작 옵션 확인됨. playAll() 호출.")
-                playAll() // 내부에서 로그 출력
-            } else {
-                print("  ℹ️ [SoundManager] 재생 재시작 옵션 없음.")
+                playAll()
+                print("오디오 인터럽션 종료 - 재생 재시작")
             }
         @unknown default:
-            print("🔔 [SoundManager] 알 수 없는 오디오 인터럽션 타입.")
             break
         }
     }
     
     deinit {
-        print("🗑️ [SoundManager] deinit 호출됨.")
         NotificationCenter.default.removeObserver(self)
-        stopAll() // 모든 사운드 정리
+        stopPreview()
+    }
+
+    // MARK: - 재생 상태 변경에 따른 NowPlayingInfo 업데이트
+
+    /// 특정 카테고리의 볼륨을 설정하고 NowPlayingInfo를 업데이트합니다.
+    func setVolume(for categoryIndex: Int, volume: Float) {
+        guard categoryIndex >= 0, categoryIndex < players.count else { return }
+        
+        let newVolume = max(0, min(1, volume)) // 0.0 ~ 1.0
+        players[categoryIndex].volume = newVolume
+        
+        if newVolume > 0 && !players[categoryIndex].isPlaying {
+            players[categoryIndex].play()
+        } else if newVolume == 0 && players[categoryIndex].isPlaying {
+            // 볼륨이 0이 되면 실질적으로 멈춘 것으로 간주 (선택적: 완전히 stop() 할 수도 있음)
+            // players[categoryIndex].pause() // 또는 stop()
+        }
+        updateNowPlayingPlaybackStatus() // 재생 상태 변경 시 항상 호출
+    }
+
+    /// 모든 플레이어를 정지시키고 NowPlayingInfo를 업데이트합니다.
+    func stopAllPlayers() {
+        for player in players {
+            player.stop()
+            player.currentTime = 0 // 필요시 처음으로 되감기
+        }
+        currentPresetName = nil // 프리셋 이름 초기화
+        updateNowPlayingPlaybackStatus()
+        print("⏹️ 모든 사운드 중지")
+    }
+    
+    /// 현재 활성화된 사운드들을 재생 (볼륨이 0보다 큰 경우)
+    func playActiveSounds() {
+        var playedSomething = false
+        for player in players where player.volume > 0 {
+            if !player.isPlaying {
+                player.play()
+                playedSomething = true
+            }
+        }
+        if playedSomething {
+            updateNowPlayingPlaybackStatus()
+        }
+    }
+    
+    /// 모든 활성 사운드를 일시정지
+    func pauseActiveSounds() {
+        var pausedSomething = false
+        for player in players where player.isPlaying && player.volume > 0 {
+            player.pause()
+            pausedSomething = true
+        }
+        if pausedSomething {
+            updateNowPlayingPlaybackStatus()
+        }
+    }
+
+    // MARK: - MPNowPlayingInfoCenter 및 MPRemoteCommandCenter 설정
+
+    private func setupRemoteTransportControls() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+
+        // 재생 명령
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] event in
+            guard let self = self else { return .commandFailed }
+            self.playActiveSounds()
+            return .success
+        }
+
+        // 일시정지 명령
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] event in
+            guard let self = self else { return .commandFailed }
+            self.pauseActiveSounds()
+            return .success
+        }
+        
+        // 재생/일시정지 토글 명령
+        commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] event in
+            guard let self = self else { return .commandFailed }
+            if self.activePlayerCount > 0 {
+                self.pauseActiveSounds()
+            } else {
+                self.playActiveSounds() 
+            }
+            return .success
+        }
+        
+        // 재생 위치 변경 명령
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self = self, let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            
+            if let firstActivePlayer = self.players.first(where: { $0.isPlaying && $0.volume > 0 }) {
+                firstActivePlayer.currentTime = event.positionTime
+                self.updateNowPlayingPlaybackStatus() // 시간 변경 후 즉시 NowPlayingInfo 업데이트
+            }
+            return .success
+        }
+        
+        // 사용하지 않는 명령 비활성화
+        commandCenter.stopCommand.isEnabled = false // 또는 필요시 구현
+        commandCenter.nextTrackCommand.isEnabled = false
+        commandCenter.previousTrackCommand.isEnabled = false
+        commandCenter.skipForwardCommand.isEnabled = false
+        commandCenter.skipBackwardCommand.isEnabled = false
+        commandCenter.seekForwardCommand.isEnabled = false
+        commandCenter.seekBackwardCommand.isEnabled = false
+        commandCenter.changeRepeatModeCommand.isEnabled = false
+        commandCenter.changeShuffleModeCommand.isEnabled = false
+        // 필요한 경우 더 많은 특정 명령 비활성화
+        
+        // 앱이 오디오 포커스를 가질 때만 컨트롤이 활성화되도록 하는 것이 좋을 수 있으나,
+        // 현재는 항상 활성화된 상태로 둡니다.
+    }
+
+    /// NowPlayingInfo를 현재 재생 상태에 따라 업데이트합니다.
+    /// 이 함수는 외부(예: ViewController)에서도 호출될 수 있도록 public으로 변경
+    public func updateNowPlayingInfo(presetName: String?,isPlayingOverride: Bool? = nil) {
+        self.currentPresetName = presetName // 외부에서 설정한 프리셋 이름 저장
+        updateNowPlayingPlaybackStatus(isPlayingOverride: isPlayingOverride)
+    }
+    
+    /// 내부 재생 상태 변화에 따라 NowPlayingInfo 업데이트
+    private func updateNowPlayingPlaybackStatus(isPlayingOverride: Bool? = nil) {
+        print("🔵 [NowPlayingInfo DEBUG] updateNowPlayingPlaybackStatus 시작. isPlayingOverride: \(String(describing: isPlayingOverride)), currentPresetName: \(currentPresetName ?? "nil")")
+        var nowPlayingInfo = [String: Any]()
+        let actuallyPlaying = activePlayerCount > 0
+        let isEffectivelyPlaying = isPlayingOverride ?? actuallyPlaying
+        
+        print("🔵 [NowPlayingInfo DEBUG] actuallyPlaying: \\(actuallyPlaying), isEffectivelyPlaying: \\(isEffectivelyPlaying), activePlayerCount: \\(activePlayerCount)")
+
+        if let presetName = self.currentPresetName, !presetName.isEmpty {
+            nowPlayingInfo[MPMediaItemPropertyTitle] = presetName
+            print("🔵 [NowPlayingInfo DEBUG] Title 설정: \\(presetName)")
+        } else if isEffectivelyPlaying {
+            nowPlayingInfo[MPMediaItemPropertyTitle] = "EmoZleep 사운드" // 앱 이름 변경 반영
+            print("🔵 [NowPlayingInfo DEBUG] Title 기본값 설정: EmoZleep 사운드")
+        } else {
+            // 재생 중이 아니고 프리셋 이름도 없으면 정보센터 클리어
+            DispatchQueue.main.async {
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+                print("🔵 [NowPlayingInfo DEBUG] nowPlayingInfo를 nil로 설정 (메인 스레드). 조건: !isEffectivelyPlaying AND currentPresetName is empty or nil.")
+            }
+            // iOS 8+ 정보 사라짐 문제 해결 시도 부분도 여기서는 실행될 필요 없음
+            return
+        }
+
+        nowPlayingInfo[MPMediaItemPropertyArtist] = "EmoZleep" // 앱 이름 변경 반영
+        print("🔵 [NowPlayingInfo DEBUG] Artist 설정: EmoZleep")
+        
+        // 앨범 아트
+        var artworkSet = false
+        if let artworkImage = UIImage(named: "NowPlayingArtwork") {
+            let artwork = MPMediaItemArtwork(boundsSize: artworkImage.size) { _ in artworkImage }
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+            artworkSet = true
+            print("🖼️ [NowPlayingInfo DEBUG] NowPlayingArtwork 로드 성공. Artwork 객체: \\(artwork)")
+        } else {
+            print("🔴 [NowPlayingInfo DEBUG] NowPlayingArtwork 로드 실패.")
+        }
+        
+        // 재생 상태 및 시간
+        let playbackRate = isEffectivelyPlaying ? 1.0 : 0.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate
+        print("🔵 [NowPlayingInfo DEBUG] PlaybackRate 설정: \\(playbackRate)")
+
+        if isEffectivelyPlaying,
+           let firstActivePlayer = players.first(where: { $0.isPlaying && $0.volume > 0 }) {
+            print("🔵 [NowPlayingInfo DEBUG] firstActivePlayer 정보: duration=\\(firstActivePlayer.duration), currentTime=\\(firstActivePlayer.currentTime), isPlaying=\\(firstActivePlayer.isPlaying), volume=\\(firstActivePlayer.volume)")
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = firstActivePlayer.duration
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = firstActivePlayer.currentTime
+            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 설정: \\(firstActivePlayer.duration)")
+            print("🔵 [NowPlayingInfo DEBUG] ElapsedPlaybackTime 설정: \\(firstActivePlayer.currentTime)")
+        } else {
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = 0
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
+            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 및 ElapsedPlaybackTime을 0으로 설정 (활성 플레이어 없음 또는 재생 중 아님). isEffectivelyPlaying: \\(isEffectivelyPlaying)")
+        }
+        
+        print("🔵 [NowPlayingInfo DEBUG] 최종 nowPlayingInfo 딕셔셔너리 (설정 전):")
+        for (key, value) in nowPlayingInfo {
+            print("  - Key: \\(key), Value: \\(value), Type: \\(type(of: value))")
+        }
+
+        DispatchQueue.main.async {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+            
+            // MPNowPlayingInfoCenter.default().nowPlayingInfo 값을 안전하게 문자열로 변환
+            let currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo
+            let infoDescription: String
+            if let unwrappedInfo = currentInfo {
+                infoDescription = String(describing: unwrappedInfo)
+            } else {
+                infoDescription = "nil (정보 없음)"
+            }
+            // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분
+            print("✅ [NowPlayingInfo] 정보 설정 완료 (메인 스레드에서). 설정된 값:", infoDescription)
+            
+            // iOS 8+ 정보 사라짐 문제 해결 시도 (0.2초 후 재설정)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                // 현재 상태를 다시 가져와서 설정 (nowPlayingInfo 변수는 클로저 캡처 시점의 값일 수 있음)
+                var currentInfoToResend = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+                // 만약 nil로 설정된 상태라면, 이전에 유효했던 값을 다시 보내는 것은 의미가 없으므로,
+                // 또는 현재 재생 상태에 따라 다시 빌드해야 할 수도 있음.
+                // 여기서는 간단히 현재 infoCenter의 값을 다시 설정 시도.
+                // 또는, 이 시점에서 self.updateNowPlayingPlaybackStatus()를 다시 호출하는 것을 고려할 수도 있으나 무한 루프 위험.
+                // 지금은 단순히 현재 설정된 값을 다시 설정하는 것으로 유지.
+                // 만약 nil로 설정된 후라면, 이 재설정은 의미가 없을 수 있음.
+                if !currentInfoToResend.isEmpty { // nil이 아닌 경우에만 재설정
+                   MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfoToResend
+                   // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분, 딕셔너리는 String(describing:) 사용
+                   print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 (0.2초 후, 메인 스레드). 재설정 값:", String(describing: currentInfoToResend))
+                } else {
+                   print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 건너뜀 (0.2초 후, 현재 infoCenter가 nil임).")
+                }
+            }
+        }
+    }
+
+    /// 특정 카테고리가 현재 '실질적으로' 재생 중인지 (볼륨 > 0)
+    func isPlaying(for categoryIndex: Int) -> Bool {
+        guard categoryIndex >= 0, categoryIndex < players.count else { return false }
+        return players[categoryIndex].isPlaying && players[categoryIndex].volume > 0
     }
 }
+

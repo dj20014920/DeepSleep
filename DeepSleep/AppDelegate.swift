@@ -11,8 +11,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        configureAudioSession()
-        // 제어 센터(remote control) 이벤트 받기 시작
+        // SoundManager 초기화 (내부에서 오디오 세션 설정)
+        _ = SoundManager.shared // SoundManager.shared를 호출하여 초기화 유도
+        
+        // 제어 센터(remote control) 이벤트 받기 시작 (오디오 세션 설정 이후에 호출되도록)
         application.beginReceivingRemoteControlEvents()
         
         // 알림 센터 delegate 설정

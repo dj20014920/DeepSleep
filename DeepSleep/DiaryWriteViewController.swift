@@ -322,9 +322,9 @@ class DiaryWriteViewController: UIViewController {
         } else {
             // 새 일기 모드
             currentDiaryEntry = EmotionDiary(
-                selectedEmotion: selectedEmotion,
+            selectedEmotion: selectedEmotion,
                 userMessage: diaryMessage,
-                aiResponse: "저장된 일기입니다. AI와 대화하기를 눌러 분석을 받아보세요."
+            aiResponse: "저장된 일기입니다. AI와 대화하기를 눌러 분석을 받아보세요."
                 // date는 기본값으로 현재 날짜 사용됨
             )
         }
@@ -332,13 +332,13 @@ class DiaryWriteViewController: UIViewController {
         SettingsManager.shared.saveEmotionDiary(currentDiaryEntry) // 저장 (ID가 같으면 덮어쓰기 가정)
         savedDiaryEntry = currentDiaryEntry
         isDiarySaved = true
-
+        
         // UI 업데이트
         saveButton.setTitle("✓ 수정 완료", for: .normal) // 수정 모드일 수도 있으므로 "수정 완료" 또는 "저장 완료"
         if diaryToEdit != nil {
             saveButton.setTitle("✓ 수정 완료", for: .normal)
         } else {
-            saveButton.setTitle("✓ 저장 완료", for: .normal)
+        saveButton.setTitle("✓ 저장 완료", for: .normal)
         }
         saveButton.backgroundColor = .systemGreen
         saveButton.isEnabled = false

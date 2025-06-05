@@ -172,6 +172,12 @@ extension ChatViewController {
                 
             // 콜백 호출 (메인 화면으로 프리셋 전달)
             onPresetApply?(recommendation)
+
+            // ChatViewController 자신을 닫습니다.
+            // UI 변경은 메인 스레드에서 수행합니다.
+            DispatchQueue.main.async {
+                self.closeButtonTapped()
+            }
         }
     
     // MARK: - ✅ 프리셋 조정 요청 처리

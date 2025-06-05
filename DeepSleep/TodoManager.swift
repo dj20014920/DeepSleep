@@ -203,8 +203,8 @@ class TodoManager {
                     completion(true, nil)
                 }
             } else {
-                currentTodos.removeAll(where: { $0.id == id })
-                self.saveTodos(currentTodos)
+            currentTodos.removeAll(where: { $0.id == id })
+            self.saveTodos(currentTodos)
                 completion(true, accessError) // 캘린더 접근 불가 에러 전달 가능성
             }
         }
@@ -217,16 +217,16 @@ class TodoManager {
             return
         }
         
-        currentTodos[index].isCompleted.toggle()
+            currentTodos[index].isCompleted.toggle()
         let todo = currentTodos[index]
         saveTodos(currentTodos) // 로컬 저장 먼저
-        
+            
         // 알림 업데이트
-        if todo.isCompleted {
-            removeNotification(for: todo)
-        } else {
-            scheduleNotification(for: todo)
-        }
+            if todo.isCompleted {
+                removeNotification(for: todo)
+            } else {
+                scheduleNotification(for: todo)
+            }
         
         // 캘린더 이벤트 제목 업데이트
         if let eventIdentifier = todo.calendarEventIdentifier {
@@ -351,17 +351,17 @@ class TodoManager {
         }
         
         event.title = todo.isCompleted ? "[완료] \(todo.title)" : todo.title
-        event.startDate = todo.dueDate
-        event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate)
-        event.notes = todo.notes
-        do {
-            try eventStore.save(event, span: .thisEvent)
+            event.startDate = todo.dueDate
+            event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate)
+            event.notes = todo.notes
+            do {
+                try eventStore.save(event, span: .thisEvent)
             print("✅ EKEventStore: 이벤트 업데이트 성공 - \(event.title ?? "")")
             completion(true, event.eventIdentifier, nil)
-        } catch {
-            print("🔴 EKEventStore: 이벤트 업데이트 실패 - \(error.localizedDescription)")
+            } catch {
+                print("🔴 EKEventStore: 이벤트 업데이트 실패 - \(error.localizedDescription)")
             completion(false, todo.calendarEventIdentifier, TodoManagerError.eventSaveFailed(error))
-        }
+            }
     }
 
     private func removeEventFromCalendar(identifier: String, completion: @escaping (Bool, Error?) -> Void) {
@@ -442,7 +442,7 @@ class TodoManager {
                             allCurrentTodos[indexInStorage] = todoToUpdateInStorage
                             self.saveTodos(allCurrentTodos)
                             migratedCount += 1
-                        } else {
+        } else {
                             // 이론적으로는 todosToMigrate에서 가져왔으므로 항상 찾아야 함
                             errors.append(NSError(domain: "TodoManagerMigration", code: 1, userInfo: [NSLocalizedDescriptionKey: "마이그레이션 중인 할 일(\(todoToUpdateInStorage.title))을 전체 목록에서 찾을 수 없습니다."]))
                         }

@@ -161,6 +161,11 @@ class CachedConversationManager {
         """
     }
     
+    // MARK: - Public Access to Weekly History
+    public func getFormattedWeeklyHistory() -> String {
+        return buildWeeklyHistory()
+    }
+    
     // MARK: - ✅ 컨텍스트 추가 (기존 기능 유지)
     private func addContextToPrompt(_ prompt: String, context: ChatContext) -> String {
         switch context {
@@ -255,21 +260,6 @@ class CachedConversationManager {
                 return "시스템 (프리셋 옵션): \(presetName)"
             }
         }
-    }
-    
-    // MARK: - ✅ 주간 히스토리 공개 메서드 (새로 추가)
-    public func getFormattedWeeklyHistory() -> String {
-        // 내부적으로 buildWeeklyHistory()를 호출하여 결과를 반환합니다.
-        // 이 메서드는 AddEditTodoViewController에서 AI 조언 컨텍스트를 가져오기 위해 사용됩니다.
-        let history = buildWeeklyHistory()
-        if history.isEmpty {
-            // 만약 buildWeeklyHistory가 비어있는 문자열을 반환할 가능성이 있다면,
-            // 여기서 기본 메시지나 빈 문자열에 대한 처리를 할 수 있습니다.
-            // 예를 들어, "사용자 활동 기록이 아직 충분하지 않습니다." 와 같은 메시지를 반환할 수 있습니다.
-            print("DEBUG: buildWeeklyHistory() returned an empty string.")
-            return ""
-        }
-        return history
     }
     
     // MARK: - ✅ WeeklyMemory 로드 (단일 정의)

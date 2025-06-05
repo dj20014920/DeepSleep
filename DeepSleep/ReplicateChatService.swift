@@ -709,7 +709,7 @@ class ReplicateChatService {
             guard let data = data, error == nil else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     if attempts > 0 {
-                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                    self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
                     } else {
                         DispatchQueue.main.async { completion(nil) }
                     }
@@ -719,9 +719,9 @@ class ReplicateChatService {
             
             do {
                 let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: data)
-                
+                    
                 switch statusResponse.status?.lowercased() {
-                case "succeeded":
+                    case "succeeded":
                     guard let outputContainerValue = statusResponse.output else {
                         print("❌ Output field is nil in 'succeeded' case (pollPredictionResult).")
                         DispatchQueue.main.async { completion(nil) }
@@ -742,24 +742,24 @@ class ReplicateChatService {
                         print("❌ (Poll) Unexpected output type in 'succeeded' case. Type: \\(type(of: actualOutputAsAny)). Value: \\(String(describing: actualOutputAsAny))")
                         DispatchQueue.main.async { completion(nil) }
                     }
-                    
-                case "failed", "canceled":
+                        
+                    case "failed", "canceled":
                     let errorMsg = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
                     let logsOutput = statusResponse.logs ?? "N/A"
                     print("❌ (Poll) Prediction 최종 상태 실패/취소: \\(errorMsg), Logs: \\(logsOutput)")
-                    DispatchQueue.main.async { completion(nil) }
-                    
-                case "starting", "processing":
+                        DispatchQueue.main.async { completion(nil) }
+                        
+                    case "starting", "processing":
                     if attempts >= 25 - 1 {
                         print("❌ (Poll) Prediction 타임아웃 (최대 시도 \\(attempts + 1)회 도달)")
                         DispatchQueue.main.async { completion(nil) }
                         return
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                    }
-                    
-                default:
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                        }
+                        
+                    default:
                     let currentStatus = statusResponse.status ?? "N/A"
                     let currentLogs = statusResponse.logs ?? "N/A"
                     print("⚠️ (Poll) Prediction 알 수 없는 상태: \\(currentStatus), Logs: \\(currentLogs)")
@@ -768,8 +768,8 @@ class ReplicateChatService {
                         DispatchQueue.main.async { completion(nil) }
                         return
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
                     }
                 }
             } catch {

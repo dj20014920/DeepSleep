@@ -103,7 +103,7 @@ class ViewController: UIViewController {
         setupSliderUI()
         setupPresetBlocks()
         updatePresetBlocks()
-        configureRemoteCommands()
+        // configureRemoteCommands() // SoundManager에서 처리하므로 주석 처리
         setupNotifications()
         setupGestures()
         
