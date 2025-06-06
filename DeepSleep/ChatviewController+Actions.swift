@@ -119,7 +119,7 @@ extension ChatViewController {
         }
 
         // 프리셋 파싱 시도 (self.parseRecommendation은 EnhancedRecommendationResponse? 반환)
-        if let enhancedRecommendation = self.parseRecommendation(from: response) {
+        if let enhancedRecommendation = self.parsePresetRecommendation(from: response) {
             // EnhancedRecommendationResponse를 RecommendationResponse로 변환
             let recommendationToApply = RecommendationResponse(
                 volumes: enhancedRecommendation.volumes,

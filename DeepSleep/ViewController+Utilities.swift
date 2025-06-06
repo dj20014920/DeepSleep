@@ -6,13 +6,19 @@ extension ViewController {
     
     // MARK: - 프리셋 적용
     func applyPreset(volumes: [Float], name: String, shouldSaveToRecent: Bool = true) {
+        // 1. 슬라이더와 텍스트필드 UI 업데이트 (실제 재생은 하지 않음)
         for (i, volume) in volumes.enumerated() where i < sliders.count {
-            updateSliderAndTextField(at: i, volume: volume)
+            let intVolume = Int(volume)
+            let clampedVolume = max(0, min(100, intVolume))
+            
+            sliders[i].value = Float(clampedVolume)
+            volumeFields[i].text = "\(clampedVolume)"
         }
         
-        SoundManager.shared.playAll()
+        // 2. SoundManager에서 프리셋 적용 (볼륨 설정 + 적절한 재생/정지)
+        SoundManager.shared.applyPreset(volumes: volumes)
         
-        // 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
+        // 3. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
         if shouldSaveToRecent {
             addToRecentPresets(name: name, volumes: volumes)
         }

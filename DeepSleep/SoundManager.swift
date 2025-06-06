@@ -419,10 +419,16 @@ final class SoundManager {
     func play(at index: Int) {
         guard index >= 0, index < players.count else { return }
         let player = players[index]
-        if !player.isPlaying && player.volume > 0 {
-            player.play()
-            print("사운드 \(index) 재생 시작")
-            updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
+        if player.volume > 0 {
+            if !player.isPlaying {
+                player.play()
+                print("사운드 \(index) 재생 시작")
+                updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
+            } else {
+                print("사운드 \(index) 이미 재생 중 (볼륨: \(player.volume))")
+            }
+        } else {
+            print("사운드 \(index) 볼륨이 0이라 재생하지 않음")
         }
     }
     
@@ -459,19 +465,38 @@ final class SoundManager {
     
     /// 프리셋 적용 (볼륨 설정 + 재생 시작)
     func applyPreset(volumes: [Float]) {
-        // 1. 먼저 볼륨 설정
-        setVolumes(volumes)
+        print("🎵 applyPreset 시작: \(volumes)")
         
-        // 2. 볼륨이 0 이상인 사운드만 재생 시작
+        // 1. 각 플레이어에 대해 볼륨 설정과 재생 상태를 동시에 처리
         for (index, volume) in volumes.enumerated() {
-            if index < players.count && volume > 0 {
-                play(at: index)
-            } else if index < players.count && volume == 0 {
-                pause(at: index)
+            guard index < players.count else { continue }
+            
+            let player = players[index]
+            let normalizedVolume = volume / 100.0
+            
+            // 볼륨 설정
+            player.volume = normalizedVolume
+            
+            // 재생 상태 제어
+            if volume > 0 {
+                if !player.isPlaying {
+                    player.play()
+                    print("  ✅ 사운드 \(index) 재생 시작 (볼륨: \(volume))")
+                } else {
+                    print("  ℹ️ 사운드 \(index) 이미 재생 중, 볼륨만 업데이트 (볼륨: \(volume))")
+                }
+            } else {
+                if player.isPlaying {
+                    player.pause()
+                    print("  ⏸️ 사운드 \(index) 정지")
+                } else {
+                    print("  ⏭️ 사운드 \(index) 이미 정지 상태")
+                }
             }
         }
         
-        print("프리셋 적용 완료: \(volumes)")
+        updateNowPlayingPlaybackStatus()
+        print("🎵 프리셋 적용 완료")
     }
     
     // MARK: - 확장된 프리셋 적용 (버전 정보 포함)

@@ -42,6 +42,11 @@ class ViewController: UIViewController {
     
     // 오디오 모드 버튼
     var audioModeButton: UIButton!
+    
+    // 마스터 볼륨 컨트롤
+    var masterVolumeSlider: UISlider!
+    var masterVolumeField: UITextField!
+    internal var masterVolumeLevel: Float = 50.0  // 마스터 볼륨 레벨 (0-100), 기본값 50
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -654,18 +659,16 @@ extension ViewController {
             return
         }
 
+        // 1. UI 업데이트 (슬라이더, 텍스트필드)
         updateAllSlidersAndFields(volumes: volumes, versions: actualVersions)
         
+        // 2. 버전 정보 저장
         for i in 0..<SoundPresetCatalog.categoryCount {
             SettingsManager.shared.updateSelectedVersion(for: i, to: actualVersions[i])
-            SoundManager.shared.setVolume(at: i, volume: Float(volumes[i] / 100.0))
-            if volumes[i] > 0 {
-                print("  ViewController [\(self.instanceUUID)] - 사운드 \(i) 재생 시작 (호출 전)") // SoundManager 호출 전 로그
-                SoundManager.shared.play(at: i)
-            } else {
-                SoundManager.shared.pause(at: i)
-            }
         }
+        
+        // 3. SoundManager에서 프리셋 적용 (버전 포함)
+        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: actualVersions)
         
         updatePlayButtonStates()
         showToast(message: "\'\(name)\' 프리셋이 적용되었습니다.")

@@ -64,6 +64,9 @@ extension ViewController {
         stackView.axis = .vertical
         stackView.spacing = 16
 
+        // 마스터 볼륨 슬라이더 추가
+        setupMasterVolumeSlider(stackView: stackView)
+
         let categoryCount = SoundPresetCatalog.categoryCount
         
         sliders.removeAll()
@@ -135,6 +138,102 @@ extension ViewController {
         }
         
         print("✅ \(categoryCount)개 카테고리 슬라이더 UI 생성 완료 - 미리듣기 버튼 변경됨")
+    }
+    
+    // MARK: - 마스터 볼륨 설정
+    
+    private func setupMasterVolumeSlider(stackView: UIStackView) {
+        // 마스터 볼륨 컨트롤 행 (간단하게)
+        let masterRowStack = UIStackView()
+        masterRowStack.axis = .horizontal
+        masterRowStack.spacing = 12
+        
+        // 40px 너비의 빈 공간 (슬라이더를 더 길게)
+        let spacerView = UIView()
+        spacerView.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        
+        masterVolumeSlider = UISlider()
+        masterVolumeSlider.minimumValue = 0
+        masterVolumeSlider.maximumValue = 100
+        masterVolumeSlider.value = 50  // 기본값 50으로 변경
+        masterVolumeLevel = 50  // 초기값 50으로 설정
+        masterVolumeSlider.addTarget(self, action: #selector(masterVolumeChanged(_:)), for: .valueChanged)
+        
+        masterVolumeField = UITextField()
+        masterVolumeField.text = "50"  // 기본값 50
+        masterVolumeField.borderStyle = .roundedRect
+        masterVolumeField.keyboardType = .numberPad
+        masterVolumeField.delegate = self
+        masterVolumeField.widthAnchor.constraint(equalToConstant: 50).isActive = true
+        masterVolumeField.addTarget(self, action: #selector(masterVolumeFieldChanged(_:)), for: .editingChanged)
+        masterVolumeField.addTarget(self, action: #selector(masterVolumeFieldEditingEnded(_:)), for: .editingDidEnd)
+        
+        // 15px 너비의 빈 공간 (슬라이더를 더 길게)
+        let endSpacerView = UIView()
+        endSpacerView.widthAnchor.constraint(equalToConstant: 15).isActive = true
+        
+        masterRowStack.addArrangedSubview(spacerView)
+        masterRowStack.addArrangedSubview(masterVolumeSlider)
+        masterRowStack.addArrangedSubview(masterVolumeField)
+        masterRowStack.addArrangedSubview(endSpacerView)
+        
+        // 구분선
+        let separator = UIView()
+        separator.backgroundColor = .separator
+        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        
+        // 스택뷰에 추가
+        stackView.addArrangedSubview(masterRowStack)
+        stackView.addArrangedSubview(separator)
+        
+        // 약간의 여백 추가
+        let spacer = UIView()
+        spacer.heightAnchor.constraint(equalToConstant: 8).isActive = true
+        stackView.addArrangedSubview(spacer)
+    }
+    
+    // MARK: - 마스터 볼륨 액션
+    
+    @objc private func masterVolumeChanged(_ sender: UISlider) {
+        let newMasterVolume = sender.value
+        masterVolumeLevel = newMasterVolume
+        masterVolumeField.text = "\(Int(newMasterVolume))"
+        
+        // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
+        applyMasterVolumeToSoundManager()
+        provideLightHapticFeedback()
+    }
+    
+    @objc private func masterVolumeFieldChanged(_ sender: UITextField) {
+        guard let text = sender.text else { return }
+        let sanitizedText = sanitizeVolumeInput(text)
+        if sanitizedText != text {
+            sender.text = sanitizedText
+        }
+    }
+    
+    @objc private func masterVolumeFieldEditingEnded(_ sender: UITextField) {
+        guard let text = sender.text else { return }
+        
+        let volume = validateAndClampVolume(text)
+        sender.text = "\(volume)"
+        masterVolumeSlider.value = Float(volume)
+        masterVolumeLevel = Float(volume)
+        
+        // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
+        applyMasterVolumeToSoundManager()
+        provideMediumHapticFeedback()
+    }
+    
+    /// 마스터 볼륨을 SoundManager에만 적용 (슬라이더 위치는 변경하지 않음)
+    private func applyMasterVolumeToSoundManager() {
+        let masterMultiplier = masterVolumeLevel / 100.0
+        
+        // 현재 슬라이더 값들에 마스터 볼륨 배율을 적용해서 SoundManager에 전달
+        for (index, slider) in sliders.enumerated() {
+            let actualVolume = slider.value * masterMultiplier
+            SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        }
     }
     
     // MARK: - 카테고리 버튼 액션 (미리듣기 및 버전 선택 통합)
@@ -319,7 +418,11 @@ extension ViewController {
         
         sender.value = Float(volume)
         volumeFields[index].text = "\(volume)"
-        SoundManager.shared.setVolume(at: index, volume: Float(volume))
+        
+        // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
+        let actualVolume = Float(volume) * (masterVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        
         provideLightHapticFeedback()
     }
     
@@ -338,7 +441,11 @@ extension ViewController {
         let volume = validateAndClampVolume(text)
         sender.text = "\(volume)"
         sliders[index].value = Float(volume)
-        SoundManager.shared.setVolume(at: index, volume: Float(volume))
+        
+        // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
+        let actualVolume = Float(volume) * (masterVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        
         provideMediumHapticFeedback()
     }
     
@@ -350,7 +457,10 @@ extension ViewController {
         
         sliders[index].value = Float(clampedVolume)
         volumeFields[index].text = "\(clampedVolume)"
-        SoundManager.shared.setVolume(at: index, volume: Float(clampedVolume))
+        
+        // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
+        let actualVolume = Float(clampedVolume) * (masterVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
     }
     
     // MARK: - 전체 볼륨 업데이트 (프리셋 적용 시 사용)

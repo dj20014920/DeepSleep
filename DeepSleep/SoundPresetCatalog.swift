@@ -175,6 +175,113 @@ struct SoundPresetCatalog {
         "파도: 파도치는 소리 (휴식, 자연)"
     ]
     
+    // MARK: - 사운드 조합 필터링 시스템
+    
+    /// 어울리지 않는 사운드 조합들 (인덱스 쌍)
+    private static let incompatiblePairs: [(Int, Int)] = [
+        (6, 9),   // 연필 + 키보드 (둘 다 작업 소리여서 겹침)
+        (3, 8),   // 불 + 쿨링팬 (따뜻함 vs 차가움의 대조)
+        (0, 9),   // 고양이 + 키보드 (자연 vs 인공의 극명한 대조)
+        (7, 6),   // 우주 + 연필 (명상 vs 집중 작업의 충돌)
+        (7, 9)    // 우주 + 키보드 (명상 vs 인공 소리의 충돌)
+    ]
+    
+    /// 강력하게 어울리지 않는 조합 (완전히 차단)
+    private static let stronglyIncompatiblePairs: [(Int, Int)] = [
+        (0, 9),   // 고양이 + 키보드 (자연 vs 기계음의 극명한 대조)
+        (3, 8)    // 불 + 쿨링팬 (따뜻함 vs 시원함의 정반대)
+    ]
+    
+    /// 볼륨 배열에 조합 필터링 적용
+    static func applyCompatibilityFilter(to volumes: [Float]) -> [Float] {
+        var filteredVolumes = volumes
+        
+        // 강력한 비호환 조합 체크 (한 쪽을 0으로 만듦)
+        for (index1, index2) in stronglyIncompatiblePairs {
+            guard index1 < filteredVolumes.count && index2 < filteredVolumes.count else { continue }
+            
+            if filteredVolumes[index1] > 0 && filteredVolumes[index2] > 0 {
+                // 더 낮은 볼륨을 0으로 만듦
+                if filteredVolumes[index1] < filteredVolumes[index2] {
+                    filteredVolumes[index1] = 0
+                    print("🚫 조합 필터링: \(categoryNames[index1]) 제거 (vs \(categoryNames[index2]))")
+                } else {
+                    filteredVolumes[index2] = 0
+                    print("🚫 조합 필터링: \(categoryNames[index2]) 제거 (vs \(categoryNames[index1]))")
+                }
+            }
+        }
+        
+        // 일반 비호환 조합 체크 (볼륨 감소)
+        for (index1, index2) in incompatiblePairs {
+            guard index1 < filteredVolumes.count && index2 < filteredVolumes.count else { continue }
+            
+            if filteredVolumes[index1] > 30 && filteredVolumes[index2] > 30 {
+                // 둘 다 높은 볼륨이면 하나를 줄임
+                let reduction: Float = 0.5
+                if filteredVolumes[index1] < filteredVolumes[index2] {
+                    filteredVolumes[index1] *= reduction
+                    print("⚠️ 조합 조정: \(categoryNames[index1]) 볼륨 감소")
+                } else {
+                    filteredVolumes[index2] *= reduction
+                    print("⚠️ 조합 조정: \(categoryNames[index2]) 볼륨 감소")
+                }
+            }
+        }
+        
+        return filteredVolumes
+    }
+    
+    /// 자연스러운 조합 패턴들
+    static let harmonicCombinations: [[Int]] = [
+        [4, 10, 5],         // 비 + 파도 + 시냇물 (물소리 조합)
+        [2, 3, 7],          // 밤 + 불 + 우주 (평온한 밤 조합)
+        [0, 1, 5],          // 고양이 + 바람 + 시냇물 (자연 조합)
+        [6, 8, 9],          // 연필 + 쿨링팬 + 키보드 (작업 조합)
+        [2, 4, 7]           // 밤 + 비 + 우주 (수면 조합)
+    ]
+    
+    /// 조합이 조화로운지 확인
+    static func isHarmonicCombination(volumes: [Float]) -> Bool {
+        let activeSounds = volumes.enumerated().compactMap { index, volume in
+            volume > 20 ? index : nil
+        }
+        
+        // 활성 사운드가 조화로운 조합 중 하나와 매치되는지 확인
+        for combination in harmonicCombinations {
+            let matchingCount = activeSounds.filter { combination.contains($0) }.count
+            if matchingCount >= min(2, activeSounds.count) {
+                return true
+            }
+        }
+        
+        return activeSounds.count <= 3  // 3개 이하면 일반적으로 조화로움
+    }
+    
+    // MARK: - 카테고리 인덱스 헬퍼 메서드
+    
+    /// 카테고리 이름으로 인덱스를 찾는 메서드
+    static func getIndex(for categoryName: String) -> Int? {
+        // 한국어 카테고리 이름 매핑
+        let koreanNames = ["고양이", "바람", "밤", "불", "비", "시냇물", "연필", "우주", "쿨링팬", "키보드", "파도"]
+        if let index = koreanNames.firstIndex(of: categoryName) {
+            return index
+        }
+        
+        // 영어 카테고리 이름 매핑
+        let englishNames = ["cat", "wind", "night", "fire", "rain", "stream", "pencil", "space", "fan", "keyboard", "wave"]
+        if let index = englishNames.firstIndex(of: categoryName.lowercased()) {
+            return index
+        }
+        
+        // 카테고리 내부 이름 매핑
+        if let index = categoryNames.firstIndex(of: categoryName) {
+            return index
+        }
+        
+        return nil
+    }
+    
     /// AI 추천용 간단한 매핑 (기존 12개 → 11개 카테고리 매핑)
     static let aiRecommendationMapping: [String: Int] = [
         "Rain": 4,        // 🌧️ 비
