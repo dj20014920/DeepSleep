@@ -164,13 +164,17 @@ class ChatViewController: UIViewController {
 // MARK: - Setup Methods
 extension ChatViewController {
     private func loadChatHistory() {
-        if let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: String]] {
+        if let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: Any]] {
             self.messages = saved.compactMap { dict -> ChatMessage? in
-                guard let message = ChatMessage.from(dictionary: dict) else { return nil }
+                guard let typeString = dict["type"] as? String,
+                      let type = ChatMessageType(rawValue: typeString),
+                      let text = dict["text"] as? String else { return nil }
+                
+                let presetName = dict["presetName"] as? String
+                let message = ChatMessage(type: type, text: text, presetName: presetName)
                 
                 // ✅ 프리셋 적용 완료 메시지 필터링 로직 추가
-                if case .bot(let text) = message,
-                   text.hasPrefix("✅ ") && text.contains("프리셋이 적용되었습니다!") {
+                if type == .bot && text.hasPrefix("✅ ") && text.contains("프리셋이 적용되었습니다!") {
                     return nil // 이 메시지는 로드하지 않음
                 }
                 return message
@@ -293,7 +297,7 @@ extension ChatViewController {
     
     private func setupInitialMessages() {
         if let diary = diaryContext {
-            appendChat(.user("📝 이 일기를 분석해주세요"))
+            appendChat(ChatMessage(type: .user, text: "📝 이 일기를 분석해주세요"))
             
             let initialResponse = """
             📖 \(diary.emotion) 이런 기분으로 일기를 써주셨군요 😊
@@ -302,11 +306,11 @@ extension ChatViewController {
             어떤 부분이 가장 마음에 남으셨나요? 💭
             """
             
-            appendChat(.bot(initialResponse))
+            appendChat(ChatMessage(type: .bot, text: initialResponse))
             requestDiaryAnalysisWithTracking(diary: diary)
             
         } else if let patternData = emotionPatternData {
-            appendChat(.user("📊 최근 감정 패턴을 분석해주세요"))
+            appendChat(ChatMessage(type: .user, text: "📊 최근 감정 패턴을 분석해주세요"))
             
             let initialResponse = """
             📈 최근 30일간의 감정 패턴을 분석해드릴게요 😊
@@ -314,16 +318,16 @@ extension ChatViewController {
             패턴을 살펴보고 있어요... 잠시만 기다려주세요! 💭
             """
             
-            appendChat(.bot(initialResponse))
+            appendChat(ChatMessage(type: .bot, text: initialResponse))
             requestPatternAnalysisWithTracking(patternData: patternData)
             
         } else if let userText = initialUserText,
                   userText != "일기_분석_모드" && userText != "감정_패턴_분석_모드" {
-            appendChat(.user("선택한 기분: \(userText)"))
+            appendChat(ChatMessage(type: .user, text: "선택한 기분: \(userText)"))
             let greeting = getEmotionalGreeting(for: userText)
-            appendChat(.bot(greeting))
+            appendChat(ChatMessage(type: .bot, text: greeting))
         } else {
-            appendChat(.bot("안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요 ✨"))
+            appendChat(ChatMessage(type: .bot, text: "안녕하세요! 😊\n오늘 하루는 어떠셨나요? 마음 편하게 이야기해보세요 ✨"))
         }
     }
     
@@ -353,19 +357,19 @@ extension ChatViewController {
     
     private func startEmotionPatternAnalysis() {
         guard let emotionData = emotionPatternData, !emotionData.isEmpty else {
-            appendChat(.bot("아직 감정 기록이 충분하지 않네요 😊 일기를 더 작성해주시면 더 정확한 분석을 도와드릴 수 있어요!"))
+            appendChat(ChatMessage(type: .bot, text: "아직 감정 기록이 충분하지 않네요 😊 일기를 더 작성해주시면 더 정확한 분석을 도와드릴 수 있어요!"))
             return
         }
         
-        appendChat(.bot("📊 최근 30일간의 감정 패턴을 분석하고 있어요... ✨"))
+        appendChat(ChatMessage(type: .bot, text: "📊 최근 30일간의 감정 패턴을 분석하고 있어요... ✨"))
         
         ReplicateChatService.shared.analyzeEmotionPattern(data: emotionData) { [weak self] response in
             DispatchQueue.main.async {
                 if let response = response {
-                    self?.appendChat(.bot(response))
+                    self?.appendChat(ChatMessage(type: .bot, text: response))
                     self?.addQuickEmotionButtons()
                 } else {
-                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다 😅 네트워크 연결을 확인해주세요."))
+                    self?.appendChat(ChatMessage(type: .bot, text: "죄송해요, 분석 중 문제가 발생했습니다 😅 네트워크 연결을 확인해주세요."))
                 }
             }
         }
@@ -379,7 +383,7 @@ extension ChatViewController {
         일기 내용을 바탕으로 감정을 분석해드릴게요 😊
         """
         
-        appendChat(.bot(analysisText))
+        appendChat(ChatMessage(type: .bot, text: analysisText))
         
         ReplicateChatService.shared.sendPrompt(
             message: diaryData.content,
@@ -387,16 +391,16 @@ extension ChatViewController {
         ) { [weak self] response in
             DispatchQueue.main.async {
                 if let response = response {
-                    self?.appendChat(.bot(response))
+                    self?.appendChat(ChatMessage(type: .bot, text: response))
                 } else {
-                    self?.appendChat(.bot("죄송해요, 분석 중 문제가 발생했습니다 😅"))
+                    self?.appendChat(ChatMessage(type: .bot, text: "죄송해요, 분석 중 문제가 발생했습니다 😅"))
                 }
             }
         }
     }
     
     private func addQuickEmotionButtons() {
-        appendChat(.bot("💡 더 자세한 분석을 원하시나요?\n\n🎯 개선 방법\n📈 감정 변화 추이\n💡 스트레스 관리\n\n위 키워드로 질문해보세요! ✨"))
+        appendChat(ChatMessage(type: .bot, text: "💡 더 자세한 분석을 원하시나요?\n\n🎯 개선 방법\n📈 감정 변화 추이\n💡 스트레스 관리\n\n위 키워드로 질문해보세요! ✨"))
     }
 
 }
@@ -427,15 +431,22 @@ extension ChatViewController {
         }
         
         // 기존 히스토리 저장 (로딩 메시지는 저장하지 않음)
-        if case .loading = message {
-            // 로딩 메시지는 저장하지 않음
-        } else {
+        if message.type != .loading {
             saveChatHistory()
         }
     }
     
     func saveChatHistory() {
-        let dictionaries = messages.map { $0.toDictionary() }
+        let dictionaries = messages.map { message in
+            var dict: [String: Any] = [
+                "type": message.type.rawValue,
+                "text": message.text
+            ]
+            if let presetName = message.presetName {
+                dict["presetName"] = presetName
+            }
+            return dict
+        }
         UserDefaults.standard.set(dictionaries, forKey: "chatHistory")
     }
     
@@ -448,10 +459,7 @@ extension ChatViewController {
     
     // ✅ 마지막 로딩 메시지 제거
     func removeLastLoadingMessage() {
-        if let lastIndex = messages.lastIndex(where: { 
-            if case .loading = $0 { return true }
-            return false 
-        }) {
+        if let lastIndex = messages.lastIndex(where: { $0.type == .loading }) {
             messages.remove(at: lastIndex)
             tableView.reloadData()
         }

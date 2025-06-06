@@ -168,16 +168,8 @@ extension ViewController {
         return allPresets.filter { favoritePresetIds.contains($0.id) }
     }
     
-    func addToRecentPresets(name: String, volumes: [Float]) {
-        let preset = SoundPreset(
-            name: name,
-            volumes: volumes,
-            emotion: nil,
-            isAIGenerated: true,
-            description: "최근 사용한 프리셋"
-        )
-        SettingsManager.shared.saveSoundPreset(preset)
-    }
+    // 이 메서드는 제거됨 - ViewController+Utilities.swift의 addToRecentPresetsWithVersions 사용
+    // func addToRecentPresets(name: String, volumes: [Float]) - 삭제됨
     
     @objc func presetButtonTapped(_ sender: UIButton) {
         let isRecentButton = sender.tag >= 100 && sender.tag < 200
@@ -194,17 +186,17 @@ extension ViewController {
         
         // 즐겨찾기 프리셋인 경우 새로운 프리셋을 생성하지 않음
         let shouldSaveToRecent = isRecentButton  // 최근 프리셋만 최근에 저장
-        applyPreset(volumes: preset.volumes, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
+        applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
     }
     
 
     
     func showPresetList() {
         let presetListVC = PresetListViewController()
-        // SoundPreset으로 변경된 콜백
+        // SoundPreset으로 변경된 콜백 - 버전 정보 포함
         presetListVC.onPresetSelected = { [weak self] preset in
             // 프리셋 목록에서 선택한 경우 새로운 프리셋 생성하지 않음
-            self?.applyPreset(volumes: preset.volumes, name: preset.name, shouldSaveToRecent: false)
+            self?.applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: false)
         }
         navigationController?.pushViewController(presetListVC, animated: true)
     }

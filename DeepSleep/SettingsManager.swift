@@ -149,36 +149,11 @@ class SettingsManager {
         }
     }
     
-    // MARK: - 프리셋 마이그레이션
-    func migratePresetsIfNeeded() {
-        let migrationKey = "settingsManagerPresetMigrationCompleted"
-        
-        guard !userDefaults.bool(forKey: migrationKey) else {
-            print("✅ SettingsManager 프리셋 마이그레이션 이미 완료됨")
-            return
+    /// 프리셋 배열 전체를 교체합니다. (마이그레이션 전용)
+    func replaceAllPresets(with newPresets: [SoundPreset]) {
+        if let encoded = try? JSONEncoder().encode(newPresets) {
+            userDefaults.set(encoded, forKey: Keys.soundPresets)
         }
-        
-        let presets = loadSoundPresets()
-        var migratedCount = 0
-        
-        for preset in presets {
-            if preset.selectedVersions == nil {
-                // 버전 정보가 없는 프리셋에 기본 버전 정보 추가
-                let newPreset = SoundPreset(
-                    name: preset.name,
-                    volumes: preset.volumes,
-                    selectedVersions: SoundPresetCatalog.defaultVersionSelection,
-                    emotion: preset.emotion,
-                    isAIGenerated: preset.isAIGenerated,
-                    description: preset.description
-                )
-                saveSoundPreset(newPreset)
-                migratedCount += 1
-            }
-        }
-        
-        userDefaults.set(true, forKey: migrationKey)
-        print("✅ SettingsManager 프리셋 마이그레이션 완료: \(migratedCount)개 업그레이드")
     }
     
     // MARK: - Usage Limits
@@ -353,55 +328,4 @@ class SettingsManager {
             stats.patternAnalysisCount += 1
         }
     }
-    
-    func getPatternAnalysisUsageToday() -> Int {
-        let todayStats = getTodayStats()
-        return todayStats.patternAnalysisCount
-    }
-    
-    func getRemainingPatternAnalysisToday() -> Int {
-        let used = getPatternAnalysisUsageToday()
-        return max(0, 1 - used)  // ✅ 1회에서 사용한 횟수를 뺀 값
-    }
-    
-    #if DEBUG
-    func resetPatternAnalysisLimit() {
-        updateTodayStats { stats in
-            stats.patternAnalysisCount = 0
-        }
-        print("✅ 감정 패턴 분석 제한이 리셋되었습니다.")
-    }
-    #endif
-    
-    /// 오늘 일기 분석 대화 사용 가능 여부 (하루 1회 제한)
-    func canUseDiaryAnalysisToday() -> Bool {
-        let todayStats = getTodayStats()
-        return todayStats.diaryAnalysisCount < 1  // 하루 1번 제한
-    }
-    
-    func incrementDiaryAnalysisUsage() {
-        updateTodayStats { stats in
-            stats.diaryAnalysisCount += 1
-        }
-    }
-    
-    func getDiaryAnalysisUsageToday() -> Int {
-        let todayStats = getTodayStats()
-        return todayStats.diaryAnalysisCount
-    }
-    
-    func getRemainingDiaryAnalysisToday() -> Int {
-        let used = getDiaryAnalysisUsageToday()
-        return max(0, 1 - used)
-    }
-    
-    #if DEBUG
-    func resetDiaryAnalysisLimit() {
-        updateTodayStats { stats in
-            stats.diaryAnalysisCount = 0
-        }
-        print("✅ 일기 분석 대화 제한이 리셋되었습니다.")
-    }
-    #endif
 }
-

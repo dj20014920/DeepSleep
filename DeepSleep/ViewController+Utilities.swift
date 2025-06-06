@@ -142,7 +142,7 @@ extension ViewController {
     private func applyRecommendedPreset(_ presetName: String) {
         // SoundPresetCatalog에서 해당 프리셋 찾기
         if let volumes = SoundPresetCatalog.samplePresets[presetName] {
-            applyPreset(volumes: volumes, name: presetName, shouldSaveToRecent: true)
+            applyPreset(volumes: volumes, versions: SoundPresetCatalog.defaultVersions, name: presetName, shouldSaveToRecent: true)
         } else {
             showPresetAppliedFeedback(name: "⚠️ 추천 프리셋을 찾을 수 없습니다")
         }
@@ -150,8 +150,17 @@ extension ViewController {
     */
     
     // MARK: - 프리셋 적용 (Apple Developer 계정 무관)
-    func applyPreset(volumes: [Float], name: String, shouldSaveToRecent: Bool = true) {
-        // 1. 슬라이더와 텍스트필드 UI 업데이트 (실제 재생은 하지 않음)
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String, shouldSaveToRecent: Bool = true) {
+        let actualVersions = versions ?? SoundPresetCatalog.defaultVersions
+        
+        // 1. 버전 정보 적용
+        for (categoryIndex, versionIndex) in actualVersions.enumerated() {
+            if categoryIndex < SoundPresetCatalog.categoryCount {
+                SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
+            }
+        }
+        
+        // 2. 슬라이더와 텍스트필드 UI 업데이트 (실제 재생은 하지 않음)
         for (i, volume) in volumes.enumerated() where i < sliders.count {
             let intVolume = Int(volume)
             let clampedVolume = max(0, min(100, intVolume))
@@ -160,17 +169,30 @@ extension ViewController {
             volumeFields[i].text = "\(clampedVolume)"
         }
         
-        // 2. SoundManager에서 프리셋 적용 (볼륨 설정 + 적절한 재생/정지)
-        SoundManager.shared.applyPreset(volumes: volumes)
+        // 3. SoundManager에서 프리셋 적용 (볼륨 설정 + 버전 정보 포함)
+        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: actualVersions)
         
-        // 3. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
+        // 4. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
         if shouldSaveToRecent {
-            addToRecentPresets(name: name, volumes: volumes)
+            addToRecentPresetsWithVersions(name: name, volumes: volumes, versions: actualVersions)
         }
         
         updatePlayButtonStates()
         updatePresetBlocks()
         showPresetAppliedFeedback(name: name)
+    }
+    
+    // 버전 정보 포함한 최근 프리셋 저장
+    func addToRecentPresetsWithVersions(name: String, volumes: [Float], versions: [Int]) {
+        let preset = SoundPreset(
+            name: name,
+            volumes: volumes,
+            selectedVersions: versions,
+            emotion: nil,
+            isAIGenerated: true,
+            description: "최근 사용한 프리셋"
+        )
+        SettingsManager.shared.saveSoundPreset(preset)
     }
     
     // MARK: - 피드백 (Apple Developer 계정 무관)

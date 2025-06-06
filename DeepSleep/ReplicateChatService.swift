@@ -115,60 +115,63 @@ class ReplicateChatService {
             }
         }
     
-    // ✅ 캐시 기반 프리셋 프롬프트 구성
+    // ✅ 캐시 기반 프리셋 프롬프트 구성 (13개 카테고리로 업데이트)
     private func buildCachedPresetPrompt(cachedPrompt: String, emotionContext: String, useCache: Bool) -> String {
-        let soundDetails = getSoundDetailsForAIPrompt()
-        let soundListString = ["고양이", "바람", "밤", "불", "비", "시냇물", "연필", "우주", "쿨링팬", "키보드", "파도"].joined(separator: ", ")
-
-        // AI가 따라야 할 응답 형식 (버전 정보 포함 가능)
-        // 예: [프리셋이름] 카테고리1:값,카테고리2:값,...,카테고리N:값
-        // 또는 버전이 없는 경우: [집중하는 오후] 연필:50,쿨링팬:60,키보드:70(V2) (나머지 0으로 간주)
-        let responseFormatInstruction = """
-        응답은 다음 형식 중 하나를 따라야 합니다:
-        1. `[프리셋이름] 카테고리1:값,카테고리2:값,...,카테고리N:값` (모든 11개 카테고리 명시)
-        2. `[프리셋이름] 카테고리X:값(버전X),카테고리Y:값,카테고리Z:값(버전Z)` (주요 사운드만 명시, 나머지는 0으로 간주)
-        다중 버전 사운드(비, 키보드)는 추천 시 `(V1)` 또는 `(V2)`와 같이 버전을 명시해주세요. (예: `비:75(V2)`)
-        11개 사운드 목록: \(soundListString)
-        """
-
+        // 시간대 정보 추가
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(from: currentHour)
+        
         if useCache {
-            // 캐시된 맥락이 있을 때 - 간단한 요청
+            // 캐시된 맥락이 있을 때 - 간단한 감정 분석만 요청
             return """
-            \(cachedPrompt)
+            이전 대화: \(String(cachedPrompt.suffix(200)))
             
-            위 대화 맥락과 현재 감정(\(emotionContext))을 바탕으로 다음 11가지 사운드의 볼륨(0-100)과 필요한 경우 버전(V1/V2)을 추천해주세요.
-            사운드 목록: \(soundListString)
+            사용자의 현재 상태를 간단히 분석해서 다음 형태로만 답변해주세요:
             
-            \(responseFormatInstruction)
+            감정: [불안/스트레스/우울/수면곤란/집중필요/창의성/분노/외로움/피로/기쁨/평온] (1-2개)
+            시간대: \(timeOfDay)
+            강도: [낮음/보통/높음]
+            상황: [휴식/작업/수면/명상] 중 하나
+            
+            예시: "감정: 스트레스, 수면곤란 / 시간대: 밤 / 강도: 높음 / 상황: 수면"
             """
         } else {
-            // 새 캐시 생성 시 - 상세한 설명
+            // 새 캐시 생성 시 - 좀 더 자세한 분석이지만 여전히 간결
             return """
-            당신은 사용자의 감정 상태(\(emotionContext))에 맞는 최적의 사운드 조합을 추천하는 전문 사운드 큐레이터입니다.
-            아래 제공되는 각 사운드 카테고리의 상세 설명을 참고하여, 사용자의 현재 감정을 가장 잘 지원할 수 있는 11가지 사운드의 볼륨(0-100) 조합과,
-            다중 버전 사운드('비', '키보드')의 경우 가장 적합한 버전(V1 또는 V2)을 함께 추천해주세요.
-            프리셋 이름도 감정과 상황에 맞게 창의적으로 지어주세요.
-
-            \(soundDetails)
+            사용자의 감정 상태와 현재 상황(\(timeOfDay))을 분석해서 사운드 추천을 위한 정보를 추출해주세요.
             
-            \(responseFormatInstruction)
+            다음 형태로만 간결하게 답변:
+            
+            주감정: [불안/스트레스/우울/수면곤란/집중필요/창의성/분노/외로움/피로/기쁨/평온]
+            부감정: [위와 동일, 없으면 생략]
+            시간대: \(timeOfDay)
+            강도: 1-5점 (1=매우 약함, 5=매우 강함)
+            목적: [수면/휴식/집중/명상/치유] 중 1개
+            특이사항: [급함/지속적/일시적] 등 (한 단어로)
+            
+            이 정보를 바탕으로 최적의 사운드 조합을 추천드리겠습니다.
             """
         }
     }
     
-    // AI 프롬프트에 사용될 사운드 상세 정보를 반환하는 함수
+    // 시간대 판별 함수
+    private func getTimeOfDay(from hour: Int) -> String {
+        switch hour {
+        case 5..<7: return "새벽"
+        case 7..<10: return "아침"
+        case 10..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<21: return "저녁"
+        case 21..<24: return "밤"
+        default: return "자정"
+        }
+    }
+    
+    // AI 프롬프트에 사용될 사운드 상세 정보를 반환하는 함수 (대폭 간소화)
     private func getSoundDetailsForAIPrompt() -> String {
-        let soundCategories = ["고양이", "바람", "밤", "불", "비", "시냇물", "연필", "우주", "쿨링팬", "키보드", "파도"]
-        
-        return """
-        11가지 사운드: \(soundCategories.joined(separator: ", "))
-        
-        기본 9개: 고양이(편안함), 바람(집중), 밤(수면), 불(안정), 시냇물(휴식), 연필(창작), 우주(명상), 쿨링팬(차단), 파도(긴장완화)
-        
-        다중버전 2개: 비(V1일반/V2창문), 키보드(V1메카/V2멤브)
-        
-        중요: 비/키보드 추천시 반드시 버전 명시. 예: 비:80(V2), 키보드:50(V1)
-        """
+        // 더 이상 사용하지 않음 - 로컬 추천 시스템 사용
+        return ""
     }
     
     // MARK: - 네트워크 체크
@@ -243,14 +246,12 @@ class ReplicateChatService {
                 깊은 공감→위로→필요시 조언→따뜻한 마무리
                 """
                 
-            case "recommendPreset":
-                return """
-                프리셋추천: \(message)
-                
-                12가지 사운드 조합 추천. 완성된 추천으로 끝내기.
-                형식: [프리셋명] Rain:값,Thunder:값,Ocean:값,Fire:값,Steam:값,WindowRain:값,Forest:값,Wind:값,Night:값,Lullaby:값,Fan:값,WhiteNoise:값
-                볼륨: 0-100
-                """
+            case "recommendPreset", "preset_recommendation":
+                return buildCachedPresetPrompt(
+                    cachedPrompt: "",
+                    emotionContext: "일반적인 편안함",
+                    useCache: false
+                )
                 
             default:
                 return """
@@ -270,7 +271,7 @@ class ReplicateChatService {
             case "diary": return 800
             case "diary_chat", "analysis_chat", "advice_chat": return 750
             case "casual_chat": return 600
-            case "recommendPreset": return 600
+            case "recommendPreset", "preset_recommendation": return 600
             default: return 750
             }
     }
@@ -322,10 +323,11 @@ class ReplicateChatService {
                 자연스러운 말투, 따뜻한 이모지 사용, 완성된 위로로 마무리.
                 """
                 
-            case "recommendPreset":
+            case "recommendPreset", "preset_recommendation":
                 return """
                 감정 기반 사운드 큐레이터.
-                정확한 형식으로 12가지 사운드 볼륨 추천, [프리셋명] 시작, 완성된 추천으로 끝내기.
+                13가지 사운드 볼륨 추천, [프리셋명] 시작, 완성된 추천으로 끝내기.
+                다중버전 사운드는 버전 명시 필수.
                 """
                 
             default:
@@ -638,7 +640,7 @@ class ReplicateChatService {
                         print("✅ (Poll) AI Advice (String): \\(stringValue)")
                         DispatchQueue.main.async { completion(stringValue) }
                     } else {
-                        print("❌ (Poll) Unexpected output type in 'succeeded' case. Type: \\(type(of: actualOutputAsAny)). Value: \\(String(describing: actualOutputAsAny))")
+                        print("❌ (Poll) Unexpected output type in 'succeeded' case: \\(type(of: actualOutputAsAny)). Value: \\(String(describing: actualOutputAsAny))")
                         DispatchQueue.main.async { completion(nil) }
                     }
                         

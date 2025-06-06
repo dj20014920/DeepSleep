@@ -126,11 +126,45 @@ class LaunchViewController: UIViewController {
             self.subtitleLabel.alpha = 1.0
         }
         
-        // 3초 후 메인 화면으로 이동
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
-                sceneDelegate.showMainInterface()
-            }
+        // 2.5초 후 메인 화면으로 이동 (사용자 경험 개선)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            self.transitionToMainInterface()
         }
+    }
+    
+    // MARK: - 안전한 화면 전환
+    private func transitionToMainInterface() {
+        // 여러 방법으로 SceneDelegate에 접근 시도 (안정성 향상)
+        if let windowScene = view.window?.windowScene,
+           let sceneDelegate = windowScene.delegate as? SceneDelegate {
+            sceneDelegate.showMainInterface()
+        } else if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
+            sceneDelegate.showMainInterface()
+        } else {
+            // 마지막 수단: 직접 화면 전환
+            print("⚠️ SceneDelegate를 찾을 수 없어 직접 화면 전환을 시도합니다")
+            fallbackTransition()
+        }
+    }
+    
+    private func fallbackTransition() {
+        guard let window = view.window else { return }
+        
+        let tabBarController = UITabBarController()
+        let mainVC = ViewController()
+        let mainNav = UINavigationController(rootViewController: mainVC)
+        mainNav.navigationBar.prefersLargeTitles = true
+        mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)
+        
+        tabBarController.viewControllers = [mainNav]
+        
+        UIView.transition(
+            with: window,
+            duration: 0.7,
+            options: .transitionCrossDissolve,
+            animations: {
+                window.rootViewController = tabBarController
+            }
+        )
     }
 }

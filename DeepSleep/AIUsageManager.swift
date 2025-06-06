@@ -1,19 +1,29 @@
 import Foundation
 
+/// AI 기능 유형을 정의하여 중앙에서 관리
+enum AIFeatureType: String {
+    case chat = "Chat"
+    case presetRecommendation = "PresetRecommendation"
+    case diaryAnalysis = "DiaryAnalysis"
+    case patternAnalysis = "PatternAnalysis"
+    case individualTodoAdvice = "IndividualTodoAdvice"
+    case overallTodoAdvice = "OverallTodoAdvice"
+}
+
 class AIUsageManager {
     static let shared = AIUsageManager()
 
     private let userDefaults = UserDefaults.standard
     
-    // 기존: 개별 할 일 조언에 대한 일일 총 한도 관리
-    private let lastIndividualAdviceDateKey = "lastAIAdviceDateKey" // 키 이름 명확화
-    private let dailyIndividualAdviceCountKey = "dailyAIAdviceCountKey" // 키 이름 명확화
-    private let dailyIndividualAdviceLimit = 2 // 기존 제한 값 유지
-
-    // 신규: 전체 할 일 목록 조언에 대한 일일 한도 관리
-    private let lastOverallAdviceDateKey = "lastOverallAIAdviceDateKey"
-    private let dailyOverallAdviceCountKey = "dailyOverallAIAdviceCountKey"
-    private let dailyOverallAdviceLimit = 2 // 사용자 요청에 따른 제한 값
+    // 각 기능별 일일 제한 횟수 설정
+    private let dailyLimits: [AIFeatureType: Int] = [
+        .chat: 50,
+        .presetRecommendation: 5,
+        .diaryAnalysis: 3,
+        .patternAnalysis: 1,
+        .individualTodoAdvice: 2,
+        .overallTodoAdvice: 2
+    ]
 
     private var dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -22,107 +32,81 @@ class AIUsageManager {
     }()
 
     private init() {
-        resetIndividualCountIfNeeded() // 함수 이름 명확화
-        resetOverallCountIfNeeded()    // 새 기능 초기화 호출
+        // 앱 시작 시 모든 기능의 사용 횟수 초기화 검사
+        AIFeatureType.allCases.forEach { resetCountIfNeeded(for: $0) }
     }
 
     private func todaysDateString() -> String {
         return dateFormatter.string(from: Date())
     }
-
-    // MARK: - 개별 할 일 조언 일일 한도 관리
     
-    /// (개별 조언) 날짜가 변경되었으면 일일 조언 횟수를 초기화합니다.
-    func resetIndividualCountIfNeeded() { // 함수 이름 명확화
+    // MARK: - 중앙 관리 로직
+
+    /// 특정 기능의 사용 횟수를 초기화합니다.
+    private func resetCountIfNeeded(for feature: AIFeatureType) {
+        let lastDateKey = "last_\(feature.rawValue)_date"
+        let countKey = "daily_\(feature.rawValue)_count"
         let todayString = todaysDateString()
-        guard let lastDateString = userDefaults.string(forKey: lastIndividualAdviceDateKey) else {
-            userDefaults.set(todayString, forKey: lastIndividualAdviceDateKey)
-            userDefaults.set(0, forKey: dailyIndividualAdviceCountKey)
+        
+        guard let lastDateString = userDefaults.string(forKey: lastDateKey) else {
+            userDefaults.set(todayString, forKey: lastDateKey)
+            userDefaults.set(0, forKey: countKey)
             return
         }
 
         if lastDateString != todayString {
-            userDefaults.set(0, forKey: dailyIndividualAdviceCountKey)
-            userDefaults.set(todayString, forKey: lastIndividualAdviceDateKey)
-            print("✨ (개별) AI 조언 횟수가 초기화되었습니다. (날짜 변경)")
+            userDefaults.set(0, forKey: countKey)
+            userDefaults.set(todayString, forKey: lastDateKey)
+            print("✨ AI 기능 [\(feature.rawValue)] 사용 횟수가 초기화되었습니다.")
         }
     }
 
-    /// (개별 조언) 오늘 남은 AI 조언 횟수를 반환합니다.
-    func getRemainingDailyIndividualAdviceCount() -> Int { // 함수 이름 명확화
-        resetIndividualCountIfNeeded()
-        let usedCount = userDefaults.integer(forKey: dailyIndividualAdviceCountKey)
-        return max(0, dailyIndividualAdviceLimit - usedCount)
+    /// 특정 기능을 오늘 더 사용할 수 있는지 확인합니다.
+    func canUse(feature: AIFeatureType) -> Bool {
+        resetCountIfNeeded(for: feature)
+        let countKey = "daily_\(feature.rawValue)_count"
+        let usedCount = userDefaults.integer(forKey: countKey)
+        let limit = dailyLimits[feature] ?? 0
+        return usedCount < limit
     }
 
-    /// (개별 조언) AI 조언을 성공적으로 사용했음을 기록합니다.
+    /// 특정 기능의 남은 사용 횟수를 반환합니다.
+    func getRemainingCount(for feature: AIFeatureType) -> Int {
+        resetCountIfNeeded(for: feature)
+        let countKey = "daily_\(feature.rawValue)_count"
+        let usedCount = userDefaults.integer(forKey: countKey)
+        let limit = dailyLimits[feature] ?? 0
+        return max(0, limit - usedCount)
+    }
+
+    /// 특정 기능의 사용을 기록합니다.
     @discardableResult
-    func recordIndividualAdviceUsed() -> Bool { // 함수 이름 명확화
-        resetIndividualCountIfNeeded()
-        let currentCount = userDefaults.integer(forKey: dailyIndividualAdviceCountKey)
+    func recordUsage(for feature: AIFeatureType) -> Bool {
+        resetCountIfNeeded(for: feature)
+        let countKey = "daily_\(feature.rawValue)_count"
+        let currentCount = userDefaults.integer(forKey: countKey)
+        let limit = dailyLimits[feature] ?? 0
         
-        if currentCount < dailyIndividualAdviceLimit {
-            userDefaults.set(currentCount + 1, forKey: dailyIndividualAdviceCountKey)
-            print("💡 (개별) AI 조언 사용 기록됨. 오늘 사용한 횟수: \(currentCount + 1)/\(dailyIndividualAdviceLimit)")
+        if currentCount < limit {
+            userDefaults.set(currentCount + 1, forKey: countKey)
+            print("💡 AI 기능 [\(feature.rawValue)] 사용 기록됨. 오늘 사용: \(currentCount + 1)/\(limit)")
             return true
         } else {
-            print("⚠️ (개별) AI 조언 횟수 초과. 더 이상 사용할 수 없습니다.")
+            print("⚠️ AI 기능 [\(feature.rawValue)] 사용 횟수 초과.")
             return false
         }
     }
     
-    /// (개별 조언 테스트용) 일일 조언 횟수를 강제로 초기화합니다.
-    func forceResetDailyIndividualCount() { // 함수 이름 명확화
-        userDefaults.set(0, forKey: dailyIndividualAdviceCountKey)
-        userDefaults.set(todaysDateString(), forKey: lastIndividualAdviceDateKey)
-        print("⚠️ 관리자에 의해 (개별) AI 조언 횟수가 강제 초기화되었습니다.")
+    /// (테스트용) 특정 기능의 사용 횟수를 강제로 초기화합니다.
+    func forceResetCount(for feature: AIFeatureType) {
+        let countKey = "daily_\(feature.rawValue)_count"
+        let lastDateKey = "last_\(feature.rawValue)_date"
+        userDefaults.set(0, forKey: countKey)
+        userDefaults.set(todaysDateString(), forKey: lastDateKey)
+        print("⚠️ 관리자에 의해 AI 기능 [\(feature.rawValue)] 사용 횟수가 강제 초기화되었습니다.")
     }
-    
-    // MARK: - 전체 할 일 목록 조언 일일 한도 관리 (신규)
-    
-    /// (전체 목록 조언) 날짜가 변경되었으면 일일 조언 횟수를 초기화합니다.
-    func resetOverallCountIfNeeded() {
-        let todayString = todaysDateString()
-        guard let lastDateString = userDefaults.string(forKey: lastOverallAdviceDateKey) else {
-            userDefaults.set(todayString, forKey: lastOverallAdviceDateKey)
-            userDefaults.set(0, forKey: dailyOverallAdviceCountKey)
-            return
-        }
+}
 
-        if lastDateString != todayString {
-            userDefaults.set(0, forKey: dailyOverallAdviceCountKey)
-            userDefaults.set(todayString, forKey: lastOverallAdviceDateKey)
-            print("✨ (전체 목록) AI 조언 횟수가 초기화되었습니다. (날짜 변경)")
-        }
-    }
+// CaseIterable 추가
+extension AIFeatureType: CaseIterable {} 
 
-    /// (전체 목록 조언) 오늘 남은 AI 조언 횟수를 반환합니다.
-    func getRemainingDailyOverallAdviceCount() -> Int {
-        resetOverallCountIfNeeded()
-        let usedCount = userDefaults.integer(forKey: dailyOverallAdviceCountKey)
-        return max(0, dailyOverallAdviceLimit - usedCount)
-    }
-
-    /// (전체 목록 조언) AI 조언을 성공적으로 사용했음을 기록합니다.
-    @discardableResult
-    func recordOverallAdviceUsed() -> Bool {
-        resetOverallCountIfNeeded()
-        let currentCount = userDefaults.integer(forKey: dailyOverallAdviceCountKey)
-        
-        if currentCount < dailyOverallAdviceLimit {
-            userDefaults.set(currentCount + 1, forKey: dailyOverallAdviceCountKey)
-            print("💡 (전체 목록) AI 조언 사용 기록됨. 오늘 사용한 횟수: \(currentCount + 1)/\(dailyOverallAdviceLimit)")
-            return true
-        } else {
-            print("⚠️ (전체 목록) AI 조언 횟수 초과. 더 이상 사용할 수 없습니다.")
-            return false
-        }
-    }
-    
-    /// (전체 목록 조언 테스트용) 일일 조언 횟수를 강제로 초기화합니다.
-    func forceResetDailyOverallCount() {
-        userDefaults.set(0, forKey: dailyOverallAdviceCountKey)
-        userDefaults.set(todaysDateString(), forKey: lastOverallAdviceDateKey)
-        print("⚠️ 관리자에 의해 (전체 목록) AI 조언 횟수가 강제 초기화되었습니다.")
-    }
-} 

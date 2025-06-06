@@ -333,28 +333,27 @@ class ChatBubbleCell: UITableViewCell {
         clearOptionActions() // ✅ 옵션 액션들 초기화
         stopLoadingAnimation() // ✅ 기존 로딩 애니메이션 정지
 
-        switch message {
-        case .user(let text):
-            configureUserMessage(text)
-        case .bot(let text):
-            configureBotMessage(text)
+        switch message.type {
+        case .user:
+            configureUserMessage(message.text)
+        case .bot:
+            configureBotMessage(message.text)
         case .loading: // ✅ 로딩 케이스 처리
             configureLoadingMessage()
-        case .presetRecommendation(_, let msg, let action):
-            configurePresetMessage(msg, action: action)
-        case .postPresetOptions(let presetName, let onSave, let onFeedback, let onGoToMain, let onContinueChat):
-            // ✅ 새로운 postPresetOptions 케이스 처리
-            configurePostPresetOptions(
-                presetName: presetName,
-                onSave: onSave,
-                onFeedback: onFeedback,
-                onGoToMain: onGoToMain,
-                onContinueChat: onContinueChat
-            )
+        case .error:
+            configureBotMessage(message.text) // 에러 메시지도 봇 스타일로 표시
+        case .presetRecommendation:
+            configurePresetMessage(message.text) {
+                message.onApplyPreset?()
+            }
+        case .presetOptions:
+            configureBotMessage(message.text) // 프리셋 옵션도 봇 스타일로 표시
+        case .postPresetOptions:
+            configureBotMessage(message.text) // 포스트 프리셋 옵션도 봇 스타일로 표시
         }
         
         // 애니메이션 효과 (로딩이 아닐 때만)
-        if case .loading = message {
+        if message.type == .loading {
             // 로딩일 때는 애니메이션 효과 없음
         } else {
             bubbleView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
@@ -481,6 +480,9 @@ class ChatBubbleCell: UITableViewCell {
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
         
+        // 🆕 프리셋 형식 정보 숨기고 설명 부분만 표시
+        let displayMessage = extractDescriptionFromPresetMessage(msg)
+        
         // 프리셋 추천 메시지 스타일 - 다크모드에서 오렌지 계열
         let presetMessageColor = UIColor { traitCollection in
             switch traitCollection.userInterfaceStyle {
@@ -493,7 +495,7 @@ class ChatBubbleCell: UITableViewCell {
         
         bubbleView.backgroundColor = presetMessageColor
         messageLabel.textColor = .white
-        messageLabel.text = msg
+        messageLabel.text = displayMessage  // 🆕 수정된 메시지 사용
         messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
         
         // 왼쪽 정렬 + 버튼 표시
@@ -536,6 +538,42 @@ class ChatBubbleCell: UITableViewCell {
         
         // 맥동 효과 (선택적)
         addPulseAnimation()
+    }
+    
+    // 🆕 프리셋 메시지에서 설명 부분만 추출하는 메서드
+    private func extractDescriptionFromPresetMessage(_ message: String) -> String {
+        // 1. 프리셋 이름 추출
+        let presetName = extractPresetName(from: message)
+        
+        // 2. ] 이후의 텍스트에서 간단한 설명 찾기
+        if let endBracket = message.range(of: "]") {
+            let afterBracket = String(message[endBracket.upperBound...])
+            
+            // 3. 모든 볼륨 설정과 특수 문자들을 제거하고 깔끔한 설명만 추출
+            let cleanText = afterBracket
+                .replacingOccurrences(of: "[가-힣a-zA-Z0-9\\s]*:\\d+", with: "", options: .regularExpression)  // 볼륨 설정 제거
+                .replacingOccurrences(of: ",+", with: "", options: .regularExpression)  // 연속된 쉼표 제거
+                .replacingOccurrences(of: "\\([^)]*\\)", with: "", options: .regularExpression)  // 괄호 내용 제거
+                .replacingOccurrences(of: "[\\w가-힣]+-", with: "", options: .regularExpression)  // 하이픈 단어 제거
+                .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)  // 중복 공백 정리
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 4. 의미있는 설명이 있으면 사용, 없으면 기본 메시지
+            if !cleanText.isEmpty && cleanText.count > 5 && !cleanText.contains(":") {
+                return "🎵 [\(presetName)] \(cleanText)"
+            }
+        }
+        
+        // 5. 설명이 없거나 추출 실패 시 기본 메시지
+        return "🎵 [\(presetName)] 이 프리셋으로 편안한 시간을 보내보세요. 🌙"
+    }
+    
+    // 🆕 프리셋 이름 추출 헬퍼 메서드
+    private func extractPresetName(from message: String) -> String {
+        if let nameMatch = message.range(of: "\\[(.+?)\\]", options: .regularExpression) {
+            return String(message[nameMatch]).trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        }
+        return "맞춤 추천"
     }
     
     // ✅ 새로운 postPresetOptions 구성 메서드

@@ -249,15 +249,16 @@ class CachedConversationManager {
         
         // ArraySlice를 Array로 변환하여 compactMap 호출
         return Array(todayMessages.suffix(5)).compactMap { (message: ChatMessage) -> String? in
-            switch message {
-            case .user(let text):
-                return "사용자: \(text)"
-            case .bot(let text):
-                return "AI: \(text)"
+            switch message.type {
+            case .user:
+                return "사용자: \(message.text)"
+            case .bot:
+                return "AI: \(message.text)"
             case .loading:
                 return nil // 로딩 메시지는 캐시에 포함하지 않음
-            case .presetRecommendation(let presetName, let msg, _):
+            case .presetRecommendation:
                 // 다양한 프리셋 추천 형식 사용
+                let presetName = message.presetName ?? "추천 프리셋"
                 let recommendationFormats = [
                     "🎵 \(presetName)",
                     "✨ \(presetName) 추천",
@@ -267,7 +268,10 @@ class CachedConversationManager {
                 ]
                 let randomFormat = recommendationFormats.randomElement() ?? "🎵 \(presetName)"
                 return randomFormat
-            case .postPresetOptions(let presetName, _, _, _, _):
+            case .error:
+                return "시스템: \(message.text)"
+            case .presetOptions, .postPresetOptions:
+                let presetName = message.presetName ?? "프리셋"
                 return "시스템 (프리셋 옵션): \(presetName)"
             }
         }
@@ -310,22 +314,20 @@ class CachedConversationManager {
     
     private func createDailySummary(messages: [ChatMessage], date: Date) -> String {
         let userMessages = messages.compactMap { message in
-            switch message {
-            case .user(let text):
-                return text
-            case .bot, .presetRecommendation, .postPresetOptions, .loading:
+            switch message.type {
+            case .user:
+                return message.text
+            default:
                 // ✅ 다른 케이스들은 사용자 메시지가 아니므로 nil 반환
                 return nil
             }
         }
         
         let botMessages = messages.compactMap { message in
-            switch message {
-            case .bot(let text):
-                return text
-            case .presetRecommendation(_, let msg, _):
-                return msg
-            case .user, .postPresetOptions, .loading:
+            switch message.type {
+            case .bot, .presetRecommendation:
+                return message.text
+            default:
                 // ✅ 사용자 메시지와 옵션 메시지, 로딩 메시지는 bot 메시지가 아니므로 nil 반환
                 return nil
             }
@@ -361,22 +363,20 @@ class CachedConversationManager {
     
     private func analyzeWeeklyMessages(_ messages: [ChatMessage]) -> WeeklyMemory {
         let userTexts = messages.compactMap { message in
-            switch message {
-            case .user(let text):
-                return text
-            case .bot, .presetRecommendation, .postPresetOptions, .loading:
+            switch message.type {
+            case .user:
+                return message.text
+            default:
                 // ✅ 사용자 텍스트가 아닌 경우 nil 반환
                 return nil
             }
         }
         
         let aiTexts = messages.compactMap { message in
-            switch message {
-            case .bot(let text):
-                return text
-            case .presetRecommendation(_, let msg, _):
-                return msg
-            case .user, .postPresetOptions, .loading:
+            switch message.type {
+            case .bot, .presetRecommendation:
+                return message.text
+            default:
                 // ✅ AI 텍스트가 아닌 경우 nil 반환
                 return nil
             }

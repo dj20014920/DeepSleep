@@ -289,10 +289,11 @@ class PresetListViewController: UITableViewController {
             guard let newName = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !newName.isEmpty else { return }
 
-            // 새 프리셋 생성하고 기존 것 삭제
+            // 새 프리셋 생성하고 기존 것 삭제 (버전 정보 유지)
             let newPreset = SoundPreset(
                 name: newName,
                 volumes: oldPreset.volumes,
+                selectedVersions: oldPreset.selectedVersions ?? SoundPresetCatalog.defaultVersions,
                 emotion: oldPreset.emotion,
                 isAIGenerated: oldPreset.isAIGenerated,
                 description: oldPreset.description
@@ -501,7 +502,7 @@ class PresetListViewController: UITableViewController {
             let preset = SoundPreset(
                 name: shareablePreset.name,
                 volumes: shareablePreset.volumes,
-                selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersionSelection,
+                selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersions,
                 emotion: shareablePreset.emotion,
                 isAIGenerated: false,
                 description: "공유받은 프리셋"
@@ -553,7 +554,7 @@ class PresetListViewController: UITableViewController {
         }
         
         // 기본 버전 배열 생성
-        var versions = SoundPresetCatalog.defaultVersionSelection
+        var versions = SoundPresetCatalog.defaultVersions
         
         // 비트마스크 디코딩
         if versionBits & 1 != 0 { versions[4] = 1 }  // 비 V2

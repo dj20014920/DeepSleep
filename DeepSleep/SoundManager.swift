@@ -59,19 +59,21 @@ final class SoundManager {
         return players.filter { $0.isPlaying && $0.volume > 0 }.count
     }
 
-    /// 11개 사운드 카테고리 (이모지 + 다중 버전)
+    /// 13개 사운드 카테고리 (이모지 + 다중 버전)
     private let soundCategories: [SoundCategory] = [
         SoundCategory(emoji: "🐱", name: "고양이", files: ["고양이.mp3"]),
-        SoundCategory(emoji: "💨", name: "바람", files: ["바람.mp3"]),
-        SoundCategory(emoji: "🌙", name: "밤", files: ["밤.mp3"]),
-        SoundCategory(emoji: "🔥", name: "불", files: ["불1.mp3"]),
+        SoundCategory(emoji: "💨", name: "바람", files: ["바람.mp3", "바람2.mp3"]),
+        SoundCategory(emoji: "🌙", name: "밤", files: ["밤.mp3", "밤2.mp3"]),
+        SoundCategory(emoji: "🔥", name: "불1", files: ["불1.mp3"]),
         SoundCategory(emoji: "🌧️", name: "비", files: ["비.mp3", "비-창문.mp3"]),
         SoundCategory(emoji: "🏞️", name: "시냇물", files: ["시냇물.mp3"]),
         SoundCategory(emoji: "✏️", name: "연필", files: ["연필.mp3"]),
         SoundCategory(emoji: "🌌", name: "우주", files: ["우주.mp3"]),
         SoundCategory(emoji: "🌀", name: "쿨링팬", files: ["쿨링팬.mp3"]),
         SoundCategory(emoji: "⌨️", name: "키보드", files: ["키보드1.mp3", "키보드2.mp3"]),
-        SoundCategory(emoji: "🌊", name: "파도", files: ["파도.mp3"])
+        SoundCategory(emoji: "🌊", name: "파도", files: ["파도.mp3", "파도2.mp3"]),
+        SoundCategory(emoji: "🐦", name: "새", files: ["새.mp3", "새-비.mp3"]),
+        SoundCategory(emoji: "❄️", name: "발걸음-눈", files: ["발걸음-눈.mp3", "발걸음-눈2.mp3"])
     ]
     
     // MARK: - 현재 선택된 버전 추적
@@ -602,19 +604,21 @@ final class SoundManager {
     // MARK: - 재생 상태 변경에 따른 NowPlayingInfo 업데이트
 
     /// 특정 카테고리의 볼륨을 설정하고 NowPlayingInfo를 업데이트합니다.
-    func setVolume(for categoryIndex: Int, volume: Float) {
-        guard categoryIndex >= 0, categoryIndex < players.count else { return }
+    /// 🆕 ChatViewController+Actions.swift와의 호환성을 위해 파라미터 이름을 index로 통일
+    func setVolume(for index: Int, volume: Float) {
+        guard index >= 0, index < players.count else { return }
         
         let newVolume = max(0, min(1, volume)) // 0.0 ~ 1.0
-        players[categoryIndex].volume = newVolume
+        players[index].volume = newVolume
         
-        if newVolume > 0 && !players[categoryIndex].isPlaying {
-            players[categoryIndex].play()
-        } else if newVolume == 0 && players[categoryIndex].isPlaying {
+        if newVolume > 0 && !players[index].isPlaying {
+            players[index].play()
+        } else if newVolume == 0 && players[index].isPlaying {
             // 볼륨이 0이 되면 실질적으로 멈춘 것으로 간주 (선택적: 완전히 stop() 할 수도 있음)
-            // players[categoryIndex].pause() // 또는 stop()
+            // players[index].pause() // 또는 stop()
         }
         updateNowPlayingPlaybackStatus() // 재생 상태 변경 시 항상 호출
+        print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → \(volume)")
     }
 
     /// 모든 플레이어를 정지시키고 NowPlayingInfo를 업데이트합니다.
@@ -865,6 +869,12 @@ final class SoundManager {
         UserDefaults.standard.set(currentAudioMode.rawValue, forKey: audioModeKey)
         UserDefaults.standard.synchronize()
         print("💾 [Settings] 오디오 모드 저장됨: \(currentAudioMode.displayName)")
+    }
+
+    // 🆕 현재 볼륨 값 가져오기 (0.0 ~ 1.0 범위)
+    func getVolume(for index: Int) -> Float {
+        guard index >= 0, index < players.count else { return 0.0 }
+        return players[index].volume
     }
 }
 

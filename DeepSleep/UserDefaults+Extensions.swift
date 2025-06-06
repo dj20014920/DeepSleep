@@ -127,13 +127,14 @@ extension UserDefaults {
     func saveDailyMessages(_ messages: [ChatMessage], for date: Date) -> Bool {
         let dateKey = formatDateKey(date)
         let dictionaries = messages.map { $0.toDictionary() }
-        return safeSetObject(dictionaries, forKey: "daily_\(dateKey)")
+        set(dictionaries, forKey: "daily_\(dateKey)")
+        return true
     }
     
     /// 일일 메시지 로드
     func loadDailyMessages(for date: Date) -> [ChatMessage] {
         let dateKey = formatDateKey(date)
-        guard let dictionaries: [[String: String]] = safeObject([[String: String]].self, forKey: "daily_\(dateKey)") else {
+        guard let dictionaries = array(forKey: "daily_\(dateKey)") as? [[String: Any]] else {
             return []
         }
         return dictionaries.compactMap { ChatMessage.from(dictionary: $0) }

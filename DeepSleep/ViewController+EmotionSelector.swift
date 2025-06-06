@@ -16,12 +16,16 @@ extension ViewController {
         hashtagButton.setAttributedTitle(attributedTitle, for: .normal)
         hashtagButton.addTarget(self, action: #selector(hashtagTapped), for: .touchUpInside)
         hashtagButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 접근성 및 사용자 가이던스 개선
+        hashtagButton.accessibilityLabel = "오늘의 기분"
+        hashtagButton.accessibilityHint = "AI와 대화하며 나의 감정을 표현해보세요"
 
         let emojiButtons = emojis.enumerated().map { idx, emoji in
             let btn = UIButton(type: .system)
             btn.setTitle(emoji, for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 24)
-            btn.tag = idx
+            btn.tag = 1000 + idx  // 카테고리 버튼과 구분하기 위해 1000번대 사용
             btn.addTarget(self, action: #selector(emojiTapped(_:)), for: .touchUpInside)
             return btn
         }
@@ -50,55 +54,22 @@ extension ViewController {
         let chatVC = ChatViewController()
         chatVC.initialUserText = nil
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-            self?.applyPreset(volumes: preset.volumes, name: preset.presetName, shouldSaveToRecent: true)
+            self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }
 
     @objc func emojiTapped(_ sender: UIButton) {
-        let selectedEmoji = emojis[sender.tag]
+        let emojiIndex = sender.tag - 1000  // 1000번대에서 실제 인덱스로 변환
+        let selectedEmoji = emojis[emojiIndex]
         
-        // EmotionResponseManager를 사용하여 하드코딩된 응답 가져오기
-        if let emotionResponse = EmotionResponseManager.shared.getRandomResponse(for: selectedEmoji) {
-            let randomPreset = emotionResponse.randomPreset
-            let randomMessage = emotionResponse.randomMessage
-            
-            // 프리셋 직접 적용
-            applyPreset(volumes: randomPreset.floatVolumes, name: randomPreset.name, shouldSaveToRecent: true)
-            
-            // 사용자에게 메시지 표시
-            showEmotionResponseAlert(message: randomMessage, presetName: randomPreset.name)
-        } else {
-            // 기본 ChatViewController로 이동 (fallback)
-            let chatVC = ChatViewController()
-            chatVC.initialUserText = selectedEmoji
-            chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-                self?.applyPreset(volumes: preset.volumes, name: preset.presetName, shouldSaveToRecent: true)
-            }
-            navigationController?.pushViewController(chatVC, animated: true)
+        // 바로 AI 대화창으로 이동
+        let chatVC = ChatViewController()
+        chatVC.initialUserText = selectedEmoji
+        chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
+            self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)
         }
+        navigationController?.pushViewController(chatVC, animated: true)
     }
-    
-    // 감정 응답 메시지를 보여주는 알림
-    private func showEmotionResponseAlert(message: String, presetName: String) {
-        let alert = UIAlertController(
-            title: "🎵 프리셋 적용됨",
-            message: "\(message)\n\n적용된 프리셋: \(presetName)",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        
-        // AI 대화 옵션 추가
-        alert.addAction(UIAlertAction(title: "AI와 더 대화하기", style: .default) { [weak self] _ in
-            let chatVC = ChatViewController()
-            chatVC.initialUserText = nil
-            chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-                self?.applyPreset(volumes: preset.volumes, name: preset.presetName, shouldSaveToRecent: true)
-            }
-            self?.navigationController?.pushViewController(chatVC, animated: true)
-        })
-        
-        present(alert, animated: true)
-    }
+
 }

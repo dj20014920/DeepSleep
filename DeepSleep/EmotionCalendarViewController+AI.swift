@@ -5,7 +5,7 @@ extension EmotionCalendarViewController {
     
     // MARK: - AI Analysis Implementation
     func showAIAnalysisAlert() {
-        let remainingCount = SettingsManager.shared.getRemainingPatternAnalysisToday()
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .patternAnalysis)
             
         guard remainingCount > 0 else {
             let limitAlert = UIAlertController(

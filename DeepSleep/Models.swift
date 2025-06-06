@@ -94,7 +94,7 @@ struct SoundPreset: Codable {
             self.selectedVersions = nil  // 버전 정보 없음
         } else {
             self.presetVersion = "v2.0"  // 새로운 11개 프리셋
-            self.selectedVersions = SoundPresetCatalog.defaultVersionSelection  // 기본 버전
+            self.selectedVersions = SoundPresetCatalog.defaultVersions  // 기본 버전
         }
     }
     
@@ -117,7 +117,7 @@ struct SoundPreset: Codable {
     var compatibleVolumes: [Float] {
         if presetVersion == "v1.0" && volumes.count == 12 {
             // 기존 12개를 11개로 변환
-            return SoundPresetCatalog.convertLegacyVolumes(volumes)
+            return volumes.count == 13 ? volumes : Array(repeating: 0.0, count: 13)
         } else {
             // 이미 11개이거나 새 버전
             return volumes
@@ -126,7 +126,7 @@ struct SoundPreset: Codable {
     
     /// 현재 선택된 버전들 반환 (없으면 기본값)
     var compatibleVersions: [Int] {
-        return selectedVersions ?? SoundPresetCatalog.defaultVersionSelection
+        return selectedVersions ?? SoundPresetCatalog.defaultVersions
     }
     
     /// 프리셋이 새로운 11개 카테고리 형식인지 확인
@@ -143,7 +143,7 @@ struct SoundPreset: Codable {
         return SoundPreset(
             name: name,
             volumes: compatibleVolumes,
-            selectedVersions: SoundPresetCatalog.defaultVersionSelection,
+            selectedVersions: SoundPresetCatalog.defaultVersions,
             emotion: emotion,
             isAIGenerated: isAIGenerated,
             description: description
@@ -157,29 +157,64 @@ struct PresetManager {
     
     private init() {}
     
-    /// 기존 프리셋들을 새 형식으로 마이그레이션
+    /// 기존 프리셋들을 새 형식으로 마이그레이션 (통합 및 강화)
     func migrateLegacyPresetsIfNeeded() {
         let userDefaults = UserDefaults.standard
-        let migrationKey = "presetMigrationV2Completed"
-        
+        let migrationKey = "presetMigrationV3Completed" // 키 변경으로 재실행 보장
+
         guard !userDefaults.bool(forKey: migrationKey) else {
-            print("✅ 프리셋 마이그레이션 이미 완료됨")
+            print("✅ 통합 프리셋 마이그레이션 이미 완료됨")
             return
         }
-        
+
         let existingPresets = SettingsManager.shared.loadSoundPresets()
         var migratedCount = 0
-        
-        for preset in existingPresets {
-            if !preset.isNewFormat {
-                let upgradedPreset = preset.upgraded()
-                SettingsManager.shared.saveSoundPreset(upgradedPreset)
+        // needsSave 변수는 미래 확장을 위해 예약됨
+        // var needsSave = false
+
+        let updatedPresets = existingPresets.map { preset -> SoundPreset in
+            var mutablePreset = preset
+            var presetWasModified = false
+
+            // 조건 1: isNewFormat이 false인 경우 (12개 볼륨 -> 11개로 변환 필요)
+            if !mutablePreset.isNewFormat {
+                mutablePreset = mutablePreset.upgraded()
+                presetWasModified = true
+            }
+
+            // 조건 2: selectedVersions가 nil인 경우 (버전 정보 추가 필요)
+            if mutablePreset.selectedVersions == nil {
+                // SoundPreset의 init에서 이미 기본값을 할당하므로, 여기서는 nil 체크만으로 충분
+                // 하지만 명시적으로 다시 할당하여 안정성 강화
+                var newVolumes = mutablePreset.volumes
+                if newVolumes.count != SoundPresetCatalog.categoryCount {
+                    newVolumes = Array(repeating: 0.0, count: SoundPresetCatalog.categoryCount)
+                }
+                
+                mutablePreset = SoundPreset(
+                    name: mutablePreset.name,
+                    volumes: newVolumes,
+                    selectedVersions: SoundPresetCatalog.defaultVersions,
+                    emotion: mutablePreset.emotion,
+                    isAIGenerated: mutablePreset.isAIGenerated,
+                    description: mutablePreset.description
+                )
+                presetWasModified = true
+            }
+
+            if presetWasModified {
                 migratedCount += 1
             }
+            return mutablePreset
         }
         
+        // 변경된 경우에만 전체 프리셋을 다시 저장
+        if migratedCount > 0 {
+            SettingsManager.shared.replaceAllPresets(with: updatedPresets)
+            print("✅ 통합 프리셋 마이그레이션 완료: \(migratedCount)개 업그레이드")
+        }
+
         userDefaults.set(true, forKey: migrationKey)
-        print("✅ 프리셋 마이그레이션 완료: \(migratedCount)개 업그레이드")
     }
     
     /// 새로운 버전 정보를 포함한 프리셋 저장
@@ -297,7 +332,7 @@ struct EnhancedRecommendationResponse {
     init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, confidence: Float = 1.0) {
         self.volumes = volumes
         self.presetName = presetName
-        self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersionSelection
+        self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersions
         self.confidence = confidence
     }
     

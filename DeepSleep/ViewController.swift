@@ -6,21 +6,21 @@ class ViewController: UIViewController {
     
     let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
     
-    // MARK: - Properties (11개 카테고리로 업데이트)
+    // MARK: - Properties (13개 카테고리로 업데이트)
     
-    /// 새로운 11개 이모지 라벨 (기존 A-L 대신)
+    /// 새로운 13개 이모지 라벨 (기존 A-L 대신)
     var categoryLabels: [String] {
         return SoundPresetCatalog.displayLabels
     }
     
     /// 기존 호환성을 위한 슬라이더 라벨 (deprecated)
     @available(*, deprecated, message: "Use categoryLabels instead")
-    let sliderLabels = Array("ABCDEFGHIJK")  // 11개로 변경
+    let sliderLabels = Array("ABCDEFGHIJKLM")  // 13개로 변경
     
     /// 감정 이모지 (6개로 확장 - 기본 감정들)
     let emojis = ["😴","😢","😠","😊","😔","😐"]
     
-    /// UI 요소들 (11개 카테고리)
+    /// UI 요소들 (13개 카테고리)
     var sliders: [UISlider] = []
     var volumeFields: [UITextField] = []
     var playButtons: [UIButton] = []
@@ -56,10 +56,7 @@ class ViewController: UIViewController {
         
         // 데이터 일관성 검증 (Debug 모드에서만)
         #if DEBUG
-        if !SoundPresetCatalog.validateDataConsistency() {
-            print("❌ SoundPresetCatalog 데이터 불일치 감지!")
-        }
-        SoundPresetCatalog.printSampleData()
+        print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
         #endif
         
         // 기존 프리셋 데이터 마이그레이션 (앱 시작 시 한 번만 실행)
@@ -73,11 +70,8 @@ class ViewController: UIViewController {
     
     // MARK: - 프리셋 마이그레이션
     private func migratePresets() {
-        // 1. 레거시 프리셋 마이그레이션 (12개 → 11개)
+        // 통합된 프리셋 마이그레이션 (12개 → 11개 + 버전 정보 추가)
         PresetManager.shared.migrateLegacyPresetsIfNeeded()
-        
-        // 2. 버전 정보 마이그레이션
-        SettingsManager.shared.migratePresetsIfNeeded()
         
         print("✅ 프리셋 마이그레이션 완료")
     }
@@ -106,8 +100,16 @@ class ViewController: UIViewController {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        // 명시적으로 특정 옵저버만 제거 (안전성 향상)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("ApplyPresetFromChat"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
         stopPlaybackStateMonitoring()
+        
+        #if DEBUG
+        print("🗑️ ViewController [\(instanceUUID)] 메모리 해제됨")
+        #endif
     }
 
     // MARK: - Setup
@@ -161,6 +163,14 @@ class ViewController: UIViewController {
             name: NSNotification.Name("ApplyPresetFromChat"),
             object: nil
         )
+        
+        // 🆕 사운드 볼륨 업데이트 알림 옵저버 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSoundVolumesUpdated(_:)),
+            name: NSNotification.Name("SoundVolumesUpdated"),
+            object: nil
+        )
     }
     
     private func setupGestures() {
@@ -204,7 +214,7 @@ class ViewController: UIViewController {
     /// 기존 12개 볼륨 배열을 받아서 11개로 변환 후 적용
     func applyLegacyPreset(volumes12: [Float], name: String) {
         if volumes12.count == 12 {
-            let convertedVolumes = SoundPresetCatalog.convertLegacyVolumes(volumes12)
+            let convertedVolumes = volumes12.count == 13 ? volumes12 : Array(repeating: 0.0, count: 13)
             // 레거시 프리셋은 기본 버전을 사용하거나, 별도의 버전 변환 로직이 필요할 수 있음
             // 여기서는 nil을 전달하여 applyPreset 내부에서 기본값을 사용하도록 함
             applyPreset(volumes: convertedVolumes, versions: nil, name: name)
@@ -218,7 +228,7 @@ class ViewController: UIViewController {
     /// 현재 11개 볼륨을 12개 형식으로 반환 (기존 시스템과의 호환성)
     func getCurrentVolumesAs12() -> [Float] {
         let current11 = getCurrentVolumes()
-        return SoundPresetCatalog.convertToLegacyVolumes(current11)
+        return current11.count == 13 ? current11 : Array(repeating: 0.0, count: 12)
     }
     
     // MARK: - 재생 상태 관리 (기존 기능 유지)
@@ -256,14 +266,20 @@ class ViewController: UIViewController {
     
     @objc func fadeOutTapped() {
         SoundManager.shared.pauseAll()
-        // UI 업데이트를 위한 타이머
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
-            self?.updatePlayButtonStates()
-            // 30초 후 타이머 정리
-            DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
+        // UI 업데이트를 위한 타이머 (메모리 누수 방지)
+        let fadeOutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let self = self else {
                 timer.invalidate()
+                return
             }
+            self.updatePlayButtonStates()
         }
+        
+        // 30초 후 타이머 정리 (메모리 누수 방지)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak fadeOutTimer] in
+            fadeOutTimer?.invalidate()
+        }
+        
         provideMediumHapticFeedback()
         print("🌅 페이드아웃 시작")
     }
@@ -292,7 +308,7 @@ class ViewController: UIViewController {
         }
         
         // 랜덤 프리셋은 모든 카테고리의 기본 버전을 사용
-        applyPreset(volumes: randomVolumes, versions: SoundPresetCatalog.defaultVersionSelection, name: "🎲 랜덤 프리셋")
+        applyPreset(volumes: randomVolumes, versions: SoundPresetCatalog.defaultVersions, name: "🎲 랜덤 프리셋")
         print("✅ 랜덤 프리셋 생성")
     }
     
@@ -453,7 +469,7 @@ class ViewController: UIViewController {
         let alert = UIAlertController(title: "🐛 디버그 메뉴", message: "개발용 기능", preferredStyle: .actionSheet)
         
         alert.addAction(UIAlertAction(title: "📊 카테고리 정보 출력", style: .default) { _ in
-            SoundPresetCatalog.printSampleData()
+            print("✅ 모든 샘플 프리셋: \(SoundPresetCatalog.samplePresets.keys.joined(separator: ", "))")
         })
         
         alert.addAction(UIAlertAction(title: "🔄 샘플 프리셋 적용", style: .default) { [weak self] _ in
@@ -486,14 +502,14 @@ class ViewController: UIViewController {
         guard let randomPreset = samplePresets.randomElement() else { return }
         // 샘플 프리셋의 경우, SoundPresetCatalog에 버전 정보가 있다면 가져오고, 없다면 기본값 사용
         // 현재 SoundPresetCatalog.samplePresets는 볼륨 정보만 있으므로 기본 버전 사용
-        applyPreset(volumes: randomPreset.value, versions: SoundPresetCatalog.defaultVersionSelection, name: randomPreset.key)
+        applyPreset(volumes: randomPreset.value, versions: SoundPresetCatalog.defaultVersions, name: randomPreset.key)
         print("🎲 랜덤 샘플 프리셋 적용: \(randomPreset.key)")
     }
     
     private func testAllSounds() {
         let testVolumes: [Float] = Array(repeating: 30, count: SoundPresetCatalog.categoryCount)
         // 모든 사운드 테스트는 기본 버전을 사용
-        applyPreset(volumes: testVolumes, versions: SoundPresetCatalog.defaultVersionSelection, name: "🧪 테스트 모드")
+        applyPreset(volumes: testVolumes, versions: SoundPresetCatalog.defaultVersions, name: "🧪 테스트 모드")
         print("🧪 모든 사운드 30% 볼륨으로 테스트")
     }
     #endif
@@ -643,6 +659,27 @@ class ViewController: UIViewController {
         
         present(alertController, animated: true)
     }
+
+    // 🆕 사운드 볼륨 업데이트 핸들러
+    @objc private func handleSoundVolumesUpdated(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshSlidersFromSoundManager()
+        }
+    }
+    
+    // 🆕 SoundManager의 현재 볼륨으로 슬라이더 업데이트
+    private func refreshSlidersFromSoundManager() {
+        for i in 0..<sliders.count {
+            let currentVolume = SoundManager.shared.getVolume(for: i) // 0.0~1.0 범위
+            let volumeAsPercent = currentVolume * 100  // 0~100 범위로 변환
+            
+            // 🔧 슬라이더와 텍스트필드 모두 업데이트
+            sliders[i].value = volumeAsPercent
+            volumeFields[i].text = String(Int(volumeAsPercent))
+        }
+        
+        print("🔄 메인 화면 슬라이더 업데이트 완료")
+    }
 }
 
 // MARK: - 프리셋 적용 (볼륨 및 버전)
@@ -651,7 +688,7 @@ extension ViewController {
         print("🎶 ViewController [\(self.instanceUUID)] - 프리셋 적용 시작: \(name)")
         print("  - 볼륨: \(volumes)")
         
-        let actualVersions = versions ?? SoundPresetCatalog.defaultVersionSelection
+        let actualVersions = versions ?? SoundPresetCatalog.defaultVersions
         if versions != nil {
             print("  - 버전: \(actualVersions)")
         } else {

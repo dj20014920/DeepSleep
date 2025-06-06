@@ -2,55 +2,65 @@
 
 import Foundation
 
-// MARK: - ChatMessage enum (기존 + 새로운 케이스 추가)
-enum ChatMessage {
-    case user(String)
-    case bot(String)
+/// 채팅 메시지 타입을 정의하는 열거형
+enum ChatMessageType: String, Codable {
+    case user
+    case bot
+    case presetRecommendation
     case loading
-    case presetRecommendation(presetName: String, message: String, apply: () -> Void)
-    case postPresetOptions(
-        presetName: String,
-        onSave: () -> Void,
-        onFeedback: () -> Void,
-        onGoToMain: () -> Void,
-        onContinueChat: () -> Void
-    )
+    case error
+    case presetOptions
+    case postPresetOptions
+}
 
-    func toDictionary() -> [String: String] {
-        switch self {
-        case .user(let msg):
-            return ["type": "user", "text": msg]
-        case .bot(let msg):
-            return ["type": "bot", "text": msg]
-        case .loading:
-            return ["type": "loading", "text": ""]
-        case .presetRecommendation(let presetName, let msg, _):
-            return ["type": "preset", "text": msg, "presetName": presetName]
-        case .postPresetOptions(let presetName, _, _, _, _):
-            return ["type": "postPresetOptions", "text": "프리셋 옵션", "presetName": presetName]
-        }
+/// 채팅 메시지를 나타내는 구조체
+struct ChatMessage: Codable, Identifiable {
+    let id = UUID()
+    let type: ChatMessageType
+    let text: String
+    let presetName: String?
+    
+    // 코딩에 포함되지 않는 클로저 프로퍼티
+    var onApplyPreset: (() -> Void)?
+    var onSavePreset: (() -> Void)?
+    var onFeedback: (() -> Void)?
+    var onContinueChat: (() -> Void)?
+    var onRetry: (() -> Void)?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, text, presetName
     }
-
-    static func from(dictionary: [String: String]) -> ChatMessage? {
-        guard let type = dictionary["type"], let text = dictionary["text"] else { return nil }
-        switch type {
-        case "user": return .user(text)
-        case "bot": return .bot(text)
-        case "loading": return nil
-        case "preset":
-            let name = dictionary["presetName"] ?? "추천 프리셋"
-            return .presetRecommendation(presetName: name, message: text, apply: {})
-        case "postPresetOptions":
-            let name = dictionary["presetName"] ?? "적용된 프리셋"
-            return .postPresetOptions(
-                presetName: name,
-                onSave: {},
-                onFeedback: {},
-                onGoToMain: {},
-                onContinueChat: {}
-            )
-        default: return nil
+    
+    init(type: ChatMessageType, text: String, presetName: String? = nil) {
+        self.type = type
+        self.text = text
+        self.presetName = presetName
+    }
+    
+    // MARK: - Dictionary Conversion Methods
+    
+    /// ChatMessage를 딕셔너리로 변환
+    func toDictionary() -> [String: Any] {
+        var dict: [String: Any] = [
+            "type": type.rawValue,
+            "text": text
+        ]
+        if let presetName = presetName {
+            dict["presetName"] = presetName
         }
+        return dict
+    }
+    
+    /// 딕셔너리에서 ChatMessage 생성
+    static func from(dictionary: [String: Any]) -> ChatMessage? {
+        guard let typeString = dictionary["type"] as? String,
+              let type = ChatMessageType(rawValue: typeString),
+              let text = dictionary["text"] as? String else {
+            return nil
+        }
+        
+        let presetName = dictionary["presetName"] as? String
+        return ChatMessage(type: type, text: text, presetName: presetName)
     }
 }
 

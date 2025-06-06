@@ -2,21 +2,23 @@ import Foundation
 
 struct SoundPresetCatalog {
     
-    // MARK: - 새로운 11개 카테고리 정의
+    // MARK: - 13개 카테고리 정의 (기존 11개 + 새로 추가 2개)
     
     /// 카테고리별 이모지 (UI 표시용)
     static let categoryEmojis: [String] = [
         "🐱",  // 고양이
         "💨",  // 바람
         "🌙",  // 밤
-        "🔥",  // 불
+        "🔥",  // 불1
         "🌧️", // 비
         "🏞️", // 시냇물
         "✏️",  // 연필
         "🌌",  // 우주
         "🌀",  // 쿨링팬
         "⌨️",  // 키보드
-        "🌊"   // 파도
+        "🌊",  // 파도
+        "🐦",  // 새 (새로 추가)
+        "❄️"   // 발걸음-눈 (새로 추가)
     ]
     
     /// 카테고리별 이름
@@ -24,14 +26,16 @@ struct SoundPresetCatalog {
         "고양이",
         "바람",
         "밤",
-        "불",
+        "불1",
         "비",
         "시냇물",
         "연필",
         "우주",
         "쿨링팬",
         "키보드",
-        "파도"
+        "파도",
+        "새",
+        "발걸음-눈"
     ]
     
     /// 이모지 + 이름 조합 (슬라이더 라벨용)
@@ -39,46 +43,52 @@ struct SoundPresetCatalog {
         "🐱 고양이",
         "💨 바람",
         "🌙 밤",
-        "🔥 불",
+        "🔥 불1",
         "🌧️ 비",
         "🏞️ 시냇물",
         "✏️ 연필",
         "🌌 우주",
         "🌀 쿨링팬",
         "⌨️ 키보드",
-        "🌊 파도"
+        "🌊 파도",
+        "🐦 새",
+        "❄️ 발걸음-눈"
     ]
     
     // MARK: - 카테고리별 파일 정보
     
     /// 각 카테고리의 사용 가능한 파일들
     static let categoryFiles: [[String]] = [
-        ["고양이.mp3"],                    // 0: 🐱 고양이
-        ["바람.mp3"],                      // 1: 💨 바람
-        ["밤.mp3"],                        // 2: 🌙 밤
-        ["불1.mp3"],                       // 3: 🔥 불
-        ["비.mp3", "비-창문.mp3"],           // 4: 🌧️ 비 (2가지 버전)
-        ["시냇물.mp3"],                    // 5: 🏞️ 시냇물
-        ["연필.mp3"],                      // 6: ✏️ 연필
-        ["우주.mp3"],                      // 7: 🌌 우주
-        ["쿨링팬.mp3"],                    // 8: 🌀 쿨링팬
-        ["키보드1.mp3", "키보드2.mp3"],     // 9: ⌨️ 키보드 (2가지 버전)
-        ["파도.mp3"]                       // 10: 🌊 파도
+        ["고양이.mp3"],                        // 0: 🐱 고양이 (1개)
+        ["바람.mp3", "바람2.mp3"],              // 1: 💨 바람 (2개 버전)
+        ["밤.mp3", "밤2.mp3"],                  // 2: 🌙 밤 (2개 버전)
+        ["불1.mp3"],                           // 3: 🔥 불1 (1개)
+        ["비.mp3", "비-창문.mp3"],               // 4: 🌧️ 비 (2개 버전)
+        ["시냇물.mp3"],                        // 5: 🏞️ 시냇물 (1개)
+        ["연필.mp3"],                          // 6: ✏️ 연필 (1개)
+        ["우주.mp3"],                          // 7: 🌌 우주 (1개)
+        ["쿨링팬.mp3"],                        // 8: 🌀 쿨링팬 (1개)
+        ["키보드1.mp3", "키보드2.mp3"],         // 9: ⌨️ 키보드 (2개 버전)
+        ["파도.mp3", "파도2.mp3"],              // 10: 🌊 파도 (2개 버전)
+        ["새.mp3", "새-비.mp3"],                // 11: 🐦 새 (2개 버전)
+        ["발걸음-눈.mp3", "발걸음-눈2.mp3"]      // 12: ❄️ 발걸음-눈 (2개 버전)
     ]
     
     /// 각 카테고리의 기본 선택 파일 인덱스
     static let defaultVersions: [Int] = [
         0,  // 고양이: 고양이.mp3
-        0,  // 바람: 바람.mp3
-        0,  // 밤: 밤.mp3
-        0,  // 불: 불1.mp3
+        0,  // 바람: 바람.mp3 (기본), 바람2.mp3는 버전2
+        0,  // 밤: 밤.mp3 (기본), 밤2.mp3는 버전2
+        0,  // 불1: 불1.mp3
         0,  // 비: 비.mp3 (기본), 비-창문.mp3는 버전2
         0,  // 시냇물: 시냇물.mp3
         0,  // 연필: 연필.mp3
         0,  // 우주: 우주.mp3
         0,  // 쿨링팬: 쿨링팬.mp3
         0,  // 키보드: 키보드1.mp3 (기본), 키보드2.mp3는 버전2
-        0   // 파도: 파도.mp3
+        0,  // 파도: 파도.mp3 (기본), 파도2.mp3는 버전2
+        0,  // 새: 새.mp3 (기본), 새-비.mp3는 버전2
+        0   // 발걸음-눈: 발걸음-눈.mp3 (기본), 발걸음-눈2.mp3는 버전2
     ]
     
     // MARK: - 기존 호환성 (임시)
@@ -150,29 +160,129 @@ struct SoundPresetCatalog {
     
     /// 샘플 프리셋들
     static let samplePresets: [String: [Float]] = [
-        "🌧️ 빗소리 집중": [0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 30],      // 비 + 파도
-        "🔥 따뜻한 밤": [0, 20, 60, 70, 0, 0, 0, 40, 0, 0, 0],        // 바람 + 밤 + 불 + 우주
-        "⌨️ 작업 집중": [0, 0, 0, 0, 0, 0, 50, 0, 40, 80, 0],        // 연필 + 쿨링팬 + 키보드
-        "🌙 깊은 수면": [0, 30, 90, 20, 0, 40, 0, 70, 0, 0, 0],       // 바람 + 밤 + 불 + 시냇물 + 우주
-        "🐱 평화로운 오후": [60, 0, 30, 0, 20, 60, 0, 0, 0, 0, 0],    // 고양이 + 밤 + 비 + 시냇물
-        "🌊 자연의 소리": [40, 50, 0, 0, 30, 80, 0, 0, 0, 0, 70]     // 고양이 + 바람 + 비 + 시냇물 + 파도
+        "🌧️ 빗소리 집중": [0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 30, 0, 0],      // 비 + 파도
+        "🔥 따뜻한 밤": [0, 20, 60, 70, 0, 0, 0, 40, 0, 0, 0, 0, 0],        // 바람 + 밤 + 불1 + 우주
+        "⌨️ 작업 집중": [0, 0, 0, 0, 0, 0, 50, 0, 40, 80, 0, 0, 0],        // 연필 + 쿨링팬 + 키보드
+        "🌙 깊은 수면": [0, 30, 90, 20, 0, 40, 0, 70, 0, 0, 0, 0, 0],       // 바람 + 밤 + 불1 + 시냇물 + 우주
+        "🐱 평화로운 오후": [60, 0, 30, 0, 20, 60, 0, 0, 0, 0, 0, 0, 0],    // 고양이 + 밤 + 비 + 시냇물
+        "🌊 자연의 소리": [40, 50, 0, 0, 30, 80, 0, 0, 0, 0, 70, 40, 0]     // 고양이 + 바람 + 비 + 시냇물 + 파도 + 새
     ]
     
-    // MARK: - AI 추천을 위한 카테고리 설명
+    // MARK: - AI 추천을 위한 카테고리 설명 (심리학적 효과 포함)
     
-    /// AI가 프리셋 추천할 때 사용할 카테고리 설명
+    /// AI가 프리셋 추천할 때 사용할 카테고리 설명 (심리학적 효과 포함)
     static let categoryDescriptions: [String] = [
-        "고양이: 부드러운 야옹 소리 (편안함, 따뜻함)",
-        "바람: 자연스러운 바람 소리 (시원함, 청량함)",
-        "밤: 고요한 밤의 소리 (평온, 수면)",
-        "불: 타닥거리는 불소리 (따뜻함, 포근함)",
-        "비: 빗소리와 창문 빗소리 (평온, 집중)",
-        "시냇물: 흐르는 물소리 (자연, 휴식)",
-        "연필: 종이에 쓰는 소리 (집중, 창작)",
-        "우주: 신비로운 우주 소리 (명상, 깊은 사색)",
-        "쿨링팬: 부드러운 팬 소리 (집중, 화이트노이즈)",
-        "키보드: 타이핑 소리 (작업, 집중)",
-        "파도: 파도치는 소리 (휴식, 자연)"
+        "고양이: 가까이서 골골대는 작은 소리. 옥시토신 분비 촉진으로 애착감과 편안함 제공",
+        "바람: 자연스러운 바람 소리 (V1), 더 약하고 낮은 음의 바람 (V2). 자율신경계 안정화와 스트레스 호르몬 감소 효과",
+        "밤: 한국의 여름밤 귀뚜라미 소리 (V1), 더 멀리서 벌레 우는 소리 (V2). 수면 호르몬 멜라토닌 분비 촉진",
+        "불1: 불 타는 소리를 가까이서 녹음. 1/f 잡음으로 뇌파 알파파 증가와 깊은 이완",
+        "비: 집 내부에서 창문 열고 듣는 강한 비소리 (V1)와 창문 톡톡 소리 (V2). 도파민 조절과 집중력 향상",
+        "시냇물: 조용한 시냇물을 가까이서 찍은 물 흐르는 소리. 부교감신경 활성화로 스트레스 완화",
+        "연필: 종이에 가볍게 영어 쓰는 슥슥 소리. ASMR 효과로 집중력과 창의성 증진",
+        "우주: 높은 음의 의미심장한 사운드 (20초 이내 권장). 신경가소성 촉진과 깊은 명상 유도",
+        "쿨링팬: 옛날 냉장고 팬 소리. 일정한 주파수로 인지 부하 감소와 배경 차음 효과",
+        "키보드: 청축키보드 천천히 (V1), 옛날키보드 빠른 업무용 (V2). 작업 리듬감과 집중 상태 유지",
+        "파도: 1.5미터 수심 잔잔한 파도 (V1), 해변가 파도 바스라지는 탄산 소리 (V2). 백색소음 효과로 신경 안정과 수면 유도",
+        "새: 아침 새가 짹짹대는 소리 (V1), 약한 비오는 날 아침 멀리서 새들 소리 (V2). 세로토닌 분비로 기분 개선과 활력 증진",
+        "발걸음-눈: 얕은 눈을 빠르게 걷는 소리 (V1), 깊은 눈을 천천히 걷는 소리 (V2). 리듬감 있는 자연음으로 주의력 향상과 깊은 이완"
+    ]
+    
+    // MARK: - 감정별 최적 사운드 매칭 시스템
+    
+    /// 감정 상태별 권장 사운드 조합 (심리학 연구 기반)
+    static let emotionBasedRecommendations: [String: [Int: Float]] = [
+        "불안": [1: 40, 5: 70, 10: 50, 7: 30],           // 바람 + 시냇물 + 파도 + 우주
+        "스트레스": [0: 50, 4: 80, 5: 60, 8: 40],        // 고양이 + 비 + 시냇물 + 쿨링팬
+        "우울": [11: 70, 3: 50, 0: 60, 1: 40],           // 새 + 불1 + 고양이 + 바람
+        "수면곤란": [2: 80, 1: 50, 10: 70, 5: 40],        // 밤 + 바람 + 파도 + 시냇물
+        "집중필요": [6: 60, 9: 70, 8: 50, 1: 30],         // 연필 + 키보드 + 쿨링팬 + 바람
+        "창의성": [6: 80, 11: 50, 5: 40, 7: 25],         // 연필 + 새 + 시냇물 + 우주
+        "분노": [5: 90, 10: 80, 1: 60, 0: 40],           // 시냇물 + 파도 + 바람 + 고양이
+        "외로움": [0: 80, 11: 60, 3: 50, 4: 40],         // 고양이 + 새 + 불1 + 비
+        "피로": [2: 70, 5: 60, 10: 80, 0: 50],           // 밤 + 시냇물 + 파도 + 고양이
+        "기쁨": [11: 80, 1: 50, 10: 70, 5: 60]           // 새 + 바람 + 파도 + 시냇물
+    ]
+    
+    // MARK: - 시간대별 권장 사운드
+    
+    /// 시간대별 최적 사운드 (일주기 리듬 고려)
+    static let timeBasedRecommendations: [String: [Int: Float]] = [
+        "새벽": [2: 60, 1: 50, 5: 30, 12: 40],           // 밤 + 바람 + 시냇물 + 발걸음-눈
+        "아침": [11: 80, 1: 40, 5: 50, 0: 30],           // 새 + 바람 + 시냇물 + 고양이
+        "오전": [6: 70, 9: 60, 8: 40, 1: 30],            // 연필 + 키보드 + 쿨링팬 + 바람
+        "점심": [0: 50, 4: 40, 5: 60, 1: 30],            // 고양이 + 비 + 시냇물 + 바람
+        "오후": [6: 60, 8: 50, 9: 70, 10: 40],           // 연필 + 쿨링팬 + 키보드 + 파도
+        "저녁": [3: 70, 0: 60, 5: 50, 10: 40],           // 불1 + 고양이 + 시냇물 + 파도
+        "밤": [2: 80, 1: 40, 10: 70, 5: 50],             // 밤 + 바람 + 파도 + 시냇물
+        "자정": [2: 90, 10: 80, 5: 60, 1: 50]            // 밤 + 파도 + 시냇물 + 바람
+    ]
+    
+    // MARK: - AI 추천 다양성 시스템
+    
+    /// 추천 패턴의 다양성을 위한 변형 버전들
+    static let variationPatterns: [String: [[Int: Float]]] = [
+        "불안": [
+            [1: 40, 5: 70, 10: 50, 7: 30],  // 기본 - 바람V1
+            [0: 30, 5: 80, 10: 60, 1: 40],  // 고양이 추가 버전
+            [1: 30, 5: 90, 10: 60, 7: 20]   // 시냇물 강화 버전
+        ],
+        "스트레스": [
+            [0: 50, 4: 80, 5: 60, 8: 40],   // 기본 - 비V1
+            [0: 70, 5: 80, 10: 50, 1: 30],  // 자연음 중심 - 파도V2
+            [4: 60, 5: 70, 8: 50, 3: 40]    // 불 추가
+        ],
+        "수면곤란": [
+            [2: 80, 1: 50, 10: 70, 5: 40],  // 기본 - 밤V1
+            [2: 90, 10: 80, 5: 50, 0: 30],  // 밤V2 + 파도V2
+            [2: 70, 5: 80, 10: 60, 1: 40]   // 시냇물 강화
+        ],
+        "집중필요": [
+            [6: 60, 9: 70, 8: 50, 1: 30],   // 기본 - 키보드V1
+            [6: 80, 8: 60, 1: 50, 4: 40],   // 키보드V2 + 비V1
+            [9: 80, 8: 70, 6: 40, 5: 30]    // 키보드V2 강화
+        ]
+    ]
+    
+    /// 추천 패턴의 버전 다양성을 위한 변형 버전들
+    static let variationVersions: [String: [[Int]]] = [
+        "불안": [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // 기본 V1들
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  // 바람V2 + 파도V2
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]   // 새V2
+        ],
+        "스트레스": [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // 기본 V1들
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  // 비V2 사용
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]   // 바람V2 + 파도V2
+        ],
+        "수면곤란": [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // 기본 V1들
+            [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  // 밤V2 + 파도V2
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]   // 바람V2 + 발걸음-눈V2
+        ],
+        "집중필요": [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // 기본 V1들
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  // 키보드V2
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0]   // 비V2 + 키보드V2
+        ]
+    ]
+    
+    /// 상황별 세부 추천 (시간대 + 감정 조합)
+    static let contextualRecommendations: [String: [Int: Float]] = [
+        "아침_불안": [11: 60, 5: 70, 1: 30, 0: 40],      // 새 + 시냇물 + 바람 + 고양이
+        "밤_스트레스": [2: 70, 0: 60, 5: 80, 10: 50],    // 밤 + 고양이 + 시냇물 + 파도
+        "오후_집중": [6: 70, 8: 60, 9: 50, 1: 30],       // 연필 + 쿨링팬 + 키보드 + 바람
+        "저녁_피로": [3: 80, 0: 70, 5: 60, 10: 50],      // 불1 + 고양이 + 시냇물 + 파도
+        "새벽_수면": [2: 90, 1: 40, 5: 30, 12: 50]       // 밤 + 바람 + 시냇물 + 발걸음-눈
+    ]
+    
+    /// 상황별 세부 추천의 버전 설정
+    static let contextualVersions: [String: [Int]] = [
+        "아침_불안": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],   // 새V2
+        "밤_스트레스": [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], // 바람V2 + 밤V2 + 파도V2
+        "오후_집중": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],   // 키보드V2
+        "저녁_피로": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],   // 파도V2
+        "새벽_수면": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]    // 바람V2 + 발걸음-눈V2
     ]
     
     // MARK: - 사운드 조합 필터링 시스템
@@ -180,7 +290,7 @@ struct SoundPresetCatalog {
     /// 어울리지 않는 사운드 조합들 (인덱스 쌍)
     private static let incompatiblePairs: [(Int, Int)] = [
         (6, 9),   // 연필 + 키보드 (둘 다 작업 소리여서 겹침)
-        (3, 8),   // 불 + 쿨링팬 (따뜻함 vs 차가움의 대조)
+        (3, 8),   // 불1 + 쿨링팬 (따뜻함 vs 차가움의 대조)
         (0, 9),   // 고양이 + 키보드 (자연 vs 인공의 극명한 대조)
         (7, 6),   // 우주 + 연필 (명상 vs 집중 작업의 충돌)
         (7, 9)    // 우주 + 키보드 (명상 vs 인공 소리의 충돌)
@@ -189,7 +299,17 @@ struct SoundPresetCatalog {
     /// 강력하게 어울리지 않는 조합 (완전히 차단)
     private static let stronglyIncompatiblePairs: [(Int, Int)] = [
         (0, 9),   // 고양이 + 키보드 (자연 vs 기계음의 극명한 대조)
-        (3, 8)    // 불 + 쿨링팬 (따뜻함 vs 시원함의 정반대)
+        (3, 8)    // 불1 + 쿨링팬 (따뜻함 vs 시원함의 정반대)
+    ]
+    
+    /// 시너지 효과가 있는 음원 조합들
+    static let synergyPairs: [(Int, Int, Float)] = [
+        (5, 10, 1.2),  // 시냇물 + 파도 (물 소리 시너지)
+        (0, 3, 1.3),   // 고양이 + 불1 (편안함의 완벽한 조합)
+        (6, 8, 1.2),   // 연필 + 쿨링팬 (집중 작업 환경)
+        (4, 5, 1.15),  // 비 + 시냇물 (물 소리 조합)
+        (1, 5, 1.1),   // 바람 + 시냇물 (자연 조합)
+        (11, 12, 1.1)  // 새 + 발걸음-눈 (자연 환경음)
     ]
     
     /// 볼륨 배열에 조합 필터링 적용
@@ -198,248 +318,190 @@ struct SoundPresetCatalog {
         
         // 강력한 비호환 조합 체크 (한 쪽을 0으로 만듦)
         for (index1, index2) in stronglyIncompatiblePairs {
-            guard index1 < filteredVolumes.count && index2 < filteredVolumes.count else { continue }
-            
             if filteredVolumes[index1] > 0 && filteredVolumes[index2] > 0 {
-                // 더 낮은 볼륨을 0으로 만듦
+                // 더 작은 볼륨을 0으로 만듦
                 if filteredVolumes[index1] < filteredVolumes[index2] {
                     filteredVolumes[index1] = 0
-                    print("🚫 조합 필터링: \(categoryNames[index1]) 제거 (vs \(categoryNames[index2]))")
                 } else {
                     filteredVolumes[index2] = 0
-                    print("🚫 조합 필터링: \(categoryNames[index2]) 제거 (vs \(categoryNames[index1]))")
                 }
             }
         }
         
-        // 일반 비호환 조합 체크 (볼륨 감소)
+        // 일반 비호환 조합 체크 (볼륨을 줄임)
         for (index1, index2) in incompatiblePairs {
-            guard index1 < filteredVolumes.count && index2 < filteredVolumes.count else { continue }
-            
-            if filteredVolumes[index1] > 30 && filteredVolumes[index2] > 30 {
-                // 둘 다 높은 볼륨이면 하나를 줄임
-                let reduction: Float = 0.5
-                if filteredVolumes[index1] < filteredVolumes[index2] {
-                    filteredVolumes[index1] *= reduction
-                    print("⚠️ 조합 조정: \(categoryNames[index1]) 볼륨 감소")
-                } else {
-                    filteredVolumes[index2] *= reduction
-                    print("⚠️ 조합 조정: \(categoryNames[index2]) 볼륨 감소")
-                }
+            if filteredVolumes[index1] > 0 && filteredVolumes[index2] > 0 {
+                filteredVolumes[index1] *= 0.7
+                filteredVolumes[index2] *= 0.7
+            }
+        }
+        
+        // 시너지 효과 적용
+        for (index1, index2, multiplier) in synergyPairs {
+            if filteredVolumes[index1] > 0 && filteredVolumes[index2] > 0 {
+                filteredVolumes[index1] = min(100, filteredVolumes[index1] * multiplier)
+                filteredVolumes[index2] = min(100, filteredVolumes[index2] * multiplier)
             }
         }
         
         return filteredVolumes
     }
     
-    /// 자연스러운 조합 패턴들
-    static let harmonicCombinations: [[Int]] = [
-        [4, 10, 5],         // 비 + 파도 + 시냇물 (물소리 조합)
-        [2, 3, 7],          // 밤 + 불 + 우주 (평온한 밤 조합)
-        [0, 1, 5],          // 고양이 + 바람 + 시냇물 (자연 조합)
-        [6, 8, 9],          // 연필 + 쿨링팬 + 키보드 (작업 조합)
-        [2, 4, 7]           // 밤 + 비 + 우주 (수면 조합)
-    ]
+    // MARK: - 개선된 프리셋 추천 시스템
     
-    /// 조합이 조화로운지 확인
-    static func isHarmonicCombination(volumes: [Float]) -> Bool {
-        let activeSounds = volumes.enumerated().compactMap { index, volume in
-            volume > 20 ? index : nil
+    /// 감정별 다양한 프리셋 패턴들 (더욱 세분화)
+    static let emotionBasedPresets: [String: [(name: String, volumes: [Float], description: String, versions: [Int])]] = [
+        "불안": [
+            (
+                name: "고요한 바람의 포옹",
+                volumes: [30, 60, 20, 0, 0, 70, 0, 15, 0, 0, 40, 0, 0], // 고양이, 바람V2, 시냇물, 우주, 파도
+                description: "부드러운 바람과 자연음이 마음을 안정시켜줍니다. 불안한 마음을 차분하게 달래주는 조합이에요.",
+                versions: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 바람V2
+            ),
+            (
+                name: "새벽 고양이의 위로",
+                volumes: [60, 40, 0, 0, 0, 50, 0, 10, 0, 0, 30, 20, 0], // 고양이, 바람V1, 시냇물, 새V1, 파도V1
+                description: "고양이의 따뜻한 골골거림과 새벽 새소리가 불안을 달래줍니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 모두 V1
+            )
+        ],
+        "스트레스": [
+            (
+                name: "비내리는 창가의 평온",
+                volumes: [40, 30, 0, 20, 70, 60, 0, 0, 30, 0, 0, 0, 0], // 고양이, 바람, 불1, 비V2, 시냇물, 쿨링팬
+                description: "창문에 떨어지는 빗방울 소리와 따뜻한 불소리가 스트레스를 녹여줍니다.",
+                versions: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] // 비V2
+            ),
+            (
+                name: "숲속 오후의 휴식",
+                volumes: [50, 40, 0, 30, 0, 80, 0, 0, 0, 0, 50, 40, 20], // 고양이, 바람, 불1, 시냇물, 파도, 새, 발걸음-눈
+                description: "깊은 숲에서 느끼는 완전한 이완감. 모든 스트레스가 자연 속으로 사라집니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1] // 새V2, 발걸음-눈V2
+            )
+        ],
+        "수면곤란": [
+            (
+                name: "자정의 깊은 고요",
+                volumes: [20, 50, 80, 0, 30, 40, 0, 0, 0, 0, 60, 0, 30], // 고양이, 바람V2, 밤V2, 비V1, 시냇물, 파도V2, 발걸음-눈V2
+                description: "밤의 고요함과 멀리서 들리는 자연음이 깊은 잠으로 이끌어줍니다.",
+                versions: [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1] // 바람V2, 밤V2, 파도V2, 발걸음-눈V2
+            ),
+            (
+                name: "파도가 들려오는 밤",
+                volumes: [30, 60, 70, 0, 0, 50, 0, 0, 0, 0, 80, 0, 0], // 고양이, 바람V2, 밤V1, 시냇물, 파도V2
+                description: "해변의 파도소리와 밤 귀뚜라미가 만드는 완벽한 수면 환경입니다.",
+                versions: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0] // 바람V2, 파도V2
+            )
+        ],
+        "집중필요": [
+            (
+                name: "서재의 집중 모드",
+                volumes: [0, 20, 0, 0, 0, 30, 60, 0, 40, 70, 0, 0, 0], // 바람V2, 시냇물, 연필, 쿨링팬, 키보드V1
+                description: "조용한 서재 분위기로 집중력을 극대화하는 사운드 조합입니다.",
+                versions: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 바람V2, 키보드V1
+            ),
+            (
+                name: "현대적 작업 공간",
+                volumes: [0, 30, 0, 0, 0, 0, 50, 0, 60, 80, 0, 0, 0], // 바람V1, 연필, 쿨링팬, 키보드V2
+                description: "빠른 업무 처리를 위한 리듬감 있는 현대적 작업 환경음입니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0] // 키보드V2
+            )
+        ],
+        "우울": [
+            (
+                name: "따뜻한 아침의 시작",
+                volumes: [60, 40, 0, 40, 0, 30, 0, 0, 0, 0, 0, 70, 50], // 고양이, 바람V1, 불1, 시냇물, 새V1, 발걸음-눈V1
+                description: "밝은 새소리와 활기찬 자연음이 우울한 기분을 밝게 전화해줍니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 모두 V1 (활기찬 버전)
+            ),
+            (
+                name: "햇살 가득한 숲길",
+                volumes: [50, 50, 0, 30, 0, 60, 20, 0, 0, 0, 40, 80, 60], // 고양이, 바람, 불1, 시냇물, 연필, 파도, 새V1, 발걸음-눈V1
+                description: "숲길을 걸으며 듣는 생동감 넘치는 자연음들이 희망을 불어넣어줍니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 모두 V1
+            )
+        ],
+        "평온": [
+            (
+                name: "균형잡힌 하루",
+                volumes: [40, 40, 30, 20, 20, 50, 20, 5, 20, 20, 30, 30, 20], // 모든 요소 균형있게
+                description: "모든 사운드가 조화롭게 어우러진 완벽한 균형감을 제공합니다.",
+                versions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 기본 버전들
+            ),
+            (
+                name: "자연의 완전한 조화",
+                volumes: [30, 50, 40, 25, 35, 60, 0, 8, 0, 0, 45, 40, 35], // 자연음 중심
+                description: "순수한 자연음들만으로 구성된 완벽한 평온감을 선사합니다.",
+                versions: [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1] // 자연음은 V2로 (더 부드럽게)
+            )
+        ]
+    ]
+
+    /// 시간대별 추천 수정자
+    static let timeBasedModifiers: [String: (volumeMultiplier: Float, preferredVersions: [Int])] = [
+        "새벽": (volumeMultiplier: 0.7, preferredVersions: [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1]), // 부드러운 버전들
+        "아침": (volumeMultiplier: 1.0, preferredVersions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), // 활기찬 V1들
+        "오전": (volumeMultiplier: 0.9, preferredVersions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        "점심": (volumeMultiplier: 0.8, preferredVersions: [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0]),
+        "오후": (volumeMultiplier: 1.0, preferredVersions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]), // 키보드V2로 집중력
+        "저녁": (volumeMultiplier: 0.9, preferredVersions: [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1]),
+        "밤": (volumeMultiplier: 0.8, preferredVersions: [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1]), // 부드러운 버전들
+        "자정": (volumeMultiplier: 0.6, preferredVersions: [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1])
+    ]
+
+    /// 개선된 추천 시스템
+    static func getRecommendedPreset(
+        emotion: String? = nil,
+        timeOfDay: String? = nil,
+        previousRecommendations: [String] = [],
+        intensity: Float = 1.0
+    ) -> (name: String, volumes: [Float], description: String, versions: [Int]) {
+        
+        let targetEmotion = emotion ?? "평온"
+        let currentTime = timeOfDay ?? "오후"
+        
+        // 1. 해당 감정의 프리셋들 가져오기
+        let availablePresets = emotionBasedPresets[targetEmotion] ?? emotionBasedPresets["평온"]!
+        
+        // 2. 이전에 추천하지 않은 것 중에서 선택 (다양성 보장)
+        let unusedPresets = availablePresets.filter { preset in
+            !previousRecommendations.contains(preset.name)
         }
         
-        // 활성 사운드가 조화로운 조합 중 하나와 매치되는지 확인
-        for combination in harmonicCombinations {
-            let matchingCount = activeSounds.filter { combination.contains($0) }.count
-            if matchingCount >= min(2, activeSounds.count) {
-                return true
+        let selectedPresets = unusedPresets.isEmpty ? availablePresets : unusedPresets
+        let basePreset = selectedPresets.randomElement()!
+        
+        // 3. 시간대에 따른 조정
+        var adjustedVolumes = basePreset.volumes
+        var adjustedVersions = basePreset.versions
+        
+        if let timeModifier = timeBasedModifiers[currentTime] {
+            // 볼륨 조정
+            adjustedVolumes = adjustedVolumes.map { $0 * timeModifier.volumeMultiplier * intensity }
+            
+            // 버전 조정 (시간대에 맞는 버전으로)
+            for (index, preferredVersion) in timeModifier.preferredVersions.enumerated() {
+                if index < adjustedVersions.count {
+                    adjustedVersions[index] = preferredVersion
+                }
             }
         }
         
-        return activeSounds.count <= 3  // 3개 이하면 일반적으로 조화로움
-    }
-    
-    // MARK: - 카테고리 인덱스 헬퍼 메서드
-    
-    /// 카테고리 이름으로 인덱스를 찾는 메서드
-    static func getIndex(for categoryName: String) -> Int? {
-        // 한국어 카테고리 이름 매핑
-        let koreanNames = ["고양이", "바람", "밤", "불", "비", "시냇물", "연필", "우주", "쿨링팬", "키보드", "파도"]
-        if let index = koreanNames.firstIndex(of: categoryName) {
-            return index
-        }
-        
-        // 영어 카테고리 이름 매핑
-        let englishNames = ["cat", "wind", "night", "fire", "rain", "stream", "pencil", "space", "fan", "keyboard", "wave"]
-        if let index = englishNames.firstIndex(of: categoryName.lowercased()) {
-            return index
-        }
-        
-        // 카테고리 내부 이름 매핑
-        if let index = categoryNames.firstIndex(of: categoryName) {
-            return index
-        }
-        
-        return nil
-    }
-    
-    /// AI 추천용 간단한 매핑 (기존 12개 → 11개 카테고리 매핑)
-    static let aiRecommendationMapping: [String: Int] = [
-        "Rain": 4,        // 🌧️ 비
-        "Thunder": 4,     // 🌧️ 비 (천둥은 비로 매핑)
-        "Ocean": 10,      // 🌊 파도
-        "Fire": 3,        // 🔥 불
-        "Steam": 5,       // 🏞️ 시냇물 (증기는 물소리로 매핑)
-        "WindowRain": 4,  // 🌧️ 비 (창문 빗소리)
-        "Forest": 0,      // 🐱 고양이 (자연 소리 대체)
-        "Wind": 1,        // 💨 바람
-        "Night": 2,       // 🌙 밤
-        "Lullaby": 7,     // 🌌 우주 (자장가는 우주 소리로)
-        "Fan": 8,         // 🌀 쿨링팬
-        "WhiteNoise": 9   // ⌨️ 키보드 (화이트노이즈 대체)
-    ]
-    
-    // MARK: - 기존 호환성 유지
-    
-    /// 기존 ChatViewController와의 호환성을 위한 표준 사운드 이름
-    static let legacyStandardSoundNames = [
-        "Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain",
-        "Forest", "Wind", "Night", "Lullaby", "Fan", "WhiteNoise"
-    ]
-    
-    /// 새로운 표준 사운드 이름 (11개)
-    static let newStandardSoundNames = [
-        "고양이", "바람", "밤", "불", "비", "시냇물",
-        "연필", "우주", "쿨링팬", "키보드", "파도"
-    ]
-    
-    // MARK: - Migration 지원
-    
-    /// 기존 12개 볼륨 배열을 11개로 변환
-    static func convertLegacyVolumes(_ legacyVolumes: [Float]) -> [Float] {
-        guard legacyVolumes.count == 12 else {
-            // 11개면 그대로 반환
-            if legacyVolumes.count == 11 {
-                return legacyVolumes
-            }
-            // 다른 크기면 기본값으로
-            return defaultPreset
-        }
-        
-        // 12개 → 11개 매핑 로직
-        // 기존: Rain, Thunder, Ocean, Fire, Steam, WindowRain, Forest, Wind, Night, Lullaby, Fan, WhiteNoise
-        // 새로운: 고양이, 바람, 밤, 불, 비, 시냇물, 연필, 우주, 쿨링팬, 키보드, 파도
-        
-        var newVolumes: [Float] = Array(repeating: 0, count: 11)
-        
-        // 매핑 규칙
-        newVolumes[0] = legacyVolumes[6]   // Forest → 고양이
-        newVolumes[1] = legacyVolumes[7]   // Wind → 바람
-        newVolumes[2] = legacyVolumes[8]   // Night → 밤
-        newVolumes[3] = legacyVolumes[3]   // Fire → 불
-        newVolumes[4] = max(legacyVolumes[0], legacyVolumes[1], legacyVolumes[5]) // Rain+Thunder+WindowRain → 비
-        newVolumes[5] = legacyVolumes[4]   // Steam → 시냇물
-        newVolumes[6] = 0                  // 연필 (새로운 사운드)
-        newVolumes[7] = legacyVolumes[9]   // Lullaby → 우주
-        newVolumes[8] = legacyVolumes[10]  // Fan → 쿨링팬
-        newVolumes[9] = legacyVolumes[11]  // WhiteNoise → 키보드
-        newVolumes[10] = legacyVolumes[2]  // Ocean → 파도
-        
-        return newVolumes
-    }
-    
-    /// 11개 볼륨 배열을 기존 12개 형식으로 변환 (AI 호환성)
-    static func convertToLegacyVolumes(_ newVolumes: [Float]) -> [Float] {
-        guard newVolumes.count == 11 else {
-            return Array(repeating: 0, count: 12)
-        }
-        
-        var legacyVolumes: [Float] = Array(repeating: 0, count: 12)
-        
-        legacyVolumes[0] = newVolumes[4]   // 비 → Rain
-        legacyVolumes[1] = newVolumes[4] * 0.3  // 비 → Thunder (약하게)
-        legacyVolumes[2] = newVolumes[10]  // 파도 → Ocean
-        legacyVolumes[3] = newVolumes[3]   // 불 → Fire
-        legacyVolumes[4] = newVolumes[5]   // 시냇물 → Steam
-        legacyVolumes[5] = newVolumes[4] * 0.8  // 비 → WindowRain
-        legacyVolumes[6] = newVolumes[0]   // 고양이 → Forest
-        legacyVolumes[7] = newVolumes[1]   // 바람 → Wind
-        legacyVolumes[8] = newVolumes[2]   // 밤 → Night
-        legacyVolumes[9] = newVolumes[7]   // 우주 → Lullaby
-        legacyVolumes[10] = newVolumes[8]  // 쿨링팬 → Fan
-        legacyVolumes[11] = newVolumes[9]  // 키보드 → WhiteNoise
-        
-        return legacyVolumes
-    }
-    
-    // MARK: - 버전 정보 관리
-    
-    /// 기본 버전 선택 (각 카테고리의 첫 번째 버전)
-    static var defaultVersionSelection: [Int] {
-        return defaultVersions
-    }
-    
-    /// 다중 버전이 있는 카테고리 인덱스들
-    static let multiVersionCategories: [Int] = [4, 9]  // 비(2개), 키보드(2개)
-    
-    /// 특정 카테고리의 버전 선택지 이름들
-    static func getVersionNames(for categoryIndex: Int) -> [String] {
-        guard categoryIndex >= 0, categoryIndex < categoryFiles.count else { return [] }
-        
-        return categoryFiles[categoryIndex].map { fileName in
-            fileName.replacingOccurrences(of: ".mp3", with: "")
-        }
-    }
-    
-    // MARK: - 검증 및 디버그
-    
-    #if DEBUG
-    /// 데이터 일관성 검증
-    static func validateDataConsistency() -> Bool {
-        let counts = [
-            categoryEmojis.count,
-            categoryNames.count,
-            displayLabels.count,
-            categoryFiles.count,
-            defaultVersions.count,
-            categoryDescriptions.count
+        // 4. 최종 이름에 시간대 정보 추가
+        let timePrefixes: [String: String] = [
+            "새벽": "새벽의 ",
+            "아침": "아침의 ",
+            "밤": "밤의 ",
+            "자정": "자정의 "
         ]
         
-        let expectedCount = categoryCount
-        let isConsistent = counts.allSatisfy { $0 == expectedCount }
+        let finalName = (timePrefixes[currentTime] ?? "") + basePreset.name
         
-        if !isConsistent {
-            print("⚠️ SoundPresetCatalog 데이터 불일치 감지:")
-            print("  - categoryEmojis: \(categoryEmojis.count)")
-            print("  - categoryNames: \(categoryNames.count)")
-            print("  - displayLabels: \(displayLabels.count)")
-            print("  - categoryFiles: \(categoryFiles.count)")
-            print("  - defaultVersions: \(defaultVersions.count)")
-            print("  - categoryDescriptions: \(categoryDescriptions.count)")
-            print("  - 예상 개수: \(expectedCount)")
-        }
-        
-        return isConsistent
+        return (
+            name: finalName,
+            volumes: adjustedVolumes,
+            description: basePreset.description,
+            versions: adjustedVersions
+        )
     }
-    
-    /// 샘플 데이터 출력
-    static func printSampleData() {
-        print("=== SoundPresetCatalog 정보 ===")
-        print("총 카테고리 수: \(categoryCount)")
-        
-        for i in 0..<categoryCount {
-            let info = getCategoryInfo(at: i)!
-            print("\(i): \(info.emoji) \(info.name)")
-            print("   파일: \(info.files)")
-            print("   기본: \(info.files[info.defaultIndex])")
-            if info.files.count > 1 {
-                print("   다중버전: ✅")
-            }
-        }
-        
-        print("\n=== 샘플 프리셋 ===")
-        for (name, volumes) in samplePresets {
-            print("\(name): \(volumes)")
-        }
-    }
-    #endif
 }

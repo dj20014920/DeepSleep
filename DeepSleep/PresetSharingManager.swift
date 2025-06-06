@@ -118,52 +118,58 @@ class PresetSharingManager {
         }
     }
     
-    /// 간단한 숫자 코드 형태로 변환 (16자리로 압축)
+    /// 간단한 숫자 코드 형태로 변환 (16자리로 압축, 체크섬 강화)
     func encodePresetAsNumericCode(_ preset: SoundPreset) -> Result<String, SharingError> {
         let volumes = preset.compatibleVolumes
         let versions = preset.compatibleVersions
         
         var code = "EZ"  // EmoZleep 식별자 (2자리)
         
-        // 볼륨을 Base36으로 압축 (0-100을 0-35로 매핑, 11자리)
+        // 볼륨을 Base36으로 압축 (11자리)
         for volume in volumes {
             let normalizedVolume = Int(min(100, max(0, volume)))
-            let compressed = normalizedVolume * 35 / 100  // 0-100을 0-35로 압축
-            code += String(compressed, radix: 36)  // Base36 (0-9, a-z)
+            let compressed = normalizedVolume * 35 / 100
+            code += String(compressed, radix: 36)
         }
         
         // 버전 정보를 비트마스크로 압축 (1자리)
-        // 비(인덱스4)와 키보드(인덱스9)만 2가지 버전 있음
         var versionBits = 0
-        if versions[4] == 1 { versionBits |= 1 }  // 비 V2
-        if versions[9] == 1 { versionBits |= 2 }  // 키보드 V2
-        code += String(versionBits, radix: 36)  // 0,1,2,3을 0,1,2,3으로
+        if versions.count > 9 { // 안전장치
+            if versions[4] == 1 { versionBits |= 1 }
+            if versions[9] == 1 { versionBits |= 2 }
+        }
+        code += String(versionBits, radix: 36)
         
-        // 간단한 체크섬 (2자리)
-        let volumeSum = volumes.reduce(0, +)
-        let checksum = Int(volumeSum) % 1296  // 36^2 = 1296
-        code += String(format: "%02d", checksum % 100)  // 00-99로 제한
+        // SHA256 기반 체크섬 (2자리)
+        let dataToHash = volumes.map { String(Int($0)) }.joined() + versions.map { String($0) }.joined()
+        let hashed = SHA256.hash(data: Data(dataToHash.utf8))
+        let checksum = hashed.compactMap { String(format: "%02x", $0) }.joined()
+        let shortChecksum = String(checksum.prefix(2)) // 2자리로 축약
         
-        print("✅ 압축 숫자 코드 생성: \(code) (\(code.count) chars)")
+        code += shortChecksum
+        
+        print("✅ 압축 숫자 코드 생성 (SHA256): \(code) (\(code.count) chars)")
         return .success(code)
     }
     
     // MARK: - 프리셋 디코딩
     
-    /// 공유 코드에서 프리셋 복원
+    /// 공유 코드에서 프리셋 복원 (로직 강화)
     func decodePreset(from shareCode: String) -> Result<SoundPreset, SharingError> {
-        // URL 스키마 처리
-        if shareCode.hasPrefix(urlScheme) {
-            return decodeFromURL(shareCode)
+        let trimmedCode = shareCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1. URL 스키마 형식인지 먼저 확인
+        if trimmedCode.starts(with: urlScheme) {
+            return decodeFromURL(trimmedCode)
         }
         
-        // 숫자 코드 처리
-        if shareCode.hasPrefix("EZL") {
-            return decodeFromNumericCode(shareCode)
+        // 2. 숫자 코드 형식인지 확인 (더 엄격한 검사)
+        if trimmedCode.starts(with: "EZ") && trimmedCode.count == 16 && trimmedCode.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
+            return decodeFromNumericCode(trimmedCode)
         }
         
-        // Base64 직접 처리
-        return decodeFromBase64(shareCode)
+        // 3. 위 두 경우가 아니면 Base64 문자열로 간주하고 디코딩 시도
+        return decodeFromBase64(trimmedCode)
     }
     
     private func decodeFromURL(_ urlString: String) -> Result<SoundPreset, SharingError> {
@@ -227,22 +233,24 @@ class PresetSharingManager {
         }
         
         // 기본 버전 배열 생성
-        var versions = SoundPresetCatalog.defaultVersionSelection
+        var versions = SoundPresetCatalog.defaultVersions
         
         // 비트마스크 디코딩
         if versionBits & 1 != 0 { versions[4] = 1 }  // 비 V2
         if versionBits & 2 != 0 { versions[9] = 1 }  // 키보드 V2
         
         // 체크섬 검증 (2자리)
-        let checksumPart = String(code.suffix(2))
-        guard let receivedChecksum = Int(checksumPart) else {
-            return .failure(.corruptedData)
-        }
+        _ = String(code.suffix(2)) // checksumPart 사용되지 않음
+        _ = volumes.reduce(0, +) // volumeSum 사용되지 않음  
+        _ = versions.reduce(0, +) // versionSum 사용되지 않음
         
-        let volumeSum = volumes.reduce(0, +)
-        let expectedChecksum = Int(volumeSum) % 100
-        
-        guard receivedChecksum == expectedChecksum else {
+        // 체크섬 검증 (SHA256)
+        let receivedChecksum = String(code.suffix(2))
+        let dataToHash = volumes.map { String(Int($0)) }.joined() + versions.map { String($0) }.joined()
+        let hashed = SHA256.hash(data: Data(dataToHash.utf8))
+        let calculatedChecksum = String(hashed.compactMap { String(format: "%02x", $0) }.joined().prefix(2))
+
+        guard receivedChecksum == calculatedChecksum else {
             return .failure(.checksumMismatch)
         }
         
@@ -314,7 +322,7 @@ class PresetSharingManager {
         let preset = SoundPreset(
             name: shareablePreset.name,
             volumes: shareablePreset.volumes,
-            selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersionSelection,
+            selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersions,
             emotion: shareablePreset.emotion,
             isAIGenerated: false,
             description: shareablePreset.description ?? "공유받은 프리셋"

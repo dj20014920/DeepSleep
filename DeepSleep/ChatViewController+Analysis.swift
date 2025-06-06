@@ -5,7 +5,7 @@ extension ChatViewController {
     
     // MARK: - ✅ 일기 분석 메소드 - intent 정확히 설정
     func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
-        appendChat(.loading)
+        appendChat(ChatMessage(type: .loading, text: "분석하고 있어요..."))
         
         let analysisPrompt = """
         감정:\(diary.emotion) 날짜:\(diary.formattedDate)
@@ -35,7 +35,7 @@ extension ChatViewController {
                 self?.removeLastLoadingMessage()
                 
                 if let analysis = response {
-                    self?.appendChat(.bot(analysis))
+                    self?.appendChat(ChatMessage(type: .bot, text: analysis))
                     
                     TokenTracker.shared.logAndTrack(
                         prompt: analysisPrompt,
@@ -45,10 +45,10 @@ extension ChatViewController {
                     
                     // ✅ 분석 완료 후 추가 안내
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self?.appendChat(.bot("💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!"))
+                        self?.appendChat(ChatMessage(type: .bot, text: "💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!"))
                     }
                 } else {
-                    self?.appendChat(.bot("❌ 분석 실패. 직접 대화로 도와드릴게요."))
+                    self?.appendChat(ChatMessage(type: .bot, text: "❌ 분석 실패. 직접 대화로 도와드릴게요."))
                     
                     TokenTracker.shared.logAndTrack(
                         prompt: analysisPrompt,
@@ -90,7 +90,7 @@ extension ChatViewController {
                 self?.removeLastLoadingMessage()
                 
                 if let analysis = response {
-                    self?.appendChat(.bot(analysis))
+                    self?.appendChat(ChatMessage(type: .bot, text: analysis))
                     
                     TokenTracker.shared.logAndTrack(
                         prompt: analysisPrompt,
@@ -99,10 +99,10 @@ extension ChatViewController {
                     )
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self?.appendChat(.bot("💡 더 궁금한 점이 있으면 언제든 물어보세요!"))
+                        self?.appendChat(ChatMessage(type: .bot, text: "💡 더 궁금한 점이 있으면 언제든 물어보세요!"))
                     }
                 } else {
-                    self?.appendChat(.bot("❌ 분석 실패. 질문해주시면 도움드릴게요!"))
+                    self?.appendChat(ChatMessage(type: .bot, text: "❌ 분석 실패. 질문해주시면 도움드릴게요!"))
                     
                     TokenTracker.shared.logAndTrack(
                         prompt: analysisPrompt,

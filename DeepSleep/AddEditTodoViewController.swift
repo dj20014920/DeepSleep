@@ -335,9 +335,9 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
     }
     
     private func handleTodoManagerError(_ error: Error, forAction action: String) {
-        let nsError = error as NSError
+        _ = error as NSError // nsError 미사용
         var message = "할 일 \(action) 중 오류 발생: \(error.localizedDescription)"
-        var recoverySuggestion: String? = (error as? TodoManagerError)?.recoverySuggestion
+        let recoverySuggestion: String? = (error as? TodoManagerError)?.recoverySuggestion
         
         // TodoManagerError의 특정 케이스에 따라 메시지 커스터마이징 가능
         if let todoError = error as? TodoManagerError {
@@ -413,7 +413,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             aiHelpButton.setTitle("✔️ 이 할 일 조언 완료", for: .disabled)
             aiHelpButton.backgroundColor = .systemGray
         } else {
-            let remainingDailyCount = AIUsageManager.shared.getRemainingDailyIndividualAdviceCount()
+            let remainingDailyCount = AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice)
             if remainingDailyCount > 0 {
                 aiHelpButton.isEnabled = true
                 aiHelpButton.setTitle("AI에게 조언 구하기 (오늘 \\(remainingDailyCount)회 남음)", for: .normal)
@@ -437,7 +437,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             return
         }
         
-        guard AIUsageManager.shared.getRemainingDailyIndividualAdviceCount() > 0 else {
+        guard AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice) > 0 else {
             showAlert(title: "알림", message: "오늘 사용할 수 있는 AI 조언 횟수를 모두 사용했습니다.")
             return
         }
@@ -482,7 +482,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
                         }
                     }
                     
-                    AIUsageManager.shared.recordIndividualAdviceUsed() // 수정: recordAdviceUsed -> recordIndividualAdviceUsed
+                    AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                     self.updateAIHelpUI() // 버튼 상태 등 UI 업데이트
                 }
             } catch {

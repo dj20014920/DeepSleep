@@ -83,12 +83,12 @@ extension ViewController {
             rowStack.spacing = 12
 
             let categoryButton = UIButton(type: .system)
-            categoryButton.setTitle(SoundPresetCatalog.displayLabels[i], for: .normal)
-            categoryButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+            updateCategoryButtonTitle(categoryButton, for: i)
+            categoryButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
             categoryButton.contentHorizontalAlignment = .left
             categoryButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
             categoryButton.tag = i
-            categoryButton.widthAnchor.constraint(equalToConstant: 80).isActive = true
+            categoryButton.widthAnchor.constraint(equalToConstant: 90).isActive = true
             categoryButton.addTarget(self, action: #selector(categoryButtonTapped(_:)), for: .touchUpInside)
             
             let slider = UISlider()
@@ -243,96 +243,146 @@ extension ViewController {
     
     // MARK: - 카테고리 버튼 액션 (미리듣기 및 버전 선택 통합)
     
+
+    
     @objc private func categoryButtonTapped(_ sender: UIButton) {
         let categoryIndex = sender.tag
-
-        if currentlyPreviewingIndex == categoryIndex {
-            stopCurrentPreview()
-        } else {
-            stopCurrentPreview() 
+        let currentVersion = SoundManager.shared.getCurrentVersions()[categoryIndex]
+        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
+        
+        // 바로 버전 선택 메뉴 표시 (iOS 14+)
+        if #available(iOS 14.0, *) {
+            let alertController = UIAlertController(title: "\(categoryName) 버전 선택", message: nil, preferredStyle: .actionSheet)
             
-            currentlyPreviewingIndex = categoryIndex
-            let currentVersion = SoundManager.shared.getCurrentVersions()[categoryIndex]
-            SoundManager.shared.previewVersion(categoryIndex: categoryIndex, versionIndex: currentVersion)
-            
-            if let player = SoundManager.shared.previewPlayer, player.duration > 0 {
-                previewSeekSliders.forEach { $0.isHidden = true }
+            // 각 버전별 액션 추가
+            for versionIndex in 0..<versionCount {
+                let versionTitle = "Ver \(versionIndex + 1)/\(versionCount)"
+                let isCurrentVersion = versionIndex == currentVersion
                 
-                if categoryIndex < previewSeekSliders.count {
-                    let slider = previewSeekSliders[categoryIndex]
-                    slider.maximumValue = Float(player.duration)
-                    slider.value = 0
-                    slider.isHidden = false
+                let action = UIAlertAction(title: versionTitle, style: .default) { [weak self] _ in
+                    self?.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
                 }
-                startPreviewSliderTimer() 
-                provideLightHapticFeedback()
-            } else {
-                currentlyPreviewingIndex = nil 
-                showToast(message: "미리듣기를 재생할 수 없습니다.")
-                return 
-            }
-
-            if SoundPresetCatalog.hasMultipleVersions(at: categoryIndex) {
-                if #available(iOS 14.0, *) {
-                    sender.menu = createVersionMenuForCategoryButton(for: categoryIndex, currentVersion: currentVersion, button: sender)
-                    sender.showsMenuAsPrimaryAction = true 
+                
+                if isCurrentVersion {
+                    action.setValue(UIImage(systemName: "checkmark.circle.fill"), forKey: "image")
                 } else {
-                    let nextVersion = (currentVersion + 1) % SoundPresetCatalog.getVersionCount(at: categoryIndex)
-                    selectVersionAndSyncPreview(categoryIndex: categoryIndex, versionIndex: nextVersion)
+                    action.setValue(UIImage(systemName: "music.note"), forKey: "image")
                 }
+                
+                alertController.addAction(action)
+            }
+            
+            alertController.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
+            
+            // iPad 지원
+            if let popover = alertController.popoverPresentationController {
+                popover.sourceView = sender
+                popover.sourceRect = sender.bounds
+            }
+            
+            if let viewController = findViewController() {
+                viewController.present(alertController, animated: true)
+            }
+        } else {
+            // iOS 14 미만에서는 다음 버전으로 순환
+            let nextVersion = (currentVersion + 1) % versionCount
+            selectVersion(categoryIndex: categoryIndex, versionIndex: nextVersion)
+        }
+        
+        provideMediumHapticFeedback()
+    }
+
+    // MARK: - 버전 선택 메서드
+    private func selectVersion(categoryIndex: Int, versionIndex: Int) {
+        // 1. 버전 변경을 SoundManager에 적용
+        SoundManager.shared.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
+        
+        // 2. SettingsManager에도 버전 정보 저장 (핵심 수정!)
+        SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
+        
+        // 3. 현재 재생 중인 해당 카테고리의 음원도 새 버전으로 변경
+        let currentVolume = sliders[categoryIndex].value
+        if currentVolume > 0 {
+            let actualVolume = currentVolume * (masterVolumeLevel / 100.0)
+            SoundManager.shared.setVolume(at: categoryIndex, volume: actualVolume)
+        }
+        
+        // 4. 카테고리 버튼 제목 업데이트 (버전 정보 포함)
+        if let button = view.viewWithTag(categoryIndex) as? UIButton {
+            updateCategoryButtonTitle(button, for: categoryIndex)
+        }
+        
+        // 5. 사용자 피드백
+        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
+        showToast(message: "\(categoryName) Ver \(versionIndex + 1)/\(versionCount) 선택됨")
+        provideMediumHapticFeedback()
+    }
+    
+    // MARK: - findViewController 헬퍼 메서드
+    private func findViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while responder != nil {
+            responder = responder?.next
+            if let viewController = responder as? UIViewController {
+                return viewController
             }
         }
+        return nil
     }
 
     // MARK: - 버전 메뉴 생성 (카테고리 버튼용)
     @available(iOS 14.0, *)
     private func createVersionMenuForCategoryButton(for categoryIndex: Int, currentVersion: Int, button: UIButton) -> UIMenu {
-        let versionNames = SoundPresetCatalog.getVersionNames(for: categoryIndex)
-        let actions = versionNames.enumerated().map { (index, name) in
-            UIAction(
-                title: name,
-                image: index == currentVersion ? UIImage(systemName: "checkmark") : nil,
-                state: index == currentVersion ? .on : .off
+        let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
+        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        
+        var actions: [UIAction] = []
+        
+        // 각 버전에 대한 액션 생성
+        for index in 0..<versionCount {
+            let isSelected = index == currentVersion
+            let title = isSelected ? "Ver \(index + 1) ✓ (현재)" : "Ver \(index + 1)"
+            
+            let action = UIAction(
+                title: title,
+                image: isSelected ? UIImage(systemName: "checkmark.circle.fill") : UIImage(systemName: "music.note"),
+                state: isSelected ? .on : .off
             ) { [weak self] _ in
-                self?.selectVersionAndSyncPreview(categoryIndex: categoryIndex, versionIndex: index)
+                self?.selectVersion(categoryIndex: categoryIndex, versionIndex: index)
             }
+            actions.append(action)
         }
-        return UIMenu(title: "버전 선택", children: actions)
+        
+        return UIMenu(title: "\(categoryName) 버전 선택", children: actions)
     }
+    
 
-    // MARK: - 버전 선택 및 미리듣기 동기화
-    private func selectVersionAndSyncPreview(categoryIndex: Int, versionIndex: Int) {
-        SoundManager.shared.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
-        updateVersionInfo(for: categoryIndex) 
-        provideMediumHapticFeedback()
 
-        if currentlyPreviewingIndex != categoryIndex {
-             stopCurrentPreview() 
-        }
+    // MARK: - 카테고리 버튼 제목 업데이트
+    private func updateCategoryButtonTitle(_ button: UIButton, for categoryIndex: Int) {
+        let categoryDisplay = SoundManager.shared.getCategoryDisplay(at: categoryIndex)
+        let currentVersion = SoundManager.shared.getCurrentVersions()[categoryIndex]
+        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
         
-        SoundManager.shared.previewVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
-        currentlyPreviewingIndex = categoryIndex 
-
-        if let player = SoundManager.shared.previewPlayer, player.duration > 0 {
-            previewSeekSliders.forEach { $0.isHidden = true }
-            if categoryIndex < previewSeekSliders.count {
-                let slider = previewSeekSliders[categoryIndex]
-                slider.maximumValue = Float(player.duration)
-                slider.value = 0
-                slider.isHidden = false 
-            }
-            startPreviewSliderTimer()
-        } else {
-            stopCurrentPreview()
-            showToast(message: "선택한 버전 미리듣기를 재생할 수 없습니다.")
-        }
-        
-        if #available(iOS 14.0, *) {
-            if let button = view.viewWithTag(categoryIndex) as? UIButton {
-                 button.menu = createVersionMenuForCategoryButton(for: categoryIndex, currentVersion: versionIndex, button: button)
+        // 모든 카r테고리에 버전 정보 표시 (단일 버전도 "Ver 1/1"로 표시)
+        let title = "\(categoryDisplay)\nVer \(currentVersion + 1)/\(versionCount)"
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.numberOfLines = 2
+        button.titleLabel?.textAlignment = .left
+    }
+    
+    // MARK: - 모든 카테고리 버튼 제목 업데이트
+    private func updateAllCategoryButtonTitles() {
+        for i in 0..<SoundPresetCatalog.categoryCount {
+            if let button = view.viewWithTag(i) as? UIButton {
+                updateCategoryButtonTitle(button, for: i)
             }
         }
     }
+    
+
     
     // MARK: - 버전 정보 업데이트 (토스트 메시지 등)
     private func updateVersionInfo(for categoryIndex: Int) {
@@ -342,43 +392,7 @@ extension ViewController {
         }
     }
     
-    private func stopCurrentPreview() {
-        SoundManager.shared.stopPreview()
-        previewSliderUpdateTimer?.invalidate()
-        previewSliderUpdateTimer = nil
-        
-        if let index = currentlyPreviewingIndex, index < previewSeekSliders.count {
-            previewSeekSliders[index].isHidden = true
-            previewSeekSliders[index].value = 0
-        }
-        currentlyPreviewingIndex = nil
-    }
 
-    private func startPreviewSliderTimer() {
-        previewSliderUpdateTimer?.invalidate() 
-        previewSliderUpdateTimer = Timer.scheduledTimer(
-            timeInterval: 0.1, 
-            target: self,
-            selector: #selector(updatePreviewSlider),
-            userInfo: nil,
-            repeats: true
-        )
-    }
-
-    @objc private func updatePreviewSlider() {
-        guard let previewIndex = currentlyPreviewingIndex, 
-              previewIndex < previewSeekSliders.count,
-              let player = SoundManager.shared.previewPlayer else {
-            stopCurrentPreview() 
-            return
-        }
-
-        if player.isPlaying {
-            previewSeekSliders[previewIndex].value = Float(player.currentTime)
-        } else {
-            stopCurrentPreview()
-        }
-    }
     
     // MARK: - 토스트 메시지 표시 (fileprivate -> internal)
 
@@ -502,7 +516,21 @@ extension ViewController {
     
     func validateAndClampVolume(_ input: String) -> Int {
         guard !input.isEmpty else { return 0 }
-        guard let value = Int(input) else { return 0 }
+        
+        // 공백 제거
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else { return 0 }
+        
+        // 숫자 변환 (소수점 처리도 고려)
+        guard let value = Int(trimmedInput) else { 
+            // 소수점이 있는 경우 정수 부분만 추출
+            if let doubleValue = Double(trimmedInput) {
+                return max(0, min(100, Int(doubleValue)))
+            }
+            return 0 
+        }
+        
+        // 경계값 체크 강화
         return max(0, min(100, value))
     }
     
@@ -520,7 +548,7 @@ extension ViewController {
     
     /// 레거시 12개 볼륨을 11개로 변환하여 적용
     func applyLegacyVolumes(_ legacyVolumes: [Float]) {
-        let convertedVolumes = SoundPresetCatalog.convertLegacyVolumes(legacyVolumes)
+        let convertedVolumes = legacyVolumes.count == 13 ? legacyVolumes : Array(repeating: 0.0, count: 13)
         updateAllSlidersAndFields(volumes: convertedVolumes)
     }
     

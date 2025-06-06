@@ -402,9 +402,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     
     // MARK: - Error Handling
     private func handleTodoManagerError(_ error: Error, forAction action: String) {
-        let nsError = error as NSError
+        _ = error as NSError // nsError 미사용
         var message = "할 일 \(action) 중 오류 발생: \(error.localizedDescription)"
-        var recoverySuggestion: String? = (error as? TodoManagerError)?.recoverySuggestion
+        let recoverySuggestion: String? = (error as? TodoManagerError)?.recoverySuggestion
         var alertTitle = "오류"
 
         if let todoError = error as? TodoManagerError {
@@ -473,7 +473,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     // MARK: - AI Overall Advice Button Actions (New)
     private func updateOverallAdviceButtonUI() {
-        let remainingCount = AIUsageManager.shared.getRemainingDailyOverallAdviceCount()
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
         overallAdviceButton.setTitle("오늘의 전체 조언 보기 (\(remainingCount)회 남음)", for: .normal)
         overallAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         overallAdviceButton.isEnabled = remainingCount > 0
@@ -483,7 +483,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     @objc private func didTapOverallAdviceButton() {
-        guard AIUsageManager.shared.getRemainingDailyOverallAdviceCount() > 0 else {
+        guard AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice) > 0 else {
             showAlert(title: "알림", message: "오늘 사용할 수 있는 전체 할 일 조언 횟수를 모두 사용했습니다.")
             return
         }
@@ -521,7 +521,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     guard let self = self else { return }
                     self.overallAdviceActivityIndicator.stopAnimating()
                     self.showAlert(title: "✨ 오늘의 전체 조언 ✨", message: advice)
-                    AIUsageManager.shared.recordOverallAdviceUsed()
+                    AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
                     self.updateOverallAdviceButtonUI() // 성공 후 버튼 UI 업데이트
                 }
             } catch {
