@@ -50,7 +50,7 @@ extension ViewController {
         let chatVC = ChatViewController()
         chatVC.initialUserText = nil
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-            self?.applyPreset(volumes: preset.volumes, name: preset.presetName)
+            self?.applyPreset(volumes: preset.volumes, name: preset.presetName, shouldSaveToRecent: true)
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }
@@ -59,7 +59,7 @@ extension ViewController {
         let chatVC = ChatViewController()
         chatVC.initialUserText = emojis[sender.tag]
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-            self?.applyPreset(volumes: preset.volumes, name: preset.presetName)
+            self?.applyPreset(volumes: preset.volumes, name: preset.presetName, shouldSaveToRecent: true)
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }

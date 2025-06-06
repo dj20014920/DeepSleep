@@ -29,6 +29,7 @@ class TimerViewController: UIViewController {
         lbl.font = .monospacedDigitSystemFont(ofSize: 32, weight: .medium)
         lbl.textAlignment = .center
         lbl.text = "00:00"
+
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()

@@ -56,6 +56,100 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
     }
+    
+    // MARK: - URL 스키마 처리
+    
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url else { return }
+        
+        print("📱 URL 스키마 수신: \(url)")
+        
+        // emozleep:// 스키마 처리
+        if url.scheme == "emozleep" && url.host == "preset" {
+            handlePresetURL(url)
+        }
+    }
+    
+    private func handlePresetURL(_ url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems,
+              let dataItem = queryItems.first(where: { $0.name == "data" }),
+              let shareCode = dataItem.value else {
+            showURLError(message: "올바르지 않은 프리셋 링크입니다.")
+            return
+        }
+        
+        // PresetListViewController의 가져오기 기능 사용
+        importPresetFromURL(shareCode: "emozleep://preset?data=\(shareCode)")
+    }
+    
+    private func importPresetFromURL(shareCode: String) {
+        guard let windowScene = window?.windowScene,
+              let window = windowScene.windows.first,
+              let rootVC = window.rootViewController else { return }
+        
+        // 프리셋 가져오기 처리
+        // 임시로 여기서 직접 처리하고, 나중에 PresetListViewController로 이동
+        let alert = UIAlertController(
+            title: "🎵 프리셋 링크 감지",
+            message: "공유받은 프리셋을 가져오시겠습니까?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        alert.addAction(UIAlertAction(title: "가져오기", style: .default) { _ in
+            // 프리셋 목록 화면으로 이동하여 처리
+            self.navigateToPresetImport(shareCode: shareCode)
+        })
+        
+        rootVC.present(alert, animated: true)
+    }
+    
+    private func navigateToPresetImport(shareCode: String) {
+        // 메인 뷰컨트롤러로 이동한 후 프리셋 목록 화면 열기
+        guard let windowScene = window?.windowScene,
+              let window = windowScene.windows.first else { return }
+        
+        // LaunchViewController에서 메인 화면으로 전환
+        let mainVC = ViewController()
+        let navController = UINavigationController(rootViewController: mainVC)
+        
+        window.rootViewController = navController
+        window.makeKeyAndVisible()
+        
+        // 프리셋 목록 화면 열기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let presetListVC = PresetListViewController()
+            
+            // 프리셋 선택 시 메인 화면에 적용하는 콜백 설정
+            presetListVC.onPresetSelected = { [weak mainVC] preset in
+                // URL로 가져온 프리셋은 새로운 프리셋으로 저장하지 않음
+                mainVC?.applyPreset(volumes: preset.volumes, name: preset.name, shouldSaveToRecent: false)
+            }
+            
+            navController.pushViewController(presetListVC, animated: true)
+            
+            // URL에서 받은 공유 코드 자동 입력
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                presetListVC.handleIncomingShareCode(shareCode)
+            }
+        }
+    }
+    
+    private func showURLError(message: String) {
+        guard let windowScene = window?.windowScene,
+              let window = windowScene.windows.first,
+              let rootVC = window.rootViewController else { return }
+        
+        let alert = UIAlertController(
+            title: "프리셋 가져오기 오류",
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        rootVC.present(alert, animated: true)
+    }
 
 
 }

@@ -96,6 +96,7 @@ extension ViewController {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tag = (isRecent ? 100 : 200) + index
         button.addTarget(self, action: #selector(presetButtonTapped(_:)), for: .touchUpInside)
+        
         return button
     }
     
@@ -159,9 +160,12 @@ extension ViewController {
     }
     
     func getFavoritePresets() -> [SoundPreset] {
+        // UserDefaults에서 즐겨찾기 ID들을 가져와서 해당하는 프리셋들 반환
+        let favoriteIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
+        let favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
+        
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        // 사용자가 직접 저장한 프리셋을 즐겨찾기로 간주하고, 최신 순으로 4개까지
-        return Array(allPresets.filter { !$0.isAIGenerated }.prefix(4))
+        return allPresets.filter { favoritePresetIds.contains($0.id) }
     }
     
     func addToRecentPresets(name: String, volumes: [Float]) {
@@ -187,14 +191,20 @@ extension ViewController {
         }
         
         let preset = presets[buttonIndex]
-        applyPreset(volumes: preset.volumes, name: preset.name)
+        
+        // 즐겨찾기 프리셋인 경우 새로운 프리셋을 생성하지 않음
+        let shouldSaveToRecent = isRecentButton  // 최근 프리셋만 최근에 저장
+        applyPreset(volumes: preset.volumes, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
     }
+    
+
     
     func showPresetList() {
         let presetListVC = PresetListViewController()
         // SoundPreset으로 변경된 콜백
         presetListVC.onPresetSelected = { [weak self] preset in
-            self?.applyPreset(volumes: preset.volumes, name: preset.name)
+            // 프리셋 목록에서 선택한 경우 새로운 프리셋 생성하지 않음
+            self?.applyPreset(volumes: preset.volumes, name: preset.name, shouldSaveToRecent: false)
         }
         navigationController?.pushViewController(presetListVC, animated: true)
     }

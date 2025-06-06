@@ -123,10 +123,10 @@ class ViewController: UIViewController {
             UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
         ]
         
-        // 오른쪽: 저장 + 불러오기
+        // 오른쪽: 저장 + 프리셋
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped)),
-            UIBarButtonItem(title: "불러오기", style: .plain, target: self, action: #selector(loadPresetTapped))
+            UIBarButtonItem(title: "프리셋", style: .plain, target: self, action: #selector(loadPresetTapped))
         ]
     }
     

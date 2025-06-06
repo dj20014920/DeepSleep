@@ -164,9 +164,6 @@ extension ChatViewController {
         
         // MARK: - ✅ 프리셋 적용
         private func applyPresetRecommendation(_ recommendation: RecommendationResponse) {
-            // 적용 완료 메시지
-            appendChat(.bot("✅ '\\(recommendation.presetName)' 프리셋이 적용되었습니다! 🎶\\n\\n새로운 사운드 조합을 즐겨보세요 ✨"))
-            
             // 햅틱 피드백
             let feedback = UINotificationFeedbackGenerator()
             feedback.notificationOccurred(.success)
@@ -176,6 +173,7 @@ extension ChatViewController {
                 print("🚨 [DEBUG] onPresetApply is nil. This is likely the cause of the issue: 메인 화면으로 돌아가고 프리셋을 재생하는 콜백이 설정되지 않았습니다.")
                 // 사용자에게도 간단한 문제 상황 알림 (개발자 확인 필요 메시지)
                 appendChat(.bot("⚠️ 프리셋 적용 후 다음 단계로 진행하는 과정에 문제가 발생했어요. (개발자 확인 필요)"))
+                return
             } else {
                 print("✅ [DEBUG] onPresetApply is NOT nil. Recommendation to apply: \(recommendation)")
             }

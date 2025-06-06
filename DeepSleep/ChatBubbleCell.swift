@@ -283,13 +283,13 @@ class ChatBubbleCell: UITableViewCell {
             optionButtonStackView.heightAnchor.constraint(equalToConstant: 200) // 4개 버튼 * 50 높이
         ])
 
-        // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트)
+        // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트) - bottomAnchor 제거로 다른 버블에 영향 안 줌
         NSLayoutConstraint.activate([
             loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
             loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
             loadingContainer.widthAnchor.constraint(equalToConstant: 120), // 2배 크게 + 텍스트 공간
             loadingContainer.heightAnchor.constraint(equalToConstant: 60), // 2배 크게 + 여유 공간
-            loadingContainer.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8), // ✅ 버블 크기 결정
+            // ✅ bottomAnchor 제거 - 다른 버블에 영향주지 않도록
             
             // ✅ 고양이 뷰 (2배 크게)
             gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
@@ -777,6 +777,11 @@ class ChatBubbleCell: UITableViewCell {
         // 로딩 컨테이너만 표시
         loadingContainer.isHidden = false
         loadingContainer.alpha = 1.0
+        
+        // ✅ 로딩일 때만 버블이 로딩 컨테이너 크기에 맞춰지도록
+        NSLayoutConstraint.activate([
+            loadingContainer.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
+        ])
         
         // 기존 애니메이션이 있다면 정지
         stopLoadingAnimation()
