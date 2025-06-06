@@ -89,7 +89,7 @@ class EmotionAnalysisChatViewController: UIViewController {
     
     // MARK: - Setup
     private func setupUI() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "🤖 감정 패턴 분석"
         
         // 닫기 버튼

@@ -408,8 +408,17 @@ class ChatBubbleCell: UITableViewCell {
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
         
-        // 사용자 메시지 스타일 - 정상 크기로 복원
-        bubbleView.backgroundColor = .systemBlue
+        // 사용자 메시지 스타일 - 다크모드에서 보라색 계열
+        let userMessageColor = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemPurple.withAlphaComponent(0.8)
+            default:
+                return UIColor.systemBlue.withAlphaComponent(0.8)
+            }
+        }
+        
+        bubbleView.backgroundColor = userMessageColor
         messageLabel.textColor = .white
         messageLabel.text = text
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
@@ -418,10 +427,28 @@ class ChatBubbleCell: UITableViewCell {
         trailingConstraint.isActive = true
         messageLabelBottomConstraint.isActive = true
         
-        // 그라데이션 효과 (선택적)
+        // 그라데이션 효과 (다크모드에서 보라색)
+        let gradientColor1 = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemPurple.withAlphaComponent(0.8)
+            default:
+                return UIColor.systemBlue.withAlphaComponent(0.8)
+            }
+        }
+        
+        let gradientColor2 = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemPurple.withAlphaComponent(0.6)
+            default:
+                return UIColor.systemBlue.withAlphaComponent(0.6)
+            }
+        }
+        
         addGradientToBubble(colors: [
-            UIColor.systemBlue.cgColor,
-            UIColor.systemBlue.withAlphaComponent(0.8).cgColor
+            gradientColor1.cgColor,
+            gradientColor2.cgColor
         ])
     }
     
@@ -431,9 +458,9 @@ class ChatBubbleCell: UITableViewCell {
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
         
-        // AI 메시지 스타일 - 정상 크기로 복원
-        bubbleView.backgroundColor = UIColor(white: 0.95, alpha: 1)
-        messageLabel.textColor = .label
+        // AI 메시지 스타일 - 다크모드 호환
+        bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.text = text
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
         
@@ -454,8 +481,17 @@ class ChatBubbleCell: UITableViewCell {
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
         
-        // 프리셋 추천 메시지 스타일 - 정상 크기로 복원
-        bubbleView.backgroundColor = UIColor.systemGreen
+        // 프리셋 추천 메시지 스타일 - 다크모드에서 오렌지 계열
+        let presetMessageColor = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemOrange.withAlphaComponent(0.8)
+            default:
+                return UIColor.systemGreen.withAlphaComponent(0.8)
+            }
+        }
+        
+        bubbleView.backgroundColor = presetMessageColor
         messageLabel.textColor = .white
         messageLabel.text = msg
         messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
@@ -468,10 +504,28 @@ class ChatBubbleCell: UITableViewCell {
         applyButtonBottomConstraint.isActive = true
         applyAction = action
         
-        // 특별한 그라데이션 효과
+        // 특별한 그라데이션 효과 (다크모드에서 오렌지)
+        let gradientColor1 = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemOrange.withAlphaComponent(0.8)
+            default:
+                return UIColor.systemGreen
+            }
+        }
+        
+        let gradientColor2 = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemOrange.withAlphaComponent(0.6)
+            default:
+                return UIColor.systemGreen.withAlphaComponent(0.8)
+            }
+        }
+        
         addGradientToBubble(colors: [
-            UIColor.systemGreen.cgColor,
-            UIColor.systemGreen.withAlphaComponent(0.8).cgColor
+            gradientColor1.cgColor,
+            gradientColor2.cgColor
         ])
         
         // 버튼 애니메이션 효과
@@ -492,9 +546,9 @@ class ChatBubbleCell: UITableViewCell {
         onGoToMain: @escaping () -> Void,
         onContinueChat: @escaping () -> Void
     ) {
-        // AI 메시지 스타일 기본 적용
-        bubbleView.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.1)
-        messageLabel.textColor = .label
+        // AI 메시지 스타일 기본 적용 - 다크모드 호환
+        bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.text = "🎶 새로운 사운드 조합이 재생되고 있어요!\n\n이제 어떻게 하고 싶으신가요?"
         messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
         
@@ -510,28 +564,28 @@ class ChatBubbleCell: UITableViewCell {
         goToMainAction = onGoToMain
         continueAction = onContinueChat
         
-        // 4개의 옵션 버튼 생성
+        // 4개의 옵션 버튼 생성 - 다크모드 호환 색상
         let saveButton = createOptionButton(
             title: "💾 저장하기",
-            backgroundColor: .systemBlue,
+            backgroundColor: UIDesignSystem.Colors.primary.withAlphaComponent(0.8),
             action: #selector(saveOptionTapped)
         )
         
         let feedbackButton = createOptionButton(
             title: "💬 피드백",
-            backgroundColor: .systemOrange,
+            backgroundColor: UIColor.systemOrange.withAlphaComponent(0.8),
             action: #selector(feedbackOptionTapped)
         )
         
         let continueButton = createOptionButton(
             title: "💭 계속 대화",
-            backgroundColor: .systemGreen,
+            backgroundColor: UIColor.systemGreen.withAlphaComponent(0.8),
             action: #selector(continueOptionTapped)
         )
         
         let mainButton = createOptionButton(
             title: "🏠 메인으로",
-            backgroundColor: .systemGray,
+            backgroundColor: UIColor.systemGray.withAlphaComponent(0.8),
             action: #selector(mainOptionTapped)
         )
         

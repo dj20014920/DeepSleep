@@ -3,27 +3,139 @@ import UIKit
 // MARK: - 디자인 시스템
 struct UIDesignSystem {
     
-    // MARK: - 색상 시스템
+    // MARK: - 색상 시스템 (다크모드: 블랙&화이트, 일반모드: 밝은 파스텔톤)
     struct Colors {
-        // Primary Colors
-        static let primary = UIColor.systemBlue
+        // Primary Colors - 다크모드와 일반모드 구분
+        static var primary: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.white // 다크모드에서 흰색
+                default:
+                    return UIColor.systemBlue // 일반모드에서 파란색
+                }
+            }
+        }
+        
         static let primaryLight = UIColor.systemBlue.withAlphaComponent(0.1)
         static let primaryDark = UIColor(red: 0.0, green: 0.48, blue: 0.84, alpha: 1.0)
         
-        // Background Colors
-        static let background = UIColor.systemBackground
-        static let secondaryBackground = UIColor.secondarySystemBackground
-        static let tertiaryBackground = UIColor.tertiarySystemBackground
+        // Background Colors - 다크모드는 완전 검은색, 일반모드는 밝은 파스텔
+        static let background = UIColor.systemBackground // 라이트: 흰색, 다크: 검은색
+        static let secondaryBackground = UIColor.secondarySystemBackground 
+        static let tertiaryBackground = UIColor.tertiarySystemBackground 
+        static let groupedBackground = UIColor.systemGroupedBackground 
         
-        // Text Colors
-        static let primaryText = UIColor.label
-        static let secondaryText = UIColor.secondaryLabel
-        static let tertiaryText = UIColor.tertiaryLabel
+        // 개선된 배경색들 - 다크모드는 완전 검은색, 일반모드는 밝은 파스텔
+        static var adaptiveBackground: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.black // 완전한 검은색
+                default:
+                    return UIColor.white // 순수 하얀색
+                }
+            }
+        }
+        
+        static var adaptiveSecondaryBackground: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.black // 완전한 검은색
+                default:
+                    return UIColor.white // 순수 하얀색
+                }
+            }
+        }
+        
+        static var adaptiveTertiaryBackground: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0) // 아주 어두운 회색 (버튼용)
+                default:
+                    return UIColor.systemGray6 // 일반모드에서는 시스템 기본 회색
+                }
+            }
+        }
+        
+        // Text Colors - 다크모드는 흰색, 일반모드는 자동
+        static var primaryText: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.white // 완전한 흰색
+                default:
+                    return UIColor.label // 시스템 기본
+                }
+            }
+        }
+        
+        static var secondaryText: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.lightGray // 밝은 회색
+                default:
+                    return UIColor.secondaryLabel // 시스템 기본
+                }
+            }
+        }
+        
+        static var tertiaryText: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.gray // 회색
+                default:
+                    return UIColor.tertiaryLabel // 시스템 기본
+                }
+            }
+        }
+        
+        static let quaternaryText = UIColor.quaternaryLabel // 비활성화된 텍스트
         
         // UI Element Colors
-        static let separator = UIColor.separator
-        static let border = UIColor.systemGray4
+        static var separator: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.darkGray // 어두운 회색
+                default:
+                    return UIColor.separator // 시스템 기본
+                }
+            }
+        }
+        
+        static var border: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.darkGray // 어두운 회색
+                default:
+                    return UIColor.systemGray4 // 시스템 기본
+                }
+            }
+        }
+        
         static let shadow = UIColor.black.withAlphaComponent(0.1)
+        
+        // Fill Colors
+        static var fill: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.darkGray // 어두운 회색
+                default:
+                    return UIColor.systemFill // 시스템 기본
+                }
+            }
+        }
+        
+        static let secondaryFill = UIColor.secondarySystemFill
+        static let tertiaryFill = UIColor.tertiarySystemFill
+        static let quaternaryFill = UIColor.quaternarySystemFill
         
         // Status Colors
         static let success = UIColor.systemGreen
@@ -31,12 +143,102 @@ struct UIDesignSystem {
         static let error = UIColor.systemRed
         static let info = UIColor.systemBlue
         
-        // Emotion Colors
-        static let happy = UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)
-        static let sad = UIColor.systemBlue
-        static let angry = UIColor.systemRed
-        static let anxious = UIColor.systemOrange
-        static let sleepy = UIColor.systemPurple
+        // Emotion Colors - 다크모드에서도 잘 보이는 색상들
+        static var emotionHappy: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.yellow // 밝은 노란색
+                default:
+                    return UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)
+                }
+            }
+        }
+        
+        static var emotionSad: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.cyan // 밝은 블루
+                default:
+                    return UIColor.systemBlue
+                }
+            }
+        }
+        
+        static var emotionAngry: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.red // 밝은 레드
+                default:
+                    return UIColor.systemRed
+                }
+            }
+        }
+        
+        static var emotionAnxious: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.orange // 밝은 오렌지
+                default:
+                    return UIColor.systemOrange
+                }
+            }
+        }
+        
+        static var emotionSleepy: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.magenta // 밝은 퍼플
+                default:
+                    return UIColor.systemPurple
+                }
+            }
+        }
+        
+        static var emotionNeutral: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.lightGray // 밝은 그레이
+                default:
+                    return UIColor.systemGray
+                }
+            }
+        }
+        
+        // 호환성을 위한 기존 이름들
+        static var happy: UIColor { emotionHappy }
+        static var sad: UIColor { emotionSad }
+        static var angry: UIColor { emotionAngry }
+        static var anxious: UIColor { emotionAnxious }
+        static var sleepy: UIColor { emotionSleepy }
+        
+        // Slider Colors - 다크모드에서 하얀색
+        static var sliderTrack: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.white // 다크모드에서 하얀색
+                default:
+                    return UIColor.systemBlue // 일반모드에서 파란색
+                }
+            }
+        }
+        
+        static var sliderThumb: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.white // 다크모드에서 하얀색
+                default:
+                    return UIColor.systemBlue // 일반모드에서 파란색
+                }
+            }
+        }
     }
     
     // MARK: - 폰트 시스템
@@ -235,9 +437,9 @@ extension UILabel {
 // MARK: - UISlider Extensions
 extension UISlider {
     func applyStandardStyle() {
-        minimumTrackTintColor = UIDesignSystem.Colors.primary
+        minimumTrackTintColor = UIDesignSystem.Colors.sliderTrack
         maximumTrackTintColor = UIDesignSystem.Colors.border
-        thumbTintColor = UIDesignSystem.Colors.primary
+        thumbTintColor = UIDesignSystem.Colors.sliderThumb
     }
 }
 

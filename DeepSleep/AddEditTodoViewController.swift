@@ -75,7 +75,8 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
     private let saveButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("저장", for: .normal)
-        button.backgroundColor = .systemBlue
+        // 다크모드에서는 파란색 배경에 흰색 텍스트, 일반모드에서는 파란색 배경에 흰색 텍스트
+        button.backgroundColor = UIColor.systemBlue
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 8
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
@@ -100,7 +101,8 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         let button = UIButton(type: .system)
         button.setTitle("AI에게 조언 구하기 🤔", for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-        button.backgroundColor = .systemGreen
+        // AI 버튼은 그린 색상으로 구분
+        button.backgroundColor = UIColor.systemGreen
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 8
         return button
@@ -149,7 +151,9 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
     }
 
     private func setupNavigationBar() {
-        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(didTapCancelButton))
+        let cancelButton = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(didTapCancelButton))
+        cancelButton.tintColor = UIDesignSystem.Colors.primaryText
+        navigationItem.leftBarButtonItem = cancelButton
     }
 
     private func setupUI() {

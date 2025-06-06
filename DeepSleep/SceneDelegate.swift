@@ -150,6 +150,44 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         rootVC.present(alert, animated: true)
     }
+    
+    // MARK: - 메인 화면 전환
+    func showMainInterface() {
+        // TabBarController 생성
+        let tabBarController = UITabBarController()
+
+        // 1. 메인 사운드 화면 (ViewController)
+        let mainVC = ViewController()
+        let mainNav = UINavigationController(rootViewController: mainVC)
+        mainNav.navigationBar.prefersLargeTitles = true
+        mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)
+
+        // 2. 일기 목록 화면 (EmotionDiaryViewController)
+        let diaryVC = EmotionDiaryViewController()
+        let diaryNav = UINavigationController(rootViewController: diaryVC)
+        diaryNav.navigationBar.prefersLargeTitles = true
+        diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
+        
+        // 3. 감정 캘린더 화면 (TodoCalendarViewController)
+        let todoCalendarVC = TodoCalendarViewController()
+        let todoCalendarNav = UINavigationController(rootViewController: todoCalendarVC)
+        todoCalendarNav.navigationBar.prefersLargeTitles = true
+        todoCalendarNav.tabBarItem = UITabBarItem(title: "내 일정", image: UIImage(systemName: "calendar.badge.plus"), tag: 2)
+        
+        // TabBarController에 뷰 컨트롤러들 설정
+        tabBarController.viewControllers = [mainNav, diaryNav, todoCalendarNav]
+        tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
+
+        // CrossDissolve 전환
+        UIView.transition(
+            with: window!,
+            duration: 0.7,
+            options: .transitionCrossDissolve,
+            animations: {
+                self.window?.rootViewController = tabBarController
+            }
+        )
+    }
 
 
 }

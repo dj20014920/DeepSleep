@@ -27,15 +27,18 @@ extension ViewController {
         // 오디오 모드 버튼을 첫 번째로 배치
         audioModeButton = UIButton(type: .system)
         audioModeButton.setImage(UIImage(systemName: "speaker.wave.3"), for: .normal)
+        audioModeButton.tintColor = UIDesignSystem.Colors.primaryText
         audioModeButton.addTarget(self, action: #selector(audioModeButtonTapped), for: .touchUpInside)
         updateAudioModeButtonTitle()
 
         let playAll = UIButton(type: .system)
         playAll.setImage(UIImage(systemName: "play.fill"), for: .normal)
+        playAll.tintColor = UIDesignSystem.Colors.primaryText
         playAll.addTarget(self, action: #selector(playAllTapped), for: .touchUpInside)
 
         let pauseAll = UIButton(type: .system)
         pauseAll.setImage(UIImage(systemName: "pause.fill"), for: .normal)
+        pauseAll.tintColor = UIDesignSystem.Colors.primaryText
         pauseAll.addTarget(self, action: #selector(pauseAllTapped), for: .touchUpInside)
 
         [audioModeButton, playAll, pauseAll].forEach { controlsStack.addArrangedSubview($0) }
@@ -83,6 +86,7 @@ extension ViewController {
             categoryButton.setTitle(SoundPresetCatalog.displayLabels[i], for: .normal)
             categoryButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
             categoryButton.contentHorizontalAlignment = .left
+            categoryButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
             categoryButton.tag = i
             categoryButton.widthAnchor.constraint(equalToConstant: 80).isActive = true
             categoryButton.addTarget(self, action: #selector(categoryButtonTapped(_:)), for: .touchUpInside)
@@ -108,6 +112,7 @@ extension ViewController {
 
             let playButton = UIButton(type: .system)
             playButton.setImage(UIImage(systemName: "play.fill"), for: .normal)
+            playButton.tintColor = UIDesignSystem.Colors.primaryText
             playButton.tag = i
             playButton.widthAnchor.constraint(equalToConstant: 30).isActive = true
             playButton.heightAnchor.constraint(equalToConstant: 30).isActive = true

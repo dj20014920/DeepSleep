@@ -30,7 +30,7 @@ class EmotionInputViewController: UIViewController, UITextViewDelegate {
     }()
 
     private let emojiStack: UIStackView = {
-        let emojis = ["😊","😢","😠","😰","😴"]
+        let emojis = ["😴","😢","😠","😊","😔","😐"]
         let sv = UIStackView()
         sv.axis = .horizontal
         sv.distribution = .fillEqually

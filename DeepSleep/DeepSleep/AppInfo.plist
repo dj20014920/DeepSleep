@@ -41,6 +41,12 @@
     <string>$(REPLICATE_API_TOKEN)</string>
     <key>NSCalendarsUsageDescription</key>
     <string>할 일을 사용자의 캘린더에 추가하고 관리하기 위해 캘린더 접근 권한이 필요합니다. 이를 통해 앱에서 생성한 할 일을 캘린더 앱에서도 확인하고 알림을 받을 수 있습니다.</string>
+    <!-- ⚠️ Apple Developer 계정 권한 부족으로 임시 비활성화
+    <key>NSHealthShareUsageDescription</key>
+    <string>사용자의 수면 패턴과 심박수 정보를 분석하여 개인 맞춤형 사운드 프리셋을 추천하고, 더 나은 수면 질 향상을 위한 인사이트를 제공합니다. 모든 건강 데이터는 개인정보보호를 위해 안전하게 처리됩니다.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>앱 사용 기록을 HealthKit에 저장하여 수면 활동을 추적하고 개선된 수면 패턴을 기록합니다.</string>
+    -->
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

@@ -126,7 +126,7 @@ class EmotionCalendarViewController: UIViewController {
     
     // MARK: - Setup
     private func setupUI() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "감정 캘린더"
         
         setupScrollView()
@@ -172,6 +172,12 @@ class EmotionCalendarViewController: UIViewController {
         headerView.addSubview(prevButton)
         headerView.addSubview(nextButton)
         
+        // 다크모드 호환 색상 적용
+        headerView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+        monthLabel.textColor = UIDesignSystem.Colors.primaryText
+        prevButton.setTitleColor(UIDesignSystem.Colors.primary, for: .normal)
+        nextButton.setTitleColor(UIDesignSystem.Colors.primary, for: .normal)
+        
         prevButton.addTarget(self, action: #selector(prevMonthTapped), for: .touchUpInside)
         nextButton.addTarget(self, action: #selector(nextMonthTapped), for: .touchUpInside)
     }
@@ -185,13 +191,23 @@ class EmotionCalendarViewController: UIViewController {
             label.text = weekday
             label.textAlignment = .center
             label.font = .systemFont(ofSize: 14, weight: .medium)
-            label.textColor = index == 0 ? .systemRed : (index == 6 ? .systemBlue : .label)
+            // 다크모드 호환 색상 적용
+            if index == 0 {
+                label.textColor = UIDesignSystem.Colors.error // 일요일
+            } else if index == 6 {
+                label.textColor = UIDesignSystem.Colors.primary // 토요일
+            } else {
+                label.textColor = UIDesignSystem.Colors.primaryText
+            }
             weekdayStackView.addArrangedSubview(label)
         }
     }
     
     private func setupCalendarCollection() {
         contentView.addSubview(calendarCollectionView)
+        
+        // 다크모드 호환 배경색 적용
+        calendarCollectionView.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         
         calendarCollectionView.delegate = self
         calendarCollectionView.dataSource = self
@@ -204,6 +220,10 @@ class EmotionCalendarViewController: UIViewController {
         
         monthlyStatsView.addSubview(monthlyStatsLabel)
         monthlyStatsView.addSubview(statsStackView)
+        
+        // 다크모드 호환 색상 적용
+        monthlyStatsView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+        monthlyStatsLabel.textColor = UIDesignSystem.Colors.primaryText
         
         aiAnalysisButton.addTarget(self, action: #selector(aiAnalysisButtonTapped), for: .touchUpInside)
     }
@@ -366,7 +386,7 @@ extension EmotionCalendarViewController {
         guard !currentMonthEntries.isEmpty else {
             let emptyLabel = UILabel()
             emptyLabel.text = "이 달 감정 기록이 없습니다"
-            emptyLabel.textColor = .systemGray
+            emptyLabel.textColor = UIDesignSystem.Colors.secondaryText
             emptyLabel.textAlignment = .center
             statsStackView.addArrangedSubview(emptyLabel)
             
@@ -394,7 +414,7 @@ extension EmotionCalendarViewController {
         let totalLabel = UILabel()
         totalLabel.text = "총 \(currentMonthEntries.count)개의 감정 기록"
         totalLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        totalLabel.textColor = .systemGray
+        totalLabel.textColor = UIDesignSystem.Colors.secondaryText
         totalLabel.textAlignment = .center
         statsStackView.addArrangedSubview(totalLabel)
         
@@ -414,7 +434,7 @@ extension EmotionCalendarViewController {
         let rankLabel = UILabel()
         rankLabel.text = "\(rank)."
         rankLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        rankLabel.textColor = .systemGray
+        rankLabel.textColor = UIDesignSystem.Colors.secondaryText
         rankLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let emotionLabel = UILabel()
@@ -425,14 +445,14 @@ extension EmotionCalendarViewController {
         let countLabel = UILabel()
         countLabel.text = "\(count)회"
         countLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        countLabel.textColor = .label
+        countLabel.textColor = UIDesignSystem.Colors.primaryText
         countLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let percentageLabel = UILabel()
         let percentage = Int((Float(count) / Float(total)) * 100)
         percentageLabel.text = "\(percentage)%"
         percentageLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        percentageLabel.textColor = .systemBlue
+        percentageLabel.textColor = UIDesignSystem.Colors.primary
         percentageLabel.translatesAutoresizingMaskIntoConstraints = false
         
         [rankLabel, emotionLabel, countLabel, percentageLabel].forEach {

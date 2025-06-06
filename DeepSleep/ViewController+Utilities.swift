@@ -4,7 +4,152 @@ import CryptoKit
 // MARK: - 유틸리티 & 피드백 관련 Extension
 extension ViewController {
     
-    // MARK: - 프리셋 적용
+    // MARK: - ⚠️ 애플워치 헬스킷 초기화 (Apple Developer 계정 권한 부족으로 임시 비활성화)
+    
+    /*
+     ⚠️ APPLE DEVELOPER 계정 권한 부족으로 인한 임시 비활성화
+     
+     HealthKit 연동 기능을 사용하려면 다음이 필요합니다:
+     1. Apple Developer Program 가입 ($99/년)
+     2. Provisioning Profile에 HealthKit capability 추가
+     3. com.apple.developer.healthkit entitlement 권한
+     
+     현재 학술용 시뮬레이터 테스트를 위해 주석처리됨.
+     실제 배포시에는 주석 해제 후 Apple Developer 계정으로 빌드 필요.
+     
+     기능 설명:
+     - 애플워치 건강 데이터 기반 AI 프리셋 추천
+     - 심박수, 활동량, 수면 패턴 실시간 분석
+     - 개인화된 사운드 테라피 제안
+    */
+    
+    /// ⚠️ Apple Developer 계정 권한 부족으로 임시 비활성화
+    /// 애플워치 헬스킷 기능 초기화 (선택적)
+    func setupHealthKitIfNeeded() {
+        // ⚠️ Apple Developer 계정 권한 부족으로 임시 비활성화
+        print("⚠️ [HealthKit UI] Apple Developer 계정 권한 부족으로 비활성화됨")
+        print("📚 학술용 시뮬레이터 데모에서는 HealthKit 연동이 제외됩니다.")
+        
+        /* 원본 코드 - Apple Developer 계정 필요
+        // 사용자가 이전에 거부했다면 다시 묻지 않음
+        let hasAskedBefore = UserDefaults.standard.bool(forKey: "healthkit_permission_asked")
+        
+        if !hasAskedBefore {
+            showHealthKitPermissionAlert()
+        } else if UserDefaults.standard.bool(forKey: "healthkit_enabled") {
+            // 이미 허용했다면 바로 초기화
+            HealthKitManager.shared.requestPermission { success in
+                print(success ? "✅ HealthKit 초기화 완료" : "❌ HealthKit 초기화 실패")
+            }
+        }
+        */
+    }
+    
+    /*
+    private func showHealthKitPermissionAlert() {
+        let alert = UIAlertController(
+            title: "⌚ 스마트 추천 기능",
+            message: "애플워치의 건강 데이터를 분석하여 당신에게 맞는 사운드를 추천해드릴까요?\n\n• 심박수, 활동량, 수면 패턴 분석\n• 개인화된 프리셋 추천\n• 데이터는 기기에서만 처리됩니다",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "사용하기", style: .default) { [weak self] _ in
+            UserDefaults.standard.set(true, forKey: "healthkit_permission_asked")
+            UserDefaults.standard.set(true, forKey: "healthkit_enabled")
+            
+            HealthKitManager.shared.requestPermission { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self?.showPresetAppliedFeedback(name: "✅ 스마트 추천 기능이 활성화되었습니다")
+                        self?.addHealthRecommendationButton()
+                    } else {
+                        self?.showPresetAppliedFeedback(name: "⚠️ 건강 데이터 접근이 제한되었습니다")
+                    }
+                }
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "나중에", style: .cancel) { _ in
+            UserDefaults.standard.set(true, forKey: "healthkit_permission_asked")
+            UserDefaults.standard.set(false, forKey: "healthkit_enabled")
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    /// 네비게이션 바에 건강 추천 버튼 추가
+    private func addHealthRecommendationButton() {
+        let healthButton = UIBarButtonItem(
+            title: "⌚AI",
+            style: .plain,
+            target: self,
+            action: #selector(showHealthRecommendation)
+        )
+        
+        // 기존 rightBarButtonItems에 추가
+        if var rightItems = navigationItem.rightBarButtonItems {
+            rightItems.append(healthButton)
+            navigationItem.rightBarButtonItems = rightItems
+        } else {
+            navigationItem.rightBarButtonItems = [healthButton]
+        }
+    }
+    
+    @objc private func showHealthRecommendation() {
+        // 로딩 인디케이터 표시
+        let loadingAlert = UIAlertController(title: "⌚ 건강 데이터 분석 중...", message: "잠시만 기다려주세요", preferredStyle: .alert)
+        present(loadingAlert, animated: true)
+        
+        // 건강 데이터 분석 및 추천
+        HealthKitManager.shared.analyzeTodayAndRecommend { [weak self] wellness in
+            DispatchQueue.main.async {
+                // 로딩 창 닫기
+                loadingAlert.dismiss(animated: true) {
+                    self?.presentWellnessResults(wellness)
+                }
+            }
+        }
+    }
+    
+    private func presentWellnessResults(_ wellness: HealthKitManager.DailyWellness?) {
+        guard let wellness = wellness else {
+            showPresetAppliedFeedback(name: "❌ 건강 데이터를 불러올 수 없습니다")
+            return
+        }
+        
+        let alert = UIAlertController(
+            title: "📊 오늘의 건강 분석",
+            message: """
+            \(wellness.stressLevel.emoji) 스트레스: \(wellness.stressLevel.rawValue)
+            🏃‍♂️ 활동량: \(wellness.activityLevel.rawValue)  
+            😴 수면: \(wellness.sleepQuality.rawValue)
+            
+            \(wellness.explanation)
+            """,
+            preferredStyle: .alert
+        )
+        
+        // 추천 프리셋 적용 버튼
+        alert.addAction(UIAlertAction(title: "🎵 \(wellness.recommendedPreset) 적용", style: .default) { [weak self] _ in
+            self?.applyRecommendedPreset(wellness.recommendedPreset)
+        })
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func applyRecommendedPreset(_ presetName: String) {
+        // SoundPresetCatalog에서 해당 프리셋 찾기
+        if let volumes = SoundPresetCatalog.samplePresets[presetName] {
+            applyPreset(volumes: volumes, name: presetName, shouldSaveToRecent: true)
+        } else {
+            showPresetAppliedFeedback(name: "⚠️ 추천 프리셋을 찾을 수 없습니다")
+        }
+    }
+    */
+    
+    // MARK: - 프리셋 적용 (Apple Developer 계정 무관)
     func applyPreset(volumes: [Float], name: String, shouldSaveToRecent: Bool = true) {
         // 1. 슬라이더와 텍스트필드 UI 업데이트 (실제 재생은 하지 않음)
         for (i, volume) in volumes.enumerated() where i < sliders.count {
@@ -28,7 +173,7 @@ extension ViewController {
         showPresetAppliedFeedback(name: name)
     }
     
-    // MARK: - 피드백
+    // MARK: - 피드백 (Apple Developer 계정 무관)
     func provideLightHapticFeedback() {
         let feedback = UIImpactFeedbackGenerator(style: .light)
         feedback.impactOccurred()
@@ -71,7 +216,7 @@ extension ViewController {
         }
     }
     
-    // MARK: - 키보드 처리
+    // MARK: - 키보드 처리 (Apple Developer 계정 무관)
     @objc func keyboardWillShow(notification: Notification) {
         guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
         
@@ -191,7 +336,7 @@ extension ViewController {
             
             shareContent(message)
         } catch {
-            showToast(message: "프리셋 인코딩에 실패했습니다.")
+            showPresetAppliedFeedback(name: "프리셋 인코딩에 실패했습니다.")
         }
     }
     

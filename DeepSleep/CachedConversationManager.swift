@@ -257,7 +257,16 @@ class CachedConversationManager {
             case .loading:
                 return nil // 로딩 메시지는 캐시에 포함하지 않음
             case .presetRecommendation(let presetName, let msg, _):
-                return "AI (프리셋 추천): \(msg)"
+                // 다양한 프리셋 추천 형식 사용
+                let recommendationFormats = [
+                    "🎵 \(presetName)",
+                    "✨ \(presetName) 추천",
+                    "🌟 \(presetName)가 어떠세요?",
+                    "💫 \(presetName) 조합",
+                    "🎶 \(presetName) 사운드"
+                ]
+                let randomFormat = recommendationFormats.randomElement() ?? "🎵 \(presetName)"
+                return randomFormat
             case .postPresetOptions(let presetName, _, _, _, _):
                 return "시스템 (프리셋 옵션): \(presetName)"
             }

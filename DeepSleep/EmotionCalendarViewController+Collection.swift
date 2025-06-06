@@ -100,7 +100,7 @@ class CalendarDayCell: UICollectionViewCell {
         
         if let emotion = emotionData[dateKey] {
             emotionLabel.text = emotion
-            backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+            backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.15)
         } else {
             emotionLabel.text = ""
             backgroundColor = .clear
@@ -109,19 +109,22 @@ class CalendarDayCell: UICollectionViewCell {
         // 오늘 날짜 표시
         if calendar.isDateInToday(date) {
             layer.borderWidth = 2
-            layer.borderColor = UIColor.systemBlue.cgColor
+            layer.borderColor = UIDesignSystem.Colors.primary.cgColor
         } else {
             layer.borderWidth = 0
         }
         
-        // 주말 색상
+        // 주말 색상 - 다크모드 호환
         let weekday = calendar.component(.weekday, from: date)
         if weekday == 1 {
-            dayLabel.textColor = .systemRed
+            dayLabel.textColor = UIDesignSystem.Colors.error // 일요일
         } else if weekday == 7 {
-            dayLabel.textColor = .systemBlue
+            dayLabel.textColor = UIDesignSystem.Colors.primary // 토요일
         } else {
-            dayLabel.textColor = .label
+            dayLabel.textColor = UIDesignSystem.Colors.primaryText
         }
+        
+        // 이모지 텍스트 색상도 다크모드 호환
+        emotionLabel.textColor = UIDesignSystem.Colors.primaryText
     }
 }

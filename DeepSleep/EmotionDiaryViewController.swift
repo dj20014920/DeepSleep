@@ -83,13 +83,16 @@ class EmotionDiaryViewController: UIViewController {
     
     // MARK: - Setup
     private func setupUI() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "감정 일기"
         
-        navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(title: "일기 쓰기", style: .plain, target: self, action: #selector(writeNewDiary)),
-            UIBarButtonItem(title: "전체 삭제", style: .plain, target: self, action: #selector(clearAllData))
-        ]
+        let writeButton = UIBarButtonItem(title: "일기 쓰기", style: .plain, target: self, action: #selector(writeNewDiary))
+        let deleteButton = UIBarButtonItem(title: "전체 삭제", style: .plain, target: self, action: #selector(clearAllData))
+        
+        writeButton.tintColor = UIDesignSystem.Colors.primaryText
+        deleteButton.tintColor = UIDesignSystem.Colors.primaryText
+        
+        navigationItem.rightBarButtonItems = [writeButton, deleteButton]
         
         setupSegmentedControl()
         setupScrollView()

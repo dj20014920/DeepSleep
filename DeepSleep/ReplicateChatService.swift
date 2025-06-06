@@ -505,11 +505,15 @@ class ReplicateChatService {
                 return
             }
 
-            guard let apiToken = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String else {
-                print("❌ API 토큰 누락")
-                completion(nil)
-                return
-            }
+                    // 🔧 시뮬레이터 테스트용 임시 하드코딩 (실제 배포시 제거 필요)
+        let apiToken = "r8_29j0U8UbheNEVv6ju6n54OlTtyCmToJ3eFDzj"
+        print("✅ [DEBUG] API 토큰 사용: \(apiToken.prefix(10))...")
+        
+        guard !apiToken.isEmpty else {
+            print("❌ API 토큰 누락")
+            completion(nil)
+            return
+        }
 
             let url = URL(string: "https://api.replicate.com/v1/models/anthropic/claude-3.5-haiku/predictions")!
             var request = URLRequest(url: url)
@@ -587,7 +591,10 @@ class ReplicateChatService {
             return
         }
 
-        guard let apiToken = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String else {
+        // 🔧 시뮬레이터 테스트용 임시 하드코딩 (실제 배포시 제거 필요)
+        let apiToken = "r8_29j0U8UbheNEVv6ju6n54OlTtyCmToJ3eFDzj"
+        
+        guard !apiToken.isEmpty else {
             completion(nil)
             return
         }

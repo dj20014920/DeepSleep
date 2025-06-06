@@ -43,7 +43,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         self.title = "내 일정"
         
         setupCalendar()
@@ -65,7 +65,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         loadData(for: today)
         updateOverallAdviceButtonUI()
         
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAddButton))
+        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAddButton))
+        addButton.tintColor = UIDesignSystem.Colors.primaryText
+        navigationItem.rightBarButtonItem = addButton
     }
     
     override func viewDidLayoutSubviews() {
@@ -79,10 +81,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         calendar.delegate = self
         
         calendar.appearance.headerDateFormat = "YYYY년 M월"
-        calendar.appearance.weekdayTextColor = .systemBlue
-        calendar.appearance.headerTitleColor = .label
+        calendar.appearance.weekdayTextColor = UIDesignSystem.Colors.primary
+        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
+        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
+        calendar.appearance.titleWeekendColor = UIDesignSystem.Colors.error
         calendar.appearance.todayColor = .systemOrange
-        calendar.appearance.selectionColor = .systemBlue
+        calendar.appearance.selectionColor = UIColor.darkGray
+        calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         calendar.locale = Locale(identifier: "ko_KR")
         calendar.placeholderType = .none
 
@@ -106,8 +111,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-        button.backgroundColor = UIColor.systemPurple
-        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = UIColor.secondarySystemGroupedBackground
+        button.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         button.layer.cornerRadius = 8
         button.addTarget(self, action: #selector(didTapOverallAdviceButton), for: .touchUpInside)
         container.addSubview(button)
@@ -470,6 +475,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     private func updateOverallAdviceButtonUI() {
         let remainingCount = AIUsageManager.shared.getRemainingDailyOverallAdviceCount()
         overallAdviceButton.setTitle("오늘의 전체 조언 보기 (\(remainingCount)회 남음)", for: .normal)
+        overallAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         overallAdviceButton.isEnabled = remainingCount > 0
         if overallAdviceActivityIndicator.isAnimating {
              overallAdviceButton.setTitle("", for: .normal) // 로딩 중에는 텍스트 숨김

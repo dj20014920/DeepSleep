@@ -41,6 +41,8 @@ class ChatViewController: UIViewController {
         let tf = UITextField()
         tf.placeholder = "마음을 편하게 말해보세요..."
         tf.borderStyle = .roundedRect
+        tf.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        tf.textColor = UIDesignSystem.Colors.primaryText
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
     }()
@@ -48,6 +50,7 @@ class ChatViewController: UIViewController {
     private let sendButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("전송", for: .normal)
+        btn.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
@@ -55,7 +58,8 @@ class ChatViewController: UIViewController {
     private let presetButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("🎵 지금 기분에 맞는 사운드 추천받기", for: .normal)
-        btn.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        btn.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        btn.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         btn.layer.cornerRadius = 8
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         btn.translatesAutoresizingMaskIntoConstraints = false
@@ -73,7 +77,7 @@ class ChatViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         setupNavigationBar()
         setupUI()
         setupConstraints()

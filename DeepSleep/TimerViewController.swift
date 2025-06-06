@@ -40,7 +40,7 @@ class TimerViewController: UIViewController {
         lbl.font = .systemFont(ofSize: 16, weight: .medium)
         lbl.textAlignment = .center
         lbl.text = ""
-        lbl.textColor = .systemBlue
+        lbl.textColor = UIDesignSystem.Colors.primaryText
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -96,7 +96,7 @@ class TimerViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "타이머"
         
         setupUI()
@@ -416,7 +416,7 @@ class TimerViewController: UIViewController {
     
     private func scheduleNotification(at date: Date) {
         let content = UNMutableNotificationContent()
-        content.title = "DeepSleep 타이머 완료"
+        content.title = "EmoZleep 타이머 완료"
         content.body = "설정하신 시간이 되었습니다. 사운드가 서서히 꺼집니다."
         content.sound = .default
         content.badge = 1
@@ -432,6 +432,105 @@ class TimerViewController: UIViewController {
                 print("알림 스케줄링 성공: \(date)")
             }
         }
+        
+        // iPhone 기본 알람 추가 제안 (예약 모드일 때만)
+        if modeControl.selectedSegmentIndex == 1 {
+            showAlarmIntegrationOption(for: date)
+        }
+    }
+    
+    /// iPhone 기본 알람 연동 제안
+    private func showAlarmIntegrationOption(for endDate: Date) {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "ko_KR")
+        
+        let timeString = formatter.string(from: endDate)
+        
+        let alert = UIAlertController(
+            title: "알람 연동",
+            message: "\(timeString)에 iPhone 기본 알람도 설정하시겠습니까?\n\n더 확실한 기상을 위해 알람을 추가로 설정할 수 있습니다.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "알람 추가", style: .default) { _ in
+            self.addToAppleAlarm(endDate)
+        })
+        
+        alert.addAction(UIAlertAction(title: "건너뛰기", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    /// iPhone 기본 알람 앱에 알람 추가
+    private func addToAppleAlarm(_ date: Date) {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        
+        guard let hour = components.hour, let minute = components.minute else {
+            showAlarmError()
+            return
+        }
+        
+        // 알람 앱 URL 스킴 사용
+        let alarmURL = "clock-alarm:create?hour=\(hour)&minute=\(minute)"
+        
+        if let url = URL(string: alarmURL), UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url) { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self.showAlarmSuccess()
+                    } else {
+                        self.showAlarmFallback(hour: hour, minute: minute)
+                    }
+                }
+            }
+        } else {
+            showAlarmFallback(hour: hour, minute: minute)
+        }
+    }
+    
+    /// 알람 설정 성공 메시지
+    private func showAlarmSuccess() {
+        let alert = UIAlertController(
+            title: "알람 설정 완료",
+            message: "iPhone 기본 알람이 추가되었습니다. ⏰",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+    
+    /// 알람 설정 대안 방법 제시
+    private func showAlarmFallback(hour: Int, minute: Int) {
+        let timeString = String(format: "%02d:%02d", hour, minute)
+        
+        let alert = UIAlertController(
+            title: "수동 알람 설정",
+            message: "시계 앱을 열어서 \(timeString)에 알람을 설정해주세요.\n\n1. 시계 앱 열기\n2. 알람 탭 선택\n3. + 버튼으로 새 알람 추가\n4. \(timeString) 시간 설정",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "시계 앱 열기", style: .default) { _ in
+            if let url = URL(string: "clock-alarm:"), UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "나중에", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    /// 알람 연동 오류 메시지
+    private func showAlarmError() {
+        let alert = UIAlertController(
+            title: "알람 설정 실패",
+            message: "시간 설정에 오류가 발생했습니다. 수동으로 알람을 설정해주세요.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
     }
     
     private func cancelNotification() {

@@ -17,8 +17,8 @@ class ViewController: UIViewController {
     @available(*, deprecated, message: "Use categoryLabels instead")
     let sliderLabels = Array("ABCDEFGHIJK")  // 11개로 변경
     
-    /// 감정 이모지 (기존 유지)
-    let emojis = ["😊","😢","😠","😰","😴"]
+    /// 감정 이모지 (6개로 확장 - 기본 감정들)
+    let emojis = ["😴","😢","😠","😊","😔","😐"]
     
     /// UI 요소들 (11개 카테고리)
     var sliders: [UISlider] = []
@@ -65,6 +65,9 @@ class ViewController: UIViewController {
         // 기존 프리셋 데이터 마이그레이션 (앱 시작 시 한 번만 실행)
         migratePresets()
         
+        // 🆕 애플워치 헬스킷 초기화
+        setupHealthKitIfNeeded()
+        
         setupViewController()
     }
     
@@ -109,7 +112,7 @@ class ViewController: UIViewController {
 
     // MARK: - Setup
     private func setupViewController() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         configureNavBar()
         setupEmojiSelector()
         setupSliderUI()
@@ -124,15 +127,18 @@ class ViewController: UIViewController {
     
     private func configureNavBar() {
         // 왼쪽: 타이머
-        navigationItem.leftBarButtonItems = [
-            UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
-        ]
+        let timerItem = UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
+        timerItem.tintColor = UIDesignSystem.Colors.primaryText
         
-        // 오른쪽: 저장 + 프리셋
-        navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped)),
-            UIBarButtonItem(title: "프리셋", style: .plain, target: self, action: #selector(loadPresetTapped))
-        ]
+        // 오른쪽: 저장 + 프리셋  
+        let saveItem = UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped))
+        saveItem.tintColor = UIDesignSystem.Colors.primaryText
+        
+        let presetItem = UIBarButtonItem(title: "프리셋", style: .plain, target: self, action: #selector(loadPresetTapped))
+        presetItem.tintColor = UIDesignSystem.Colors.primaryText
+        
+        navigationItem.leftBarButtonItems = [timerItem]
+        navigationItem.rightBarButtonItems = [saveItem, presetItem]
     }
     
     private func setupNotifications() {
