@@ -46,6 +46,9 @@ class ChatViewController: UIViewController {
     private var feedbackPendingPresets: [UUID: String] = [:]
     private var performanceMetrics = AutomaticLearningModels.SessionMetrics(duration: 0, completionRate: 0.5, context: [:])
     
+    // 🔒 중복 요청 방지 플래그
+    private var isProcessingRecommendation = false
+    
     // MARK: - UI Components
     private let tableView: UITableView = {
         let tv = UITableView()
@@ -921,15 +924,24 @@ extension ChatViewController {
         dismiss(animated: true, completion: nil)
     }
     
-    // ✅ appendChat 메서드
+    // ✅ appendChat 메서드 (UI 동기화 개선)
     func appendChat(_ message: ChatMessage) {
         messages.append(message)
         print("[appendChat] 메시지 추가: \(message.text)")
         if let quickActions = message.quickActions {
             print("[appendChat] quickActions: \(quickActions)")
         }
-        tableView.reloadData()
-        scrollToBottom()
+        
+        // 🔧 메인 스레드에서 UI 업데이트 보장 및 충돌 방지
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.tableView.reloadData()
+            
+            // 애니메이션과 함께 스크롤 (부드러운 UX)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.scrollToBottom()
+            }
+        }
         
         // 기존 히스토리 저장 (로딩 메시지는 저장하지 않음)
         if message.type != .loading {
@@ -958,19 +970,30 @@ extension ChatViewController {
         }
     }
     
-    // ✅ 마지막 로딩 메시지 제거
+    // ✅ 마지막 로딩 메시지 제거 (UI 동기화 개선)
     func removeLastLoadingMessage() {
         if let lastIndex = messages.lastIndex(where: { $0.type == .loading }) {
             messages.remove(at: lastIndex)
-            tableView.reloadData()
+            
+            // 🔧 메인 스레드에서 UI 업데이트 보장
+            DispatchQueue.main.async { [weak self] in
+                self?.tableView.reloadData()
+            }
         }
     }
     
-    // 🆕 중복 추천 메시지 제거
+    // 🆕 중복 추천 메시지 제거 (개선된 버전)
     private func removePreviousRecommendations() {
         // presetRecommendation 타입 메시지들을 모두 제거
+        let initialCount = messages.count
         messages.removeAll { $0.type == .presetRecommendation }
-        tableView.reloadData()
+        
+        // 실제로 제거된 메시지가 있을 때만 UI 업데이트
+        if messages.count != initialCount {
+            DispatchQueue.main.async { [weak self] in
+                self?.tableView.reloadData()
+            }
+        }
     }
 }
 
@@ -1097,6 +1120,14 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     // 🆕 로컬 추천 처리
     private func handleLocalRecommendation() {
+        // 🔒 중복 요청 방지
+        guard !isProcessingRecommendation else {
+            print("⚠️ 추천 요청이 이미 진행 중입니다.")
+            return
+        }
+        
+        isProcessingRecommendation = true
+        
         let userMessage = ChatMessage(type: .user, text: "앱 분석 추천받기")
         appendChat(userMessage)
         
@@ -1170,105 +1201,130 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         }
         
         appendChat(chatMessage)
+        
+        // 🆕 로컬 AI 추천 기록 저장
+        CachedConversationManager.shared.recordLocalAIRecommendation(
+            type: "local",
+            presetName: poeticName,
+            confidence: qualityScore,
+            context: "\(recommendedEmotion) - \(currentTimeOfDay)",
+            volumes: masterRecommendation.primaryRecommendation.optimizedVolumes,
+            versions: masterRecommendation.primaryRecommendation.optimizedVersions
+        )
+        
+        // 🔓 로컬 추천 처리 완료
+        isProcessingRecommendation = false
     }
     
     // 🆕 AI 추천 처리
     private func handleAIRecommendation() {
-        // AI 사용량 확인
-        if !AIUsageManager.shared.canUse(feature: .presetRecommendation) {
-            let limitMessage = ChatMessage(type: .bot, text: "오늘의 AI 추천 횟수를 모두 사용했어요. 로컬 추천을 이용해보세요! 😊")
-            appendChat(limitMessage)
+        // 🔒 중복 요청 방지
+        guard !isProcessingRecommendation else {
+            print("⚠️ 추천 요청이 이미 진행 중입니다.")
             return
         }
         
-        let userMessage = ChatMessage(type: .user, text: "AI 분석 추천받기")
+        isProcessingRecommendation = true
+        
+        let userMessage = ChatMessage(type: .user, text: "고급 AI 분석 추천받기")
         appendChat(userMessage)
         
-        // 로딩 메시지 추가
-        appendChat(ChatMessage(type: .loading, text: "AI가 분석 중..."))
+        // 이전 추천 메시지 제거
+        removePreviousRecommendations()
         
-        // AI 분석 요청
-        ReplicateChatService.shared.sendPrompt(
-            message: "지금 기분에 맞는 사운드 프리셋을 추천해주세요",
-            intent: "emotion_analysis_for_preset"
-        ) { [weak self] response in
-            DispatchQueue.main.async {
+        // 로딩 메시지 추가
+        appendChat(ChatMessage(type: .loading, text: "고급 신경망이 분석 중..."))
+        
+        // 🧠 고급 로컬 AI 신경망 분석 (비동기 처리)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Enterprise AI Context 생성
+            let context = EnhancedAIContext(
+                emotion: self.currentEmotion?.emotion ?? "평온",
+                emotionIntensity: self.currentEmotion?.intensity ?? 0.5,
+                timeOfDay: Calendar.current.component(.hour, from: Date()),
+                environmentNoise: self.getEstimatedEnvironmentNoise(),
+                recentActivity: self.getCurrentActivity(),
+                userId: UIDevice.current.identifierForVendor?.uuidString ?? "anonymous",
+                weatherMood: self.getWeatherMood(),
+                consecutiveUsage: self.getConsecutiveUsageCount(),
+                userPreference: self.getUserPreferences()
+            )
+            
+            // 🚀 고급 신경망 추론 엔진 실행
+            let aiRecommendation = LocalAIRecommendationEngine.shared.getEnterpriseRecommendation(context: context)
+            
+            DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 
-                // 로딩 메시지 제거 및 이전 추천 정리
+                // 로딩 메시지 제거
                 self.removeLastLoadingMessage()
-                self.removePreviousRecommendations()
                 
-                if let analysisResult = response, !analysisResult.isEmpty {
-                    // AI 분석 결과 파싱
-                    let parsedAnalysis = self.parseEmotionAnalysis(analysisResult)
-                    
-                    // 🤖 AI 기반 지능적 프리셋 생성 (감정 + 시간 + AI 다양성)
-                    let recommendedVolumes = SoundPresetCatalog.getRecommendedPreset(for: parsedAnalysis.emotion)
-                    let aiSeed = abs(parsedAnalysis.emotion.hashValue + parsedAnalysis.timeOfDay.hashValue + Int(parsedAnalysis.intensity * 100))
-                    let intelligentVersions = SoundPresetCatalog.getIntelligentVersions(emotion: parsedAnalysis.emotion, timeOfDay: parsedAnalysis.timeOfDay, randomSeed: aiSeed)
-                    let poeticName = self.generatePoeticPresetName(emotion: parsedAnalysis.emotion, timeOfDay: parsedAnalysis.timeOfDay, isAI: true)
-                    
-                    let recommendedPreset = (
-                        name: poeticName,
-                        volumes: recommendedVolumes,
-                        description: "\(parsedAnalysis.emotion) 감정에 최적화된 AI 추천 사운드 조합",
-                        versions: intelligentVersions
-                    )
-                    
-                    // 🤗 감정 공감 메시지와 사운드 설명 생성
-                    let empathyMessage = self.generateEmpathyMessage(emotion: parsedAnalysis.emotion, timeOfDay: parsedAnalysis.timeOfDay, intensity: parsedAnalysis.intensity)
-                    let soundDescription = self.generateSoundDescription(volumes: recommendedVolumes, emotion: parsedAnalysis.emotion)
-                    
-                    let presetMessage = """
-                    \(empathyMessage)
-                    
-                    **[\(recommendedPreset.name)]**
-                    \(soundDescription)
-                    """
-                    
-                    // 프리셋 적용 메시지 추가
-                    var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
-                    chatMessage.onApplyPreset = { [weak self] in
-                        self?.applyLocalPreset(recommendedPreset)
-                    }
-                    
-                    self.appendChat(chatMessage)
-                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
-                    
-                } else {
-                    // 🔄 AI 분석 실패 시 지능적 fallback - 다양한 버전 포함
-                    let currentTime = self.getCurrentTimeOfDay()
-                    let fallbackVolumes = SoundPresetCatalog.getRecommendedPreset(for: "평온")
-                    let fallbackSeed = Int(Date().timeIntervalSince1970) % 1000 // 시간 기반 다양성
-                    let fallbackVersions = SoundPresetCatalog.getIntelligentVersions(emotion: "평온", timeOfDay: currentTime, randomSeed: fallbackSeed)
-                    let fallbackPoeticName = self.generatePoeticPresetName(emotion: "평온", timeOfDay: currentTime, isAI: true)
-                    
-                    let fallbackPreset = (
-                        name: fallbackPoeticName,
-                        volumes: fallbackVolumes,
-                        description: "마음을 편안하게 하는 균형 잡힌 사운드 여행",
-                        versions: fallbackVersions
-                    )
-                    
-                    let fallbackEmpathy = self.generateEmpathyMessage(emotion: "평온", timeOfDay: self.getCurrentTimeOfDay(), intensity: 1.0)
-                    let fallbackSoundDesc = self.generateSoundDescription(volumes: fallbackVolumes, emotion: "평온")
-                    
-                    let fallbackMessage = """
-                    \(fallbackEmpathy)
-                    
-                    **[\(fallbackPoeticName)]**
-                    \(fallbackSoundDesc)
-                    """
-                    
-                    var chatMessage = ChatMessage(type: .presetRecommendation, text: fallbackMessage)
-                    chatMessage.onApplyPreset = { [weak self] in
-                        self?.applyLocalPreset(fallbackPreset)
-                    }
-                    
-                    self.appendChat(chatMessage)
-                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                // 기존 형식으로 변환
+                let recommendation = self.convertToRecommendationResponse(aiRecommendation)
+                
+                // 감정 분석 정보 생성
+                let parsedAnalysis = (
+                    emotion: context.emotion,
+                    intensity: context.emotionIntensity,
+                    timeOfDay: self.getCurrentTimeOfDay()
+                )
+                
+                // 🤖 고급 AI 신경망 기반 프리셋 생성
+                let poeticName = self.generatePoeticPresetName(
+                    emotion: parsedAnalysis.emotion, 
+                    timeOfDay: parsedAnalysis.timeOfDay, 
+                    isAI: true
+                )
+                
+                let recommendedPreset = (
+                    name: poeticName,
+                    volumes: recommendation.volumes,
+                    description: "\(parsedAnalysis.emotion) 감정에 최적화된 고급 AI 신경망 분석",
+                    versions: recommendation.selectedVersions
+                )
+                
+                // 🤗 감정 공감 메시지와 사운드 설명 생성
+                let empathyMessage = self.generateEmpathyMessage(
+                    emotion: parsedAnalysis.emotion, 
+                    timeOfDay: parsedAnalysis.timeOfDay, 
+                    intensity: parsedAnalysis.intensity
+                )
+                let soundDescription = self.generateSoundDescription(
+                    volumes: recommendation.volumes, 
+                    emotion: parsedAnalysis.emotion
+                )
+                
+                let presetMessage = """
+                \(empathyMessage)
+                
+                **[\(recommendedPreset.name)]**
+                \(soundDescription)
+                
+                🧠 신뢰도: \(String(format: "%.1f", aiRecommendation.overallConfidence * 100))% (고급 신경망 분석)
+                """
+                
+                // 프리셋 적용 메시지 추가
+                var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+                chatMessage.onApplyPreset = { [weak self] in
+                    self?.applyLocalPreset(recommendedPreset)
                 }
+                
+                self.appendChat(chatMessage)
+                
+                // 🆕 고급 AI 추천 기록 저장
+                CachedConversationManager.shared.recordLocalAIRecommendation(
+                    type: "ai",
+                    presetName: poeticName,
+                    confidence: aiRecommendation.overallConfidence,
+                    context: "\(context.emotion) - 고급분석",
+                    volumes: recommendation.volumes,
+                    versions: recommendation.selectedVersions
+                )
+                
+                // 🔓 고급 AI 추천 완료
+                self.isProcessingRecommendation = false
             }
         }
     }

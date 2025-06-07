@@ -15,13 +15,29 @@ class CachedConversationManager {
     }
     
     struct WeeklyMemory: Codable {
-        let emotionalPattern: String
-        let recurringThemes: [String]
-        let userConcerns: [String]
-        let keyAdvice: [String]
-        let progressNotes: [String]
-        let totalMessages: Int
-    }
+    let emotionalPattern: String
+    let recurringThemes: [String]
+    let userConcerns: [String]
+    let keyAdvice: [String]
+    let progressNotes: [String]
+    let totalMessages: Int
+    
+    // 🆕 로컬 AI 추천 기록 추가
+    let localAIRecommendations: [LocalAIRecommendationRecord]
+    let preferredSoundCategories: [String]
+    let optimalListeningTimes: [String]
+}
+
+// 🆕 로컬 AI 추천 기록 구조체
+struct LocalAIRecommendationRecord: Codable {
+    let date: Date
+    let recommendationType: String // "local" or "ai"
+    let presetName: String
+    let confidence: Float
+    let userContext: String
+    let volumes: [Float]
+    let versions: [Int]
+}
     
     // MARK: - 캐시 관리 (✅ internal로 변경)
     var currentCache: CachedConversation?  // ✅ private 제거. (실제로는 internal 접근 수준이 적절할 수 있습니다.)
@@ -144,9 +160,13 @@ class CachedConversationManager {
     private func buildWeeklyHistory() -> String {
         let weeklyMemory = loadWeeklyMemory()
         let recentSummaries = loadRecentDailySummaries()
+        let localAIRecords = loadLocalAIRecommendations().suffix(10) // 최근 10개
+        
+        // 🆕 로컬 AI 추천 패턴 분석
+        let localAIAnalysis = analyzeLocalAIPatterns(Array(localAIRecords))
         
         return """
-        === 사용자 프로필 (1주일 분석) ===
+        === 사용자 프로필 (7일 종합 분석) ===
         
         🎭 감정 패턴: \(weeklyMemory.emotionalPattern)
         🎯 관심 주제: \(weeklyMemory.recurringThemes.prefix(4).joined(separator: ", "))
@@ -154,10 +174,16 @@ class CachedConversationManager {
         💡 효과적 조언: \(weeklyMemory.keyAdvice.prefix(3).joined(separator: "; "))
         📈 변화 추이: \(weeklyMemory.progressNotes.joined(separator: "; "))
         
-        === 최근 3일 요약 ===
+        === 🤖 로컬 AI 신경망 추천 패턴 (최근 10건) ===
+        \(localAIAnalysis)
+        
+        === 최근 3일 대화 요약 ===
         \(recentSummaries.joined(separator: "\n"))
         
-        === 대화 기반 정보 종료 ===
+        === 종합 정보 종료 ===
+        
+        ⚠️ 중요: 위 정보는 사용자의 감정 상태와 선호도를 이해하기 위한 맥락입니다. 
+        이를 바탕으로 자연스럽고 공감적인 대화를 나누어주세요.
         """
     }
     
@@ -197,6 +223,61 @@ class CachedConversationManager {
             
             1주일간의 감정 패턴을 참고하여 맞춤형 위로와 조언을 해주세요.
             """
+        }
+    }
+    
+    // MARK: - 🆕 로컬 AI 추천 기록 관리
+    
+    /// 로컬 AI 추천 기록 저장
+    func recordLocalAIRecommendation(
+        type: String,
+        presetName: String,
+        confidence: Float,
+        context: String,
+        volumes: [Float],
+        versions: [Int]
+    ) {
+        let record = LocalAIRecommendationRecord(
+            date: Date(),
+            recommendationType: type,
+            presetName: presetName,
+            confidence: confidence,
+            userContext: context,
+            volumes: volumes,
+            versions: versions
+        )
+        
+        // 기존 기록 로드
+        var records = loadLocalAIRecommendations()
+        records.append(record)
+        
+        // 최근 50개만 유지
+        if records.count > 50 {
+            records = Array(records.suffix(50))
+        }
+        
+        // 저장
+        saveLocalAIRecommendations(records)
+        
+        #if DEBUG
+        print("🤖 로컬 AI 추천 기록 저장: \(presetName) (신뢰도: \(confidence))")
+        #endif
+    }
+    
+    /// 로컬 AI 추천 기록 로드
+    private func loadLocalAIRecommendations() -> [LocalAIRecommendationRecord] {
+        guard let data = UserDefaults.standard.data(forKey: "localAIRecommendations"),
+              let records = try? JSONDecoder().decode([LocalAIRecommendationRecord].self, from: data) else {
+            return []
+        }
+        return records
+    }
+    
+    /// 로컬 AI 추천 기록 저장
+    private func saveLocalAIRecommendations(_ records: [LocalAIRecommendationRecord]) {
+        let encoder = JSONEncoder()
+        if let data = try? encoder.encode(records) {
+            UserDefaults.standard.set(data, forKey: "localAIRecommendations")
         }
     }
     
@@ -295,7 +376,10 @@ class CachedConversationManager {
             userConcerns: [],
             keyAdvice: [],
             progressNotes: [],
-            totalMessages: 0
+            totalMessages: 0,
+            localAIRecommendations: [],
+            preferredSoundCategories: [],
+            optimalListeningTimes: []
         )
     }
     
@@ -392,7 +476,10 @@ class CachedConversationManager {
             userConcerns: extractUserConcerns(userTexts),
             keyAdvice: extractKeyAdvice(aiTexts),
             progressNotes: analyzeProgress(userTexts),
-            totalMessages: messages.count
+            totalMessages: messages.count,
+            localAIRecommendations: [],
+            preferredSoundCategories: [],
+            optimalListeningTimes: []
         )
     }
     
@@ -497,6 +584,70 @@ class CachedConversationManager {
         let themes = ["일", "가족", "친구", "건강", "스트레스"]
         let allText = messages.joined(separator: " ")
         return themes.filter { allText.contains($0) }.prefix(2).map { $0 }
+    }
+    
+    // MARK: - 🆕 로컬 AI 패턴 분석
+    
+    private func analyzeLocalAIPatterns(_ records: [LocalAIRecommendationRecord]) -> String {
+        guard !records.isEmpty else {
+            return "아직 로컬 AI 추천 기록이 없습니다."
+        }
+        
+        // 가장 많이 추천된 프리셋
+        let presetCounts = Dictionary(grouping: records, by: { $0.presetName })
+            .mapValues { $0.count }
+            .sorted { $0.value > $1.value }
+        
+        // 평균 신뢰도
+        let averageConfidence = records.reduce(0) { $0 + $1.confidence } / Float(records.count)
+        
+        // 추천 타입 분석
+        let typeCounts = Dictionary(grouping: records, by: { $0.recommendationType })
+            .mapValues { $0.count }
+        
+        // 시간대 패턴 분석
+        let timePatterns = analyzeTimePatterns(records)
+        
+        var analysis = """
+        📊 선호 프리셋: \(presetCounts.prefix(3).map { "\($0.key)(\($0.value)회)" }.joined(separator: ", "))
+        🎯 평균 신뢰도: \(String(format: "%.1f", averageConfidence * 100))%
+        🤖 추천 타입: \(typeCounts.map { "\($0.key): \($0.value)회" }.joined(separator: ", "))
+        ⏰ 활용 시간대: \(timePatterns)
+        """
+        
+        // 최근 추천 컨텍스트
+        if let lastRecord = records.last {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M/d HH:mm"
+            analysis += "\n🕐 마지막 추천: \(formatter.string(from: lastRecord.date)) - \(lastRecord.presetName)"
+        }
+        
+        return analysis
+    }
+    
+    private func analyzeTimePatterns(_ records: [LocalAIRecommendationRecord]) -> String {
+        let hourCounts = Dictionary(grouping: records) { record in
+            Calendar.current.component(.hour, from: record.date)
+        }.mapValues { $0.count }
+        
+        let sortedHours = hourCounts.sorted { $0.value > $1.value }
+        
+        if let topHour = sortedHours.first {
+            let timeRange = getTimeRange(for: topHour.key)
+            return "\(timeRange) (\(topHour.value)회)"
+        } else {
+            return "다양한 시간대"
+        }
+    }
+    
+    private func getTimeRange(for hour: Int) -> String {
+        switch hour {
+        case 6..<12: return "오전"
+        case 12..<18: return "오후"
+        case 18..<22: return "저녁"
+        case 22...23, 0..<6: return "밤/새벽"
+        default: return "기타"
+        }
     }
     
     // MARK: - ✅ 저장/로드
