@@ -47,11 +47,38 @@ extension ChatViewController {
         
         // UI 즉시 업데이트
         inputTextField.text = ""
+        
+        // 🧠 종합 추천 요청 감지
+        if isComprehensiveRecommendationRequest(text) {
+            requestMasterComprehensiveRecommendation()
+            return
+        }
+        
         let userMessage = ChatMessage(type: .user, text: text)
         appendChat(userMessage)
         
         // AI 응답 요청
         requestAIChatResponse(for: text)
+    }
+    
+    /// 종합 추천 요청인지 감지
+    private func isComprehensiveRecommendationRequest(_ text: String) -> Bool {
+        let comprehensiveKeywords = [
+            "종합", "모든", "전체", "완벽한", "최고의", "최적의", "마스터",
+            "지금까지", "모든 정보", "전부", "총합", "총체적", "포괄적"
+        ]
+        
+        let recommendationKeywords = [
+            "프리셋 추천", "사운드 추천", "음악 추천", "추천해", "추천해줘", "추천받기"
+        ]
+        
+        let lowercaseText = text.lowercased()
+        
+        // 종합 + 추천 키워드 조합 확인
+        let hasComprehensive = comprehensiveKeywords.contains { lowercaseText.contains($0) }
+        let hasRecommendation = recommendationKeywords.contains { lowercaseText.contains($0) }
+        
+        return hasComprehensive && hasRecommendation
     }
     
     // MARK: - AI 응답 요청 및 처리
@@ -108,23 +135,314 @@ extension ChatViewController {
         let remainingAI = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
         
         // 사용자 메시지 추가
-        let userMessage = ChatMessage(type: .user, text: "🎵 지금 기분에 맞는 사운드 추천받기")
+        let userMessage = ChatMessage(type: .user, text: "지금 기분에 맞는 사운드 추천받기")
         appendChat(userMessage)
         
-        // 선택지 메시지 생성
+        // 선택지 메시지 생성 - 더 친근하고 예쁜 메시지
         let optionsMessage = """
-        🎯 **어떤 방식으로 추천받으시겠어요?**
+        맞춤 사운드 추천 방식을 선택해주세요
         
-        두 가지 추천 방식을 제공합니다:
+        당신의 현재 상황에 가장 적합한 
+        사운드 조합을 찾아드릴게요! 
+        어떤 방식으로 추천받고 싶으신가요?
         """
         
-        var chatMessage = ChatMessage(type: .bot, text: optionsMessage)
+        var chatMessage = ChatMessage(type: .recommendationSelector, text: optionsMessage)
         chatMessage.quickActions = [
-            ("🎲 로컬 기반으로 추천받기", "local_recommendation"),
-            ("🤖 AI에게 추천받기 (\(remainingAI)/5)", "ai_recommendation")
+            ("앱 분석 추천받기", "local_recommendation"),
+            ("AI 분석 추천받기 (\(remainingAI)/5)", "ai_recommendation")
         ]
         
         appendChat(chatMessage)
+    }
+    
+    // MARK: - 🚀 Master Comprehensive Recommendation System
+    
+    /// 종합 데이터 분석 기반 마스터 추천 (모든 데이터 소스 활용)
+    private func requestMasterComprehensiveRecommendation() {
+        // 사용자 메시지 추가
+        let userMessage = ChatMessage(type: .user, text: "🧠 지금까지의 모든 정보를 종합해서 완벽한 프리셋 추천받기")
+        appendChat(userMessage)
+        
+        // 로딩 메시지 표시
+        let loadingMessage = ChatMessage(type: .loading, text: "🔮 모든 데이터를 종합 분석 중...\n• 대화 기록 분석\n• 일기 감정 분석\n• 사용 패턴 분석\n• 환경 컨텍스트 분석")
+        appendChat(loadingMessage)
+        
+        // 백그라운드에서 종합 분석 실행
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Phase 1: 마스터 추천 생성
+            let masterRecommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
+            
+            // Phase 2: 사용자 세션 자동 기록 시작
+            self.startAutomaticSessionTracking(with: masterRecommendation)
+            
+            DispatchQueue.main.async {
+                // 로딩 메시지 제거
+                self.removeLastLoadingMessage()
+                
+                // 마스터 추천 메시지 생성
+                let comprehensiveMessage = self.createMasterRecommendationMessage(masterRecommendation)
+                
+                // 프리셋 적용 콜백 설정
+                var chatMessage = ChatMessage(type: .presetRecommendation, text: comprehensiveMessage)
+                chatMessage.onApplyPreset = { [weak self] in
+                    self?.applyMasterRecommendation(masterRecommendation)
+                }
+                
+                self.appendChat(chatMessage)
+                
+                // AI 사용량 기록 (종합 분석은 프리미엄 기능)
+                if AIUsageManager.shared.canUse(feature: .presetRecommendation) {
+                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                }
+            }
+        }
+    }
+    
+    /// 마스터 추천 메시지 생성 (최고 수준의 개인화)
+    private func createMasterRecommendationMessage(_ recommendation: MasterRecommendation) -> String {
+        let primary = recommendation.primaryRecommendation
+        let metadata = recommendation.processingMetadata
+        
+        let confidenceText = primary.confidence > 0.9 ? "매우 높음" : 
+                           primary.confidence > 0.7 ? "높음" : "보통"
+        
+        let adaptationText = primary.adaptationLevel == "high" ? "고도 맞춤화" :
+                           primary.adaptationLevel == "medium" ? "표준 맞춤화" : "탐험적 추천"
+        
+        return """
+        🎯 **마스터 종합 분석 추천** (\(confidenceText) 신뢰도)
+        
+        🧠 **[\(primary.presetName)]** - \(adaptationText)
+        \(primary.personalizedExplanation)
+        
+        📊 **분석 근거:**
+        • \(metadata.dataSourcesUsed)개 데이터 소스 종합 분석
+        • \(metadata.featureVectorSize)차원 특성 벡터 처리
+        • \(metadata.networkLayers)층 신경망 추론
+        • 예상 만족도: \(String(format: "%.0f%%", primary.expectedSatisfaction * 100))
+        • 권장 세션 시간: \(formatDuration(primary.estimatedDuration))
+        
+        ⚡ **처리 성능:**
+        • 분석 시간: \(String(format: "%.3f", metadata.totalProcessingTime))초
+        • 종합도 점수: \(String(format: "%.0f%%", recommendation.comprehensivenessScore * 100))
+        
+        🎵 **대안 추천:**
+        \(recommendation.alternativeRecommendations.enumerated().map { index, alt in
+            "• \(alt.presetName) (신뢰도: \(String(format: "%.0f%%", alt.confidence * 100)))"
+        }.joined(separator: "\n"))
+        
+        🚀 **학습 개선사항:**
+        \(recommendation.learningRecommendations.prefix(3).map { "• \($0)" }.joined(separator: "\n"))
+        
+        이 추천은 대화 기록, 일기 감정, 사용 패턴, 환경 컨텍스트 등 
+        모든 가용 데이터를 종합하여 생성된 최고 수준의 개인화 추천입니다.
+        """
+    }
+    
+    /// 마스터 추천 적용
+    private func applyMasterRecommendation(_ recommendation: MasterRecommendation) {
+        let primary = recommendation.primaryRecommendation
+        
+        // 1. 프리셋 적용
+        if let parentVC = self.parent as? ViewController {
+            parentVC.applyPreset(
+                volumes: primary.optimizedVolumes,
+                versions: primary.optimizedVersions,
+                name: primary.presetName
+            )
+        }
+        
+        // 2. 자동 세션 추적 시작
+        UserBehaviorAnalytics.shared.startSession(
+            presetName: primary.presetName,
+            volumes: primary.optimizedVolumes,
+            versions: primary.optimizedVersions,
+            emotion: extractCurrentEmotion()
+        )
+        
+        // 3. 성공 메시지 추가
+        let successMessage = ChatMessage(
+            type: .bot, 
+            text: "✅ **\(primary.presetName)** 마스터 추천이 적용되었습니다!\n\n🧠 자동 학습이 시작되어 사용 패턴을 분석하고 있습니다.\n📊 실시간으로 만족도를 추정하여 향후 추천을 개선합니다. ✨"
+        )
+        appendChat(successMessage)
+        
+        // 4. 자동 만족도 예측 스케줄링 (5분 후)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
+            self.performAutomaticSatisfactionAssessment(recommendation: recommendation)
+        }
+    }
+    
+    /// 자동 세션 추적 시작
+    private func startAutomaticSessionTracking(with recommendation: MasterRecommendation) {
+        // 현재 세션 컨텍스트 캡처
+        let sessionContext = [
+            "recommendation_id": recommendation.primaryRecommendation.presetName,
+            "confidence": String(recommendation.overallConfidence),
+            "comprehensive_score": String(recommendation.comprehensivenessScore),
+            "processing_time": String(recommendation.processingMetadata.totalProcessingTime)
+        ]
+        
+        UserDefaults.standard.set(sessionContext, forKey: "currentMasterSession")
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "masterSessionStartTime")
+    }
+    
+    /// 자동 만족도 평가 (피드백 요청 없이)
+    private func performAutomaticSatisfactionAssessment(recommendation: MasterRecommendation) {
+        // 현재 세션 정보 로드
+        guard let sessionContext = UserDefaults.standard.dictionary(forKey: "currentMasterSession") as? [String: String],
+              let startTime = UserDefaults.standard.object(forKey: "masterSessionStartTime") as? TimeInterval else {
+            return
+        }
+        
+        let sessionDuration = Date().timeIntervalSince1970 - startTime
+        let estimatedDuration = recommendation.primaryRecommendation.estimatedDuration
+        
+        // 완료율 계산 (실제 사용 시간 / 예상 시간)
+        let completionRate = min(1.0, Float(sessionDuration / estimatedDuration))
+        
+        // 자동 만족도 추정 (완료율 기반)
+        let estimatedSatisfaction = calculateEstimatedSatisfaction(
+            completionRate: completionRate,
+            expectedSatisfaction: recommendation.primaryRecommendation.expectedSatisfaction,
+            sessionDuration: sessionDuration
+        )
+        
+        // 세션 종료 및 자동 기록
+        UserBehaviorAnalytics.shared.endSession(
+            completionRate: completionRate,
+            interactionEvents: [] // 추후 사용자 상호작용 기록 추가 가능
+        )
+        
+        // 학습 데이터 업데이트
+        updateAutomaticLearningData(
+            recommendation: recommendation,
+            actualSatisfaction: estimatedSatisfaction,
+            sessionMetrics: AutomaticLearningModels.SessionMetrics(
+                duration: sessionDuration,
+                completionRate: completionRate,
+                context: sessionContext
+            )
+        )
+        
+        // 사용자에게 자동 분석 결과 알림 (선택적)
+        let analysisMessage = ChatMessage(
+            type: .bot,
+            text: "🔍 **자동 분석 완료**: \(String(format: "%.1f", sessionDuration/60))분 사용 • 예상 만족도: \(String(format: "%.0f%%", estimatedSatisfaction * 100)) • 다음 추천이 더욱 정확해집니다! 📈"
+        )
+        appendChat(analysisMessage)
+        
+        // 디버그 정보 (개발 중에만)
+        #if DEBUG
+        print("🔍 자동 만족도 평가 완료:")
+        print("- 완료율: \(String(format: "%.1f%%", completionRate * 100))")
+        print("- 추정 만족도: \(String(format: "%.1f%%", estimatedSatisfaction * 100))")
+        print("- 세션 시간: \(formatDuration(sessionDuration))")
+        #endif
+        
+        // 세션 데이터 정리
+        UserDefaults.standard.removeObject(forKey: "currentMasterSession")
+        UserDefaults.standard.removeObject(forKey: "masterSessionStartTime")
+    }
+    
+    /// 자동 만족도 추정 알고리즘 (Netflix/Spotify 스타일)
+    func calculateEstimatedSatisfaction(completionRate: Float, expectedSatisfaction: Float, sessionDuration: TimeInterval) -> Float {
+        // 기본 만족도는 예상 만족도에서 시작
+        var satisfaction = expectedSatisfaction
+        
+        // 완료율 기반 조정
+        if completionRate > 0.8 {
+            satisfaction += 0.1 // 80% 이상 완료 시 보너스
+        } else if completionRate < 0.3 {
+            satisfaction -= 0.2 // 30% 미만 완료 시 페널티
+        }
+        
+        // 세션 길이 기반 조정
+        if sessionDuration > 900 { // 15분 이상
+            satisfaction += 0.05 // 긴 세션은 만족도가 높을 가능성
+        } else if sessionDuration < 120 { // 2분 미만
+            satisfaction -= 0.15 // 너무 짧은 세션은 만족도가 낮을 가능성
+        }
+        
+        // 시간대별 조정
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 22 || hour <= 6 { // 수면 시간대
+            if sessionDuration > 600 { // 10분 이상 사용
+                satisfaction += 0.1 // 수면 시간대 긴 사용은 만족도 높음
+            }
+        }
+        
+        // 0.0-1.0 범위로 클램핑
+        return max(0.0, min(1.0, satisfaction))
+    }
+    
+    /// 자동 학습 데이터 업데이트
+    func updateAutomaticLearningData(recommendation: MasterRecommendation, actualSatisfaction: Float, sessionMetrics: AutomaticLearningModels.SessionMetrics) {
+        // 예상 만족도와 실제 만족도 비교
+        let predictionAccuracy = 1.0 - abs(recommendation.primaryRecommendation.expectedSatisfaction - actualSatisfaction)
+        
+        // 학습 기록 생성
+        let learningData = AutomaticLearningRecord(
+            timestamp: Date(),
+            recommendationId: recommendation.primaryRecommendation.presetName,
+            predictedSatisfaction: recommendation.primaryRecommendation.expectedSatisfaction,
+            actualSatisfaction: actualSatisfaction,
+            predictionAccuracy: predictionAccuracy,
+            sessionMetrics: sessionMetrics,
+            improvementSuggestions: generateImprovementSuggestions(
+                accuracy: predictionAccuracy,
+                sessionMetrics: sessionMetrics
+            )
+        )
+        
+        // 학습 데이터 저장
+        saveAutomaticLearningRecord(learningData)
+    }
+    
+    /// 개선 제안 생성 (AI 연구 수준)
+    func generateImprovementSuggestions(accuracy: Float, sessionMetrics: AutomaticLearningModels.SessionMetrics) -> [String] {
+        var suggestions: [String] = []
+        
+        if accuracy < 0.7 {
+            suggestions.append("예측 모델 정확도 개선 필요 - 신경망 가중치 재조정")
+        }
+        
+        if sessionMetrics.completionRate < 0.5 {
+            suggestions.append("세션 길이 또는 음원 조합 재검토 - 사용자 참여도 부족")
+        }
+        
+        if sessionMetrics.duration < 180 {
+            suggestions.append("초기 몰입도 향상 방안 검토 - 첫 3분 이탈률 높음")
+        }
+        
+        if sessionMetrics.completionRate > 0.9 && sessionMetrics.duration > 900 {
+            suggestions.append("고만족 패턴 감지 - 유사 조합 가중치 증가 권장")
+        }
+        
+        return suggestions
+    }
+    
+    /// 현재 감정 추출 (최근 메시지 기반)
+    func extractCurrentEmotion() -> String {
+        let recentMessages = messages.suffix(10)
+        
+        for message in recentMessages.reversed() {
+            if message.type == .user {
+                let text = message.text.lowercased()
+                
+                // 감정 키워드 매칭
+                if text.contains("스트레스") || text.contains("힘들") { return "스트레스" }
+                if text.contains("피곤") || text.contains("잠") { return "수면" }
+                if text.contains("집중") || text.contains("공부") { return "집중" }
+                if text.contains("행복") || text.contains("기쁘") { return "행복" }
+                if text.contains("슬프") || text.contains("우울") { return "슬픔" }
+                if text.contains("불안") || text.contains("걱정") { return "불안" }
+                if text.contains("활력") || text.contains("에너지") { return "활력" }
+            }
+        }
+        
+        return "평온" // 기본값
     }
     
     // MARK: - 🆕 감정 분석 결과 파싱
@@ -159,16 +477,196 @@ extension ChatViewController {
     ) -> String {
         let intensityText = analysis.intensity > 1.2 ? "강한" : analysis.intensity < 0.8 ? "부드러운" : "적절한"
         
+        let empathyMessage = generateEmpathyMessage(emotion: analysis.emotion, timeOfDay: analysis.timeOfDay, intensity: analysis.intensity)
+        let soundDescription = generateSoundDescription(volumes: preset.volumes, emotion: analysis.emotion)
+        
         return """
-        💭 **감정 분석 완료**
-        현재 상태: \(analysis.emotion) (\(intensityText) 강도)
-        시간대: \(analysis.timeOfDay)
+        \(empathyMessage)
         
-        🎵 **[\(preset.name)]**
-        \(preset.description)
-        
-        이 조합은 현재 기분에 특별히 맞춰 선별된 사운드들입니다. 바로 적용해보세요! ✨
+        **[\(preset.name)]**
+        \(soundDescription)
         """
+    }
+    
+    /// 🤗 감정별 공감 메시지 생성 (방대한 데이터베이스)
+    private func generateEmpathyMessage(emotion: String, timeOfDay: String, intensity: Float) -> String {
+        let empathyDatabase: [String: [String]] = [
+            "평온": [
+                "마음에 평온이 찾아온 순간이네요. 이런 고요한 시간을 더욱 깊게 만끽해보세요.",
+                "평화로운 마음 상태가 느껴집니다. 이 소중한 평온함을 지켜드릴게요.",
+                "차분한 에너지가 전해져요. 내면의 고요함을 더욱 깊이 있게 경험해보세요.",
+                "마음의 평형을 잘 유지하고 계시네요. 이 안정감을 더욱 풍성하게 만들어드릴게요.",
+                "고요한 마음의 상태가 아름답습니다. 이 평온함이 더욱 깊어질 수 있도록 도와드릴게요."
+            ],
+            
+            "수면": [
+                "하루의 피로가 쌓여 깊은 휴식이 필요한 시간이네요. 편안한 잠자리를 만들어드릴게요.",
+                "오늘 하루도 고생 많으셨어요. 꿈나라로의 여행을 부드럽게 안내해드릴게요.",
+                "몸과 마음이 휴식을 원하고 있어요. 깊고 편안한 잠을 위한 완벽한 환경을 준비했어요.",
+                "잠들기 전 마음의 정리가 필요한 순간이네요. 모든 걱정을 내려놓고 편히 쉬실 수 있도록 도와드릴게요.",
+                "하루의 마무리 시간이 왔어요. 별들의 자장가로 평온한 밤을 선물해드릴게요."
+            ],
+            
+            "스트레스": [
+                "오늘 힘들었던 당신을 위해 마음의 짐을 덜어드리고 싶어요.",
+                "쌓인 스트레스가 느껴져요. 지금 이 순간만큼은 모든 걱정에서 벗어나 보세요.",
+                "마음이 무거우셨을 텐데, 이제 깊게 숨을 들이쉬고 차근차근 풀어나가요.",
+                "복잡하고 어려운 하루를 보내셨군요. 마음의 무게를 조금씩 덜어내는 시간을 만들어드릴게요.",
+                "스트레스로 지친 마음을 이해해요. 지금은 온전히 자신을 위한 시간을 가져보세요.",
+                "긴장으로 굳어진 마음과 몸을 천천히 풀어드릴게요. 모든 것을 내려놓으셔도 괜찮아요."
+            ],
+            
+            "불안": [
+                "마음이 불안하고 걱정이 많으실 텐데, 지금 이 순간은 안전해요.",
+                "혼란스러운 마음을 진정시켜 드릴게요. 모든 것이 괜찮아질 거예요.",
+                "불안한 마음이 잠잠해질 수 있도록 안전하고 따뜻한 공간을 만들어드릴게요.",
+                "걱정이 많은 요즘이죠. 마음에 평안이 깃들 수 있는 시간을 선물해드릴게요.",
+                "불안함 속에서도 당신은 충분히 괜찮은 사람이에요. 마음의 안정을 찾아드릴게요.",
+                "복잡한 생각들이 정리될 수 있도록 마음의 정박지를 만들어드릴게요."
+            ],
+            
+            "활력": [
+                "활기찬 에너지가 느껴져요! 이 좋은 기운을 더욱 키워나가볼까요?",
+                "긍정적인 에너지가 넘치네요. 이 활력을 더욱 풍성하게 만들어드릴게요.",
+                "생동감 넘치는 하루를 시작하시는군요. 이 에너지를 최대한 활용해보세요.",
+                "의욕이 가득한 상태네요! 이 좋은 기운이 하루 종일 이어질 수 있도록 도와드릴게요.",
+                "활기찬 마음이 아름다워요. 이 에너지로 멋진 하루를 만들어나가세요."
+            ],
+            
+            "집중": [
+                "집중이 필요한 중요한 시간이네요. 마음을 한곳으로 모을 수 있도록 도와드릴게요.",
+                "깊은 몰입이 필요한 순간이군요. 모든 잡념을 걷어내고 온전히 집중해보세요.",
+                "집중력을 높여야 할 때네요. 마음의 잡음을 제거하고 명료함을 선물해드릴게요.",
+                "중요한 일에 몰두해야 하는군요. 최상의 집중 환경을 만들어드릴게요.",
+                "마음을 가다듬고 집중할 시간이에요. 깊은 몰입의 세계로 안내해드릴게요."
+            ],
+            
+            "행복": [
+                "기쁨이 가득한 마음이 전해져요! 이 행복한 순간을 더욱 특별하게 만들어드릴게요.",
+                "밝은 에너지가 느껴져서 저도 덩달아 기뻐요. 이 좋은 기분이 계속되길 바라요.",
+                "행복한 마음 상태가 아름다워요. 이 기쁨을 더욱 풍성하게 만들어드릴게요.",
+                "긍정적인 에너지가 넘쳐흘러요. 이 행복이 오래 지속될 수 있도록 도와드릴게요.",
+                "웃음꽃이 핀 마음이 보여요. 이 즐거운 순간을 더욱 빛나게 만들어드릴게요."
+            ],
+            
+            "슬픔": [
+                "마음이 무거우시군요. 지금 느끼는 슬픔도 소중한 감정이에요. 함께 천천히 달래보아요.",
+                "힘든 시간을 보내고 계시는 것 같아요. 혼자가 아니에요, 마음의 위로를 전해드릴게요.",
+                "마음의 상처가 아물 수 있도록 따뜻한 손길을 건네드릴게요.",
+                "슬픔 속에서도 당신은 충분히 소중한 사람이에요. 천천히 마음을 달래보아요.",
+                "눈물도 때로는 필요해요. 마음의 정화가 일어날 수 있도록 도와드릴게요.",
+                "아픈 마음을 어루만져 드릴게요. 시간이 지나면 분명 괜찮아질 거예요."
+            ],
+            
+            "안정": [
+                "마음의 균형이 잘 잡혀있어요. 이 안정감을 더욱 깊게 느껴보세요.",
+                "내면의 평형 상태가 아름다워요. 이 고요한 안정감을 오래 유지해보세요.",
+                "마음이 흔들리지 않는 견고함이 느껴져요. 이 안정감을 더욱 단단하게 만들어드릴게요.",
+                "차분하고 균형 잡힌 상태네요. 이 평온함이 일상의 힘이 되어드릴게요.",
+                "마음의 중심이 잘 잡혀있어요. 이 안정된 에너지를 더욱 키워나가보세요."
+            ],
+            
+            "이완": [
+                "긴장을 풀고 여유를 찾을 시간이네요. 몸과 마음의 모든 긴장을 놓아보세요.",
+                "스스로에게 휴식을 선물할 시간이에요. 완전히 이완된 상태를 경험해보세요.",
+                "마음의 무게를 내려놓을 준비가 되신 것 같아요. 편안한 해방감을 느껴보세요.",
+                "긴장에서 벗어나 자유로워질 시간이에요. 마음껏 느긋한 시간을 보내세요.",
+                "모든 것을 내려놓고 편안해지실 수 있도록 완벽한 환경을 만들어드릴게요."
+            ]
+        ]
+        
+        // 시간대별 추가 멘트
+        let timeBasedAddition: [String: String] = [
+            "새벽": "이른 새벽, 조용한 시간 속에서",
+            "아침": "새로운 하루를 맞는 아침에",
+            "오전": "활기찬 오전 시간에",
+            "점심": "하루의 중간, 재충전이 필요한 시간에",
+            "오후": "따뜻한 오후 햇살 아래서",
+            "저녁": "하루를 마무리하는 저녁에",
+            "밤": "고요한 밤의 시간에",
+            "자정": "깊어가는 밤, 평온한 시간에"
+        ]
+        
+        let messages = empathyDatabase[emotion] ?? empathyDatabase["평온"] ?? ["마음을 위한 특별한 시간을 준비했어요."]
+        let timeAddition = timeBasedAddition[timeOfDay] ?? ""
+        
+        // 강도에 따른 메시지 선택
+        let intensityIndex = intensity > 1.2 ? 0 : intensity < 0.8 ? (messages.count - 1) : (messages.count / 2)
+        let safeIndex = min(intensityIndex, messages.count - 1)
+        let selectedMessage = messages[safeIndex]
+        
+        // 시간대 멘트 추가 (50% 확률)
+        if !timeAddition.isEmpty && Int.random(in: 0...1) == 1 {
+            return "\(timeAddition) \(selectedMessage)"
+        }
+        
+        return selectedMessage
+    }
+    
+    /// 🎵 사운드 요소별 상세 설명 생성
+    private func generateSoundDescription(volumes: [Float], emotion: String) -> String {
+        // 사운드 카테고리별 이름 (SoundPresetCatalog 순서에 맞춤)
+        let soundCategories = [
+            "Rain", "Ocean", "Forest", "Stream", "Wind", "River", "Thunderstorm", 
+            "Waterfall", "Birds", "Fireplace", "WhiteNoise", "BrownNoise", "PinkNoise"
+        ]
+        
+        // 사운드별 감성적 설명
+        let soundDescriptions: [String: [String]] = [
+            "Rain": ["부드러운 빗소리", "마음을 정화하는 빗방울", "안정감을 주는 빗소리", "따스한 빗소리"],
+            "Ocean": ["깊은 바다의 파도", "마음을 진정시키는 파도소리", "끝없는 바다의 리듬", "평온한 해변의 파도"],
+            "Forest": ["신선한 숲의 속삭임", "나무들의 자연스러운 소리", "푸른 숲의 평화", "자연의 깊은 숨결"],
+            "Stream": ["맑은 시냇물의 흐름", "피로 회복에 효과적인 시냇물소리", "순수한 물의 멜로디", "자연의 치유력"],
+            "Wind": ["부드러운 바람소리", "마음을 시원하게 하는 바람", "자유로운 바람의 춤", "상쾌한 미풍"],
+            "River": ["흐르는 강의 리듬", "생명력 넘치는 강물소리", "깊은 강의 여유", "자연의 흐름"],
+            "Thunderstorm": ["웅장한 천둥소리", "자연의 역동적 에너지", "강렬한 자연의 소리", "정화의 뇌우"],
+            "Waterfall": ["시원한 폭포소리", "활력을 주는 물소리", "자연의 역동성", "생기 넘치는 폭포"],
+            "Birds": ["새들의 평화로운 지저귐", "아침을 알리는 새소리", "자연의 하모니", "희망적인 새의 노래"],
+            "Fireplace": ["따뜻한 벽난로 소리", "포근한 불꽃의 춤", "아늑한 공간의 소리", "평안한 난로 소리"],
+            "WhiteNoise": ["집중력을 높이는 화이트노이즈", "마음의 잡음을 차단하는 소리", "명료한 정적", "순수한 배경음"],
+            "BrownNoise": ["깊은 안정감의 브라운노이즈", "마음을 진정시키는 저주파", "편안한 배경 소리", "고요한 정적"],
+            "PinkNoise": ["균형 잡힌 핑크노이즈", "자연스러운 배경음", "조화로운 정적", "부드러운 배경 소리"]
+        ]
+        
+        // 감정별 강조 포인트
+        let emotionFocus: [String: String] = [
+            "평온": "마음의 평화를 위해",
+            "수면": "깊은 잠을 위해",
+            "스트레스": "스트레스 해소를 위해",
+            "불안": "불안 완화를 위해",
+            "활력": "에너지 충전을 위해",
+            "집중": "집중력 향상을 위해",
+            "행복": "기쁨 증진을 위해",
+            "슬픔": "마음의 치유를 위해",
+            "안정": "안정감 강화를 위해",
+            "이완": "깊은 이완을 위해"
+        ]
+        
+        // 활성화된 사운드 찾기 (볼륨이 10 이상인 것들)
+        var activeSounds: [String] = []
+        for (index, volume) in volumes.enumerated() {
+            if index < soundCategories.count && volume >= 10 {
+                let soundName = soundCategories[index]
+                let descriptions = soundDescriptions[soundName] ?? [soundName]
+                let randomDescription = descriptions.randomElement() ?? soundName
+                activeSounds.append(randomDescription)
+            }
+        }
+        
+        let focusPhrase = emotionFocus[emotion] ?? "마음의 안정을 위해"
+        
+        if activeSounds.isEmpty {
+            return "\(focusPhrase) 자연스럽고 조화로운 사운드 조합을 준비했어요."
+        } else if activeSounds.count == 1 {
+            return "\(focusPhrase) \(activeSounds[0])를 중심으로 한 특별한 조합입니다."
+        } else if activeSounds.count <= 3 {
+            let soundList = activeSounds.joined(separator: ", ")
+            return "\(focusPhrase) \(soundList)를 조화롭게 블렌딩한 맞춤형 조합이에요."
+        } else {
+            let mainSounds = Array(activeSounds.prefix(2))
+            let soundList = mainSounds.joined(separator: ", ")
+            return "\(focusPhrase) \(soundList) 등 다양한 자연 사운드를 정교하게 조합했어요."
+        }
     }
     
     // MARK: - 🆕 로컬 프리셋 적용
@@ -241,16 +739,12 @@ extension ChatViewController {
         
         // 사용자 친화적인 메시지 생성
         let presetMessage = """
-        💭 **시간대 기반 추천**
-        현재 시간: \(currentTimeOfDay)
-        추천 상태: \(recommendedEmotion)
-        
-        🎵 **[\(recommendedPreset.name)]**
+        **[\(recommendedPreset.name)]**
         \(recommendedPreset.description)
         
-        현재 시간대에 최적화된 사운드 조합입니다. 바로 적용해보세요! ✨
+        현재 시간대에 최적화된 사운드 조합입니다. 바로 적용해보세요!
         
-        ℹ️ 오늘의 AI 추천 횟수를 모두 사용하여 로컬 추천을 제공합니다.
+        오늘의 AI 추천 횟수를 모두 사용하여 로컬 추천을 제공합니다.
         """
         
         // 프리셋 적용 콜백 설정
@@ -264,32 +758,107 @@ extension ChatViewController {
     
     // MARK: - 🆕 프리셋 생성 헬퍼 메서드들
     
-    /// AI 분석 결과로부터 프리셋 생성
+    /// AI 분석 결과로부터 프리셋 생성 - 시적이고 감성적인 이름
     private func createPresetFromAnalysis(_ analysis: (emotion: String, timeOfDay: String, intensity: Float)) -> (name: String, volumes: [Float], description: String, versions: [Int]) {
         let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: analysis.emotion)
         let adjustedVolumes = baseVolumes.map { $0 * analysis.intensity }
         let versions = SoundPresetCatalog.defaultVersions
         
-        let name = "🎵 \(analysis.emotion) 맞춤"
-        let description = "\(analysis.timeOfDay) 시간대에 맞춘 \(analysis.emotion) 상태 개선 사운드입니다."
+        let name = generatePoeticPresetName(emotion: analysis.emotion, timeOfDay: analysis.timeOfDay, isAI: true)
+        let description = "\(analysis.timeOfDay)의 \(analysis.emotion) 감정을 위해 특별히 조합된 사운드스케이프입니다."
         
         return (name: name, volumes: adjustedVolumes, description: description, versions: versions)
     }
     
-    /// 기본 프리셋 생성
+    /// 기본 프리셋 생성 - 시적이고 감성적인 이름
     private func createBasicPreset(emotion: String, timeOfDay: String) -> (name: String, volumes: [Float], description: String, versions: [Int]) {
         let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: emotion)
         let versions = SoundPresetCatalog.defaultVersions
         
-        let name = "🎵 \(emotion) 기본"
-        let description = "\(timeOfDay) 시간대에 적합한 \(emotion) 상태의 기본 사운드입니다."
+        let name = generatePoeticPresetName(emotion: emotion, timeOfDay: timeOfDay, isAI: false)
+        let description = "\(timeOfDay)의 \(emotion) 상태를 위한 자연스럽고 조화로운 사운드 여행입니다."
         
         return (name: name, volumes: baseVolumes, description: description, versions: versions)
     }
     
+    /// 시적이고 감성적인 프리셋 이름 생성
+    private func generatePoeticPresetName(emotion: String, timeOfDay: String, isAI: Bool) -> String {
+        // 감정별 시적 표현
+        let emotionPoetry: [String: [String]] = [
+            "평온": ["고요한 마음", "잔잔한 호수", "평화로운 숨결", "조용한 안식", "차분한 선율", "고요한 정원", "잔잔한 물결", "평화의 노래", "마음의 쉼터", "조용한 미소"],
+            "수면": ["달빛의 자장가", "꿈속의 여행", "별들의 속삭임", "깊은 밤의 포옹", "구름 위의 쉼터", "꿈의 정원", "달빛 산책", "별의 자장가", "수면의 정원", "잠의 궁전"],
+            "활력": ["새벽의 각성", "생명의 춤", "에너지의 폭발", "희망의 멜로디", "활기찬 아침", "생동하는 리듬", "활력의 샘", "에너지 연주", "생명의 노래", "희망의 교향곡"],
+            "집중": ["마음의 정중앙", "집중의 공간", "조용한 몰입", "깊은 사색", "고요한 탐구", "사색의 숲", "몰입의 시간", "집중의 빛", "명상의 공간", "깊은 고요"],
+            "안정": ["마음의 뿌리", "안전한 품", "따뜻한 둥지", "평온한 바닥", "신뢰의 기둥", "안정의 토대", "마음의 항구", "따뜻한 안식", "신뢰의 품", "안전한 길"],
+            "이완": ["부드러운 해방", "느긋한 여유", "포근한 쉼", "자연스러운 흐름", "편안한 해독", "여유의 오후", "포근한 바람", "자유로운 시간", "편안한 여행", "부드러운 미소"],
+            "스트레스": ["해독의 시간", "마음의 치유", "스트레스 해소", "평온 회복", "긴장 완화", "마음의 정화", "치유의 바람", "해독의 숲", "회복의 시간", "정화의 강"],
+            "불안": ["마음의 안정", "걱정 해소", "불안 진정", "평안 찾기", "안심의 공간", "평안의 등대", "안심의 품", "진정의 노래", "마음의 평화", "안전한 항구"],
+            "행복": ["기쁨의 멜로디", "햇살의 춤", "웃음의 하모니", "즐거운 선율", "밝은 에너지", "행복의 정원", "웃음의 시간", "기쁨의 여행", "밝은 하루", "햇살 같은 시간"],
+            "슬픔": ["위로의 포옹", "마음의 치유", "눈물의 정화", "슬픔 달래기", "상처 어루만지기", "위로의 노래", "치유의 시간", "슬픔의 정화", "마음의 위로", "따뜻한 손길"]
+        ]
+        
+        // 시간대별 시적 표현
+        let timePoetry: [String: [String]] = [
+            "새벽": ["새벽의", "여명의", "첫 빛의", "아침 이슬의", "동트는"],
+            "아침": ["아침의", "햇살의", "상쾌한", "밝은", "활기찬"],
+            "오전": ["오전의", "상쾌한", "밝은", "활동적인", "생기찬"],
+            "점심": ["정오의", "따스한", "밝은", "활력의", "정중앙"],
+            "오후": ["오후의", "따뜻한", "포근한", "안정된", "여유로운"],
+            "저녁": ["저녁의", "노을의", "황혼의", "따스한", "포근한"],
+            "밤": ["밤의", "달빛의", "고요한", "평온한", "깊은"],
+            "자정": ["자정의", "깊은 밤의", "고요한", "신비로운", "조용한"]
+        ]
+        
+        // 아름다운 접미사들
+        let beautifulSuffixes = [
+            "세레나데", "심포니", "왈츠", "노래", "선율", "화음", "여행", "이야기", 
+            "공간", "시간", "순간", "기억", "꿈", "향기", "빛", "그림자", 
+            "숨결", "속삭임", "포옹", "키스", "미소", "안식", "휴식", "명상"
+        ]
+        
+        // 랜덤하게 조합 생성 (시드를 기반으로 일관성 있게)
+        let emotionSeed = emotion.hashValue
+        let timeSeed = timeOfDay.hashValue
+        let combinedSeed = abs(emotionSeed ^ timeSeed)
+        
+        let emotionWords = emotionPoetry[emotion] ?? ["마음의"]
+        let timeWords = timePoetry[timeOfDay] ?? ["조용한"]
+        
+        let selectedEmotion = emotionWords[combinedSeed % emotionWords.count]
+        let selectedTime = timeWords[(combinedSeed + 1) % timeWords.count]
+        let selectedSuffix = beautifulSuffixes[(combinedSeed + 2) % beautifulSuffixes.count]
+        
+        // 다양한 패턴으로 조합 (이모지 없이)
+        let patterns = [
+            "\(selectedTime) \(selectedSuffix)",
+            "\(selectedEmotion) \(selectedSuffix)",
+            "\(selectedTime) \(selectedEmotion)",
+            "\(selectedEmotion)의 \(selectedSuffix)",
+            "\(selectedTime) \(selectedEmotion) \(selectedSuffix)"
+        ]
+        
+        let selectedPattern = patterns[(combinedSeed + 3) % patterns.count]
+        return selectedPattern
+    }
+    
     // MARK: - 🧠 종합적 AI 프리셋 추천 시스템
     
-    /// 종합적인 상황 분석을 위한 데이터 수집 (기존 프리셋 기반)
+    /// 🔍 로컬 기반 추천 시스템 데이터 수집 범위
+    /// 
+    /// **수집하는 정보:**
+    /// 1. 시간적 정보: 현재 시각, 요일, 시간대 구분 (새벽/아침/오후 등)
+    /// 2. 대화 맥락: 최근 대화에서 언급된 감정 키워드 분석
+    /// 3. 사용 패턴: 기존 프리셋 사용 기록 및 선호도 
+    /// 4. 환경 추정: 시간대 기반 환경 요소 (밝기, 활동성 등)
+    /// 5. 개인화 요소: 사용자 고유 패턴 (볼륨 선호도, 사운드 타입)
+    ///
+    /// **수집하지 않는 정보:**
+    /// - 개인 신상정보, 위치정보, 연락처, 사진 등
+    /// - 다른 앱 사용 기록이나 브라우징 히스토리
+    /// - 마이크나 카메라를 통한 실시간 감지
+    /// - 외부 서버로 전송되는 개인 데이터
+    ///
+    /// **모든 분석은 기기 내 로컬에서만 수행되며, 외부로 전송되지 않습니다.**
     private func gatherComprehensiveAnalysisData() -> String {
         let currentTime = Date()
         let calendar = Calendar.current
@@ -591,19 +1160,19 @@ extension ChatViewController {
 
 하지만 걱정하지 마세요. 지금까지 수집된 데이터를 바탕으로 DeepSleep이 직접 분석해서 맞춤형 사운드를 추천해드릴 수 있어요.
 
-🔍 **앱 자체 분석의 장점:**
-• 기존 사용 패턴을 완벽히 분석
-• 선호도 기반 맞춤형 추천  
-• 실시간 상황 반영
-• 즉시 적용 가능한 최적화
+        🔍 **앱 분석 추천의 장점:**
+        • 기존 사용 패턴을 완벽히 분석
+        • 선호도 기반 맞춤형 추천  
+        • 실시간 상황 반영
+        • 즉시 적용 가능한 최적화
 
-앱 자체 분석으로 개인화된 추천을 받아보시겠어요? 🎯
+        앱 분석으로 개인화된 추천을 받아보시겠어요? 🎯
 """
         
         var offerMessage = ChatMessage(type: .aiResponse, text: analysisOfferMessage)
         offerMessage.quickActions = [
-            ("네, 앱 분석 추천받기 ✨", "accept_internal_analysis"),
-            ("아니요, 나중에 할게요", "decline_internal_analysis")
+            ("네, 앱 분석 추천받기", "accept_internal_analysis"),
+            ("🌙 아니요, 나중에 할게요", "decline_internal_analysis")
         ]
         
         appendChat(offerMessage)
@@ -1725,14 +2294,14 @@ extension ChatViewController {
     func handleQuickAction(_ action: String) {
         switch action {
         case "local_recommendation":
-            let userMessage = ChatMessage(type: .user, text: "🎲 로컬 기반으로 추천받기")
+            let userMessage = ChatMessage(type: .user, text: "🏠 앱 분석 추천받기")
             appendChat(userMessage)
             
             // 고급 로컬 추천 시스템 실행
             provideAdvancedLocalRecommendation()
             
         case "ai_recommendation":
-            let userMessage = ChatMessage(type: .user, text: "🤖 AI에게 추천받기")
+            let userMessage = ChatMessage(type: .user, text: "AI 분석 추천받기")
             appendChat(userMessage)
             
             // AI 사용 가능 여부 확인
@@ -1742,10 +2311,10 @@ extension ChatViewController {
             } else {
                 // AI 사용 불가 시 안내 메시지
                 let limitMessage = """
-                ⚠️ **오늘의 AI 추천 횟수를 모두 사용했습니다**
+                💝 **오늘의 AI 추천 횟수를 모두 사용했습니다**
                 
-                대신 **로컬 기반 추천**을 제공해드릴게요! 
-                DeepSleep의 고급 분석 엔진이 당신의 패턴을 분석해서 맞춤형 사운드를 추천해드립니다. ✨
+                대신 **앱 분석 추천**을 제공해드릴게요! 
+                DeepSleep의 고급 분석 엔진이 당신의 사용 패턴을 학습해서 맞춤형 사운드를 추천해드립니다. ✨
                 """
                 
                 appendChat(ChatMessage(type: .bot, text: limitMessage))
@@ -1757,7 +2326,7 @@ extension ChatViewController {
             }
             
         case "accept_internal_analysis":
-            let acceptMessage = ChatMessage(type: .user, text: "네, 앱 분석 추천받기 ✨")
+            let acceptMessage = ChatMessage(type: .user, text: "네, 앱 분석 추천받기")
             appendChat(acceptMessage)
             
             let loadingMessage = ChatMessage(type: .loading, text: "🔍 DeepSleep이 당신의 패턴을 분석하고 있어요...")
@@ -1770,7 +2339,7 @@ extension ChatViewController {
             }
             
         case "decline_internal_analysis":
-            let declineMessage = ChatMessage(type: .user, text: "아니요, 나중에 할게요")
+            let declineMessage = ChatMessage(type: .user, text: "🌙 아니요, 나중에 할게요")
             appendChat(declineMessage)
             
             let responseMessage = """

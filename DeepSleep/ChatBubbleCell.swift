@@ -275,10 +275,10 @@ class ChatBubbleCell: UITableViewCell {
             applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
             applyButtonHeightConstraint,
             
-            // ✅ 옵션 버튼 스택뷰 제약 조건
+            // ✅ 옵션 버튼 스택뷰 제약 조건 - 챗 버블 전체 너비에 맞게 확장
             optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12),
             optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
-            optionButtonStackView.trailingAnchor.constraint(lessThanOrEqualTo: bubbleView.trailingAnchor, constant: -16),
+            optionButtonStackView.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
             optionButtonStackView.bottomAnchor.constraint(lessThanOrEqualTo: bubbleView.bottomAnchor, constant: -16)
         ])
 
@@ -350,6 +350,12 @@ class ChatBubbleCell: UITableViewCell {
         case .presetRecommendation:
             configurePresetMessage(message.text) {
                 message.onApplyPreset?()
+            }
+        case .recommendationSelector:
+            configureRecommendationSelectorMessage(message.text)
+            // 🆕 퀵 액션이 있는 메시지인지 확인
+            if let quickActions = message.quickActions {
+                configureQuickActionButtons(quickActions)
             }
         case .presetOptions:
             configureBotMessage(message.text) // 프리셋 옵션도 봇 스타일로 표시
@@ -483,7 +489,17 @@ class ChatBubbleCell: UITableViewCell {
         messageLabel.text = text
         messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        
+        // 프리셋 추천만의 특별한 색상 적용
+        bubbleView.backgroundColor = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemPurple.withAlphaComponent(0.2) // 다크모드에서 보라색 계열
+            default:
+                return UIColor.systemPurple.withAlphaComponent(0.1) // 라이트모드에서 연한 보라색
+            }
+        }
+        
         applyButton.setTitle("🎵 바로 적용하기", for: .normal)
         applyButton.isHidden = false
         self.applyAction = {
@@ -495,6 +511,38 @@ class ChatBubbleCell: UITableViewCell {
         messageLabelToButtonConstraint.isActive = true
         applyButtonBottomConstraint.isActive = true
         leadingConstraint.isActive = true
+    }
+    
+    // 🆕 추천 방식 선택창 스타일 (프리셋 추천과 똑같은 색상)
+    private func configureRecommendationSelectorMessage(_ text: String) {
+        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
+        loadingContainer.isHidden = true
+        loadingContainer.alpha = 0
+        messageLabel.isHidden = false
+        
+        messageLabel.text = text
+        messageLabel.textColor = UIDesignSystem.Colors.primaryText
+        messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        
+        // 프리셋 추천과 똑같은 보라색 배경 적용
+        bubbleView.backgroundColor = UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor.systemPurple.withAlphaComponent(0.2) // 다크모드에서 보라색 계열
+            default:
+                return UIColor.systemPurple.withAlphaComponent(0.1) // 라이트모드에서 연한 보라색
+            }
+        }
+        
+        // 왼쪽 정렬
+        leadingConstraint.isActive = true
+        messageLabelBottomConstraint.isActive = true
+        
+        // 부드러운 그림자
+        bubbleView.layer.shadowColor = UIColor.systemPurple.cgColor
+        bubbleView.layer.shadowOffset = CGSize(width: 0, height: 1)
+        bubbleView.layer.shadowOpacity = 0.1
+        bubbleView.layer.shadowRadius = 3
     }
     
     private func addGradientToBubble(colors: [CGColor]) {
@@ -700,7 +748,7 @@ class ChatBubbleCell: UITableViewCell {
         print("🐱 로딩 메시지 설정 완료 - 고양이 GIF 시작")
     }
     
-    // 🆕 퀵 액션 버튼들 구성
+    // 🆕 퀵 액션 버튼들 구성 - 챗 버블 전체 너비에 맞게 확장
     private func configureQuickActionButtons(_ quickActions: [(String, String)]) {
         // 기존 버튼들 제거
         optionButtonStackView.arrangedSubviews.forEach { subview in
@@ -708,40 +756,89 @@ class ChatBubbleCell: UITableViewCell {
             subview.removeFromSuperview()
         }
         print("[ChatBubbleCell] configureQuickActionButtons - quickActions: \(quickActions)")
+        
         // 퀵 액션 버튼들 생성
         for (title, action) in quickActions {
             let button = createQuickActionButton(title: title, action: action)
             print("[ChatBubbleCell] 버튼 생성: \(title), 액션: \(action)")
             optionButtonStackView.addArrangedSubview(button)
         }
+        
+        // 스택뷰가 전체 너비를 차지하도록 설정
+        optionButtonStackView.distribution = .fillEqually
+        optionButtonStackView.spacing = 12
         optionButtonStackView.isHidden = false
         leadingConstraint.isActive = true
         messageLabelBottomConstraint.isActive = false
     }
     
-    // 🆕 퀵 액션 버튼 생성
+    // 🆕 퀵 액션 버튼 생성 - 채팅 버블과 조화로운 보라색 테마로 개선
     private func createQuickActionButton(title: String, action: String) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
-        let backgroundColor: UIColor
-        if title.contains("AI") {
-            backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
-        } else if title.contains("로컬") {
-            backgroundColor = UIColor.systemGreen.withAlphaComponent(0.8)
+        
+        // 채팅 버블과 조화로운 보라색 계열 그라데이션
+        let primaryColor: UIColor
+        let secondaryColor: UIColor
+        
+        if title.contains("AI") || title.contains("✨") {
+            // AI 관련 - 밝은 보라색~핑크 그라데이션
+            primaryColor = UIColor.systemPurple
+            secondaryColor = UIColor.systemPink
         } else {
-            backgroundColor = UIColor.systemGray.withAlphaComponent(0.8)
+            // 앱 분석 관련 - 깊은 보라색~인디고 그라데이션
+            primaryColor = UIColor.systemIndigo
+            secondaryColor = UIColor.systemPurple
         }
-        button.backgroundColor = backgroundColor
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        
+        // 그라데이션 설정
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.colors = [primaryColor.cgColor, secondaryColor.cgColor]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        gradientLayer.cornerRadius = 16
+        
+        button.layer.insertSublayer(gradientLayer, at: 0)
+        button.layer.cornerRadius = 16
+        button.layer.shadowColor = primaryColor.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowOpacity = 0.3
+        button.layer.shadowRadius = 8
+        
+        button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         button.translatesAutoresizingMaskIntoConstraints = false
+        
         button.addAction(UIAction { [weak self] _ in
             print("[ChatBubbleCell] 퀵 액션 버튼 클릭됨: \(title) -> \(action)")
             self?.handleQuickAction(action)
         }, for: .touchUpInside)
-        button.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        
+        // 버튼 크기를 더 크고 넓게 설정 - 챗 버블에 맞게 임팩트 있게
+        button.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        
+        // 버튼이 레이아웃된 후 그라데이션 크기 조정
+        DispatchQueue.main.async {
+            gradientLayer.frame = button.bounds
+        }
+        
+        // 터치 애니메이션 추가
+        button.addTarget(self, action: #selector(buttonTouchDown(_:)), for: .touchDown)
+        button.addTarget(self, action: #selector(buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
         return button
+    }
+    
+    @objc private func buttonTouchDown(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        }
+    }
+    
+    @objc private func buttonTouchUp(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = .identity
+        }
     }
     
     // 🆕 퀵 액션 처리

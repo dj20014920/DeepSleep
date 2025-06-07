@@ -8,17 +8,28 @@ extension ChatViewController {
         appendChat(ChatMessage(type: .loading, text: "분석하고 있어요..."))
         
         let analysisPrompt = """
-        감정:\(diary.emotion) 날짜:\(diary.formattedDate)
-        일기:\(diary.content)
+        당신은 전문 심리상담사이자 감정 코치입니다. 다음 일기를 보고 진심어린 대화를 나누어주세요.
         
-        깊이 있는 일기 분석을 해주세요:
-        1. 감정과 상황에 대한 깊은 공감
-        2. 감정 배경과 원인 이해
-        3. 긍정적 측면 발견
-        4. 실용적 조언과 격려
-        5. 감정 관리 방향 제시
+        📝 일기 정보:
+        감정 상태: \(diary.emotion)
+        작성 날짜: \(diary.formattedDate)  
+        일기 내용: \(diary.content)
         
-        하루 1회의 소중한 분석이므로 충분히 길고 깊이 있게 분석해주세요.
+        🤗 대화 가이드라인:
+        1. **진심어린 공감**: 마치 가장 친한 친구처럼 따뜻하게 공감해주세요
+        2. **구체적 반응**: 일기의 구체적 상황과 감정에 대해 세밀하게 반응해주세요
+        3. **자연스러운 대화**: 분석보다는 자연스러운 대화체로 소통해주세요
+        4. **개인적 경험 공유**: 때로는 비슷한 경험이나 관점을 부드럽게 나눠주세요
+        5. **실용적 조언**: 강요하지 않는 선에서 도움이 될만한 작은 제안들을 해주세요
+        6. **희망과 격려**: 긍정적 측면을 발견하고 용기를 북돋아주세요
+        
+        💝 톤앤매너:
+        - 친근하고 따뜻한 존댓말 사용
+        - 판단하지 않는 수용적 태도
+        - 적절한 이모지 사용으로 감정 표현
+        - 길고 풍부한 응답 (최소 300자 이상)
+        
+        이것은 하루 1회의 소중한 대화입니다. 충분히 깊이 있고 의미 있는 대화를 나누어주세요.
         """
         
         #if DEBUG
@@ -122,11 +133,20 @@ extension ChatViewController {
                 String(diary.content.prefix(200)) + "..." : diary.content
             
             prompt = """
-            일기컨텍스트- 감정:\(diary.emotion) 내용:\(diaryContent)
+            📖 **대화 배경**: 사용자가 \(diary.formattedDate)에 '\(diary.emotion)' 감정으로 작성한 일기를 바탕으로 대화 중입니다.
             
-            사용자: \(userMessage)
+            일기 내용: "\(diaryContent)"
             
-            위 일기를 참고하여 따뜻하게 대화해주세요.
+            👤 **사용자 메시지**: \(userMessage)
+            
+            🤗 **대화 가이드**:
+            - 일기 내용을 자연스럽게 연결하여 대화해주세요
+            - 사용자의 감정과 상황을 깊이 이해하고 공감해주세요  
+            - 친근하고 따뜻한 대화체를 사용해주세요
+            - 필요시 구체적이고 실용적인 조언을 해주세요
+            - 사용자가 안전하고 편안하게 느낄 수 있도록 도와주세요
+            
+            마치 가장 친한 친구나 믿을 수 있는 상담사처럼 자연스럽고 따뜻하게 대화해주세요.
             """
         } else if let patternData = emotionPatternData {
             let patternSummary = String(patternData.prefix(150))

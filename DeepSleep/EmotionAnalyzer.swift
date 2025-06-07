@@ -44,4 +44,18 @@ struct EmotionAnalyzer {
         default:    return .neutral
         }
     }
+    
+    /// 텍스트에서 기본 감정을 추출하는 메서드
+    func extractBasicEmotion(from text: String) -> String {
+        let emotion = EmotionAnalyzer.analyze(text: text)
+        
+        switch emotion {
+        case .happy: return "행복"
+        case .sad: return "슬픔"
+        case .angry: return "분노"
+        case .anxious: return "불안"
+        case .tired: return "피로"
+        case .neutral: return "평온"
+        }
+    }
 }

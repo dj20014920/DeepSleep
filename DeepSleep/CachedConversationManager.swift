@@ -270,6 +270,8 @@ class CachedConversationManager {
                 ]
                 let randomFormat = recommendationFormats.randomElement() ?? "🎵 \(presetName)"
                 return randomFormat
+            case .recommendationSelector:
+                return "시스템: 추천 방식 선택"
             case .error:
                 return "시스템: \(message.text)"
             case .presetOptions, .postPresetOptions:
@@ -327,7 +329,7 @@ class CachedConversationManager {
         
         let botMessages = messages.compactMap { message in
             switch message.type {
-            case .bot, .aiResponse, .presetRecommendation:
+            case .bot, .aiResponse, .presetRecommendation, .recommendationSelector:
                 return message.text
             default:
                 // ✅ 사용자 메시지와 옵션 메시지, 로딩 메시지는 bot 메시지가 아니므로 nil 반환
@@ -376,7 +378,7 @@ class CachedConversationManager {
         
         let aiTexts = messages.compactMap { message in
             switch message.type {
-            case .bot, .aiResponse, .presetRecommendation:
+            case .bot, .aiResponse, .presetRecommendation, .recommendationSelector:
                 return message.text
             default:
                 // ✅ AI 텍스트가 아닌 경우 nil 반환

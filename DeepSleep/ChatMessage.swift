@@ -8,6 +8,7 @@ enum ChatMessageType: String, Codable {
     case bot
     case aiResponse
     case presetRecommendation
+    case recommendationSelector // 🆕 추천 방식 선택창 전용 타입
     case loading
     case error
     case presetOptions

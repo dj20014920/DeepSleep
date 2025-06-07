@@ -412,12 +412,13 @@ class EmotionAnalysisChatViewController: UIViewController {
                     // AI 분석 결과 파싱
                     let parsedAnalysis = self.parseEmotionAnalysis(analysisResult)
                     
-                    // 로컬 추천 시스템으로 프리셋 생성
+                    // 로컬 추천 시스템으로 프리셋 생성 - 감성적인 이름
                     let recommendedVolumes = SoundPresetCatalog.getRecommendedPreset(for: parsedAnalysis.emotion)
+                    let poeticName = self.generatePoeticPresetName(emotion: parsedAnalysis.emotion, timeOfDay: "현재", isAI: true)
                     let recommendedPreset = (
-                        name: "\(parsedAnalysis.emotion) 추천",
+                        name: poeticName,
                         volumes: recommendedVolumes,
-                        description: "\(parsedAnalysis.emotion) 감정에 최적화된 사운드 조합",
+                        description: "\(parsedAnalysis.emotion) 감정을 위해 특별히 조합된 감성적 사운드스케이프",
                         versions: SoundPresetCatalog.defaultVersions
                     )
                     
@@ -432,22 +433,81 @@ class EmotionAnalysisChatViewController: UIViewController {
                     AIUsageManager.shared.recordUsage(for: .presetRecommendation)
                     
                 } else {
-                    // AI 분석 실패 시 기본 추천
+                    // AI 분석 실패 시 기본 추천 - 감성적인 이름
                     let fallbackVolumes = SoundPresetCatalog.getRecommendedPreset(for: "평온")
+                    let fallbackPoeticName = self.generatePoeticPresetName(emotion: "평온", timeOfDay: "현재", isAI: true)
                     let fallbackPreset = (
-                        name: "평온 기본 추천",
+                        name: fallbackPoeticName,
                         volumes: fallbackVolumes,
-                        description: "편안하고 균형잡힌 기본 사운드 조합",
+                        description: "마음을 편안하게 하는 균형 잡힌 사운드 여행",
                         versions: SoundPresetCatalog.defaultVersions
                     )
                     
-                    let fallbackMessage = "🎵 [평온한 기본 추천] 현재 시간에 맞는 균형잡힌 사운드 조합입니다."
+                    let fallbackMessage = "🎵 [\(fallbackPoeticName)] 현재 시간에 맞는 균형잡힌 사운드 조합입니다."
                     
                     self.addPresetRecommendationMessage(fallbackMessage, preset: fallbackPreset)
                     AIUsageManager.shared.recordUsage(for: .presetRecommendation)
                 }
             }
         }
+    }
+    
+    /// 시적이고 감성적인 프리셋 이름 생성 (ChatviewController+Actions와 동일)
+    private func generatePoeticPresetName(emotion: String, timeOfDay: String, isAI: Bool) -> String {
+        // 감정별 시적 표현
+        let emotionPoetry: [String: [String]] = [
+            "평온": ["고요한 마음", "잔잔한 호수", "평화로운 숨결", "조용한 안식", "차분한 선율"],
+            "수면": ["달빛의 자장가", "꿈속의 여행", "별들의 속삭임", "깊은 밤의 포옹", "구름 위의 쉼터"],
+            "행복": ["기쁨의 멜로디", "햇살의 춤", "웃음의 하모니", "즐거운 선율", "밝은 에너지"],
+            "슬픔": ["위로의 포옹", "마음의 치유", "눈물의 정화", "슬픔 달래기", "상처 어루만지기"],
+            "스트레스": ["해독의 시간", "마음의 치유", "스트레스 해소", "평온 회복", "긴장 완화"],
+            "불안": ["마음의 안정", "걱정 해소", "불안 진정", "평안 찾기", "안심의 공간"],
+            "활력": ["새벽의 각성", "생명의 춤", "에너지의 폭발", "희망의 멜로디", "활기찬 아침"],
+            "집중": ["마음의 정중앙", "집중의 공간", "조용한 몰입", "깊은 사색", "고요한 탐구"]
+        ]
+        
+        // 시간대별 시적 표현
+        let timePoetry: [String: [String]] = [
+            "새벽": ["새벽의", "여명의", "첫 빛의", "아침 이슬의", "동트는"],
+            "아침": ["아침의", "햇살의", "상쾌한", "밝은", "활기찬"],
+            "오전": ["오전의", "상쾌한", "밝은", "활동적인", "생기찬"],
+            "점심": ["정오의", "따스한", "밝은", "활력의", "정중앙"],
+            "오후": ["오후의", "따뜻한", "포근한", "안정된", "여유로운"],
+            "저녁": ["저녁의", "노을의", "황혼의", "따스한", "포근한"],
+            "밤": ["밤의", "달빛의", "고요한", "평온한", "깊은"],
+            "자정": ["자정의", "깊은 밤의", "고요한", "신비로운", "조용한"]
+        ]
+        
+        // 아름다운 접미사들
+        let beautifulSuffixes = [
+            "세레나데", "심포니", "왈츠", "노래", "선율", "화음", "여행", "이야기", 
+            "공간", "시간", "순간", "기억", "꿈", "향기", "빛", "그림자", 
+            "숨결", "속삭임", "포옹", "키스", "미소", "안식", "휴식", "명상"
+        ]
+        
+        // 랜덤하게 조합 생성 (시드를 기반으로 일관성 있게)
+        let emotionSeed = emotion.hashValue
+        let timeSeed = timeOfDay.hashValue
+        let combinedSeed = abs(emotionSeed ^ timeSeed)
+        
+        let emotionWords = emotionPoetry[emotion] ?? ["마음의"]
+        let timeWords = timePoetry[timeOfDay] ?? ["조용한"]
+        
+        let selectedEmotion = emotionWords[combinedSeed % emotionWords.count]
+        let selectedTime = timeWords[(combinedSeed + 1) % timeWords.count]
+        let selectedSuffix = beautifulSuffixes[(combinedSeed + 2) % beautifulSuffixes.count]
+        
+        // 다양한 패턴으로 조합 (이모지 없이)
+        let patterns = [
+            "\(selectedTime) \(selectedSuffix)",
+            "\(selectedEmotion) \(selectedSuffix)",
+            "\(selectedTime) \(selectedEmotion)",
+            "\(selectedEmotion)의 \(selectedSuffix)",
+            "\(selectedTime) \(selectedEmotion) \(selectedSuffix)"
+        ]
+        
+        let selectedPattern = patterns[(combinedSeed + 3) % patterns.count]
+        return selectedPattern
     }
     
     // 🆕 프리셋 추천 메시지 추가 (버튼 포함)
@@ -480,7 +540,7 @@ class EmotionAnalysisChatViewController: UIViewController {
     
     // 🆕 로컬 추천 처리 메서드
     private func handleLocalRecommendation() {
-        addUserMessage("🏠 로컬 추천받기")
+        addUserMessage("앱 분석 추천받기")
         
         // 현재 시간대 기반 로컬 추천
         let currentTimeOfDay = getCurrentTimeOfDay()
@@ -504,12 +564,13 @@ class EmotionAnalysisChatViewController: UIViewController {
             recommendedEmotion = "평온"
         }
         
-        // 로컬 추천 시스템으로 프리셋 생성
+        // 로컬 추천 시스템으로 프리셋 생성 - 감성적인 이름
         let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: recommendedEmotion)
+        let poeticName = generatePoeticPresetName(emotion: recommendedEmotion, timeOfDay: currentTimeOfDay, isAI: false)
         let recommendedPreset = (
-            name: "🏠 \(recommendedEmotion) 로컬 추천",
+            name: poeticName,
             volumes: baseVolumes,
-            description: "\(currentTimeOfDay) 시간대에 적합한 \(recommendedEmotion) 상태의 로컬 추천 사운드입니다.",
+            description: "\(currentTimeOfDay)의 \(recommendedEmotion) 상태를 위한 자연스럽고 조화로운 사운드 여행입니다.",
             versions: SoundPresetCatalog.defaultVersions
         )
         
@@ -522,7 +583,8 @@ class EmotionAnalysisChatViewController: UIViewController {
         🎵 **[\(recommendedPreset.name)]**
         \(recommendedPreset.description)
         
-        로컬 알고리즘으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다. 바로 적용해보세요! ✨
+        로컬 알고리즘으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다. 
+        바로 적용해보세요! ✨
         
         ℹ️ 이 추천은 AI 사용량에 영향을 주지 않는 로컬 추천입니다.
         """
@@ -563,16 +625,196 @@ class EmotionAnalysisChatViewController: UIViewController {
     ) -> String {
         let intensityText = analysis.intensity > 1.2 ? "강한" : analysis.intensity < 0.8 ? "부드러운" : "적절한"
         
+        let empathyMessage = generateEmpathyMessage(emotion: analysis.emotion, timeOfDay: analysis.timeOfDay, intensity: analysis.intensity)
+        let soundDescription = generateSoundDescription(volumes: preset.volumes, emotion: analysis.emotion)
+        
         return """
-        💭 **감정 분석 완료**
-        현재 상태: \(analysis.emotion) (\(intensityText) 강도)
-        시간대: \(analysis.timeOfDay)
+        \(empathyMessage)
         
-        🎵 **[\(preset.name)]**
-        \(preset.description)
-        
-        이 조합은 현재 기분에 특별히 맞춰 선별된 사운드들입니다. 바로 적용해보세요! ✨
+        **[\(preset.name)]**
+        \(soundDescription)
         """
+    }
+    
+    /// 🤗 감정별 공감 메시지 생성 (방대한 데이터베이스)
+    private func generateEmpathyMessage(emotion: String, timeOfDay: String, intensity: Float) -> String {
+        let empathyDatabase: [String: [String]] = [
+            "평온": [
+                "마음에 평온이 찾아온 순간이네요. 이런 고요한 시간을 더욱 깊게 만끽해보세요.",
+                "평화로운 마음 상태가 느껴집니다. 이 소중한 평온함을 지켜드릴게요.",
+                "차분한 에너지가 전해져요. 내면의 고요함을 더욱 깊이 있게 경험해보세요.",
+                "마음의 평형을 잘 유지하고 계시네요. 이 안정감을 더욱 풍성하게 만들어드릴게요.",
+                "고요한 마음의 상태가 아름답습니다. 이 평온함이 더욱 깊어질 수 있도록 도와드릴게요."
+            ],
+            
+            "수면": [
+                "하루의 피로가 쌓여 깊은 휴식이 필요한 시간이네요. 편안한 잠자리를 만들어드릴게요.",
+                "오늘 하루도 고생 많으셨어요. 꿈나라로의 여행을 부드럽게 안내해드릴게요.",
+                "몸과 마음이 휴식을 원하고 있어요. 깊고 편안한 잠을 위한 완벽한 환경을 준비했어요.",
+                "잠들기 전 마음의 정리가 필요한 순간이네요. 모든 걱정을 내려놓고 편히 쉬실 수 있도록 도와드릴게요.",
+                "하루의 마무리 시간이 왔어요. 별들의 자장가로 평온한 밤을 선물해드릴게요."
+            ],
+            
+            "스트레스": [
+                "오늘 힘들었던 당신을 위해 마음의 짐을 덜어드리고 싶어요.",
+                "쌓인 스트레스가 느껴져요. 지금 이 순간만큼은 모든 걱정에서 벗어나 보세요.",
+                "마음이 무거우셨을 텐데, 이제 깊게 숨을 들이쉬고 차근차근 풀어나가요.",
+                "복잡하고 어려운 하루를 보내셨군요. 마음의 무게를 조금씩 덜어내는 시간을 만들어드릴게요.",
+                "스트레스로 지친 마음을 이해해요. 지금은 온전히 자신을 위한 시간을 가져보세요.",
+                "긴장으로 굳어진 마음과 몸을 천천히 풀어드릴게요. 모든 것을 내려놓으셔도 괜찮아요."
+            ],
+            
+            "불안": [
+                "마음이 불안하고 걱정이 많으실 텐데, 지금 이 순간은 안전해요.",
+                "혼란스러운 마음을 진정시켜 드릴게요. 모든 것이 괜찮아질 거예요.",
+                "불안한 마음이 잠잠해질 수 있도록 안전하고 따뜻한 공간을 만들어드릴게요.",
+                "걱정이 많은 요즘이죠. 마음에 평안이 깃들 수 있는 시간을 선물해드릴게요.",
+                "불안함 속에서도 당신은 충분히 괜찮은 사람이에요. 마음의 안정을 찾아드릴게요.",
+                "복잡한 생각들이 정리될 수 있도록 마음의 정박지를 만들어드릴게요."
+            ],
+            
+            "활력": [
+                "활기찬 에너지가 느껴져요! 이 좋은 기운을 더욱 키워나가볼까요?",
+                "긍정적인 에너지가 넘치네요. 이 활력을 더욱 풍성하게 만들어드릴게요.",
+                "생동감 넘치는 하루를 시작하시는군요. 이 에너지를 최대한 활용해보세요.",
+                "의욕이 가득한 상태네요! 이 좋은 기운이 하루 종일 이어질 수 있도록 도와드릴게요.",
+                "활기찬 마음이 아름다워요. 이 에너지로 멋진 하루를 만들어나가세요."
+            ],
+            
+            "집중": [
+                "집중이 필요한 중요한 시간이네요. 마음을 한곳으로 모을 수 있도록 도와드릴게요.",
+                "깊은 몰입이 필요한 순간이군요. 모든 잡념을 걷어내고 온전히 집중해보세요.",
+                "집중력을 높여야 할 때네요. 마음의 잡음을 제거하고 명료함을 선물해드릴게요.",
+                "중요한 일에 몰두해야 하는군요. 최상의 집중 환경을 만들어드릴게요.",
+                "마음을 가다듬고 집중할 시간이에요. 깊은 몰입의 세계로 안내해드릴게요."
+            ],
+            
+            "행복": [
+                "기쁨이 가득한 마음이 전해져요! 이 행복한 순간을 더욱 특별하게 만들어드릴게요.",
+                "밝은 에너지가 느껴져서 저도 덩달아 기뻐요. 이 좋은 기분이 계속되길 바라요.",
+                "행복한 마음 상태가 아름다워요. 이 기쁨을 더욱 풍성하게 만들어드릴게요.",
+                "긍정적인 에너지가 넘쳐흘러요. 이 행복이 오래 지속될 수 있도록 도와드릴게요.",
+                "웃음꽃이 핀 마음이 보여요. 이 즐거운 순간을 더욱 빛나게 만들어드릴게요."
+            ],
+            
+            "슬픔": [
+                "마음이 무거우시군요. 지금 느끼는 슬픔도 소중한 감정이에요. 함께 천천히 달래보아요.",
+                "힘든 시간을 보내고 계시는 것 같아요. 혼자가 아니에요, 마음의 위로를 전해드릴게요.",
+                "마음의 상처가 아물 수 있도록 따뜻한 손길을 건네드릴게요.",
+                "슬픔 속에서도 당신은 충분히 소중한 사람이에요. 천천히 마음을 달래보아요.",
+                "눈물도 때로는 필요해요. 마음의 정화가 일어날 수 있도록 도와드릴게요.",
+                "아픈 마음을 어루만져 드릴게요. 시간이 지나면 분명 괜찮아질 거예요."
+            ],
+            
+            "안정": [
+                "마음의 균형이 잘 잡혀있어요. 이 안정감을 더욱 깊게 느껴보세요.",
+                "내면의 평형 상태가 아름다워요. 이 고요한 안정감을 오래 유지해보세요.",
+                "마음이 흔들리지 않는 견고함이 느껴져요. 이 안정감을 더욱 단단하게 만들어드릴게요.",
+                "차분하고 균형 잡힌 상태네요. 이 평온함이 일상의 힘이 되어드릴게요.",
+                "마음의 중심이 잘 잡혀있어요. 이 안정된 에너지를 더욱 키워나가보세요."
+            ],
+            
+            "이완": [
+                "긴장을 풀고 여유를 찾을 시간이네요. 몸과 마음의 모든 긴장을 놓아보세요.",
+                "스스로에게 휴식을 선물할 시간이에요. 완전히 이완된 상태를 경험해보세요.",
+                "마음의 무게를 내려놓을 준비가 되신 것 같아요. 편안한 해방감을 느껴보세요.",
+                "긴장에서 벗어나 자유로워질 시간이에요. 마음껏 느긋한 시간을 보내세요.",
+                "모든 것을 내려놓고 편안해지실 수 있도록 완벽한 환경을 만들어드릴게요."
+            ]
+        ]
+        
+        // 시간대별 추가 멘트
+        let timeBasedAddition: [String: String] = [
+            "새벽": "이른 새벽, 조용한 시간 속에서",
+            "아침": "새로운 하루를 맞는 아침에",
+            "오전": "활기찬 오전 시간에",
+            "점심": "하루의 중간, 재충전이 필요한 시간에",
+            "오후": "따뜻한 오후 햇살 아래서",
+            "저녁": "하루를 마무리하는 저녁에",
+            "밤": "고요한 밤의 시간에",
+            "자정": "깊어가는 밤, 평온한 시간에"
+        ]
+        
+        let messages = empathyDatabase[emotion] ?? empathyDatabase["평온"] ?? ["마음을 위한 특별한 시간을 준비했어요."]
+        let timeAddition = timeBasedAddition[timeOfDay] ?? ""
+        
+        // 강도에 따른 메시지 선택
+        let intensityIndex = intensity > 1.2 ? 0 : intensity < 0.8 ? (messages.count - 1) : (messages.count / 2)
+        let safeIndex = min(intensityIndex, messages.count - 1)
+        let selectedMessage = messages[safeIndex]
+        
+        // 시간대 멘트 추가 (50% 확률)
+        if !timeAddition.isEmpty && Int.random(in: 0...1) == 1 {
+            return "\(timeAddition) \(selectedMessage)"
+        }
+        
+        return selectedMessage
+    }
+    
+    /// 🎵 사운드 요소별 상세 설명 생성
+    private func generateSoundDescription(volumes: [Float], emotion: String) -> String {
+        // 사운드 카테고리별 이름 (SoundPresetCatalog 순서에 맞춤)
+        let soundCategories = [
+            "Rain", "Ocean", "Forest", "Stream", "Wind", "River", "Thunderstorm", 
+            "Waterfall", "Birds", "Fireplace", "WhiteNoise", "BrownNoise", "PinkNoise"
+        ]
+        
+        // 사운드별 감성적 설명
+        let soundDescriptions: [String: [String]] = [
+            "Rain": ["부드러운 빗소리", "마음을 정화하는 빗방울", "안정감을 주는 빗소리", "따스한 빗소리"],
+            "Ocean": ["깊은 바다의 파도", "마음을 진정시키는 파도소리", "끝없는 바다의 리듬", "평온한 해변의 파도"],
+            "Forest": ["신선한 숲의 속삭임", "나무들의 자연스러운 소리", "푸른 숲의 평화", "자연의 깊은 숨결"],
+            "Stream": ["맑은 시냇물의 흐름", "피로 회복에 효과적인 시냇물소리", "순수한 물의 멜로디", "자연의 치유력"],
+            "Wind": ["부드러운 바람소리", "마음을 시원하게 하는 바람", "자유로운 바람의 춤", "상쾌한 미풍"],
+            "River": ["흐르는 강의 리듬", "생명력 넘치는 강물소리", "깊은 강의 여유", "자연의 흐름"],
+            "Thunderstorm": ["웅장한 천둥소리", "자연의 역동적 에너지", "강렬한 자연의 소리", "정화의 뇌우"],
+            "Waterfall": ["시원한 폭포소리", "활력을 주는 물소리", "자연의 역동성", "생기 넘치는 폭포"],
+            "Birds": ["새들의 평화로운 지저귐", "아침을 알리는 새소리", "자연의 하모니", "희망적인 새의 노래"],
+            "Fireplace": ["따뜻한 벽난로 소리", "포근한 불꽃의 춤", "아늑한 공간의 소리", "평안한 난로 소리"],
+            "WhiteNoise": ["집중력을 높이는 화이트노이즈", "마음의 잡음을 차단하는 소리", "명료한 정적", "순수한 배경음"],
+            "BrownNoise": ["깊은 안정감의 브라운노이즈", "마음을 진정시키는 저주파", "편안한 배경 소리", "고요한 정적"],
+            "PinkNoise": ["균형 잡힌 핑크노이즈", "자연스러운 배경음", "조화로운 정적", "부드러운 배경 소리"]
+        ]
+        
+        // 감정별 강조 포인트
+        let emotionFocus: [String: String] = [
+            "평온": "마음의 평화를 위해",
+            "수면": "깊은 잠을 위해",
+            "스트레스": "스트레스 해소를 위해",
+            "불안": "불안 완화를 위해",
+            "활력": "에너지 충전을 위해",
+            "집중": "집중력 향상을 위해",
+            "행복": "기쁨 증진을 위해",
+            "슬픔": "마음의 치유를 위해",
+            "안정": "안정감 강화를 위해",
+            "이완": "깊은 이완을 위해"
+        ]
+        
+        // 활성화된 사운드 찾기 (볼륨이 10 이상인 것들)
+        var activeSounds: [String] = []
+        for (index, volume) in volumes.enumerated() {
+            if index < soundCategories.count && volume >= 10 {
+                let soundName = soundCategories[index]
+                let descriptions = soundDescriptions[soundName] ?? [soundName]
+                let randomDescription = descriptions.randomElement() ?? soundName
+                activeSounds.append(randomDescription)
+            }
+        }
+        
+        let focusPhrase = emotionFocus[emotion] ?? "마음의 안정을 위해"
+        
+        if activeSounds.isEmpty {
+            return "\(focusPhrase) 자연스럽고 조화로운 사운드 조합을 준비했어요."
+        } else if activeSounds.count == 1 {
+            return "\(focusPhrase) \(activeSounds[0])를 중심으로 한 특별한 조합입니다."
+        } else if activeSounds.count <= 3 {
+            let soundList = activeSounds.joined(separator: ", ")
+            return "\(focusPhrase) \(soundList)를 조화롭게 블렌딩한 맞춤형 조합이에요."
+        } else {
+            let mainSounds = Array(activeSounds.prefix(2))
+            let soundList = mainSounds.joined(separator: ", ")
+            return "\(focusPhrase) \(soundList) 등 다양한 자연 사운드를 정교하게 조합했어요."
+        }
     }
     
     // 🆕 로컬 프리셋 적용 (강화된 로직)

@@ -175,6 +175,14 @@ class ViewController: UIViewController {
             name: NSNotification.Name("SoundVolumesUpdated"),
             object: nil
         )
+        
+        // 🆕 ChatViewController에서 프리셋 적용 시 알림 옵저버 추가 (fallback용)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePresetAppliedFromChat(_:)),
+            name: NSNotification.Name("PresetAppliedFromChat"),
+            object: nil
+        )
     }
     
     private func setupGestures() {
@@ -671,7 +679,39 @@ class ViewController: UIViewController {
         }
     }
     
-    // 🆕 SoundManager의 현재 볼륨으로 슬라이더 업데이트
+    // 🆕 ChatViewController fallback 프리셋 적용 핸들러
+    @objc private func handlePresetAppliedFromChat(_ notification: Notification) {
+        print("🎵 ViewController [\(self.instanceUUID)] received PresetAppliedFromChat notification (fallback)")
+        
+        guard let userInfo = notification.userInfo,
+              let volumes = userInfo["volumes"] as? [Float],
+              let versions = userInfo["versions"] as? [Int],
+              let name = userInfo["name"] as? String else {
+            print("⚠️ [ViewController [\(self.instanceUUID)]] PresetAppliedFromChat 알림 수신 오류: userInfo 파싱 실패")
+            return
+        }
+        
+        print("🎵 [ViewController [\(self.instanceUUID)]] PresetAppliedFromChat 알림 수신 성공: \(name)")
+        print("  - 볼륨: \(volumes)")
+        print("  - 버전: \(versions)")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 직접 UI 업데이트 (이미 SoundManager에 적용되어 있음)
+            self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
+            self.updatePlayButtonStates()
+            
+            // 메인 탭으로 이동
+            if let tabBarController = self.tabBarController {
+                tabBarController.selectedIndex = 0
+            }
+            
+            print("🔄 [ViewController [\(self.instanceUUID)]] Fallback UI 업데이트 완료: \(name)")
+        }
+    }
+    
+    // 🆕 SoundManager의 현재 볼륨 및 버전으로 UI 업데이트
     private func refreshSlidersFromSoundManager() {
         for i in 0..<sliders.count {
             let currentVolume = SoundManager.shared.getVolume(for: i) // 0.0~1.0 범위
@@ -682,7 +722,17 @@ class ViewController: UIViewController {
             volumeFields[i].text = String(Int(volumeAsPercent))
         }
         
-        print("🔄 메인 화면 슬라이더 업데이트 완료")
+        // 🔧 버전 버튼도 함께 업데이트
+        updateAllVersionButtons()
+        
+        print("🔄 메인 화면 슬라이더 및 버전 버튼 업데이트 완료")
+    }
+    
+    // 🆕 모든 버전 버튼 업데이트 (기존 updateAllCategoryButtonTitles 방식 사용)
+    private func updateAllVersionButtons() {
+        // 기존 ViewController+SliderControls.swift의 updateAllCategoryButtonTitles() 호출
+        updateAllCategoryButtonTitles()
+        print("🔄 [updateAllVersionButtons] 모든 버전 버튼 업데이트 완료")
     }
 }
 

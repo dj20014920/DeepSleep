@@ -11,8 +11,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
+        
+        // 🔍 원격 로깅 시작
+        RemoteLogger.shared.info("앱 시작됨 - \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")", category: "AppLifecycle")
+        RemoteLogger.shared.logMemoryUsage(context: "앱 시작 시")
+        
         // SoundManager 초기화 (내부에서 오디오 세션 설정)
         _ = SoundManager.shared // SoundManager.shared를 호출하여 초기화 유도
+        RemoteLogger.shared.info("SoundManager 초기화 완료", category: "AppLifecycle")
         
         // 제어 센터(remote control) 이벤트 받기 시작 (오디오 세션 설정 이후에 호출되도록)
         application.beginReceivingRemoteControlEvents()
