@@ -36,7 +36,7 @@ final class SoundManager {
     // UserDefaults 키
     private let audioModeKey = "AudioPlaybackMode"
     
-    // MARK: - 새로운 11개 카테고리 정의
+    // MARK: - 그룹화된 13개 슬라이더 카테고리 정의
     struct SoundCategory {
         let emoji: String
         let name: String
@@ -59,21 +59,21 @@ final class SoundManager {
         return players.filter { $0.isPlaying && $0.volume > 0 }.count
     }
 
-    /// 13개 사운드 카테고리 (이모지 + 다중 버전)
+    /// 사용자 요청대로 그룹화된 13개 슬라이더 (원래 형태)
     private let soundCategories: [SoundCategory] = [
         SoundCategory(emoji: "🐱", name: "고양이", files: ["고양이.mp3"]),
-        SoundCategory(emoji: "💨", name: "바람", files: ["바람.mp3", "바람2.mp3"]),
+        SoundCategory(emoji: "🌪", name: "바람", files: ["바람.mp3", "바람2.mp3"]),
+        SoundCategory(emoji: "👣", name: "발걸음-눈", files: ["발걸음-눈.mp3", "발걸음-눈2.mp3"]),
         SoundCategory(emoji: "🌙", name: "밤", files: ["밤.mp3", "밤2.mp3"]),
         SoundCategory(emoji: "🔥", name: "불1", files: ["불1.mp3"]),
-        SoundCategory(emoji: "🌧️", name: "비", files: ["비.mp3", "비-창문.mp3"]),
-        SoundCategory(emoji: "🏞️", name: "시냇물", files: ["시냇물.mp3"]),
+        SoundCategory(emoji: "🌧", name: "비", files: ["비.mp3", "비-창문.mp3"]),
+        SoundCategory(emoji: "🐦", name: "새", files: ["새.mp3", "새-비.mp3"]),
+        SoundCategory(emoji: "🏞", name: "시냇물", files: ["시냇물.mp3"]),
         SoundCategory(emoji: "✏️", name: "연필", files: ["연필.mp3"]),
         SoundCategory(emoji: "🌌", name: "우주", files: ["우주.mp3"]),
-        SoundCategory(emoji: "🌀", name: "쿨링팬", files: ["쿨링팬.mp3"]),
+        SoundCategory(emoji: "❄️", name: "쿨링팬", files: ["쿨링팬.mp3"]),
         SoundCategory(emoji: "⌨️", name: "키보드", files: ["키보드1.mp3", "키보드2.mp3"]),
-        SoundCategory(emoji: "🌊", name: "파도", files: ["파도.mp3", "파도2.mp3"]),
-        SoundCategory(emoji: "🐦", name: "새", files: ["새.mp3", "새-비.mp3"]),
-        SoundCategory(emoji: "❄️", name: "발걸음-눈", files: ["발걸음-눈.mp3", "발걸음-눈2.mp3"])
+        SoundCategory(emoji: "🌊", name: "파도", files: ["파도.mp3", "파도2.mp3"])
     ]
     
     // MARK: - 현재 선택된 버전 추적
@@ -99,7 +99,20 @@ final class SoundManager {
     
     // MARK: - 초기 설정
     private func setupSelectedVersions() {
-        selectedVersions = soundCategories.map { $0.defaultIndex }
+        // ✅ 저장된 버전 정보를 불러와서 적용
+        selectedVersions = (0..<soundCategories.count).map { categoryIndex in
+            return SettingsManager.shared.getSelectedVersion(for: categoryIndex)
+        }
+        
+        // 기본값 검증 (저장된 값이 범위를 벗어나는 경우 기본값으로 복원)
+        for (index, category) in soundCategories.enumerated() {
+            if selectedVersions[index] >= category.files.count {
+                selectedVersions[index] = category.defaultIndex
+                SettingsManager.shared.updateSelectedVersion(for: index, to: category.defaultIndex)
+            }
+        }
+        
+        print("🔄 저장된 버전 정보 복원 완료: \(selectedVersions)")
     }
     
     /// AVAudioSession 설정 (백그라운드 재생, 믹스 옵션 등)
@@ -199,6 +212,157 @@ final class SoundManager {
         return soundCategories[index]
     }
     
+    // MARK: - 심리 음향학 기반 프리셋 적용
+    
+    /// 심리 음향학 전문가 추천을 바탕으로 프리셋 적용
+    func applyExpertPreset(recommendation: [String: Any]) {
+        guard let sounds = recommendation["sounds"] as? [String: Int] else {
+            print("⚠️ 잘못된 추천 데이터 형식")
+            return
+        }
+        
+        // 모든 사운드를 먼저 0으로 설정
+        resetAllVolumes()
+        
+        // 추천된 사운드들을 해당 볼륨으로 설정
+        for (soundName, volume) in sounds {
+            if let categoryIndex = findCategoryIndex(for: soundName) {
+                setVolume(for: categoryIndex, volume: Float(volume))
+                print("🎵 [\(soundName)] 볼륨 설정: \(volume)")
+            } else {
+                print("⚠️ 사운드를 찾을 수 없음: \(soundName)")
+            }
+        }
+        
+        // 프리셋 이름 설정 (Now Playing용)
+        if let category = recommendation["category"] as? String {
+            currentPresetName = "\(category) 전문가 추천"
+        }
+        
+        // 호환성 체크 결과 출력
+        if let compatibility = recommendation["compatibility"] as? [String: Any],
+           let score = compatibility["score"] as? Int {
+            print("🔍 프리셋 호환성 점수: \(score)/100")
+            
+            if let warnings = compatibility["warnings"] as? [String], !warnings.isEmpty {
+                for warning in warnings {
+                    print("⚠️ \(warning)")
+                }
+            }
+        }
+        
+        print("✅ 전문가 추천 프리셋 적용 완료")
+    }
+    
+    /// 사운드 이름으로 카테고리 인덱스 찾기
+    private func findCategoryIndex(for soundName: String) -> Int? {
+        return soundCategories.firstIndex { category in
+            // 파일명에서 확장자를 제거한 이름과 비교
+            return category.files.contains { file in
+                let fileName = file.replacingOccurrences(of: ".mp3", with: "")
+                return fileName == soundName
+            }
+        }
+    }
+    
+    /// 모든 볼륨을 0으로 리셋
+    private func resetAllVolumes() {
+        for i in 0..<players.count {
+            setVolume(for: i, volume: 0)
+        }
+    }
+    
+    // MARK: - 감정 기반 즉석 추천
+    
+    /// 현재 감정 상태에 맞는 즉석 추천 생성 및 적용
+    func applyEmotionalPreset(emotion: String, completion: @escaping (String) -> Void) {
+        ReplicateChatService.shared.generateHybridRecommendation(
+            emotion: emotion,
+            context: "즉석 추천",
+            useAI: true
+        ) { [weak self] recommendation in
+            DispatchQueue.main.async {
+                self?.applyExpertPreset(recommendation: recommendation)
+                
+                // 사용자에게 추천 설명 제공
+                var message = ""
+                if let description = recommendation["description"] as? String {
+                    message = description
+                }
+                if let aiDescription = recommendation["aiDescription"] as? String {
+                    message += "\n\n💡 " + aiDescription
+                }
+                if let duration = recommendation["recommendedDuration"] as? String {
+                    message += "\n⏰ 권장 사용 시간: " + duration
+                }
+                
+                completion(message)
+            }
+        }
+    }
+    
+    // MARK: - 전문가 프리셋 카탈로그 접근
+    
+    /// 미리 정의된 전문가 프리셋 목록 가져오기
+    func getExpertPresetCategories() -> [String] {
+        return Array(SoundPresetCatalog.expertPresets.keys).sorted()
+    }
+    
+    /// 특정 전문가 프리셋 적용
+    func applyNamedExpertPreset(_ presetName: String) {
+        guard let preset = SoundPresetCatalog.expertPresets[presetName] else {
+            print("⚠️ 프리셋을 찾을 수 없음: \(presetName)")
+            return
+        }
+        
+        applyExpertPreset(recommendation: preset)
+        print("🎨 전문가 프리셋 '\(presetName)' 적용됨")
+    }
+    
+    // MARK: - 상황별 자동 추천
+    
+    /// 시간대와 날씨에 맞는 자동 추천
+    func getContextualRecommendation() -> [String: Any] {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(from: currentHour)
+        
+        // 기본 감정을 시간대에 맞게 설정
+        let baseEmotion = getDefaultEmotionForTime(timeOfDay: timeOfDay)
+        
+        return ReplicateChatService.shared.generateLocalPresetRecommendation(
+            emotion: baseEmotion,
+            timeOfDay: timeOfDay,
+            intensity: 3,
+            personality: "균형적",
+            activity: "휴식"
+        )
+    }
+    
+    private func getTimeOfDay(from hour: Int) -> String {
+        switch hour {
+        case 5..<7: return "새벽"
+        case 7..<10: return "아침"
+        case 10..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<21: return "저녁"
+        case 21..<24: return "밤"
+        default: return "자정"
+        }
+    }
+    
+    private func getDefaultEmotionForTime(timeOfDay: String) -> String {
+        switch timeOfDay {
+        case "새벽", "자정": return "불면"
+        case "아침": return "활력"
+        case "오전", "점심": return "집중"
+        case "오후": return "집중"
+        case "저녁": return "피로"
+        case "밤": return "평온"
+        default: return "평온"
+        }
+    }
+    
     /// 카테고리의 이모지 + 이름
     func getCategoryDisplay(at index: Int) -> String {
         guard let category = getCategory(at: index) else { return "Unknown" }
@@ -234,6 +398,9 @@ final class SoundManager {
         
         // 버전 변경
         selectedVersions[categoryIndex] = versionIndex
+        
+        // ✅ SettingsManager에도 버전 정보 저장 (핵심 수정!)
+        SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
         
         // 해당 카테고리만 다시 로드
         reloadPlayer(at: categoryIndex)

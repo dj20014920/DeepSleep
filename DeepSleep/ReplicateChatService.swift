@@ -168,10 +168,219 @@ class ReplicateChatService {
         }
     }
     
-    // AI 프롬프트에 사용될 사운드 상세 정보를 반환하는 함수 (대폭 간소화)
-    private func getSoundDetailsForAIPrompt() -> String {
-        // 더 이상 사용하지 않음 - 로컬 추천 시스템 사용
-        return ""
+    // MARK: - 심리 음향학 기반 로컬 추천 시스템
+    func generateLocalPresetRecommendation(
+        emotion: String,
+        timeOfDay: String,
+        intensity: Int = 3,
+        personality: String = "균형적",
+        activity: String = "휴식"
+    ) -> [String: Any] {
+        
+        // 1. 감정 상태에 맞는 기본 사운드 선택
+        let emotionState = mapToEmotionalState(emotion: emotion)
+        var baseSounds = emotionState.recommendedSounds
+        
+        // 2. 시간대별 조정
+        let timeBasedSounds = getTimeBasedSounds(timeOfDay: timeOfDay)
+        baseSounds = Array(Set(baseSounds).intersection(Set(timeBasedSounds)))
+        
+        // 3. 활동별 조정
+        if let activitySounds = SoundPresetCatalog.recommendationContext["activityTypes"]?[activity] as? [String] {
+            baseSounds = Array(Set(baseSounds).intersection(Set(activitySounds)))
+        }
+        
+        // 4. 최종 사운드 조합 생성 (3-5개)
+        let finalSounds = Array(baseSounds.prefix(4))
+        
+        // 5. 각 사운드별 최적 볼륨 계산
+        var soundMix: [String: Int] = [:]
+        for sound in finalSounds {
+            let volume = SoundPresetCatalog.getOptimalVolumeFor(
+                sound: sound,
+                emotion: emotion,
+                timeOfDay: timeOfDay,
+                userPersonality: personality
+            )
+            soundMix[sound] = volume
+        }
+        
+        // 6. 프리셋 호환성 검증
+        let compatibility = SoundPresetCatalog.checkSoundCompatibility(sounds: Array(soundMix.keys))
+        
+        // 7. 자연어 설명 생성
+        let description = generateNaturalDescription(
+            emotion: emotion,
+            sounds: soundMix,
+            timeOfDay: timeOfDay,
+            compatibility: compatibility
+        )
+        
+        return [
+            "sounds": soundMix,
+            "description": description,
+            "compatibility": compatibility,
+            "category": emotionState.rawValue,
+            "recommendedDuration": getRecommendedDuration(emotion: emotion, intensity: intensity)
+        ]
+    }
+    
+    private func mapToEmotionalState(emotion: String) -> SoundPresetCatalog.EmotionalState {
+        let emotionLower = emotion.lowercased()
+        
+        if emotionLower.contains("스트레스") || emotionLower.contains("긴장") {
+            return .stressed
+        } else if emotionLower.contains("불안") || emotionLower.contains("걱정") {
+            return .anxious
+        } else if emotionLower.contains("우울") || emotionLower.contains("침울") {
+            return .depressed
+        } else if emotionLower.contains("불면") || emotionLower.contains("잠") {
+            return .restless
+        } else if emotionLower.contains("피로") || emotionLower.contains("무기력") {
+            return .fatigued
+        } else if emotionLower.contains("압도") || emotionLower.contains("과부하") {
+            return .overwhelmed
+        } else if emotionLower.contains("외로움") || emotionLower.contains("고독") {
+            return .lonely
+        } else if emotionLower.contains("분노") || emotionLower.contains("짜증") {
+            return .angry
+        } else if emotionLower.contains("집중") || emotionLower.contains("몰입") {
+            return .focused
+        } else if emotionLower.contains("창의") || emotionLower.contains("영감") {
+            return .creative
+        } else if emotionLower.contains("기쁨") || emotionLower.contains("행복") {
+            return .joyful
+        } else if emotionLower.contains("명상") || emotionLower.contains("영적") {
+            return .meditative
+        } else if emotionLower.contains("그리움") || emotionLower.contains("향수") {
+            return .nostalgic
+        } else if emotionLower.contains("활력") || emotionLower.contains("에너지") {
+            return .energized
+        } else {
+            return .peaceful // 기본값
+        }
+    }
+    
+    private func getTimeBasedSounds(timeOfDay: String) -> [String] {
+        let timeOfDayEnum: SoundPresetCatalog.TimeOfDay
+        
+        switch timeOfDay.lowercased() {
+        case "새벽":
+            timeOfDayEnum = .earlyMorning
+        case "아침":
+            timeOfDayEnum = .morning
+        case "오전", "늦은아침":
+            timeOfDayEnum = .lateMorning
+        case "오후", "점심":
+            timeOfDayEnum = .afternoon
+        case "저녁":
+            timeOfDayEnum = .evening
+        case "밤":
+            timeOfDayEnum = .night
+        case "자정", "깊은밤":
+            timeOfDayEnum = .lateNight
+        default:
+            timeOfDayEnum = .afternoon
+        }
+        
+        return timeOfDayEnum.recommendedSounds
+    }
+    
+    private func generateNaturalDescription(
+        emotion: String,
+        sounds: [String: Int],
+        timeOfDay: String,
+        compatibility: [String: Any]
+    ) -> String {
+        let descriptions = [
+            "이 조합은 \(emotion) 상태에 있는 당신을 위해 특별히 설계되었습니다.",
+            "\(timeOfDay) 시간대에 최적화된 사운드들로 구성했어요.",
+            "각 소리의 주파수와 리듬이 서로 조화롭게 어우러져 마음의 평안을 찾을 수 있을 거예요.",
+            "자연스러운 사운드 레이어링으로 깊은 이완 효과를 경험하실 수 있습니다."
+        ]
+        
+        var result = descriptions.randomElement() ?? descriptions[0]
+        
+        // 주요 사운드 언급
+        let mainSounds = sounds.sorted { $0.value > $1.value }.prefix(2)
+        if mainSounds.count >= 2 {
+            let soundNames = Array(mainSounds.map { $0.key })
+            result += " 특히 \(soundNames[0])과 \(soundNames[1])의 조합이 핵심이 되어 당신의 마음을 편안하게 해드릴 거예요."
+        }
+        
+        // 호환성에 따른 코멘트 추가
+        if let score = compatibility["score"] as? Int, score >= 85 {
+            result += " 이 조합은 심리음향학적으로 매우 조화로운 구성입니다."
+        }
+        
+        return result
+    }
+    
+    private func getRecommendedDuration(emotion: String, intensity: Int) -> String {
+        let emotionLower = emotion.lowercased()
+        
+        if emotionLower.contains("수면") || emotionLower.contains("불면") {
+            return "60-480분"
+        } else if emotionLower.contains("스트레스") || emotionLower.contains("불안") {
+            return intensity >= 4 ? "45-90분" : "20-60분"
+        } else if emotionLower.contains("집중") || emotionLower.contains("공부") {
+            return "90-240분"
+        } else if emotionLower.contains("명상") {
+            return "30-120분"
+        } else {
+            return "20-60분"
+        }
+    }
+    
+    // MARK: - 하이브리드 추천 시스템 (로컬 + AI)
+    func generateHybridRecommendation(
+        emotion: String,
+        context: String,
+        useAI: Bool = true,
+        completion: @escaping ([String: Any]) -> Void
+    ) {
+        // 1. 먼저 로컬 추천 생성
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(from: currentHour)
+        
+        let localRecommendation = generateLocalPresetRecommendation(
+            emotion: emotion,
+            timeOfDay: timeOfDay,
+            intensity: 3,
+            personality: "균형적",
+            activity: "휴식"
+        )
+        
+        if !useAI {
+            // AI 없이 로컬 추천만 사용
+            completion(localRecommendation)
+            return
+        }
+        
+        // 2. AI로 자연어 설명 개선
+        let aiPrompt = """
+        사용자 감정: \(emotion)
+        상황: \(context)
+        시간대: \(timeOfDay)
+        
+        위 정보를 바탕으로 따뜻하고 공감적인 한 줄 추천 메시지를 작성해주세요.
+        번호나 목록 없이, 자연스럽고 친근한 말투로 30자 이내로 간단히.
+        """
+        
+        sendCachedPrompt(
+            prompt: aiPrompt,
+            useCache: false,
+            estimatedTokens: 50,
+            intent: "emotion_support"
+        ) { [weak self] aiResponse in
+            var finalRecommendation = localRecommendation
+            
+            if let enhancedDescription = aiResponse, !enhancedDescription.isEmpty {
+                finalRecommendation["aiDescription"] = enhancedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            completion(finalRecommendation)
+        }
     }
     
     // MARK: - 네트워크 체크
@@ -1034,6 +1243,52 @@ class ReplicateChatService {
         // 루프가 정상적으로 끝나면 (maxAttempts에 도달했지만 succeeded, failed, canceled가 아닌 경우) 타임아웃으로 처리
         print("❌ Prediction 타임아웃 (루프 종료)")
         throw ServiceError.predictionTimeout
+    }
+
+    // MARK: - 🧠 고급 AI 프리셋 추천 시스템
+    
+    /// 종합적인 상황 분석을 바탕으로 한 고급 프리셋 추천
+    func generateAdvancedPresetRecommendation(
+        analysisData: String,
+        completion: @escaping (String?) -> Void
+    ) {
+        let advancedPrompt = """
+        \(analysisData)
+        
+        위 종합적인 분석 데이터를 바탕으로 사용자에게 최적화된 사운드 프리셋을 추천해주세요.
+        
+        반드시 다음 형식으로만 응답해주세요:
+        
+        EMOTION: [평온/휴식/집중/수면/활력/안정/이완/창의/명상 중 하나]
+        INTENSITY: [0.5-1.5 사이의 소수점 한 자리 수치]
+        REASON: [추천 이유를 한두 문장으로 친근하고 따뜻하게]
+        TIMEOFDAY: [새벽/아침/오전/점심/오후/저녁/밤/자정 중 하나]
+        
+        예시:
+        EMOTION: 수면
+        INTENSITY: 0.8
+        REASON: 현재 밤 시간대이고 스트레스 키워드가 많이 감지되어 편안한 잠들기를 위한 부드러운 사운드가 필요합니다.
+        TIMEOFDAY: 밤
+        """
+        
+        let input: [String: Any] = [
+            "prompt": advancedPrompt,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 300,
+            "system_prompt": """
+            당신은 종합적인 상황 분석을 바탕으로 맞춤형 사운드를 추천하는 전문 AI 상담사입니다.
+            사용자의 시간대, 감정, 대화 맥락, 사용 패턴을 모두 고려하여 최적의 추천을 제공합니다.
+            응답은 반드시 지정된 형식을 정확히 따라주세요.
+            """
+        ]
+        
+        #if DEBUG
+        print("🧠 [ADVANCED-AI] 종합 분석 기반 프리셋 추천 요청")
+        print("분석 데이터 길이: \(analysisData.count)자")
+        #endif
+        
+        sendToReplicate(input: input, completion: completion)
     }
 }
 

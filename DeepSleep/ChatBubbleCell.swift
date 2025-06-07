@@ -279,8 +279,7 @@ class ChatBubbleCell: UITableViewCell {
             optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12),
             optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
             optionButtonStackView.trailingAnchor.constraint(lessThanOrEqualTo: bubbleView.trailingAnchor, constant: -16),
-            optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16),
-            optionButtonStackView.heightAnchor.constraint(equalToConstant: 200) // 4개 버튼 * 50 높이
+            optionButtonStackView.bottomAnchor.constraint(lessThanOrEqualTo: bubbleView.bottomAnchor, constant: -16)
         ])
 
         // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트) - bottomAnchor 제거로 다른 버블에 영향 안 줌
@@ -338,6 +337,12 @@ class ChatBubbleCell: UITableViewCell {
             configureUserMessage(message.text)
         case .bot:
             configureBotMessage(message.text)
+            // 🆕 퀵 액션이 있는 메시지인지 확인
+            if let quickActions = message.quickActions {
+                configureQuickActionButtons(quickActions)
+            }
+        case .aiResponse:
+            configureBotMessage(message.text) // aiResponse도 봇 스타일로 표시
         case .loading: // ✅ 로딩 케이스 처리
             configureLoadingMessage()
         case .error:
@@ -474,219 +479,22 @@ class ChatBubbleCell: UITableViewCell {
         bubbleView.layer.shadowRadius = 3
     }
     
-    private func configurePresetMessage(_ msg: String, action: @escaping () -> Void) {
-        // 로딩 컨테이너 완전히 숨기고 프리셋 메시지 표시
-        loadingContainer.isHidden = true
-        loadingContainer.alpha = 0
-        messageLabel.isHidden = false
-        
-        // 🆕 프리셋 형식 정보 숨기고 설명 부분만 표시
-        let displayMessage = extractDescriptionFromPresetMessage(msg)
-        
-        // 프리셋 추천 메시지 스타일 - 다크모드에서 오렌지 계열
-        let presetMessageColor = UIColor { traitCollection in
-            switch traitCollection.userInterfaceStyle {
-            case .dark:
-                return UIColor.systemOrange.withAlphaComponent(0.8)
-            default:
-                return UIColor.systemGreen.withAlphaComponent(0.8)
-            }
-        }
-        
-        bubbleView.backgroundColor = presetMessageColor
-        messageLabel.textColor = .white
-        messageLabel.text = displayMessage  // 🆕 수정된 메시지 사용
-        messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        
-        // 왼쪽 정렬 + 버튼 표시
-        leadingConstraint.isActive = true
+    private func configurePresetMessage(_ text: String, applyAction: @escaping () -> Void) {
+        messageLabel.text = text
+        messageLabel.textColor = UIDesignSystem.Colors.primaryText
+        messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
+        applyButton.setTitle("🎵 바로 적용하기", for: .normal)
         applyButton.isHidden = false
-        applyButtonHeightConstraint.constant = 36
+        self.applyAction = {
+            print("[ChatBubbleCell] 프리셋 적용 버튼 클릭됨")
+            applyAction()
+        }
+        // 버튼 제약조건 활성화
+        messageLabelBottomConstraint.isActive = false
         messageLabelToButtonConstraint.isActive = true
         applyButtonBottomConstraint.isActive = true
-        applyAction = action
-        
-        // 특별한 그라데이션 효과 (다크모드에서 오렌지)
-        let gradientColor1 = UIColor { traitCollection in
-            switch traitCollection.userInterfaceStyle {
-            case .dark:
-                return UIColor.systemOrange.withAlphaComponent(0.8)
-            default:
-                return UIColor.systemGreen
-            }
-        }
-        
-        let gradientColor2 = UIColor { traitCollection in
-            switch traitCollection.userInterfaceStyle {
-            case .dark:
-                return UIColor.systemOrange.withAlphaComponent(0.6)
-            default:
-                return UIColor.systemGreen.withAlphaComponent(0.8)
-            }
-        }
-        
-        addGradientToBubble(colors: [
-            gradientColor1.cgColor,
-            gradientColor2.cgColor
-        ])
-        
-        // 버튼 애니메이션 효과
-        applyButton.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
-        UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseOut], animations: {
-            self.applyButton.transform = .identity
-        })
-        
-        // 맥동 효과 (선택적)
-        addPulseAnimation()
-    }
-    
-    // 🆕 프리셋 메시지에서 설명 부분만 추출하는 메서드
-    private func extractDescriptionFromPresetMessage(_ message: String) -> String {
-        // 1. 프리셋 이름 추출
-        let presetName = extractPresetName(from: message)
-        
-        // 2. ] 이후의 텍스트에서 간단한 설명 찾기
-        if let endBracket = message.range(of: "]") {
-            let afterBracket = String(message[endBracket.upperBound...])
-            
-            // 3. 모든 볼륨 설정과 특수 문자들을 제거하고 깔끔한 설명만 추출
-            let cleanText = afterBracket
-                .replacingOccurrences(of: "[가-힣a-zA-Z0-9\\s]*:\\d+", with: "", options: .regularExpression)  // 볼륨 설정 제거
-                .replacingOccurrences(of: ",+", with: "", options: .regularExpression)  // 연속된 쉼표 제거
-                .replacingOccurrences(of: "\\([^)]*\\)", with: "", options: .regularExpression)  // 괄호 내용 제거
-                .replacingOccurrences(of: "[\\w가-힣]+-", with: "", options: .regularExpression)  // 하이픈 단어 제거
-                .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)  // 중복 공백 정리
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            // 4. 의미있는 설명이 있으면 사용, 없으면 기본 메시지
-            if !cleanText.isEmpty && cleanText.count > 5 && !cleanText.contains(":") {
-                return "🎵 [\(presetName)] \(cleanText)"
-            }
-        }
-        
-        // 5. 설명이 없거나 추출 실패 시 기본 메시지
-        return "🎵 [\(presetName)] 이 프리셋으로 편안한 시간을 보내보세요. 🌙"
-    }
-    
-    // 🆕 프리셋 이름 추출 헬퍼 메서드
-    private func extractPresetName(from message: String) -> String {
-        if let nameMatch = message.range(of: "\\[(.+?)\\]", options: .regularExpression) {
-            return String(message[nameMatch]).trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-        }
-        return "맞춤 추천"
-    }
-    
-    // ✅ 새로운 postPresetOptions 구성 메서드
-    private func configurePostPresetOptions(
-        presetName: String,
-        onSave: @escaping () -> Void,
-        onFeedback: @escaping () -> Void,
-        onGoToMain: @escaping () -> Void,
-        onContinueChat: @escaping () -> Void
-    ) {
-        // AI 메시지 스타일 기본 적용 - 다크모드 호환
-        bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
-        messageLabel.textColor = UIDesignSystem.Colors.primaryText
-        messageLabel.text = "🎶 새로운 사운드 조합이 재생되고 있어요!\n\n이제 어떻게 하고 싶으신가요?"
-        messageLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        
-        // 왼쪽 정렬
         leadingConstraint.isActive = true
-        
-        // 옵션 버튼 스택뷰 표시
-        optionButtonStackView.isHidden = false
-        
-        // 액션들 저장
-        saveAction = onSave
-        feedbackAction = onFeedback
-        goToMainAction = onGoToMain
-        continueAction = onContinueChat
-        
-        // 4개의 옵션 버튼 생성 - 다크모드 호환 색상
-        let saveButton = createOptionButton(
-            title: "💾 저장하기",
-            backgroundColor: UIDesignSystem.Colors.primary.withAlphaComponent(0.8),
-            action: #selector(saveOptionTapped)
-        )
-        
-        let feedbackButton = createOptionButton(
-            title: "💬 피드백",
-            backgroundColor: UIColor.systemOrange.withAlphaComponent(0.8),
-            action: #selector(feedbackOptionTapped)
-        )
-        
-        let continueButton = createOptionButton(
-            title: "💭 계속 대화",
-            backgroundColor: UIColor.systemGreen.withAlphaComponent(0.8),
-            action: #selector(continueOptionTapped)
-        )
-        
-        let mainButton = createOptionButton(
-            title: "🏠 메인으로",
-            backgroundColor: UIColor.systemGray.withAlphaComponent(0.8),
-            action: #selector(mainOptionTapped)
-        )
-        
-        // 버튼들을 스택뷰에 추가
-        [saveButton, feedbackButton, continueButton, mainButton].forEach {
-            optionButtonStackView.addArrangedSubview($0)
-        }
-        
-        // 부드러운 그림자 효과
-        bubbleView.layer.shadowColor = UIColor.black.cgColor
-        bubbleView.layer.shadowOffset = CGSize(width: 0, height: 2)
-        bubbleView.layer.shadowOpacity = 0.1
-        bubbleView.layer.shadowRadius = 5
-    }
-    
-    // ✅ 옵션 버튼 생성 헬퍼 메서드
-    private func createOptionButton(
-        title: String,
-        backgroundColor: UIColor,
-        action: Selector
-    ) -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle(title, for: .normal)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = backgroundColor
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        // 버튼 액션 설정
-        button.addTarget(self, action: action, for: .touchUpInside)
-        
-        // 버튼 높이 제약
-        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        
-        return button
-    }
-    
-    // ✅ 옵션 버튼 액션 메서드들
-    @objc private func saveOptionTapped() {
-        provideButtonFeedback()
-        saveAction?()
-    }
-    
-    @objc private func feedbackOptionTapped() {
-        provideButtonFeedback()
-        feedbackAction?()
-    }
-    
-    @objc private func continueOptionTapped() {
-        provideButtonFeedback()
-        continueAction?()
-    }
-    
-    @objc private func mainOptionTapped() {
-        provideButtonFeedback()
-        goToMainAction?()
-    }
-    
-    // ✅ 버튼 피드백 헬퍼 메서드
-    private func provideButtonFeedback() {
-        let impact = UIImpactFeedbackGenerator(style: .light)
-        impact.impactOccurred()
     }
     
     private func addGradientToBubble(colors: [CGColor]) {
@@ -761,6 +569,10 @@ class ChatBubbleCell: UITableViewCell {
         
         // GIF 재시작을 위한 리셋
         gifCatView.setupGifCat()
+        
+        optionButtonStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        optionButtonStackView.isHidden = true
+        print("[ChatBubbleCell] prepareForReuse - optionButtonStackView 초기화")
     }
     
     // MARK: - ✅ 로딩 애니메이션 관련 함수들
@@ -886,5 +698,65 @@ class ChatBubbleCell: UITableViewCell {
         startLoadingAnimation()
         
         print("🐱 로딩 메시지 설정 완료 - 고양이 GIF 시작")
+    }
+    
+    // 🆕 퀵 액션 버튼들 구성
+    private func configureQuickActionButtons(_ quickActions: [(String, String)]) {
+        // 기존 버튼들 제거
+        optionButtonStackView.arrangedSubviews.forEach { subview in
+            optionButtonStackView.removeArrangedSubview(subview)
+            subview.removeFromSuperview()
+        }
+        print("[ChatBubbleCell] configureQuickActionButtons - quickActions: \(quickActions)")
+        // 퀵 액션 버튼들 생성
+        for (title, action) in quickActions {
+            let button = createQuickActionButton(title: title, action: action)
+            print("[ChatBubbleCell] 버튼 생성: \(title), 액션: \(action)")
+            optionButtonStackView.addArrangedSubview(button)
+        }
+        optionButtonStackView.isHidden = false
+        leadingConstraint.isActive = true
+        messageLabelBottomConstraint.isActive = false
+    }
+    
+    // 🆕 퀵 액션 버튼 생성
+    private func createQuickActionButton(title: String, action: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        let backgroundColor: UIColor
+        if title.contains("AI") {
+            backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
+        } else if title.contains("로컬") {
+            backgroundColor = UIColor.systemGreen.withAlphaComponent(0.8)
+        } else {
+            backgroundColor = UIColor.systemGray.withAlphaComponent(0.8)
+        }
+        button.backgroundColor = backgroundColor
+        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addAction(UIAction { [weak self] _ in
+            print("[ChatBubbleCell] 퀵 액션 버튼 클릭됨: \(title) -> \(action)")
+            self?.handleQuickAction(action)
+        }, for: .touchUpInside)
+        button.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        return button
+    }
+    
+    // 🆕 퀵 액션 처리
+    private func handleQuickAction(_ action: String) {
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+        
+        // 부모 뷰 컨트롤러를 찾아서 액션 전달
+        var responder: UIResponder? = self
+        while responder != nil {
+            if let chatVC = responder as? ChatViewController {
+                chatVC.handleQuickActionFromCell(action)
+                break
+            }
+            responder = responder?.next
+        }
     }
 }

@@ -6,6 +6,7 @@ import Foundation
 enum ChatMessageType: String, Codable {
     case user
     case bot
+    case aiResponse
     case presetRecommendation
     case loading
     case error
@@ -26,6 +27,7 @@ struct ChatMessage: Codable, Identifiable {
     var onFeedback: (() -> Void)?
     var onContinueChat: (() -> Void)?
     var onRetry: (() -> Void)?
+    var quickActions: [(String, String)]?
 
     enum CodingKeys: String, CodingKey {
         case id, type, text, presetName
@@ -86,7 +88,7 @@ class PresetLimitManager {
     func canUseToday() -> Bool {
         let today = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
         let usage = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
-        return (usage[today] ?? 0) < 3
+        return (usage[today] ?? 0) < 5
     }
 
     func incrementUsage() {

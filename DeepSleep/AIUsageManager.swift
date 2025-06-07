@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// AI 기능 유형을 정의하여 중앙에서 관리
 enum AIFeatureType: String {
@@ -19,7 +20,7 @@ class AIUsageManager {
     private let dailyLimits: [AIFeatureType: Int] = [
         .chat: 50,
         .presetRecommendation: 5,
-        .diaryAnalysis: 3,
+        .diaryAnalysis: 5,
         .patternAnalysis: 1,
         .individualTodoAdvice: 2,
         .overallTodoAdvice: 2
@@ -63,6 +64,26 @@ class AIUsageManager {
 
     /// 특정 기능을 오늘 더 사용할 수 있는지 확인합니다.
     func canUse(feature: AIFeatureType) -> Bool {
+        // 🚀 개발자 무제한 모드 (특정 디바이스 ID 체크)
+        let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? ""
+        
+        // 🔍 디바이스 정보 로깅 (필요시 활성화)
+        // print("📱 [디바이스 확인] Current Device ID: \(deviceID)")
+        // print("📱 [디바이스 확인] Device Name: \(UIDevice.current.name)")
+        // print("📱 [디바이스 확인] Device Model: \(UIDevice.current.model)")
+        
+        let testDeviceIDs = [
+            "5A84073B-5CD7-4227-B424-0BFF552EF47F", // 개발자 디바이스
+            "00008140-000A15401442801C", // 테스트 디바이스 
+            "D27A7DCF-0BBA-5CEF-B989-998764F4732B", // 개발자 macOS
+            "2AB9C823-CB6B-4F76-B5DA-EF8ABAB262BD" // CDJ iPhone 무제한 모드
+        ]
+        
+        if testDeviceIDs.contains(deviceID) {
+            print("🚀 [개발자 모드] 무제한 AI 사용 허용: \(deviceID)")
+            return true
+        }
+        
         resetCountIfNeeded(for: feature)
         let countKey = "daily_\(feature.rawValue)_count"
         let usedCount = userDefaults.integer(forKey: countKey)

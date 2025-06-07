@@ -91,6 +91,10 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         print("👍 [ViewController] viewDidAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        
+        // ✅ 카테고리 버튼 UI 업데이트 (저장된 버전 정보 반영)
+        updateAllCategoryButtonTitles()
+        
         startPlaybackStateMonitoring()
     }
     
@@ -702,7 +706,7 @@ extension ViewController {
             return
         }
 
-        // 1. UI 업데이트 (슬라이더, 텍스트필드)
+        // 1. UI 업데이트 (슬라이더, 텍스트필드, 카테고리 버튼)
         updateAllSlidersAndFields(volumes: volumes, versions: actualVersions)
         
         // 2. 버전 정보 저장

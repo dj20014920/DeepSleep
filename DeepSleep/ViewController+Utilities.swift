@@ -172,7 +172,10 @@ extension ViewController {
         // 3. SoundManager에서 프리셋 적용 (볼륨 설정 + 버전 정보 포함)
         SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: actualVersions)
         
-        // 4. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
+        // 4. ✅ 카테고리 버튼 UI 업데이트 (버전 정보 반영)
+        updateAllCategoryButtonTitles()
+        
+        // 5. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
         if shouldSaveToRecent {
             addToRecentPresetsWithVersions(name: name, volumes: volumes, versions: actualVersions)
         }

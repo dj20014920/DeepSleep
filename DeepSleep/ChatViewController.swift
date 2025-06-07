@@ -424,11 +424,12 @@ extension ChatViewController {
     // ✅ appendChat 메서드
     func appendChat(_ message: ChatMessage) {
         messages.append(message)
-        
-        tableView.reloadData()
-        DispatchQueue.main.async {
-            self.scrollToBottom()
+        print("[appendChat] 메시지 추가: \(message.text)")
+        if let quickActions = message.quickActions {
+            print("[appendChat] quickActions: \(quickActions)")
         }
+        tableView.reloadData()
+        scrollToBottom()
         
         // 기존 히스토리 저장 (로딩 메시지는 저장하지 않음)
         if message.type != .loading {
@@ -571,5 +572,238 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         }
         cell.configure(with: messages[indexPath.row])
         return cell
+    }
+    
+    // 🆕 퀵 액션 처리 메서드
+    func handleQuickActionFromCell(_ action: String) {
+        switch action {
+        case "local_recommendation":
+            handleLocalRecommendation()
+        case "ai_recommendation":
+            handleAIRecommendation()
+        default:
+            print("알 수 없는 퀵 액션: \(action)")
+        }
+    }
+    
+    // 🆕 로컬 추천 처리
+    private func handleLocalRecommendation() {
+        let userMessage = ChatMessage(type: .user, text: "🏠 로컬 기반으로 추천받기")
+        appendChat(userMessage)
+        
+        // 현재 시간대 기반 추천
+        let currentTimeOfDay = getCurrentTimeOfDay()
+        var recommendedEmotion = "평온"
+        
+        // 시간대별 기본 감정 추천
+        switch currentTimeOfDay {
+        case "새벽", "자정":
+            recommendedEmotion = "수면"
+        case "아침":
+            recommendedEmotion = "활력"
+        case "오전", "점심":
+            recommendedEmotion = "집중"
+        case "오후":
+            recommendedEmotion = "안정"
+        case "저녁":
+            recommendedEmotion = "이완"
+        case "밤":
+            recommendedEmotion = "수면"
+        default:
+            recommendedEmotion = "평온"
+        }
+        
+        // 로컬 추천 시스템으로 프리셋 생성
+        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: recommendedEmotion)
+        let recommendedPreset = (
+            name: "🏠 \(recommendedEmotion) 로컬 추천",
+            volumes: baseVolumes,
+            description: "\(currentTimeOfDay) 시간대에 적합한 \(recommendedEmotion) 상태의 로컬 추천 사운드입니다.",
+            versions: SoundPresetCatalog.defaultVersions
+        )
+        
+        // 사용자 친화적인 메시지 생성
+        let presetMessage = """
+        🏠 **로컬 기반 추천**
+        현재 시간: \(currentTimeOfDay)
+        추천 상태: \(recommendedEmotion)
+        
+        🎵 **[\(recommendedPreset.name)]**
+        \(recommendedPreset.description)
+        
+        로컬 알고리즘으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다. 바로 적용해보세요! ✨
+        
+        ℹ️ 이 추천은 AI 사용량에 영향을 주지 않는 로컬 추천입니다.
+        """
+        
+        // 프리셋 적용 메시지 추가
+        var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+        chatMessage.onApplyPreset = { [weak self] in
+            self?.applyLocalPreset(recommendedPreset)
+        }
+        
+        appendChat(chatMessage)
+    }
+    
+    // 🆕 AI 추천 처리
+    private func handleAIRecommendation() {
+        // AI 사용량 확인
+        if !AIUsageManager.shared.canUse(feature: .presetRecommendation) {
+            let limitMessage = ChatMessage(type: .bot, text: "오늘의 AI 추천 횟수를 모두 사용했어요. 로컬 추천을 이용해보세요! 😊")
+            appendChat(limitMessage)
+            return
+        }
+        
+        let userMessage = ChatMessage(type: .user, text: "🤖 AI에게 추천받기")
+        appendChat(userMessage)
+        
+        // 로딩 메시지 추가
+        appendChat(ChatMessage(type: .loading, text: "AI가 분석 중..."))
+        
+        // AI 분석 요청
+        ReplicateChatService.shared.sendPrompt(
+            message: "지금 기분에 맞는 사운드 프리셋을 추천해주세요",
+            intent: "emotion_analysis_for_preset"
+        ) { [weak self] response in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                // 로딩 메시지 제거
+                self.removeLastLoadingMessage()
+                
+                if let analysisResult = response, !analysisResult.isEmpty {
+                    // AI 분석 결과 파싱
+                    let parsedAnalysis = self.parseEmotionAnalysis(analysisResult)
+                    
+                    // 로컬 추천 시스템으로 프리셋 생성
+                    let recommendedVolumes = SoundPresetCatalog.getRecommendedPreset(for: parsedAnalysis.emotion)
+                    let recommendedPreset = (
+                        name: "\(parsedAnalysis.emotion) AI 추천",
+                        volumes: recommendedVolumes,
+                        description: "\(parsedAnalysis.emotion) 감정에 최적화된 AI 추천 사운드 조합",
+                        versions: SoundPresetCatalog.defaultVersions
+                    )
+                    
+                    // 사용자 친화적인 메시지 생성
+                    let presetMessage = """
+                    🤖 **AI 분석 완료**
+                    감정 상태: \(parsedAnalysis.emotion)
+                    시간대: \(parsedAnalysis.timeOfDay)
+                    
+                    🎵 **[\(recommendedPreset.name)]**
+                    \(recommendedPreset.description)
+                    
+                    AI가 현재 상황을 종합적으로 분석하여 선별한 최적의 사운드 조합입니다! ✨
+                    """
+                    
+                    // 프리셋 적용 메시지 추가
+                    var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+                    chatMessage.onApplyPreset = { [weak self] in
+                        self?.applyLocalPreset(recommendedPreset)
+                    }
+                    
+                    self.appendChat(chatMessage)
+                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                    
+                } else {
+                    // AI 분석 실패 시 기본 추천
+                    let fallbackVolumes = SoundPresetCatalog.getRecommendedPreset(for: "평온")
+                    let fallbackPreset = (
+                        name: "평온 기본 추천",
+                        volumes: fallbackVolumes,
+                        description: "편안하고 균형잡힌 기본 사운드 조합",
+                        versions: SoundPresetCatalog.defaultVersions
+                    )
+                    
+                    let fallbackMessage = "🎵 [평온한 기본 추천] 현재 시간에 맞는 균형잡힌 사운드 조합입니다."
+                    
+                    var chatMessage = ChatMessage(type: .presetRecommendation, text: fallbackMessage)
+                    chatMessage.onApplyPreset = { [weak self] in
+                        self?.applyLocalPreset(fallbackPreset)
+                    }
+                    
+                    self.appendChat(chatMessage)
+                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                }
+            }
+        }
+    }
+    
+    // 🆕 프리셋 적용 로직
+    private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
+        print("🎵 프리셋 적용 시작: \(preset.name)")
+        
+        // 1. 기존 사운드 정지
+        SoundManager.shared.stopAll()
+        
+        // 2. 버전 정보 적용
+        for (categoryIndex, versionIndex) in preset.versions.enumerated() {
+            if categoryIndex < SoundPresetCatalog.categoryCount {
+                SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
+            }
+        }
+        
+        // 3. 볼륨 설정 적용
+        for (index, volume) in preset.volumes.enumerated() {
+            if index < SoundPresetCatalog.categoryCount {
+                SoundManager.shared.setVolume(for: index, volume: volume / 100.0)
+            }
+        }
+        
+        // 4. 사운드 재생
+        SoundManager.shared.playActiveSounds()
+        
+        // 5. 메인 화면 UI 업데이트 알림
+        NotificationCenter.default.post(name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+        
+        // 6. 성공 메시지
+        let successMessage = ChatMessage(type: .bot, text: "✅ '\(preset.name)' 프리셋이 적용되었습니다! 지금 바로 편안한 사운드를 즐겨보세요. 🎵")
+        appendChat(successMessage)
+        
+        // 7. 메인 화면으로 이동 버튼 제공
+        let backToMainMessage = ChatMessage(type: .bot, text: "🏠 메인 화면으로 이동해서 사운드를 조정해보세요!")
+        appendChat(backToMainMessage)
+        
+        print("🎵 프리셋 적용 완료: \(preset.name)")
+    }
+    
+    // 🆕 감정 분석 결과 파싱
+    private func parseEmotionAnalysis(_ analysis: String) -> (emotion: String, timeOfDay: String, intensity: Float) {
+        var emotion = "평온"
+        let timeOfDay = getCurrentTimeOfDay()
+        var intensity: Float = 1.0
+        
+        // 감정 파싱
+        if let emotionMatch = analysis.range(of: #"감정:\s*([가-힣]+)"#, options: .regularExpression) {
+            emotion = String(analysis[emotionMatch]).replacingOccurrences(of: "감정:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if let mainEmotionMatch = analysis.range(of: #"주감정:\s*([가-힣]+)"#, options: .regularExpression) {
+            emotion = String(analysis[mainEmotionMatch]).replacingOccurrences(of: "주감정:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        // 강도 파싱
+        if analysis.contains("강도: 높음") || analysis.contains("강도: 5") {
+            intensity = 1.5
+        } else if analysis.contains("강도: 보통") || analysis.contains("강도: 3") || analysis.contains("강도: 4") {
+            intensity = 1.0
+        } else if analysis.contains("강도: 낮음") || analysis.contains("강도: 1") || analysis.contains("강도: 2") {
+            intensity = 0.7
+        }
+        
+        return (emotion, timeOfDay, intensity)
+    }
+    
+    // 🆕 현재 시간대 확인
+    private func getCurrentTimeOfDay() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<7: return "새벽"
+        case 7..<10: return "아침"
+        case 10..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<21: return "저녁"
+        case 21..<24: return "밤"
+        default: return "자정"
+        }
     }
 }

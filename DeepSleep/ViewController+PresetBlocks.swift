@@ -58,6 +58,8 @@ extension ViewController {
             buttons.append(button)
         }
         
+        // AI 추천 버튼 제거 - 채팅을 통한 추천으로 대체
+        
         let buttonStack = UIStackView(arrangedSubviews: buttons)
         buttonStack.axis = .horizontal
         buttonStack.spacing = 8
@@ -80,6 +82,40 @@ extension ViewController {
         ])
         
         return (container, buttons)
+    }
+    
+    func createAIRecommendButton() -> UIButton {
+        let button = UIButton(type: .system)
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 2
+        button.layer.borderColor = UIColor.systemPurple.cgColor
+        button.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.1)
+        button.titleLabel?.font = .systemFont(ofSize: 11, weight: .bold)
+        button.titleLabel?.numberOfLines = 2
+        button.titleLabel?.textAlignment = .center
+        button.setTitle("🧠\nAI 추천", for: .normal)
+        button.setTitleColor(.systemPurple, for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tag = 999 // AI 추천 버튼 식별용
+        button.addTarget(self, action: #selector(aiRecommendButtonTapped), for: .touchUpInside)
+        
+        // 그라데이션 효과 추가
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.colors = [
+            UIColor.systemPurple.withAlphaComponent(0.1).cgColor,
+            UIColor.systemBlue.withAlphaComponent(0.1).cgColor
+        ]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        gradientLayer.cornerRadius = 12
+        button.layer.insertSublayer(gradientLayer, at: 0)
+        
+        // 버튼이 레이아웃된 후 그라데이션 크기 조정
+        DispatchQueue.main.async {
+            gradientLayer.frame = button.bounds
+        }
+        
+        return button
     }
     
     func createPresetButton(index: Int, isRecent: Bool) -> UIButton {
@@ -189,6 +225,159 @@ extension ViewController {
         applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
     }
     
+    @objc func aiRecommendButtonTapped() {
+        showAIRecommendationDialog()
+    }
+    
+    func showAIRecommendationDialog() {
+        let alert = UIAlertController(
+            title: "🧠 심리 음향학 AI 추천",
+            message: "현재 기분이나 상황을 선택해주세요. 전문가가 설계한 최적의 사운드 조합을 추천해드립니다.",
+            preferredStyle: .actionSheet
+        )
+        
+        // 감정 상태별 추천 옵션들
+        let emotionOptions = [
+            ("😫 스트레스/불안", "스트레스"),
+            ("😰 걱정/긴장", "불안"),
+            ("😔 우울/침울", "우울"),
+            ("😴 불면/수면곤란", "불면"),
+            ("😓 피로/무기력", "피로"),
+            ("🤯 압도/과부하", "압도감"),
+            ("😞 외로움/고독", "외로움"),
+            ("😡 분노/짜증", "분노"),
+            ("🎯 집중/몰입 필요", "집중"),
+            ("💡 창의/영감 필요", "창의"),
+            ("😊 기쁨/행복", "기쁨"),
+            ("🧘 명상/영적 성장", "명상"),
+            ("🌅 활력/에너지 필요", "활력"),
+            ("😌 평온/안정", "평온")
+        ]
+        
+        for (title, emotion) in emotionOptions {
+            alert.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
+                self?.generateAIRecommendation(for: emotion)
+            })
+        }
+        
+        // 상황별 자동 추천
+        alert.addAction(UIAlertAction(title: "🤖 지금 시간대에 맞는 자동 추천", style: .default) { [weak self] _ in
+            self?.generateContextualRecommendation()
+        })
+        
+        // 전문가 프리셋 목록
+        alert.addAction(UIAlertAction(title: "🎨 전문가 프리셋 목록", style: .default) { [weak self] _ in
+            self?.showExpertPresetList()
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        // iPad 지원
+        if let popover = alert.popoverPresentationController {
+            if let button = view.viewWithTag(999) {
+                popover.sourceView = button
+                popover.sourceRect = button.bounds
+            }
+        }
+        
+        present(alert, animated: true)
+    }
+    
+    func generateAIRecommendation(for emotion: String) {
+        // 로딩 표시
+        let loadingAlert = UIAlertController(title: "🧠 AI 분석 중...", message: "최적의 사운드 조합을 계산하고 있습니다.", preferredStyle: .alert)
+        present(loadingAlert, animated: true)
+        
+        SoundManager.shared.applyEmotionalPreset(emotion: emotion) { [weak self] description in
+            DispatchQueue.main.async {
+                loadingAlert.dismiss(animated: true) {
+                    self?.showRecommendationResult(description: description, emotion: emotion)
+                }
+            }
+        }
+    }
+    
+    func generateContextualRecommendation() {
+        let recommendation = SoundManager.shared.getContextualRecommendation()
+        SoundManager.shared.applyExpertPreset(recommendation: recommendation)
+        
+        let description = recommendation["description"] as? String ?? "시간대에 맞는 최적의 조합을 적용했습니다."
+        let category = recommendation["category"] as? String ?? "상황별 추천"
+        
+        showRecommendationResult(description: description, emotion: category)
+    }
+    
+    func showExpertPresetList() {
+        let presetNames = SoundManager.shared.getExpertPresetCategories()
+        
+        let alert = UIAlertController(
+            title: "🎨 전문가 설계 프리셋",
+            message: "심리 음향학 전문가가 특별히 설계한 프리셋들입니다.",
+            preferredStyle: .actionSheet
+        )
+        
+        for presetName in presetNames {
+            let displayName = presetName.replacingOccurrences(of: "_", with: " ")
+            alert.addAction(UIAlertAction(title: displayName, style: .default) { [weak self] _ in
+                SoundManager.shared.applyNamedExpertPreset(presetName)
+                self?.showToast(message: "'\(displayName)' 프리셋이 적용되었습니다. 🎵")
+            })
+        }
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        // iPad 지원
+        if let popover = alert.popoverPresentationController {
+            if let button = view.viewWithTag(999) {
+                popover.sourceView = button
+                popover.sourceRect = button.bounds
+            }
+        }
+        
+        present(alert, animated: true)
+    }
+    
+    func showRecommendationResult(description: String, emotion: String) {
+        let alert = UIAlertController(
+            title: "✨ AI 추천 완료",
+            message: description,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "적용하기", style: .default) { [weak self] _ in
+            // 현재 설정을 프리셋으로 저장
+            self?.saveCurrentAsAIPreset(emotion: emotion)
+            self?.showToast(message: "AI 추천 프리셋이 적용되었습니다! 🎵")
+        })
+        
+        alert.addAction(UIAlertAction(title: "다시 추천받기", style: .default) { [weak self] _ in
+            self?.generateAIRecommendation(for: emotion)
+        })
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    func saveCurrentAsAIPreset(emotion: String) {
+        let volumes = getCurrentVolumes()
+        let versions = getCurrentVersions()
+        let timeStamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
+        let presetName = "\(emotion) AI 추천 (\(timeStamp))"
+        
+        let preset = SoundPreset(
+            name: presetName,
+            volumes: volumes,
+            selectedVersions: versions,
+            emotion: emotion,
+            isAIGenerated: true
+        )
+        
+        SettingsManager.shared.saveSoundPreset(preset)
+        updatePresetBlocks()
+    }
+    
+
 
     
     func showPresetList() {

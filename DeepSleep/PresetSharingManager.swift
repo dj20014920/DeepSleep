@@ -298,7 +298,7 @@ class PresetSharingManager {
             }
             
             for (index, version) in versions.enumerated() {
-                let maxVersion = SoundPresetCatalog.getVersionCount(at: index) - 1
+                let maxVersion = SoundPresetCatalog.getVersionCount(for: index) - 1
                 if version < 0 || version > maxVersion {
                     return .failure(.invalidVersionRange)
                 }

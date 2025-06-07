@@ -248,7 +248,7 @@ extension ViewController {
     @objc private func categoryButtonTapped(_ sender: UIButton) {
         let categoryIndex = sender.tag
         let currentVersion = SoundManager.shared.getCurrentVersions()[categoryIndex]
-        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
         let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
         
         // 바로 버전 선택 메뉴 표시 (iOS 14+)
@@ -314,7 +314,7 @@ extension ViewController {
         }
         
         // 5. 사용자 피드백
-        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
         let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
         showToast(message: "\(categoryName) Ver \(versionIndex + 1)/\(versionCount) 선택됨")
         provideMediumHapticFeedback()
@@ -336,7 +336,7 @@ extension ViewController {
     @available(iOS 14.0, *)
     private func createVersionMenuForCategoryButton(for categoryIndex: Int, currentVersion: Int, button: UIButton) -> UIMenu {
         let categoryName = SoundPresetCatalog.displayLabels[categoryIndex]
-        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
         
         var actions: [UIAction] = []
         
@@ -361,12 +361,12 @@ extension ViewController {
 
 
     // MARK: - 카테고리 버튼 제목 업데이트
-    private func updateCategoryButtonTitle(_ button: UIButton, for categoryIndex: Int) {
+    internal func updateCategoryButtonTitle(_ button: UIButton, for categoryIndex: Int) {
         let categoryDisplay = SoundManager.shared.getCategoryDisplay(at: categoryIndex)
         let currentVersion = SoundManager.shared.getCurrentVersions()[categoryIndex]
-        let versionCount = SoundPresetCatalog.getVersionCount(at: categoryIndex)
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
         
-        // 모든 카r테고리에 버전 정보 표시 (단일 버전도 "Ver 1/1"로 표시)
+        // 모든 카테고리에 버전 정보 표시 (단일 버전도 "Ver 1/1"로 표시)
         let title = "\(categoryDisplay)\nVer \(currentVersion + 1)/\(versionCount)"
         button.setTitle(title, for: .normal)
         button.titleLabel?.numberOfLines = 2
@@ -374,7 +374,7 @@ extension ViewController {
     }
     
     // MARK: - 모든 카테고리 버튼 제목 업데이트
-    private func updateAllCategoryButtonTitles() {
+    internal func updateAllCategoryButtonTitles() {
         for i in 0..<SoundPresetCatalog.categoryCount {
             if let button = view.viewWithTag(i) as? UIButton {
                 updateCategoryButtonTitle(button, for: i)
@@ -501,7 +501,10 @@ extension ViewController {
             updateSliderAndTextField(at: i, volume: volumes[i])
         }
         
-        print("✅ 모든 슬라이더 업데이트 완료: \(volumes)")
+        // 3. ✅ 카테고리 버튼 UI 업데이트 (버전 정보 반영)
+        updateAllCategoryButtonTitles()
+        
+        print("✅ 모든 슬라이더 및 버전 UI 업데이트 완료: \(volumes)")
     }
     
     // MARK: - 입력 검증 (기존 로직 유지)

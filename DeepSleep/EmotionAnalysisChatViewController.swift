@@ -78,8 +78,16 @@ class EmotionAnalysisChatViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        title = "감정 분석 대화"
+        view.backgroundColor = UIDesignSystem.Colors.background
+        
+        // 🧪 테스트용 버튼들 추가
+        setupTestButtons()
+        
         setupUI()
         setupKeyboardNotifications()
+        
+        // 초기 분석 시작
         startInitialAnalysis()
     }
     
@@ -304,9 +312,10 @@ class EmotionAnalysisChatViewController: UIViewController {
         
         let quickActions = [
             ("🎯 개선 방법이 궁금해요", "improvement_tips"),
-            ("📈 감정 변화 추이 설명해주세요", "trend_analysis"),
+            ("📈 감정 변화 추이 설명해주세요", "trend_analysis"), 
             ("💡 스트레스 관리 조언 주세요", "stress_management"),
-            ("🎵 지금 기분에 맞는 사운드 추천받기", "preset_recommendation")
+            ("🧠 AI 추천받기", "ai_recommendation"),
+            ("🏠 로컬 추천받기", "local_recommendation")
         ]
         
         for (title, intent) in quickActions {
@@ -349,8 +358,13 @@ class EmotionAnalysisChatViewController: UIViewController {
         setLoading(true)
         
         // 🆕 프리셋 추천 인텐트 처리
-        if intent == "preset_recommendation" {
-            handlePresetRecommendation()
+        if intent == "ai_recommendation" {
+            handleAIRecommendation()
+            return
+        }
+        
+        if intent == "local_recommendation" {
+            handleLocalRecommendation()
             return
         }
         
@@ -373,11 +387,11 @@ class EmotionAnalysisChatViewController: UIViewController {
         }
     }
     
-    // 🆕 프리셋 추천 처리 메서드
-    private func handlePresetRecommendation() {
-        guard AIUsageManager.shared.canUse(feature: .presetRecommendation) else {
-            let limitMessage = "오늘의 추천 횟수를 모두 사용했어요. 내일 새로운 추천을 받아보세요! ✨"
-            addAIMessage(limitMessage)
+    // 🆕 AI 프리셋 추천 처리 메서드
+    private func handleAIRecommendation() {
+        // ✅ AI 사용 횟수 초과 시에도 로컬 추천으로 대체
+        if !AIUsageManager.shared.canUse(feature: .presetRecommendation) {
+            provideLocalFallbackRecommendation()
             return
         }
         
@@ -399,11 +413,12 @@ class EmotionAnalysisChatViewController: UIViewController {
                     let parsedAnalysis = self.parseEmotionAnalysis(analysisResult)
                     
                     // 로컬 추천 시스템으로 프리셋 생성
-                    let recommendedPreset = SoundPresetCatalog.getRecommendedPreset(
-                        emotion: parsedAnalysis.emotion,
-                        timeOfDay: parsedAnalysis.timeOfDay,
-                        previousRecommendations: [],
-                        intensity: parsedAnalysis.intensity
+                    let recommendedVolumes = SoundPresetCatalog.getRecommendedPreset(for: parsedAnalysis.emotion)
+                    let recommendedPreset = (
+                        name: "\(parsedAnalysis.emotion) 추천",
+                        volumes: recommendedVolumes,
+                        description: "\(parsedAnalysis.emotion) 감정에 최적화된 사운드 조합",
+                        versions: SoundPresetCatalog.defaultVersions
                     )
                     
                     // 사용자 친화적인 메시지 생성
@@ -418,9 +433,12 @@ class EmotionAnalysisChatViewController: UIViewController {
                     
                 } else {
                     // AI 분석 실패 시 기본 추천
-                    let fallbackPreset = SoundPresetCatalog.getRecommendedPreset(
-                        emotion: "평온",
-                        timeOfDay: self.getCurrentTimeOfDay()
+                    let fallbackVolumes = SoundPresetCatalog.getRecommendedPreset(for: "평온")
+                    let fallbackPreset = (
+                        name: "평온 기본 추천",
+                        volumes: fallbackVolumes,
+                        description: "편안하고 균형잡힌 기본 사운드 조합",
+                        versions: SoundPresetCatalog.defaultVersions
                     )
                     
                     let fallbackMessage = "🎵 [평온한 기본 추천] 현재 시간에 맞는 균형잡힌 사운드 조합입니다."
@@ -458,6 +476,59 @@ class EmotionAnalysisChatViewController: UIViewController {
         
         contentStackView.addArrangedSubview(applyButton)
         scrollToBottom()
+    }
+    
+    // 🆕 로컬 추천 처리 메서드
+    private func handleLocalRecommendation() {
+        addUserMessage("🏠 로컬 추천받기")
+        
+        // 현재 시간대 기반 로컬 추천
+        let currentTimeOfDay = getCurrentTimeOfDay()
+        var recommendedEmotion = "평온"
+        
+        // 시간대별 기본 감정 추천
+        switch currentTimeOfDay {
+        case "새벽", "자정":
+            recommendedEmotion = "수면"
+        case "아침":
+            recommendedEmotion = "활력"
+        case "오전", "점심":
+            recommendedEmotion = "집중"
+        case "오후":
+            recommendedEmotion = "안정"
+        case "저녁":
+            recommendedEmotion = "이완"
+        case "밤":
+            recommendedEmotion = "수면"
+        default:
+            recommendedEmotion = "평온"
+        }
+        
+        // 로컬 추천 시스템으로 프리셋 생성
+        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: recommendedEmotion)
+        let recommendedPreset = (
+            name: "🏠 \(recommendedEmotion) 로컬 추천",
+            volumes: baseVolumes,
+            description: "\(currentTimeOfDay) 시간대에 적합한 \(recommendedEmotion) 상태의 로컬 추천 사운드입니다.",
+            versions: SoundPresetCatalog.defaultVersions
+        )
+        
+        // 사용자 친화적인 메시지 생성
+        let presetMessage = """
+        🏠 **로컬 기반 추천**
+        현재 시간: \(currentTimeOfDay)
+        추천 상태: \(recommendedEmotion)
+        
+        🎵 **[\(recommendedPreset.name)]**
+        \(recommendedPreset.description)
+        
+        로컬 알고리즘으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다. 바로 적용해보세요! ✨
+        
+        ℹ️ 이 추천은 AI 사용량에 영향을 주지 않는 로컬 추천입니다.
+        """
+        
+        // 프리셋 적용 메시지 추가
+        addPresetRecommendationMessage(presetMessage, preset: recommendedPreset)
     }
     
     // 🆕 프리셋 파싱 (ChatViewController+Actions.swift와 동일)
@@ -504,50 +575,174 @@ class EmotionAnalysisChatViewController: UIViewController {
         """
     }
     
-    // 🆕 로컬 프리셋 적용
+    // 🆕 로컬 프리셋 적용 (강화된 로직)
     private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
-        // 1. 버전 정보 적용
+        print("🔧 프리셋 적용 시작: \(preset.name)")
+        print("📊 볼륨 데이터: \(preset.volumes)")
+        print("🔄 버전 데이터: \(preset.versions)")
+        print("🏭 SoundPresetCatalog.categoryCount: \(SoundPresetCatalog.categoryCount)")
+        
+        // 0. 먼저 기존 사운드를 모두 정지
+        SoundManager.shared.stopAllPlayers()
+        print("⏹️ 기존 사운드 정지 완료")
+        
+        // 1. 버전 정보 적용 (안전한 범위 체크 및 강화된 로깅)
         for (categoryIndex, versionIndex) in preset.versions.enumerated() {
-            if categoryIndex < SoundPresetCatalog.categoryCount {
+            if categoryIndex < SoundPresetCatalog.categoryCount && versionIndex >= 0 && versionIndex < 3 {
+                let previousVersion = SettingsManager.shared.getSelectedVersion(for: categoryIndex)
                 SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
+                let updatedVersion = SettingsManager.shared.getSelectedVersion(for: categoryIndex)
+                print("✅ 버전 업데이트: 카테고리 \(categoryIndex) → 이전: \(previousVersion), 설정: \(versionIndex), 현재: \(updatedVersion)")
+            } else {
+                print("⚠️ 버전 설정 건너뜀: 카테고리 \(categoryIndex), 버전 \(versionIndex) (범위 초과)")
             }
         }
         
-        // 2. 볼륨 설정 적용
+        // 2. 볼륨 설정 적용 (정규화된 값 사용 및 재생 트리거)
         for (index, volume) in preset.volumes.enumerated() {
             if index < SoundPresetCatalog.categoryCount {
-                SoundManager.shared.setVolume(for: index, volume: volume / 100.0)
+                let normalizedVolume = max(0.0, min(1.0, volume / 100.0))  // 0.0~1.0 범위로 정규화
+                
+                // 이전 볼륨 확인
+                let previousVolume = SoundManager.shared.getVolume(for: index)
+                
+                // 볼륨 설정
+                SoundManager.shared.setVolume(for: index, volume: normalizedVolume)
+                
+                // 설정 후 볼륨 확인
+                let currentVolume = SoundManager.shared.getVolume(for: index)
+                
+                print("🔊 볼륨 설정: 카테고리 \(index) → 이전: \(previousVolume), 설정: \(normalizedVolume), 현재: \(currentVolume)")
+                
+                // 볼륨이 0보다 크면 재생 상태 확인
+                if normalizedVolume > 0 {
+                    let isPlaying = SoundManager.shared.isPlaying(for: index)
+                    print("▶️ 카테고리 \(index) 재생 상태: \(isPlaying)")
+                }
             }
         }
         
-        // 3. 메인 화면 UI 업데이트 알림
-        NotificationCenter.default.post(name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+        // 3. SoundManager에 프리셋 이름 전달 (NowPlaying 업데이트)
+        SoundManager.shared.updateNowPlayingInfo(presetName: preset.name, isPlayingOverride: true)
+        print("🎵 NowPlaying 정보 업데이트: \(preset.name)")
         
-        // 4. 성공 메시지
+        // 4. 메인 화면 UI 업데이트 알림 (복수 알림 및 지연 처리)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("PresetApplied"), object: preset.name)
+            print("📢 UI 업데이트 알림 전송 완료")
+        }
+        
+        // 5. 강화된 재생 상태 업데이트 (여러 단계로 확실하게)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            print("🔍 1차 재생 트리거 시작")
+            SoundManager.shared.playActiveSounds()
+            
+            // 추가 UI 업데이트 알림
+            NotificationCenter.default.post(name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🔍 2차 상태 확인 및 재생 트리거")
+            
+            var hasActiveSound = false
+            var detailedLog = "📊 최종 상태 확인:\n"
+            
+            for i in 0..<min(preset.volumes.count, SoundPresetCatalog.categoryCount) {
+                let currentVolume = SoundManager.shared.getVolume(for: i)
+                let isPlaying = SoundManager.shared.isPlaying(for: i)
+                detailedLog += "  카테고리 \(i): 설정값 \(preset.volumes[i]/100.0) → 현재값 \(currentVolume), 재생중: \(isPlaying)\n"
+                
+                if currentVolume > 0 {
+                    hasActiveSound = true
+                }
+            }
+            
+            print(detailedLog)
+            
+            // 활성 사운드가 있으면 강제 재생
+            if hasActiveSound {
+                SoundManager.shared.playActiveSounds()
+                print("▶️ 2차 활성 사운드 재생 트리거 완료")
+                
+                // 메인 화면 사운드 컨트롤 업데이트
+                NotificationCenter.default.post(name: NSNotification.Name("ForceUpdateSoundControls"), object: nil)
+            } else {
+                print("⚠️ 활성 사운드가 없어서 재생하지 않음")
+            }
+        }
+        
+        // 6. 성공 메시지
         let successMessage = "✅ '\(preset.name)' 프리셋이 적용되었습니다! 지금 바로 편안한 사운드를 즐겨보세요. 🎵"
         addAIMessage(successMessage)
         
-        // 5. 메인 화면으로 이동 옵션
-        let backButton = UIButton(type: .system)
-        backButton.setTitle("🏠 메인 화면으로 이동", for: .normal)
-        backButton.backgroundColor = .systemGreen
-        backButton.setTitleColor(.white, for: .normal)
-        backButton.layer.cornerRadius = 10
+        // 7. 🎯 메인화면으로 이동 (사운드 재생 확인 후)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            // 성공 메시지 추가 및 메인화면 이동 버튼 표시
+            self?.addMainScreenNavigationButtons()
+        }
+    }
+    
+    // MARK: - 🏠 메인화면 이동 로직 (중복 제거됨)
+    
+    // MARK: - 🔧 고급 로컬 추천 시스템 (AI 사용량 초과 시 대체)
+    private func provideLocalFallbackRecommendation() {
+        addUserMessage("🎵 지금 기분에 맞는 사운드 추천받기")
         
-        if #available(iOS 15.0, *) {
-            var config = backButton.configuration ?? UIButton.Configuration.filled()
-            config.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16)
-            backButton.configuration = config
-        } else {
-            backButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
+        // 현재 시간대 기반 추천
+        let currentTimeOfDay = getCurrentTimeOfDay()
+        var recommendedEmotion = "평온"
+        
+        // 시간대별 기본 감정 추천
+        switch currentTimeOfDay {
+        case "새벽", "자정":
+            recommendedEmotion = "수면"
+        case "아침":
+            recommendedEmotion = "활력"
+        case "오전", "점심":
+            recommendedEmotion = "집중"
+        case "오후":
+            recommendedEmotion = "안정"
+        case "저녁":
+            recommendedEmotion = "이완"
+        case "밤":
+            recommendedEmotion = "수면"
+        default:
+            recommendedEmotion = "평온"
         }
         
-        backButton.addAction(UIAction { [weak self] _ in
-            self?.navigationController?.popViewController(animated: true)
-        }, for: .touchUpInside)
+        // 로컬 추천 시스템으로 프리셋 생성
+        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: recommendedEmotion)
+        let recommendedPreset = (
+            name: "🎵 \(recommendedEmotion) 기본",
+            volumes: baseVolumes,
+            description: "\(currentTimeOfDay) 시간대에 적합한 \(recommendedEmotion) 상태의 기본 사운드입니다.",
+            versions: SoundPresetCatalog.defaultVersions
+        )
         
-        contentStackView.addArrangedSubview(backButton)
-        scrollToBottom()
+        // 사용자 친화적인 메시지 생성
+        let presetMessage = """
+        💭 **시간대 기반 추천**
+        현재 시간: \(currentTimeOfDay)
+        추천 상태: \(recommendedEmotion)
+        
+        🎵 **[\(recommendedPreset.name)]**
+        \(recommendedPreset.description)
+        
+        현재 시간대에 최적화된 사운드 조합입니다. 바로 적용해보세요! ✨
+        
+        ℹ️ 오늘의 AI 추천 횟수를 모두 사용하여 로컬 추천을 제공합니다.
+        """
+        
+        // 프리셋 적용 메시지 추가 (튜플을 SoundPreset으로 변환)
+        let soundPreset = SoundPreset(
+            name: recommendedPreset.name,
+            volumes: recommendedPreset.volumes,
+            emotion: recommendedPreset.description,
+            isAIGenerated: false,
+            description: recommendedPreset.description
+        )
+        addPresetRecommendationMessage(presetMessage, preset: recommendedPreset)
     }
     
     // 🆕 현재 시간대 확인
@@ -564,6 +759,168 @@ class EmotionAnalysisChatViewController: UIViewController {
         default: return "자정"
         }
     }
+    
+    // MARK: - 🔧 로컬 추천 호출 (ChatViewController+Actions에서 구현됨)
+    
+    private func getTimeOfDayString(hour: Int) -> String {
+        switch hour {
+        case 5..<7: return "새벽"
+        case 7..<10: return "아침"
+        case 10..<14: return "오전"
+        case 14..<18: return "오후"
+        case 18..<21: return "저녁"
+        case 21..<24: return "밤"
+        default: return "심야"
+        }
+    }
+    
+
+    
+    private func addPresetApplicationButton(preset: SoundPreset) {
+        let buttonContainer = UIView()
+        buttonContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        let applyButton = UIButton(type: .system)
+        applyButton.setTitle("🎵 바로 적용하기", for: .normal)
+        applyButton.backgroundColor = .systemBlue
+        applyButton.setTitleColor(.white, for: .normal)
+        applyButton.layer.cornerRadius = 12
+        applyButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        let homeButton = UIButton(type: .system)
+        homeButton.setTitle("🏠 메인 화면으로 이동", for: .normal)
+        homeButton.backgroundColor = .systemGreen
+        homeButton.setTitleColor(.white, for: .normal)
+        homeButton.layer.cornerRadius = 12
+        homeButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        applyButton.addAction(UIAction { [weak self] _ in
+            self?.applyPreset(preset)
+            self?.addAIMessage("✅ 프리셋이 적용되었습니다! 사운드가 재생됩니다.")
+        }, for: .touchUpInside)
+        
+        homeButton.addAction(UIAction { [weak self] _ in
+            self?.goToMainScreen()
+        }, for: .touchUpInside)
+        
+        buttonContainer.addSubview(applyButton)
+        buttonContainer.addSubview(homeButton)
+        
+        NSLayoutConstraint.activate([
+            buttonContainer.heightAnchor.constraint(equalToConstant: 100),
+            
+            applyButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor, constant: 8),
+            applyButton.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor),
+            applyButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor),
+            applyButton.heightAnchor.constraint(equalToConstant: 40),
+            
+            homeButton.topAnchor.constraint(equalTo: applyButton.bottomAnchor, constant: 8),
+            homeButton.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor),
+            homeButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor),
+            homeButton.heightAnchor.constraint(equalToConstant: 40)
+        ])
+        
+        contentStackView.addArrangedSubview(buttonContainer)
+        scrollToBottom()
+    }
+    
+    private func applyPreset(_ preset: SoundPreset) {
+        // 사운드 매니저를 통해 프리셋 적용 (싱글톤 사용)
+        SoundManager.shared.applyPreset(volumes: preset.volumes)
+        SoundManager.shared.playAll()
+        print("🎵 프리셋 적용 완료: \(preset.name)")
+    }
+    
+    // MARK: - 🏠 메인 화면 이동
+    private func goToMainScreen() {
+        print("🏠 메인 화면 이동 시작...")
+        
+        // 즉시 dismiss 실행
+        DispatchQueue.main.async { [weak self] in
+            self?.dismiss(animated: true) {
+                print("✅ EmotionAnalysisChatViewController dismiss 완료")
+                
+                // 메인 뷰 컨트롤러로 전환 (다양한 방법 시도)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self?.switchToMainViewController()
+                }
+            }
+        }
+    }
+    
+    private func switchToMainViewController() {
+        // 방법 1: 앱의 윈도우 씬에서 탭바 컨트롤러 찾기
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            
+            if let tabBarController = window.rootViewController as? UITabBarController {
+                tabBarController.selectedIndex = 0
+                print("✅ 방법1: 탭바 컨트롤러로 메인 화면 이동 완료")
+                return
+            }
+            
+            if let navController = window.rootViewController as? UINavigationController,
+               let tabBarController = navController.topViewController as? UITabBarController {
+                tabBarController.selectedIndex = 0
+                print("✅ 방법2: 네비게이션 → 탭바로 메인 화면 이동 완료")
+                return
+            }
+        }
+        
+        // 방법 2: 노티피케이션을 통한 메인 화면 전환 요청
+        NotificationCenter.default.post(name: NSNotification.Name("GoToMainScreen"), object: nil)
+        print("📢 방법3: 노티피케이션으로 메인 화면 이동 요청 전송")
+    }
+    
+    private func addMainScreenNavigationButtons() {
+        let buttonContainer = UIView()
+        buttonContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        let homeButton = UIButton(type: .system)
+        homeButton.setTitle("🏠 메인 화면으로 이동", for: .normal)
+        homeButton.backgroundColor = .systemGreen
+        homeButton.setTitleColor(.white, for: .normal)
+        homeButton.layer.cornerRadius = 12
+        homeButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
+        homeButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        if #available(iOS 15.0, *) {
+            var config = homeButton.configuration ?? UIButton.Configuration.filled()
+            config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
+            homeButton.configuration = config
+        } else {
+            homeButton.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
+        }
+        
+        homeButton.addAction(UIAction { [weak self] _ in
+            self?.goToMainScreen()
+        }, for: .touchUpInside)
+        
+        buttonContainer.addSubview(homeButton)
+        
+        NSLayoutConstraint.activate([
+            buttonContainer.heightAnchor.constraint(equalToConstant: 60),
+            
+            homeButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor, constant: 8),
+            homeButton.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor),
+            homeButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor),
+            homeButton.bottomAnchor.constraint(equalTo: buttonContainer.bottomAnchor, constant: -8)
+        ])
+        
+        contentStackView.addArrangedSubview(buttonContainer)
+        scrollToBottom()
+        
+        // 5초 후 자동으로 메인화면으로 이동
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.addAIMessage("⏰ 잠시 후 자동으로 메인 화면으로 이동합니다...")
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.goToMainScreen()
+            }
+        }
+    }
+    
+    // MARK: - 🎲 랜덤화 헬퍼 메서드들은 ChatViewController+Actions에서 구현됨
     
     // MARK: - Actions
     @objc private func sendTapped() {
@@ -665,6 +1022,39 @@ class EmotionAnalysisChatViewController: UIViewController {
         let lines = emotionPatternData.components(separatedBy: "\n")
         return lines.prefix(3).joined(separator: ",")
     }
+    
+    // 🧪 테스트용 버튼 설정
+    private func setupTestButtons() {
+        let localTestButton = UIBarButtonItem(
+            title: "🎲 로컬",
+            style: .plain,
+            target: self,
+            action: #selector(testLocalRecommendation)
+        )
+        
+        let aiTestButton = UIBarButtonItem(
+            title: "🤖 AI",
+            style: .plain,
+            target: self,
+            action: #selector(testAIRecommendation)
+        )
+        
+        navigationItem.rightBarButtonItems = [localTestButton, aiTestButton]
+    }
+    
+    @objc private func testLocalRecommendation() {
+        addUserMessage("🎲 로컬 추천 테스트")
+        addAIMessage("🔧 로컬 기반 추천 시스템을 테스트합니다. 실제 로컬 추천은 메인 채팅에서 사용할 수 있습니다.")
+    }
+    
+    @objc private func testAIRecommendation() {
+        addUserMessage("🎵 지금 기분에 맞는 사운드 추천받기")
+        sendAIRequest(prompt: "현재 시간과 상황에 맞는 최적의 사운드 조합을 추천해주세요.", intent: "preset")
+    }
+    
+
+    
+
 }
 
 // MARK: - UITextFieldDelegate

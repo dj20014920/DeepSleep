@@ -272,7 +272,7 @@ struct DiaryContext {
 // MARK: - 사용자 설정 모델 (기존 유지)
 struct UserSettings: Codable {
     var dailyChatLimit: Int = 50
-    var dailyPresetLimit: Int = 3
+    var dailyPresetLimit: Int = 5
     var enableNotifications: Bool = true
     var autoSavePresets: Bool = true
     var preferredFadeOutDuration: TimeInterval = 30.0
@@ -831,7 +831,7 @@ struct DeepSleepConstants {
     }
     
     struct Sound {
-        static let categoryCount = 11  // 새로운 11개 카테고리
+        static let categoryCount = 13  // 그룹화된 13개 슬라이더
         static let previewDuration: TimeInterval = 3.0
         static let defaultFadeOutDuration: TimeInterval = 30.0
         static let maxVolume: Float = 100.0

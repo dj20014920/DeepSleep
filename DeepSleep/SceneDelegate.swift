@@ -39,6 +39,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Called when the scene has moved from an inactive state to an active state.
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        
+        // 메인 화면 이동 노티피케이션 관찰
+        NotificationCenter.default.addObserver(
+            self, 
+            selector: #selector(handleGoToMainScreen), 
+            name: NSNotification.Name("GoToMainScreen"), 
+            object: nil
+        )
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
@@ -55,6 +63,37 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Called as the scene transitions from the foreground to the background.
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
+    }
+    
+    // MARK: - 노티피케이션 처리
+    
+    @objc private func handleGoToMainScreen() {
+        print("📢 SceneDelegate에서 메인 화면 이동 노티피케이션 수신")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self,
+                  let window = self.window else { 
+                print("❌ window 없음")
+                return 
+            }
+            
+            // 현재 루트 뷰컨트롤러가 탭바 컨트롤러인지 확인
+            if let tabBarController = window.rootViewController as? UITabBarController {
+                // 첫 번째 탭 (메인 화면)으로 이동
+                tabBarController.selectedIndex = 0
+                print("✅ 탭바 첫 번째 탭으로 이동 완료")
+                
+                // 만약 presented view controller가 있다면 dismiss
+                if let presentedVC = tabBarController.presentedViewController {
+                    presentedVC.dismiss(animated: true)
+                    print("✅ 모달 뷰 dismiss 완료")
+                }
+            } else {
+                // 탭바 컨트롤러가 아니라면 메인 인터페이스로 전환
+                print("🔄 탭바 컨트롤러가 아니므로 메인 인터페이스로 전환")
+                self.showMainInterface()
+            }
+        }
     }
     
     // MARK: - URL 스키마 처리

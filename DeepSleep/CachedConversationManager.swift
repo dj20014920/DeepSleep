@@ -254,6 +254,8 @@ class CachedConversationManager {
                 return "사용자: \(message.text)"
             case .bot:
                 return "AI: \(message.text)"
+            case .aiResponse:
+                return "AI: \(message.text)"
             case .loading:
                 return nil // 로딩 메시지는 캐시에 포함하지 않음
             case .presetRecommendation:
@@ -325,7 +327,7 @@ class CachedConversationManager {
         
         let botMessages = messages.compactMap { message in
             switch message.type {
-            case .bot, .presetRecommendation:
+            case .bot, .aiResponse, .presetRecommendation:
                 return message.text
             default:
                 // ✅ 사용자 메시지와 옵션 메시지, 로딩 메시지는 bot 메시지가 아니므로 nil 반환
@@ -374,7 +376,7 @@ class CachedConversationManager {
         
         let aiTexts = messages.compactMap { message in
             switch message.type {
-            case .bot, .presetRecommendation:
+            case .bot, .aiResponse, .presetRecommendation:
                 return message.text
             default:
                 // ✅ AI 텍스트가 아닌 경우 nil 반환
