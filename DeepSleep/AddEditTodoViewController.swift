@@ -416,7 +416,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             let remainingDailyCount = AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice)
             if remainingDailyCount > 0 {
                 aiHelpButton.isEnabled = true
-                aiHelpButton.setTitle("AI에게 조언 구하기 (오늘 \\(remainingDailyCount)회 남음)", for: .normal)
+                aiHelpButton.setTitle("AI에게 조언 구하기 (오늘 \(remainingDailyCount)회 남음)", for: .normal)
                 aiHelpButton.backgroundColor = .systemGreen
             } else {
                 aiHelpButton.isEnabled = false
@@ -442,13 +442,68 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             return
         }
 
-        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory() // 주간 컨텍스트 로드
-        let prompt = "다음 할 일에 대한 구체적이고 실행 가능한 조언을 1-2문장으로 짧고 친근하게 해줘: \n제목: \(todoToEdit?.title ?? "알 수 없음")\n마감일: \(todoToEdit?.dueDateString ?? "알 수 없음")\n메모: \(todoToEdit?.notes ?? "없음")"
+        // 🆕 향상된 컨텍스트 정보 수집
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let currentTime = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
+        let currentTimeString = timeFormatter.string(from: currentTime)
+        
+        // 현재 사용자의 다른 할 일들 가져오기
+        let otherTodos = TodoManager.shared.getTodos(for: todoToEdit?.dueDate ?? Date())
+            .filter { $0.id != todoToEdit?.id }
+            .prefix(3) // 최대 3개만
+        
+        let otherTodosText = otherTodos.isEmpty ? "다른 할 일 없음" : 
+            otherTodos.map { "• \($0.title) (\($0.dueDateString))" }.joined(separator: "\n")
+        
+        // 우선순위 텍스트 변환
+        let priorityText = ["낮음", "보통", "높음"][todoToEdit?.priority ?? 0]
+        
+        // 마감일까지 남은 시간 계산
+        let timeUntilDue = todoToEdit?.dueDate.timeIntervalSince(currentTime) ?? 0
+        let hoursUntilDue = timeUntilDue / 3600
+        let timeUrgencyText: String
+        if hoursUntilDue < 1 {
+            timeUrgencyText = "⚡️ 매우 급함 (1시간 이내)"
+        } else if hoursUntilDue < 24 {
+            timeUrgencyText = "🔥 오늘 내 완료"
+        } else if hoursUntilDue < 72 {
+            timeUrgencyText = "⏰ 이번 주 내"
+        } else {
+            timeUrgencyText = "📅 여유 있음"
+        }
+        
+        let prompt = """
+        📋 할 일 정보:
+        • 제목: \(todoToEdit?.title ?? "알 수 없음")
+        • 마감일: \(todoToEdit?.dueDateString ?? "알 수 없음") (\(timeUrgencyText))
+        • 우선순위: \(priorityText)
+        • 메모: \(todoToEdit?.notes?.isEmpty == false ? todoToEdit!.notes! : "없음")
+        
+        🕒 현재 시간: \(currentTimeString)
+        
+        📌 같은 날의 다른 할 일들:
+        \(otherTodosText)
+        
+        이 할 일을 효율적으로 완료하기 위한 구체적이고 실행 가능한 조언을 2-3문장으로 해주세요. 
+        시간 관리, 실행 전략, 동기부여 중에서 가장 중요한 것을 중심으로 조언해주세요.
+        """
+        
         let systemPrompt = """
-        당신은 사용자의 할 일 관리를 돕는 친절한 AI 어시스턴트입니다. 할 일을 더 잘 완료할 수 있도록 동기를 부여하고 실용적인 팁을 제공해주세요.
+        당신은 생산성 전문가이자 할 일 관리 코치입니다. 사용자의 구체적인 상황을 분석하여 실행 가능한 조언을 제공하세요.
 
-        다음은 사용자의 지난 활동 요약입니다. 이를 참고하여 조언해주세요:
+        조언 가이드라인:
+        1. 마감일까지의 시간을 고려한 실행 전략 제시
+        2. 우선순위와 다른 할 일들과의 관계 고려
+        3. 구체적인 행동 단계나 시간 배분 제안
+        4. 동기부여와 실용적 팁을 균형있게 제공
+        5. 친근하면서도 전문적인 톤 유지
+
+        사용자 활동 패턴 참고:
         \(weeklyContext)
+        
+        이 정보를 바탕으로 개인화된 조언을 해주세요.
         """
 
         aiHelpActivityIndicator.startAnimating()

@@ -24,7 +24,9 @@ class SoundPresetCatalog {
     
     // MARK: - 기본 카테고리 설정 (그룹화된 13개 슬라이더)
     static let categoryCount = 13  // 그룹화된 13개 슬라이더
-    static let defaultVersions = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  // 각 그룹의 기본 버전
+    // ✅ 개선된 기본 버전 - 버전 2를 적극 활용
+    static let defaultVersions = [0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1]  // 다양한 버전 조합
+    // 바람2, 밤2, 비-창문, 새-비, 키보드2, 파도2 등을 기본으로 포함
     
     /// 🎲 지능적 버전 추천 시스템 - 다양성과 적합성을 고려
     static func getIntelligentVersions(emotion: String, timeOfDay: String, randomSeed: Int = Int(Date().timeIntervalSince1970)) -> [Int] {

@@ -669,28 +669,81 @@ extension ChatViewController {
         }
     }
     
-    // MARK: - 🆕 로컬 프리셋 적용
+    // MARK: - 🆕 로컬 프리셋 적용 (수정됨)
     private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
-        print("[applyLocalPreset] 프리셋 적용 시작: \(preset.name)")
+        print("🎵 [applyLocalPreset] 프리셋 적용 시작: \(preset.name)")
+        print("  - 볼륨: \(preset.volumes)")
+        print("  - 버전: \(preset.versions)")
+        
+        // 1. SoundManager에 프리셋 적용
+        SoundManager.shared.applyPresetWithVersions(volumes: preset.volumes, versions: preset.versions)
+        
+        // 2. 버전 정보를 SettingsManager에 저장
         for (categoryIndex, versionIndex) in preset.versions.enumerated() {
             if categoryIndex < SoundPresetCatalog.categoryCount {
                 SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
             }
         }
-        for (index, volume) in preset.volumes.enumerated() {
-            if index < SoundPresetCatalog.categoryCount {
-                SoundManager.shared.setVolume(for: index, volume: volume / 100.0)
-            }
+        
+        // 3. 최근 사용한 프리셋에 저장 (로컬 추천도 Recent에 저장)
+        let soundPreset = SoundPreset(
+            name: preset.name,
+            volumes: preset.volumes,
+            selectedVersions: preset.versions,
+            emotion: nil,
+            isAIGenerated: false, // ✅ 로컬 추천도 Recent Presets에 표시되도록 false로 설정
+            description: preset.description
+        )
+        SettingsManager.shared.saveSoundPreset(soundPreset)
+        // 저장 후 실제로 저장됐는지 검증
+        let allPresets = SettingsManager.shared.loadSoundPresets()
+        let savedPreset = allPresets.first { $0.name == preset.name }
+        if savedPreset != nil {
+            print("✅ [applyLocalPreset] 프리셋 저장 성공: \(preset.name)")
+        } else {
+            print("❌ [applyLocalPreset] 프리셋 저장 실패: \(preset.name)")
         }
-        print("[applyLocalPreset] 사운드 재생 시작")
-        SoundManager.shared.playActiveSounds()
-        NotificationCenter.default.post(name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
-        print("[applyLocalPreset] SoundVolumesUpdated 노티 전송")
-        let successMessage = ChatMessage(type: .bot, text: "✅ '\(preset.name)' 프리셋이 적용되었습니다! 지금 바로 편안한 사운드를 즐겨보세요. 🎵")
-        appendChat(successMessage)
-        let backToMainMessage = ChatMessage(type: .postPresetOptions, text: "🏠 메인 화면으로 이동해서 사운드를 확인해보세요!")
-        appendChat(backToMainMessage)
+        
+        // 4. 메인 뷰컨트롤러 강제 동기화 (중복 저장 방지)
+        forceSyncMainViewControllerPreset(volumes: preset.volumes, versions: preset.versions, name: preset.name)
+        
+        print("✅ [applyLocalPreset] 프리셋 적용 완료: \(preset.name)")
     }
+     
+     // 🔍 MainViewController 찾기 헬퍼 메서드 추가
+     private func findMainViewController() -> ViewController? {
+         // 1. parent를 통해 찾기
+         if let parentVC = self.parent as? ViewController {
+             return parentVC
+         }
+         
+         // 2. navigation stack에서 찾기
+         if let navController = self.navigationController {
+             for viewController in navController.viewControllers {
+                 if let mainVC = viewController as? ViewController {
+                     return mainVC
+                 }
+             }
+         }
+         
+         // 3. tab bar에서 찾기
+         if let tabBarController = self.tabBarController {
+             for viewController in tabBarController.viewControllers ?? [] {
+                 if let mainVC = viewController as? ViewController {
+                     return mainVC
+                 }
+                 if let navController = viewController as? UINavigationController {
+                     for vc in navController.viewControllers {
+                         if let mainVC = vc as? ViewController {
+                             return mainVC
+                         }
+                     }
+                 }
+             }
+         }
+         
+         return nil
+     }
     
     // MARK: - 🆕 현재 시간대 확인
     private func getCurrentTimeOfDay() -> String {
@@ -781,64 +834,85 @@ extension ChatViewController {
         return (name: name, volumes: baseVolumes, description: description, versions: versions)
     }
     
-    /// 시적이고 감성적인 프리셋 이름 생성
-    private func generatePoeticPresetName(emotion: String, timeOfDay: String, isAI: Bool) -> String {
-        // 감정별 시적 표현
-        let emotionPoetry: [String: [String]] = [
-            "평온": ["고요한 마음", "잔잔한 호수", "평화로운 숨결", "조용한 안식", "차분한 선율", "고요한 정원", "잔잔한 물결", "평화의 노래", "마음의 쉼터", "조용한 미소"],
-            "수면": ["달빛의 자장가", "꿈속의 여행", "별들의 속삭임", "깊은 밤의 포옹", "구름 위의 쉼터", "꿈의 정원", "달빛 산책", "별의 자장가", "수면의 정원", "잠의 궁전"],
-            "활력": ["새벽의 각성", "생명의 춤", "에너지의 폭발", "희망의 멜로디", "활기찬 아침", "생동하는 리듬", "활력의 샘", "에너지 연주", "생명의 노래", "희망의 교향곡"],
-            "집중": ["마음의 정중앙", "집중의 공간", "조용한 몰입", "깊은 사색", "고요한 탐구", "사색의 숲", "몰입의 시간", "집중의 빛", "명상의 공간", "깊은 고요"],
-            "안정": ["마음의 뿌리", "안전한 품", "따뜻한 둥지", "평온한 바닥", "신뢰의 기둥", "안정의 토대", "마음의 항구", "따뜻한 안식", "신뢰의 품", "안전한 길"],
-            "이완": ["부드러운 해방", "느긋한 여유", "포근한 쉼", "자연스러운 흐름", "편안한 해독", "여유의 오후", "포근한 바람", "자유로운 시간", "편안한 여행", "부드러운 미소"],
-            "스트레스": ["해독의 시간", "마음의 치유", "스트레스 해소", "평온 회복", "긴장 완화", "마음의 정화", "치유의 바람", "해독의 숲", "회복의 시간", "정화의 강"],
-            "불안": ["마음의 안정", "걱정 해소", "불안 진정", "평안 찾기", "안심의 공간", "평안의 등대", "안심의 품", "진정의 노래", "마음의 평화", "안전한 항구"],
-            "행복": ["기쁨의 멜로디", "햇살의 춤", "웃음의 하모니", "즐거운 선율", "밝은 에너지", "행복의 정원", "웃음의 시간", "기쁨의 여행", "밝은 하루", "햇살 같은 시간"],
-            "슬픔": ["위로의 포옹", "마음의 치유", "눈물의 정화", "슬픔 달래기", "상처 어루만지기", "위로의 노래", "치유의 시간", "슬픔의 정화", "마음의 위로", "따뜻한 손길"]
+    /// 시적이고 감성적인 프리셋 이름 생성 (시드 기반 고정)
+    func generatePoeticPresetName(emotion: String, timeOfDay: String, isAI: Bool) -> String {
+        // 시드 생성 (감정 + 시간대 + AI 여부를 기반으로 고정된 시드)
+        let combinedSeed = emotion.hashValue ^ timeOfDay.hashValue ^ (isAI ? 42 : 24)
+        let fixedSeed = abs(combinedSeed) % 10000
+        
+        // 감정별 형용사
+        let emotionAdjectives: [String: [String]] = [
+            "스트레스": ["차분한", "평온한", "안정적인", "진정하는", "위로하는"],
+            "불안": ["따뜻한", "포근한", "안전한", "보호하는", "감싸는"],
+            "우울": ["희망적인", "밝은", "따스한", "격려하는", "회복하는"],
+            "피로": ["활력을 주는", "상쾌한", "재충전하는", "회복하는", "깨우는"],
+            "집중": ["몰입적인", "선명한", "집중하는", "명료한", "정신차리는"],
+            "평온": ["고요한", "평화로운", "조화로운", "균형잡힌", "안락한"],
+            "기쁨": ["밝은", "즐거운", "활기찬", "경쾌한", "생기있는"]
         ]
         
-        // 시간대별 시적 표현
-        let timePoetry: [String: [String]] = [
-            "새벽": ["새벽의", "여명의", "첫 빛의", "아침 이슬의", "동트는"],
-            "아침": ["아침의", "햇살의", "상쾌한", "밝은", "활기찬"],
-            "오전": ["오전의", "상쾌한", "밝은", "활동적인", "생기찬"],
-            "점심": ["정오의", "따스한", "밝은", "활력의", "정중앙"],
-            "오후": ["오후의", "따뜻한", "포근한", "안정된", "여유로운"],
-            "저녁": ["저녁의", "노을의", "황혼의", "따스한", "포근한"],
-            "밤": ["밤의", "달빛의", "고요한", "평온한", "깊은"],
-            "자정": ["자정의", "깊은 밤의", "고요한", "신비로운", "조용한"]
+        // 시간대별 형용사
+        let timeAdjectives: [String: [String]] = [
+            "새벽": ["신비로운", "고요한", "청량한", "영감을 주는", "각성하는"],
+            "아침": ["상쾌한", "활기찬", "밝은", "시작하는", "깨어나는"],
+            "오후": ["편안한", "부드러운", "안정적인", "따뜻한", "포근한"],
+            "저녁": ["낭만적인", "황금빛", "여유로운", "따스한", "감성적인"],
+            "밤": ["깊은", "신비한", "조용한", "차분한", "진정하는"],
+            "현재": ["적절한", "맞춤형", "최적화된", "개인적인", "특별한"]
         ]
         
-        // 아름다운 접미사들
-        let beautifulSuffixes = [
-            "세레나데", "심포니", "왈츠", "노래", "선율", "화음", "여행", "이야기", 
-            "공간", "시간", "순간", "기억", "꿈", "향기", "빛", "그림자", 
-            "숨결", "속삭임", "포옹", "키스", "미소", "안식", "휴식", "명상"
+        // 자연 요소
+        let natureElements = [
+            "바람", "물결", "숲속", "별빛", "달빛", "구름", "이슬", "파도",
+            "산들바람", "햇살", "여명", "노을", "강물", "새소리", "잎사귀"
         ]
         
-        // 랜덤하게 조합 생성 (시드를 기반으로 일관성 있게)
-        let emotionSeed = emotion.hashValue
-        let timeSeed = timeOfDay.hashValue
-        let combinedSeed = abs(emotionSeed ^ timeSeed)
-        
-        let emotionWords = emotionPoetry[emotion] ?? ["마음의"]
-        let timeWords = timePoetry[timeOfDay] ?? ["조용한"]
-        
-        let selectedEmotion = emotionWords[combinedSeed % emotionWords.count]
-        let selectedTime = timeWords[(combinedSeed + 1) % timeWords.count]
-        let selectedSuffix = beautifulSuffixes[(combinedSeed + 2) % beautifulSuffixes.count]
-        
-        // 다양한 패턴으로 조합 (이모지 없이)
-        let patterns = [
-            "\(selectedTime) \(selectedSuffix)",
-            "\(selectedEmotion) \(selectedSuffix)",
-            "\(selectedTime) \(selectedEmotion)",
-            "\(selectedEmotion)의 \(selectedSuffix)",
-            "\(selectedTime) \(selectedEmotion) \(selectedSuffix)"
+        // 감성적 명사
+        let poeticNouns = [
+            "여행", "조화", "명상", "휴식", "힐링", "치유", "회복", "평온",
+            "균형", "안식", "안정", "위로", "기적", "축복", "행복", "평화"
         ]
         
-        let selectedPattern = patterns[(combinedSeed + 3) % patterns.count]
-        return selectedPattern
+        // 기술적 용어 (AI인 경우)
+        let techTerms = [
+            "알고리즘", "최적화", "튜닝", "커스텀", "프리미엄", "어드밴스드",
+            "스마트", "인텔리전트", "시그니처", "마스터", "프로", "엘리트"
+        ]
+        
+        let emotionAdj = emotionAdjectives[emotion]?[(fixedSeed) % (emotionAdjectives[emotion]?.count ?? 1)] ?? "특별한"
+        let timeAdj = timeAdjectives[timeOfDay]?[(fixedSeed + 1) % (timeAdjectives[timeOfDay]?.count ?? 1)] ?? "맞춤형"
+        let nature = natureElements[(fixedSeed + 2) % natureElements.count]
+        let noun = poeticNouns[(fixedSeed + 3) % poeticNouns.count]
+        
+        // 이름 패턴 선택
+        let patterns: [String]
+        if isAI {
+            let tech = techTerms[(fixedSeed + 4) % techTerms.count]
+            patterns = [
+                "\(emotionAdj) \(nature) \(noun)",
+                "\(timeAdj) \(tech) \(noun)",
+                "\(nature)의 \(emotionAdj) \(noun)",
+                "AI \(emotionAdj) \(nature)",
+                "\(tech) \(nature) 조합"
+            ]
+        } else {
+            patterns = [
+                "\(emotionAdj) \(nature) \(noun)",
+                "\(timeAdj) \(nature) 여행",
+                "\(nature)의 \(emotionAdj) 순간",
+                "\(emotionAdj) \(timeAdj) \(noun)",
+                "\(nature) \(noun) 시간"
+            ]
+        }
+        
+        let selectedPattern = patterns[(fixedSeed + 5) % patterns.count]
+        
+        // 특별한 이모지 추가 (20% 확률)
+        let specialEmojis = ["✨", "🌟", "💫", "🎭", "🔥", "⭐", "🎨", "🌙", "💎", "🌸"]
+        let useEmoji = (fixedSeed % 100) < 20
+        let emojiPrefix = useEmoji ? (specialEmojis[(fixedSeed + 6) % specialEmojis.count] + " ") : ""
+        
+        return "\(emojiPrefix)\(selectedPattern)"
     }
     
     // MARK: - 🧠 종합적 AI 프리셋 추천 시스템
@@ -952,7 +1026,7 @@ extension ChatViewController {
     /// 기존 프리셋 기반 사용 패턴 분석
     private func analyzeExistingPresetPatterns() -> String {
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        let recentPresets = Array(allPresets.filter { $0.isAIGenerated }.prefix(4))
+        let recentPresets = Array(allPresets.prefix(4)) // ✅ 수정: AI/로컬 구분 없이 최신 4개
         let favoritePresets = getFavoritePresets().prefix(4)
         
         // 최근 사용한 프리셋 분석
@@ -987,6 +1061,7 @@ extension ChatViewController {
     
     /// 즐겨찾기 프리셋 가져오기
     private func getFavoritePresets() -> [SoundPreset] {
+        // UserDefaults에서 즐겨찾기 ID들을 가져와서 해당하는 프리셋들 반환
         let favoriteIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
         let favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
         
@@ -1763,27 +1838,31 @@ extension ChatViewController {
         let presetInsight = generatePresetInsight(from: userPresets)
         
         let personalizedAnalysis = """
-🎯 **맞춤 분석 결과**
+            🎯 **맞춤 분석 결과**
 
-현재 \(timeDescription)이고, 감지된 주요 상태는 '\(emotionDescription)'이에요. \(contextDescription)
+            현재 \(timeDescription)이고, 감지된 주요 상태는 '\(emotionDescription)'이에요. \(contextDescription)
 
-\(presetInsight)를 바탕으로 보면, 이런 상황에서는 \(recommendation.reasoning)이 가장 효과적일 것 같아요.
+            \(presetInsight)를 바탕으로 보면, 이런 상황에서는 \(recommendation.reasoning)이 가장 효과적일 것 같아요.
 
-🎵 **[\(presetName)]**
+            🎵 **\(presetName)**
 
-📋 **추천 이유:**
-• 감정 상태와 시간대를 종합적으로 고려했어요
-• 기존 사용 패턴을 반영한 맞춤형 조합이에요
-• 선호하는 사운드 조합을 최적화했어요
-• 환경적 요소까지 고려한 설정이에요
+            📋 **추천 이유:**
+            • 감정 상태와 시간대를 종합적으로 고려했어요
+            • 기존 사용 패턴을 반영한 맞춤형 조합이에요
+            • 선호하는 사운드 조합을 최적화했어요
+            • 환경적 요소까지 고려한 설정이에요
 
-🎚️ **사운드 구성:**
-• 주요 사운드: \(recommendation.sounds.prefix(3).joined(separator: ", "))
-• 최적화된 볼륨으로 자동 설정됩니다
-• 현재 상황에 맞는 사운드 버전 선택
+            🎚️ **사운드 구성:**
+            • 주요 사운드: \(recommendation.sounds.prefix(3).joined(separator: ", "))
+            • 최적화된 볼륨으로 자동 설정됩니다
+            • 감정 안정화와 집중력 향상에 특화된 조합이에요
 
-📊 **신뢰도: \(Int(recommendation.confidence * 100))%** | 바로 적용해보세요! ✨
-"""
+            💡 **예상 효과:**
+            • 마음의 안정과 집중력 향상
+            • 스트레스 완화 및 긴장 해소
+            • 자연스러운 감정 조절 효과
+            • 현재 상황에 최적화된 몰입감 제공
+        """
         
         return personalizedAnalysis
     }
@@ -2288,7 +2367,11 @@ extension ChatViewController {
         return formatted.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-
+    /// 시스템 메시지 간편 추가 헬퍼 함수
+    private func addSystemMessage(_ text: String) {
+        let systemMessage = ChatMessage(type: .bot, text: text)
+        appendChat(systemMessage)
+    }
 
     /// 퀴ck액션 핸들러
     func handleQuickAction(_ action: String) {

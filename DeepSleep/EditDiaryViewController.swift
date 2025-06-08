@@ -75,7 +75,7 @@ class EditDiaryViewController: UIViewController {
     
     private let aiChatButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("🤖 AI와 이 일기에 대해 대화하기", for: .normal)
+        button.setTitle("AI와 이 일기에 대해 대화하기", for: .normal)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)

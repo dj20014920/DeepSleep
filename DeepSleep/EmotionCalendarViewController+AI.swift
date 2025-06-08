@@ -60,7 +60,7 @@ extension EmotionCalendarViewController {
         let anonymizedData = generateAnonymizedEmotionData()
         SettingsManager.shared.incrementPatternAnalysisUsage()
         let chatVC = ChatViewController()
-        chatVC.title = "🤖 감정 패턴 분석 대화"
+        chatVC.title = "감정 패턴 분석 대화"
         
         chatVC.emotionPatternData = anonymizedData
         chatVC.initialUserText = "감정_패턴_분석_모드"

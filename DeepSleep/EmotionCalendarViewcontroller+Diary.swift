@@ -21,7 +21,7 @@ extension EmotionCalendarViewController {
         )
         
         // AI 응답 보기 버튼
-        alert.addAction(UIAlertAction(title: "🤖 AI 응답 보기", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: "AI 응답 보기", style: .default) { _ in
             let responseAlert = UIAlertController(
                 title: "AI 응답",
                 message: entry.aiResponse,

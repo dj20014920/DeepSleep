@@ -1118,18 +1118,15 @@ class ReplicateChatService {
         }
     }
 
-    /// AI 모델로부터 할 일 관련 조언을 얻습니다. (Replicate API, Polling 방식)
+    /// 🆕 AI 모델로부터 할 일 관련 조언을 얻습니다. (향상된 프롬프트 처리)
     func getAIAdvice(prompt: String, systemPrompt: String?) async throws -> String {
-        let currentApiKey = self.apiKey // 프로퍼티 호출
+        let currentApiKey = self.apiKey
 
         guard !currentApiKey.isEmpty else { throw ServiceError.invalidAPIKey }
 
-        // 모델 정보를 sendToReplicate 함수와 동일하게 설정합니다.
-        // anthropic/claude-3.5-haiku 모델의 기본 버전을 사용합니다.
+        // Claude 3.5 Haiku 모델 사용 (더 빠르고 효율적)
         let modelOwnerAndName = "anthropic/claude-3.5-haiku"
 
-        // Prediction 생성 URL (모델 지정 방식)
-        // 모델 버전 해시를 명시하지 않고, 해당 모델의 기본 버전을 사용합니다.
         guard let predictionCreationUrl = URL(string: "https://api.replicate.com/v1/models/\(modelOwnerAndName)/predictions") else {
             throw ServiceError.requestCreationFailed
         }
@@ -1140,13 +1137,18 @@ class ReplicateChatService {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
 
-        var inputPayload: [String: Any] = ["prompt": prompt]
+        // 🆕 향상된 프롬프트 파라미터 설정
+        var inputPayload: [String: Any] = [
+            "prompt": prompt,
+            "temperature": 0.7,     // 창의적이면서도 일관된 조언
+            "top_p": 0.9,          // 다양성 증가
+            "max_tokens": 400       // 충분한 토큰으로 완전한 조언 생성
+        ]
+        
         if let sysPrompt = systemPrompt, !sysPrompt.isEmpty {
             inputPayload["system_prompt"] = sysPrompt
         }
         
-        // API 요청 Body 구성 시 'version' 필드를 제거하고 'input'만 전달합니다.
-        // sendToReplicate 함수와 동일한 구조로 맞춥니다.
         let body: [String: Any] = [
             "input": inputPayload
         ]

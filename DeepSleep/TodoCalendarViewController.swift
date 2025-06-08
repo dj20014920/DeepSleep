@@ -488,26 +488,98 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             return
         }
         
-        // 완료되지 않은 오늘의 할 일만 가져오기 (선택 사항, 여기서는 모든 할 일 사용)
-        let todosForAdvice = selectedDateTodos // .filter { !$0.isCompleted }
+        // 🆕 향상된 분석을 위한 할 일 분류 및 컨텍스트 수집
+        let allTodos = selectedDateTodos
+        let completedTodos = allTodos.filter { $0.isCompleted }
+        let pendingTodos = allTodos.filter { !$0.isCompleted }
         
-        guard !todosForAdvice.isEmpty else {
+        guard !allTodos.isEmpty else {
             showAlert(title: "알림", message: "선택된 날짜에 할 일이 없어 전체 조언을 받을 수 없습니다.")
             return
         }
         
-        var promptContent = "다음은 오늘 나의 할 일 목록입니다:\n"
-        for todo in todosForAdvice {
-            var todoDescription = "- \(todo.title) (\(todo.dueDateString))"
-            if let notes = todo.notes, !notes.isEmpty {
-                todoDescription += ", 메모: \(notes)"
-            }
-            todoDescription += "\n"
-            promptContent += todoDescription
-        }
-        promptContent += "\n이 목록을 바탕으로 오늘 하루를 더 생산적이고 효과적으로 보낼 수 있도록, 우선순위 설정, 시간 관리, 또는 동기 부여에 대한 전반적인 조언을 1-2문장으로 간결하고 친근하게 해주세요."
+        // 현재 시간 및 날짜 정보
+        let currentTime = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
+        let currentTimeString = timeFormatter.string(from: currentTime)
         
-        let systemPrompt = "당신은 사용자의 하루 계획을 검토하고 종합적인 조언을 제공하는 유능한 AI 코치입니다. 각 할 일에 대한 세부 조언보다는 전체적인 그림을 보고 격려와 방향을 제시해주세요."
+        let selectedDateFormatter = DateFormatter()
+        selectedDateFormatter.dateFormat = "MM월 dd일 (E)"
+        selectedDateFormatter.locale = Locale(identifier: "ko_KR")
+        let selectedDateString = selectedDateFormatter.string(from: selectedDate)
+        
+        // 할 일 우선순위별 분류
+        let highPriorityTodos = allTodos.filter { $0.priority == 2 }
+        let mediumPriorityTodos = allTodos.filter { $0.priority == 1 }
+        let lowPriorityTodos = allTodos.filter { $0.priority == 0 }
+        
+        // 긴급성 분석 (마감일 기준)
+        let urgentTodos = pendingTodos.filter {
+            $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 // 24시간 이내
+        }
+        
+        // 주간 컨텍스트
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        
+        var promptContent = """
+        📅 날짜: \(selectedDateString)
+        🕒 현재 시간: \(currentTimeString)
+        
+        📊 할 일 현황:
+        • 전체 할 일: \(allTodos.count)개
+        • 완료된 할 일: \(completedTodos.count)개
+        • 남은 할 일: \(pendingTodos.count)개
+        • 긴급한 할 일: \(urgentTodos.count)개 (24시간 이내)
+        
+        🎯 우선순위별 분류:
+        • 높음: \(highPriorityTodos.count)개
+        • 보통: \(mediumPriorityTodos.count)개  
+        • 낮음: \(lowPriorityTodos.count)개
+        
+        📋 상세 할 일 목록:
+        """
+        
+        // 우선순위 높은 순으로 정렬하여 표시
+        let sortedTodos = allTodos.sorted { $0.priority > $1.priority }
+        for (index, todo) in sortedTodos.enumerated() {
+            let priorityEmoji = ["📌", "📝", "📄"][todo.priority]
+            let statusEmoji = todo.isCompleted ? "✅" : "⏳"
+            let urgentMark = urgentTodos.contains(where: { $0.id == todo.id }) ? " 🔥" : ""
+            
+            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(todo.title) (\(todo.dueDateString))\(urgentMark)"
+            if let notes = todo.notes, !notes.isEmpty {
+                promptContent += " - 메모: \(notes)"
+            }
+        }
+        
+        promptContent += """
+        
+        📈 요청사항:
+        위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 3-4문장으로 해주세요:
+        1. 우선순위 조정 및 시간 배분 전략
+        2. 효율적인 업무 순서 및 실행 방법
+        3. 스트레스 관리 및 동기부여 방안
+        
+        단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
+        """
+        
+        let systemPrompt = """
+        당신은 경험이 풍부한 생산성 컨설턴트이자 시간 관리 전문가입니다. 사용자의 할 일 패턴을 분석하여 개인화된 실행 전략을 제공하세요.
+        
+        분석 기준:
+        1. 긴급성 vs 중요성 매트릭스 적용  
+        2. 에너지 레벨과 시간대별 최적 작업 배치
+        3. 멀티태스킹 vs 단일집중 전략 선택
+        4. 휴식과 재충전 시점 고려
+        5. 현실적이고 달성 가능한 목표 설정
+        
+        사용자 활동 패턴:
+        \(weeklyContext)
+        
+        위 데이터를 활용하여 사용자의 작업 스타일에 맞는 맞춤형 조언을 제공하세요.
+        구체적인 시간 배분, 작업 순서, 실행 팁을 포함해주세요.
+        """
 
         overallAdviceButton.setTitle("", for: .normal)
         overallAdviceActivityIndicator.startAnimating()

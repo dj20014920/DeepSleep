@@ -47,7 +47,7 @@ extension EmotionDiaryViewController {
         // 4. AI 추천 프리셋 사용량
         let aiPresetUsage = getAIPresetUsage()
         let presetCard = createInsightCard(
-            title: "🤖 AI 추천 활용",
+            title: "AI 추천 활용",
             content: "총 \(aiPresetUsage)번 사용",
             color: .systemPurple.withAlphaComponent(0.1)
         )

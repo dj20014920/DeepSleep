@@ -21,9 +21,9 @@ class AIUsageManager {
         .chat: 50,
         .presetRecommendation: 5,
         .diaryAnalysis: 5,
-        .patternAnalysis: 1,
-        .individualTodoAdvice: 2,
-        .overallTodoAdvice: 2
+        .patternAnalysis: 3,
+        .individualTodoAdvice: 5,
+        .overallTodoAdvice: 5
     ]
 
     private var dateFormatter: DateFormatter = {

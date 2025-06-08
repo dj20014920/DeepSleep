@@ -151,38 +151,72 @@ extension ViewController {
     
     // MARK: - 프리셋 적용 (Apple Developer 계정 무관)
     func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String, shouldSaveToRecent: Bool = true) {
-        let actualVersions = versions ?? SoundPresetCatalog.defaultVersions
+        print("🎵 [applyPreset] 프리셋 적용 시작: \(name)")
+        print("  - 원본 볼륨: \(volumes) (길이: \(volumes.count))")
+        print("  - shouldSaveToRecent: \(shouldSaveToRecent)")
         
-        // 1. 버전 정보 적용
+        // ✅ 배열 크기 자동 보정 (11개 → 13개, 12개 → 13개)
+        var correctedVolumes = volumes
+        if volumes.count == 11 {
+            // 11개를 13개로 확장 (끝에 2개 추가)
+            correctedVolumes = volumes + [0.0, 0.0]
+            print("  - ✅ 11개 → 13개 볼륨 배열 보정: \(correctedVolumes)")
+        } else if volumes.count == 12 {
+            // 12개를 13개로 확장 (끝에 1개 추가)
+            correctedVolumes = volumes + [0.0]
+            print("  - ✅ 12개 → 13개 볼륨 배열 보정: \(correctedVolumes)")
+        } else if volumes.count != SoundPresetCatalog.categoryCount {
+            // 다른 크기는 13개로 맞춤
+            correctedVolumes = Array(repeating: 0.0, count: SoundPresetCatalog.categoryCount)
+            for i in 0..<min(volumes.count, correctedVolumes.count) {
+                correctedVolumes[i] = volumes[i]
+            }
+            print("  - ⚠️ \(volumes.count)개 → 13개 볼륨 배열 보정: \(correctedVolumes)")
+        }
+        
+        let actualVersions = versions ?? SoundPresetCatalog.defaultVersions
+        print("  - 버전: \(actualVersions)")
+        
+        // 2. 최종 배열 크기 검증
+        guard correctedVolumes.count == SoundPresetCatalog.categoryCount,
+              actualVersions.count == SoundPresetCatalog.categoryCount else {
+            print("❌ [applyPreset] 배열 크기 오류: 볼륨(\(correctedVolumes.count)) 또는 버전(\(actualVersions.count)) ≠ 카테고리 수(\(SoundPresetCatalog.categoryCount))")
+            showToast(message: "프리셋 적용 오류: 데이터 형식을 보정할 수 없습니다")
+            return
+        }
+        
+        // 2. 버전 정보를 SettingsManager에 저장
         for (categoryIndex, versionIndex) in actualVersions.enumerated() {
             if categoryIndex < SoundPresetCatalog.categoryCount {
                 SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
             }
         }
         
-        // 2. 슬라이더와 텍스트필드 UI 업데이트 (실제 재생은 하지 않음)
-        for (i, volume) in volumes.enumerated() where i < sliders.count {
-            let intVolume = Int(volume)
-            let clampedVolume = max(0, min(100, intVolume))
-            
-            sliders[i].value = Float(clampedVolume)
-            volumeFields[i].text = "\(clampedVolume)"
-        }
+        // 3. 슬라이더와 텍스트필드 UI 업데이트
+        updateAllSlidersAndFields(volumes: correctedVolumes, versions: actualVersions)
         
-        // 3. SoundManager에서 프리셋 적용 (볼륨 설정 + 버전 정보 포함)
-        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: actualVersions)
+        // 4. SoundManager에서 프리셋 적용 (볼륨 설정 + 버전 정보 포함)
+        SoundManager.shared.applyPresetWithVersions(volumes: correctedVolumes, versions: actualVersions)
         
-        // 4. ✅ 카테고리 버튼 UI 업데이트 (버전 정보 반영)
+        // 5. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
         
-        // 5. 즐겨찾기 프리셋인 경우 최근 프리셋에 저장하지 않음
+        // 6. 최근 프리셋에 저장 (shouldSaveToRecent가 true인 경우만)
         if shouldSaveToRecent {
-            addToRecentPresetsWithVersions(name: name, volumes: volumes, versions: actualVersions)
+            addToRecentPresetsWithVersions(name: name, volumes: correctedVolumes, versions: actualVersions)
+            print("💾 [applyPreset] 최근 프리셋에 저장: \(name) (보정된 볼륨 사용)")
+        } else {
+            print("⏭️ [applyPreset] 최근 프리셋 저장 생략 (shouldSaveToRecent: false)")
         }
         
+        // 7. UI 상태 업데이트
         updatePlayButtonStates()
         updatePresetBlocks()
+        
+        // 8. 사용자 피드백
         showPresetAppliedFeedback(name: name)
+        
+        print("✅ [applyPreset] 프리셋 적용 완료: \(name)")
     }
     
     // 버전 정보 포함한 최근 프리셋 저장
@@ -192,10 +226,12 @@ extension ViewController {
             volumes: volumes,
             selectedVersions: versions,
             emotion: nil,
-            isAIGenerated: true,
+            isAIGenerated: false, // ✅ Recent Presets에 표시되도록 false로 설정
             description: "최근 사용한 프리셋"
         )
         SettingsManager.shared.saveSoundPreset(preset)
+        print("💾 [addToRecentPresetsWithVersions] Recent Presets에 저장: \(name)")
+        updatePresetBlocks() // 저장 후 즉시 UI 갱신
     }
     
     // MARK: - 피드백 (Apple Developer 계정 무관)

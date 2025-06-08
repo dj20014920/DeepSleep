@@ -174,7 +174,7 @@ struct LocalAIRecommendationRecord: Codable {
         💡 효과적 조언: \(weeklyMemory.keyAdvice.prefix(3).joined(separator: "; "))
         📈 변화 추이: \(weeklyMemory.progressNotes.joined(separator: "; "))
         
-        === 🤖 로컬 AI 신경망 추천 패턴 (최근 10건) ===
+        === 로컬 AI 신경망 추천 패턴 (최근 10건) ===
         \(localAIAnalysis)
         
         === 최근 3일 대화 요약 ===
@@ -260,7 +260,7 @@ struct LocalAIRecommendationRecord: Codable {
         saveLocalAIRecommendations(records)
         
         #if DEBUG
-        print("🤖 로컬 AI 추천 기록 저장: \(presetName) (신뢰도: \(confidence))")
+        print("로컬 AI 추천 기록 저장: \(presetName) (신뢰도: \(confidence))")
         #endif
     }
     

@@ -59,13 +59,31 @@ class ViewController: UIViewController {
         print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
         #endif
         
-        // 기존 프리셋 데이터 마이그레이션 (앱 시작 시 한 번만 실행)
-        migratePresets()
+        // 마이그레이션 실행
+        PresetManager.shared.migrateLegacyPresetsIfNeeded()
         
         // 🆕 애플워치 헬스킷 초기화
         setupHealthKitIfNeeded()
         
-        setupViewController()
+        setupUI()
+        setupInitialState()
+        setupKeyboardNotifications()
+        
+        // ✅ 즐겨찾기 업데이트 노티피케이션 구독 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFavoritesUpdated),
+            name: NSNotification.Name("FavoritesUpdated"),
+            object: nil
+        )
+        
+        // ✅ 프리셋 블록 업데이트 알림 구독 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePresetBlocksUpdate),
+            name: NSNotification.Name("PresetBlocksNeedUpdate"),
+            object: nil
+        )
     }
     
     // MARK: - 프리셋 마이그레이션
@@ -107,6 +125,7 @@ class ViewController: UIViewController {
         // 명시적으로 특정 옵저버만 제거 (안전성 향상)
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("ApplyPresetFromChat"), object: nil)
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LocalPresetApplied"), object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
         stopPlaybackStateMonitoring()
@@ -117,18 +136,43 @@ class ViewController: UIViewController {
     }
 
     // MARK: - Setup
-    private func setupViewController() {
+    private func setupUI() {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         configureNavBar()
+        
+        // ✅ 필수 UI 초기화 추가
         setupEmojiSelector()
         setupSliderUI()
         setupPresetBlocks()
-        updatePresetBlocks()
-        // configureRemoteCommands() // SoundManager에서 처리하므로 주석 처리
         setupNotifications()
         setupGestures()
         
-        print("✅ ViewController 초기화 완료 - \(SoundPresetCatalog.categoryCount)개 카테고리")
+        print("✅ ViewController UI 설정 완료")
+    }
+    
+    private func setupInitialState() {
+        // 초기 상태 설정
+        updatePlayButtonStates()
+        updateAllCategoryButtonTitles()
+        updateAllVersionButtons()
+        updatePresetBlocks()
+        print("✅ ViewController 초기 상태 설정 완료")
+    }
+    
+    private func setupKeyboardNotifications() {
+        // 키보드 알림 설정
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
     
     private func configureNavBar() {
@@ -181,6 +225,14 @@ class ViewController: UIViewController {
             self,
             selector: #selector(handlePresetAppliedFromChat(_:)),
             name: NSNotification.Name("PresetAppliedFromChat"),
+            object: nil
+        )
+        
+        // 🆕 로컬 추천 프리셋 적용 알림 옵저버 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLocalPresetApplied(_:)),
+            name: NSNotification.Name("LocalPresetApplied"),
             object: nil
         )
     }
@@ -701,6 +753,7 @@ class ViewController: UIViewController {
             // 직접 UI 업데이트 (이미 SoundManager에 적용되어 있음)
             self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
             self.updatePlayButtonStates()
+            self.updatePresetBlocks() // 최근 프리셋 UI 갱신
             
             // 메인 탭으로 이동
             if let tabBarController = self.tabBarController {
@@ -708,6 +761,45 @@ class ViewController: UIViewController {
             }
             
             print("🔄 [ViewController [\(self.instanceUUID)]] Fallback UI 업데이트 완료: \(name)")
+        }
+    }
+    
+    // 🆕 로컬 추천 프리셋 적용 알림 처리
+    @objc private func handleLocalPresetApplied(_ notification: Notification) {
+        print("🏠 ViewController [\(self.instanceUUID)] received LocalPresetApplied notification")
+        
+        guard let userInfo = notification.userInfo,
+              let volumes = userInfo["volumes"] as? [Float],
+              let versions = userInfo["versions"] as? [Int],
+              let name = userInfo["name"] as? String else {
+            print("⚠️ [ViewController [\(self.instanceUUID)]] LocalPresetApplied 알림 수신 오류: userInfo 파싱 실패")
+            return
+        }
+        
+        print("🏠 [ViewController [\(self.instanceUUID)]] LocalPresetApplied 알림 수신 성공: \(name)")
+        print("  - 볼륨: \(volumes)")
+        print("  - 버전: \(versions)")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // UI 업데이트 (이미 SoundManager에 적용되어 있음)
+            self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
+            self.updatePlayButtonStates()
+            self.updateAllCategoryButtonTitles() // 버전 정보 반영
+            self.updatePresetBlocks() // 최근 프리셋 UI 갱신
+            
+            // 메인 탭으로 이동
+            if let tabBarController = self.tabBarController {
+                tabBarController.selectedIndex = 0
+                print("🏠 메인 탭으로 이동 완료")
+            }
+            
+            // 피드백
+            self.showToast(message: "앱 분석 추천 '\(name)' 적용됨")
+            self.provideMediumHapticFeedback()
+            
+            print("🔄 [ViewController [\(self.instanceUUID)]] 로컬 추천 UI 업데이트 완료: \(name)")
         }
     }
     
@@ -734,41 +826,20 @@ class ViewController: UIViewController {
         updateAllCategoryButtonTitles()
         print("🔄 [updateAllVersionButtons] 모든 버전 버튼 업데이트 완료")
     }
+
+    @objc private func handleFavoritesUpdated() {
+        print("📢 [ViewController] 즐겨찾기 업데이트 알림 수신")
+        updatePresetBlocks()
+    }
+
+    @objc private func handlePresetBlocksUpdate() {
+        print("📢 [ViewController] 프리셋 블록 업데이트 알림 수신")
+        updatePresetBlocks()
+    }
 }
 
 // MARK: - 프리셋 적용 (볼륨 및 버전)
 extension ViewController {
-    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String) {
-        print("🎶 ViewController [\(self.instanceUUID)] - 프리셋 적용 시작: \(name)")
-        print("  - 볼륨: \(volumes)")
-        
-        let actualVersions = versions ?? SoundPresetCatalog.defaultVersions
-        if versions != nil {
-            print("  - 버전: \(actualVersions)")
-        } else {
-            print("  - 버전: 기본값 사용 \(actualVersions)")
-        }
-
-        guard volumes.count == SoundPresetCatalog.categoryCount,
-              actualVersions.count == SoundPresetCatalog.categoryCount else {
-            print("❌ ViewController [\(self.instanceUUID)] - 프리셋 적용 오류: 볼륨 또는 버전 배열 크기가 카테고리 수와 일치하지 않음")
-            // showToast(message: "프리셋 적용 오류") 
-            return
-        }
-
-        // 1. UI 업데이트 (슬라이더, 텍스트필드, 카테고리 버튼)
-        updateAllSlidersAndFields(volumes: volumes, versions: actualVersions)
-        
-        // 2. 버전 정보 저장
-        for i in 0..<SoundPresetCatalog.categoryCount {
-            SettingsManager.shared.updateSelectedVersion(for: i, to: actualVersions[i])
-        }
-        
-        // 3. SoundManager에서 프리셋 적용 (버전 포함)
-        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: actualVersions)
-        
-        updatePlayButtonStates()
-        showToast(message: "\'\(name)\' 프리셋이 적용되었습니다.")
-        provideMediumHapticFeedback()
-    }
+    // ViewController+Utilities.swift의 applyPreset 함수 사용
+    // 중복 함수 제거됨
 }

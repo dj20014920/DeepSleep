@@ -371,58 +371,200 @@ extension ComprehensiveRecommendationEngine {
             return [] 
         }
         
+        guard k > 0 else {
+            print("⚠️ [getTopKIndices] k는 0보다 커야 합니다. k=\(k)")
+            return []
+        }
+        
         let validK = min(k, scores.count) // k가 scores 길이보다 클 경우 조정
         
-        return scores.enumerated()
+        print("🔍 [getTopKIndices] 입력: scores.count=\(scores.count), k=\(k), validK=\(validK)")
+        print("🔍 [getTopKIndices] scores 범위: \(String(format: "%.3f", scores.min() ?? 0)) ~ \(String(format: "%.3f", scores.max() ?? 0))")
+        
+        let result = scores.enumerated()
             .sorted { $0.element > $1.element }
             .prefix(validK)
             .map { $0.offset }
+        
+        print("✅ [getTopKIndices] 결과 인덱스: \(result), 해당 점수: \(result.map { String(format: "%.3f", scores[$0]) })")
+        
+        return Array(result)
     }
     
     // MARK: - 최적화 메서드들
     
     func calculateOptimizedVolumes(presetName: String) -> [Float] {
+        // ✅ 개선된 볼륨 생성 로직
+        print("🎚️ [calculateOptimizedVolumes] 시작: \(presetName)")
+        
         // 기본 프리셋에서 시작
         guard let baseVolumes = SoundPresetCatalog.samplePresets[presetName] else {
-            return Array(repeating: 0.3, count: 13)
+            print("⚠️ [calculateOptimizedVolumes] 프리셋 \(presetName) 없음, 지능적 기본값 생성")
+            return generateIntelligentDefaultVolumes()
         }
         
-        // 사용자 행동 패턴 기반 조정
-        if let profile = UserBehaviorAnalytics.shared.getCurrentUserProfile() {
-            return baseVolumes.enumerated().map { index, volume in
-                let categoryName = index < SoundPresetCatalog.categoryNames.count ? 
-                    SoundPresetCatalog.categoryNames[index] : "default"
-                
-                if let metric = profile.soundPatterns.individualSoundMetrics[categoryName] {
-                    // 개인 선호도 반영
-                    let personalizedVolume = (volume + metric.averageVolume) / 2.0
-                    return personalizedVolume
-                }
-                
+        // 기존 볼륨 스케일링 확인 및 조정
+        let scaledVolumes = baseVolumes.map { volume -> Float in
+            if volume <= 1.0 {
+                // 0-1 범위를 30-60 범위로 스케일링 (더 다양하게)
+                return 30.0 + (volume * 30.0)
+            } else {
                 return volume
             }
         }
         
-        return baseVolumes
+        // 사용자 행동 패턴 기반 개인화
+        let personalizedVolumes = applyPersonalizationToVolumes(scaledVolumes, presetName: presetName)
+        
+        // 시간대별 조정
+        let timeAdjustedVolumes = applyTimeBasedAdjustment(personalizedVolumes)
+        
+        print("✅ [calculateOptimizedVolumes] 완료: 범위 \(String(format: "%.1f", timeAdjustedVolumes.min() ?? 0))~\(String(format: "%.1f", timeAdjustedVolumes.max() ?? 0))")
+        
+        return timeAdjustedVolumes
+    }
+    
+    /// ✅ 지능적 기본 볼륨 생성
+    private func generateIntelligentDefaultVolumes() -> [Float] {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        
+        // 시간대별 기본 패턴
+        let timeBasedPattern: [Float] = {
+            switch currentHour {
+            case 6...9:   // 아침 - 상쾌한 패턴
+                return [30, 45, 25, 50, 35, 40, 15, 30, 20, 40, 25, 45, 35]
+            case 10...16: // 낮 - 집중 패턴
+                return [20, 35, 15, 30, 25, 30, 10, 25, 35, 45, 30, 35, 25]
+            case 17...21: // 저녁 - 이완 패턴
+                return [40, 30, 35, 25, 20, 35, 15, 40, 25, 35, 20, 30, 30]
+            case 22...23, 0...5: // 밤 - 수면 패턴
+                return [25, 20, 30, 15, 10, 25, 8, 35, 20, 30, 15, 25, 20]
+            default:
+                return [25, 35, 25, 35, 25, 35, 15, 30, 25, 35, 25, 35, 25]
+            }
+        }()
+        
+        // 약간의 랜덤성 추가 (±5)
+        return timeBasedPattern.map { base in
+            let randomAdjustment = Float.random(in: -5...5)
+            return max(5.0, min(70.0, base + randomAdjustment))
+        }
+    }
+    
+    /// ✅ 개인화 적용
+    private func applyPersonalizationToVolumes(_ volumes: [Float], presetName: String) -> [Float] {
+        guard let profile = UserBehaviorAnalytics.shared.getCurrentUserProfile() else {
+            return volumes
+        }
+        
+        return volumes.enumerated().map { index, volume in
+            let categoryName = index < SoundPresetCatalog.categoryNames.count ? 
+                SoundPresetCatalog.categoryNames[index] : "default"
+            
+            if let metric = profile.soundPatterns.individualSoundMetrics[categoryName] {
+                // 사용자 선호도 반영 (50% 기본 + 50% 개인화)
+                let userPreference = metric.averageVolume <= 1.0 ? 
+                    metric.averageVolume * 50.0 : metric.averageVolume
+                let personalizedVolume = (volume * 0.5) + (userPreference * 0.5)
+                return max(5.0, min(75.0, personalizedVolume))
+            }
+            
+            return volume
+        }
+    }
+    
+    /// ✅ 시간대별 조정
+    private func applyTimeBasedAdjustment(_ volumes: [Float]) -> [Float] {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let multiplier: Float = {
+            switch hour {
+            case 6...9: return 1.1    // 아침 - 약간 높게
+            case 10...16: return 1.0  // 낮 - 표준
+            case 17...21: return 0.9  // 저녁 - 약간 낮게
+            case 22...23, 0...5: return 0.8  // 밤 - 낮게
+            default: return 1.0
+            }
+        }()
+        
+        return volumes.map { volume in
+            let adjusted = volume * multiplier
+            return max(5.0, min(80.0, adjusted))
+        }
     }
     
     func calculateOptimizedVersions(presetName: String) -> [Int] {
-        // 기본 버전에서 시작
+        // ✅ 개선된 기본 버전에서 시작 (이제 다양한 버전 포함)
         var versions = SoundPresetCatalog.defaultVersions
         
-        // 사용자 선호도 기반 버전 최적화
+        print("🔄 [calculateOptimizedVersions] 시작: \(presetName)")
+        print("  - 기본 버전: \(versions)")
+        
+        // 🎯 프리셋명과 감정 상태에 따른 버전 최적화
+        let presetLower = presetName.lowercased()
+        
+        // 진정/수면 계열 프리셋은 버전 2 선호
+        if presetLower.contains("수면") || presetLower.contains("휴식") || presetLower.contains("평온") {
+            versions[1] = 1  // 바람2
+            versions[3] = 1  // 밤2  
+            versions[5] = 1  // 비-창문
+            versions[6] = 1  // 새-비
+            versions[12] = 1 // 파도2
+        }
+        
+        // 집중/작업 계열 프리셋은 키보드2 선호
+        if presetLower.contains("집중") || presetLower.contains("작업") || presetLower.contains("공부") {
+            versions[10] = 1  // 쿨링팬
+            versions[11] = 1  // 키보드2
+            versions[8] = 0   // 연필 (기본)
+        }
+        
+        // 자연/치유 계열 프리셋은 자연음 버전 2 선호
+        if presetLower.contains("자연") || presetLower.contains("치유") || presetLower.contains("명상") {
+            versions[1] = 1   // 바람2
+            versions[6] = 1   // 새-비
+            versions[12] = 1  // 파도2
+        }
+        
+        // 🧠 사용자 행동 패턴 기반 개인화
         if let profile = UserBehaviorAnalytics.shared.getCurrentUserProfile() {
             for (emotion, pattern) in profile.emotionPatterns {
-                if presetName.lowercased().contains(emotion.lowercased()) {
-                    // 해당 감정에서 선호하는 버전 적용
-                    for (versionIndex, versionCount) in pattern.versionPreferences {
-                        if versionCount > 2 && versionIndex < versions.count {
-                            versions[versionIndex] = 1 // 버전 2 적용
+                // 특정 감정에서 선호하는 버전이 있으면 적용
+                for (versionIndex, versionCount) in pattern.versionPreferences {
+                    if versionCount > 3 && versionIndex < versions.count {
+                        // 충분히 많이 사용한 버전이면 선호도에 따라 적용
+                        let preferenceRate = Float(versionCount) / Float(pattern.totalSessions)
+                        if preferenceRate > 0.6 {  // 60% 이상 선호하면
+                            versions[versionIndex] = 1
                         }
                     }
                 }
             }
         }
+        
+        // 🕐 시간대별 버전 최적화
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        switch currentHour {
+        case 22...23, 0...5:  // 밤시간 - 부드러운 버전 선호
+            versions[1] = 1   // 바람2
+            versions[3] = 1   // 밤2
+            versions[5] = 1   // 비-창문
+            versions[12] = 1  // 파도2
+            
+        case 6...8:  // 아침시간 - 활력적인 버전
+            versions[6] = 1   // 새-비
+            versions[2] = 1   // 발걸음-눈2
+            
+        case 9...17:  // 낮시간 - 집중 지원 버전
+            versions[10] = 1  // 쿨링팬
+            versions[11] = 1  // 키보드2
+            
+        default:  // 저녁시간 - 균형적 버전
+            versions[1] = 1   // 바람2
+            versions[6] = 1   // 새-비
+        }
+        
+        print("  - 최적화된 버전: \(versions)")
+        print("  - 버전 2 사용률: \(versions.filter { $0 == 1 }.count)/\(versions.count)")
         
         return versions
     }

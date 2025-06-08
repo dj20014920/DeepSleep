@@ -138,32 +138,37 @@ extension ViewController {
     
     // MARK: - 프리셋 관리
     func updatePresetBlocks() {
-        updateRecentPresets()
-        updateFavoritePresets()
-    }
-    
-    func updateRecentPresets() {
+        print("🔄 [updatePresetBlocks] 프리셋 블록 업데이트 시작")
+        
         let recentPresets = getRecentPresets()
+        let favoritePresets = getFavoritePresets()
+        
+        print("  - 최근 프리셋 수: \(recentPresets.count)")
+        print("  - 즐겨찾기 프리셋 수: \(favoritePresets.count)")
+        
+        // 최근 사용한 프리셋 버튼 업데이트
         for (index, button) in recentPresetButtons.enumerated() {
             if index < recentPresets.count {
                 let preset = recentPresets[index]
                 configurePresetButton(button, with: preset, isEmpty: false)
+                print("  - 최근 프리셋 \(index): \(preset.name)")
             } else {
                 configureEmptyPresetButton(button)
             }
         }
-    }
-    
-    func updateFavoritePresets() {
-        let favoritePresets = getFavoritePresets()
+        
+        // 즐겨찾기 프리셋 버튼 업데이트
         for (index, button) in favoritePresetButtons.enumerated() {
             if index < favoritePresets.count {
                 let preset = favoritePresets[index]
                 configurePresetButton(button, with: preset, isEmpty: false)
+                print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
             } else {
                 configureEmptyPresetButton(button)
             }
         }
+        
+        print("✅ [updatePresetBlocks] 프리셋 블록 업데이트 완료")
     }
     
     func configurePresetButton(_ button: UIButton, with preset: SoundPreset, isEmpty: Bool) {
@@ -172,14 +177,25 @@ extension ViewController {
             return
         }
         
+        // 프리셋 이름을 버튼 제목으로 설정
         button.setTitle(preset.name, for: .normal)
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
         
+        // 감정 정보가 있으면 추가 표시
         if let emotion = preset.emotion {
             button.setTitle("\(emotion)\n\(preset.name)", for: .normal)
         }
+        
+        // 프리셋 이름이 너무 길면 줄임표 처리
+        button.titleLabel?.lineBreakMode = .byTruncatingTail
+        button.titleLabel?.numberOfLines = 2
+        button.titleLabel?.textAlignment = .center
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.8
+        
+        print("  - 버튼 설정: '\(preset.name)'")
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
@@ -187,12 +203,20 @@ extension ViewController {
         button.setTitleColor(.systemGray2, for: .normal)
         button.backgroundColor = UIColor.systemGray6
         button.layer.borderColor = UIColor.systemGray4.cgColor
+        button.titleLabel?.numberOfLines = 1
+        button.titleLabel?.textAlignment = .center
     }
     
     func getRecentPresets() -> [SoundPreset] {
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        // AI 생성 프리셋을 최근 사용한 것으로 간주하고, 최신 순으로 4개까지
-        return Array(allPresets.filter { $0.isAIGenerated }.prefix(4))
+        // ✅ 수정: isAIGenerated 필터링 제거하고 실제 최근 사용 순으로 정렬
+        // 최신 생성 날짜 순으로 4개까지 (AI/로컬 구분 없이)
+        let recentPresets = Array(allPresets.prefix(4))
+        print("  - getRecentPresets: \(recentPresets.count)개 반환 (AI/로컬 구분 없이)")
+        for (index, preset) in recentPresets.enumerated() {
+            print("    [\(index)] \(preset.name) - \(preset.isAIGenerated ? "AI" : "User")")
+        }
+        return recentPresets
     }
     
     func getFavoritePresets() -> [SoundPreset] {
@@ -201,7 +225,9 @@ extension ViewController {
         let favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
         
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        return allPresets.filter { favoritePresetIds.contains($0.id) }
+        let favoritePresets = allPresets.filter { favoritePresetIds.contains($0.id) }
+        print("  - getFavoritePresets: \(favoritePresets.count)개 반환")
+        return favoritePresets
     }
     
     // 이 메서드는 제거됨 - ViewController+Utilities.swift의 addToRecentPresetsWithVersions 사용
@@ -220,9 +246,22 @@ extension ViewController {
         
         let preset = presets[buttonIndex]
         
-        // 즐겨찾기 프리셋인 경우 새로운 프리셋을 생성하지 않음
-        let shouldSaveToRecent = isRecentButton  // 최근 프리셋만 최근에 저장
+        print("🎵 [presetButtonTapped] 프리셋 버튼 클릭: \(preset.name)")
+        print("  - 최근 버튼: \(isRecentButton)")
+        print("  - 볼륨: \(preset.compatibleVolumes)")
+        print("  - 버전: \(preset.compatibleVersions)")
+        
+        // 최근 프리셋인 경우 새로운 프리셋을 생성하지 않음 (중복 저장 방지)
+        // 즐겨찾기 프리셋인 경우도 최근 프리셋에 저장하지 않음 (기존 동작 유지)
+        let shouldSaveToRecent = false  // 클릭한 프리셋은 이미 존재하므로 저장하지 않음
+        
+        // 통합된 applyPreset 메서드 사용 (UI 동기화 포함)
         applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
+        
+        // 햅틱 피드백
+        provideMediumHapticFeedback()
+        
+        print("✅ [presetButtonTapped] 프리셋 적용 완료: \(preset.name)")
     }
     
     @objc func aiRecommendButtonTapped() {
@@ -261,7 +300,7 @@ extension ViewController {
         }
         
         // 상황별 자동 추천
-        alert.addAction(UIAlertAction(title: "🤖 지금 시간대에 맞는 자동 추천", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "지금 시간대에 맞는 자동 추천", style: .default) { [weak self] _ in
             self?.generateContextualRecommendation()
         })
         
@@ -376,9 +415,6 @@ extension ViewController {
         SettingsManager.shared.saveSoundPreset(preset)
         updatePresetBlocks()
     }
-    
-
-
     
     func showPresetList() {
         let presetListVC = PresetListViewController()

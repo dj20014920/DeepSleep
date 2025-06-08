@@ -114,33 +114,89 @@ class PresetListViewController: UITableViewController {
     private func loadFavorites() {
         let favoriteIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
         favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
+        print("📂 [loadFavorites] \(favoritePresetIds.count)개 즐겨찾기 로드됨")
+        
+        // 최대 4개 제한 강제 적용 (혹시 데이터가 손상된 경우)
+        if favoritePresetIds.count > 4 {
+            let limitedIds = Array(favoritePresetIds.prefix(4))
+            favoritePresetIds = Set(limitedIds)
+            saveFavorites() // 즉시 저장하여 데이터 정리
+            print("⚠️ [loadFavorites] 즐겨찾기 4개 초과로 정리됨")
+        }
     }
     
     private func saveFavorites() {
+        // 최대 4개 제한 재확인
+        if favoritePresetIds.count > 4 {
+            let limitedIds = Array(favoritePresetIds.prefix(4))
+            favoritePresetIds = Set(limitedIds)
+            print("⚠️ [saveFavorites] 저장 전 4개로 제한됨")
+        }
+        
         let favoriteIdStrings = favoritePresetIds.map { $0.uuidString }
         UserDefaults.standard.set(favoriteIdStrings, forKey: "FavoritePresetIds")
+        UserDefaults.standard.synchronize() // 강제 동기화
+        
+        print("💾 [saveFavorites] \(favoriteIdStrings.count)개 즐겨찾기 저장 완료")
     }
     
     private func toggleFavorite(for preset: SoundPreset) {
-        if favoritePresetIds.contains(preset.id) {
+        print("🌟 [toggleFavorite] 시작: \(preset.name), 현재 카운트: \(favoritePresetIds.count)")
+        print("  - 현재 즐겨찾기 ID들: \(favoritePresetIds.map { $0.uuidString.prefix(8) })")
+        
+        let wasInFavorites = favoritePresetIds.contains(preset.id)
+        
+        if wasInFavorites {
             // 즐겨찾기에서 제거
-            favoritePresetIds.remove(preset.id)
+            let removed = favoritePresetIds.remove(preset.id)
+            if removed != nil {
+                print("  - ✅ 즐겨찾기에서 정상 제거됨: \(preset.id.uuidString.prefix(8))")
+                print("  - 새 카운트: \(favoritePresetIds.count)")
+            } else {
+                print("  - ⚠️ 제거 실패: 프리셋이 Set에 없었음")
+            }
         } else {
             // 즐겨찾기에 추가 (최대 4개 제한)
             if favoritePresetIds.count >= 4 {
                 showFavoriteLimitAlert()
+                print("  - ❌ 즐겨찾기 한도 초과로 추가 실패 (현재: \(favoritePresetIds.count)/4)")
                 return
             }
             favoritePresetIds.insert(preset.id)
+            print("  - ✅ 즐겨찾기에 추가됨: \(preset.id.uuidString.prefix(8))")
+            print("  - 새 카운트: \(favoritePresetIds.count)")
         }
         
+        // 중간 검증
+        print("  - 중간 검증: 카운트=\(favoritePresetIds.count), 포함여부=\(favoritePresetIds.contains(preset.id))")
+        
+        // UserDefaults에 즉시 저장
         saveFavorites()
+        
+        // 저장 후 검증
+        let reloadedIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
+        let reloadedCount = reloadedIds.count
+        print("  - 저장 후 검증: UserDefaults에 \(reloadedCount)개 저장됨")
+        
+        // 메모리와 디스크 일치성 확인
+        if favoritePresetIds.count != reloadedCount {
+            print("  - ⚠️ 메모리(\(favoritePresetIds.count))와 디스크(\(reloadedCount)) 불일치!")
+            // 강제 재동기화
+            loadFavorites()
+        }
         
         // 해당 셀만 업데이트
         if let index = presets.firstIndex(where: { $0.id == preset.id }) {
             let indexPath = IndexPath(row: index, section: 0)
-            tableView.reloadRows(at: [indexPath], with: .none)
+            DispatchQueue.main.async {
+                self.tableView.reloadRows(at: [indexPath], with: .none)
+            }
         }
+        
+        // 메인 화면 프리셋 블록 업데이트 알림
+        NotificationCenter.default.post(name: NSNotification.Name("FavoritesUpdated"), object: nil)
+        
+        print("✅ [toggleFavorite] 완료: \(preset.name), 최종 카운트: \(favoritePresetIds.count)")
     }
     
     private func showFavoriteLimitAlert() {
@@ -212,6 +268,16 @@ class PresetListViewController: UITableViewController {
             
             alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
             alert.addAction(UIAlertAction(title: "삭제", style: .destructive, handler: { _ in
+                // ✅ 즐겨찾기에서도 제거
+                if self.favoritePresetIds.contains(presetToDelete.id) {
+                    self.favoritePresetIds.remove(presetToDelete.id)
+                    self.saveFavorites()
+                    print("🗑️ 프리셋 삭제 시 즐겨찾기에서도 제거: \(presetToDelete.name)")
+                    
+                    // 메인 화면 즐겨찾기 블록 업데이트
+                    NotificationCenter.default.post(name: NSNotification.Name("FavoritesUpdated"), object: nil)
+                }
+                
                 // 실제 삭제 로직 - SettingsManager 사용
                 SettingsManager.shared.deleteSoundPreset(id: presetToDelete.id)
                 self.presets.remove(at: indexPath.row)
@@ -267,6 +333,16 @@ class PresetListViewController: UITableViewController {
             let confirm = UIAlertController(title: "삭제 확인", message: "'\(preset.name)' 프리셋을 삭제할까요?", preferredStyle: .alert)
             confirm.addAction(UIAlertAction(title: "취소", style: .cancel))
             confirm.addAction(UIAlertAction(title: "삭제", style: .destructive, handler: { _ in
+                // ✅ 즐겨찾기에서도 제거
+                if self?.favoritePresetIds.contains(preset.id) == true {
+                    self?.favoritePresetIds.remove(preset.id)
+                    self?.saveFavorites()
+                    print("🗑️ 스와이프 삭제 시 즐겨찾기에서도 제거: \(preset.name)")
+                    
+                    // 메인 화면 즐겨찾기 블록 업데이트
+                    NotificationCenter.default.post(name: NSNotification.Name("FavoritesUpdated"), object: nil)
+                }
+                
                 SettingsManager.shared.deleteSoundPreset(id: preset.id)
                 self?.loadPresets()
             }))

@@ -159,13 +159,13 @@ extension ViewController {
         
         masterVolumeSlider = UISlider()
         masterVolumeSlider.minimumValue = 0
-        masterVolumeSlider.maximumValue = 100
-        masterVolumeSlider.value = 50  // 기본값 50으로 변경
-        masterVolumeLevel = 50  // 초기값 50으로 설정
+        masterVolumeSlider.maximumValue = 200  // 최대 200%로 확장하여 증폭 가능
+        masterVolumeSlider.value = 100  // 기본값 100%로 변경 (정상 작동)
+        masterVolumeLevel = 100  // 초기값 100%로 설정
         masterVolumeSlider.addTarget(self, action: #selector(masterVolumeChanged(_:)), for: .valueChanged)
         
         masterVolumeField = UITextField()
-        masterVolumeField.text = "50"  // 기본값 50
+        masterVolumeField.text = "100"  // 기본값 100%
         masterVolumeField.borderStyle = .roundedRect
         masterVolumeField.keyboardType = .numberPad
         masterVolumeField.delegate = self
@@ -220,7 +220,7 @@ extension ViewController {
     @objc private func masterVolumeFieldEditingEnded(_ sender: UITextField) {
         guard let text = sender.text else { return }
         
-        let volume = validateAndClampVolume(text)
+        let volume = validateAndClampMasterVolume(text)
         sender.text = "\(volume)"
         masterVolumeSlider.value = Float(volume)
         masterVolumeLevel = Float(volume)
@@ -228,6 +228,8 @@ extension ViewController {
         // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
         applyMasterVolumeToSoundManager()
         provideMediumHapticFeedback()
+        
+        print("🔊 마스터볼륨 변경: \(volume)% (최대 200% 가능)")
     }
     
     /// 마스터 볼륨을 SoundManager에만 적용 (슬라이더 위치는 변경하지 않음)
@@ -440,6 +442,10 @@ extension ViewController {
         
         // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
         let actualVolume = Float(volume) * (masterVolumeLevel / 100.0)
+        
+        // 디버그 로그 추가
+        print("🎚️ 슬라이더 \(index) 변경: 설정값=\(volume), 마스터볼륨=\(masterVolumeLevel)%, 실제볼륨=\(actualVolume)")
+        
         SoundManager.shared.setVolume(at: index, volume: actualVolume)
         
         provideLightHapticFeedback()
@@ -471,8 +477,17 @@ extension ViewController {
     func updateSliderAndTextField(at index: Int, volume: Float) {
         guard index >= 0, index < sliders.count else { return }
         
-        let intVolume = Int(volume)
-        let clampedVolume = max(0, min(100, intVolume))
+        // ✅ Float 볼륨값을 올바른 정수로 변환
+        var displayVolume: Int
+        if volume <= 1.0 {
+            // 0.3 → 30, 0.5 → 50 (0-1 범위를 0-100으로 스케일링)
+            displayVolume = Int(volume * 100)
+        } else {
+            // 이미 정수 범위의 값 (25, 30 등)
+            displayVolume = Int(volume)
+        }
+        
+        let clampedVolume = max(0, min(100, displayVolume))
         
         sliders[index].value = Float(clampedVolume)
         volumeFields[index].text = "\(clampedVolume)"
@@ -480,31 +495,42 @@ extension ViewController {
         // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
         let actualVolume = Float(clampedVolume) * (masterVolumeLevel / 100.0)
         SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        
+        print("🎚️ [updateSliderAndTextField] 인덱스 \(index): 입력볼륨=\(volume) → 표시볼륨=\(clampedVolume) → 실제볼륨=\(actualVolume)")
     }
     
     // MARK: - 전체 볼륨 업데이트 (프리셋 적용 시 사용)
     
     func updateAllSlidersAndFields(volumes: [Float], versions: [Int]? = nil) {
+        print("🔄 [updateAllSlidersAndFields] UI 업데이트 시작")
+        print("  - 볼륨: \(volumes)")
+        
         // 1. 버전 정보가 있으면 먼저 적용
         if let versions = versions {
+            print("  - 버전: \(versions)")
             for (categoryIndex, versionIndex) in versions.enumerated() {
                 if categoryIndex < SoundPresetCatalog.categoryCount {
                     SoundManager.shared.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
+                    SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
                 }
             }
         }
         
-        // 2. 볼륨 정보 적용
+        // 2. 볼륨 정보 적용 (배열 크기 안전 검사)
         let targetCount = min(volumes.count, sliders.count, volumeFields.count)
+        print("  - 업데이트할 슬라이더 수: \(targetCount)")
         
         for i in 0..<targetCount {
             updateSliderAndTextField(at: i, volume: volumes[i])
         }
         
-        // 3. ✅ 카테고리 버튼 UI 업데이트 (버전 정보 반영)
+        // 3. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
         
-        print("✅ 모든 슬라이더 및 버전 UI 업데이트 완료: \(volumes)")
+        // 4. 마스터 볼륨 적용
+        applyMasterVolumeToSoundManager()
+        
+        print("✅ [updateAllSlidersAndFields] 모든 슬라이더 및 버전 UI 업데이트 완료")
     }
     
     // MARK: - 입력 검증 (기존 로직 유지)
@@ -535,6 +561,27 @@ extension ViewController {
         
         // 경계값 체크 강화
         return max(0, min(100, value))
+    }
+    
+    // MARK: - 마스터 볼륨 전용 검증 (0-200% 범위)
+    func validateAndClampMasterVolume(_ input: String) -> Int {
+        guard !input.isEmpty else { return 0 }
+        
+        // 공백 제거
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else { return 0 }
+        
+        // 숫자 변환 (소수점 처리도 고려)
+        guard let value = Int(trimmedInput) else { 
+            // 소수점이 있는 경우 정수 부분만 추출
+            if let doubleValue = Double(trimmedInput) {
+                return max(0, min(200, Int(doubleValue)))  // 마스터볼륨은 최대 200%
+            }
+            return 0 
+        }
+        
+        // 경계값 체크: 0-200% 범위
+        return max(0, min(200, value))
     }
     
     // MARK: - 기존 호환성 메서드들
@@ -578,7 +625,10 @@ extension ViewController: UITextFieldDelegate {
         }
         
         if updatedText.count > 3 { return false }
-        if let value = Int(updatedText), value > 100 { return false }
+        
+        // 마스터 볼륨 필드는 200까지, 일반 볼륨 필드는 100까지
+        let maxValue = (textField == masterVolumeField) ? 200 : 100
+        if let value = Int(updatedText), value > maxValue { return false }
         
         return true
     }

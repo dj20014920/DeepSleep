@@ -37,7 +37,6 @@ class GifCatView: UIView {
     }
     
     func setupGifCat() {
-        print("🔍 Bundle에서 cat.gif 찾기 시작...")
         
         // 기존 애니메이션 정지
         imageView.stopAnimating()
@@ -75,8 +74,6 @@ class GifCatView: UIView {
         
         var images: [UIImage] = []
         let count = CGImageSourceGetCount(source)
-        print("✅ GIF 프레임 수: \(count)")
-        
         for i in 0..<count {
             if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
                 images.append(UIImage(cgImage: cgImage))
@@ -84,7 +81,6 @@ class GifCatView: UIView {
         }
         
         if !images.isEmpty {
-            print("✅ GIF 애니메이션 설정 성공! 프레임: \(images.count)개")
             DispatchQueue.main.async {
                 self.imageView.animationImages = images
                 self.imageView.animationDuration = Double(images.count) * 0.1

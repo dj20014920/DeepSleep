@@ -621,7 +621,19 @@ final class SoundManager {
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이.
     func setVolume(at index: Int, volume: Float) {
         guard index >= 0, index < players.count else { return }
-        players[index].volume = volume / 100.0
+        let normalizedVolume = volume / 100.0
+        players[index].volume = normalizedVolume
+        
+        print("🔊 SoundManager.setVolume(at: \(index), volume: \(volume)) → 정규화된 볼륨: \(normalizedVolume)")
+        
+        // 재생 상태 제어
+        if normalizedVolume > 0 && !players[index].isPlaying {
+            players[index].play()
+            print("▶️ 카테고리 \(index) 재생 시작")
+        } else if normalizedVolume == 0 && players[index].isPlaying {
+            players[index].pause()
+            print("⏸️ 카테고리 \(index) 일시정지")
+        }
     }
     
     /// 배열 단위로 한 번에 설정
@@ -780,12 +792,13 @@ final class SoundManager {
         
         if newVolume > 0 && !players[index].isPlaying {
             players[index].play()
+            print("▶️ SoundManager: 카테고리 \(index) 재생 시작 (볼륨: \(newVolume))")
         } else if newVolume == 0 && players[index].isPlaying {
-            // 볼륨이 0이 되면 실질적으로 멈춘 것으로 간주 (선택적: 완전히 stop() 할 수도 있음)
-            // players[index].pause() // 또는 stop()
+            players[index].pause()
+            print("⏸️ SoundManager: 카테고리 \(index) 일시정지 (볼륨 0)")
         }
         updateNowPlayingPlaybackStatus() // 재생 상태 변경 시 항상 호출
-        print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → \(volume)")
+        print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → \(newVolume)")
     }
 
     /// 모든 플레이어를 정지시키고 NowPlayingInfo를 업데이트합니다.

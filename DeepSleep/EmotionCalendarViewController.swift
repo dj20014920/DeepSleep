@@ -97,7 +97,7 @@ class EmotionCalendarViewController: UIViewController {
     
     private let aiAnalysisButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("🤖 AI와 감정 분석 대화하기", for: .normal)
+        button.setTitle("AI와 감정 분석 대화하기", for: .normal)
         button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)

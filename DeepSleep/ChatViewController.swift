@@ -1,5 +1,17 @@
 import UIKit
 
+// MARK: - Claude 3.5 AI 추천 모델
+struct ClaudeRecommendation {
+    let presetName: String
+    let analysis: String
+    let recommendationReason: String
+    let volumes: [Float]
+    let versions: [Int]
+    let confidence: Float
+    let expectedMoodImprovement: String
+    let sessionDuration: String
+}
+
 // MARK: - Session Metrics Structures
 
 
@@ -1197,6 +1209,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         // 프리셋 적용 메시지 추가
         var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
         chatMessage.onApplyPreset = { [weak self] in
+            print("🔥 [ChatViewController] 로컬 추천 '적용하기' 버튼 클릭됨: \(recommendedPreset.name)")
             self?.applyLocalPreset(recommendedPreset)
         }
         
@@ -1216,8 +1229,15 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         isProcessingRecommendation = false
     }
     
-    // 🆕 AI 추천 처리
+    // 🆕 진짜 외부 AI 추천 처리 (Claude 3.5 API)
     private func handleAIRecommendation() {
+        // AI 사용량 체크
+        guard AIUsageManager.shared.canUse(feature: .presetRecommendation) else {
+            let errorMessage = ChatMessage(type: .bot, text: "⚠️ AI 분석 추천 사용량이 초과되었습니다. (일일 5회 제한)")
+            appendChat(errorMessage)
+            return
+        }
+        
         // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
             print("⚠️ 추천 요청이 이미 진행 중입니다.")
@@ -1226,104 +1246,62 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         isProcessingRecommendation = true
         
-        let userMessage = ChatMessage(type: .user, text: "고급 AI 분석 추천받기")
+        let userMessage = ChatMessage(type: .user, text: "AI 분석 추천받기")
         appendChat(userMessage)
         
         // 이전 추천 메시지 제거
         removePreviousRecommendations()
         
         // 로딩 메시지 추가
-        appendChat(ChatMessage(type: .loading, text: "고급 신경망이 분석 중..."))
+        appendChat(ChatMessage(type: .loading, text: "🧠 AI가 7일간의 대화와 감정 기록을 종합 분석 중..."))
         
-        // 🧠 고급 로컬 AI 신경망 분석 (비동기 처리)
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            // Enterprise AI Context 생성
-            let context = EnhancedAIContext(
-                emotion: self.currentEmotion?.emotion ?? "평온",
-                emotionIntensity: self.currentEmotion?.intensity ?? 0.5,
-                timeOfDay: Calendar.current.component(.hour, from: Date()),
-                environmentNoise: self.getEstimatedEnvironmentNoise(),
-                recentActivity: self.getCurrentActivity(),
-                userId: UIDevice.current.identifierForVendor?.uuidString ?? "anonymous",
-                weatherMood: self.getWeatherMood(),
-                consecutiveUsage: self.getConsecutiveUsageCount(),
-                userPreference: self.getUserPreferences()
-            )
-            
-            // 🚀 고급 신경망 추론 엔진 실행
-            let aiRecommendation = LocalAIRecommendationEngine.shared.getEnterpriseRecommendation(context: context)
-            
-            DispatchQueue.main.async { [weak self] in
+        // 🚀 외부 Claude 3.5 API 호출 (간소화된 버전)
+        performClaudeAnalysis()
+    }
+    
+    private func performClaudeAnalysis() {
+        // 7일간 종합 기록 구성 
+        let weeklyHistory = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let currentContext = buildCurrentEmotionContext()
+        
+        // 외부 AI 분석 요청 구성
+        let analysisPrompt = buildClaudeAnalysisPrompt(
+            weeklyHistory: weeklyHistory,
+            currentContext: currentContext
+        )
+        
+        // Claude 3.5 API 호출
+        ReplicateChatService.shared.sendCachedPrompt(
+            prompt: analysisPrompt,
+            useCache: false,
+            estimatedTokens: 800,
+            intent: "preset_recommendation"
+        ) { [weak self] aiResponse in
+            DispatchQueue.main.async {
                 guard let self = self else { return }
                 
                 // 로딩 메시지 제거
                 self.removeLastLoadingMessage()
                 
-                // 기존 형식으로 변환
-                let recommendation = self.convertToRecommendationResponse(aiRecommendation)
-                
-                // 감정 분석 정보 생성
-                let parsedAnalysis = (
-                    emotion: context.emotion,
-                    intensity: context.emotionIntensity,
-                    timeOfDay: self.getCurrentTimeOfDay()
-                )
-                
-                // 🤖 고급 AI 신경망 기반 프리셋 생성
-                let poeticName = self.generatePoeticPresetName(
-                    emotion: parsedAnalysis.emotion, 
-                    timeOfDay: parsedAnalysis.timeOfDay, 
-                    isAI: true
-                )
-                
-                let recommendedPreset = (
-                    name: poeticName,
-                    volumes: recommendation.volumes,
-                    description: "\(parsedAnalysis.emotion) 감정에 최적화된 고급 AI 신경망 분석",
-                    versions: recommendation.selectedVersions
-                )
-                
-                // 🤗 감정 공감 메시지와 사운드 설명 생성
-                let empathyMessage = self.generateEmpathyMessage(
-                    emotion: parsedAnalysis.emotion, 
-                    timeOfDay: parsedAnalysis.timeOfDay, 
-                    intensity: parsedAnalysis.intensity
-                )
-                let soundDescription = self.generateSoundDescription(
-                    volumes: recommendation.volumes, 
-                    emotion: parsedAnalysis.emotion
-                )
-                
-                let presetMessage = """
-                \(empathyMessage)
-                
-                **[\(recommendedPreset.name)]**
-                \(soundDescription)
-                
-                🧠 신뢰도: \(String(format: "%.1f", aiRecommendation.overallConfidence * 100))% (고급 신경망 분석)
-                """
-                
-                // 프리셋 적용 메시지 추가
-                var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
-                chatMessage.onApplyPreset = { [weak self] in
-                    self?.applyLocalPreset(recommendedPreset)
+                if let response = aiResponse, !response.isEmpty {
+                    // Claude의 응답을 파싱하여 프리셋 추천 생성
+                    let recommendation = self.parseClaudeRecommendation(response)
+                    self.displayClaudeRecommendation(recommendation)
+                    
+                    // AI 사용량 기록
+                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                } else {
+                    let errorMessage = ChatMessage(
+                        type: .bot, 
+                        text: "❌ 외부 AI 분석 중 오류가 발생했습니다. 로컬 분석을 대신 제공하겠습니다."
+                    )
+                    self.appendChat(errorMessage)
+                    
+                    // 실패 시 로컬 분석으로 대체
+                    self.fallbackToLocalRecommendation()
                 }
                 
-                self.appendChat(chatMessage)
-                
-                // 🆕 고급 AI 추천 기록 저장
-                CachedConversationManager.shared.recordLocalAIRecommendation(
-                    type: "ai",
-                    presetName: poeticName,
-                    confidence: aiRecommendation.overallConfidence,
-                    context: "\(context.emotion) - 고급분석",
-                    volumes: recommendation.volumes,
-                    versions: recommendation.selectedVersions
-                )
-                
-                // 🔓 고급 AI 추천 완료
+                // 🔓 AI 추천 완료
                 self.isProcessingRecommendation = false
             }
         }
@@ -1401,6 +1379,451 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let safeIndex = min(intensityIndex, messages.count - 1)
         
         return messages[safeIndex]
+    }
+    
+    // MARK: - 🚀 외부 Claude 3.5 AI 분석 헬퍼 함수들
+    
+    /// 현재 감정 컨텍스트 구성
+    private func buildCurrentEmotionContext() -> [String: Any] {
+        return [
+            "current_emotion": currentEmotion?.emotion ?? "평온",
+            "emotion_intensity": currentEmotion?.intensity ?? 0.5,
+            "time_of_day": getCurrentTimeOfDay(),
+            "hour": Calendar.current.component(.hour, from: Date()),
+            "recent_presets": getRecentPresets().prefix(3).map { $0.name },
+            "current_volumes": getCurrentVolumes()
+        ]
+    }
+    
+    /// Claude 3.5 분석 프롬프트 구성
+    private func buildClaudeAnalysisPrompt(weeklyHistory: String, currentContext: [String: Any]) -> String {
+        return """
+        당신은 음향 치료 전문가이자 감정 분석 AI입니다. 사용자의 7일간 대화 기록과 현재 상황을 종합 분석하여 최적의 자연 사운드 조합을 추천해주세요.
+        
+        ## 📊 7일간 종합 데이터:
+        
+        \(weeklyHistory)
+        
+        ## 🎯 현재 상황:
+        
+        **현재 감정**: \(currentContext["current_emotion"] ?? "평온")
+        **감정 강도**: \(String(format: "%.1f", (currentContext["emotion_intensity"] as? Float) ?? 0.5))
+        **현재 시간**: \(currentContext["time_of_day"] ?? "알 수 없음") (\(currentContext["hour"] ?? 0)시)
+        **최근 사용 프리셋**: \((currentContext["recent_presets"] as? [String])?.joined(separator: ", ") ?? "없음")
+        
+        ## 🎵 추천 형식:
+        
+        다음 JSON 형식으로 응답해주세요:
+        
+        ```json
+        {
+            "preset_name": "감성적이고 시적인 프리셋 이름",
+            "analysis": "7일간 패턴과 현재 상황에 대한 깊이 있는 분석 (100-150자)",
+            "recommendation_reason": "이 조합을 추천하는 구체적 이유 (80-120자)",
+            "volumes": [비, 바다, 숲, 시냇물, 바람, 강, 뇌우, 폭포, 새소리, 벽난로, 화이트노이즈, 브라운노이즈, 핑크노이즈],
+            "versions": [13개 카테고리별 버전 0 또는 1],
+            "confidence": 0.85,
+            "expected_mood_improvement": "예상되는 기분 개선 효과",
+            "session_duration": "권장 사용 시간 (분)"
+        }
+        ```
+        
+        사용자의 감정 패턴과 선호도를 깊이 이해하여 정말 도움이 될 맞춤형 추천을 해주세요.
+        """
+    }
+    
+    /// Claude 응답 파싱 (개선)
+    private func parseClaudeRecommendation(_ response: String) -> ClaudeRecommendation {
+        print("🔍 [parseClaudeRecommendation] 원본 응답:")
+        print(response)
+        
+        // JSON 파싱 시도
+        if let jsonData = extractJSONFromResponse(response),
+           let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+            
+            let presetName = parsed["preset_name"] as? String ?? "AI 맞춤 추천"
+            let analysis = parsed["analysis"] as? String ?? "7일간의 데이터를 종합 분석하여 제안한 맞춤형 사운드 조합입니다."
+            let reason = parsed["recommendation_reason"] as? String ?? "현재 감정 상태와 사용 패턴을 고려한 최적화된 추천입니다."
+            
+            print("✅ JSON 파싱 성공 - 프리셋: \(presetName), 이유: \(reason)")
+            
+            return ClaudeRecommendation(
+                presetName: presetName,
+                analysis: analysis,
+                recommendationReason: reason,
+                volumes: parsed["volumes"] as? [Float] ?? getDefaultVolumes(),
+                versions: parsed["versions"] as? [Int] ?? getDefaultVersions(),
+                confidence: parsed["confidence"] as? Float ?? 0.85,
+                expectedMoodImprovement: parsed["expected_mood_improvement"] as? String ?? "기분 개선 효과",
+                sessionDuration: parsed["session_duration"] as? String ?? "30-45분"
+            )
+        }
+        
+        // JSON 파싱 실패 시 텍스트 기반 파싱 (강화)
+        return parseClaudeTextResponse(response)
+    }
+    
+    /// JSON 추출 헬퍼
+    private func extractJSONFromResponse(_ response: String) -> Data? {
+        let patterns = [
+            "```json\\s*([\\s\\S]*?)```",
+            "\\{[\\s\\S]*\\}"
+        ]
+        
+        for pattern in patterns {
+            let regex = try? NSRegularExpression(pattern: pattern, options: [])
+            let range = NSRange(location: 0, length: response.count)
+            
+            if let match = regex?.firstMatch(in: response, options: [], range: range) {
+                let matchRange = match.range(at: match.numberOfRanges > 1 ? 1 : 0)
+                if let swiftRange = Range(matchRange, in: response) {
+                    let jsonString = String(response[swiftRange])
+                    return jsonString.data(using: .utf8)
+                }
+            }
+        }
+        return nil
+    }
+    
+    /// 텍스트 기반 파싱 (JSON 실패 시) - 강화
+    private func parseClaudeTextResponse(_ response: String) -> ClaudeRecommendation {
+        print("⚠️ JSON 파싱 실패, 텍스트 기반 파싱 시도")
+        
+        // 감정 정보 추출
+        let emotion = currentEmotion?.emotion ?? "평온"
+        let timeOfDay = getCurrentTimeOfDay()
+        
+        // 텍스트에서 프리셋 이름 추출 시도 (다양한 패턴)
+        var extractedName: String? = nil
+        let namePatterns = [
+            #"\[(.*?)\]"#,
+            #"이름[:\s]*(.*?)[\n,]"#,
+            #"프리셋[:\s]*(.*?)[\n,]"#,
+            #"추천[:\s]*(.*?)[\n,]"#
+        ]
+        
+        for pattern in namePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: response, options: [], range: NSRange(location: 0, length: response.count)),
+               let range = Range(match.range(at: 1), in: response) {
+                let extracted = String(response[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !extracted.isEmpty && extracted.count > 1 {
+                    extractedName = extracted
+                    break
+                }
+            }
+        }
+        
+        // 추천 이유 추출 시도
+        var extractedReason: String? = nil
+        let reasonPatterns = [
+            #"이유[:\s]*(.*?)[\n.]"#,
+            #"추천.*이유[:\s]*(.*?)[\n.]"#,
+            #"때문에[:\s]*(.*?)[\n.]"#,
+            #"효과[:\s]*(.*?)[\n.]"#
+        ]
+        
+        for pattern in reasonPatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: response, options: [], range: NSRange(location: 0, length: response.count)),
+               let range = Range(match.range(at: 1), in: response) {
+                let extracted = String(response[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !extracted.isEmpty && extracted.count > 3 {
+                    extractedReason = extracted
+                    break
+                }
+            }
+        }
+        
+        let finalName = extractedName ?? generatePoeticPresetName(emotion: emotion, timeOfDay: timeOfDay, isAI: true)
+        let finalReason = extractedReason ?? "현재 감정 상태와 사용 패턴을 고려한 최적화된 추천입니다."
+        
+        print("📝 텍스트 파싱 결과 - 프리셋: \(finalName), 이유: \(finalReason)")
+        
+        return ClaudeRecommendation(
+            presetName: finalName,
+            analysis: "7일간의 데이터를 종합 분석하여 제안한 맞춤형 사운드 조합입니다.",
+            recommendationReason: finalReason,
+            volumes: extractVolumes(from: response) ?? getDefaultVolumes(),
+            versions: getDefaultVersions(),
+            confidence: 0.88,
+            expectedMoodImprovement: "감정 안정화 및 스트레스 완화",
+            sessionDuration: "30-45분"
+        )
+    }
+    
+    /// Claude 추천 표시 (개선된 버전)
+    private func displayClaudeRecommendation(_ recommendation: ClaudeRecommendation) {
+        // 데이터 검증 및 기본값 보장
+        let safePresetName = !recommendation.presetName.isEmpty ? recommendation.presetName : generatePoeticPresetName(emotion: currentEmotion?.emotion ?? "평온", timeOfDay: getCurrentTimeOfDay(), isAI: true)
+        let safeAnalysis = !recommendation.analysis.isEmpty ? recommendation.analysis : "7일간의 대화 기록과 감정 패턴을 종합 분석하여 최적화된 사운드 조합을 제안했습니다."
+        let safeReason = !recommendation.recommendationReason.isEmpty ? recommendation.recommendationReason : "현재 감정 상태와 시간대, 그리고 최근 사용 패턴을 종합적으로 고려한 맞춤형 추천입니다."
+        let safeEffect = !recommendation.expectedMoodImprovement.isEmpty ? recommendation.expectedMoodImprovement : "감정 안정화 및 스트레스 완화"
+        let safeDuration = !recommendation.sessionDuration.isEmpty ? recommendation.sessionDuration : "30-45분"
+        
+        print("🔍 [displayClaudeRecommendation] 표시할 내용:")
+        print("  - 프리셋 이름: \(safePresetName)")
+        print("  - 분석 내용: \(safeAnalysis)")
+        print("  - 추천 이유: \(safeReason)")
+        
+        let presetMessage = """
+        **🧠 AI 종합 분석 결과**
+        
+        **[\(safePresetName)]**
+        
+        📊 **AI 분석**: \(safeAnalysis)
+        
+        💡 **추천 이유**: \(safeReason)
+        
+        🎯 **신뢰도**: \(String(format: "%.0f%%", recommendation.confidence * 100)) (AI 종합 분석)
+        📈 **예상 효과**: \(safeEffect)
+        ⏱️ **권장 시간**: \(safeDuration)
+        
+        ✨ **특별 분석**: 7일간의 대화 기록, 감정 패턴, 사용 습관을 모두 종합하여 지금 이 순간 가장 필요한 사운드 조합을 선별했습니다.
+        
+        🌟 이 추천은 단순한 감정 매칭을 넘어서, 당신만의 고유한 패턴과 선호도를 반영한 개인화된 결과입니다.
+        """
+        
+        var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+        chatMessage.onApplyPreset = { [weak self] in
+            // 안전한 데이터로 업데이트된 추천 사용
+            let safeRecommendation = ClaudeRecommendation(
+                presetName: safePresetName,
+                analysis: safeAnalysis,
+                recommendationReason: safeReason,
+                volumes: recommendation.volumes,
+                versions: recommendation.versions,
+                confidence: recommendation.confidence,
+                expectedMoodImprovement: safeEffect,
+                sessionDuration: safeDuration
+            )
+            self?.applyClaudePreset(safeRecommendation)
+        }
+        
+        appendChat(chatMessage)
+    }
+    
+    /// Claude 프리셋 적용 (완전 개선)
+    private func applyClaudePreset(_ recommendation: ClaudeRecommendation) {
+        print("[applyClaudePreset] AI 추천 적용 시작: \(recommendation.presetName)")
+        print("  - Claude 볼륨: \(recommendation.volumes)")
+        print("  - Claude 버전: \(recommendation.versions)")
+        
+        // 1. 볼륨과 버전 배열 검증 및 보정
+        let correctedVolumes = validateAndCorrectVolumes(recommendation.volumes)
+        let correctedVersions = validateAndCorrectVersions(recommendation.versions)
+        
+        print("  - 보정된 볼륨: \(correctedVolumes)")
+        print("  - 보정된 버전: \(correctedVersions)")
+        
+        // 2. 메인 스레드에서 UI 업데이트 보장
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 3. MainViewController 직접 찾아서 UI 동기화
+            if let mainVC = self.findMainViewController() {
+                print("🎯 [applyClaudePreset] MainViewController 발견, 직접 UI 동기화")
+                
+                // 3-1. 버전 정보 먼저 설정
+                for (index, version) in correctedVersions.enumerated() {
+                    if index < SoundPresetCatalog.categoryCount {
+                        SettingsManager.shared.updateSelectedVersion(for: index, to: version)
+                        print("🔄 버전 설정: 카테고리 \(index) → 버전 \(version)")
+                    }
+                }
+                
+                // 3-2. ViewController의 applyPreset 메서드 호출 (완전한 UI 동기화)
+                mainVC.applyPreset(
+                    volumes: correctedVolumes,
+                    versions: correctedVersions,
+                    name: recommendation.presetName,
+                    shouldSaveToRecent: true
+                )
+                
+                // 3-3. 직접 슬라이더와 필드 업데이트 (우선)
+                for (index, volume) in correctedVolumes.enumerated() {
+                    if index < mainVC.sliders.count && index < mainVC.volumeFields.count {
+                        mainVC.sliders[index].value = volume
+                        mainVC.volumeFields[index].text = "\(Int(volume))"
+                        print("🎚️ 슬라이더 \(index) 직접 업데이트: \(volume)")
+                    }
+                }
+                
+                // 3-4. updateSliderAndTextField를 각각 호출하여 완전 보장
+                for (index, volume) in correctedVolumes.enumerated() {
+                    if index < correctedVolumes.count {
+                        if mainVC.responds(to: Selector("updateSliderAndTextField:volume:")) {
+                            mainVC.perform(Selector("updateSliderAndTextField:volume:"), with: index, with: volume)
+                            print("🔄 updateSliderAndTextField(\(index), \(volume)) 호출")
+                        }
+                    }
+                }
+                
+                // 3-5. 강제 UI 새로고침
+                mainVC.view.setNeedsLayout()
+                mainVC.view.layoutIfNeeded()
+                print("🔄 UI 강제 새로고침 완료")
+                
+                // 3-6. 메인 탭으로 자동 이동
+                if let tabBarController = mainVC.tabBarController {
+                    tabBarController.selectedIndex = 0
+                    print("🏠 메인 탭으로 이동 완료")
+                }
+                
+            } else {
+                // 4. Fallback: SoundManager + 알림 방식
+                print("⚠️ [applyClaudePreset] MainViewController 접근 불가, 대체 방법 사용")
+                self.applyClaudeFallbackMethod(correctedVolumes, correctedVersions, recommendation.presetName)
+            }
+            
+            // 5. Claude 추천 기록
+            CachedConversationManager.shared.recordLocalAIRecommendation(
+                type: "claude",
+                presetName: recommendation.presetName,
+                confidence: recommendation.confidence,
+                context: "Claude 3.5 외부 분석",
+                volumes: correctedVolumes,
+                versions: correctedVersions
+            )
+            
+            // 6. 성공 메시지
+            let successMessage = ChatMessage(
+                type: .bot, 
+                text: "✅ AI 추천 '\(recommendation.presetName)'가 적용되었습니다!\n\n메인 화면에서 슬라이더와 버전이 업데이트되었는지 확인해보세요."
+            )
+            self.appendChat(successMessage)
+            
+            print("✅ [applyClaudePreset] Claude 추천 적용 완료")
+        }
+    }
+    
+    /// 볼륨 배열 검증 및 보정
+    private func validateAndCorrectVolumes(_ volumes: [Float]) -> [Float] {
+        var corrected = volumes
+        
+        // 배열 크기 보정
+        if corrected.count < 13 {
+            let defaultVolumes = getDefaultVolumes()
+            corrected = Array(corrected + defaultVolumes.suffix(13 - corrected.count))
+        } else if corrected.count > 13 {
+            corrected = Array(corrected.prefix(13))
+        }
+        
+        // 값 범위 보정 (0~100)
+        corrected = corrected.map { max(0, min(100, $0)) }
+        
+        return corrected
+    }
+    
+    /// 버전 배열 검증 및 보정
+    private func validateAndCorrectVersions(_ versions: [Int]) -> [Int] {
+        var corrected = versions
+        
+        // 배열 크기 보정
+        if corrected.count < 13 {
+            let defaultVersions = getDefaultVersions()
+            corrected = Array(corrected + defaultVersions.suffix(13 - corrected.count))
+        } else if corrected.count > 13 {
+            corrected = Array(corrected.prefix(13))
+        }
+        
+        // 값 범위 보정 (0 또는 1)
+        corrected = corrected.map { max(0, min(1, $0)) }
+        
+        return corrected
+    }
+    
+    /// Fallback 방법: SoundManager + 알림
+    private func applyClaudeFallbackMethod(_ volumes: [Float], _ versions: [Int], _ presetName: String) {
+        // 1. 버전 정보 저장
+        for (index, version) in versions.enumerated() {
+            if index < SoundPresetCatalog.categoryCount {
+                SettingsManager.shared.updateSelectedVersion(for: index, to: version)
+            }
+        }
+        
+        // 2. SoundManager 직접 적용
+        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: versions)
+        
+        // 3. UI 업데이트 알림 전송
+        let userInfo: [String: Any] = [
+            "volumes": volumes,
+            "versions": versions,
+            "name": presetName,
+            "source": "claude_fallback"
+        ]
+        
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ClaudePresetApplied"),
+            object: nil,
+            userInfo: userInfo
+        )
+        
+        print("📢 [applyClaudeFallbackMethod] ClaudePresetApplied 알림 전송")
+    }
+    
+    /// 실패 시 로컬 대체
+    private func fallbackToLocalRecommendation() {
+        // 로컬 추천으로 대체
+        handleLocalRecommendation()
+    }
+    
+    // MARK: - 🔧 헬퍼 함수들
+    
+    private func extractPresetName(from text: String) -> String? {
+        // 프리셋 이름 추출 로직
+        let patterns = ["preset_name.*?[\"'](.*?)[\"']", "\\[\\s*(.*?)\\s*\\]"]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+               let range = Range(match.range(at: 1), in: text) {
+                return String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return nil
+    }
+    
+    private func extractRecommendationReason(from text: String) -> String? {
+        // 추천 이유 추출 로직
+        let patterns = ["recommendation_reason.*?[\"'](.*?)[\"']", "이유.*?[:.](.*?)[\n.]"]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+               let range = Range(match.range(at: 1), in: text) {
+                return String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return nil
+    }
+    
+    private func extractVolumes(from text: String) -> [Float]? {
+        // 볼륨 배열 추출 로직
+        if let regex = try? NSRegularExpression(pattern: "volumes.*?\\[([\\d\\s,]+)\\]", options: .caseInsensitive),
+           let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+           let range = Range(match.range(at: 1), in: text) {
+            let volumeString = String(text[range])
+            let volumes = volumeString.components(separatedBy: ",").compactMap { Float($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            if volumes.count == 13 {
+                return volumes
+            }
+        }
+        return nil
+    }
+    
+    private func getDefaultVolumes() -> [Float] {
+        return [30, 25, 35, 20, 15, 30, 10, 25, 20, 15, 10, 15, 20]
+    }
+    
+    private func getDefaultVersions() -> [Int] {
+        return [0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1]
+    }
+    
+    private func getCurrentVolumes() -> [Float] {
+        // SoundManager에서 현재 볼륨 정보 가져오기 (직접 접근)
+        return (0..<13).map { index in
+            guard index < SoundManager.shared.players.count else { return 0.0 }
+            return SoundManager.shared.players[index].volume * 100 // 0-100 범위로 변환
+        }
     }
     
     /// 🎵 사운드 요소별 상세 설명 생성
@@ -1546,108 +1969,191 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         return selectedPattern
     }
     
-    // 🆕 프리셋 적용 로직
+    // 🆕 로컬 추천 적용 (강화된 UI 동기화)
     private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
-        print("🎵 프리셋 적용 시작: \(preset.name)")
+        print("🎵 [applyLocalPreset] 프리셋 적용 시작: \(preset.name)")
+        print("  - 입력 볼륨: \(preset.volumes)")
+        print("  - 입력 버전: \(preset.versions)")
         
-        // 🔧 ViewController의 applyPreset 메서드를 사용하여 UI까지 완전히 동기화
-        if let mainVC = findMainViewController() {
-            DispatchQueue.main.async {
-                // 볼륨은 0~100 범위로 변환 (ViewController.applyPreset은 0~100 범위 기대)
-                let volumesForUI = preset.volumes.map { $0 } // 이미 0~100 범위
+        // 1. 볼륨과 버전 배열 검증 및 보정
+        let correctedVolumes = validateAndCorrectVolumes(preset.volumes)
+        let correctedVersions = validateAndCorrectVersions(preset.versions)
+        
+        print("  - 보정된 볼륨: \(correctedVolumes)")
+        print("  - 보정된 버전: \(correctedVersions)")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 🎯 다중 방법으로 MainViewController 접근 시도
+            var mainVC: ViewController?
+            
+            // 방법 1: findMainViewController 사용
+            mainVC = self.findMainViewController()
+            
+            // 방법 2: SceneDelegate를 통한 접근
+            if mainVC == nil {
+                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
+                   let tabBarController = sceneDelegate.window?.rootViewController as? UITabBarController,
+                   let firstTab = tabBarController.viewControllers?.first as? ViewController {
+                    mainVC = firstTab
+                    print("🎯 [applyLocalPreset] SceneDelegate를 통해 MainViewController 발견")
+                }
+            }
+            
+            // 방법 3: 윈도우 계층구조 탐색
+            if mainVC == nil {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let tabBarController = window.rootViewController as? UITabBarController,
+                   let firstTab = tabBarController.viewControllers?.first as? ViewController {
+                    mainVC = firstTab
+                    print("🎯 [applyLocalPreset] 윈도우 계층구조를 통해 MainViewController 발견")
+                }
+            }
+            
+            if let targetVC = mainVC {
+                print("🎯 [applyLocalPreset] MainViewController 발견, 완전 동기화 시작")
                 
-                print("🎵 [ChatViewController] ViewController.applyPreset 호출: \(preset.name)")
-                print("  - 볼륨: \(volumesForUI)")
-                print("  - 버전: \(preset.versions)")
+                // Step 1: 버전 정보 저장
+                for (index, version) in correctedVersions.enumerated() {
+                    if index < SoundPresetCatalog.categoryCount {
+                        SettingsManager.shared.updateSelectedVersion(for: index, to: version)
+                    }
+                }
                 
-                mainVC.applyPreset(volumes: volumesForUI, versions: preset.versions, name: preset.name)
+                // Step 2: 직접 applyPreset 호출 (완전한 UI + 사운드 동기화)
+                targetVC.applyPreset(
+                    volumes: correctedVolumes,
+                    versions: correctedVersions,
+                    name: preset.name,
+                    shouldSaveToRecent: true
+                )
                 
-                // 메인 탭으로 이동 (사용자가 바로 확인할 수 있도록)
-                if let tabBarController = mainVC.tabBarController {
+                print("✅ [applyLocalPreset] MainViewController.applyPreset 호출 완료")
+                
+                // Step 3: 메인 탭으로 자동 이동
+                if let tabBarController = targetVC.tabBarController {
                     tabBarController.selectedIndex = 0
+                    print("🏠 메인 탭으로 이동 완료")
                 }
-            }
-        } else {
-            // Fallback: 기존 방식 사용 (하지만 UI 동기화 문제 있음)
-            print("⚠️ [ChatViewController] MainViewController를 찾을 수 없어 fallback 방식 사용")
-            
-            // 1. 기존 사운드 정지
-            SoundManager.shared.stopAll()
-            
-            // 2. 버전 정보 적용
-            for (categoryIndex, versionIndex) in preset.versions.enumerated() {
-                if categoryIndex < SoundPresetCatalog.categoryCount {
-                    SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
-                }
+                
+            } else {
+                // Fallback: NotificationCenter + SoundManager 방식
+                print("⚠️ [applyLocalPreset] MainViewController를 찾을 수 없음, 알림 방식 사용")
+                self.applyLocalFallbackMethod(correctedVolumes, correctedVersions, preset.name)
             }
             
-            // 3. 볼륨 설정 적용 (0~1 범위로 변환)
-            for (index, volume) in preset.volumes.enumerated() {
-                if index < SoundPresetCatalog.categoryCount {
-                    SoundManager.shared.setVolume(for: index, volume: volume / 100.0)
-                }
-            }
-            
-            // 4. 사운드 재생
-            SoundManager.shared.playActiveSounds()
-            
-            // 5. 메인 화면 UI 업데이트 알림 (버전 정보도 포함)
-            let userInfo = [
-                "volumes": preset.volumes,
-                "versions": preset.versions,
-                "name": preset.name
-            ] as [String: Any]
-            
-            NotificationCenter.default.post(
-                name: NSNotification.Name("PresetAppliedFromChat"), 
-                object: nil, 
-                userInfo: userInfo
+            // Step 4: 성공 메시지
+            let successMessage = ChatMessage(
+                type: .bot, 
+                text: "✅ 앱 분석 추천 '\(preset.name)'이 적용되었습니다!\n\n메인 화면에서 편안한 사운드를 즐겨보세요. 🎵"
             )
+            self.appendChat(successMessage)
+            
+            print("✅ [applyLocalPreset] 프리셋 적용 완료: \(preset.name)")
+        }
+    }
+    
+    /// 로컬 Fallback 방법: NotificationCenter + SoundManager
+    private func applyLocalFallbackMethod(_ volumes: [Float], _ versions: [Int], _ presetName: String) {
+        // 1. 버전 정보 저장
+        for (index, version) in versions.enumerated() {
+            if index < SoundPresetCatalog.categoryCount {
+                SettingsManager.shared.updateSelectedVersion(for: index, to: version)
+            }
         }
         
-        // 6. 성공 메시지
-        let successMessage = ChatMessage(type: .bot, text: "✅ '\(preset.name)' 프리셋이 적용되었습니다! 지금 바로 편안한 사운드를 즐겨보세요. 🎵")
-        appendChat(successMessage)
+        // 2. SoundManager 직접 적용
+        SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: versions)
         
-        // 7. 메인 화면으로 이동 버튼 제공
-        let backToMainMessage = ChatMessage(type: .bot, text: "🏠 메인 화면으로 이동해서 사운드를 조정해보세요!")
-        appendChat(backToMainMessage)
+        // 3. UI 업데이트 알림 전송 (여러 알림 동시 전송)
+        let userInfo: [String: Any] = [
+            "volumes": volumes,
+            "versions": versions,
+            "name": presetName,
+            "source": "local_fallback"
+        ]
         
-        print("🎵 프리셋 적용 완료: \(preset.name)")
+        // 기존 알림들
+        NotificationCenter.default.post(
+            name: NSNotification.Name("LocalPresetApplied"),
+            object: nil,
+            userInfo: userInfo
+        )
+        
+        // 추가 UI 동기화 알림들
+        NotificationCenter.default.post(
+            name: NSNotification.Name("SoundVolumesUpdated"),
+            object: nil,
+            userInfo: userInfo
+        )
+        
+        NotificationCenter.default.post(
+            name: NSNotification.Name("PresetApplied"),
+            object: presetName,
+            userInfo: userInfo
+        )
+        
+        print("📢 [applyLocalFallbackMethod] 다중 알림 전송 완료")
     }
     
     // 🔍 MainViewController 찾기 헬퍼
     private func findMainViewController() -> ViewController? {
-        // 1. parent를 통해 찾기
-        if let parentVC = self.parent as? ViewController {
-            return parentVC
+        // 1. TabBarController를 통한 접근
+        if let tabBarController = self.tabBarController {
+            for viewController in tabBarController.viewControllers ?? [] {
+                if let navController = viewController as? UINavigationController {
+                    if let mainVC = navController.viewControllers.first as? ViewController {
+                        print("🎯 [findMainViewController] TabBar > NavController에서 ViewController 발견")
+                        return mainVC
+                    }
+                } else if let mainVC = viewController as? ViewController {
+                    print("🎯 [findMainViewController] TabBar에서 직접 ViewController 발견")
+                    return mainVC
+                }
+            }
         }
         
-        // 2. navigation stack에서 찾기
+        // 2. NavigationController를 통한 접근
         if let navController = self.navigationController {
             for viewController in navController.viewControllers {
                 if let mainVC = viewController as? ViewController {
+                    print("🎯 [findMainViewController] NavigationController에서 ViewController 발견")
                     return mainVC
                 }
             }
         }
         
-        // 3. tab bar에서 찾기
-        if let tabBarController = self.tabBarController {
-            for viewController in tabBarController.viewControllers ?? [] {
-                if let mainVC = viewController as? ViewController {
-                    return mainVC
-                }
-                if let navController = viewController as? UINavigationController {
-                    for vc in navController.viewControllers {
-                        if let mainVC = vc as? ViewController {
+        // 3. 윈도우 씬을 통한 접근
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            
+            if let mainVC = rootVC as? ViewController {
+                print("🎯 [findMainViewController] 윈도우 루트에서 직접 ViewController 발견")
+                return mainVC
+            } else if let tabBarController = rootVC as? UITabBarController {
+                for viewController in tabBarController.viewControllers ?? [] {
+                    if let navController = viewController as? UINavigationController {
+                        if let mainVC = navController.viewControllers.first as? ViewController {
+                            print("🎯 [findMainViewController] 윈도우 > TabBar > NavController에서 ViewController 발견")
                             return mainVC
                         }
+                    } else if let mainVC = viewController as? ViewController {
+                        print("🎯 [findMainViewController] 윈도우 > TabBar에서 직접 ViewController 발견")
+                        return mainVC
                     }
+                }
+            } else if let navController = rootVC as? UINavigationController {
+                if let mainVC = navController.viewControllers.first as? ViewController {
+                    print("🎯 [findMainViewController] 윈도우 > NavController에서 ViewController 발견")
+                    return mainVC
                 }
             }
         }
         
+        print("⚠️ [findMainViewController] ViewController를 찾을 수 없음")
         return nil
     }
     
@@ -1797,11 +2303,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     /// 최근 프리셋 가져오기
     private func getRecentPresets() -> [SoundPreset] {
-        let recentPresetsKey = "recent_presets"
-        guard let data = UserDefaults.standard.data(forKey: recentPresetsKey),
-              let recentPresets = try? JSONDecoder().decode([SoundPreset].self, from: data) else {
-            return []
-        }
-        return recentPresets
+        let allPresets = SettingsManager.shared.loadSoundPresets()
+        // ✅ 수정: 최신 생성 날짜 순으로 4개까지 (AI/로컬 구분 없이)
+        return Array(allPresets.prefix(4))
     }
 }
