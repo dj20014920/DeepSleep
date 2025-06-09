@@ -1277,10 +1277,19 @@ extension ComprehensiveRecommendationEngine {
     
     // MARK: - 트렌드 분석 헬퍼
     
-    func analyzeTrendDirection(emotions: [EnhancedEmotion]) -> String {
-        guard emotions.count >= 3 else { return "stable" }
+    func analyzeTrendDirection(emotions: [Any]) -> String {
+        // Any 타입으로 받아서 런타임에 안전하게 처리
+        let enhancedEmotions = emotions.compactMap { emotion -> Float? in
+            if let dict = emotion as? [String: Any],
+               let intensity = dict["intensity"] as? Float {
+                return intensity
+            }
+            return nil
+        }
         
-        let recentIntensities = emotions.suffix(5).map { $0.intensity }
+        guard enhancedEmotions.count >= 3 else { return "stable" }
+        
+        let recentIntensities = Array(enhancedEmotions.suffix(5))
         let earlier = recentIntensities.prefix(recentIntensities.count/2).reduce(0, +) / Float(recentIntensities.count/2)
         let later = recentIntensities.suffix(recentIntensities.count/2).reduce(0, +) / Float(recentIntensities.count/2)
         
@@ -1293,8 +1302,18 @@ extension ComprehensiveRecommendationEngine {
         }
     }
     
-    func analyzeIntensityPatterns(emotions: [EnhancedEmotion]) -> String {
-        let intensities = emotions.map { $0.intensity }
+    func analyzeIntensityPatterns(emotions: [Any]) -> String {
+        // Any 타입으로 받아서 런타임에 안전하게 처리
+        let intensities = emotions.compactMap { emotion -> Float? in
+            if let dict = emotion as? [String: Any],
+               let intensity = dict["intensity"] as? Float {
+                return intensity
+            }
+            return nil
+        }
+        
+        guard !intensities.isEmpty else { return "moderate_intensity" }
+        
         let average = intensities.reduce(0, +) / Float(intensities.count)
         
         if average > 0.7 {
@@ -1306,11 +1325,18 @@ extension ComprehensiveRecommendationEngine {
         }
     }
     
-    func analyzeTriggerPatterns(emotions: [EnhancedEmotion]) -> [String] {
-        // 환경 맥락에서 위치 정보를 트리거로 활용
-        let allTriggers = emotions.compactMap { emotion in
-            emotion.environmentalContext.location != "unknown" ? emotion.environmentalContext.location : nil
+    func analyzeTriggerPatterns(emotions: [Any]) -> [String] {
+        // Any 타입으로 받아서 런타임에 안전하게 처리
+        let allTriggers = emotions.compactMap { emotion -> String? in
+            if let dict = emotion as? [String: Any],
+               let environmentalContext = dict["environmentalContext"] as? [String: Any],
+               let location = environmentalContext["location"] as? String,
+               location != "unknown" {
+                return location
+            }
+            return nil
         }
+        
         let triggerCounts = Dictionary(grouping: allTriggers) { $0 }
             .mapValues { $0.count }
         
@@ -1320,8 +1346,17 @@ extension ComprehensiveRecommendationEngine {
             .map { $0.key }
     }
     
-    func findDominantEmotion(emotions: [EnhancedEmotion]) -> String {
-        let emotionCounts = Dictionary(grouping: emotions) { $0.primaryEmotion }
+    func findDominantEmotion(emotions: [Any]) -> String {
+        // Any 타입으로 받아서 런타임에 안전하게 처리
+        let primaryEmotions = emotions.compactMap { emotion -> String? in
+            if let dict = emotion as? [String: Any],
+               let primaryEmotion = dict["primaryEmotion"] as? String {
+                return primaryEmotion
+            }
+            return nil
+        }
+        
+        let emotionCounts = Dictionary(grouping: primaryEmotions) { $0 }
             .mapValues { $0.count }
         
         return emotionCounts.max { $0.value < $1.value }?.key ?? "평온"
