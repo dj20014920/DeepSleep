@@ -3,26 +3,104 @@ import UIKit
 // MARK: - ChatViewController + 프리셋 관련 extension
 extension ChatViewController {
     
-    // MARK: - AI 응답 파싱
+    // MARK: - Phase 1: JSON 기반 AI 응답 파싱 (통합된 새로운 방식)
     func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
-        print("🎵 프리셋 파싱 시작: \(response.prefix(100))...")
+        print("🎵 [JSON Parser] 프리셋 파싱 시작: \(response.prefix(100))...")
         
-        // 1. 새로운 11개 형식 파싱 시도
+        // 1. JSON 기반 파싱 시도 (최우선)
+        do {
+            let result = try decodeAIResponse(from: response)
+            print("✅ [JSON Parser] JSON 형식 파싱 성공")
+            return result
+        } catch let error as JSONParsingError {
+            print("⚠️ [JSON Parser] JSON 파싱 실패: \(error.localizedDescription)")
+        } catch {
+            print("⚠️ [JSON Parser] 예상치 못한 오류: \(error.localizedDescription)")
+        }
+        
+        // 2. 레거시 정규식 파싱 시도 (호환성 유지)
         if let result = parseNewFormat(from: response) {
-            print("✅ 새로운 11개 형식 파싱 성공")
+            print("✅ [Legacy Parser] 새로운 11개 형식 파싱 성공")
             return result
         }
         
-        // 2. 기존 12개 형식 파싱 시도
         if let result = parseLegacyFormat(from: response) {
-            print("✅ 기존 12개 형식 파싱 성공")
+            print("✅ [Legacy Parser] 기존 12개 형식 파싱 성공")
             return result
         }
         
-        // 3. 감정 기반 기본 프리셋 반환
+        // 3. 감정 기반 기본 프리셋 반환 (최후 수단)
         let fallbackResult = parseBasicFormat(from: response)
-        print("⚠️ 파싱 실패, 기본 프리셋 사용")
+        print("⚠️ [Fallback Parser] 모든 파싱 실패, 기본 프리셋 사용")
         return fallbackResult
+    }
+    
+    // MARK: - JSON 기반 AI 응답 디코딩
+    private func decodeAIResponse(from response: String) throws -> EnhancedRecommendationResponse {
+        // JSON 형식 검증
+        guard response.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") else {
+            throw JSONParsingError.invalidJSON
+        }
+        
+        // JSON 데이터로 변환
+        guard let jsonData = response.data(using: .utf8) else {
+            throw JSONParsingError.invalidJSON
+        }
+        
+        let decoder = JSONDecoder()
+        let aiResponse: AIResponseData
+        
+        do {
+            aiResponse = try decoder.decode(AIResponseData.self, from: jsonData)
+        } catch let decodingError as DecodingError {
+            switch decodingError {
+            case .keyNotFound:
+                throw JSONParsingError.missingRequiredFields
+            case .typeMismatch:
+                throw JSONParsingError.invalidVolumeCount
+            case .valueNotFound:
+                throw JSONParsingError.missingRequiredFields
+            case .dataCorrupted:
+                throw JSONParsingError.invalidJSON
+            @unknown default:
+                throw JSONParsingError.invalidJSON
+            }
+        }
+        
+        // 데이터 유효성 검증
+        guard !aiResponse.presetName.isEmpty else {
+            throw JSONParsingError.missingRequiredFields
+        }
+        
+        guard !aiResponse.volumes.isEmpty else {
+            throw JSONParsingError.missingRequiredFields
+        }
+        
+        // confidence 값 검증 (옵셔널 처리)
+        let confidenceValue = aiResponse.confidence ?? 0.8
+        guard confidenceValue >= 0.0 && confidenceValue <= 1.0 else {
+            throw JSONParsingError.invalidVolumeCount
+        }
+        
+        // 볼륨 배열 크기 검증
+        guard aiResponse.volumes.count == 13 else {
+            throw JSONParsingError.invalidVolumeCount
+        }
+        
+        // 조합 필터링 적용
+        let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: aiResponse.volumes)
+        let versions = aiResponse.versions ?? SoundPresetCatalog.defaultVersions
+        
+        return EnhancedRecommendationResponse(
+            volumes: filteredVolumes,
+            selectedVersions: versions,
+            presetName: "🧠 " + aiResponse.presetName,
+            explanation: aiResponse.explanation,
+            confidence: confidenceValue,
+            scientificBasis: aiResponse.scientificBasis,
+            estimatedEffectiveness: aiResponse.estimatedEffectiveness,
+            additionalNotes: aiResponse.additionalNotes
+        )
     }
     
     // MARK: - 새로운 11개 형식 파싱
@@ -66,8 +144,8 @@ extension ChatViewController {
         
         return EnhancedRecommendationResponse(
             volumes: filteredVolumes,
-            presetName: presetName,
-            selectedVersions: versions
+            selectedVersions: versions,
+            presetName: presetName
         )
     }
     
@@ -130,18 +208,22 @@ extension ChatViewController {
             }
         }
         
-        // 12개 → 11개 변환
-        let convertedVolumes = legacyVolumes.count == 13 ? legacyVolumes : Array(repeating: 0.0, count: 13)
+        // 12개 → 13개 변환 (올바른 크기로 수정)
+        var convertedVolumes: [Float] = Array(repeating: 0, count: 13)
+        for i in 0..<min(12, convertedVolumes.count) {
+            convertedVolumes[i] = legacyVolumes[i]
+        }
+        
         let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: convertedVolumes)
         
         return EnhancedRecommendationResponse(
             volumes: filteredVolumes,
-            presetName: presetName,
-            selectedVersions: SoundPresetCatalog.defaultVersions
+            selectedVersions: SoundPresetCatalog.defaultVersions,
+            presetName: presetName
         )
     }
     
-    // MARK: - 감정별 기본 프리셋 (11개 카테고리)
+    // MARK: - 감정별 기본 프리셋 (13개 카테고리)
     private func parseBasicFormat(from response: String) -> EnhancedRecommendationResponse? {
         let emotion = initialUserText ?? "😊"
         
@@ -156,8 +238,8 @@ extension ChatViewController {
         let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
         return EnhancedRecommendationResponse(
             volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-            presetName: "🌊 마음 달래는 소리",
-            selectedVersions: generateOptimalVersions(volumes: volumes)
+            selectedVersions: generateOptimalVersions(volumes: volumes),
+            presetName: "🌊 마음 달래는 소리"
         )
     }
     
@@ -255,11 +337,13 @@ extension ChatViewController {
         
         return EnhancedRecommendationResponse(
             volumes: volumes,
-            presetName: koreanName,
             selectedVersions: generateOptimalVersions(volumes: volumes),
-            scientificDescription: description,
-            recommendedDuration: duration,
-            optimalTiming: timing
+            presetName: koreanName,
+            explanation: description,
+            confidence: 0.9,
+            scientificBasis: description,
+            estimatedEffectiveness: 0.8,
+            additionalNotes: "⏰ 권장 시간: \(duration) | 🎯 최적 타이밍: \(timing)"
         )
     }
     

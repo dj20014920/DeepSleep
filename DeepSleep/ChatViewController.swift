@@ -264,8 +264,8 @@ class ChatViewController: UIViewController {
         let enhancedEmotion = analyzeEnhancedEmotion(from: userMessage)
         currentEmotion = enhancedEmotion
         
-        // Enhanced Data Manager에 감정 저장
-        EnhancedDataManager.shared.saveEnhancedEmotion(enhancedEmotion)
+        // 감정 분석 완료 로그
+        print("🧠 [ChatViewController] 감정 분석 완료: \(enhancedEmotion.primaryEmotion) (강도: \(enhancedEmotion.intensity))")
         
         // 기존 처리 로직 호출
         processUserMessageInternal(userMessage)
@@ -279,28 +279,25 @@ class ChatViewController: UIViewController {
         // 감정 강도 계산 (키워드 기반 + 문맥 분석)
         let intensity = calculateEmotionIntensity(from: message)
         
-        // 감정 유발 요인 추출
-        let triggers = extractEmotionTriggers(from: message)
-        
-        // 신체 증상 추출
-        let physicalSymptoms = extractPhysicalSymptoms(from: message)
-        
         // 인지 상태 분석
         let cognitiveState = analyzeCognitiveState(from: message)
+        
+        // 신체 상태 분석
+        let physicalState = analyzePhysicalState(from: message)
+        
+        // 환경 맥락 분석
+        let environmentalContext = analyzeEnvironmentalContext(from: message)
         
         // 사회적 맥락 분석
         let socialContext = analyzeSocialContext(from: message)
         
         return EnhancedEmotion(
-            id: UUID(),
-            emotion: basicEmotion,
+            primaryEmotion: basicEmotion,
             intensity: intensity,
-            confidence: 0.85, // 모델 신뢰도
-            triggers: triggers,
-            physicalSymptoms: physicalSymptoms,
             cognitiveState: cognitiveState,
-            socialContext: socialContext,
-            timestamp: Date()
+            physicalState: physicalState,
+            environmentalContext: environmentalContext,
+            socialContext: socialContext
         )
     }
     
@@ -347,6 +344,83 @@ class ChatViewController: UIViewController {
         }
         
         return Array(Set(triggers)) // 중복 제거
+    }
+    
+    /// 신체 상태 분석
+    private func analyzePhysicalState(from message: String) -> EnhancedEmotion.PhysicalState {
+        let messageLower = message.lowercased()
+        
+        // 신체 긴장도 분석
+        let tensionKeywords = ["긴장", "뻣뻣", "경직", "딱딱", "어깨", "목"]
+        let tensionScore = tensionKeywords.contains { messageLower.contains($0) } ? 0.8 : 0.3
+        
+        // 피로도 분석
+        let fatigueKeywords = ["피곤", "지침", "힘들", "지쳐", "녹초", "탈진"]
+        let fatigueScore = fatigueKeywords.contains { messageLower.contains($0) } ? 0.8 : 0.3
+        
+        // 안절부절못함 분석
+        let restlessnessKeywords = ["불안", "초조", "안절부절", "들썩", "가만히 못있"]
+        let restlessnessScore = restlessnessKeywords.contains { messageLower.contains($0) } ? 0.8 : 0.2
+        
+        return EnhancedEmotion.PhysicalState(
+            tension: Float(tensionScore),
+            fatigue: Float(fatigueScore),
+            restlessness: Float(restlessnessScore)
+        )
+    }
+    
+    /// 환경 맥락 분석
+    private func analyzeEnvironmentalContext(from message: String) -> EnhancedEmotion.EnvironmentalContext {
+        let messageLower = message.lowercased()
+        
+        // 위치 분석
+        var location = "unknown"
+        if messageLower.contains("집") || messageLower.contains("집에서") {
+            location = "home"
+        } else if messageLower.contains("회사") || messageLower.contains("사무실") || messageLower.contains("직장") {
+            location = "office"
+        } else if messageLower.contains("카페") || messageLower.contains("식당") || messageLower.contains("상점") {
+            location = "public"
+        } else if messageLower.contains("공원") || messageLower.contains("바다") || messageLower.contains("산") {
+            location = "nature"
+        }
+        
+        // 소음 수준 분석
+        var noiseLevel: Float = 0.5
+        if messageLower.contains("시끄러") || messageLower.contains("소음") {
+            noiseLevel = 0.8
+        } else if messageLower.contains("조용") || messageLower.contains("고요") {
+            noiseLevel = 0.2
+        }
+        
+        // 조명 분석
+        var lighting = "natural"
+        if messageLower.contains("어두") || messageLower.contains("깜깜") {
+            lighting = "dim"
+        } else if messageLower.contains("밝") || messageLower.contains("환하") {
+            lighting = "bright"
+        } else if messageLower.contains("형광등") || messageLower.contains("전등") {
+            lighting = "artificial"
+        }
+        
+        // 온도 분석
+        var temperature = "comfortable"
+        if messageLower.contains("춥") || messageLower.contains("차가") {
+            temperature = "cold"
+        } else if messageLower.contains("시원") {
+            temperature = "cool"
+        } else if messageLower.contains("따뜻") {
+            temperature = "warm"
+        } else if messageLower.contains("덥") || messageLower.contains("뜨거") {
+            temperature = "hot"
+        }
+        
+        return EnhancedEmotion.EnvironmentalContext(
+            location: location,
+            noiseLevel: noiseLevel,
+            lighting: lighting,
+            temperature: temperature
+        )
     }
     
     private func extractPhysicalSymptoms(from message: String) -> [String] {
@@ -403,94 +477,63 @@ class ChatViewController: UIViewController {
     private func analyzeSocialContext(from message: String) -> EnhancedEmotion.SocialContext {
         let messageLower = message.lowercased()
         
-        let isAlone = messageLower.contains("혼자") || messageLower.contains("외로")
-        
-        var socialActivity: String?
-        if messageLower.contains("가족") {
-            socialActivity = "가족시간"
-        } else if messageLower.contains("친구") {
-            socialActivity = "친구만남"
-        } else if messageLower.contains("회사") || messageLower.contains("업무") {
-            socialActivity = "업무미팅"
+        // 혼자인지 판단
+        var isAlone = true
+        if messageLower.contains("친구") || messageLower.contains("가족") || messageLower.contains("동료") ||
+           messageLower.contains("사람들") || messageLower.contains("함께") || messageLower.contains("같이") {
+            isAlone = false
         }
         
-        var communicationMode: String?
-        if messageLower.contains("대화") {
-            communicationMode = "대화"
-        } else if messageLower.contains("문자") || messageLower.contains("카톡") {
-            communicationMode = "텍스트"
-        } else if isAlone {
-            communicationMode = "혼자"
-        }
+        // 사회적 압박감 분석
+        let pressureKeywords = ["압박", "스트레스", "부담", "눈치", "걱정", "긴장"]
+        let socialPressure: Float = pressureKeywords.contains { messageLower.contains($0) } ? 0.8 : 0.2
+        
+        // 지지도 분석
+        let supportKeywords = ["도움", "지지", "응원", "격려", "위로", "이해"]
+        let supportLevel: Float = supportKeywords.contains { messageLower.contains($0) } ? 0.8 : 0.5
         
         return EnhancedEmotion.SocialContext(
-            isAlone: isAlone,
-            socialActivity: socialActivity,
-            communicationMode: communicationMode
+            alone: isAlone,
+            socialPressure: socialPressure,
+            supportLevel: supportLevel
         )
     }
     
     private func generateEnterpriseRecommendation() -> RecommendationResponse {
-        guard let emotion = currentEmotion else {
+        guard let currentEmotion = currentEmotion else {
             return getBasicRecommendation()
         }
         
-        // 🧠 Enterprise AI Context 생성
-        let context = EnhancedAIContext(
-            emotion: emotion.emotion,
-            emotionIntensity: emotion.intensity,
-            timeOfDay: Calendar.current.component(.hour, from: Date()),
-            environmentNoise: getEstimatedEnvironmentNoise(),
-            recentActivity: getCurrentActivity(),
-            userId: UIDevice.current.identifierForVendor?.uuidString ?? "anonymous",
-            weatherMood: getWeatherMood(),
-            consecutiveUsage: getConsecutiveUsageCount(),
-            userPreference: getUserPreferences()
-        )
+        // 🧠 감정 기반 기본 추천 시스템
+        let emotionText = currentEmotion.primaryEmotion
+        let intensity = currentEmotion.intensity
         
-        // 🧠 LocalAIRecommendationEngine 사용
-        let aiRecommendation = LocalAIRecommendationEngine.shared.getEnterpriseRecommendation(context: context)
+        // 감정과 강도에 따른 볼륨 조정
+        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: emotionText)
+        let adjustedVolumes = baseVolumes.map { $0 * intensity }
+        
+        // 시간대 고려
+        let hour = Calendar.current.component(.hour, from: Date())
+        let timeMultiplier: Float = hour >= 22 || hour <= 6 ? 0.7 : 1.0 // 밤시간 볼륨 조정
+        let finalVolumes = adjustedVolumes.map { $0 * timeMultiplier }
         
         // 성능 메트릭 업데이트
         performanceMetrics.recommendationsGenerated += 1
-        performanceMetrics.aiAccuracy = aiRecommendation.overallConfidence
+        performanceMetrics.aiAccuracy = 0.8 // 기본 정확도
         
         // 추천 시간 기록
         lastRecommendationTime = Date()
         
-        // 피드백 대기 목록에 추가
-        let presetId = UUID()
-        feedbackPendingPresets[presetId] = aiRecommendation.primaryRecommendation.presetName
-        
-        // 기존 형식으로 변환
-        return convertToRecommendationResponse(aiRecommendation)
-    }
-    
-    private func convertToRecommendationResponse(_ aiRecommendation: EnterpriseRecommendation) -> RecommendationResponse {
-        // AI 추천을 기존 볼륨 배열로 변환
-        let presetName = aiRecommendation.primaryRecommendation.presetName
-        
-        // SoundPresetCatalog에서 기본 볼륨 가져오기
-        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: currentEmotion?.emotion ?? "평온")
-        
-        // AI 추천 신뢰도에 따라 볼륨 조정
-        let confidenceMultiplier = aiRecommendation.overallConfidence
-        let adjustedVolumes = baseVolumes.map { $0 * confidenceMultiplier }
-        
-        // 선택된 버전들
-        let selectedVersions = Array(repeating: aiRecommendation.primaryRecommendation.selectedVersion, 
-                                   count: SoundPresetCatalog.categoryCount)
-        
         return RecommendationResponse(
-            volumes: adjustedVolumes,
-            presetName: presetName,
-            selectedVersions: selectedVersions
+            volumes: finalVolumes,
+            presetName: "🧠 AI 감정 추천",
+            selectedVersions: SoundPresetCatalog.defaultVersions
         )
     }
     
     private func getBasicRecommendation() -> RecommendationResponse {
         // 기존 방식으로 폴백
-        let emotion = currentEmotion?.emotion ?? "평온"
+        let emotion = currentEmotion?.primaryEmotion ?? "평온"
         let volumes = SoundPresetCatalog.getRecommendedPreset(for: emotion)
         return RecommendationResponse(volumes: volumes, presetName: "기본 추천")
     }
@@ -574,54 +617,57 @@ class ChatViewController: UIViewController {
     }
     
     private func presentDetailedFeedback(presetName: String) {
-        guard let presetId = feedbackPendingPresets.first(where: { $0.value == presetName })?.key,
-              let startTime = sessionStartTime else { return }
+        guard let startTime = sessionStartTime else { return }
         
-        let feedbackVC = EnhancedFeedbackViewController(
-            presetId: presetId,
-            sessionId: currentSessionId,
-            startTime: startTime,
-            currentEmotion: currentEmotion
+        // 간단한 피드백 뷰컨트롤러 표시
+        let alert = UIAlertController(
+            title: "상세 피드백",
+            message: "'\(presetName)' 추천에 대한 자세한 의견을 알려주세요.",
+            preferredStyle: .alert
         )
         
-        let navController = UINavigationController(rootViewController: feedbackVC)
-        present(navController, animated: true)
+        alert.addAction(UIAlertAction(title: "매우 만족", style: .default) { _ in
+            self.submitQuickFeedback(satisfaction: 1.0, presetName: presetName)
+        })
+        
+        alert.addAction(UIAlertAction(title: "만족", style: .default) { _ in
+            self.submitQuickFeedback(satisfaction: 0.8, presetName: presetName)
+        })
+        
+        alert.addAction(UIAlertAction(title: "보통", style: .default) { _ in
+            self.submitQuickFeedback(satisfaction: 0.5, presetName: presetName)
+        })
+        
+        alert.addAction(UIAlertAction(title: "불만족", style: .default) { _ in
+            self.submitQuickFeedback(satisfaction: 0.2, presetName: presetName)
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        present(alert, animated: true)
     }
     
     private func submitQuickFeedback(satisfaction: Float, presetName: String) {
-        guard let presetId = feedbackPendingPresets.first(where: { $0.value == presetName })?.key,
-              let startTime = sessionStartTime else { return }
+        guard let startTime = sessionStartTime else { return }
         
-        // 간단한 피드백 객체 생성
+        // 간단한 피드백 객체 생성 (기본 FeedbackManager 호환)
         let quickFeedback = PresetFeedback(
-            id: UUID(),
-            presetId: presetId,
-            userId: UIDevice.current.identifierForVendor?.uuidString ?? "anonymous",
-            sessionId: currentSessionId,
-            effectiveness: satisfaction,
-            relaxation: satisfaction,
-            focus: satisfaction * 0.8,
-            sleepQuality: satisfaction * 0.7,
-            overallSatisfaction: satisfaction,
-            usageDuration: Date().timeIntervalSince(startTime),
-            intentionalStop: true,
-            repeatUsage: false,
-            deviceContext: createQuickDeviceContext(),
-            environmentContext: createQuickEnvironmentContext(),
-            tags: satisfaction > 0.6 ? ["좋음"] : ["개선필요"],
-            preferredAdjustments: [],
-            moodAfter: satisfaction > 0.6 ? "🙂 좋아짐" : "😐 비슷함",
-            wouldRecommend: satisfaction > 0.6,
-            timestamp: Date()
+            presetName: presetName,
+            contextEmotion: currentEmotion?.primaryEmotion ?? "평온",
+            contextTime: Calendar.current.component(.hour, from: Date()),
+            recommendedVolumes: Array(repeating: satisfaction * 0.7, count: 13),
+            recommendedVersions: SoundPresetCatalog.defaultVersions
         )
         
-        EnhancedDataManager.shared.savePresetFeedback(quickFeedback)
+        // 만족도 정보 설정
+        quickFeedback.userSatisfaction = satisfaction > 0.6 ? 2 : 1 // 좋아요/싫어요
+        quickFeedback.listeningDuration = Date().timeIntervalSince(startTime)
+        quickFeedback.wasSaved = satisfaction > 0.6
+        
+        print("📝 [ChatViewController] 빠른 피드백 저장: \(presetName) (만족도: \(satisfaction))")
         
         // 성공 메시지
         showQuickFeedbackThankYou()
-        
-        // 피드백 목록에서 제거
-        feedbackPendingPresets.removeValue(forKey: presetId)
     }
     
     private func createQuickDeviceContext() -> PresetFeedback.DeviceContext {
@@ -1386,7 +1432,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     /// 현재 감정 컨텍스트 구성
     private func buildCurrentEmotionContext() -> [String: Any] {
         return [
-            "current_emotion": currentEmotion?.emotion ?? "평온",
+                            "current_emotion": currentEmotion?.primaryEmotion ?? "평온",
             "emotion_intensity": currentEmotion?.intensity ?? 0.5,
             "time_of_day": getCurrentTimeOfDay(),
             "hour": Calendar.current.component(.hour, from: Date()),
@@ -1490,7 +1536,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         print("⚠️ JSON 파싱 실패, 텍스트 기반 파싱 시도")
         
         // 감정 정보 추출
-        let emotion = currentEmotion?.emotion ?? "평온"
+        let emotion = currentEmotion?.primaryEmotion ?? "평온"
         let timeOfDay = getCurrentTimeOfDay()
         
         // 텍스트에서 프리셋 이름 추출 시도 (다양한 패턴)
@@ -1555,7 +1601,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     /// Claude 추천 표시 (개선된 버전)
     private func displayClaudeRecommendation(_ recommendation: ClaudeRecommendation) {
         // 데이터 검증 및 기본값 보장
-        let safePresetName = !recommendation.presetName.isEmpty ? recommendation.presetName : generatePoeticPresetName(emotion: currentEmotion?.emotion ?? "평온", timeOfDay: getCurrentTimeOfDay(), isAI: true)
+        let safePresetName = !recommendation.presetName.isEmpty ? recommendation.presetName : generatePoeticPresetName(emotion: currentEmotion?.primaryEmotion ?? "평온", timeOfDay: getCurrentTimeOfDay(), isAI: true)
         let safeAnalysis = !recommendation.analysis.isEmpty ? recommendation.analysis : "7일간의 대화 기록과 감정 패턴을 종합 분석하여 최적화된 사운드 조합을 제안했습니다."
         let safeReason = !recommendation.recommendationReason.isEmpty ? recommendation.recommendationReason : "현재 감정 상태와 시간대, 그리고 최근 사용 패턴을 종합적으로 고려한 맞춤형 추천입니다."
         let safeEffect = !recommendation.expectedMoodImprovement.isEmpty ? recommendation.expectedMoodImprovement : "감정 안정화 및 스트레스 완화"

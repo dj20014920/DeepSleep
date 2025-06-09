@@ -16,6 +16,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         RemoteLogger.shared.info("앱 시작됨 - \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")", category: "AppLifecycle")
         RemoteLogger.shared.logMemoryUsage(context: "앱 시작 시")
         
+        // 🔐 API 키 보안 검증 실행
+        EnvironmentConfig.shared.performSecurityCheck()
+        
         // SoundManager 초기화 (내부에서 오디오 세션 설정)
         _ = SoundManager.shared // SoundManager.shared를 호출하여 초기화 유도
         RemoteLogger.shared.info("SoundManager 초기화 완료", category: "AppLifecycle")

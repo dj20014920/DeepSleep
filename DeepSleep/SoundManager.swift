@@ -528,13 +528,18 @@ final class SoundManager {
     
     // MARK: - 전체 제어 (기존 API 유지)
     
-    /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만)
-    func playAll() {
+    /// 모든 트랙 일괄 재생 (볼륨이 0 이상인 것만) - 피드백 시스템 통합
+    func playAll(presetName: String? = nil, contextEmotion: String? = nil) {
         print("🔊 SoundManager: playAll() 호출됨")
         print("  - 총 플레이어 수: \(players.count)")
         
         var playedSomething = false
+        var currentVolumes: [Float] = []
+        
         for (index, player) in players.enumerated() {
+            let volumePercent = player.volume * 100.0
+            currentVolumes.append(volumePercent)
+            
             print("  - 플레이어 \(index): volume=\(player.volume), isPlaying=\(player.isPlaying)")
             
             if player.volume > 0 && !player.isPlaying {
@@ -551,6 +556,16 @@ final class SoundManager {
         print("  - playedSomething: \(playedSomething)")
         print("  - activePlayerCount (after): \(activePlayerCount)")
         
+        // Phase 2: 피드백 세션 시작 (AI 추천이 적용된 경우)
+        if let preset = presetName, let emotion = contextEmotion, playedSomething {
+            startFeedbackSession(
+                presetName: preset,
+                volumes: currentVolumes,
+                versions: selectedVersions,
+                emotion: emotion
+            )
+        }
+        
         if playedSomething {
             updateNowPlayingPlaybackStatus() // 전체 재생 상태 업데이트
             print("  - NowPlayingInfo 업데이트 완료")
@@ -559,17 +574,91 @@ final class SoundManager {
         }
     }
     
-    /// 모든 트랙 일괄 일시정지
+    // MARK: - Phase 2: 피드백 시스템 통합
+    
+    /// 피드백 세션 시작
+    private func startFeedbackSession(presetName: String, volumes: [Float], versions: [Int], emotion: String) {
+        Task { @MainActor in
+            let recommendation = EnhancedRecommendationResponse(
+                volumes: volumes,
+                selectedVersions: versions,
+                presetName: presetName
+            )
+            
+            FeedbackManager.shared.startSession(
+                presetName: presetName,
+                recommendation: recommendation,
+                contextEmotion: emotion
+            )
+            
+            print("🎯 [FeedbackManager] 세션 시작: \(presetName)")
+        }
+    }
+    
+    /// 현재 세션 볼륨 업데이트
+    private func updateCurrentSessionVolumes() {
+        let currentVolumes = players.map { $0.volume * 100.0 }
+        
+        Task { @MainActor in
+            FeedbackManager.shared.updateCurrentSessionVolumes(currentVolumes)
+        }
+    }
+    
+    /// 피드백 세션 종료
+    private func endCurrentFeedbackSession(finalVolumes: [Float], wasSaved: Bool, satisfaction: Int = 0) {
+        Task { @MainActor in
+            let duration = FeedbackManager.shared.currentSessionDuration
+            
+            FeedbackManager.shared.endCurrentSession(
+                finalVolumes: finalVolumes,
+                listeningDuration: duration,
+                wasSaved: wasSaved,
+                satisfaction: satisfaction
+            )
+            
+            print("🏁 [FeedbackManager] 세션 종료: 청취시간 \(String(format: "%.1f", duration))초")
+        }
+    }
+    
+    /// 사용자가 프리셋을 저장할 때 호출 (만족도 높음으로 기록)
+    func onPresetSaved() {
+        let currentVolumes = players.map { $0.volume * 100.0 }
+        endCurrentFeedbackSession(
+            finalVolumes: currentVolumes,
+            wasSaved: true,
+            satisfaction: 2 // 좋아요
+        )
+    }
+    
+    /// 사용자가 명시적으로 만족도를 표시할 때 호출
+    func setUserSatisfaction(_ satisfaction: Int) {
+        Task { @MainActor in
+            FeedbackManager.shared.setExplicitFeedback(satisfaction: satisfaction)
+        }
+    }
+    
+    /// 모든 트랙 일괄 일시정지 (피드백 세션 종료)
     func pauseAll() {
         var pausedSomething = false
+        var currentVolumes: [Float] = []
+        
         for player in players {
+            currentVolumes.append(player.volume * 100.0)
             if player.isPlaying {
                 player.pause()
                 pausedSomething = true
             }
         }
+        
         print("🔇 SoundManager: pauseAll() 호출됨")
+        
+        // Phase 2: 피드백 세션 종료
         if pausedSomething {
+            endCurrentFeedbackSession(
+                finalVolumes: currentVolumes,
+                wasSaved: false,
+                satisfaction: 0
+            )
             updateNowPlayingPlaybackStatus() // 전체 정지 상태 업데이트
         }
     }
@@ -618,7 +707,7 @@ final class SoundManager {
     
     // MARK: - 볼륨 제어 (기존 API 유지)
     
-    /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이.
+    /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이. (피드백 실시간 업데이트)
     func setVolume(at index: Int, volume: Float) {
         guard index >= 0, index < players.count else { return }
         let normalizedVolume = volume / 100.0
@@ -634,6 +723,9 @@ final class SoundManager {
             players[index].pause()
             print("⏸️ 카테고리 \(index) 일시정지")
         }
+        
+        // Phase 2: 실시간 볼륨 변경 피드백
+        updateCurrentSessionVolumes()
     }
     
     /// 배열 단위로 한 번에 설정
@@ -726,7 +818,7 @@ final class SoundManager {
         // 기존 매핑 유지 (임시)
         let legacyMapping: [String: Int] = [
             "Rain": 4,      // 🌧️ 비
-            "Thunder": 4,   // 🌧️ 비 (천둥 소리가 없으므로 비로 매핑)
+            "Thunder": 4,   // ��️ 비 (천둥 소리가 없으므로 비로 매핑)
             "Ocean": 10,    // 🌊 파도
             "Fire": 3,      // 🔥 불
             "Steam": 5,     // 🏞️ 시냇물 (비슷한 소리)

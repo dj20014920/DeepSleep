@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SwiftData
 
 // MARK: - 감정 관련 모델 (기존 유지)
 struct Emotion {
@@ -309,74 +310,415 @@ struct UsageStats: Codable {
     }
 }
 
-// MARK: - AI 응답 모델 (확장됨)
-struct AIResponse {
-    let message: String
-    let preset: SoundPreset?
-    let confidence: Float
-    let processingTime: TimeInterval
-    let intent: AIIntent
+// MARK: - Phase 1: JSON 기반 AI 응답 데이터 모델
+
+/// JSON 파싱 에러 타입
+enum JSONParsingError: Error, LocalizedError {
+    case invalidJSON
+    case missingRequiredFields
+    case invalidVolumeCount
+    case invalidVersionCount
     
-    enum AIIntent: String {
-        case chat = "일반 대화"
-        case diary = "감정 일기"
-        case presetRecommendation = "프리셋 추천"
-        case comfort = "위로"
-        case advice = "조언"
-        case diaryAnalysis = "일기 분석"
-        case patternAnalysis = "패턴 분석"
+    var errorDescription: String? {
+        switch self {
+        case .invalidJSON:
+            return "JSON 형식이 올바르지 않습니다"
+        case .missingRequiredFields:
+            return "필수 필드가 누락되었습니다"
+        case .invalidVolumeCount:
+            return "볼륨 배열의 크기가 올바르지 않습니다 (13개 필요)"
+        case .invalidVersionCount:
+            return "버전 배열의 크기가 올바르지 않습니다 (13개 필요)"
+        }
     }
 }
 
-// MARK: - ✅ 확장된 추천 응답 모델 (기존과 충돌 방지)
+/// AI API 응답 데이터 모델
+struct AIResponseData: Codable {
+    let presetName: String
+    let volumes: [Float]
+    let versions: [Int]?
+    let explanation: String?
+    let confidence: Float?
+    let scientificBasis: String?
+    let estimatedEffectiveness: Float?
+    let additionalNotes: String?
+    
+    private enum CodingKeys: String, CodingKey {
+        case presetName = "preset_name"
+        case volumes
+        case versions
+        case explanation
+        case confidence
+        case scientificBasis = "scientific_basis"
+        case estimatedEffectiveness = "estimated_effectiveness"
+        case additionalNotes = "additional_notes"
+    }
+}
+
+/// ChatViewController+Preset.swift에서 사용하는 향상된 추천 응답 모델
 struct EnhancedRecommendationResponse {
     let volumes: [Float]
+    let selectedVersions: [Int]?
     let presetName: String
-    let selectedVersions: [Int]?  // 버전 정보 추가
-    let confidence: Float
-    let scientificDescription: String?
-    let recommendedDuration: String?
-    let optimalTiming: String?
+    let explanation: String?
+    let confidence: Float?
+    let scientificBasis: String?
+    let estimatedEffectiveness: Float?
+    let additionalNotes: String?
     
-    init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, confidence: Float = 1.0, scientificDescription: String? = nil, recommendedDuration: String? = nil, optimalTiming: String? = nil) {
-        self.volumes = volumes
-        self.presetName = presetName
-        self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersions
-        self.confidence = confidence
-        self.scientificDescription = scientificDescription
-        self.recommendedDuration = recommendedDuration
-        self.optimalTiming = optimalTiming
+    /// AIResponseData로부터 생성
+    init(from aiResponse: AIResponseData) {
+        self.volumes = aiResponse.volumes
+        self.selectedVersions = aiResponse.versions
+        self.presetName = aiResponse.presetName
+        self.explanation = aiResponse.explanation
+        self.confidence = aiResponse.confidence
+        self.scientificBasis = aiResponse.scientificBasis
+        self.estimatedEffectiveness = aiResponse.estimatedEffectiveness
+        self.additionalNotes = aiResponse.additionalNotes
     }
     
-    // 기존 RecommendationResponse와 호환성을 위한 변환
-    func toLegacyFormat() -> (volumes: [Float], presetName: String) {
-        return (volumes: volumes, presetName: presetName)
+    /// 직접 생성 (레거시 호환성)
+    init(
+        volumes: [Float],
+        selectedVersions: [Int]? = nil,
+        presetName: String,
+        explanation: String? = nil,
+        confidence: Float? = nil,
+        scientificBasis: String? = nil,
+        estimatedEffectiveness: Float? = nil,
+        additionalNotes: String? = nil
+    ) {
+        self.volumes = volumes
+        self.selectedVersions = selectedVersions
+        self.presetName = presetName
+        self.explanation = explanation
+        self.confidence = confidence
+        self.scientificBasis = scientificBasis
+        self.estimatedEffectiveness = estimatedEffectiveness
+        self.additionalNotes = additionalNotes
     }
 }
 
-// MARK: - 알림 모델 (기존 유지)
-struct DeepSleepNotification: Codable {
-    let id: UUID
-    let title: String
-    let body: String
-    let scheduledDate: Date
-    let type: NotificationType
-    let isRepeating: Bool
+// MARK: - Phase 2: SwiftData 기반 피드백 모델
+
+/// Phase 2: 사용자 피드백 데이터 모델 (SwiftData)
+@Model
+class PresetFeedback {
+    @Attribute(.unique) var id: UUID
+    var timestamp: Date
+    var presetName: String
+    var contextEmotion: String
+    var contextTime: Int // 시간 (0-23)
     
-    enum NotificationType: String, Codable {
-        case timerComplete = "타이머 완료"
-        case dailyCheckIn = "일일 체크인"
-        case recommendationReady = "추천 준비 완료"
-        case moodReminder = "기분 체크 알림"
+    // 추천 데이터
+    var recommendedVolumes: [Float]
+    var recommendedVersions: [Int]
+    
+    // 실제 사용 데이터
+    var finalVolumes: [Float]
+    var listeningDuration: TimeInterval
+    var wasSkipped: Bool
+    var wasSaved: Bool
+    
+    // 피드백 데이터
+    var userSatisfaction: Int // 0: 없음, 1: 싫어요, 2: 좋아요
+    
+    init(
+        presetName: String,
+        contextEmotion: String,
+        contextTime: Int,
+        recommendedVolumes: [Float],
+        recommendedVersions: [Int]
+    ) {
+        self.id = UUID()
+        self.timestamp = Date()
+        self.presetName = presetName
+        self.contextEmotion = contextEmotion
+        self.contextTime = contextTime
+        self.recommendedVolumes = recommendedVolumes
+        self.recommendedVersions = recommendedVersions
+        
+        // 초기값
+        self.finalVolumes = recommendedVolumes
+        self.listeningDuration = 0
+        self.wasSkipped = false
+        self.wasSaved = false
+        self.userSatisfaction = 0
     }
     
-    init(title: String, body: String, scheduledDate: Date, type: NotificationType, isRepeating: Bool = false) {
-        self.id = UUID()
-        self.title = title
-        self.body = body
-        self.scheduledDate = scheduledDate
-        self.type = type
-        self.isRepeating = isRepeating
+    /// 만족도 점수 (0.0 ~ 1.0)
+    var satisfactionScore: Float {
+        // 복합 점수 계산
+        var score: Float = 0.5 // 기본값
+        
+        // 1. 명시적 피드백 (가중치 40%)
+        if userSatisfaction == 2 { // 좋아요
+            score += 0.4
+        } else if userSatisfaction == 1 { // 싫어요
+            score -= 0.4
+        }
+        
+        // 2. 청취 시간 (가중치 30%)
+        let timeScore = min(listeningDuration / 600.0, 1.0) * 0.3 // 10분 = 최고점
+        score += Float(timeScore)
+        
+        // 3. 저장 여부 (가중치 20%)
+        if wasSaved {
+            score += 0.2
+        }
+        
+        // 4. 스킵 여부 (가중치 10%)
+        if wasSkipped {
+            score -= 0.1
+        }
+        
+        return max(0.0, min(1.0, score))
+    }
+    
+    // MARK: - 내부 구조체들 (호환성을 위해 추가)
+    
+    struct DeviceContext: Codable {
+        let volume: Float                 // 시스템 볼륨
+        let brightness: Float             // 화면 밝기
+        let batteryLevel: Float           // 배터리 수준
+        let deviceOrientation: String     // 기기 방향
+        let headphonesConnected: Bool     // 헤드폰 연결 여부
+        
+        init(
+            volume: Float = 0.5,
+            brightness: Float = 0.5,
+            batteryLevel: Float = 1.0,
+            deviceOrientation: String = "portrait",
+            headphonesConnected: Bool = false
+        ) {
+            self.volume = volume
+            self.brightness = brightness
+            self.batteryLevel = batteryLevel
+            self.deviceOrientation = deviceOrientation
+            self.headphonesConnected = headphonesConnected
+        }
+    }
+    
+    struct EnvironmentContext: Codable {
+        let lightLevel: String            // "어두움", "밝음", "보통"
+        let noiseLevel: Float             // 0.0-1.0 주변 소음
+        let weatherCondition: String?     // 날씨 (가능시)
+        let location: String?             // "집", "사무실", "카페" 등 (일반화)
+        let timeOfUse: String             // "아침", "점심", "저녁", "밤", "새벽"
+        
+        init(
+            lightLevel: String = "보통",
+            noiseLevel: Float = 0.5,
+            weatherCondition: String? = nil,
+            location: String? = nil,
+            timeOfUse: String = "하루"
+        ) {
+            self.lightLevel = lightLevel
+            self.noiseLevel = noiseLevel
+            self.weatherCondition = weatherCondition
+            self.location = location
+            self.timeOfUse = timeOfUse
+        }
+    }
+}
+
+/// Phase 2: 사용자 프로필 벡터 (피드백 기반 분석)
+struct UserProfileVector {
+    // 사운드 선호도 (13차원)
+    let soundPreferences: [Float]
+    
+    // 시간대별 패턴 (24차원)
+    let timePreferences: [Float]
+    
+    // 감정별 패턴 (3차원: 긍정, 중성, 부정)
+    let emotionPatterns: [Float]
+    
+    // 사용 패턴 (13차원: 각 카테고리별 사용 빈도)
+    let usagePatterns: [Float]
+    
+    // 평균 만족도 (호환성을 위해 추가)
+    let averageSatisfaction: Float
+    
+    // 버전 선호도 (호환성을 위해 추가)
+    let versionPreferences: [Float]
+    
+    init(feedbackData: [PresetFeedback]) {
+        // 사운드 선호도 계산 (13차원)
+        self.soundPreferences = Self.calculateSoundPreferences(from: feedbackData)
+        
+        // 시간대별 선호도 계산 (24차원)
+        self.timePreferences = Self.calculateTimePreferences(from: feedbackData)
+        
+        // 감정별 패턴 계산 (3차원)
+        self.emotionPatterns = Self.calculateEmotionPatterns(from: feedbackData)
+        
+        // 사용 패턴 계산 (13차원)
+        self.usagePatterns = Self.calculateUsagePatterns(from: feedbackData)
+        
+        // 평균 만족도 계산
+        self.averageSatisfaction = Self.calculateAverageSatisfaction(from: feedbackData)
+        
+        // 버전 선호도 계산 (13차원)
+        self.versionPreferences = Self.calculateVersionPreferences(from: feedbackData)
+    }
+    
+    /// 특성 벡터로 변환 (53차원: 13+24+3+13)
+    func toFeatureVector() -> [Float] {
+        var vector: [Float] = []
+        vector.append(contentsOf: soundPreferences)
+        vector.append(contentsOf: timePreferences)
+        vector.append(contentsOf: emotionPatterns)
+        vector.append(contentsOf: usagePatterns)
+        return vector
+    }
+    
+    /// 배열로 변환 (호환성을 위해 추가)
+    func toArray() -> [Float] {
+        return toFeatureVector()
+    }
+    
+    // MARK: - 계산 메서드들
+    
+    private static func calculateSoundPreferences(from feedbackData: [PresetFeedback]) -> [Float] {
+        guard !feedbackData.isEmpty else {
+            return Array(repeating: 0.5, count: 13)
+        }
+        
+        var preferences: [Float] = Array(repeating: 0.0, count: 13)
+        var counts: [Int] = Array(repeating: 0, count: 13)
+        
+        for feedback in feedbackData {
+            let satisfaction = feedback.satisfactionScore
+            
+            for (index, volume) in feedback.finalVolumes.enumerated() {
+                if index < 13 && volume > 0 {
+                    preferences[index] += satisfaction * (volume / 100.0)
+                    counts[index] += 1
+                }
+            }
+        }
+        
+        // 평균 계산
+        for i in 0..<13 {
+            if counts[i] > 0 {
+                preferences[i] /= Float(counts[i])
+            } else {
+                preferences[i] = 0.5 // 기본값
+            }
+        }
+        
+        return preferences
+    }
+    
+    private static func calculateTimePreferences(from feedbackData: [PresetFeedback]) -> [Float] {
+        var timeStats: [Float] = Array(repeating: 0.0, count: 24)
+        var timeCounts: [Int] = Array(repeating: 0, count: 24)
+        
+        for feedback in feedbackData {
+            let hour = feedback.contextTime
+            if hour >= 0 && hour < 24 {
+                timeStats[hour] += feedback.satisfactionScore
+                timeCounts[hour] += 1
+            }
+        }
+        
+        // 평균 계산 및 정규화
+        for i in 0..<24 {
+            if timeCounts[i] > 0 {
+                timeStats[i] /= Float(timeCounts[i])
+            } else {
+                timeStats[i] = 0.5 // 기본값
+            }
+        }
+        
+        return timeStats
+    }
+    
+    private static func calculateEmotionPatterns(from feedbackData: [PresetFeedback]) -> [Float] {
+        var positiveScore: Float = 0.0
+        var neutralScore: Float = 0.0
+        var negativeScore: Float = 0.0
+        var posCount = 0, neuCount = 0, negCount = 0
+        
+        for feedback in feedbackData {
+            let satisfaction = feedback.satisfactionScore
+            
+            switch feedback.contextEmotion {
+            case "기쁨", "신남", "사랑", "행복":
+                positiveScore += satisfaction
+                posCount += 1
+            case "무덤덤", "평온":
+                neutralScore += satisfaction
+                neuCount += 1
+            default:
+                negativeScore += satisfaction
+                negCount += 1
+            }
+        }
+        
+        return [
+            posCount > 0 ? positiveScore / Float(posCount) : 0.5,
+            neuCount > 0 ? neutralScore / Float(neuCount) : 0.5,
+            negCount > 0 ? negativeScore / Float(negCount) : 0.5
+        ]
+    }
+    
+    private static func calculateUsagePatterns(from feedbackData: [PresetFeedback]) -> [Float] {
+        var usageFreq: [Float] = Array(repeating: 0.0, count: 13)
+        
+        let totalSessions = max(1, feedbackData.count)
+        
+        for feedback in feedbackData {
+            for (index, volume) in feedback.finalVolumes.enumerated() {
+                if index < 13 && volume > 0 {
+                    usageFreq[index] += 1.0
+                }
+            }
+        }
+        
+        // 정규화 (0-1 범위)
+        return usageFreq.map { $0 / Float(totalSessions) }
+    }
+    
+    private static func calculateAverageSatisfaction(from feedbackData: [PresetFeedback]) -> Float {
+        guard !feedbackData.isEmpty else { return 0.5 }
+        
+        let totalSatisfaction = feedbackData.reduce(0.0) { $0 + $1.satisfactionScore }
+        return totalSatisfaction / Float(feedbackData.count)
+    }
+    
+    private static func calculateVersionPreferences(from feedbackData: [PresetFeedback]) -> [Float] {
+        guard !feedbackData.isEmpty else {
+            return Array(repeating: 0.5, count: 13)
+        }
+        
+        var versionStats: [Float] = Array(repeating: 0.0, count: 13)
+        var versionCounts: [Int] = Array(repeating: 0, count: 13)
+        
+        for feedback in feedbackData {
+            let satisfaction = feedback.satisfactionScore
+            
+            for (index, version) in feedback.recommendedVersions.enumerated() {
+                if index < 13 {
+                    versionStats[index] += satisfaction * Float(version)
+                    versionCounts[index] += 1
+                }
+            }
+        }
+        
+        // 평균 계산
+        for i in 0..<13 {
+            if versionCounts[i] > 0 {
+                versionStats[i] /= Float(versionCounts[i])
+                versionStats[i] = versionStats[i] / 5.0 // 0-5 범위를 0-1로 정규화
+            } else {
+                versionStats[i] = 0.5 // 기본값
+            }
+        }
+        
+        return versionStats
     }
 }
 
@@ -850,3 +1192,124 @@ struct DeepSleepConstants {
         static let minVolume: Float = 0.0
     }
 }
+
+// MARK: - 향상된 감정 모델
+
+/// 고도화된 감정 분석 모델
+struct EnhancedEmotion: Codable {
+    let id: UUID
+    let timestamp: Date
+    let primaryEmotion: String
+    let intensity: Float // 0.0-1.0
+    let cognitiveState: CognitiveState
+    let physicalState: PhysicalState
+    let environmentalContext: EnvironmentalContext
+    let socialContext: SocialContext
+    
+    init(
+        primaryEmotion: String,
+        intensity: Float,
+        cognitiveState: CognitiveState = CognitiveState(),
+        physicalState: PhysicalState = PhysicalState(),
+        environmentalContext: EnvironmentalContext = EnvironmentalContext(),
+        socialContext: SocialContext = SocialContext()
+    ) {
+        self.id = UUID()
+        self.timestamp = Date()
+        self.primaryEmotion = primaryEmotion
+        self.intensity = max(0.0, min(1.0, intensity))
+        self.cognitiveState = cognitiveState
+        self.physicalState = physicalState
+        self.environmentalContext = environmentalContext
+        self.socialContext = socialContext
+    }
+    
+    struct CognitiveState: Codable {
+        let focus: Float // 0.0-1.0
+        let energy: Float // 0.0-1.0
+        let motivation: Float // 0.0-1.0
+        let clarity: Float // 0.0-1.0
+        
+        init(focus: Float = 0.5, energy: Float = 0.5, motivation: Float = 0.5, clarity: Float = 0.5) {
+            self.focus = max(0.0, min(1.0, focus))
+            self.energy = max(0.0, min(1.0, energy))
+            self.motivation = max(0.0, min(1.0, motivation))
+            self.clarity = max(0.0, min(1.0, clarity))
+        }
+    }
+    
+    struct PhysicalState: Codable {
+        let tension: Float // 0.0-1.0
+        let fatigue: Float // 0.0-1.0
+        let restlessness: Float // 0.0-1.0
+        
+        init(tension: Float = 0.5, fatigue: Float = 0.5, restlessness: Float = 0.5) {
+            self.tension = max(0.0, min(1.0, tension))
+            self.fatigue = max(0.0, min(1.0, fatigue))
+            self.restlessness = max(0.0, min(1.0, restlessness))
+        }
+    }
+    
+    struct EnvironmentalContext: Codable {
+        let location: String // "home", "office", "public", "nature"
+        let noiseLevel: Float // 0.0-1.0
+        let lighting: String // "bright", "dim", "natural", "artificial"
+        let temperature: String // "cold", "cool", "comfortable", "warm", "hot"
+        
+        init(
+            location: String = "unknown",
+            noiseLevel: Float = 0.5,
+            lighting: String = "natural",
+            temperature: String = "comfortable"
+        ) {
+            self.location = location
+            self.noiseLevel = max(0.0, min(1.0, noiseLevel))
+            self.lighting = lighting
+            self.temperature = temperature
+        }
+    }
+    
+    struct SocialContext: Codable {
+        let alone: Bool
+        let socialPressure: Float // 0.0-1.0
+        let supportLevel: Float // 0.0-1.0
+        
+        init(alone: Bool = true, socialPressure: Float = 0.0, supportLevel: Float = 0.5) {
+            self.alone = alone
+            self.socialPressure = max(0.0, min(1.0, socialPressure))
+            self.supportLevel = max(0.0, min(1.0, supportLevel))
+        }
+    }
+    
+    /// 전체적인 웰빙 점수 계산
+    var wellbeingScore: Float {
+        let positiveEmotions = ["😊", "😄", "🥰", "😌", "🙂", "😍", "🤗", "😇"]
+        let baseScore = positiveEmotions.contains(primaryEmotion) ? intensity : (1.0 - intensity)
+        let cognitiveBonus = (cognitiveState.focus + cognitiveState.energy + cognitiveState.motivation + cognitiveState.clarity) / 4.0 * 0.3
+        return min(1.0, baseScore + cognitiveBonus)
+    }
+}
+
+// MARK: - Master Recommendation 모델
+struct MasterRecommendation: Codable {
+    let id: UUID
+    let recommendedVolumes: [Float]
+    let recommendedVersions: [Int]
+    let confidenceScore: Float
+    let reasoning: String
+    let estimatedDuration: Int
+    let adaptationLevel: String
+    let createdAt: Date
+    
+    init(recommendedVolumes: [Float], recommendedVersions: [Int], confidenceScore: Float, reasoning: String, estimatedDuration: Int, adaptationLevel: String) {
+        self.id = UUID()
+        self.recommendedVolumes = recommendedVolumes
+        self.recommendedVersions = recommendedVersions
+        self.confidenceScore = confidenceScore
+        self.reasoning = reasoning
+        self.estimatedDuration = estimatedDuration
+        self.adaptationLevel = adaptationLevel
+        self.createdAt = Date()
+    }
+}
+

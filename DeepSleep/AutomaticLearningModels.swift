@@ -1307,7 +1307,10 @@ extension ComprehensiveRecommendationEngine {
     }
     
     func analyzeTriggerPatterns(emotions: [EnhancedEmotion]) -> [String] {
-        let allTriggers = emotions.flatMap { $0.triggers }
+        // 환경 맥락에서 위치 정보를 트리거로 활용
+        let allTriggers = emotions.compactMap { emotion in
+            emotion.environmentalContext.location != "unknown" ? emotion.environmentalContext.location : nil
+        }
         let triggerCounts = Dictionary(grouping: allTriggers) { $0 }
             .mapValues { $0.count }
         
@@ -1318,7 +1321,7 @@ extension ComprehensiveRecommendationEngine {
     }
     
     func findDominantEmotion(emotions: [EnhancedEmotion]) -> String {
-        let emotionCounts = Dictionary(grouping: emotions) { $0.emotion }
+        let emotionCounts = Dictionary(grouping: emotions) { $0.primaryEmotion }
             .mapValues { $0.count }
         
         return emotionCounts.max { $0.value < $1.value }?.key ?? "평온"

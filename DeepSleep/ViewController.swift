@@ -84,6 +84,11 @@ class ViewController: UIViewController {
             name: NSNotification.Name("PresetBlocksNeedUpdate"),
             object: nil
         )
+        
+        // Phase 4: 온디바이스 학습 자동 트리거 시스템
+        Task {
+            await checkAndTriggerOnDeviceLearning()
+        }
     }
     
     // MARK: - 프리셋 마이그레이션
@@ -126,6 +131,7 @@ class ViewController: UIViewController {
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("ApplyPresetFromChat"), object: nil)
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LocalPresetApplied"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: .modelUpdated, object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
         stopPlaybackStateMonitoring()
@@ -233,6 +239,14 @@ class ViewController: UIViewController {
             self,
             selector: #selector(handleLocalPresetApplied(_:)),
             name: NSNotification.Name("LocalPresetApplied"),
+            object: nil
+        )
+        
+        // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleModelUpdated),
+            name: .modelUpdated,
             object: nil
         )
     }
@@ -835,6 +849,59 @@ class ViewController: UIViewController {
     @objc private func handlePresetBlocksUpdate() {
         print("📢 [ViewController] 프리셋 블록 업데이트 알림 수신")
         updatePresetBlocks()
+    }
+
+    // MARK: - Phase 4: 온디바이스 학습 자동 트리거
+
+    /// 온디바이스 학습 조건 검사 및 자동 트리거
+    @MainActor
+    private func checkAndTriggerOnDeviceLearning() async {
+        print("🤖 [Auto Learning] 온디바이스 학습 조건 검사 시작...")
+        
+        // 백그라운드에서 학습 조건 검사
+        Task.detached(priority: .background) {
+            let shouldUpdate = await ComprehensiveRecommendationEngine.shared.triggerModelUpdate()
+            
+            if shouldUpdate {
+                // 학습 완료 후 모델 적용
+                await MainActor.run {
+                    ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
+                    print("🎉 [Auto Learning] 자동 학습 및 모델 업데이트 완료!")
+                }
+            } else {
+                print("📊 [Auto Learning] 현재 학습 조건 미충족 - 기존 모델 유지")
+            }
+        }
+    }
+
+    // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 처리
+    @objc private func handleModelUpdated() {
+        print("🎉 [Auto Learning] 온디바이스 학습 모델 업데이트 완료")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let currentVolumes = self.getCurrentVolumes()
+            let currentVersions = self.getCurrentVersions()
+            
+            self.updateAllSlidersAndFields(volumes: currentVolumes, versions: currentVersions)
+            self.updatePlayButtonStates()
+            self.updatePresetBlocks()
+            self.updateAllCategoryButtonTitles()
+            self.updateAllVersionButtons()
+            
+            // 메인 탭으로 이동
+            if let tabBarController = self.tabBarController {
+                tabBarController.selectedIndex = 0
+                print("🏠 메인 탭으로 이동 완료")
+            }
+            
+            // 피드백
+            self.showToast(message: "앱 분석 추천 모델 업데이트 완료")
+            self.provideMediumHapticFeedback()
+            
+            print("🔄 [ViewController [\(self.instanceUUID)] 로컬 추천 UI 업데이트 완료")
+        }
     }
 }
 

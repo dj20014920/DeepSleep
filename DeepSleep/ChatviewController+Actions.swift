@@ -258,7 +258,7 @@ extension ChatViewController {
     }
     
     /// 마스터 추천 메시지 생성 (최고 수준의 개인화)
-    private func createMasterRecommendationMessage(_ recommendation: MasterRecommendation) -> String {
+    private func createMasterRecommendationMessage(_ recommendation: ComprehensiveMasterRecommendation) -> String {
         let primary = recommendation.primaryRecommendation
         let metadata = recommendation.processingMetadata
         
@@ -299,7 +299,7 @@ extension ChatViewController {
     }
     
     /// 마스터 추천 적용
-    private func applyMasterRecommendation(_ recommendation: MasterRecommendation) {
+    private func applyMasterRecommendation(_ recommendation: ComprehensiveMasterRecommendation) {
         let primary = recommendation.primaryRecommendation
         
         // 1. 프리셋 적용
@@ -333,7 +333,7 @@ extension ChatViewController {
     }
     
     /// 자동 세션 추적 시작
-    private func startAutomaticSessionTracking(with recommendation: MasterRecommendation) {
+    private func startAutomaticSessionTracking(with recommendation: ComprehensiveMasterRecommendation) {
         // 현재 세션 컨텍스트 캡처
         let sessionContext = [
             "recommendation_id": recommendation.primaryRecommendation.presetName,
@@ -347,7 +347,7 @@ extension ChatViewController {
     }
     
     /// 자동 만족도 평가 (피드백 요청 없이)
-    private func performAutomaticSatisfactionAssessment(recommendation: MasterRecommendation) {
+    private func performAutomaticSatisfactionAssessment(recommendation: ComprehensiveMasterRecommendation) {
         // 현재 세션 정보 로드
         guard let sessionContext = UserDefaults.standard.dictionary(forKey: "currentMasterSession") as? [String: String],
               let startTime = UserDefaults.standard.object(forKey: "masterSessionStartTime") as? TimeInterval else {
@@ -436,7 +436,7 @@ extension ChatViewController {
     }
     
     /// 자동 학습 데이터 업데이트
-    func updateAutomaticLearningData(recommendation: MasterRecommendation, actualSatisfaction: Float, sessionMetrics: AutomaticLearningModels.SessionMetrics) {
+    func updateAutomaticLearningData(recommendation: ComprehensiveMasterRecommendation, actualSatisfaction: Float, sessionMetrics: AutomaticLearningModels.SessionMetrics) {
         // 예상 만족도와 실제 만족도 비교
         let predictionAccuracy = 1.0 - abs(recommendation.primaryRecommendation.expectedSatisfaction - actualSatisfaction)
         
