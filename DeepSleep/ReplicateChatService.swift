@@ -1082,14 +1082,9 @@ class ReplicateChatService {
         return prompt
     }
 
-    // MARK: - AI 조언 관련 메서드
+    // MARK: - 🔐 새로운 보안 환경 설정 시스템 사용
     private var apiKey: String {
-        guard let key = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String, !key.isEmpty else {
-            print("🚨 REPLICATE_API_TOKEN이 Info.plist에 설정되지 않았습니다.")
-            print("🔧 Secrets.xcconfig 파일에 유효한 API 키를 설정하고 프로젝트를 다시 빌드하세요.")
-            return ""
-        }
-        return key
+        return EnvironmentConfig.shared.replicateAPIKey
     }
 
     enum ServiceError: Error, LocalizedError {
