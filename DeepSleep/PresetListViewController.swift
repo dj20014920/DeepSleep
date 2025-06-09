@@ -6,6 +6,7 @@ class PresetTableViewCell: UITableViewCell {
     static let identifier = "PresetTableViewCell"
     
     var onFavoriteToggle: (() -> Void)?
+    var onSelectionToggle: (() -> Void)?
     
     private let titleLabel: UILabel = {
         let label = UILabel()
@@ -29,6 +30,14 @@ class PresetTableViewCell: UITableViewCell {
         return button
     }()
     
+    private let selectionButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.titleLabel?.font = .systemFont(ofSize: 24)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.isHidden = true
+        return button
+    }()
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
@@ -39,21 +48,27 @@ class PresetTableViewCell: UITableViewCell {
     }
     
     private func setupUI() {
-        [titleLabel, subtitleLabel, favoriteButton].forEach {
+        [titleLabel, subtitleLabel, favoriteButton, selectionButton].forEach {
             contentView.addSubview($0)
         }
         
         favoriteButton.addTarget(self, action: #selector(favoriteButtonTapped), for: .touchUpInside)
+        selectionButton.addTarget(self, action: #selector(selectionButtonTapped), for: .touchUpInside)
         
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8),
             titleLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -8),
             
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            subtitleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8),
             subtitleLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -8),
             subtitleLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            
+            selectionButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            selectionButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            selectionButton.widthAnchor.constraint(equalToConstant: 30),
+            selectionButton.heightAnchor.constraint(equalToConstant: 30),
             
             favoriteButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             favoriteButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
@@ -66,12 +81,32 @@ class PresetTableViewCell: UITableViewCell {
         onFavoriteToggle?()
     }
     
-    func configure(with preset: SoundPreset, isFavorite: Bool) {
+    @objc private func selectionButtonTapped() {
+        onSelectionToggle?()
+    }
+    
+    func configure(with preset: SoundPreset, isFavorite: Bool, isSelected: Bool = false, isInSelectionMode: Bool = false) {
         titleLabel.text = preset.name
         subtitleLabel.text = preset.description ?? "프리셋"
         
         favoriteButton.setTitle(isFavorite ? "⭐️" : "☆", for: .normal)
         favoriteButton.setTitleColor(isFavorite ? .systemYellow : .systemGray3, for: .normal)
+        
+        // 선택 모드 UI 업데이트
+        selectionButton.isHidden = !isInSelectionMode
+        
+        if isInSelectionMode {
+            selectionButton.setTitle(isSelected ? "☑️" : "☐", for: .normal)
+            selectionButton.setTitleColor(isSelected ? .systemBlue : .systemGray3, for: .normal)
+            
+            // 선택 모드일 때 titleLabel 위치 조정
+            titleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8).isActive = true
+            subtitleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8).isActive = true
+        } else {
+            // 일반 모드일 때 titleLabel 위치 조정  
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16).isActive = true
+            subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16).isActive = true
+        }
     }
 }
 
@@ -81,6 +116,12 @@ class PresetListViewController: UITableViewController {
     
     // 즐겨찾기 ID들을 저장하는 Set (최대 4개)
     private var favoritePresetIds: Set<UUID> = []
+    
+    // 선택 삭제 모드 관련 프로퍼티
+    private var isInSelectionMode = false
+    private var selectedPresetIds: Set<UUID> = []
+    private var selectAllButton: UIBarButtonItem!
+    private var deleteSelectedButton: UIBarButtonItem!
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -101,21 +142,35 @@ class PresetListViewController: UITableViewController {
         )
         importButton.title = "가져오기"
         
-        // 🛠️ 디버그: 즐겨찾기 초기화 버튼 (임시)
-        let resetButton = UIBarButtonItem(
+        // 선택 삭제 버튼
+        let deleteButton = UIBarButtonItem(
             image: UIImage(systemName: "trash.circle"),
             style: .plain,
             target: self,
-            action: #selector(resetFavoritesTapped)
+            action: #selector(deleteButtonTapped)
         )
-        resetButton.title = "초기화"
-        resetButton.tintColor = .systemRed
+        deleteButton.title = "선택삭제"
+        deleteButton.tintColor = .systemRed
         
-        navigationItem.rightBarButtonItems = [importButton, resetButton]
+        // 선택 모드용 버튼들 (처음에는 숨김)
+        selectAllButton = UIBarButtonItem(
+            title: "전체선택",
+            style: .plain,
+            target: self,
+            action: #selector(selectAllTapped)
+        )
+        
+        deleteSelectedButton = UIBarButtonItem(
+            title: "삭제",
+            style: .plain,
+            target: self,
+            action: #selector(deleteSelectedTapped)
+        )
+        deleteSelectedButton.tintColor = .systemRed
+        
+        navigationItem.rightBarButtonItems = [importButton, deleteButton]
     }
     
-
-
     func loadPresets() {
         presets = SettingsManager.shared.loadSoundPresets()
         tableView.reloadData()
@@ -246,51 +301,145 @@ class PresetListViewController: UITableViewController {
         return presets.filter { favoritePresetIds.contains($0.id) }
     }
     
-    // MARK: - 🛠️ 디버그 메서드들
+    // MARK: - 선택 삭제 기능
     
-    @objc private func resetFavoritesTapped() {
+    @objc private func deleteButtonTapped() {
+        toggleSelectionMode()
+    }
+    
+    @objc private func selectAllTapped() {
+        if selectedPresetIds.count == presets.count {
+            // 전체 해제
+            selectedPresetIds.removeAll()
+            selectAllButton.title = "전체선택"
+        } else {
+            // 전체 선택
+            selectedPresetIds = Set(presets.map { $0.id })
+            selectAllButton.title = "전체해제"
+        }
+        updateDeleteButtonState()
+        tableView.reloadData()
+    }
+    
+    @objc private func deleteSelectedTapped() {
+        guard !selectedPresetIds.isEmpty else { return }
+        
         let alert = UIAlertController(
-            title: "즐겨찾기 초기화",
-            message: "모든 즐겨찾기를 제거하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+            title: "프리셋 삭제",
+            message: "\(selectedPresetIds.count)개의 프리셋을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
             preferredStyle: .alert
         )
         
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "초기화", style: .destructive) { [weak self] _ in
-            self?.resetAllFavorites()
+        alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
+            self?.performBatchDelete()
         })
         
         present(alert, animated: true)
     }
     
-    private func resetAllFavorites() {
-        print("🗑️ [resetAllFavorites] 즐겨찾기 완전 초기화 시작")
+    private func toggleSelectionMode() {
+        isInSelectionMode.toggle()
+        selectedPresetIds.removeAll()
         
-        // 메모리에서 즐겨찾기 제거
-        favoritePresetIds.removeAll()
-        
-        // UserDefaults에서 제거
-        UserDefaults.standard.removeObject(forKey: "FavoritePresetIds")
-        UserDefaults.standard.synchronize()
-        
-        // 테이블뷰 리로드
-        DispatchQueue.main.async {
-            self.tableView.reloadData()
+        if isInSelectionMode {
+            // 선택 모드 진입
+            title = "삭제할 프리셋 선택"
+            navigationItem.leftBarButtonItem = UIBarButtonItem(
+                title: "취소",
+                style: .plain,
+                target: self,
+                action: #selector(cancelSelectionMode)
+            )
+            navigationItem.rightBarButtonItems = [selectAllButton, deleteSelectedButton]
+            selectAllButton.title = "전체선택"
+            updateDeleteButtonState()
+        } else {
+            // 선택 모드 종료
+            title = "프리셋 관리"
+            navigationItem.leftBarButtonItem = nil
+            let importButton = UIBarButtonItem(
+                image: UIImage(systemName: "square.and.arrow.down"),
+                style: .plain,
+                target: self,
+                action: #selector(importPresetTapped)
+            )
+            let deleteButton = UIBarButtonItem(
+                image: UIImage(systemName: "trash.circle"),
+                style: .plain,
+                target: self,
+                action: #selector(deleteButtonTapped)
+            )
+            deleteButton.tintColor = .systemRed
+            navigationItem.rightBarButtonItems = [importButton, deleteButton]
         }
         
-        // 메인 화면 즐겨찾기 블록 업데이트
+        tableView.reloadData()
+    }
+    
+    @objc private func cancelSelectionMode() {
+        isInSelectionMode = false
+        selectedPresetIds.removeAll()
+        toggleSelectionMode()
+    }
+    
+    private func updateDeleteButtonState() {
+        deleteSelectedButton.isEnabled = !selectedPresetIds.isEmpty
+        deleteSelectedButton.title = selectedPresetIds.isEmpty ? "삭제" : "삭제(\(selectedPresetIds.count))"
+    }
+    
+    private func toggleSelection(for preset: SoundPreset) {
+        if selectedPresetIds.contains(preset.id) {
+            selectedPresetIds.remove(preset.id)
+        } else {
+            selectedPresetIds.insert(preset.id)
+        }
+        
+        // 전체선택/해제 버튼 텍스트 업데이트
+        selectAllButton.title = selectedPresetIds.count == presets.count ? "전체해제" : "전체선택"
+        
+        updateDeleteButtonState()
+        
+        // 해당 셀만 업데이트
+        if let index = presets.firstIndex(where: { $0.id == preset.id }) {
+            let indexPath = IndexPath(row: index, section: 0)
+            tableView.reloadRows(at: [indexPath], with: .none)
+        }
+    }
+    
+    private func performBatchDelete() {
+        let presetsToDelete = presets.filter { selectedPresetIds.contains($0.id) }
+        
+        print("🗑️ [performBatchDelete] \(presetsToDelete.count)개 프리셋 삭제 시작")
+        
+        // 즐겨찾기에서도 제거
+        for preset in presetsToDelete {
+            favoritePresetIds.remove(preset.id)
+            SettingsManager.shared.deleteSoundPreset(id: preset.id)
+        }
+        
+        // 즐겨찾기 저장
+        saveFavorites()
+        
+        // 메인 화면 업데이트 알림
         NotificationCenter.default.post(name: NSNotification.Name("FavoritesUpdated"), object: nil)
         
-        print("✅ [resetAllFavorites] 즐겨찾기 완전 초기화 완료")
+        // 프리셋 목록 새로고침
+        loadPresets()
         
-        // 성공 메시지 표시
-        let successAlert = UIAlertController(
-            title: "초기화 완료",
-            message: "모든 즐겨찾기가 제거되었습니다.",
+        // 선택 모드 종료
+        toggleSelectionMode()
+        
+        print("✅ [performBatchDelete] 삭제 완료")
+        
+        // 성공 메시지
+        let alert = UIAlertController(
+            title: "삭제 완료",
+            message: "\(presetsToDelete.count)개의 프리셋이 삭제되었습니다.",
             preferredStyle: .alert
         )
-        successAlert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(successAlert, animated: true)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
     }
 
     // MARK: - TableView 기본 구성
@@ -318,10 +467,16 @@ class PresetListViewController: UITableViewController {
         
         let preset = presets[indexPath.row]
         let isFavorite = favoritePresetIds.contains(preset.id)
+        let isSelected = selectedPresetIds.contains(preset.id)
         
-        cell.configure(with: preset, isFavorite: isFavorite)
+        cell.configure(with: preset, isFavorite: isFavorite, isSelected: isSelected, isInSelectionMode: isInSelectionMode)
+        
         cell.onFavoriteToggle = { [weak self] in
             self?.toggleFavorite(for: preset)
+        }
+        
+        cell.onSelectionToggle = { [weak self] in
+            self?.toggleSelection(for: preset)
         }
         
         return cell
@@ -329,8 +484,17 @@ class PresetListViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        onPresetSelected?(presets[indexPath.row])
-        navigationController?.popViewController(animated: true)
+        
+        let preset = presets[indexPath.row]
+        
+        if isInSelectionMode {
+            // 선택 모드일 때는 프리셋 선택/해제
+            toggleSelection(for: preset)
+        } else {
+            // 일반 모드일 때는 프리셋 적용하고 돌아가기
+            onPresetSelected?(preset)
+            navigationController?.popViewController(animated: true)
+        }
     }
 
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
@@ -514,41 +678,13 @@ class PresetListViewController: UITableViewController {
     }
     
     private func sharePresetAsURL(_ preset: SoundPreset) {
-        guard let shareURL = encodePresetAsURL(preset) else {
-            showError(message: "프리셋 인코딩에 실패했습니다.")
-            return
-        }
-        
-        let message = """
-        🎵 EmoZleep 프리셋: \(preset.name)
-        
-        아래 링크를 클릭하여 프리셋을 가져오세요:
-        
-        \(shareURL)
-        
-        (이 링크는 24시간 후 만료됩니다)
-        """
-        
-        shareContent(message)
+        // PresetSharingManager의 통일된 메서드 사용
+        PresetSharingManager.shared.sharePreset(preset, from: self, preferNumericCode: false)
     }
     
     private func sharePresetAsCode(_ preset: SoundPreset) {
-        guard let shareCode = encodePresetAsCode(preset) else {
-            showError(message: "프리셋 인코딩에 실패했습니다.")
-            return
-        }
-        
-        let message = """
-        🎵 EmoZleep 프리셋: \(preset.name)
-        
-        아래 코드를 EmoZleep 앱에서 가져오기하여 프리셋을 사용하세요:
-        
-        \(shareCode)
-        
-        (이 코드는 24시간 후 만료됩니다)
-        """
-        
-        shareContent(message)
+        // PresetSharingManager의 통일된 메서드 사용
+        PresetSharingManager.shared.sharePreset(preset, from: self, preferNumericCode: true)
     }
     
     private func shareContent(_ content: String) {
@@ -567,181 +703,22 @@ class PresetListViewController: UITableViewController {
         present(activityVC, animated: true)
     }
     
-    // MARK: - 프리셋 인코딩/디코딩
-    
-    private func encodePresetAsURL(_ preset: SoundPreset) -> String? {
-        do {
-            let shareablePreset = ShareablePreset(from: preset)
-            let jsonData = try JSONEncoder().encode(shareablePreset)
-                         let base64String = jsonData.base64EncodedString()
-             
-             return "emozleep://preset?data=\(base64String)"
-        } catch {
-            print("❌ 프리셋 인코딩 실패: \(error)")
-            return nil
-        }
-    }
-    
-    private func encodePresetAsCode(_ preset: SoundPreset) -> String? {
-        let volumes = preset.compatibleVolumes
-        let versions = preset.compatibleVersions
-        
-        var code = "EZL"  // EmoZleep 식별자
-        code += "v10"     // 버전 정보
-        
-        // 볼륨 정보 (각각 2자리, 00-99)
-        for volume in volumes {
-            let normalizedVolume = Int(min(99, max(0, volume)))
-            code += String(format: "%02d", normalizedVolume)
-        }
-        
-        // 버전 선택 정보 (각각 1자리, 0-9)
-        for version in versions {
-            code += String(min(9, max(0, version)))
-        }
-        
-        // 체크섬 (4자리)
-        let dataToHash = volumes.map { String(Int($0)) }.joined() + versions.map { String($0) }.joined()
-        let hash = dataToHash.hash
-        let checksum = String(format: "%04d", abs(hash % 10000))
-        code += checksum
-        
-        return code
-    }
+    // MARK: - 프리셋 인코딩/디코딩 (PresetSharingManager로 위임)
     
     private func importPreset(from shareCode: String) {
-        // URL 스키마 처리
-        if shareCode.hasPrefix("emozleep://") {
-            importFromURL(shareCode)
-        }
-        // 숫자 코드 처리
-        else if shareCode.hasPrefix("EZ") {
-            importFromCode(shareCode)
-        }
-        // Base64 직접 처리
-        else {
-            importFromBase64(shareCode)
-        }
-    }
-    
-    private func importFromURL(_ urlString: String) {
-        guard let url = URL(string: urlString),
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let queryItems = components.queryItems,
-              let dataItem = queryItems.first(where: { $0.name == "data" }),
-              let base64Data = dataItem.value else {
-            showError(message: "올바르지 않은 링크 형식입니다.")
-            return
-        }
-        
-        importFromBase64(base64Data)
-    }
-    
-    private func importFromBase64(_ base64String: String) {
-        guard let data = Data(base64Encoded: base64String) else {
-            showError(message: "올바르지 않은 형식의 공유 코드입니다.")
-            return
-        }
-        
-        do {
-            let shareablePreset = try JSONDecoder().decode(ShareablePreset.self, from: data)
-            
-            // 만료 시간 검증
-            if shareablePreset.expiresAt < Date() {
-                showError(message: "공유 코드가 만료되었습니다. (24시간 제한)")
-                return
+        // PresetSharingManager의 통일된 메서드 사용
+        PresetSharingManager.shared.importPreset(from: shareCode) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let preset):
+                    self?.showImportSuccess(preset)
+                case .failure(let error):
+                    self?.showError(message: error.localizedDescription)
+                }
             }
-            
-            // 프리셋 생성 및 저장
-            let preset = SoundPreset(
-                name: shareablePreset.name,
-                volumes: shareablePreset.volumes,
-                selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersions,
-                emotion: shareablePreset.emotion,
-                isAIGenerated: false,
-                description: "공유받은 프리셋"
-            )
-            
-            showImportSuccess(preset)
-            
-        } catch {
-            showError(message: "공유 코드 해석에 실패했습니다.")
         }
     }
-    
-    private func importFromCode(_ code: String) {
-        // EZ + (11자리 볼륨) + (1자리 버전) + (2자리 체크섬) = 16자리
-        guard code.count == 16 else {
-            showError(message: "올바르지 않은 코드 길이입니다. (16자리 필요)")
-            return
-        }
-        
-        let prefix = String(code.prefix(2))  // EZ
-        guard prefix == "EZ" else {
-            showError(message: "올바르지 않은 코드 형식입니다.")
-            return
-        }
-        
-        // 볼륨 추출 (11자리, Base36 디코딩)
-        var volumes: [Float] = []
-        let volumeStart = code.index(code.startIndex, offsetBy: 2)
-        for i in 0..<11 {
-            let index = code.index(volumeStart, offsetBy: i)
-            let volumeChar = String(code[index])
-            
-            guard let compressed = Int(volumeChar, radix: 36) else {
-                showError(message: "코드의 볼륨 데이터가 손상되었습니다.")
-                return
-            }
-            
-            // 0-35를 0-100으로 복원
-            let volume = Float(compressed * 100 / 35)
-            volumes.append(min(100, volume))
-        }
-        
-        // 버전 정보 추출 (1자리)
-        let versionIndex = code.index(code.startIndex, offsetBy: 13)
-        let versionChar = String(code[versionIndex])
-        guard let versionBits = Int(versionChar, radix: 36) else {
-            showError(message: "코드의 버전 데이터가 손상되었습니다.")
-            return
-        }
-        
-        // 기본 버전 배열 생성
-        var versions = SoundPresetCatalog.defaultVersions
-        
-        // 비트마스크 디코딩
-        if versionBits & 1 != 0 { versions[4] = 1 }  // 비 V2
-        if versionBits & 2 != 0 { versions[9] = 1 }  // 키보드 V2
-        
-        // 체크섬 검증 (2자리)
-        let checksumPart = String(code.suffix(2))
-        guard let receivedChecksum = Int(checksumPart) else {
-            showError(message: "코드의 체크섬이 손상되었습니다.")
-            return
-        }
-        
-        let volumeSum = volumes.reduce(0, +)
-        let expectedChecksum = Int(volumeSum) % 100
-        
-        guard receivedChecksum == expectedChecksum else {
-            showError(message: "코드의 무결성 검증에 실패했습니다.")
-            return
-        }
-        
-        // 프리셋 생성
-        let preset = SoundPreset(
-            name: "공유받은 프리셋",
-            volumes: volumes,
-            selectedVersions: versions,
-            emotion: nil,
-            isAIGenerated: false,
-            description: "친구로부터 공유받은 프리셋"
-        )
-        
-        showImportSuccess(preset)
-    }
-    
+
     private func showImportSuccess(_ preset: SoundPreset) {
         let alert = UIAlertController(
             title: "✅ 가져오기 성공",
@@ -782,35 +759,4 @@ class PresetListViewController: UITableViewController {
     }
 }
 
-// MARK: - 공유 데이터 모델
-private struct ShareablePreset: Codable {
-    let version: String
-    let name: String
-    let volumes: [Float]
-    let versions: [Int]?
-    let emotion: String?
-    let description: String?
-    let createdAt: Date
-    let expiresAt: Date
-    let checksum: String
-    
-    init(from preset: SoundPreset) {
-        self.version = "v1.0"
-        self.name = preset.name
-        self.volumes = preset.compatibleVolumes
-        self.versions = preset.compatibleVersions
-        self.emotion = preset.emotion
-        self.description = preset.description
-        self.createdAt = Date()
-        self.expiresAt = Date().addingTimeInterval(24 * 3600) // 24시간 후 만료
-        
-        // 체크섬 계산
-        let volumeString = volumes.map { String(format: "%.2f", $0) }.joined(separator: ",")
-        let versionString = (versions ?? []).map { String($0) }.joined(separator: ",")
-        let dataToHash = "\(name)|\(volumeString)|\(versionString)|\(createdAt.timeIntervalSince1970)"
-        
-        let data = Data(dataToHash.utf8)
-        let hashed = SHA256.hash(data: data)
-        self.checksum = hashed.compactMap { String(format: "%02x", $0) }.joined().prefix(8).lowercased()
-    }
-}
+// MARK: - 공유 기능은 PresetSharingManager로 위임됨

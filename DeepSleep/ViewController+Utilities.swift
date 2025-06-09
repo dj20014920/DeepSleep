@@ -379,64 +379,13 @@ extension ViewController {
     }
     
     private func sharePresetAsURL(_ preset: SoundPreset) {
-        do {
-            let shareablePreset = ShareablePreset(from: preset)
-            let jsonData = try JSONEncoder().encode(shareablePreset)
-                         let base64String = jsonData.base64EncodedString()
-             let shareURL = "emozleep://preset?data=\(base64String)"
-            
-                         let message = """
-             🎵 EmoZleep 프리셋: \(preset.name)
-             
-             아래 링크를 클릭하여 프리셋을 가져오세요:
-             
-             \(shareURL)
-             
-             (이 링크는 24시간 후 만료됩니다)
-             """
-            
-            shareContent(message)
-        } catch {
-            showPresetAppliedFeedback(name: "프리셋 인코딩에 실패했습니다.")
-        }
+        // PresetSharingManager의 통일된 메서드 사용
+        PresetSharingManager.shared.sharePreset(preset, from: self, preferNumericCode: false)
     }
     
     private func sharePresetAsCode(_ preset: SoundPreset) {
-        let volumes = preset.compatibleVolumes
-        let versions = preset.compatibleVersions
-        
-        var code = "EZ"  // EmoZleep 식별자 (2자리)
-        
-        // 볼륨을 Base36으로 압축 (0-100을 0-35로 매핑, 11자리)
-        for volume in volumes {
-            let normalizedVolume = Int(min(100, max(0, volume)))
-            let compressed = normalizedVolume * 35 / 100  // 0-100을 0-35로 압축
-            code += String(compressed, radix: 36)  // Base36 (0-9, a-z)
-        }
-        
-        // 버전 정보를 비트마스크로 압축 (1자리)
-        // 비(인덱스4)와 키보드(인덱스9)만 2가지 버전 있음
-        var versionBits = 0
-        if versions[4] == 1 { versionBits |= 1 }  // 비 V2
-        if versions[9] == 1 { versionBits |= 2 }  // 키보드 V2
-        code += String(versionBits, radix: 36)  // 0,1,2,3을 0,1,2,3으로
-        
-        // 간단한 체크섬 (2자리)
-        let volumeSum = volumes.reduce(0, +)
-        let checksum = Int(volumeSum) % 100  // 00-99로 제한
-        code += String(format: "%02d", checksum)
-        
-        let message = """
-        🎵 EmoZleep 프리셋: \(preset.name)
-        
-        아래 코드를 EmoZleep 앱에서 가져오기하여 프리셋을 사용하세요:
-        
-        \(code)
-        
-        (이 코드는 24시간 후 만료됩니다)
-        """
-        
-        shareContent(message)
+        // PresetSharingManager의 통일된 메서드 사용
+        PresetSharingManager.shared.sharePreset(preset, from: self, preferNumericCode: true)
     }
     
     private func shareContent(_ content: String) {
