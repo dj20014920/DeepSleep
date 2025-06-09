@@ -1,6 +1,181 @@
 import UIKit
 import FSCalendar
 
+// MARK: - ✅ GIF 고양이 로딩 뷰 (ChatBubbleCell에서 가져옴)
+class TodoGifCatView: UIView {
+    private let imageView = UIImageView()
+    private var catDirection: CGFloat = 1
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupImageView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupImageView()
+    }
+    
+    private func setupImageView() {
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.backgroundColor = .clear
+        addSubview(imageView)
+        
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        
+        setupGifCat()
+    }
+    
+    func setupGifCat() {
+        imageView.stopAnimating()
+        imageView.animationImages = nil
+        
+        let searchMethods = [
+            ("Bundle 루트", { Bundle.main.path(forResource: "cat", ofType: "gif") }),
+            ("Bundle URL", { Bundle.main.url(forResource: "cat", withExtension: "gif")?.path }),
+            ("Bundle with extension", { Bundle.main.path(forResource: "cat.gif", ofType: nil) })
+        ]
+        
+        for (method, pathFunc) in searchMethods {
+            if let gifPath = pathFunc() {
+                print("✅ \(method)에서 GIF 찾음: \(gifPath)")
+                if loadGifFromPath(gifPath) {
+                    return
+                }
+            } else {
+                print("❌ \(method) 실패")
+            }
+        }
+        
+        print("❌ Bundle에서 GIF 파일을 찾을 수 없음")
+        imageView.backgroundColor = UIColor.clear
+    }
+    
+    private func loadGifFromPath(_ path: String) -> Bool {
+        guard let gifData = NSData(contentsOfFile: path),
+              let source = CGImageSourceCreateWithData(gifData, nil) else {
+            print("❌ GIF 데이터 로드 실패: \(path)")
+            return false
+        }
+        
+        var images: [UIImage] = []
+        let count = CGImageSourceGetCount(source)
+        for i in 0..<count {
+            if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
+                images.append(UIImage(cgImage: cgImage))
+            }
+        }
+        
+        if !images.isEmpty {
+            DispatchQueue.main.async {
+                self.imageView.animationImages = images
+                self.imageView.animationDuration = Double(images.count) * 0.1
+                self.imageView.animationRepeatCount = 0
+                self.imageView.startAnimating()
+                self.imageView.contentMode = .scaleAspectFit
+                self.imageView.backgroundColor = .clear
+            }
+            return true
+        } else {
+            print("❌ GIF 프레임 변환 실패")
+            return false
+        }
+    }
+}
+
+// MARK: - ✅ 로딩 오버레이 뷰
+class LoadingOverlayView: UIView {
+    private let containerView = UIView()
+    private let gifCatView = TodoGifCatView()
+    private let thinkingLabel = UILabel()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupUI()
+    }
+    
+    private func setupUI() {
+        backgroundColor = UIColor.black.withAlphaComponent(0.3)
+        
+        // 컨테이너 뷰 설정
+        containerView.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
+        containerView.layer.cornerRadius = 16
+        containerView.layer.shadowColor = UIColor.black.cgColor
+        containerView.layer.shadowOffset = CGSize(width: 0, height: 4)
+        containerView.layer.shadowOpacity = 0.2
+        containerView.layer.shadowRadius = 8
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(containerView)
+        
+        // 고양이 뷰 설정
+        gifCatView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(gifCatView)
+        
+        // 생각중 라벨 설정
+        thinkingLabel.text = "생각중..."
+        thinkingLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        thinkingLabel.textColor = UIDesignSystem.Colors.primaryText
+        thinkingLabel.textAlignment = .center
+        thinkingLabel.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(thinkingLabel)
+        
+        NSLayoutConstraint.activate([
+            // 컨테이너 뷰
+            containerView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            containerView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            containerView.widthAnchor.constraint(equalToConstant: 120),
+            containerView.heightAnchor.constraint(equalToConstant: 100),
+            
+            // 고양이 뷰
+            gifCatView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
+            gifCatView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            gifCatView.widthAnchor.constraint(equalToConstant: 48),
+            gifCatView.heightAnchor.constraint(equalToConstant: 48),
+            
+            // 생각중 라벨
+            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 8),
+            thinkingLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
+            thinkingLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+            thinkingLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16)
+        ])
+    }
+    
+    func show(in parentView: UIView) {
+        alpha = 0
+        parentView.addSubview(self)
+        translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            topAnchor.constraint(equalTo: parentView.topAnchor),
+            leadingAnchor.constraint(equalTo: parentView.leadingAnchor),
+            trailingAnchor.constraint(equalTo: parentView.trailingAnchor),
+            bottomAnchor.constraint(equalTo: parentView.bottomAnchor)
+        ])
+        
+        UIView.animate(withDuration: 0.3) {
+            self.alpha = 1
+        }
+    }
+    
+    func hide() {
+        UIView.animate(withDuration: 0.3, animations: {
+            self.alpha = 0
+        }) { _ in
+            self.removeFromSuperview()
+        }
+    }
+}
+
 // UITableViewCell을 위한 간단한 커스텀 셀 (Todo 내용을 표시)
 class TodoTableViewCell: UITableViewCell {
     static let identifier = "TodoTableViewCell"
@@ -34,6 +209,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     private var selectedDateTodos: [TodoItem] = []
     private var selectedDate: Date = Date()
     private var selectedDateDiary: EmotionDiary? // 선택된 날짜의 감정 일기 저장
+    
+    // 🆕 로딩 오버레이 뷰
+    private var loadingOverlay: LoadingOverlayView?
 
     // 섹션 정의
     private enum CalendarSection: Int, CaseIterable {
@@ -327,6 +505,32 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return CalendarSection(rawValue: indexPath.section) == .todos
     }
+    
+    // 🆕 스와이프 액션 설정 (조언 기능 추가)
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        guard CalendarSection(rawValue: indexPath.section) == .todos else { return nil }
+        
+        let todo = selectedDateTodos[indexPath.row]
+        
+        // 조언 액션
+        let adviceAction = UIContextualAction(style: .normal, title: "조언") { [weak self] (action, view, completionHandler) in
+            self?.requestTodoAdvice(for: todo)
+            completionHandler(true)
+        }
+        adviceAction.backgroundColor = UIColor.systemBlue
+        adviceAction.image = UIImage(systemName: "lightbulb.fill")
+        
+        // 삭제 액션
+        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (action, view, completionHandler) in
+            self?.deleteTodo(at: indexPath)
+            completionHandler(true)
+        }
+        deleteAction.image = UIImage(systemName: "trash.fill")
+        
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, adviceAction])
+        configuration.performsFirstActionWithFullSwipe = false // 전체 스와이프로 자동 삭제 방지
+        return configuration
+    }
 
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard CalendarSection(rawValue: indexPath.section) == .todos, editingStyle == .delete else { return }
@@ -581,9 +785,14 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         구체적인 시간 배분, 작업 순서, 실행 팁을 포함해주세요.
         """
 
+        // 🔧 기존 로딩 표시 제거하고 새로운 오버레이 로딩 표시
         overallAdviceButton.setTitle("", for: .normal)
-        overallAdviceActivityIndicator.startAnimating()
+        overallAdviceActivityIndicator.stopAnimating()
         overallAdviceButton.isEnabled = false
+        
+        // 🆕 로딩 오버레이 표시
+        loadingOverlay = LoadingOverlayView()
+        loadingOverlay?.show(in: view)
 
         Task {
             do {
@@ -591,6 +800,10 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
+                    // 🔧 로딩 오버레이 숨기기
+                    self.loadingOverlay?.hide()
+                    self.loadingOverlay = nil
+                    
                     self.overallAdviceActivityIndicator.stopAnimating()
                     self.showAlert(title: "✨ 오늘의 전체 조언 ✨", message: advice)
                     AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
@@ -599,9 +812,193 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             } catch {
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
+                    // 🔧 로딩 오버레이 숨기기
+                    self.loadingOverlay?.hide()
+                    self.loadingOverlay = nil
+                    
                     self.overallAdviceActivityIndicator.stopAnimating()
-                    self.showAlert(title: "AI 조언 오류", message: "전체 조언을 받아오는 데 실패했습니다: \(error.localizedDescription)")
+                    
+                    // 구체적인 오류 메시지 제공
+                    var errorMessage = "전체 조언을 받아오는 데 실패했습니다."
+                    if let serviceError = error as? ReplicateChatService.ServiceError {
+                        switch serviceError {
+                        case .invalidAPIKey:
+                            errorMessage = "API 키 설정에 문제가 있습니다. 개발자에게 문의하세요."
+                        case .predictionTimeout:
+                            errorMessage = "응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+                        case .replicateAPIError(let detail):
+                            errorMessage = "API 오류: \(detail)"
+                        default:
+                            errorMessage = serviceError.localizedDescription
+                        }
+                    } else {
+                        errorMessage += " (\(error.localizedDescription))"
+                    }
+                    
+                    self.showAlert(title: "AI 조언 오류", message: errorMessage)
                     self.updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트 (다시 활성화 등)
+                }
+            }
+        }
+    }
+    
+    // MARK: - 🆕 할 일 개별 조언 기능
+    private func requestTodoAdvice(for todo: TodoItem) {
+        guard AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice) > 0 else {
+            showAlert(title: "알림", message: "오늘 사용할 수 있는 개별 할 일 조언 횟수를 모두 사용했습니다.")
+            return
+        }
+        
+        // 🆕 로딩 오버레이 표시
+        loadingOverlay = LoadingOverlayView()
+        loadingOverlay?.show(in: view)
+        
+        // 할 일 상세 정보 분석
+        let currentTime = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
+        let currentTimeString = timeFormatter.string(from: currentTime)
+        
+        let priorityText = ["낮음", "보통", "높음"][todo.priority]
+        let statusText = todo.isCompleted ? "완료됨" : "미완료"
+        let timeUntilDue = todo.dueDate.timeIntervalSince(currentTime)
+        let daysUntilDue = Int(timeUntilDue / (24 * 3600))
+        
+        var urgencyText = ""
+        if timeUntilDue < 0 {
+            urgencyText = "마감일이 \(abs(daysUntilDue))일 지났음 (지연됨)"
+        } else if timeUntilDue < 24 * 3600 {
+            urgencyText = "오늘 마감 (긴급)"
+        } else if timeUntilDue < 3 * 24 * 3600 {
+            urgencyText = "\(daysUntilDue)일 후 마감 (급함)"
+        } else {
+            urgencyText = "\(daysUntilDue)일 후 마감"
+        }
+        
+        // 주간 컨텍스트
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        
+        var promptContent = """
+        🎯 할 일 상세 분석:
+        • 제목: \(todo.title)
+        • 상태: \(statusText)
+        • 우선순위: \(priorityText)
+        • 마감일: \(todo.dueDateString)
+        • 긴급도: \(urgencyText)
+        • 현재 시간: \(currentTimeString)
+        """
+        
+        if let notes = todo.notes, !notes.isEmpty {
+            promptContent += "\n• 메모: \(notes)"
+        }
+        
+        promptContent += """
+        
+        📝 요청사항:
+        위 할 일에 대해 다음 관점에서 개인화된 조언을 2-3문장으로 해주세요:
+        1. 실행 전략 및 구체적인 첫 번째 액션
+        2. 시간 관리 및 효율적인 접근법
+        3. 동기부여 및 완료 팁
+        
+        추상적인 격려보다는 실제로 실행할 수 있는 구체적인 방법을 제시해주세요.
+        """
+        
+        let systemPrompt = """
+        당신은 개인 생산성 전문가이자 실행력 코치입니다. 사용자의 특정 할 일에 대해 맞춤형 실행 전략을 제공하세요.
+        
+        분석 기준:
+        1. 긴급성과 중요성을 고려한 우선순위 조정
+        2. 작업의 복잡도에 따른 분해 전략  
+        3. 개인의 에너지 패턴과 시간 활용법
+        4. 동기 유지 및 완료율 향상 방법
+        5. 스트레스 관리 및 번아웃 예방
+        
+        사용자 활동 패턴:
+        \(weeklyContext)
+        
+        위 데이터를 바탕으로 사용자에게 가장 적합한 개별 할 일 실행 전략을 제안하세요.
+        구체적이고 즉시 실행 가능한 조언을 해주세요.
+        """
+        
+        Task {
+            do {
+                let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
+                
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    // 🔧 로딩 오버레이 숨기기
+                    self.loadingOverlay?.hide()
+                    self.loadingOverlay = nil
+                    
+                    self.showAlert(title: "💡 \(todo.title) 조언", message: advice)
+                    AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    // 🔧 로딩 오버레이 숨기기
+                    self.loadingOverlay?.hide()
+                    self.loadingOverlay = nil
+                    
+                    // 구체적인 오류 메시지 제공
+                    var errorMessage = "할 일 조언을 받아오는 데 실패했습니다."
+                    if let serviceError = error as? ReplicateChatService.ServiceError {
+                        switch serviceError {
+                        case .invalidAPIKey:
+                            errorMessage = "API 키 설정에 문제가 있습니다. 개발자에게 문의하세요."
+                        case .predictionTimeout:
+                            errorMessage = "응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+                        case .replicateAPIError(let detail):
+                            errorMessage = "API 오류: \(detail)"
+                        default:
+                            errorMessage = serviceError.localizedDescription
+                        }
+                    } else {
+                        errorMessage += " (\(error.localizedDescription))"
+                    }
+                    
+                    self.showAlert(title: "AI 조언 오류", message: errorMessage)
+                }
+            }
+        }
+    }
+    
+    // MARK: - 🔧 삭제 기능 분리
+    private func deleteTodo(at indexPath: IndexPath) {
+        let todoToDelete = selectedDateTodos[indexPath.row]
+        
+        TodoManager.shared.deleteTodo(withId: todoToDelete.id) { [weak self] success, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if success {
+                    if self.selectedDateTodos.indices.contains(indexPath.row) && self.selectedDateTodos[indexPath.row].id == todoToDelete.id {
+                        self.selectedDateTodos.remove(at: indexPath.row)
+                        self.tableView.deleteRows(at: [indexPath], with: .fade)
+                    } else {
+                        print("⚠️ 삭제하려는 항목이 예상 위치에 없거나 ID가 다릅니다. 테이블을 전체 리로드합니다.")
+                        self.loadData(for: self.selectedDate)
+                        if let error = error {
+                           self.handleTodoManagerError(error, forAction: "삭제 (부분 성공, 데이터 불일치)")
+                        }
+                        return
+                    }
+                    
+                    self.calendar.reloadData()
+                    self.updateEmptyStateLabelVisibility()
+                    
+                    if let todosSection = CalendarSection.todos.rawValue as Int? {
+                         self.tableView.reloadSections(IndexSet(integer: todosSection), with: .none)
+                    }
+                    
+                    self.updateOverallAdviceButtonUI()
+                    
+                    if let error = error {
+                        self.handleTodoManagerError(error, forAction: "삭제 (부분 성공)")
+                    }
+                } else if let error = error {
+                    self.handleTodoManagerError(error, forAction: "삭제")
+                } else {
+                    self.showAlert(title: "오류", message: "할 일 삭제 중 알 수 없는 오류가 발생했습니다.")
                 }
             }
         }

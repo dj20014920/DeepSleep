@@ -162,8 +162,20 @@ class RemoteLogger {
     }
     
     private func sendLogsToServer(_ logs: [LogEntry]) {
-        // 실제 서버 전송 로직 (여기서는 간단한 예시)
-        guard let url = URL(string: "https://your-logging-server.com/api/logs") else { return }
+        // 🚫 원격 로그 전송 비활성화 (배포 시 실제 서버 URL로 변경)
+        // placeholder URL로 인한 네트워크 오류 방지
+        
+        #if DEBUG
+        print("📝 [RemoteLogger] \(logs.count)개 로그가 로컬에 저장됨 (원격 전송 비활성화)")
+        #endif
+        
+        // 로컬에서 버퍼 정리
+        queue.async {
+            self.logBuffer.removeAll()
+        }
+        
+        /* 실제 서버 연결 시 아래 코드 활성화
+        guard let url = URL(string: "https://실제서버URL.com/api/logs") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -186,6 +198,7 @@ class RemoteLogger {
         } catch {
             print("로그 인코딩 실패: \(error)")
         }
+        */
     }
     
     // MARK: - 유틸리티 메서드들

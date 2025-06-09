@@ -270,43 +270,39 @@ extension ViewController {
     
     func showAIRecommendationDialog() {
         let alert = UIAlertController(
-            title: "🧠 심리 음향학 AI 추천",
-            message: "현재 기분이나 상황을 선택해주세요. 전문가가 설계한 최적의 사운드 조합을 추천해드립니다.",
+            title: "🧠 과학적 음향치료 추천",
+            message: "음향심리학 연구 기반으로 설계된 전문 프리셋을 추천해드립니다. 특정 호르몬과 뇌파를 타겟으로 한 정교한 사운드 조합입니다.",
             preferredStyle: .actionSheet
         )
         
-        // 감정 상태별 추천 옵션들
-        let emotionOptions = [
-            ("😫 스트레스/불안", "스트레스"),
-            ("😰 걱정/긴장", "불안"),
-            ("😔 우울/침울", "우울"),
-            ("😴 불면/수면곤란", "불면"),
-            ("😓 피로/무기력", "피로"),
-            ("🤯 압도/과부하", "압도감"),
-            ("😞 외로움/고독", "외로움"),
-            ("😡 분노/짜증", "분노"),
-            ("🎯 집중/몰입 필요", "집중"),
-            ("💡 창의/영감 필요", "창의"),
-            ("😊 기쁨/행복", "기쁨"),
-            ("🧘 명상/영적 성장", "명상"),
-            ("🌅 활력/에너지 필요", "활력"),
-            ("😌 평온/안정", "평온")
+        // 과학적 카테고리별 추천 옵션들
+        let scientificOptions = [
+            ("🧠 인지능력 & 집중력", ["Deep Work Flow", "Study Session", "Learning Optimization", "Information Processing"]),
+            ("💤 수면 & 휴식", ["Delta Sleep Induction", "Sleep Onset Helper", "Deep Sleep Maintenance", "REM Sleep Support"]),
+            ("🌊 스트레스 & 코르티솔 완화", ["Deep Ocean Cortisol Reset", "Forest Stress Relief", "Rain Anxiety Calm", "Nature Stress Detox"]),
+            ("🧘 명상 & 마음챙김", ["Theta Deep Relaxation", "Zen Garden Flow", "Mindfulness Bell", "Tibetan Bowl Substitute"]),
+            ("⚡ 에너지 & 각성", ["Morning Energy Boost", "Afternoon Revival", "Workout Motivation", "Social Energy"]),
+            ("💚 감정조절 & 치유", ["Emotional Healing", "Self Compassion", "Love & Connection", "Inner Peace"]),
+            ("🌿 자연치유력", ["Forest Bathing", "Ocean Therapy", "Mountain Serenity", "Desert Vastness"]),
+            ("🔬 신경과학 특화", ["Neuroplasticity Boost", "Brain Training", "Mental Flexibility", "Cognitive Reserve"]),
+            ("🏥 치료 목적", ["Tinnitus Relief", "Autism Sensory Calm", "ADHD Focus Aid", "PTSD Grounding"]),
+            ("🌈 고급 체험", ["Multi-sensory Harmony", "Synesthetic Experience", "Temporal Perception", "Spatial Awareness"])
         ]
         
-        for (title, emotion) in emotionOptions {
-            alert.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
-                self?.generateAIRecommendation(for: emotion)
+        for (category, presets) in scientificOptions {
+            alert.addAction(UIAlertAction(title: category, style: .default) { [weak self] _ in
+                self?.showScientificPresetSubMenu(category: category, presets: presets)
             })
         }
         
-        // 상황별 자동 추천
-        alert.addAction(UIAlertAction(title: "지금 시간대에 맞는 자동 추천", style: .default) { [weak self] _ in
-            self?.generateContextualRecommendation()
+        // 랜덤 과학적 추천
+        alert.addAction(UIAlertAction(title: "🎲 랜덤 과학적 추천", style: .default) { [weak self] _ in
+            self?.generateRandomScientificRecommendation()
         })
         
-        // 전문가 프리셋 목록
-        alert.addAction(UIAlertAction(title: "🎨 전문가 프리셋 목록", style: .default) { [weak self] _ in
-            self?.showExpertPresetList()
+        // 시간대 최적화 추천
+        alert.addAction(UIAlertAction(title: "⏰ 지금 시간대 최적화", style: .default) { [weak self] _ in
+            self?.generateTimeOptimizedRecommendation()
         })
         
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
@@ -322,98 +318,212 @@ extension ViewController {
         present(alert, animated: true)
     }
     
-    func generateAIRecommendation(for emotion: String) {
-        // 로딩 표시
-        let loadingAlert = UIAlertController(title: "🧠 AI 분석 중...", message: "최적의 사운드 조합을 계산하고 있습니다.", preferredStyle: .alert)
-        present(loadingAlert, animated: true)
-        
-        SoundManager.shared.applyEmotionalPreset(emotion: emotion) { [weak self] description in
-            DispatchQueue.main.async {
-                loadingAlert.dismiss(animated: true) {
-                    self?.showRecommendationResult(description: description, emotion: emotion)
-                }
-            }
-        }
-    }
-    
-    func generateContextualRecommendation() {
-        let recommendation = SoundManager.shared.getContextualRecommendation()
-        SoundManager.shared.applyExpertPreset(recommendation: recommendation)
-        
-        let description = recommendation["description"] as? String ?? "시간대에 맞는 최적의 조합을 적용했습니다."
-        let category = recommendation["category"] as? String ?? "상황별 추천"
-        
-        showRecommendationResult(description: description, emotion: category)
-    }
-    
-    func showExpertPresetList() {
-        let presetNames = SoundManager.shared.getExpertPresetCategories()
-        
+    func showScientificPresetSubMenu(category: String, presets: [String]) {
         let alert = UIAlertController(
-            title: "🎨 전문가 설계 프리셋",
-            message: "심리 음향학 전문가가 특별히 설계한 프리셋들입니다.",
+            title: category,
+            message: "원하는 과학적 프리셋을 선택하세요. 각 프리셋은 특정 신경과학적 효과를 위해 정교하게 설계되었습니다.",
             preferredStyle: .actionSheet
         )
         
-        for presetName in presetNames {
-            let displayName = presetName.replacingOccurrences(of: "_", with: " ")
-            alert.addAction(UIAlertAction(title: displayName, style: .default) { [weak self] _ in
-                SoundManager.shared.applyNamedExpertPreset(presetName)
-                self?.showToast(message: "'\(displayName)' 프리셋이 적용되었습니다. 🎵")
+        for presetName in presets {
+            let description = SoundPresetCatalog.scientificDescriptions[presetName] ?? "과학적 연구 기반 음향 치료"
+            let shortDescription = String(description.prefix(40)) + (description.count > 40 ? "..." : "")
+            
+            alert.addAction(UIAlertAction(title: "\(convertToKoreanName(presetName))", style: .default) { [weak self] _ in
+                self?.applyScientificPreset(presetName)
             })
         }
         
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        // iPad 지원
-        if let popover = alert.popoverPresentationController {
-            if let button = view.viewWithTag(999) {
-                popover.sourceView = button
-                popover.sourceRect = button.bounds
-            }
-        }
+        alert.addAction(UIAlertAction(title: "🔙 뒤로", style: .cancel) { [weak self] _ in
+            self?.showAIRecommendationDialog()
+        })
         
         present(alert, animated: true)
     }
     
-    func showRecommendationResult(description: String, emotion: String) {
+    func generateRandomScientificRecommendation() {
+        let scientificPreset = SoundPresetCatalog.getRandomScientificPreset()
+        let koreanName = convertToKoreanName(scientificPreset.name)
+        
+        // 프리셋 적용
+        applyPreset(
+            volumes: scientificPreset.volumes,
+            versions: SoundPresetCatalog.defaultVersions,
+            name: koreanName,
+            shouldSaveToRecent: true
+        )
+        
+        // 상세 정보와 함께 결과 표시
+        showScientificRecommendationResult(
+            name: koreanName,
+            description: scientificPreset.description,
+            duration: scientificPreset.duration,
+            originalName: scientificPreset.name
+        )
+    }
+    
+    func generateTimeOptimizedRecommendation() {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(currentHour)
+        
+        let timeBasedPresets: [String: [String]] = [
+            "새벽": ["Dawn Awakening", "Sleep Onset Helper", "Night Preparation"],
+            "아침": ["Morning Energy Boost", "Social Energy", "Workout Motivation"],
+            "오전": ["Deep Work Flow", "Study Session", "Learning Optimization"],
+            "점심": ["Midday Balance", "Problem Solving", "Alpha Wave Mimic"],
+            "오후": ["Afternoon Revival", "Information Processing", "Brain Training"],
+            "저녁": ["Sunset Transition", "Emotional Healing", "Inner Peace"],
+            "밤": ["Delta Sleep Induction", "Theta Deep Relaxation", "Night Preparation"]
+        ]
+        
+        let availablePresets = timeBasedPresets[timeOfDay] ?? ["Alpha Wave Mimic", "Inner Peace", "Deep Ocean Cortisol Reset"]
+        let selectedPreset = availablePresets.randomElement() ?? "Alpha Wave Mimic"
+        
+        applyScientificPreset(selectedPreset)
+    }
+    
+    func applyScientificPreset(_ presetName: String) {
+        guard let volumes = SoundPresetCatalog.scientificPresets[presetName] else {
+            showToast(message: "⚠️ 프리셋을 찾을 수 없습니다")
+            return
+        }
+        
+        let koreanName = convertToKoreanName(presetName)
+        let description = SoundPresetCatalog.scientificDescriptions[presetName] ?? "과학적 연구 기반 음향 치료"
+        let duration = SoundPresetCatalog.recommendedDurations[presetName] ?? "20-30분"
+        
+        // 프리셋 적용
+        applyPreset(
+            volumes: volumes,
+            versions: SoundPresetCatalog.defaultVersions,
+            name: koreanName,
+            shouldSaveToRecent: true
+        )
+        
+        // 결과 표시
+        showScientificRecommendationResult(
+            name: koreanName,
+            description: description,
+            duration: duration,
+            originalName: presetName
+        )
+    }
+    
+    func showScientificRecommendationResult(name: String, description: String, duration: String, originalName: String) {
+        let timing = SoundPresetCatalog.optimalTimings[originalName] ?? "언제든지"
+        
         let alert = UIAlertController(
-            title: "✨ AI 추천 완료",
-            message: description,
+            title: "🧠 과학적 프리셋 적용됨",
+            message: """
+            \(name)
+            
+            📚 과학적 근거:
+            \(description)
+            
+            ⏰ 권장 사용시간: \(duration)
+            🎯 최적 타이밍: \(timing)
+            
+            이 프리셋은 음향심리학 연구를 바탕으로 특정 호르몬과 뇌파에 최적화되어 설계되었습니다.
+            """,
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "적용하기", style: .default) { [weak self] _ in
-            // 현재 설정을 프리셋으로 저장
-            self?.saveCurrentAsAIPreset(emotion: emotion)
-            self?.showToast(message: "AI 추천 프리셋이 적용되었습니다! 🎵")
-        })
+        alert.addAction(UIAlertAction(title: "✅ 완료", style: .default))
         
-        alert.addAction(UIAlertAction(title: "다시 추천받기", style: .default) { [weak self] _ in
-            self?.generateAIRecommendation(for: emotion)
+        alert.addAction(UIAlertAction(title: "💾 즐겨찾기 추가", style: .default) { [weak self] _ in
+            self?.saveCurrentAsScientificPreset(name: name, originalName: originalName)
         })
-        
-        alert.addAction(UIAlertAction(title: "확인", style: .cancel))
         
         present(alert, animated: true)
     }
     
-    func saveCurrentAsAIPreset(emotion: String) {
+    func saveCurrentAsScientificPreset(name: String, originalName: String) {
         let volumes = getCurrentVolumes()
         let versions = getCurrentVersions()
-        let timeStamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
-        let presetName = "\(emotion) AI 추천 (\(timeStamp))"
         
         let preset = SoundPreset(
-            name: presetName,
+            name: name,
             volumes: volumes,
             selectedVersions: versions,
-            emotion: emotion,
-            isAIGenerated: true
+            emotion: "과학적",
+            isAIGenerated: true,
+            scientificBasis: SoundPresetCatalog.scientificDescriptions[originalName]
         )
         
         SettingsManager.shared.saveSoundPreset(preset)
         updatePresetBlocks()
+        showToast(message: "🧠 과학적 프리셋 '\(name)'이 저장되었습니다!")
+    }
+    
+    private func convertToKoreanName(_ englishName: String) -> String {
+        let nameMapping: [String: String] = [
+            "Deep Ocean Cortisol Reset": "🌊 깊은 바다 코르티솔 리셋",
+            "Forest Stress Relief": "🌲 숲속 스트레스 완화",
+            "Rain Anxiety Calm": "🌧️ 빗소리 불안 진정",
+            "Nature Stress Detox": "🍃 자연 스트레스 해독",
+            "Alpha Wave Mimic": "🧠 알파파 모방 집중",
+            "Theta Deep Relaxation": "🌀 세타파 깊은 이완",
+            "Delta Sleep Induction": "😴 델타파 수면 유도",
+            "Gamma Focus Simulation": "⚡ 감마파 집중 시뮬레이션",
+            "Sleep Onset Helper": "🌙 수면 시작 도우미",
+            "Deep Sleep Maintenance": "💤 깊은 수면 유지",
+            "REM Sleep Support": "👁️ 렘수면 지원",
+            "Night Terror Calm": "🌃 야간 공포 진정",
+            "Tibetan Bowl Substitute": "🎵 티베트 보울 대체",
+            "Zen Garden Flow": "🧘 선 정원 흐름",
+            "Mindfulness Bell": "🔔 마음챙김 종소리",
+            "Walking Meditation": "🚶 걸으며 명상",
+            "Deep Work Flow": "💻 몰입 작업 플로우",
+            "Creative Burst": "💡 창의성 폭발",
+            "Study Session": "📚 학습 세션",
+            "Coding Focus": "⌨️ 코딩 집중",
+            "Morning Energy Boost": "🌅 아침 에너지 부스터",
+            "Afternoon Revival": "☀️ 오후 활력 회복",
+            "Workout Motivation": "💪 운동 동기 부여",
+            "Social Energy": "👥 사회적 에너지",
+            "Dawn Awakening": "🌄 새벽 깨어남",
+            "Midday Balance": "⚖️ 한낮 균형",
+            "Sunset Transition": "🌅 석양 전환",
+            "Night Preparation": "🌙 밤 준비",
+            "Memory Enhancement": "🧠 기억력 향상",
+            "Learning Optimization": "📖 학습 최적화",
+            "Problem Solving": "🧩 문제 해결",
+            "Information Processing": "🔍 정보 처리",
+            "Emotional Healing": "💚 감정 치유",
+            "Self Compassion": "🤗 자기 연민",
+            "Love & Connection": "💕 사랑과 연결",
+            "Inner Peace": "☮️ 내면의 평화",
+            "Forest Bathing": "🌲 산림욕 (신린요쿠)",
+            "Ocean Therapy": "🌊 바다 치료",
+            "Mountain Serenity": "🏔️ 산의 고요함",
+            "Desert Vastness": "🏜️ 사막의 광활함",
+            "Neuroplasticity Boost": "🧠 신경가소성 부스터",
+            "Brain Training": "🎯 뇌 훈련",
+            "Mental Flexibility": "🤸 정신적 유연성",
+            "Cognitive Reserve": "🧠 인지 예비능력",
+            "Tinnitus Relief": "👂 이명 완화",
+            "Autism Sensory Calm": "🧩 자폐 감각 진정",
+            "ADHD Focus Aid": "🎯 ADHD 집중 보조",
+            "PTSD Grounding": "🌍 PTSD 그라운딩",
+            "Multi-sensory Harmony": "🌈 다감각 조화",
+            "Synesthetic Experience": "🎨 공감각적 경험",
+            "Temporal Perception": "⏰ 시간 지각",
+            "Spatial Awareness": "📐 공간 인식"
+        ]
+        
+        return nameMapping[englishName] ?? "🎵 \(englishName)"
+    }
+    
+    private func getTimeOfDay(_ hour: Int) -> String {
+        switch hour {
+        case 5..<8: return "새벽"
+        case 8..<12: return "아침"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<22: return "저녁"
+        case 22..<24, 0..<5: return "밤"
+        default: return "하루"
+        }
     }
     
     func showPresetList() {

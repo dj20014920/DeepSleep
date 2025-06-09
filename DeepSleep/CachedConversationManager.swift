@@ -339,6 +339,8 @@ struct LocalAIRecommendationRecord: Codable {
                 return "AI: \(message.text)"
             case .loading:
                 return nil // 로딩 메시지는 캐시에 포함하지 않음
+            case .system:
+                return "시스템: \(message.text)"
             case .presetRecommendation:
                 // 다양한 프리셋 추천 형식 사용
                 let presetName = message.presetName ?? "추천 프리셋"

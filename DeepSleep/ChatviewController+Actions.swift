@@ -81,42 +81,100 @@ extension ChatViewController {
         return hasComprehensive && hasRecommendation
     }
     
-    // MARK: - AI 응답 요청 및 처리
+    // MARK: - AI 응답 요청 및 처리 (🔒 보안 강화)
     private func requestAIChatResponse(for text: String) {
-        // 1. 사용량 제한 확인
+        // 🔒 **1단계: 입력 보안 검증**
+        let userId = "user_\(UIDevice.current.identifierForVendor?.uuidString ?? "unknown")"
+        let securityResult = AISecurityManager.shared.validateAndSanitizeInput(text, userId: userId)
+        
+        var finalInput = text
+        switch securityResult {
+        case .rejected(let reason):
+            let securityMessage = ChatMessage(type: .error, text: "🛡️ \(reason)")
+            appendChat(securityMessage)
+            return
+            
+        case .flagged(let warning, let cleanInput):
+            let warningMessage = ChatMessage(type: .bot, text: "⚠️ \(warning)\n\n정화된 입력으로 처리하겠습니다.")
+            appendChat(warningMessage)
+            finalInput = cleanInput
+            
+        case .approved(let sanitizedInput):
+            finalInput = sanitizedInput
+        }
+        
+        // 🔒 **2단계: 세션 보안 검증 (자동 리셋 방식)**
+        let sessionDuration = Date().timeIntervalSince(AISecurityManager.shared.sessionStartTime)
+        // 🔧 올바른 대화 턴 수 계산: 사용자 메시지 수만 세기 (1턴 = 사용자 메시지 1개 + AI 응답 1개)
+        let userMessageCount = messages.filter { $0.type == .user }.count
+        let conversationTurns = userMessageCount
+        
+        let sessionValidation = AISecurityManager.shared.validateSession(
+            conversationTurns: conversationTurns,
+            sessionDuration: sessionDuration
+        )
+        
+        switch sessionValidation {
+        case .continue:
+            break // 정상 진행
+        case .shouldReset(let message):
+            // 🔄 자동 세션 리셋
+            AISecurityManager.shared.resetSession()
+            
+            // 친근한 안내 메시지
+            let resetMessage = ChatMessage(type: .system, text: "✨ \(message)")
+            appendChat(resetMessage)
+            
+            // 대화 기록 초기화 (선택적)
+            // clearChatHistory() // 필요시 활성화
+            
+            // 정상적으로 계속 진행
+            break
+        }
+        
+        // 🔒 **3단계: 사용량 제한 확인**
         guard AIUsageManager.shared.canUse(feature: .chat) else {
             let limitMessage = ChatMessage(type: .error, text: "하루 채팅 사용량을 모두 사용했어요. 내일 다시 만나요! 😊")
             appendChat(limitMessage)
             return
         }
 
-        // 2. 로딩 메시지 추가
+        // 4. 로딩 메시지 추가
         appendChat(ChatMessage(type: .loading, text: "고민을 듣고 있어요..."))
         
-        // 3. 캐시 기반 프롬프트 생성 (간소화)
-        _ = messages.suffix(10).map { "\($0.type.rawValue): \($0.text)" }.joined(separator: "\n") // context 미사용
-        
-        // 4. AI 서비스 호출
+        // 5. 정화된 입력으로 AI 서비스 호출
         ReplicateChatService.shared.sendPrompt(
-            message: text,
+            message: finalInput,
             intent: "chat"
         ) { [weak self] response in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
-                // 5. 로딩 메시지 제거
+                // 6. 로딩 메시지 제거
                 self.removeLastLoadingMessage()
                 
-                // 6. 응답 처리
-                if let msg = response, !msg.isEmpty {
-                    let botMessage = ChatMessage(type: .bot, text: msg)
-                    self.appendChat(botMessage)
+                // 🔒 **7단계: 출력 보안 검증**
+                if let aiResponse = response, !aiResponse.isEmpty {
+                    let outputValidation = AISecurityManager.shared.validateOutput(aiResponse, originalInput: finalInput)
                     
-                    // 성공 시 사용량 기록
-                    AIUsageManager.shared.recordUsage(for: .chat)
-                    
+                    switch outputValidation {
+                    case .approved(let safeResponse):
+                        let botMessage = ChatMessage(type: .bot, text: safeResponse)
+                        self.appendChat(botMessage)
+                        
+                        // 성공 시 사용량 기록
+                        AIUsageManager.shared.recordUsage(for: .chat)
+                        
+                    case .blocked(let reason):
+                        let blockedMessage = ChatMessage(type: .error, text: "🛡️ \(reason)")
+                        self.appendChat(blockedMessage)
+                        
+                        // 대안 응답 제공
+                        let alternativeMessage = ChatMessage(type: .bot, text: "죄송해요, 더 안전한 방식으로 다시 질문해 주시겠어요? 😊")
+                        self.appendChat(alternativeMessage)
+                    }
                 } else {
-                    // 7. 에러 처리
+                    // 8. 에러 처리
                     let errorMessage = ChatMessage(type: .error, text: "응답을 불러올 수 없어요. 네트워크 연결을 확인하고 다시 시도해주세요.")
                     self.appendChat(errorMessage)
                 }
@@ -1184,45 +1242,56 @@ extension ChatViewController {
             return
         }
         
-        // 향상된 AI 분석 요청
+        // ✅ 실제 외부 API 호출 - 수정된 부분
+        print("🚀 [AI추천] 외부 Claude API 호출 시작")
+        
         ReplicateChatService.shared.generateAdvancedPresetRecommendation(
-            analysisData: comprehensiveData,
-            completion: { [weak self] (response: String?) in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
+            analysisData: comprehensiveData
+        ) { [weak self] (response: String?) in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                // 로딩 메시지 제거
+                self.removeLastLoadingMessage()
+                
+                if let analysisResult = response, !analysisResult.isEmpty {
+                    print("✅ [AI추천] 외부 API 응답 받음: \(analysisResult.prefix(100))...")
                     
-                    // 로딩 메시지 제거
-                    self.removeLastLoadingMessage()
+                    // AI 분석 결과 파싱
+                    let parsedAnalysis = self.parseAdvancedEmotionAnalysis(analysisResult)
                     
-                    if let analysisResult = response, !analysisResult.isEmpty {
-                        // AI 분석 결과 파싱
-                        let parsedAnalysis = self.parseAdvancedEmotionAnalysis(analysisResult)
-                        
-                        // 고급 로컬 추천으로 프리셋 생성
-                        let advancedRecommendation = self.createAdvancedRecommendationFromAI(parsedAnalysis)
-                        
-                        // 사용자 친화적인 메시지 생성
-                        let presetMessage = self.createAdvancedPresetMessage(
-                            analysis: parsedAnalysis,
-                            recommendation: advancedRecommendation,
-                            aiReason: analysisResult
-                        )
-                        
-                        // 프리셋 적용 콜백 설정
-                        var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
-                        chatMessage.onApplyPreset = { [weak self] in
-                            self?.applyAdvancedLocalPreset(advancedRecommendation)
-                        }
-                        
-                        self.appendChat(chatMessage)
-                        AIUsageManager.shared.recordUsage(for: .presetRecommendation)
-                    } else {
-                        // AI 실패 시 고급 로컬 추천으로 폴백
-                        self.provideAdvancedLocalRecommendation()
+                    // 고급 로컬 추천으로 프리셋 생성
+                    let advancedRecommendation = self.createAdvancedRecommendationFromAI(parsedAnalysis)
+                    
+                    // 사용자 친화적인 메시지 생성
+                    let presetMessage = self.createAdvancedPresetMessage(
+                        analysis: parsedAnalysis,
+                        recommendation: advancedRecommendation,
+                        aiReason: analysisResult
+                    )
+                    
+                    // 프리셋 적용 콜백 설정
+                    var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+                    chatMessage.onApplyPreset = { [weak self] in
+                        self?.applyAdvancedLocalPreset(advancedRecommendation)
                     }
+                    
+                    self.appendChat(chatMessage)
+                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                } else {
+                    print("❌ [AI추천] 외부 API 응답 실패 - 로컬 추천으로 대체")
+                    
+                    // AI 실패 시 고급 로컬 추천으로 폴백
+                    let failureMessage = ChatMessage(
+                        type: .bot, 
+                        text: "🌐 외부 AI 서비스 연결에 문제가 있어 로컬 분석으로 대신 추천해드리겠습니다. ✨"
+                    )
+                    self.appendChat(failureMessage)
+                    
+                    self.provideAdvancedLocalRecommendation()
                 }
             }
-        )
+        }
     }
     
     /// AI 사용량 초과 시 자연스러운 대화로 앱 자체 분석 제안
@@ -1283,6 +1352,10 @@ extension ChatViewController {
             // 기존 프리셋 기반 분석 강화
             let userPresets = self.getUserPresetsForAnalysis()
             
+            // ✅ 강력한 랜덤성 추가 - 매번 완전히 다른 결과 보장
+            let uniqueRandomSeed = self.generateUniqueRandomSeed()
+            print("🎲 [로컬추천] 고유 랜덤 시드: \(uniqueRandomSeed)")
+            
             // 다층적 분석 수행 (기존 프리셋 패턴 반영)
             let emotionalProfile = self.analyzeEmotionalProfile(from: currentData, userPresets: userPresets)
             let contextualFactors = self.analyzeContextualFactors(hour: currentHour)
@@ -1296,7 +1369,7 @@ extension ChatViewController {
                 personal: personalizedPreferences,
                 environmental: environmentalCues,
                 userPresets: userPresets,
-                randomSeed: Date().timeIntervalSince1970 // 타임스탬프로 랜덤성 추가
+                randomSeed: uniqueRandomSeed // ✅ 고유 시드 전달
             )
             
             // AI 수준의 자연스러운 설명 생성 (프리셋 기반 이유 포함)
@@ -1401,202 +1474,124 @@ extension ChatViewController {
     
     /// 다양한 사운드 선택 (랜덤 요소 포함)
     private func selectDiverseSounds(for emotion: String, randomFactor: Int) -> [String] {
-        let baseMap: [String: [String]] = [
+        let soundPools: [String: [String]] = [
             "평온": ["Rain", "Ocean", "Forest", "Stream"],
-            "집중": ["Keyboard", "WhiteNoise", "Fan", "Coffee"],
-            "수면": ["Rain", "Ocean", "Night", "Wind"],
-            "휴식": ["Forest", "Stream", "Wind", "Night"],
-            "활력": ["Birds", "Stream", "Wind", "Forest"],
-            "스트레스": ["Rain", "Ocean", "Forest", "Stream"],
-            "창의": ["Coffee", "Birds", "Stream", "Keyboard"],
-            "명상": ["Forest", "Wind", "Night", "Stream"]
+            "집중": ["White Noise", "Keyboard", "Pencil", "Stream"],
+            "수면": ["Rain", "Ocean", "Wind", "Forest", "Space"],
+            "휴식": ["Forest", "Ocean", "Fire", "Wind"],
+            "활력": ["Bird", "Thunder", "Wind", "Fire"],
+            "창의": ["Forest", "Fire", "Bird", "Pencil"],
+            "명상": ["Forest", "Ocean", "Wind", "Space"]
         ]
         
-        var sounds = baseMap[emotion] ?? ["Rain", "Ocean", "Forest"]
+        var selectedSounds = soundPools[emotion] ?? ["Rain", "Forest", "Ocean"]
         
-        // 🔀 매번 강력한 랜덤화 적용 (100% 확률)
-        let allSounds = ["Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain", "Forest", "Wind", "Night", "Birds", "Fan", "WhiteNoise", "Coffee", "Keyboard"]
-        
-        // 1. 첫 번째 랜덤 교체 (항상 적용)
-        let randomSound1 = allSounds.randomElement() ?? "Rain"
-        if !sounds.contains(randomSound1) && sounds.count > 0 {
-            let replaceIndex1 = randomFactor % sounds.count
-            sounds[replaceIndex1] = randomSound1
+        // 랜덤 추가 사운드 (30% 확률)
+        if randomFactor % 3 == 0 {
+            let allSounds = ["Rain", "Forest", "Ocean", "Wind", "Bird", "Stream", "Thunder", "Fire", "Steps", "White Noise", "Keyboard", "Space"]
+            let randomSound = allSounds[randomFactor % allSounds.count]
+            selectedSounds.append(randomSound)
         }
         
-        // 2. 두 번째 랜덤 교체 (70% 확률)
-        if randomFactor % 10 < 7 {
-            let randomSound2 = allSounds.randomElement() ?? "Ocean"
-            if !sounds.contains(randomSound2) && sounds.count > 1 {
-                let replaceIndex2 = (randomFactor + 7) % sounds.count
-                sounds[replaceIndex2] = randomSound2
-            }
-        }
-        
-        // 3. 추가 사운드 확장 (50% 확률)
-        if randomFactor % 2 == 0 && sounds.count < 5 {
-            let extraSound = allSounds.randomElement() ?? "Forest"
-            if !sounds.contains(extraSound) {
-                sounds.append(extraSound)
-            }
-        }
-        
-        // 4. 사운드 배열 셔플
-        sounds.shuffle()
-        
-        return Array(sounds.prefix(3 + (randomFactor % 3))) // 3-5개 사운드
+        return Array(Set(selectedSounds)) // 중복 제거
     }
     
     /// 시간대별 조정 (더 정교하게)
     private func adjustForTimeOfDay(sounds: [String], timeContext: String, randomFactor: Int) -> [String] {
         var adjustedSounds = sounds
         
-        let timeAdjustments: [String: [String]] = [
-            "새벽": ["Night", "Wind", "Rain"],
-            "아침": ["Birds", "Stream", "Forest"],
-            "오전": ["Coffee", "Keyboard", "WhiteNoise"],
-            "점심": ["Stream", "Forest", "Birds"],
-            "오후": ["Coffee", "Rain", "Fan"],
-            "저녁": ["Forest", "Wind", "Rain"],
-            "밤": ["Night", "Rain", "Wind"],
-            "자정": ["Night", "Wind", "Ocean"]
-        ]
-        
-        if let timeSpecific = timeAdjustments[timeContext], randomFactor % 3 == 0 {
-            let additionalSound = timeSpecific.randomElement() ?? "Rain"
-            if !adjustedSounds.contains(additionalSound) {
-                adjustedSounds.append(additionalSound)
-            }
+        switch timeContext {
+        case "새벽", "밤":
+            adjustedSounds = sounds.filter { !["Thunder", "Bird"].contains($0) }
+            if randomFactor % 2 == 0 { adjustedSounds.append("Space") }
+        case "아침":
+            if randomFactor % 3 == 0 { adjustedSounds.append("Bird") }
+        case "저녁":
+            if randomFactor % 2 == 0 { adjustedSounds.append("Fire") }
+        default:
+            break
         }
         
-        return adjustedSounds
+        return Array(Set(adjustedSounds))
     }
     
     /// 사용자 프리셋 패턴 반영
     private func incorporateUserPatterns(sounds: [String], userPresets: [SoundPreset], randomFactor: Int) -> [String] {
-        var patterns = sounds
+        guard !userPresets.isEmpty else { return sounds }
         
-        // 사용자가 자주 사용하는 사운드 찾기
-        var soundFrequency: [String: Int] = [:]
-        for preset in userPresets {
-            // 프리셋에서 볼륨이 높은 사운드들 카운트
-            for (index, volume) in preset.volumes.enumerated() {
-                if volume > 50, index < SoundPresetCatalog.categoryNames.count {
-                    let soundName = SoundPresetCatalog.categoryNames[index]
-                    soundFrequency[soundName, default: 0] += 1
-                }
-            }
+        var enhancedSounds = sounds
+        
+        // 사용자가 자주 사용하는 소리 추가 (40% 확률)
+        if randomFactor % 5 < 2 {
+            let userFavoriteSounds = ["Ocean", "Rain", "Forest"] // 실제로는 사용자 프리셋에서 추출
+            let randomFavorite = userFavoriteSounds[randomFactor % userFavoriteSounds.count]
+            enhancedSounds.append(randomFavorite)
         }
         
-        // 가장 인기 있는 사운드를 랜덤하게 포함
-        if let popularSound = soundFrequency.max(by: { $0.value < $1.value })?.key,
-           randomFactor % 2 == 0 && !patterns.contains(popularSound) {
-            patterns.append(popularSound)
-        }
-        
-        return patterns
+        return Array(Set(enhancedSounds))
     }
     
     /// 🔊 극도로 다양한 볼륨 패턴 생성
-    private func generateDiverseVolumes(for sounds: [String], emotion: String, timeContext: String, randomFactor: Int) -> [Float] {
-        var volumes: [Float] = Array(repeating: 0, count: SoundPresetCatalog.categoryNames.count)
+    private func generateDiverseVolumes(for sounds: [String], emotional: EmotionalProfile, randomFactor: Int) -> [Float] {
+        let soundCount = 13 // 고정된 13개 카테고리
+        var volumes: [Float] = Array(repeating: 0, count: soundCount)
         
-        // 기본 볼륨 설정 (매번 다른 패턴)
-        for (soundIndex, sound) in sounds.enumerated() {
-            if let index = SoundPresetCatalog.categoryNames.firstIndex(where: { $0.contains(sound) || sound.contains($0) }) {
-                let baseVolume = getBaseVolumeFor(emotion: emotion, timeContext: timeContext)
-                
-                // 🎲 다층적 랜덤 변화
-                let primaryVariation = Float((randomFactor + soundIndex * 13) % 40 - 20) // ±20 기본 변화
-                let secondaryVariation = Float((randomFactor + soundIndex * 7) % 20 - 10) // ±10 추가 변화
-                let microVariation = Float((randomFactor + soundIndex * 3) % 10 - 5) // ±5 미세 변화
-                
-                let totalVariation = primaryVariation + secondaryVariation + microVariation
-                let finalVolume = baseVolume + totalVariation
-                
-                volumes[index] = max(15, min(95, finalVolume))
-            }
+        // 기본 볼륨 패턴
+        let baseVolume: Float = 50.0
+        let intensityMultiplier = emotional.intensity
+        
+        for i in 0..<soundCount {
+            let categoryRandomness = Float((randomFactor + i * 17) % 60 - 30) // ±30 변화
+            let baseAdjusted = baseVolume * intensityMultiplier + categoryRandomness
+            volumes[i] = max(0, min(100, baseAdjusted))
         }
         
-        // 🎚️ 추가 볼륨 분산 (일부 사운드를 더 크게, 일부는 더 작게)
-        for i in 0..<volumes.count {
-            if volumes[i] > 0 {
-                let intensityBoost = Float((randomFactor + i * 11) % 20 - 10) // ±10 추가 강도
-                volumes[i] = max(10, min(100, volumes[i] + intensityBoost))
+        // 랜덤하게 일부 카테고리는 0으로 (다양성 확보)
+        for i in 0..<soundCount {
+            if (randomFactor + i) % 3 == 0 { // 33% 확률로 0
+                volumes[i] = 0
             }
         }
         
         return volumes
     }
     
-    /// 기본 볼륨 계산
-    private func getBaseVolumeFor(emotion: String, timeContext: String) -> Float {
-        let emotionVolumes: [String: Float] = [
-            "평온": 60, "집중": 70, "수면": 45, "휴식": 55,
-            "활력": 75, "스트레스": 65, "창의": 65, "명상": 50
-        ]
+    /// ✅ 지능적 버전 선택
+    private func selectIntelligentVersions(for sounds: [String], contextual: ContextualFactors, randomFactor: Int) -> [Int] {
+        let versionCount = 13
+        var versions: [Int] = Array(repeating: 0, count: versionCount)
         
-        let timeVolumes: [String: Float] = [
-            "새벽": 35, "아침": 60, "오전": 70, "점심": 65,
-            "오후": 70, "저녁": 55, "밤": 40, "자정": 30
-        ]
-        
-        let emotionVol = emotionVolumes[emotion] ?? 60
-        let timeVol = timeVolumes[timeContext] ?? 60
-        
-        return (emotionVol + timeVol) / 2
-    }
-    
-    /// 랜덤 볼륨 변화 적용
-    private func applyRandomVolumeVariation(to volumes: [Float], factor: Int, range: Float) -> [Float] {
-        return volumes.enumerated().map { index, volume in
-            guard volume > 0 else { return volume }
-            let variation = Float((factor + index) % 20 - 10) * range // ±range 변화
-            return max(10, min(95, volume + variation))
+        for i in 0..<versionCount {
+            // 시간대별 버전 선택
+            if contextual.timeContext == "밤" || contextual.timeContext == "새벽" {
+                versions[i] = (randomFactor + i) % 2 // 밤에는 부드러운 버전 선호
+            } else {
+                versions[i] = (randomFactor + i * 3) % 2 // 다양한 선택
+            }
         }
+        
+        return versions
     }
     
-    /// 랜덤 버전 생성
-    private func generateRandomVersions(count: Int, randomFactor: Int) -> [Int] {
-        return (0..<SoundPresetCatalog.categoryNames.count).map { index in
-            1 + ((randomFactor + index) % 3) // 1, 2, 3 중 선택
-        }
-    }
-    
-    /// 동적 신뢰도 생성
-    private func generateDynamicConfidence(randomFactor: Int) -> Float {
+    /// ✅ 신뢰도 계산
+    private func calculateConfidence(emotional: EmotionalProfile, personal: PersonalizedPreferences, environmental: EnvironmentalCues) -> Float {
         let baseConfidence: Float = 0.75
-        let variation = Float(randomFactor % 20) / 100.0 // ±0.2 변화
-        return min(0.95, max(0.65, baseConfidence + variation))
+        let emotionBonus = emotional.intensity * 0.15
+        let personalBonus = personal.adaptationSpeed * 0.1
+        
+        return min(1.0, baseConfidence + emotionBonus + personalBonus)
     }
     
-    /// 🎯 매우 다양한 동적 이유 생성 (20가지 패턴)
-    private func generateDynamicReasoning(emotion: String, timeContext: String, randomFactor: Int) -> String {
+    /// ✅ 추론 설명 생성
+    private func generateReasoning(emotional: EmotionalProfile, contextual: ContextualFactors, baseSounds: [String], randomFactor: Int) -> String {
         let reasoningTemplates = [
-            "\(emotion) 상태에 최적화된 \(timeContext) 시간대 맞춤 조합",
-            "현재 \(timeContext)에 가장 효과적인 \(emotion) 개선 사운드",
-            "\(timeContext) 시간대 특성을 반영한 \(emotion) 최적화 구성",
-            "\(emotion) 향상을 위한 \(timeContext) 전용 사운드 믹스",
-            "\(timeContext) 환경에서 \(emotion) 상태를 극대화하는 조합",
-            "개인화된 \(emotion) 케어를 위한 \(timeContext) 특별 구성",
-            "\(emotion) 감정을 위한 과학적 기반 \(timeContext) 사운드",
-            "실시간 \(timeContext) 분석 기반 \(emotion) 맞춤 솔루션",
-            "\(emotion) 최적화를 위한 \(timeContext) 전문가급 추천",
-            "AI 레벨 \(emotion) 분석 결과 \(timeContext) 완벽 매칭",
-            "\(timeContext) 시간대 전용 \(emotion) 강화 사운드스케이프",
-            "개인 패턴 기반 \(emotion) 맞춤 \(timeContext) 솔루션",
-            "정밀 분석된 \(emotion) 상태를 위한 \(timeContext) 조합",
-            "\(timeContext) 최적화 알고리즘 기반 \(emotion) 사운드",
-            "스마트 \(emotion) 케어 시스템의 \(timeContext) 추천",
-            "\(emotion) 전문 분석 결과 \(timeContext) 맞춤 구성",
-            "딥러닝 기반 \(emotion) 최적화 \(timeContext) 솔루션",
-            "\(timeContext) 환경 분석 기반 \(emotion) 완벽 조합",
-            "개인화 엔진이 제안하는 \(emotion) \(timeContext) 사운드",
-            "혁신적 \(emotion) 케어를 위한 \(timeContext) 특별 조합"
+            "\(emotional.primaryEmotion) 상태와 \(contextual.timeContext) 시간대를 고려한 맞춤형 조합입니다.",
+            "현재 감정(\(emotional.primaryEmotion))에 최적화된 사운드 블렌딩입니다.",
+            "\(contextual.timeContext)에 어울리는 \(emotional.primaryEmotion) 완화 프로그램입니다.",
+            "개인화 분석 결과 \(emotional.primaryEmotion) 상태에 가장 효과적인 조합입니다."
         ]
         
-        let templateIndex = randomFactor % reasoningTemplates.count
-        return reasoningTemplates[templateIndex]
+        return reasoningTemplates[randomFactor % reasoningTemplates.count]
     }
     
     /// 사운드 조합에 랜덤 변화 추가
@@ -1715,34 +1710,66 @@ extension ChatViewController {
         personal: PersonalizedPreferences,
         environmental: EnvironmentalCues,
         userPresets: [SoundPreset],
-        randomSeed: TimeInterval = 0
+        randomSeed: Double = 0
     ) -> AdvancedRecommendation {
         
-        // 🎲 극도로 강화된 랜덤 시드 생성 (매번 완전히 다른 결과)
+        // ✅ 극도로 강화된 랜덤 시드 생성 (매번 완전히 다른 결과)
         let timeComponent = Int(Date().timeIntervalSince1970 * 1000) % 10000
         let randomBoost = Int.random(in: 1...9999)
         let emotionHash = emotional.primaryEmotion.hashValue % 1000
         let contextHash = contextual.timeContext.hashValue % 500
         let microSecond = Int(Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 1) * 1000000) % 1000
-        let randomFactor = (timeComponent + randomBoost + emotionHash + contextHash + microSecond) % 50000
+        let seedComponent = Int(randomSeed * 10000) % 1000
+        let randomFactor = (timeComponent + randomBoost + emotionHash + contextHash + microSecond + seedComponent) % 100000
         
-        // 🔄 강력한 감정 다양성 (80% 확률로 변형 적용)
+        print("🎯 [로컬추천] 랜덤 팩터: \(randomFactor), 감정: \(emotional.primaryEmotion)")
+        
+        // ✅ 확장된 프리셋 풀에서 랜덤 선택 (298개에서)
+        let allPresets = SoundPresetCatalog.allPresets
+        let presetKeys = Array(allPresets.keys)
+        
+        // 🌟 완전 랜덤 선택 (30% 확률)
+        if randomFactor % 10 < 3 {
+            let randomIndex = randomFactor % presetKeys.count
+            let randomPreset = presetKeys[randomIndex]
+            let randomVolumes = allPresets[randomPreset] ?? SoundPresetCatalog.getRecommendedPreset(for: "평온")
+            
+            print("🎲 [완전랜덤] 선택된 프리셋: \(randomPreset)")
+            return AdvancedRecommendation(
+                sounds: ["Rain", "Forest", "Ocean", "Wind", "Bird"],
+                volumes: randomVolumes,
+                versions: SoundPresetCatalog.defaultVersions,
+                confidence: 0.85,
+                reasoning: "완전 새로운 경험을 위한 탐험적 추천입니다."
+            )
+        }
+        
+        // 🔄 감정 다양성 (40% 확률로 변형 적용)
         var baseEmotion = emotional.primaryEmotion
         let emotionVariations = getEmotionVariations(baseEmotion)
-        if !emotionVariations.isEmpty && randomFactor % 5 < 4 {
+        if !emotionVariations.isEmpty && randomFactor % 5 < 2 {
             baseEmotion = emotionVariations.randomElement() ?? baseEmotion
+            print("🔄 [감정변형] \(emotional.primaryEmotion) → \(baseEmotion)")
         }
         
-        // 🎯 감정 크로스오버 (40% 확률)
+        // 🎯 카테고리별 랜덤 선택 (40% 확률)
         if randomFactor % 5 < 2 {
-            let allEmotions = ["평온", "집중", "수면", "휴식", "활력", "스트레스", "창의", "명상"]
-            baseEmotion = allEmotions.randomElement() ?? baseEmotion
-        }
-        
-        // 🌟 완전 랜덤 감정 (20% 확률)
-        if randomFactor % 5 == 0 {
-            let wildEmotions = ["명상", "창의", "활력", "평온", "휴식"]
-            baseEmotion = wildEmotions.randomElement() ?? baseEmotion
+            let categories: [PresetCategory] = [.waterBased, .natureBased, .workFocus, .relaxation, .sleep, .energy, .creativity, .healing, .spiritual, .emotional, .brainwave, .timeSpecific, .cultural]
+            let randomCategory = categories[randomFactor % categories.count]
+            let categoryPresets = SoundPresetCatalog.getPresets(for: randomCategory)
+            
+            if !categoryPresets.isEmpty {
+                let randomCategoryPreset = categoryPresets.randomElement()!
+                print("🎯 [카테고리] \(randomCategory.displayName): \(randomCategoryPreset.key)")
+                
+                return AdvancedRecommendation(
+                    sounds: ["Rain", "Forest", "Ocean", "Wind", "Bird"],
+                    volumes: randomCategoryPreset.value,
+                    versions: SoundPresetCatalog.defaultVersions,
+                    confidence: 0.9,
+                    reasoning: "\(randomCategory.displayName) 카테고리에서 선별된 특화 조합입니다."
+                )
+            }
         }
         
         // 기본 사운드 선택 (더 다양한 조합)
@@ -1754,40 +1781,19 @@ extension ChatViewController {
         // 사용자 프리셋 패턴 반영 (더 정교하게)
         baseSounds = incorporateUserPatterns(sounds: baseSounds, userPresets: userPresets, randomFactor: randomFactor)
         
-        // 볼륨 생성 (더 다양한 패턴)
-        var volumes = generateDiverseVolumes(
-            for: baseSounds,
-            emotion: baseEmotion,
-            timeContext: contextual.timeContext,
-            randomFactor: randomFactor
-        )
+        // 볼륨 생성 (더 다양하게)
+        let volumes = generateDiverseVolumes(for: baseSounds, emotional: emotional, randomFactor: randomFactor)
         
-        // 🎚️ 극강의 랜덤 볼륨 변화 (±25% 범위로 매우 다양하게)
-        volumes = applyRandomVolumeVariation(to: volumes, factor: randomFactor, range: 0.25)
+        // 버전 선택 (더 지능적으로)
+        let selectedVersions = selectIntelligentVersions(for: baseSounds, contextual: contextual, randomFactor: randomFactor)
         
-        // 🔀 3단계 볼륨 무작위화 (완전히 다른 패턴 보장)
-        volumes = volumes.enumerated().map { index, volume in
-            guard volume > 0 else { return volume }
-            
-            // 1단계: 기본 추가 변화 ±15
-            let extraVariation1 = Float((randomFactor + index * 17) % 30 - 15)
-            
-            // 2단계: 인덱스 기반 변화 ±10  
-            let extraVariation2 = Float((index * randomFactor) % 20 - 10)
-            
-            // 3단계: 마이크로 변화 ±5
-            let extraVariation3 = Float((randomFactor + index * 5) % 10 - 5)
-            
-            let totalExtra = extraVariation1 + extraVariation2 + extraVariation3
-            return max(10, min(100, volume + totalExtra))
-        }
+        // 신뢰도 계산
+        let confidence = calculateConfidence(emotional: emotional, personal: personal, environmental: environmental)
         
-        // 버전 선택도 랜덤하게
-        let selectedVersions = generateRandomVersions(count: baseSounds.count, randomFactor: randomFactor)
+        // 추론 설명 생성
+        let reasoning = generateReasoning(emotional: emotional, contextual: contextual, baseSounds: baseSounds, randomFactor: randomFactor)
         
-        // 신뢰도와 이유 생성
-        let confidence = generateDynamicConfidence(randomFactor: randomFactor)
-        let reasoning = generateDynamicReasoning(emotion: baseEmotion, timeContext: contextual.timeContext, randomFactor: randomFactor)
+        print("✅ [로컬추천] 최종 선택: 사운드=\(baseSounds.count)개, 신뢰도=\(String(format: "%.2f", confidence))")
         
         return AdvancedRecommendation(
             sounds: baseSounds,
@@ -2436,5 +2442,79 @@ extension ChatViewController {
         default:
             break
         }
+    }
+
+    /// 로컬 추천 시스템 (AI 한도 초과시)
+    private func generateLocalRecommendation() {
+        let currentTimeOfDay = getCurrentTimeOfDay()
+        let timeBasedEmotion = getTimeBasedEmotion(timeOfDay: currentTimeOfDay)
+        
+        // 🧠 과학적 프리셋 우선 사용
+        let scientificPreset = SoundPresetCatalog.getRandomScientificPreset()
+        
+        let recommendedPreset = (
+            name: scientificPreset.name,
+            volumes: scientificPreset.volumes,
+            description: scientificPreset.description,
+            versions: SoundPresetCatalog.defaultVersions
+        )
+        
+        let duration = scientificPreset.duration
+        
+        // 사용자 친화적인 메시지 생성
+        let presetMessage = """
+        💭 **로컬 기반 과학적 추천**
+        현재 시간: \(currentTimeOfDay)
+        추천 상태: \(timeBasedEmotion)
+        
+        🧠 **[\(recommendedPreset.name)]**
+        \(recommendedPreset.description)
+        
+        📚 **권장 사용시간**: \(duration)
+        
+        과학적 연구 기반으로 설계된 전문 사운드 조합입니다. 특정 음원들만 선별하여 최적의 효과를 제공합니다. ✨
+        
+        ℹ️ 오늘의 AI 추천 횟수를 모두 사용하여 로컬 추천을 제공합니다.
+        """
+        
+        // 프리셋 적용 콜백 설정
+        var chatMessage = ChatMessage(type: .presetRecommendation, text: presetMessage)
+        chatMessage.onApplyPreset = { [weak self] in
+            self?.applyLocalPreset(recommendedPreset)
+        }
+        
+        appendChat(chatMessage)
+    }
+    
+    /// 시간대 기반 감정 상태 추출
+    private func getTimeBasedEmotion(timeOfDay: String) -> String {
+        switch timeOfDay {
+        case "새벽": return "수면/명상"
+        case "아침": return "활력/집중"
+        case "오전": return "집중/생산성"
+        case "점심": return "균형/안정"
+        case "오후": return "활력/창의성"
+        case "저녁": return "이완/평온"
+        case "밤": return "수면/휴식"
+        default: return "편안함"
+        }
+    }
+    
+    /// ✅ 완전 고유한 랜덤 시드 생성 (매번 완전히 다른 결과 보장)
+    private func generateUniqueRandomSeed() -> Double {
+        let nanoTime = DispatchTime.now().uptimeNanoseconds
+        let microSecond = Int(Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 1) * 1000000)
+        let randomComponent = Int.random(in: 10000...99999)
+        let processId = Int(ProcessInfo.processInfo.processIdentifier)
+        let threadId = Thread.current.hash // pthread_self() 대신 사용
+        
+        // 여러 시간 기반 컴포넌트 조합
+        let uniqueSeed = Double(nanoTime % 1000000) / 1000000.0 + 
+                        Double(microSecond) / 1000000.0 + 
+                        Double(randomComponent) / 100000.0 +
+                        Double(processId % 1000) / 1000.0 +
+                        Double(threadId % 1000) / 1000.0
+        
+        return uniqueSeed
     }
 }

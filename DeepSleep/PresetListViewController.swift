@@ -101,7 +101,17 @@ class PresetListViewController: UITableViewController {
         )
         importButton.title = "가져오기"
         
-        navigationItem.rightBarButtonItem = importButton
+        // 🛠️ 디버그: 즐겨찾기 초기화 버튼 (임시)
+        let resetButton = UIBarButtonItem(
+            image: UIImage(systemName: "trash.circle"),
+            style: .plain,
+            target: self,
+            action: #selector(resetFavoritesTapped)
+        )
+        resetButton.title = "초기화"
+        resetButton.tintColor = .systemRed
+        
+        navigationItem.rightBarButtonItems = [importButton, resetButton]
     }
     
 
@@ -113,16 +123,32 @@ class PresetListViewController: UITableViewController {
     
     private func loadFavorites() {
         let favoriteIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
-        favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
-        print("📂 [loadFavorites] \(favoritePresetIds.count)개 즐겨찾기 로드됨")
+        let allUUIDs = favoriteIds.compactMap { UUID(uuidString: $0) }
         
-        // 최대 4개 제한 강제 적용 (혹시 데이터가 손상된 경우)
-        if favoritePresetIds.count > 4 {
-            let limitedIds = Array(favoritePresetIds.prefix(4))
-            favoritePresetIds = Set(limitedIds)
+        // 실제 존재하는 프리셋들만 필터링 (고아 참조 제거)
+        let allPresets = SettingsManager.shared.loadSoundPresets()
+        let existingPresetIds = Set(allPresets.map { $0.id })
+        let validFavoriteIds = allUUIDs.filter { existingPresetIds.contains($0) }
+        
+        favoritePresetIds = Set(validFavoriteIds)
+        
+        print("📂 [loadFavorites] 원본: \(favoriteIds.count)개, 유효한 UUID: \(allUUIDs.count)개, 실제 존재: \(validFavoriteIds.count)개")
+        
+        // 고아 참조가 있었거나 4개 초과인 경우 정리
+        let needsCleanup = favoriteIds.count != validFavoriteIds.count || favoritePresetIds.count > 4
+        
+        if needsCleanup {
+            if favoritePresetIds.count > 4 {
+                let limitedIds = Array(favoritePresetIds.prefix(4))
+                favoritePresetIds = Set(limitedIds)
+                print("⚠️ [loadFavorites] 즐겨찾기 4개 초과로 제한됨")
+            }
+            
             saveFavorites() // 즉시 저장하여 데이터 정리
-            print("⚠️ [loadFavorites] 즐겨찾기 4개 초과로 정리됨")
+            print("🧹 [loadFavorites] 고아 참조 제거 및 데이터 정리 완료")
         }
+        
+        print("✅ [loadFavorites] 최종 즐겨찾기: \(favoritePresetIds.count)개")
     }
     
     private func saveFavorites() {
@@ -173,16 +199,21 @@ class PresetListViewController: UITableViewController {
         // UserDefaults에 즉시 저장
         saveFavorites()
         
-        // 저장 후 검증
+        // 저장 후 검증 (강화된 로깅)
         let reloadedIds = UserDefaults.standard.array(forKey: "FavoritePresetIds") as? [String] ?? []
         let reloadedCount = reloadedIds.count
         print("  - 저장 후 검증: UserDefaults에 \(reloadedCount)개 저장됨")
+        print("  - 저장된 ID들: \(reloadedIds.map { String($0.prefix(8)) })")
         
         // 메모리와 디스크 일치성 확인
         if favoritePresetIds.count != reloadedCount {
             print("  - ⚠️ 메모리(\(favoritePresetIds.count))와 디스크(\(reloadedCount)) 불일치!")
+            print("  - 메모리 ID들: \(favoritePresetIds.map { $0.uuidString.prefix(8) })")
+            print("  - 디스크 ID들: \(reloadedIds.map { String($0.prefix(8)) })")
+            
             // 강제 재동기화
             loadFavorites()
+            print("  - 강제 재동기화 완료: 새 카운트 \(favoritePresetIds.count)")
         }
         
         // 해당 셀만 업데이트
@@ -213,6 +244,53 @@ class PresetListViewController: UITableViewController {
     // 즐겨찾기 프리셋들을 가져오는 메서드 (메인 화면 프리셋 블록에서 사용)
     func getFavoritePresets() -> [SoundPreset] {
         return presets.filter { favoritePresetIds.contains($0.id) }
+    }
+    
+    // MARK: - 🛠️ 디버그 메서드들
+    
+    @objc private func resetFavoritesTapped() {
+        let alert = UIAlertController(
+            title: "즐겨찾기 초기화",
+            message: "모든 즐겨찾기를 제거하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        alert.addAction(UIAlertAction(title: "초기화", style: .destructive) { [weak self] _ in
+            self?.resetAllFavorites()
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func resetAllFavorites() {
+        print("🗑️ [resetAllFavorites] 즐겨찾기 완전 초기화 시작")
+        
+        // 메모리에서 즐겨찾기 제거
+        favoritePresetIds.removeAll()
+        
+        // UserDefaults에서 제거
+        UserDefaults.standard.removeObject(forKey: "FavoritePresetIds")
+        UserDefaults.standard.synchronize()
+        
+        // 테이블뷰 리로드
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+        }
+        
+        // 메인 화면 즐겨찾기 블록 업데이트
+        NotificationCenter.default.post(name: NSNotification.Name("FavoritesUpdated"), object: nil)
+        
+        print("✅ [resetAllFavorites] 즐겨찾기 완전 초기화 완료")
+        
+        // 성공 메시지 표시
+        let successAlert = UIAlertController(
+            title: "초기화 완료",
+            message: "모든 즐겨찾기가 제거되었습니다.",
+            preferredStyle: .alert
+        )
+        successAlert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(successAlert, animated: true)
     }
 
     // MARK: - TableView 기본 구성

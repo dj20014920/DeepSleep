@@ -11,6 +11,7 @@ enum ChatMessageType: String, Codable {
     case recommendationSelector // 🆕 추천 방식 선택창 전용 타입
     case loading
     case error
+    case system                // 🆕 시스템 안내 메시지
     case presetOptions
     case postPresetOptions
 }

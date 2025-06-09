@@ -730,8 +730,8 @@ class ReplicateChatService {
                 return
             }
 
-                    // 🔧 시뮬레이터 테스트용 임시 하드코딩 (실제 배포시 제거 필요)
-        let apiToken = "r8_29j0U8UbheNEVv6ju6n54OlTtyCmToJ3eFDzj"
+                    // API 키 통합 관리 사용
+        let apiToken = self.apiKey
         print("✅ [DEBUG] API 토큰 사용: \(apiToken.prefix(10))...")
         
         guard !apiToken.isEmpty else {
@@ -816,10 +816,11 @@ class ReplicateChatService {
             return
         }
 
-        // 🔧 시뮬레이터 테스트용 임시 하드코딩 (실제 배포시 제거 필요)
-        let apiToken = "r8_29j0U8UbheNEVv6ju6n54OlTtyCmToJ3eFDzj"
+        // API 키 통합 관리 사용
+        let apiToken = self.apiKey
         
         guard !apiToken.isEmpty else {
+            print("❌ API 키가 비어있습니다.")
             completion(nil)
             return
         }
@@ -1082,11 +1083,10 @@ class ReplicateChatService {
     }
 
     // MARK: - AI 조언 관련 메서드
-    private var apiKey: String { // Bundle에서 로드하도록 수정
+    private var apiKey: String {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String, !key.isEmpty else {
-            // fatalError() 보다는 오류를 던지거나 기본값을 제공하는 것이 좋습니다.
-            // 여기서는 getAIAdvice 시작 시점에 guard 문으로 처리하므로, 여기서는 단순히 빈 문자열 반환 (사용되지 않도록)
-            print("🚨 REPLICATE_API_TOKEN이 Info.plist에 설정되지 않았거나 비어있습니다.")
+            print("🚨 REPLICATE_API_TOKEN이 Info.plist에 설정되지 않았습니다.")
+            print("🔧 Secrets.xcconfig 파일에 유효한 API 키를 설정하고 프로젝트를 다시 빌드하세요.")
             return ""
         }
         return key

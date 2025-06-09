@@ -72,6 +72,7 @@ struct SoundPreset: Codable {
     let emotion: String?
     let isAIGenerated: Bool
     let description: String?
+    let scientificBasis: String?  // 과학적 근거
     let createdDate: Date
     
     // ✅ 새로 추가: 버전 정보 (11개 카테고리)
@@ -86,6 +87,7 @@ struct SoundPreset: Codable {
         self.emotion = emotion
         self.isAIGenerated = isAIGenerated
         self.description = description
+        self.scientificBasis = nil  // 기존 호환성을 위해 nil
         self.createdDate = Date()
         
         // 기존 버전 호환성
@@ -99,7 +101,7 @@ struct SoundPreset: Codable {
     }
     
     // MARK: - 새로운 초기화 (버전 정보 포함)
-    init(name: String, volumes: [Float], selectedVersions: [Int], emotion: String? = nil, isAIGenerated: Bool = false, description: String? = nil) {
+    init(name: String, volumes: [Float], selectedVersions: [Int], emotion: String? = nil, isAIGenerated: Bool = false, description: String? = nil, scientificBasis: String? = nil) {
         self.id = UUID()
         self.name = name
         self.volumes = volumes
@@ -107,6 +109,7 @@ struct SoundPreset: Codable {
         self.emotion = emotion
         self.isAIGenerated = isAIGenerated
         self.description = description
+        self.scientificBasis = scientificBasis
         self.createdDate = Date()
         self.presetVersion = "v2.0"  // 항상 새 버전
     }
@@ -146,7 +149,8 @@ struct SoundPreset: Codable {
             selectedVersions: SoundPresetCatalog.defaultVersions,
             emotion: emotion,
             isAIGenerated: isAIGenerated,
-            description: description
+            description: description,
+            scientificBasis: scientificBasis
         )
     }
 }
@@ -197,7 +201,8 @@ struct PresetManager {
                     selectedVersions: SoundPresetCatalog.defaultVersions,
                     emotion: mutablePreset.emotion,
                     isAIGenerated: mutablePreset.isAIGenerated,
-                    description: mutablePreset.description
+                    description: mutablePreset.description,
+                    scientificBasis: mutablePreset.scientificBasis
                 )
                 presetWasModified = true
             }
@@ -225,7 +230,8 @@ struct PresetManager {
             selectedVersions: versions,
             emotion: emotion,
             isAIGenerated: isAIGenerated,
-            description: isAIGenerated ? "AI 추천 프리셋" : "사용자 저장 프리셋"
+            description: isAIGenerated ? "AI 추천 프리셋" : "사용자 저장 프리셋",
+            scientificBasis: nil
         )
         
         SettingsManager.shared.saveSoundPreset(preset)
@@ -328,12 +334,18 @@ struct EnhancedRecommendationResponse {
     let presetName: String
     let selectedVersions: [Int]?  // 버전 정보 추가
     let confidence: Float
+    let scientificDescription: String?
+    let recommendedDuration: String?
+    let optimalTiming: String?
     
-    init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, confidence: Float = 1.0) {
+    init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, confidence: Float = 1.0, scientificDescription: String? = nil, recommendedDuration: String? = nil, optimalTiming: String? = nil) {
         self.volumes = volumes
         self.presetName = presetName
         self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersions
         self.confidence = confidence
+        self.scientificDescription = scientificDescription
+        self.recommendedDuration = recommendedDuration
+        self.optimalTiming = optimalTiming
     }
     
     // 기존 RecommendationResponse와 호환성을 위한 변환

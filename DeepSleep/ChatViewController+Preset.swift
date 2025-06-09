@@ -145,62 +145,207 @@ extension ChatViewController {
     private func parseBasicFormat(from response: String) -> EnhancedRecommendationResponse? {
         let emotion = initialUserText ?? "😊"
         
-        switch emotion {
-        case "😢", "😞", "😔":  // 슬픔
-            let volumes: [Float] = [40, 20, 70, 30, 60, 80, 0, 60, 20, 0, 50, 0, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🌧️ 위로의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        case "😰", "😱", "😨":  // 불안
-            let volumes: [Float] = [60, 30, 50, 0, 70, 90, 0, 80, 40, 0, 60, 0, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🌿 안정의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        case "😴", "😪":  // 졸림/피곤
-            let volumes: [Float] = [70, 40, 90, 20, 50, 60, 0, 80, 30, 0, 40, 0, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🌙 깊은 잠의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        case "😊", "😄", "🥰":  // 기쁨
-            let volumes: [Float] = [80, 60, 40, 30, 20, 70, 40, 50, 20, 30, 80, 70, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🌈 기쁨의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        case "😡", "😤":  // 화남
-            let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🌊 마음 달래는 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        case "😐", "🙂":  // 평온/무덤덤
-            let volumes: [Float] = [50, 40, 60, 20, 40, 60, 60, 70, 40, 50, 50, 30, 20]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "⚖️ 균형의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
-            
-        default:  // 기본값
-            let volumes: [Float] = [40, 30, 50, 20, 30, 50, 40, 60, 30, 40, 40, 20, 0]
-            return EnhancedRecommendationResponse(
-                volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-                presetName: "🎵 평온의 소리",
-                selectedVersions: generateOptimalVersions(volumes: volumes)
-            )
+        // 🌈 모든 프리셋에서 동등하게 선택 (우선순위 없음)
+        // 감정과 시간대 기반으로 통합된 추천 시스템 사용
+        let scientificRecommendation = getScientificRecommendationFor(emotion: emotion)
+        if let scientificPreset = scientificRecommendation {
+            return scientificPreset
         }
+        
+        // 만약 과학적 프리셋 선택에 실패한 경우 (거의 없음) 기본 프리셋 반환
+        let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
+        return EnhancedRecommendationResponse(
+            volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
+            presetName: "🌊 마음 달래는 소리",
+            selectedVersions: generateOptimalVersions(volumes: volumes)
+        )
+    }
+    
+    // MARK: - 🧠 과학적 프리셋 추천 시스템
+    
+    /// 감정과 시간대를 기반으로 과학적 프리셋 추천
+    private func getScientificRecommendationFor(emotion: String) -> EnhancedRecommendationResponse? {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(from: currentHour)
+        
+        // 감정과 시간대에 따른 추천 매핑
+        let emotionMapping: [String: [String]] = [
+            "😢": ["Emotional Healing", "Self Compassion", "Inner Peace", "Comfort Rain"],
+            "😞": ["Forest Stress Relief", "Emotional Healing", "PTSD Grounding", "Comfort Rain"],
+            "😔": ["Deep Ocean Cortisol Reset", "Emotional Healing", "Nature Stress Detox", "Comfort Rain"],
+            "😰": ["Forest Stress Relief", "Rain Anxiety Calm", "Deep Ocean Cortisol Reset", "Stability Nature"],
+            "😱": ["PTSD Grounding", "Forest Stress Relief", "Autism Sensory Calm", "Stability Nature"],
+            "😨": ["Rain Anxiety Calm", "Deep Ocean Cortisol Reset", "Forest Stress Relief", "Stability Nature"],
+            "😴": ["Sleep Onset Helper", "Delta Sleep Induction", "Night Preparation", "Deep Dream"],
+            "😪": ["Sleep Onset Helper", "Theta Deep Relaxation", "REM Sleep Support", "Deep Dream"],
+            "😊": ["Alpha Wave Mimic", "Creative Burst", "Morning Energy Boost", "Joyful Symphony"],
+            "😄": ["Morning Energy Boost", "Social Energy", "Workout Motivation", "Joyful Symphony"],
+            "🥰": ["Love & Connection", "Self Compassion", "Emotional Healing", "Joyful Symphony"],
+            "😤": ["Deep Ocean Cortisol Reset", "Forest Stress Relief", "Rain Anxiety Calm", "Anger Release"],
+            "😠": ["PTSD Grounding", "Deep Ocean Cortisol Reset", "Forest Stress Relief", "Anger Release"],
+            "🤔": ["Deep Work Flow", "Problem Solving", "Brain Training", "Deep Focus"],
+            "😌": ["Inner Peace", "Zen Garden Flow", "Mindfulness Bell", "Meditation Flow"],
+            "🧘": ["Theta Deep Relaxation", "Zen Garden Flow", "Tibetan Bowl Substitute", "Meditation Flow"],
+            "💪": ["Deep Work Flow", "Gamma Focus Simulation", "Morning Energy Boost", "Vitality Boost"],
+            "🎯": ["Study Session", "Learning Optimization", "Information Processing", "Deep Focus"],
+            "💡": ["Creative Burst", "Alpha Wave Mimic", "Neuroplasticity Boost", "Deep Focus"],
+            "🌙": ["Delta Sleep Induction", "Night Preparation", "Sleep Onset Helper", "Night Ambience"],
+            "🌅": ["Dawn Awakening", "Morning Energy Boost", "Midday Balance", "Vitality Boost"],
+            "🌿": ["Forest Bathing", "Ocean Therapy", "Mountain Serenity", "Nature Symphony"],
+            "🏥": ["Tinnitus Relief", "Autism Sensory Calm", "ADHD Focus Aid", "Calm Waters"]
+        ]
+        
+        // 시간대 기반 후보군 선택
+        let timeCandidates: [String]
+        switch currentHour {
+        case 5...7:
+            timeCandidates = ["Dawn Awakening", "Morning Energy Boost", "Social Energy", "Vitality Boost"]
+        case 8...11:
+            timeCandidates = ["Deep Work Flow", "Study Session", "Creative Burst", "Deep Focus"]
+        case 12...14:
+            timeCandidates = ["Midday Balance", "Alpha Wave Mimic", "Problem Solving", "Deep Focus"]
+        case 15...17:
+            timeCandidates = ["Afternoon Revival", "Learning Optimization", "Brain Training", "Deep Focus"]
+        case 18...21:
+            timeCandidates = ["Sunset Transition", "Emotional Healing", "Inner Peace", "Meditation Flow"]
+        case 22...23:
+            timeCandidates = ["Night Preparation", "Sleep Onset Helper", "Theta Deep Relaxation", "Night Ambience"]
+        case 0...4:
+            timeCandidates = ["Delta Sleep Induction", "Deep Sleep Maintenance", "REM Sleep Support", "Deep Dream"]
+        default:
+            timeCandidates = ["Alpha Wave Mimic", "Inner Peace", "Deep Ocean Cortisol Reset", "Calm Waters"]
+        }
+        
+        // 1. 감정 기반 후보군 선택
+        let emotionCandidates = emotionMapping[emotion] ?? ["Deep Ocean Cortisol Reset", "Alpha Wave Mimic", "Inner Peace"]
+        
+        // 3. 교집합 또는 가중 선택
+        let intersectionCandidates = Set(emotionCandidates).intersection(Set(timeCandidates))
+        
+        let finalPresetName: String
+        if !intersectionCandidates.isEmpty {
+            // 교집합이 있으면 그 중에서 선택
+            finalPresetName = intersectionCandidates.randomElement() ?? emotionCandidates.first!
+        } else {
+            // 교집합이 없으면 감정 우선 선택 (70%) 또는 시간대 선택 (30%)
+            if Float.random(in: 0...1) < 0.7 {
+                finalPresetName = emotionCandidates.randomElement() ?? "Deep Ocean Cortisol Reset"
+            } else {
+                finalPresetName = timeCandidates.randomElement() ?? "Alpha Wave Mimic"
+            }
+        }
+        
+        // 4. 선택된 프리셋 반환
+        guard let volumes = SoundPresetCatalog.scientificPresets[finalPresetName] else {
+            return nil
+        }
+        
+        let description = SoundPresetCatalog.scientificDescriptions[finalPresetName] ?? "과학적 연구 기반 음향 치료"
+        let duration = SoundPresetCatalog.recommendedDurations[finalPresetName] ?? "20-30분"
+        let timing = SoundPresetCatalog.optimalTimings[finalPresetName] ?? "언제든지"
+        
+        // 프리셋 이름을 한국어와 이모지로 변환
+        let koreanName = convertToKoreanPresetName(finalPresetName)
+        
+        print("🧠 [getScientificRecommendationFor] 감정: \(emotion), 시간: \(timeOfDay)")
+        print("  - 감정 후보: \(emotionCandidates)")
+        print("  - 시간 후보: \(timeCandidates)")
+        print("  - 최종 선택: \(finalPresetName)")
+        print("  - 설명: \(description)")
+        
+        return EnhancedRecommendationResponse(
+            volumes: volumes,
+            presetName: koreanName,
+            selectedVersions: generateOptimalVersions(volumes: volumes),
+            scientificDescription: description,
+            recommendedDuration: duration,
+            optimalTiming: timing
+        )
+    }
+    
+    /// 시간대 문자열 반환
+    private func getTimeOfDay(from hour: Int) -> String {
+        switch hour {
+        case 5..<8: return "새벽"
+        case 8..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<22: return "저녁"
+        case 22..<24, 0..<5: return "밤"
+        default: return "하루"
+        }
+    }
+    
+    /// 영어 프리셋 이름을 한국어로 변환
+    private func convertToKoreanPresetName(_ englishName: String) -> String {
+        let nameMapping: [String: String] = [
+            "Deep Ocean Cortisol Reset": "🌊 깊은 바다 코르티솔 리셋",
+            "Forest Stress Relief": "🌲 숲속 스트레스 완화",
+            "Rain Anxiety Calm": "🌧️ 빗소리 불안 진정",
+            "Nature Stress Detox": "🍃 자연 스트레스 해독",
+            "Alpha Wave Mimic": "🧠 알파파 모방 집중",
+            "Theta Deep Relaxation": "🌀 세타파 깊은 이완",
+            "Delta Sleep Induction": "😴 델타파 수면 유도",
+            "Gamma Focus Simulation": "⚡ 감마파 집중 시뮬레이션",
+            "Sleep Onset Helper": "🌙 수면 시작 도우미",
+            "Deep Sleep Maintenance": "💤 깊은 수면 유지",
+            "REM Sleep Support": "👁️ 렘수면 지원",
+            "Night Terror Calm": "🌃 야간 공포 진정",
+            "Tibetan Bowl Substitute": "🎵 티베트 보울 대체",
+            "Zen Garden Flow": "🧘 선 정원 흐름",
+            "Mindfulness Bell": "🔔 마음챙김 종소리",
+            "Walking Meditation": "🚶 걸으며 명상",
+            "Deep Work Flow": "💻 몰입 작업 플로우",
+            "Creative Burst": "💡 창의성 폭발",
+            "Study Session": "📚 학습 세션",
+            "Coding Focus": "⌨️ 코딩 집중",
+            "Morning Energy Boost": "🌅 아침 에너지 부스터",
+            "Afternoon Revival": "☀️ 오후 활력 회복",
+            "Workout Motivation": "💪 운동 동기 부여",
+            "Social Energy": "👥 사회적 에너지",
+            "Dawn Awakening": "🌄 새벽 깨어남",
+            "Midday Balance": "⚖️ 한낮 균형",
+            "Sunset Transition": "🌅 석양 전환",
+            "Night Preparation": "🌙 밤 준비",
+            "Memory Enhancement": "🧠 기억력 향상",
+            "Learning Optimization": "📖 학습 최적화",
+            "Problem Solving": "🧩 문제 해결",
+            "Information Processing": "🔍 정보 처리",
+            "Emotional Healing": "💚 감정 치유",
+            "Self Compassion": "🤗 자기 연민",
+            "Love & Connection": "💕 사랑과 연결",
+            "Inner Peace": "☮️ 내면의 평화",
+            "Forest Bathing": "🌲 산림욕 (신린요쿠)",
+            "Ocean Therapy": "🌊 바다 치료",
+            "Mountain Serenity": "🏔️ 산의 고요함",
+            "Desert Vastness": "🏜️ 사막의 광활함",
+            "Neuroplasticity Boost": "🧠 신경가소성 부스터",
+            "Brain Training": "🎯 뇌 훈련",
+            "Mental Flexibility": "🤸 정신적 유연성",
+            "Cognitive Reserve": "🧠 인지 예비능력",
+            "Tinnitus Relief": "👂 이명 완화",
+            "Autism Sensory Calm": "🧩 자폐 감각 진정",
+            "ADHD Focus Aid": "🎯 ADHD 집중 보조",
+            "PTSD Grounding": "🌍 PTSD 그라운딩",
+            "Multi-sensory Harmony": "🌈 다감각 조화",
+            "Synesthetic Experience": "🎨 공감각적 경험",
+            "Temporal Perception": "⏰ 시간 지각",
+            "Spatial Awareness": "📐 공간 인식",
+            
+            // 기존 감정별 프리셋 한국어 매핑 추가
+            "Comfort Rain": "🌧️ 위로의 소리",
+            "Stability Nature": "🌿 안정의 소리", 
+            "Deep Dream": "🌙 깊은 잠의 소리",
+            "Joyful Symphony": "🌈 기쁨의 소리",
+            "Anger Release": "🔥 분노 해소의 소리",
+            "Deep Focus": "🧠 집중의 소리",
+            "Meditation Flow": "🕯️ 명상의 소리",
+            "Vitality Boost": "⚡ 활력의 소리",
+            "Night Ambience": "🌌 밤의 소리",
+            "Nature Symphony": "🌳 자연의 소리",
+            "Calm Waters": "🌊 마음 달래는 소리"
+        ]
+        
+        return nameMapping[englishName] ?? "🎵 \(englishName)"
     }
 }

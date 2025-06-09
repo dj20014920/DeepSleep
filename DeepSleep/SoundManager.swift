@@ -653,7 +653,8 @@ final class SoundManager {
             guard index < players.count else { continue }
             
             let player = players[index]
-            let normalizedVolume = volume / 100.0
+            // 🔧 이미 정규화된 값이 들어오므로 추가 정규화 불필요
+            let normalizedVolume = volume
             
             // 볼륨 설정
             player.volume = normalizedVolume
@@ -784,21 +785,24 @@ final class SoundManager {
 
     /// 특정 카테고리의 볼륨을 설정하고 NowPlayingInfo를 업데이트합니다.
     /// 🆕 ChatViewController+Actions.swift와의 호환성을 위해 파라미터 이름을 index로 통일
+    /// 🔧 볼륨 정규화 수정: 0-100 범위를 0.0-1.0으로 정규화
     func setVolume(for index: Int, volume: Float) {
         guard index >= 0, index < players.count else { return }
         
-        let newVolume = max(0, min(1, volume)) // 0.0 ~ 1.0
+        // 🔧 0-100 범위 값을 0.0-1.0으로 정규화
+        let normalizedVolume = volume / 100.0
+        let newVolume = max(0, min(1, normalizedVolume)) // 0.0 ~ 1.0
         players[index].volume = newVolume
         
         if newVolume > 0 && !players[index].isPlaying {
             players[index].play()
-            print("▶️ SoundManager: 카테고리 \(index) 재생 시작 (볼륨: \(newVolume))")
+            print("▶️ SoundManager: 카테고리 \(index) 재생 시작 (원본: \(volume) → 정규화: \(newVolume))")
         } else if newVolume == 0 && players[index].isPlaying {
             players[index].pause()
             print("⏸️ SoundManager: 카테고리 \(index) 일시정지 (볼륨 0)")
         }
         updateNowPlayingPlaybackStatus() // 재생 상태 변경 시 항상 호출
-        print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → \(newVolume)")
+        print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → 원본: \(volume) → 정규화: \(newVolume)")
     }
 
     /// 모든 플레이어를 정지시키고 NowPlayingInfo를 업데이트합니다.
