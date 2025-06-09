@@ -1313,3 +1313,68 @@ struct MasterRecommendation: Codable {
     }
 }
 
+// MARK: - 📊 저장소 관리 모델
+struct StorageInfo: Codable {
+    let totalSizeKB: Int
+    let feedbackCount: Int
+    let feedbackSizeKB: Int
+    let diaryCount: Int
+    let diarySizeKB: Int
+    let presetCount: Int
+    let presetSizeKB: Int
+    let retentionDays: Int
+    
+    /// 사용자 친화적 크기 표시
+    var totalSizeFormatted: String {
+        if totalSizeKB < 1024 {
+            return "\(totalSizeKB)KB"
+        } else {
+            let sizeMB = Double(totalSizeKB) / 1024.0
+            return String(format: "%.1fMB", sizeMB)
+        }
+    }
+    
+    /// 상세 정보 문자열
+    var detailDescription: String {
+        return """
+        📊 저장소 사용량 상세
+        
+        🎵 피드백 데이터: \(feedbackCount)개 (~\(feedbackSizeKB)KB)
+        📝 감정 일기: \(diaryCount)개 (~\(diarySizeKB)KB)
+        🎼 사운드 프리셋: \(presetCount)개 (~\(presetSizeKB)KB)
+        
+        📅 데이터 보관 기간: \(retentionDays)일
+        💾 총 사용량: \(totalSizeFormatted)
+        
+        ℹ️ 데이터는 \(retentionDays)일 후 자동으로 정리됩니다.
+        """
+    }
+}
+
+struct CleanupResult: Codable {
+    let beforeSizeKB: Int
+    let afterSizeKB: Int
+    let freedSpaceKB: Int
+    let deletedFeedbackCount: Int
+    
+    /// 정리 결과 요약
+    var summaryDescription: String {
+        let freedSpaceMB = Double(freedSpaceKB) / 1024.0
+        return """
+        🧹 데이터 정리 완료
+        
+        📉 정리 전: \(beforeSizeKB)KB
+        📈 정리 후: \(afterSizeKB)KB
+        💾 절약된 용량: \(freedSpaceKB)KB (~\(String(format: "%.1f", freedSpaceMB))MB)
+        🗑️ 삭제된 피드백: \(deletedFeedbackCount)개
+        
+        ✅ 앱 성능이 개선되었습니다!
+        """
+    }
+    
+    /// 정리 효과가 있었는지 확인
+    var hasSignificantCleanup: Bool {
+        return freedSpaceKB > 100 || deletedFeedbackCount > 10
+    }
+}
+

@@ -6,14 +6,15 @@ extension EmotionCalendarViewController {
     // MARK: - AI Analysis Implementation
     func showAIAnalysisAlert() {
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .patternAnalysis)
+        let totalLimit = 3 // AIUsageManager에서 설정된 patternAnalysis 일일 제한
             
         guard remainingCount > 0 else {
             let limitAlert = UIAlertController(
                 title: "📊 일일 감정 패턴 분석 완료",
                 message: """
-                오늘 감정 패턴 분석을 이미 사용하셨습니다.
+                오늘 감정 패턴 분석을 모두 사용하셨습니다.
                 
-                깊이 있는 감정 패턴 분석을 위해 하루 1회로 제한하고 있어요.
+                깊이 있는 감정 패턴 분석을 위해 하루 \(totalLimit)회로 제한하고 있어요.
                 대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
                 
                 내일 다시 이용해보세요! 😊
@@ -32,7 +33,7 @@ extension EmotionCalendarViewController {
             title: "🔒 개인정보 보호 안내",
             message: """
             AI 감정 패턴 분석 대화를 시작합니다:
-            📊 오늘 남은 분석 횟수: \(remainingCount)/1회
+            📊 오늘 남은 분석 횟수: \(remainingCount)/\(totalLimit)회
             
             • 최근 30일간의 감정 패턴 분석
             • 감정 통계 및 트렌드 파악
@@ -58,7 +59,9 @@ extension EmotionCalendarViewController {
     
     func startAIAnalysisChat() {
         let anonymizedData = generateAnonymizedEmotionData()
-        SettingsManager.shared.incrementPatternAnalysisUsage()
+        // ✅ 사용 횟수 기록 (실제 분석 시작 시점에)
+        AIUsageManager.shared.recordUsage(for: .patternAnalysis)
+        
         let chatVC = ChatViewController()
         chatVC.title = "감정 패턴 분석 대화"
         
@@ -79,6 +82,10 @@ extension EmotionCalendarViewController {
         
         // ✅ 네비게이션 바가 확실히 보이도록 설정
         navController.setNavigationBarHidden(false, animated: false)
+        
+        // ✅ swipe back 제스처 활성화
+        navController.interactivePopGestureRecognizer?.isEnabled = true
+        navController.interactivePopGestureRecognizer?.delegate = nil
         
         present(navController, animated: true) {
             // 표시 완료 후 추가 설정

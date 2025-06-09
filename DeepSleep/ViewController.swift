@@ -51,43 +51,90 @@ class ViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("👍 [ViewController] viewDidLoad() - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        print("👍 [ViewController] viewDidLoad() - 초기화 시작")
         print("✅ ViewController [\(instanceUUID)] viewDidLoad.") // UUID 로깅 추가
         
-        // 데이터 일관성 검증 (Debug 모드에서만)
-        #if DEBUG
-        print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
-        #endif
+        // 🚀 1단계: 필수 UI만 먼저 설정 (즉시)
+        setupCriticalUI()
         
-        // 마이그레이션 실행
-        PresetManager.shared.migrateLegacyPresetsIfNeeded()
+        // 🚀 2단계: 나머지 초기화는 백그라운드에서 비동기 처리
+        Task {
+            await performAsyncInitialization()
+        }
         
-        // 🆕 애플워치 헬스킷 초기화
-        setupHealthKitIfNeeded()
+        // 🚀 3단계: 지연 로딩 항목들은 viewDidAppear에서 처리
+        // (별도 메서드로 이동)
+    }
+    
+    // MARK: - 🚀 성능 최적화: 단계별 초기화
+    
+    /// 1단계: 즉시 필요한 최소한의 UI만 설정
+    private func setupCriticalUI() {
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
+        configureNavBar()
         
-        setupUI()
+        // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
+        setupBasicSliderUI()
+        
+        print("✅ 필수 UI 설정 완료 (즉시)")
+    }
+    
+    /// 2단계: 백그라운드에서 비동기 초기화
+    @MainActor
+    private func performAsyncInitialization() async {
+        // 데이터 검증 (백그라운드)
+        await Task.detached { [weak self] in
+            #if DEBUG
+            print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
+            #endif
+            
+            // 마이그레이션 실행 (백그라운드)
+            PresetManager.shared.migrateLegacyPresetsIfNeeded()
+            
+            await MainActor.run { [weak self] in
+                self?.setupKeyboardNotifications()
+                self?.setupNotifications()
+                print("✅ 백그라운드 초기화 완료")
+            }
+        }.value
+        
+        // UI 업데이트는 메인 스레드에서
         setupInitialState()
-        setupKeyboardNotifications()
+    }
+    
+    /// 3단계: 지연 로딩 (viewDidAppear에서 호출)
+    private func performDelayedInitialization() {
+        // ❌ 시간이 오래 걸리는 작업들을 여기로 이동
         
-        // ✅ 즐겨찾기 업데이트 노티피케이션 구독 추가
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleFavoritesUpdated),
-            name: NSNotification.Name("FavoritesUpdated"),
-            object: nil
-        )
+        // 🆕 애플워치 헬스킷 초기화 (지연)
+        Task {
+            await setupHealthKitIfNeeded()
+        }
         
-        // ✅ 프리셋 블록 업데이트 알림 구독 추가
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePresetBlocksUpdate),
-            name: NSNotification.Name("PresetBlocksNeedUpdate"),
-            object: nil
-        )
+        // 프리셋 블록 업데이트 (지연)
+        Task {
+            await MainActor.run {
+                setupPresetBlocks()
+                updatePresetBlocks()
+            }
+        }
         
-        // Phase 4: 온디바이스 학습 자동 트리거 시스템
+        // 온디바이스 학습 (지연)
         Task {
             await checkAndTriggerOnDeviceLearning()
+        }
+        
+        print("✅ 지연 초기화 시작")
+    }
+    
+    /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)
+    private func setupBasicSliderUI() {
+        // 슬라이더만 기본값으로 빠르게 표시
+        setupSliderUI()
+        
+        // 이모지 셀렉터는 지연 로딩
+        Task { @MainActor in
+            setupEmojiSelector()
         }
     }
     
@@ -113,12 +160,15 @@ class ViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("👍 [ViewController] viewDidAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        print("👍 [ViewController] viewDidAppear(_:) - 🚀 지연 초기화 시작")
         
         // ✅ 카테고리 버튼 UI 업데이트 (저장된 버전 정보 반영)
         updateAllCategoryButtonTitles()
         
         startPlaybackStateMonitoring()
+        
+        // 🚀 3단계: 지연 초기화 실행 (화면이 완전히 표시된 후)
+        performDelayedInitialization()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -247,6 +297,22 @@ class ViewController: UIViewController {
             self,
             selector: #selector(handleModelUpdated),
             name: .modelUpdated,
+            object: nil
+        )
+        
+        // ✅ 즐겨찾기 업데이트 노티피케이션 구독 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFavoritesUpdated),
+            name: NSNotification.Name("FavoritesUpdated"),
+            object: nil
+        )
+        
+        // ✅ 프리셋 블록 업데이트 알림 구독 추가
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePresetBlocksUpdate),
+            name: NSNotification.Name("PresetBlocksNeedUpdate"),
             object: nil
         )
     }

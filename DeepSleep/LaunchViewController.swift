@@ -110,6 +110,11 @@ class LaunchViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
+        // 🚀 백그라운드에서 앱 초기화 시작 (UI 애니메이션과 병렬 실행)
+        Task {
+            await performBackgroundInitialization()
+        }
+        
         // 3초 로딩 시간에 맞춘 부드러운 애니메이션
         // 아이콘이 먼저 천천히 나타나고 (0.5초 후, 1초간)
         UIView.animate(withDuration: 1.0, delay: 0.5, options: .curveEaseOut) {
@@ -130,6 +135,35 @@ class LaunchViewController: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             self.transitionToMainInterface()
         }
+    }
+    
+    // 🚀 백그라운드 초기화 작업
+    private func performBackgroundInitialization() async {
+        await Task.detached {
+            // 데이터 검증 및 마이그레이션 사전 실행
+            #if DEBUG
+            print("🚀 [Launch] 백그라운드 초기화 시작")
+            #endif
+            
+            // 프리셋 마이그레이션 사전 실행
+            PresetManager.shared.migrateLegacyPresetsIfNeeded()
+            
+            // 사운드 매니저 초기화
+            _ = SoundManager.shared
+            
+            // 설정 매니저 초기화
+            _ = SettingsManager.shared
+            
+            // 온디바이스 학습 모델 사전 로드
+            _ = ComprehensiveRecommendationEngine.shared
+            
+            // 🧹 피드백 데이터 자동 정리 (백그라운드에서 실행)
+            await FeedbackManager.shared.performStartupCleanup()
+            
+            #if DEBUG
+            print("✅ [Launch] 백그라운드 초기화 완료")
+            #endif
+        }.value
     }
     
     // MARK: - 안전한 화면 전환

@@ -221,31 +221,54 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("👍 [TodoCalendarViewController] viewDidLoad() - 🚀 최적화된 초기화 시작")
+        
+        // 🚀 1단계: 필수 UI만 먼저 설정
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         self.title = "내 일정"
         
         setupCalendar()
-        setupOverallAdviceButtonArea()
         setupTableView()
-        setupEmptyStateView() // 빈 화면 처리 뷰 설정
         
-        // 새 셀 등록
-        tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
-        tableView.separatorStyle = .none // 구분선 없음. EmotionDiaryDisplayCell에서 자체적인 간격/디자인 처리.
+        // 🚀 2단계: 나머지는 백그라운드에서 처리
+        Task {
+            await performAsyncSetup()
+        }
         
-        // 캘린더의 초기 선택 날짜를 오늘로 설정
+        // 🚀 3단계: 오늘 날짜 선택은 즉시 (사용자가 바로 볼 수 있도록)
         let today = Date()
-        calendar.select(today) // 오늘 날짜를 프로그램적으로 선택
-        // FSCalendar의 select(_:) 메소드는 delegate의 didSelect를 호출하지 않을 수 있으므로,
-        // 명시적으로 데이터 로드 함수도 호출해줍니다.
-        // 또한, 캘린더가 사용자 인터랙션 없이 날짜를 변경할 때 didSelect가 호출되도록 설정해야 할 수 있습니다.
-        // calendar.allowsSelection = true // 기본적으로 true
+        calendar.select(today)
         loadData(for: today)
-        updateOverallAdviceButtonUI()
         
-        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAddButton))
-        addButton.tintColor = UIDesignSystem.Colors.primaryText
-        navigationItem.rightBarButtonItem = addButton
+        print("✅ TodoCalendarViewController 필수 UI 설정 완료")
+    }
+    
+    // 🚀 성능 최적화: 비동기 설정
+    @MainActor
+    private func performAsyncSetup() async {
+        // 시간이 걸리는 작업들을 백그라운드에서 처리
+        await Task.detached { [weak self] in
+            await MainActor.run { [weak self] in
+                self?.setupOverallAdviceButtonArea()
+                self?.setupEmptyStateView()
+                
+                // 새 셀 등록
+                self?.tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
+                self?.tableView.separatorStyle = .none
+                
+                // 네비게이션 버튼 설정
+                let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(self?.didTapAddButton))
+                addButton.tintColor = UIDesignSystem.Colors.primaryText
+                self?.navigationItem.rightBarButtonItem = addButton
+                
+                self?.updateOverallAdviceButtonUI()
+                
+                // 🔧 Advice 버튼 설정 완료 후 테이블뷰 constraint 업데이트
+                self?.updateTableViewConstraints()
+                
+                print("✅ TodoCalendarViewController 백그라운드 설정 완료")
+            }
+        }.value
     }
     
     override func viewDidLayoutSubviews() {
@@ -257,6 +280,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         calendar.translatesAutoresizingMaskIntoConstraints = false
         calendar.dataSource = self
         calendar.delegate = self
+        
+        // 커스텀 셀 등록
+        calendar.register(TodoRangeCalendarCell.self, forCellReuseIdentifier: "TodoRangeCell")
         
         calendar.appearance.headerDateFormat = "YYYY년 M월"
         calendar.appearance.weekdayTextColor = UIDesignSystem.Colors.primary
@@ -329,8 +355,24 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         self.view.addSubview(tableView)
         self.tableView = tableView
         
+        // 🔧 크래시 수정: overallAdviceButtonContainer가 nil일 수 있으므로 임시 constraint 설정
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: overallAdviceButtonContainer.bottomAnchor, constant: 8),
+            tableView.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 60), // 임시로 calendar 기준
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+    }
+    
+    // 🔧 Advice 버튼 영역 설정 완료 후 constraint 업데이트
+    private func updateTableViewConstraints() {
+        guard let tableView = tableView, let container = overallAdviceButtonContainer else { return }
+        
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.deactivate(tableView.constraints)
+        
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: container.bottomAnchor, constant: 8),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
@@ -367,12 +409,21 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     // MARK: - FSCalendarDataSource
     func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-        // 이 함수는 점의 *개수*만 반환. 색상 커스터마이징을 위해서는 appearance delegate 필요.
-        // 여기서는 일단 단순 존재 유무로 1개 또는 0개 반환.
-        let hasTodo = !TodoManager.shared.getTodos(for: date).filter { !$0.isCompleted }.isEmpty
+        // 해당 날짜의 할 일 확인
+        let todos = TodoManager.shared.getTodos(for: date)
+        let hasTodo = !todos.filter { !$0.isCompleted }.isEmpty
+        
+        // 연속 일정 확인 - 이 날짜가 어떤 연속 일정의 범위에 포함되는지 확인
+        let allTodos = TodoManager.shared.loadTodos()
+        let hasRangeEvent = allTodos.contains { todo in
+            guard let endDate = todo.endDate else { return false }
+            return isDateInEventRange(todo, date: date) && !todo.isCompleted
+        }
+        
+        // 일기 확인
         let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
         
-        return (hasTodo || hasDiary) ? 1 : 0
+        return (hasTodo || hasRangeEvent || hasDiary) ? 1 : 0
     }
 
     // MARK: - FSCalendarDelegateAppearance (For Dot Colors)
@@ -381,16 +432,31 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         let todos = TodoManager.shared.getTodos(for: date)
         let hasIncompleteTodo = todos.contains { !$0.isCompleted }
         let hasCompletedTodo = todos.contains { $0.isCompleted }
+        
+        // 연속 일정 확인
+        let allTodos = TodoManager.shared.loadTodos()
+        let rangeEvents = allTodos.filter { todo in
+            guard let endDate = todo.endDate else { return false }
+            return isDateInEventRange(todo, date: date) && !todo.isCompleted
+        }
+        let hasRangeEvent = !rangeEvents.isEmpty
+        
+        // 연속 일정이 있는 경우 가장 높은 우선순위의 색상 사용
+        var rangeEventColor: UIColor?
+        if hasRangeEvent {
+            let primaryRangeEvent = rangeEvents.max { $0.priority < $1.priority } ?? rangeEvents.first!
+            rangeEventColor = priorityColor(for: primaryRangeEvent.priority)
+        }
+        
         let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
 
-        // 10대/20대 타겟: 좀 더 다채롭고 의미있는 색상 사용 고려
-        // 순서가 중요: 여러 조건 만족 시 어떤 색을 우선할지?
-        // 여기서는 미완료 할일 > 일기 > 완료된 할일 순으로 색을 정하고, 중복 시 하나만 표시되도록 함.
-        // FSCalendar는 기본적으로 여러 점을 표시할 수 있으나, 여기서는 색상으로 구분 시도.
-        // 또는, numberOfEventsFor에서 1,2,3 등을 반환하고, 아래에서 순서대로 다른 색을 지정할 수도 있음.
-
-        if hasIncompleteTodo && hasDiary {
-            eventColors.append(UIColor.systemPurple) // 둘 다: 보라색
+        // 우선순위: 연속 일정 > 미완료 할일 > 일기 > 완료된 할일
+        if hasRangeEvent && hasDiary {
+            eventColors.append(UIColor.systemPurple) // 연속 일정 + 일기: 보라색
+        } else if hasRangeEvent {
+            eventColors.append(rangeEventColor!) // 연속 일정만: 우선순위 색상
+        } else if hasIncompleteTodo && hasDiary {
+            eventColors.append(UIColor.systemPurple) // 할 일 + 일기: 보라색
         } else if hasIncompleteTodo {
             eventColors.append(UIColor.systemBlue)   // 할 일만: 파란색
         } else if hasDiary {
@@ -420,6 +486,63 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             loadData(for: date) // 페이지 이동 후 데이터 로드
         }
         updateOverallAdviceButtonUI()
+    }
+    
+    // 커스텀 셀 사용
+    func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
+        let cell = calendar.dequeueReusableCell(withIdentifier: "TodoRangeCell", for: date, at: position) as! TodoRangeCalendarCell
+        
+        // 연속 일정 처리 - 모든 할 일을 확인하여 이 날짜가 범위에 포함되는지 확인
+        let allTodos = TodoManager.shared.loadTodos()
+        let rangeEvents = allTodos.filter { todo in
+            guard let endDate = todo.endDate, !todo.isCompleted else { return false }
+            return isDateInEventRange(todo, date: date)
+        }
+        
+        if !rangeEvents.isEmpty {
+            // 가장 중요한 연속 일정 하나만 표시 (우선순위 높은 것 우선)
+            let primaryEvent = rangeEvents.max { $0.priority < $1.priority } ?? rangeEvents.first!
+            
+            let isStart = isEventStartDate(primaryEvent, date: date)
+            let isEnd = isEventEndDate(primaryEvent, date: date)
+            let isInRange = isDateInEventRange(primaryEvent, date: date)
+            
+            let color = priorityColor(for: primaryEvent.priority)
+            cell.configureRangeDisplay(isStart: isStart, isEnd: isEnd, isInRange: isInRange, color: color)
+        } else {
+            cell.configureRangeDisplay(isStart: false, isEnd: false, isInRange: false)
+        }
+        
+        return cell
+    }
+    
+    // 연속 일정 관련 헬퍼 메서드들
+    private func isEventStartDate(_ todo: TodoItem, date: Date) -> Bool {
+        return Calendar.current.isDate(todo.dueDate, inSameDayAs: date)
+    }
+    
+    private func isEventEndDate(_ todo: TodoItem, date: Date) -> Bool {
+        guard let endDate = todo.endDate else { return false }
+        return Calendar.current.isDate(endDate, inSameDayAs: date)
+    }
+    
+    private func isDateInEventRange(_ todo: TodoItem, date: Date) -> Bool {
+        guard let endDate = todo.endDate else { return false }
+        
+        let calendar = Calendar.current
+        let startDay = calendar.startOfDay(for: todo.dueDate)
+        let endDay = calendar.startOfDay(for: endDate)
+        let checkDay = calendar.startOfDay(for: date)
+        
+        return checkDay >= startDay && checkDay <= endDay
+    }
+    
+    private func priorityColor(for priority: Int) -> UIColor {
+        switch priority {
+        case 2: return .systemRed      // 높음
+        case 1: return .systemOrange   // 보통
+        default: return .systemBlue    // 낮음
+        }
     }
     
     // MARK: - UITableViewDataSource
@@ -643,6 +766,27 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         present(alert, animated: true)
     }
     
+    // 조언 표시를 위한 새로운 메서드
+    private func showAdvice(title: String, advice: String) {
+        // 🔧 다시 alert 사용 (간단하고 안정적)
+        let alert = UIAlertController(title: title, message: advice, preferredStyle: .alert)
+        
+        // 복사 기능 추가
+        let copyAction = UIAlertAction(title: "📋 복사하기", style: .default) { _ in
+            UIPasteboard.general.string = advice
+            // 복사 완료 알림
+            let copyAlert = UIAlertController(title: "✅ 복사됨", message: "조언이 클립보드에 복사되었습니다.", preferredStyle: .alert)
+            copyAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(copyAlert, animated: true)
+        }
+        
+        let closeAction = UIAlertAction(title: "닫기", style: .default)
+        
+        alert.addAction(copyAction)
+        alert.addAction(closeAction)
+        present(alert, animated: true)
+    }
+    
     // MARK: - UI/UX Enhancements (Empty State, Calendar Dots, Diary Action)
     private var emptyStateLabel: UILabel? // 빈 화면 메시지 레이블
 
@@ -677,12 +821,19 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     // MARK: - AI Overall Advice Button Actions (New)
     private func updateOverallAdviceButtonUI() {
+        // 🔧 크래시 수정: UI 요소가 아직 초기화되지 않았을 수 있음
+        guard let adviceButton = overallAdviceButton,
+              let adviceIndicator = overallAdviceActivityIndicator else {
+            print("⚠️ [TodoCalendar] 아직 UI 요소가 초기화되지 않음")
+            return
+        }
+        
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
-        overallAdviceButton.setTitle("오늘의 전체 조언 보기 (\(remainingCount)회 남음)", for: .normal)
-        overallAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
-        overallAdviceButton.isEnabled = remainingCount > 0
-        if overallAdviceActivityIndicator.isAnimating {
-             overallAdviceButton.setTitle("", for: .normal) // 로딩 중에는 텍스트 숨김
+        adviceButton.setTitle("오늘의 전체 조언 보기 (\(remainingCount)회 남음)", for: .normal)
+        adviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+        adviceButton.isEnabled = remainingCount > 0
+        if adviceIndicator.isAnimating {
+             adviceButton.setTitle("", for: .normal) // 로딩 중에는 텍스트 숨김
         }
     }
 
@@ -696,6 +847,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         let allTodos = selectedDateTodos
         let completedTodos = allTodos.filter { $0.isCompleted }
         let pendingTodos = allTodos.filter { !$0.isCompleted }
+        
+        // 🆕 연속 일정 분석 (장기 여행 등의 정보 수집)
+        let continuousEvents = getContinuousEventContext()
         
         guard !allTodos.isEmpty else {
             showAlert(title: "알림", message: "선택된 날짜에 할 일이 없어 전체 조언을 받을 수 없습니다.")
@@ -757,19 +911,33 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             }
         }
         
+        // 🆕 연속 일정 정보 추가
+        if !continuousEvents.isEmpty {
+            promptContent += "\n\n🗓️ 연속 일정 정보:"
+            for eventInfo in continuousEvents {
+                promptContent += "\n\(eventInfo)"
+            }
+        }
+        
         promptContent += """
         
         📈 요청사항:
-        위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 3-4문장으로 해주세요:
+        위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 **200자 이내**로 간결하게 해주세요:
         1. 우선순위 조정 및 시간 배분 전략
         2. 효율적인 업무 순서 및 실행 방법
         3. 스트레스 관리 및 동기부여 방안
         
+        **중요**: 응답을 200자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
         단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
         """
         
         let systemPrompt = """
         당신은 경험이 풍부한 생산성 컨설턴트이자 시간 관리 전문가입니다. 사용자의 할 일 패턴을 분석하여 개인화된 실행 전략을 제공하세요.
+        
+        **🔥 중요한 제약 조건**:
+        - 응답은 반드시 **200자 이내**로 작성해야 합니다
+        - 모바일 alert 창에서 잘리지 않도록 간결하게 작성하세요
+        - 불필요한 인사말이나 부가설명은 제외하고 핵심만 전달하세요
         
         분석 기준:
         1. 긴급성 vs 중요성 매트릭스 적용  
@@ -781,14 +949,20 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         사용자 활동 패턴:
         \(weeklyContext)
         
-        위 데이터를 활용하여 사용자의 작업 스타일에 맞는 맞춤형 조언을 제공하세요.
+        위 데이터를 활용하여 사용자의 작업 스타일에 맞는 맞춤형 조언을 **200자 이내**로 제공하세요.
         구체적인 시간 배분, 작업 순서, 실행 팁을 포함해주세요.
         """
 
         // 🔧 기존 로딩 표시 제거하고 새로운 오버레이 로딩 표시
-        overallAdviceButton.setTitle("", for: .normal)
-        overallAdviceActivityIndicator.stopAnimating()
-        overallAdviceButton.isEnabled = false
+        guard let adviceButton = overallAdviceButton,
+              let adviceIndicator = overallAdviceActivityIndicator else {
+            print("⚠️ [TodoCalendar] UI 요소가 초기화되지 않아 조언 요청 불가")
+            return
+        }
+        
+        adviceButton.setTitle("", for: .normal)
+        adviceIndicator.stopAnimating()
+        adviceButton.isEnabled = false
         
         // 🆕 로딩 오버레이 표시
         loadingOverlay = LoadingOverlayView()
@@ -804,8 +978,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    self.overallAdviceActivityIndicator.stopAnimating()
-                    self.showAlert(title: "✨ 오늘의 전체 조언 ✨", message: advice)
+                    self.overallAdviceActivityIndicator?.stopAnimating()
+                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice)
                     AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
                     self.updateOverallAdviceButtonUI() // 성공 후 버튼 UI 업데이트
                 }
@@ -816,7 +990,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    self.overallAdviceActivityIndicator.stopAnimating()
+                    self.overallAdviceActivityIndicator?.stopAnimating()
                     
                     // 구체적인 오류 메시지 제공
                     var errorMessage = "전체 조언을 받아오는 데 실패했습니다."
@@ -895,16 +1069,22 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         promptContent += """
         
         📝 요청사항:
-        위 할 일에 대해 다음 관점에서 개인화된 조언을 2-3문장으로 해주세요:
+        위 할 일에 대해 다음 관점에서 개인화된 조언을 **150자 이내**로 간결하게 해주세요:
         1. 실행 전략 및 구체적인 첫 번째 액션
         2. 시간 관리 및 효율적인 접근법
         3. 동기부여 및 완료 팁
         
+        **중요**: 응답을 150자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
         추상적인 격려보다는 실제로 실행할 수 있는 구체적인 방법을 제시해주세요.
         """
         
         let systemPrompt = """
         당신은 개인 생산성 전문가이자 실행력 코치입니다. 사용자의 특정 할 일에 대해 맞춤형 실행 전략을 제공하세요.
+        
+        **🔥 중요한 제약 조건**:
+        - 응답은 반드시 **150자 이내**로 작성해야 합니다
+        - 모바일 alert 창에서 잘리지 않도록 간결하게 작성하세요
+        - 불필요한 인사말이나 부가설명은 제외하고 핵심만 전달하세요
         
         분석 기준:
         1. 긴급성과 중요성을 고려한 우선순위 조정
@@ -916,7 +1096,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         사용자 활동 패턴:
         \(weeklyContext)
         
-        위 데이터를 바탕으로 사용자에게 가장 적합한 개별 할 일 실행 전략을 제안하세요.
+        위 데이터를 바탕으로 사용자에게 가장 적합한 개별 할 일 실행 전략을 **150자 이내**로 제안하세요.
         구체적이고 즉시 실행 가능한 조언을 해주세요.
         """
         
@@ -930,7 +1110,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    self.showAlert(title: "💡 \(todo.title) 조언", message: advice)
+                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice)
                     AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                 }
             } catch {
@@ -1000,6 +1180,330 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 } else {
                     self.showAlert(title: "오류", message: "할 일 삭제 중 알 수 없는 오류가 발생했습니다.")
                 }
+            }
+        }
+    }
+
+    // MARK: - 🆕 연속 일정 컨텍스트 분석
+    private func getContinuousEventContext() -> [String] {
+        var eventContext: [String] = []
+        let todoManager = TodoManager.shared
+        let calendar = Calendar.current
+        
+        // 선택된 날짜 기준으로 연속 일정 찾기
+        for todo in selectedDateTodos {
+            if let endDate = todo.endDate {
+                // 연속 일정인 경우
+                let daysDiff = calendar.dateComponents([.day], from: todo.dueDate, to: endDate).day ?? 0
+                
+                if daysDiff > 0 {
+                    let startDay = calendar.startOfDay(for: todo.dueDate)
+                    let selectedDay = calendar.startOfDay(for: selectedDate)
+                    let dayFromStart = calendar.dateComponents([.day], from: startDay, to: selectedDay).day ?? 0
+                    
+                    let totalDays = daysDiff + 1
+                    let currentDayNum = dayFromStart + 1
+                    
+                    // 연속 일정의 각 날짜별 정보 수집
+                    var dayInfos: [String] = []
+                    
+                    for dayOffset in 0..<totalDays {
+                        let currentDate = calendar.date(byAdding: .day, value: dayOffset, to: startDay)!
+                        let dayNum = dayOffset + 1
+                        
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "MM/dd"
+                        let dateString = formatter.string(from: currentDate)
+                        
+                        // 해당 날짜의 다른 할 일들도 확인
+                        let todosForDay = todoManager.getTodos(for: currentDate)
+                        let otherTodos = todosForDay.filter { $0.id != todo.id }
+                        
+                        var dayInfo = "\(dayNum)일차(\(dateString))"
+                        
+                        if dayNum == currentDayNum {
+                            dayInfo += " ⭐️현재"
+                        }
+                        
+                        if !otherTodos.isEmpty {
+                            let otherTodoTitles = otherTodos.prefix(2).map { $0.title }.joined(separator: ", ")
+                            dayInfo += " - 추가일정: \(otherTodoTitles)"
+                        }
+                        
+                        dayInfos.append(dayInfo)
+                    }
+                    
+                    let eventInfo = "📅 \(todo.title) (\(totalDays)일간): " + dayInfos.joined(separator: " | ")
+                    eventContext.append(eventInfo)
+                }
+            }
+        }
+        
+        return eventContext
+    }
+}
+
+// MARK: - 연속 일정 표시를 위한 커스텀 캘린더 셀
+class TodoRangeCalendarCell: FSCalendarCell {
+    private let rangeIndicatorView = UIView()
+    private let startIndicatorView = UIView()
+    private let endIndicatorView = UIView()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupRangeViews()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupRangeViews()
+    }
+    
+    private func setupRangeViews() {
+        // 연속 게이지 배경 - 더 부드러운 모서리
+        rangeIndicatorView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
+        rangeIndicatorView.layer.cornerRadius = 4 // 더 둥근 모서리
+        rangeIndicatorView.isHidden = true
+        rangeIndicatorView.clipsToBounds = false // 확장된 영역도 보이도록
+        contentView.insertSubview(rangeIndicatorView, at: 0)
+        
+        // 시작점 표시 - 더 눈에 띄게
+        startIndicatorView.backgroundColor = UIColor.systemBlue
+        startIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
+        startIndicatorView.isHidden = true
+        startIndicatorView.layer.shadowColor = UIColor.black.cgColor
+        startIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
+        startIndicatorView.layer.shadowOpacity = 0.3
+        startIndicatorView.layer.shadowRadius = 2
+        contentView.addSubview(startIndicatorView)
+        
+        // 끝점 표시 - 더 눈에 띄게
+        endIndicatorView.backgroundColor = UIColor.systemBlue
+        endIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
+        endIndicatorView.isHidden = true
+        endIndicatorView.layer.shadowColor = UIColor.black.cgColor
+        endIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
+        endIndicatorView.layer.shadowOpacity = 0.3
+        endIndicatorView.layer.shadowRadius = 2
+        contentView.addSubview(endIndicatorView)
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        let cellHeight = bounds.height
+        let cellWidth = bounds.width
+        let indicatorHeight: CGFloat = 8 // 더 두꺼운 게이지
+        let indicatorY = cellHeight - indicatorHeight - 4
+        
+        // 연속 게이지 - 셀 간격을 무시하고 확장하여 연속성 확보
+        let extensionWidth: CGFloat = 2 // 좌우로 확장
+        rangeIndicatorView.frame = CGRect(x: -extensionWidth, y: indicatorY, width: cellWidth + (extensionWidth * 2), height: indicatorHeight)
+        
+        // 시작/끝 표시는 좌우 끝에, 더 눈에 잘 띄게
+        let dotSize: CGFloat = 10
+        startIndicatorView.frame = CGRect(x: 4, y: indicatorY - 1, width: dotSize, height: dotSize)
+        endIndicatorView.frame = CGRect(x: cellWidth - dotSize - 4, y: indicatorY - 1, width: dotSize, height: dotSize)
+        
+        // 시작/끝 표시의 cornerRadius도 업데이트
+        startIndicatorView.layer.cornerRadius = dotSize / 2
+        endIndicatorView.layer.cornerRadius = dotSize / 2
+    }
+    
+    func configureRangeDisplay(isStart: Bool = false, isEnd: Bool = false, isInRange: Bool = false, color: UIColor = .systemBlue) {
+        // 연속 일정 배경 게이지 표시
+        rangeIndicatorView.isHidden = !isInRange
+        startIndicatorView.isHidden = !isStart
+        endIndicatorView.isHidden = !isEnd
+        
+        if isInRange {
+            // 연속 게이지 스타일링
+            rangeIndicatorView.backgroundColor = color.withAlphaComponent(0.5)
+            rangeIndicatorView.layer.borderWidth = 1
+            rangeIndicatorView.layer.borderColor = color.withAlphaComponent(0.8).cgColor
+            
+            // 그라데이션 효과 추가 (선택적)
+            rangeIndicatorView.layer.shadowColor = color.cgColor
+            rangeIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 0)
+            rangeIndicatorView.layer.shadowOpacity = 0.2
+            rangeIndicatorView.layer.shadowRadius = 1
+        }
+        
+        if isStart {
+            startIndicatorView.backgroundColor = color
+            startIndicatorView.layer.borderWidth = 2
+            startIndicatorView.layer.borderColor = UIColor.white.cgColor
+        }
+        
+        if isEnd {
+            endIndicatorView.backgroundColor = color
+            endIndicatorView.layer.borderWidth = 2
+            endIndicatorView.layer.borderColor = UIColor.white.cgColor
+        }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        rangeIndicatorView.isHidden = true
+        startIndicatorView.isHidden = true
+        endIndicatorView.isHidden = true
+    }
+}
+
+// MARK: - 조언 표시를 위한 간단한 커스텀 뷰 컨트롤러 (글자 수 제한 없음)
+class SimpleAdviceViewController: UIViewController {
+    private let titleText: String
+    private let adviceText: String
+    
+    private let containerView = UIView()
+    private let titleLabel = UILabel()
+    private let scrollView = UIScrollView()
+    private let adviceLabel = UILabel()
+    private let buttonStackView = UIStackView()
+    private let copyButton = UIButton(type: .system)
+    private let closeButton = UIButton(type: .system)
+    
+    init(titleText: String, adviceText: String) {
+        self.titleText = titleText
+        self.adviceText = adviceText
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        configureContent()
+    }
+    
+    private func setupUI() {
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        
+        // 컨테이너 뷰 설정
+        containerView.backgroundColor = .systemBackground
+        containerView.layer.cornerRadius = 16
+        containerView.layer.shadowColor = UIColor.black.cgColor
+        containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
+        containerView.layer.shadowOpacity = 0.3
+        containerView.layer.shadowRadius = 8
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(containerView)
+        
+        // 제목 라벨 설정
+        titleLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        titleLabel.textColor = .label
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(titleLabel)
+        
+        // 스크롤뷰 설정
+        scrollView.showsVerticalScrollIndicator = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(scrollView)
+        
+        // 조언 라벨 설정
+        adviceLabel.font = .systemFont(ofSize: 16)
+        adviceLabel.textColor = .label
+        adviceLabel.numberOfLines = 0
+        adviceLabel.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(adviceLabel)
+        
+        // 버튼 스택뷰 설정
+        buttonStackView.axis = .horizontal
+        buttonStackView.distribution = .fillEqually
+        buttonStackView.spacing = 12
+        buttonStackView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(buttonStackView)
+        
+        // 복사 버튼 설정
+        copyButton.setTitle("📋 복사하기", for: .normal)
+        copyButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        copyButton.backgroundColor = .systemBlue
+        copyButton.setTitleColor(.white, for: .normal)
+        copyButton.layer.cornerRadius = 8
+        copyButton.addTarget(self, action: #selector(copyAdvice), for: .touchUpInside)
+        
+        // 닫기 버튼 설정
+        closeButton.setTitle("닫기", for: .normal)
+        closeButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        closeButton.backgroundColor = .systemGray
+        closeButton.setTitleColor(.white, for: .normal)
+        closeButton.layer.cornerRadius = 8
+        closeButton.addTarget(self, action: #selector(closeAdvice), for: .touchUpInside)
+        
+        buttonStackView.addArrangedSubview(copyButton)
+        buttonStackView.addArrangedSubview(closeButton)
+        
+        // 제약 조건 설정
+        NSLayoutConstraint.activate([
+            // 컨테이너 뷰
+            containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            containerView.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
+            containerView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
+            containerView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            containerView.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+                         containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
+            
+            // 제목 라벨
+            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
+            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            
+                         // 스크롤뷰
+             scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+             scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+             scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+             scrollView.heightAnchor.constraint(lessThanOrEqualToConstant: 400), // 최대 높이 제한
+             
+             // 조언 라벨
+             adviceLabel.topAnchor.constraint(equalTo: scrollView.topAnchor),
+             adviceLabel.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+             adviceLabel.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+             adviceLabel.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+             adviceLabel.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            
+            // 버튼 스택뷰
+            buttonStackView.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 20),
+            buttonStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            buttonStackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            buttonStackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20),
+            buttonStackView.heightAnchor.constraint(equalToConstant: 44)
+        ])
+    }
+    
+    private func configureContent() {
+        titleLabel.text = titleText
+        adviceLabel.text = adviceText
+    }
+    
+    @objc private func copyAdvice() {
+        UIPasteboard.general.string = adviceText
+        
+        // 복사 완료 피드백
+        copyButton.setTitle("✅ 복사됨!", for: .normal)
+        copyButton.backgroundColor = .systemGreen
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.copyButton.setTitle("📋 복사하기", for: .normal)
+            self?.copyButton.backgroundColor = .systemBlue
+        }
+    }
+    
+    @objc private func closeAdvice() {
+        dismiss(animated: true)
+    }
+    
+    // 배경 터치로 닫기
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let touch = touches.first {
+            let location = touch.location(in: view)
+            if !containerView.frame.contains(location) {
+                dismiss(animated: true)
             }
         }
     }

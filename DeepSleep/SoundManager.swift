@@ -617,6 +617,77 @@ final class SoundManager {
             )
             
             print("🏁 [FeedbackManager] 세션 종료: 청취시간 \(String(format: "%.1f", duration))초")
+            
+            // 🎯 자연스러운 피드백 요청 (조건부)
+            checkAndRequestFeedback(duration: duration, wasSaved: wasSaved)
+        }
+    }
+    
+    /// 🎯 피드백 요청 조건 체크 및 실행
+    private func checkAndRequestFeedback(duration: TimeInterval, wasSaved: Bool) {
+        // 조건 1: 30초 이상 청취했고 저장하지 않은 경우 (자연스러운 경험 후)
+        // 조건 2: 2분 이상 청취한 경우 (충분한 경험)
+        // 조건 3: 랜덤하게 10% 확률 (강제성 방지)
+        
+        let shouldRequestFeedback = (duration >= 30.0 && !wasSaved && duration < 120.0) || 
+                                   (duration >= 120.0) ||
+                                   (duration >= 30.0 && Double.random(in: 0...1) < 0.1)
+        
+        if shouldRequestFeedback {
+            // 현재 세션의 프리셋 이름과 추천 타입 가져오기
+            Task { @MainActor in
+                self.requestUserFeedback()
+            }
+        }
+    }
+    
+    /// 🎯 사용자 피드백 요청 UI 표시
+    @MainActor private func requestUserFeedback() {
+        // 현재 메인 뷰컨트롤러 찾기
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }),
+              let rootViewController = keyWindow.rootViewController else {
+            print("⚠️ [FeedbackRequest] 메인 뷰컨트롤러를 찾을 수 없음")
+            return
+        }
+        
+        // 현재 프리셋 이름 (기본값)
+        let currentPresetName = getCurrentPresetName() ?? "현재 프리셋"
+        
+        // 추천 타입 결정 (최근 추천 기록 기반)
+        let recommendationType = determineRecommendationType()
+        
+        // 피드백 UI 표시
+        FeedbackPromptViewController.present(
+            from: rootViewController,
+            presetName: currentPresetName,
+            recommendationType: recommendationType
+        ) { satisfaction in
+            // 피드백 받은 후 처리
+            self.setUserSatisfaction(satisfaction)
+            print("✅ [FeedbackRequest] 사용자 피드백 수신: \(satisfaction)")
+        }
+    }
+    
+    /// 현재 프리셋 이름 가져오기
+    @MainActor private func getCurrentPresetName() -> String? {
+        // FeedbackManager에서 현재 세션 프리셋 이름 가져오기
+        return FeedbackManager.shared.getCurrentSessionPresetName()
+    }
+    
+    /// 추천 타입 결정
+    @MainActor private func determineRecommendationType() -> FeedbackPromptViewController.RecommendationType {
+        // 최근 피드백에서 추천 소스 분석 (간소화)
+        let recentFeedback = FeedbackManager.shared.getRecentFeedback(limit: 5)
+        
+        // PresetFeedback에 recommendationSource가 없으므로 기본값 사용
+        // 추후 모델 업데이트 시 개선 예정
+        if recentFeedback.count > 3 {
+            return .comprehensive
+        } else if recentFeedback.count > 1 {
+            return .ai
+        } else {
+            return .local
         }
     }
     

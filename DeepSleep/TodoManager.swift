@@ -91,12 +91,12 @@ class TodoManager {
 
     // MARK: - CRUD Operations
 
-    func addTodo(title: String, dueDate: Date, notes: String? = nil, priority: Int = 0, completion: @escaping (TodoItem?, Error?) -> Void) {
+    func addTodo(title: String, dueDate: Date, startTime: Date? = nil, endTime: Date? = nil, notes: String? = nil, priority: Int = 0, completion: @escaping (TodoItem?, Error?) -> Void) {
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
             guard let self = self else { return }
             
             var currentTodos = self.loadTodos()
-            var newTodo = TodoItem(title: title, dueDate: dueDate, notes: notes, priority: priority)
+            var newTodo = TodoItem(title: title, dueDate: dueDate, endDate: endTime, notes: notes, priority: priority)
 
             if granted {
                 self.addEventToCalendar(todo: newTodo) { eventIdentifier, eventError in
@@ -261,7 +261,24 @@ class TodoManager {
     // MARK: - Filtering (예시)
     func getTodos(for date: Date) -> [TodoItem] {
         let allTodos = loadTodos()
-        return allTodos.filter { Calendar.current.isDate($0.dueDate, inSameDayAs: date) }
+        return allTodos.filter { todo in
+            // 기본적으로 dueDate가 같은 날인지 확인
+            if Calendar.current.isDate(todo.dueDate, inSameDayAs: date) {
+                return true
+            }
+            
+            // 연속 일정인 경우 날짜 범위 내에 있는지 확인
+            if let endDate = todo.endDate {
+                let calendar = Calendar.current
+                let startDay = calendar.startOfDay(for: todo.dueDate)
+                let endDay = calendar.startOfDay(for: endDate)
+                let checkDay = calendar.startOfDay(for: date)
+                
+                return checkDay >= startDay && checkDay <= endDay
+            }
+            
+            return false
+        }
     }
     
     func getIncompleteTodos() -> [TodoItem] {
@@ -270,18 +287,31 @@ class TodoManager {
 
     // MARK: - Notification Scheduling
     private func scheduleNotification(for todo: TodoItem) {
-        guard !todo.isCompleted, todo.dueDate > Date() else {
+        guard !todo.isCompleted else {
             removeNotification(for: todo)
             return
         }
 
         let content = UNMutableNotificationContent()
         content.title = "할 일 미리 알림 ⏰"
-        content.body = "'\(todo.title)' 마감 1시간 전입니다!"
         content.sound = .default
         content.userInfo = ["todoID": todo.id.uuidString]
-
-        guard let notificationTime = Calendar.current.date(byAdding: .hour, value: -1, to: todo.dueDate) else { return }
+        
+        // 알림 시간 계산
+        let notificationTime: Date
+        let calendar = Calendar.current
+        
+        // 마감일 1시간 전으로 알림 설정
+        guard let oneHourBefore = calendar.date(byAdding: .hour, value: -1, to: todo.dueDate) else { return }
+        notificationTime = oneHourBefore
+        
+        if let endDate = todo.endDate {
+            // 여러 날 일정인 경우
+            content.body = "'\(todo.title)' 시작 1시간 전입니다! (\(todo.dateRangeString))"
+        } else {
+            // 하루 일정인 경우
+            content.body = "'\(todo.title)' 마감 1시간 전입니다!"
+        }
         
         if notificationTime <= Date() {
             print("🔔 알림 스케줄링 건너뜀: 알림 시간(\(notificationTime))이 이미 지남 (할 일: \(todo.title))")
@@ -321,8 +351,21 @@ class TodoManager {
     private func addEventToCalendar(todo: TodoItem, completion: @escaping (String?, Error?) -> Void) {
         let event = EKEvent(eventStore: eventStore)
         event.title = todo.isCompleted ? "[완료] \(todo.title)" : todo.title
-        event.startDate = todo.dueDate
-        event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate) 
+        
+        // 시간 설정 처리
+        if let endDate = todo.endDate {
+            // 여러 날 일정
+            event.isAllDay = true
+            event.startDate = Calendar.current.startOfDay(for: todo.dueDate)
+            event.endDate = Calendar.current.startOfDay(for: endDate)
+        } else {
+            // 하루 일정 (시간 지정됨)
+            event.isAllDay = false
+            event.startDate = todo.dueDate
+            // 1시간 이벤트로 설정
+            event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate) ?? todo.dueDate
+        }
+        
         event.notes = todo.notes
         event.calendar = eventStore.defaultCalendarForNewEvents
 
@@ -351,9 +394,22 @@ class TodoManager {
         }
         
         event.title = todo.isCompleted ? "[완료] \(todo.title)" : todo.title
+        
+        // 시간 설정 처리
+        if let endDate = todo.endDate {
+            // 여러 날 일정
+            event.isAllDay = true
+            event.startDate = Calendar.current.startOfDay(for: todo.dueDate)
+            event.endDate = Calendar.current.startOfDay(for: endDate)
+        } else {
+            // 하루 일정 (시간 지정됨)
+            event.isAllDay = false
             event.startDate = todo.dueDate
-            event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate)
-            event.notes = todo.notes
+            // 1시간 이벤트로 설정
+            event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate) ?? todo.dueDate
+        }
+        
+        event.notes = todo.notes
             do {
                 try eventStore.save(event, span: .thisEvent)
             print("✅ EKEventStore: 이벤트 업데이트 성공 - \(event.title ?? "")")

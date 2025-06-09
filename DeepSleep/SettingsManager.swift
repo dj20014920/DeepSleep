@@ -191,6 +191,57 @@ class SettingsManager {
         }
     }
     
+    // MARK: - Storage Management
+    /// 📊 앱 전체 저장소 사용량 정보
+    @MainActor
+    func getStorageInfo() -> StorageInfo {
+        let feedbackStats = FeedbackManager.shared.getStorageStatistics()
+        let diaryCount = loadEmotionDiary().count
+        let presetCount = loadSoundPresets().count
+        let statsCount = getAllStats().count
+        
+        // 각 데이터 타입별 예상 용량 (KB)
+        let feedbackSizeKB = feedbackStats.estimatedSizeKB
+        let diarySizeKB = diaryCount * 1 // 일기당 약 1KB
+        let presetSizeKB = presetCount * 2 // 프리셋당 약 2KB
+        let statsSizeKB = statsCount * 1 // 통계당 약 1KB
+        
+        let totalSizeKB = feedbackSizeKB + diarySizeKB + presetSizeKB + statsSizeKB
+        
+        return StorageInfo(
+            totalSizeKB: totalSizeKB,
+            feedbackCount: feedbackStats.feedbackCount,
+            feedbackSizeKB: feedbackSizeKB,
+            diaryCount: diaryCount,
+            diarySizeKB: diarySizeKB,
+            presetCount: presetCount,
+            presetSizeKB: presetSizeKB,
+            retentionDays: feedbackStats.retentionDays
+        )
+    }
+    
+    /// 🧹 수동 데이터 정리 (사용자 요청 시)
+    @MainActor
+    func performManualCleanup() async -> CleanupResult {
+        let beforeInfo = await getStorageInfo()
+        
+        // 1. 피드백 데이터 정리
+        await FeedbackManager.shared.performStartupCleanup()
+        
+        // 2. 오래된 통계 데이터 정리 (이미 saveAllStats에서 30일 제한)
+        let _ = getAllStats() // 내부적으로 30일 이상 데이터 제거
+        
+        let afterInfo = await getStorageInfo()
+        let freedSpaceKB = beforeInfo.totalSizeKB - afterInfo.totalSizeKB
+        
+        return CleanupResult(
+            beforeSizeKB: beforeInfo.totalSizeKB,
+            afterSizeKB: afterInfo.totalSizeKB,
+            freedSpaceKB: freedSpaceKB,
+            deletedFeedbackCount: beforeInfo.feedbackCount - afterInfo.feedbackCount
+        )
+    }
+    
     // MARK: - Onboarding & First Launch
     var isOnboardingCompleted: Bool {
         get { userDefaults.bool(forKey: Keys.onboardingCompleted) }

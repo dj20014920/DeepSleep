@@ -192,6 +192,91 @@ struct LocalAIRecommendationRecord: Codable {
         return buildWeeklyHistory()
     }
     
+    // MARK: - 🔄 대화 맥락 강화 시스템
+    
+    /// 현재 세션의 감정 기록 (대화 맥락 유지용)
+    func recordSessionEmotion(_ emotion: String) {
+        var emotionFlow = UserDefaults.standard.array(forKey: "session_emotion_flow") as? [String] ?? []
+        
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "ko_KR")
+        let timestamp = formatter.string(from: Date())
+        
+        emotionFlow.append("\(emotion)(\(timestamp))")
+        
+        // 최근 10개만 유지
+        if emotionFlow.count > 10 {
+            emotionFlow = Array(emotionFlow.suffix(10))
+        }
+        
+        UserDefaults.standard.set(emotionFlow, forKey: "session_emotion_flow")
+        
+        print("📊 [Session] 감정 기록: \(emotion) at \(timestamp)")
+    }
+    
+    /// 최근 대화 메시지 수집 강화 (맥락 연속성 보장)
+    private func getRecentMessages() -> [String] {
+        var messages: [String] = []
+        
+        // 1. 현재 세션의 감정 흐름
+        let emotionFlow = UserDefaults.standard.array(forKey: "session_emotion_flow") as? [String] ?? []
+        if !emotionFlow.isEmpty {
+            let flow = emotionFlow.suffix(3).joined(separator: " → ")
+            messages.append("감정 흐름: \(flow)")
+        }
+        
+        // 2. 최근 대화 요약
+        let recentSummary = getLastConversationSummary()
+        if !recentSummary.isEmpty {
+            messages.append("이전 대화: \(recentSummary)")
+        }
+        
+        // 3. 최근 추천 히스토리
+        let recentRecommendations = getRecentRecommendationContext()
+        if !recentRecommendations.isEmpty {
+            messages.append("최근 추천: \(recentRecommendations)")
+        }
+        
+        // 4. 현재 시간대 컨텍스트
+        let hour = Calendar.current.component(.hour, from: Date())
+        let timeContext = getTimeContextMessage(hour: hour)
+        messages.append("시간 컨텍스트: \(timeContext)")
+        
+        return messages
+    }
+    
+    /// 마지막 대화 요약 가져오기
+    private func getLastConversationSummary() -> String {
+        let summaries = loadRecentDailySummaries()
+        return summaries.last ?? ""
+    }
+    
+    /// 최근 추천 맥락 가져오기
+    private func getRecentRecommendationContext() -> String {
+        let records = loadLocalAIRecommendations().suffix(3)
+        return records.map { "[\($0.presetName)]" }.joined(separator: ", ")
+    }
+    
+    /// 시간대별 컨텍스트 메시지
+    private func getTimeContextMessage(hour: Int) -> String {
+        switch hour {
+        case 5..<9: return "아침 시간대"
+        case 9..<12: return "오전 시간대"
+        case 12..<14: return "점심 시간대"
+        case 14..<18: return "오후 시간대"
+        case 18..<21: return "저녁 시간대"
+        case 21..<24: return "밤 시간대"
+        default: return "새벽 시간대"
+        }
+    }
+    
+    /// 세션 시작 시 감정 흐름 초기화
+    func resetSessionEmotionFlow() {
+        UserDefaults.standard.removeObject(forKey: "session_emotion_flow")
+        print("🔄 [Session] 감정 흐름 초기화")
+    }
+    
     // MARK: - ✅ 컨텍스트 추가 (기존 기능 유지)
     private func addContextToPrompt(_ prompt: String, context: ChatContext) -> String {
         switch context {
@@ -323,46 +408,7 @@ struct LocalAIRecommendationRecord: Codable {
             return isTimeValid && isTokenValid
         }
     
-    // MARK: - ✅ 데이터 관리 (수정된 부분)
-    private func getRecentMessages() -> [String] {
-        // UserDefaults 확장 메서드 사용
-        let todayMessages = UserDefaults.standard.loadDailyMessages(for: Date())
-        
-        // ArraySlice를 Array로 변환하여 compactMap 호출
-        return Array(todayMessages.suffix(5)).compactMap { (message: ChatMessage) -> String? in
-            switch message.type {
-            case .user:
-                return "사용자: \(message.text)"
-            case .bot:
-                return "AI: \(message.text)"
-            case .aiResponse:
-                return "AI: \(message.text)"
-            case .loading:
-                return nil // 로딩 메시지는 캐시에 포함하지 않음
-            case .system:
-                return "시스템: \(message.text)"
-            case .presetRecommendation:
-                // 다양한 프리셋 추천 형식 사용
-                let presetName = message.presetName ?? "추천 프리셋"
-                let recommendationFormats = [
-                    "🎵 \(presetName)",
-                    "✨ \(presetName) 추천",
-                    "🌟 \(presetName)가 어떠세요?",
-                    "💫 \(presetName) 조합",
-                    "🎶 \(presetName) 사운드"
-                ]
-                let randomFormat = recommendationFormats.randomElement() ?? "🎵 \(presetName)"
-                return randomFormat
-            case .recommendationSelector:
-                return "시스템: 추천 방식 선택"
-            case .error:
-                return "시스템: \(message.text)"
-            case .presetOptions, .postPresetOptions:
-                let presetName = message.presetName ?? "프리셋"
-                return "시스템 (프리셋 옵션): \(presetName)"
-            }
-        }
-    }
+    // MARK: - ✅ 데이터 관리 (수정된 부분) - 중복 제거됨
     
     // MARK: - ✅ WeeklyMemory 로드 (단일 정의)
     func loadWeeklyMemory() -> WeeklyMemory {

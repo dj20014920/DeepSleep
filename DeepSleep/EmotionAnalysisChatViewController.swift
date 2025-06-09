@@ -1,6 +1,6 @@
 import UIKit
 
-class EmotionAnalysisChatViewController: UIViewController {
+class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     // MARK: - UI Components
     private let scrollView: UIScrollView = {
@@ -81,6 +81,9 @@ class EmotionAnalysisChatViewController: UIViewController {
         title = "감정 분석 대화"
         view.backgroundColor = UIDesignSystem.Colors.background
         
+        // ✅ swipe back 제스처 활성화
+        enableSwipeBackGesture()
+        
         // 🧪 테스트용 버튼들 추가
         setupTestButtons()
         
@@ -89,6 +92,12 @@ class EmotionAnalysisChatViewController: UIViewController {
         
         // 초기 분석 시작
         startInitialAnalysis()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // ✅ swipe back 제스처 재활성화
+        enableSwipeBackGesture()
     }
     
     deinit {
@@ -1362,12 +1371,33 @@ class EmotionAnalysisChatViewController: UIViewController {
         }
     }
 
+    // MARK: - ✅ Swipe Back Gesture Support
+    private func enableSwipeBackGesture() {
+        // 네비게이션 컨트롤러의 interactive pop gesture 활성화
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        navigationController?.interactivePopGestureRecognizer?.delegate = self
+    }
 }
 
 // MARK: - UITextFieldDelegate
 extension EmotionAnalysisChatViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         sendMessage()
+        return true
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension EmotionAnalysisChatViewController {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
+    }
+    
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 네비게이션 스택에 뒤로 갈 수 있는 뷰컨트롤러가 있는지 확인
+        if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+            return (navigationController?.viewControllers.count ?? 0) > 1
+        }
         return true
     }
 }

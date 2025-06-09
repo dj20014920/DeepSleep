@@ -229,24 +229,90 @@ final class FeedbackManager: ObservableObject {
     
     // MARK: - 데이터 관리
     
-    /// 오래된 피드백 데이터 정리 (30일 이상 된 데이터)
+    /// 🧹 오래된 피드백 데이터 자동 정리 (30일 이상 된 데이터)
     func cleanupOldFeedback() {
-        let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+        let retentionDays = 30 // 30일간 보관 (AI 학습에 충분한 기간)
+        let cutoffDate = Date().addingTimeInterval(-Double(retentionDays) * 24 * 60 * 60)
         let descriptor = FetchDescriptor<PresetFeedback>(
-            predicate: #Predicate { $0.timestamp < thirtyDaysAgo }
+            predicate: #Predicate { $0.timestamp < cutoffDate }
         )
         
         do {
             let oldFeedbacks = try modelContext.fetch(descriptor)
+            let deletedCount = oldFeedbacks.count
+            
+            // 삭제 전 용량 계산
+            let beforeCount = getTotalFeedbackCount()
+            let beforeSizeKB = beforeCount * 3 // 피드백당 약 3KB (볼륨 배열 + 메타데이터)
+            
             for feedback in oldFeedbacks {
                 modelContext.delete(feedback)
             }
             try modelContext.save()
             
-            print("🧹 [FeedbackManager] \(oldFeedbacks.count)개의 오래된 피드백 데이터 정리 완료")
+            // 삭제 후 통계
+            let afterCount = getTotalFeedbackCount()
+            let afterSizeKB = afterCount * 3
+            let freedSpaceKB = beforeSizeKB - afterSizeKB
+            
+            print("""
+            🧹 [FeedbackManager] 피드백 데이터 정리 완료
+            • 삭제된 데이터: \(deletedCount)개 (\(retentionDays)일 이상)
+            • 남은 데이터: \(afterCount)개
+            • 절약된 용량: ~\(freedSpaceKB)KB (~\(freedSpaceKB/1024)MB)
+            • 현재 예상 용량: ~\(afterSizeKB)KB (~\(afterSizeKB/1024)MB)
+            """)
+            
         } catch {
             print("❌ [FeedbackManager] 오래된 데이터 정리 실패: \(error)")
         }
+    }
+    
+    /// 🔧 앱 시작 시 자동 정리 (백그라운드에서 실행)
+    func performStartupCleanup() async {
+        await performAsyncCleanup()
+    }
+    
+    @MainActor
+    private func performAsyncCleanup() async {
+        // 1. 오래된 피드백 정리
+        cleanupOldFeedback()
+        
+        // 2. 데이터베이스 최적화 (SQLite VACUUM 상당)
+        optimizeDatabase()
+        
+        // 3. 통계 정보 로깅
+        logStorageStatistics()
+    }
+    
+    /// 📊 저장소 사용량 통계
+    func getStorageStatistics() -> (feedbackCount: Int, estimatedSizeKB: Int, retentionDays: Int) {
+        let count = getTotalFeedbackCount()
+        let sizeKB = count * 3 // 피드백당 약 3KB 추정 (볼륨 배열, 메타데이터, 명시적 피드백 포함)
+        return (feedbackCount: count, estimatedSizeKB: sizeKB, retentionDays: 30)
+    }
+    
+    /// 🗂️ 데이터베이스 최적화
+    private func optimizeDatabase() {
+        do {
+            // SwiftData에서는 명시적 VACUUM이 없으므로 컨텍스트 저장으로 최적화
+            try modelContext.save()
+            print("💾 [FeedbackManager] 데이터베이스 최적화 완료")
+        } catch {
+            print("❌ [FeedbackManager] 데이터베이스 최적화 실패: \(error)")
+        }
+    }
+    
+    /// 📈 저장소 통계 로깅
+    private func logStorageStatistics() {
+        let stats = getStorageStatistics()
+        print("""
+        📊 [Storage Statistics]
+        • 피드백 데이터: \(stats.feedbackCount)개
+        • 예상 용량: ~\(stats.estimatedSizeKB)KB (~\(stats.estimatedSizeKB/1024)MB)
+        • 보관 기간: \(stats.retentionDays)일
+        • 자동 정리: 매일 실행
+        """)
     }
     
     /// 모든 피드백 데이터 삭제 (개발/테스트 용도)
@@ -276,6 +342,11 @@ extension FeedbackManager {
     
     /// 현재 세션의 프리셋 이름
     var currentPresetName: String? {
+        return currentSession?.presetName
+    }
+    
+    /// 🎯 현재 세션 프리셋 이름 가져오기 (메서드)
+    func getCurrentSessionPresetName() -> String? {
         return currentSession?.presetName
     }
     

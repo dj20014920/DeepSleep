@@ -36,6 +36,7 @@ struct AdvancedRecommendation {
     let versions: [Int]
     let confidence: Float
     let reasoning: String
+    let name: String
 }
 
 // MARK: - ChatViewController Actions Extension (중앙 관리 로직 적용)
@@ -48,6 +49,12 @@ extension ChatViewController {
         // UI 즉시 업데이트
         inputTextField.text = ""
         
+        // 🚀 프리셋 추천 요청 자동 인식 (최우선)
+        if isPresetRecommendationRequest(text) {
+            handleAutoDetectedPresetRequest(originalMessage: text)
+            return
+        }
+        
         // 🧠 종합 추천 요청 감지
         if isComprehensiveRecommendationRequest(text) {
             requestMasterComprehensiveRecommendation()
@@ -59,6 +66,110 @@ extension ChatViewController {
         
         // AI 응답 요청
         requestAIChatResponse(for: text)
+    }
+    
+    // MARK: - 🚀 자동 프리셋 추천 인식 시스템
+    
+    /// 프리셋 추천 요청 자동 감지 (정교한 NLP 패턴 매칭)
+    private func isPresetRecommendationRequest(_ text: String) -> Bool {
+        let lowercaseText = text.lowercased()
+        
+        // 🎯 감정 표현 + 추천 요청 패턴
+        let emotionRequestPatterns = [
+            // 감정 상태 표현
+            "힘들어", "슬퍼", "우울해", "스트레스", "피곤해", "지쳐", "아파", "무기력해",
+            "행복해", "기뻐", "좋아", "편안해", "안정적", "평온해", "즐거워",
+            "화나", "짜증나", "속상해", "답답해", "불안해", "걱정",
+            "외로워", "심심해", "쓸쓸해", "적적해",
+            
+            // 상황 표현
+            "오늘", "지금", "요즘", "현재", "이런 때", "이럴 때", 
+            "밤에", "새벽에", "아침에", "점심에", "저녁에", "자기 전에",
+            "일하다가", "공부하다가", "쉬다가", "잠들기 전에"
+        ]
+        
+        let recommendationTriggers = [
+            // 직접적 추천 요청
+            "추천", "추천해", "추천해줘", "추천받고", "추천좀", "추천부탁",
+            "프리셋", "사운드", "음원", "음악", "소리",
+            "어울리", "맞는", "좋은", "적합한", "딱인", "괜찮은",
+            "틀어", "틀어줘", "들려", "들려줘", "플레이", "재생",
+            "도움", "도움되는", "효과적인", "치유", "힐링"
+        ]
+        
+        // 패턴 매칭 점수 계산
+        let emotionScore = emotionRequestPatterns.filter { lowercaseText.contains($0) }.count
+        let triggerScore = recommendationTriggers.filter { lowercaseText.contains($0) }.count
+        
+        // 🎯 고급 패턴: 문맥 분석
+        let contextPatterns = [
+            "어떤.*추천", "뭐.*좋을까", "무엇.*들을까", "어떤.*소리",
+            ".*에 맞는", ".*어울리는", ".*좋은", ".*도움되는"
+        ]
+        
+        let hasContextPattern = contextPatterns.contains { pattern in
+            let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+            let range = NSRange(location: 0, length: lowercaseText.count)
+            return regex?.firstMatch(in: lowercaseText, options: [], range: range) != nil
+        }
+        
+        // 🎯 임계값 기반 감지 (false positive 최소화)
+        return (emotionScore >= 1 && triggerScore >= 1) || hasContextPattern || triggerScore >= 2
+    }
+    
+    /// 자동 감지된 프리셋 요청 처리
+    private func handleAutoDetectedPresetRequest(originalMessage: String) {
+        // 사용자 메시지 표시
+        let userMessage = ChatMessage(type: .user, text: originalMessage)
+        appendChat(userMessage)
+        
+        // 🤖 AI 인식 알림 메시지
+        let detectionMessage = """
+        💡 프리셋 추천 요청을 감지했어요!
+        
+        "\(originalMessage.prefix(50))\(originalMessage.count > 50 ? "..." : "")"
+        
+        지금 상황에 딱 맞는 사운드를 추천해드릴게요. 어떤 방식으로 추천받으시겠어요?
+        """
+        
+        var aiMessage = ChatMessage(type: .bot, text: detectionMessage)
+        
+        // 🎯 추천 버튼 자동 생성
+        let remainingAI = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
+        aiMessage.quickActions = [
+            ("🧠 AI 분석 추천", "ai_recommendation"),
+            ("⚡ 빠른 로컬 추천", "local_recommendation"),
+            ("🎵 하단 버튼으로 이동", "scroll_to_preset_button")
+        ]
+        
+        appendChat(aiMessage)
+        
+        // 📊 사용 패턴 분석을 위한 자동 감지 기록
+        recordAutoDetection(originalMessage: originalMessage)
+    }
+    
+    /// 자동 감지 패턴 기록 (향후 개선을 위해)
+    private func recordAutoDetection(originalMessage: String) {
+        let detection = [
+            "timestamp": Date().timeIntervalSince1970,
+            "message": originalMessage.prefix(100),
+            "detected_as": "preset_recommendation",
+                         "user_emotion": "unknown",
+            "hour": Calendar.current.component(.hour, from: Date())
+        ] as [String : Any]
+        
+        // UserDefaults에 간단히 기록 (개선을 위한 데이터)
+        var detectionHistory = UserDefaults.standard.array(forKey: "auto_detection_history") as? [[String: Any]] ?? []
+        detectionHistory.append(detection)
+        
+        // 최근 100개만 유지
+        if detectionHistory.count > 100 {
+            detectionHistory = Array(detectionHistory.suffix(100))
+        }
+        
+        UserDefaults.standard.set(detectionHistory, forKey: "auto_detection_history")
+        
+        print("📊 [Auto Detection] 패턴 기록: \(originalMessage.prefix(30))")
     }
     
     /// 종합 추천 요청인지 감지
@@ -733,37 +844,34 @@ extension ChatViewController {
         print("  - 볼륨: \(preset.volumes)")
         print("  - 버전: \(preset.versions)")
         
-        // 1. SoundManager에 프리셋 적용
-        SoundManager.shared.applyPresetWithVersions(volumes: preset.volumes, versions: preset.versions)
-        
-        // 2. 버전 정보를 SettingsManager에 저장
+        // 1. 버전 정보를 SettingsManager에 저장
         for (categoryIndex, versionIndex) in preset.versions.enumerated() {
             if categoryIndex < SoundPresetCatalog.categoryCount {
                 SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
             }
         }
         
-        // 3. 최근 사용한 프리셋에 저장 (로컬 추천도 Recent에 저장)
-        let soundPreset = SoundPreset(
-            name: preset.name,
-            volumes: preset.volumes,
-            selectedVersions: preset.versions,
-            emotion: nil,
-            isAIGenerated: false, // ✅ 로컬 추천도 Recent Presets에 표시되도록 false로 설정
-            description: preset.description
-        )
-        SettingsManager.shared.saveSoundPreset(soundPreset)
-        // 저장 후 실제로 저장됐는지 검증
-        let allPresets = SettingsManager.shared.loadSoundPresets()
-        let savedPreset = allPresets.first { $0.name == preset.name }
-        if savedPreset != nil {
-            print("✅ [applyLocalPreset] 프리셋 저장 성공: \(preset.name)")
+        // 2. MainViewController 찾아서 applyPreset 한 번만 호출
+        if let mainVC = findMainViewController() {
+            mainVC.applyPreset(
+                volumes: preset.volumes,
+                versions: preset.versions,
+                name: preset.name,
+                shouldSaveToRecent: true
+            )
+            
+            print("✅ [applyLocalPreset] MainViewController 직접 적용 완료")
+            
+            // 메인 탭으로 이동
+            if let tabBarController = mainVC.tabBarController {
+                tabBarController.selectedIndex = 0
+                print("🏠 메인 탭으로 이동 완료")
+            }
         } else {
-            print("❌ [applyLocalPreset] 프리셋 저장 실패: \(preset.name)")
+            // Fallback: SoundManager만 사용
+            print("⚠️ [applyLocalPreset] MainViewController 접근 불가, SoundManager 사용")
+            SoundManager.shared.applyPresetWithVersions(volumes: preset.volumes, versions: preset.versions)
         }
-        
-        // 4. 메인 뷰컨트롤러 강제 동기화 (중복 저장 방지)
-        forceSyncMainViewControllerPreset(volumes: preset.volumes, versions: preset.versions, name: preset.name)
         
         print("✅ [applyLocalPreset] 프리셋 적용 완료: \(preset.name)")
     }
@@ -1740,7 +1848,8 @@ extension ChatViewController {
                 volumes: randomVolumes,
                 versions: SoundPresetCatalog.defaultVersions,
                 confidence: 0.85,
-                reasoning: "완전 새로운 경험을 위한 탐험적 추천입니다."
+                reasoning: "완전 새로운 경험을 위한 탐험적 추천입니다.",
+                name: randomPreset
             )
         }
         
@@ -1767,7 +1876,8 @@ extension ChatViewController {
                     volumes: randomCategoryPreset.value,
                     versions: SoundPresetCatalog.defaultVersions,
                     confidence: 0.9,
-                    reasoning: "\(randomCategory.displayName) 카테고리에서 선별된 특화 조합입니다."
+                    reasoning: "\(randomCategory.displayName) 카테고리에서 선별된 특화 조합입니다.",
+                    name: randomCategoryPreset.key
                 )
             }
         }
@@ -1800,7 +1910,8 @@ extension ChatViewController {
             volumes: volumes,
             versions: selectedVersions,
             confidence: confidence,
-            reasoning: reasoning
+            reasoning: reasoning,
+            name: "AdvancedPreset"
         )
     }
     
@@ -2242,25 +2353,31 @@ extension ChatViewController {
     }
     
     private func applyAdvancedLocalPreset(_ recommendation: AdvancedRecommendation) {
-        // SoundManager를 통해 실제 프리셋 적용
-        if let soundManager = (parent as? UINavigationController)?.viewControllers.first as? ViewController {
-            // 볼륨 설정
-            for (index, volume) in recommendation.volumes.enumerated() {
-                if index < recommendation.sounds.count {
-                    // 사운드별 볼륨 적용 로직
-                    soundManager.sliders[index].value = volume / 100.0
-                }
-            }
+        print("🎯 [applyAdvancedLocalPreset] 로컬 추천 적용 시작")
+        print("  - 추천 볼륨: \(recommendation.volumes)")
+        print("  - 추천 버전: \(recommendation.versions)")
+        
+        // MainViewController 찾기
+        if let navController = parent as? UINavigationController,
+           let mainVC = navController.viewControllers.first as? ViewController {
             
-            // 버전 설정 (필요한 경우)
-            for (index, version) in recommendation.versions.enumerated() {
-                if index < recommendation.sounds.count {
-                    // 버전 설정 로직 (실제 구현에 따라 다름)
-                    print("사운드 \(recommendation.sounds[index])의 버전 \(version) 적용")
-                }
-            }
+            // ViewController의 applyPreset 메서드 한 번만 호출
+            mainVC.applyPreset(
+                volumes: recommendation.volumes,
+                versions: recommendation.versions,
+                name: recommendation.name,
+                shouldSaveToRecent: true
+            )
             
-            print("🎯 고급 로컬 추천 프리셋이 적용되었습니다 (신뢰도: \(Int(recommendation.confidence * 100))%)")
+            print("✅ [applyAdvancedLocalPreset] 로컬 추천 적용 완료 (신뢰도: \(Int(recommendation.confidence * 100))%)")
+            
+            // 메인 탭으로 이동
+            if let tabBarController = mainVC.tabBarController {
+                tabBarController.selectedIndex = 0
+                print("🏠 메인 탭으로 이동 완료")
+            }
+        } else {
+            print("⚠️ [applyAdvancedLocalPreset] MainViewController 접근 불가")
         }
     }
     

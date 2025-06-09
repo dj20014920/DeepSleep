@@ -26,7 +26,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
 
     private let dueDateLabel: UILabel = {
         let label = UILabel()
-        label.text = "마감일/시간:"
+        label.text = "시작일시:"
         label.font = .systemFont(ofSize: 16, weight: .medium)
         return label
     }()
@@ -34,14 +34,63 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         let datePicker = UIDatePicker()
         datePicker.datePickerMode = .dateAndTime // 날짜와 시간 모두 선택
         if #available(iOS 13.4, *) {
-            datePicker.preferredDatePickerStyle = .wheels // 또는 .inline, .compact
-        } else {
-            // Fallback on earlier versions
+            datePicker.preferredDatePickerStyle = .wheels
         }
         datePicker.locale = Locale(identifier: "ko_KR")
-        // 분 단위를 5분 간격으로 설정 (선택적)
-        // datePicker.minuteInterval = 5
+        datePicker.minuteInterval = 5
         return datePicker
+    }()
+    
+    // 기간 설정 섹션 (다일 일정 지원)
+    private let durationLabel: UILabel = {
+        let label = UILabel()
+        label.text = "기간 설정:"
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        return label
+    }()
+    
+    private let hasEndDateSwitch: UISwitch = {
+        let endDateSwitch = UISwitch()
+        return endDateSwitch
+    }()
+    
+    private let hasEndDateContainer: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.spacing = 8
+        
+        let label = UILabel()
+        label.text = "연속 일정"
+        label.font = .systemFont(ofSize: 14)
+        
+        return stackView
+    }()
+    
+    private let endDateLabel: UILabel = {
+        let label = UILabel()
+        label.text = "종료일:"
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        return label
+    }()
+    
+    private let endDatePicker: UIDatePicker = {
+        let datePicker = UIDatePicker()
+        datePicker.datePickerMode = .dateAndTime
+        if #available(iOS 13.4, *) {
+            datePicker.preferredDatePickerStyle = .compact
+        }
+        datePicker.locale = Locale(identifier: "ko_KR")
+        datePicker.minuteInterval = 5
+        return datePicker
+    }()
+    
+    private let durationSettingsStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 12
+        stackView.isHidden = true
+        return stackView
     }()
 
     private let notesLabel: UILabel = {
@@ -170,6 +219,14 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         mainStackView.addArrangedSubview(dueDatePicker)
         mainStackView.setCustomSpacing(4, after: dueDateLabel)
         
+        // 기간 설정 섹션 추가
+        setupDurationSettingsContainer()
+        mainStackView.addArrangedSubview(durationLabel)
+        mainStackView.addArrangedSubview(hasEndDateContainer)
+        mainStackView.addArrangedSubview(durationSettingsStackView)
+        mainStackView.setCustomSpacing(4, after: durationLabel)
+        mainStackView.setCustomSpacing(8, after: hasEndDateContainer)
+        
         mainStackView.addArrangedSubview(priorityLabel)
         mainStackView.addArrangedSubview(prioritySegmentedControl)
         mainStackView.setCustomSpacing(4, after: priorityLabel)
@@ -206,6 +263,50 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             aiHelpButton.heightAnchor.constraint(equalToConstant: 44) // AI 버튼 높이 제약
         ])
     }
+    
+    // 시간 설정 컨테이너 설정
+    private func setupDurationSettingsContainer() {
+        // 스위치 컨테이너 설정
+        let switchLabel = UILabel()
+        switchLabel.text = "연속 일정"
+        switchLabel.font = .systemFont(ofSize: 14)
+        
+        hasEndDateContainer.addArrangedSubview(switchLabel)
+        hasEndDateContainer.addArrangedSubview(hasEndDateSwitch)
+        
+        // 기간 설정 스택뷰 설정
+        durationSettingsStackView.addArrangedSubview(endDateLabel)
+        durationSettingsStackView.addArrangedSubview(endDatePicker)
+        
+        // 스위치 액션 추가
+        hasEndDateSwitch.addTarget(self, action: #selector(endDateSwitchChanged), for: .valueChanged)
+        
+        // 시작일 변경 시 종료일 자동 조정
+        dueDatePicker.addTarget(self, action: #selector(startDateChanged), for: .valueChanged)
+    }
+    
+    @objc private func endDateSwitchChanged() {
+        durationSettingsStackView.isHidden = !hasEndDateSwitch.isOn
+        
+        if hasEndDateSwitch.isOn {
+            // 여러 날 일정을 켰을 때 종료일을 다음날로 설정
+            let startDate = dueDatePicker.date
+            let calendar = Calendar.current
+            
+            // 종료일을 시작일 다음날 같은 시간으로 설정
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
+            endDatePicker.date = nextDay
+        }
+    }
+    
+    @objc private func startDateChanged() {
+        // 시작일이 변경되면 종료일이 시작일보다 빠르지 않도록 조정
+        if hasEndDateSwitch.isOn && endDatePicker.date < dueDatePicker.date {
+            let calendar = Calendar.current
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: dueDatePicker.date) ?? dueDatePicker.date
+            endDatePicker.date = nextDay
+        }
+    }
 
     // 수정: configureForEditing -> configureScreenForTodo로 변경하고 조언 로드 로직 추가
     private func configureScreenForTodo() {
@@ -215,6 +316,16 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             notesTextView.text = todo.notes
             prioritySegmentedControl.selectedSegmentIndex = todo.priority
             
+            // 기간 설정 로드
+            if let endDate = todo.endDate {
+                hasEndDateSwitch.isOn = true
+                durationSettingsStackView.isHidden = false
+                endDatePicker.date = endDate
+            } else {
+                hasEndDateSwitch.isOn = false
+                durationSettingsStackView.isHidden = true
+            }
+            
             // 저장된 AI 조언 로드
             self.currentTodoAdvices = todo.aiAdvices ?? []
             populateAdvicesInStackView() // 로드된 조언 UI에 표시
@@ -222,6 +333,8 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         } else {
             // 새 할 일
             dueDatePicker.date = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
+            hasEndDateSwitch.isOn = false
+            durationSettingsStackView.isHidden = true
             self.currentTodoAdvices = [] // 새 할 일에는 조언 없음
             populateAdvicesInStackView() // UI 초기화 (숨김 처리 등)
         }
@@ -281,21 +394,25 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         let dueDate = dueDatePicker.date
         let notes = notesTextView.text
         let priority = prioritySegmentedControl.selectedSegmentIndex
-
-        // AI 조언은 didTapAIHelpButton에서 todoToEdit에 이미 반영되었거나,
-        // 새 할 일의 경우 여기서 반영할 필요 없음 (저장 후 조언 가능)
-        // 따라서 여기서 aiAdvices를 직접 건드릴 필요는 없음.
-        // todoToEdit가 생성/수정될 때 이미 aiAdvices 필드를 가지고 있음.
+        
+        // 기간 설정 처리
+        var endDate: Date? = nil
+        
+        if hasEndDateSwitch.isOn {
+            endDate = endDatePicker.date
+            
+            // 종료일이 시작일보다 빠르면 조정
+            if endDate! < dueDate {
+                endDate = Calendar.current.date(byAdding: .day, value: 1, to: dueDate)
+            }
+        }
 
         if var todo = todoToEdit { // 수정 모드
             todo.title = title
             todo.dueDate = dueDate
+            todo.endDate = endDate
             todo.notes = notes
             todo.priority = priority
-            // todo.aiAdvices는 AI 조언 받을 때 이미 self.todoToEdit에 업데이트되었으므로
-            // 이 todo 변수에 다시 할당할 필요 없이 TodoManager가 알아서 처리.
-            // (만약 todoToEdit이 class가 아닌 struct 복사본이라면 여기서 todo.aiAdvices = self.currentTodoAdvices 필요)
-            // TodoItem이 struct이므로 아래와 같이 명시적 할당 필요
             todo.aiAdvices = self.currentTodoAdvices 
 
             TodoManager.shared.updateTodo(todo) { [weak self] (updatedItem: TodoItem?, error: Error?) in
@@ -312,11 +429,11 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
                 }
             }
         } else { // 새 할 일 추가 모드
-            // 새 TodoItem 생성 시 aiAdvices는 nil 또는 빈 배열로 초기화됨 (TodoItem 기본값)
-            // AI 조언은 저장 후에만 가능하므로, 여기서 aiAdvices를 설정할 필요 없음.
             TodoManager.shared.addTodo(
                 title: title,
                 dueDate: dueDate,
+                startTime: nil, // startTime 사용하지 않음
+                endTime: endDate, // endDate를 endTime으로 전달
                 notes: notes,
                 priority: priority
             ) { [weak self] (newTodo: TodoItem?, error: Error?) in
