@@ -1387,6 +1387,17 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         let translation = recognizer.translation(in: view)
         let velocity = recognizer.velocity(in: view)
         
+        // 세로 스크롤이 주요 동작인 경우 스와이프 무시
+        if abs(translation.y) > abs(translation.x) * 2 {
+            return
+        }
+        
+        // 왼쪽 가장자리에서 시작한 제스처만 처리 (화면 폭의 20% 이내)
+        let startPoint = recognizer.location(in: view)
+        if startPoint.x > view.frame.width * 0.2 {
+            return
+        }
+        
         switch recognizer.state {
         case .ended, .cancelled:
             // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우

@@ -734,15 +734,28 @@ extension ChatViewController {
         let loadedMessages = ChatManager.shared.getAllMessagesAsContinuousChat()
         
         // 프리셋 적용 완료 메시지 필터링
-        self.messages = loadedMessages.filter { message in
+        let filteredMessages = loadedMessages.filter { message in
             if message.type == .bot && message.text.hasPrefix("✅ ") && message.text.contains("프리셋이 적용되었습니다!") {
                 return false // 이 메시지는 로드하지 않음
             }
             return true
         }
         
+        // 🔧 프리셋 추천 메시지에 클로저 재할당
+        self.messages = filteredMessages.map { message in
+            var updatedMessage = message
+            if message.type == .presetRecommendation {
+                // 프리셋 추천 메시지에 대해 클로저 재할당
+                updatedMessage.onApplyPreset = { [weak self] in
+                    print("🔥 [재할당된 클로저] 프리셋 적용 버튼 클릭됨")
+                    self?.handleRestoredPresetRecommendation(text: message.text)
+                }
+            }
+            return updatedMessage
+        }
+        
         #if DEBUG
-        print("📚 [ChatViewController] 채팅 기록 로드: \(self.messages.count)개 메시지")
+        print("📚 [ChatViewController] 채팅 기록 로드: \(self.messages.count)개 메시지 (클로저 재할당 완료)")
         print(ChatManager.shared.getDebugInfo())
         #endif
         
@@ -789,6 +802,61 @@ extension ChatViewController {
         #if DEBUG
         print("✅ [ChatViewController] 마이그레이션 완료: \(self.messages.count)개 메시지 변환됨")
         #endif
+    }
+    
+    /// 복원된 프리셋 추천 메시지 처리
+    private func handleRestoredPresetRecommendation(text: String) {
+        print("🔧 [handleRestoredPresetRecommendation] 복원된 프리셋 처리 시작")
+        
+        // 메시지에서 프리셋 이름 추출 시도
+        if let presetName = extractPresetNameFromText(text) {
+            // 기본 프리셋 생성 (감정 기반)
+            let currentEmotion = getEmotionData().emotion
+            let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: currentEmotion)
+            let versions = SoundPresetCatalog.defaultVersions
+            
+            let restoredPreset = (
+                name: presetName,
+                volumes: baseVolumes,
+                description: "복원된 프리셋",
+                versions: versions
+            )
+            
+            print("🔄 [handleRestoredPresetRecommendation] 복원된 프리셋 적용: \(presetName)")
+            applyLocalPreset(restoredPreset)
+        } else {
+            print("⚠️ [handleRestoredPresetRecommendation] 프리셋 이름 추출 실패, 기본 프리셋 사용")
+            // 기본 프리셋 적용
+            let currentEmotion = getEmotionData().emotion
+            let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: currentEmotion)
+            let versions = SoundPresetCatalog.defaultVersions
+            
+            let defaultPreset = (
+                name: "복원된 기본 프리셋",
+                volumes: baseVolumes,
+                description: "기본 설정으로 복원된 프리셋",
+                versions: versions
+            )
+            
+            applyLocalPreset(defaultPreset)
+        }
+    }
+    
+    /// 텍스트에서 프리셋 이름 추출
+    private func extractPresetNameFromText(_ text: String) -> String? {
+        // **[프리셋 이름]** 패턴 찾기
+        if let range = text.range(of: #"\*\*\[([^\]]+)\]\*\*"#, options: .regularExpression) {
+            let extracted = String(text[range])
+            return extracted.replacingOccurrences(of: "**[", with: "").replacingOccurrences(of: "]**", with: "")
+        }
+        
+        // 다른 패턴들도 시도
+        if let range = text.range(of: #"\[([^\]]+)\]"#, options: .regularExpression) {
+            let extracted = String(text[range])
+            return extracted.replacingOccurrences(of: "[", with: "").replacingOccurrences(of: "]", with: "")
+        }
+        
+        return nil
     }
     
     private func setupNavigationBar() {
@@ -1087,10 +1155,63 @@ extension ChatViewController {
     }
     
     func scrollToBottom() {
-        if !messages.isEmpty {
-            let indexPath = IndexPath(row: messages.count - 1, section: 0)
-            tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 🔧 안전한 인덱스 확인 및 크래시 방지
+            guard !self.messages.isEmpty else { return }
+            
+            let messageCount = self.messages.count
+            let lastIndex = messageCount - 1
+            
+            // 테이블뷰의 실제 행 수와 비교하여 안전성 확보
+            let tableViewRowCount = self.tableView.numberOfRows(inSection: 0)
+            
+            // 인덱스가 유효한 범위 내에 있는지 확인
+            guard lastIndex >= 0 && lastIndex < tableViewRowCount else {
+                #if DEBUG
+                print("⚠️ [scrollToBottom] 인덱스 범위 오류 방지: messages=\(messageCount), tableRows=\(tableViewRowCount)")
+                #endif
+                // 테이블뷰 다시 로드하고 재시도
+                self.tableView.reloadData()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.scrollToBottomSafely()
+                }
+                return
+            }
+            
+            let indexPath = IndexPath(row: lastIndex, section: 0)
+            
+            // 스크롤 실행 전 마지막 안전성 체크
+            guard indexPath.row < self.tableView.numberOfRows(inSection: 0) else {
+                #if DEBUG
+                print("⚠️ [scrollToBottom] 최종 안전성 체크 실패")
+                #endif
+                return
+            }
+            
+            self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
         }
+    }
+    
+    /// 더 안전한 스크롤 메서드 (재시도 없이)
+    private func scrollToBottomSafely() {
+        guard !messages.isEmpty else { return }
+        
+        let messageCount = messages.count
+        let tableViewRowCount = tableView.numberOfRows(inSection: 0)
+        
+        // 데이터 동기화 문제가 있는 경우 가장 안전한 인덱스 사용
+        let safeIndex = min(messageCount - 1, tableViewRowCount - 1)
+        
+        guard safeIndex >= 0 else { return }
+        
+        let indexPath = IndexPath(row: safeIndex, section: 0)
+        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        
+        #if DEBUG
+        print("✅ [scrollToBottomSafely] 안전 스크롤 완료: index=\(safeIndex)")
+        #endif
     }
     
     // ✅ 마지막 로딩 메시지 제거 (UI 동기화 개선)
@@ -1743,13 +1864,25 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     }
                 }
                 
-                // 3-2. ViewController의 applyPreset 메서드 호출 (한 번만)
+                // 3-2. ViewController의 applyPreset 메서드 호출 (한 번만) 
+                // 🔧 음량 중복 적용 방지
                 mainVC.applyPreset(
                     volumes: correctedVolumes,
                     versions: correctedVersions,
                     name: recommendation.presetName,
-                    shouldSaveToRecent: true
+                    shouldSaveToRecent: false  // 중복 저장 방지
                 )
+                
+                // 별도로 최근 프리셋에 저장 (한 번만)
+                let soundPreset = SoundPreset(
+                    name: recommendation.presetName,
+                    volumes: correctedVolumes,
+                    selectedVersions: correctedVersions,
+                    emotion: nil,
+                    isAIGenerated: true,
+                    description: "AI 추천 프리셋"
+                )
+                SettingsManager.shared.saveSoundPreset(soundPreset)
                 
                 print("✅ applyPreset 호출 완료 - 추가 볼륨 조절 생략")
                 
@@ -2677,11 +2810,33 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     @objc private func handlePanGesture(_ recognizer: UIPanGestureRecognizer) {
         let translation = recognizer.translation(in: view)
         let velocity = recognizer.velocity(in: view)
+        let location = recognizer.location(in: view)
+        
+        // 🔧 테이블뷰 스크롤 영역에서는 스와이프 비활성화
+        if tableView.frame.contains(location) {
+            return
+        }
+        
+        // 세로 스크롤이 주요 동작인 경우 스와이프 무시 (임계값 증가)
+        if abs(translation.y) > abs(translation.x) * 1.5 {
+            return
+        }
+        
+        // 왼쪽 가장자리에서 시작한 제스처만 처리 (화면 폭의 15% 이내로 축소)
+        let startPoint = recognizer.location(in: view)
+        if startPoint.x > view.frame.width * 0.15 {
+            return
+        }
+        
+        // 🔧 최소 이동 거리 요구 (실수 방지)
+        if abs(translation.x) < 30 {
+            return
+        }
         
         switch recognizer.state {
         case .ended, .cancelled:
-            // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우
-            if translation.x > 100 || velocity.x > 500 {
+            // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우 (임계값 증가)
+            if translation.x > 120 || velocity.x > 600 {
                 // 채팅 기록 저장
                 saveChatHistory()
                 

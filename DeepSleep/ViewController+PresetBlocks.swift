@@ -177,25 +177,28 @@ extension ViewController {
             return
         }
         
+        // 🔧 기존 "빈 슬롯" 텍스트 완전 제거
+        button.setTitle("", for: .normal)
+        
         // 프리셋 이름을 버튼 제목으로 설정
-        button.setTitle(preset.name, for: .normal)
+        let title = preset.emotion != nil ? "\(preset.emotion!)\n\(preset.name)" : preset.name
+        button.setTitle(title, for: .normal)
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
         
-        // 감정 정보가 있으면 추가 표시
-        if let emotion = preset.emotion {
-            button.setTitle("\(emotion)\n\(preset.name)", for: .normal)
-        }
-        
-        // 프리셋 이름이 너무 길면 줄임표 처리
+        // 🔧 텍스트 레이아웃 개선 - 겹침 방지
         button.titleLabel?.lineBreakMode = .byTruncatingTail
         button.titleLabel?.numberOfLines = 2
         button.titleLabel?.textAlignment = .center
         button.titleLabel?.adjustsFontSizeToFitWidth = true
-        button.titleLabel?.minimumScaleFactor = 0.8
+        button.titleLabel?.minimumScaleFactor = 0.7  // 더 작게 조정 가능
         
-        print("  - 버튼 설정: '\(preset.name)'")
+        // 🔧 버튼 패딩 확보 (텍스트가 버튼 가장자리에 닿지 않도록)
+        button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+        button.titleLabel?.preferredMaxLayoutWidth = button.frame.width - 8  // 좌우 여백 확보
+        
+        print("  - 버튼 설정: '\(preset.name)' (겹침 방지 적용)")
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {

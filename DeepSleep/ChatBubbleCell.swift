@@ -494,6 +494,9 @@ class ChatBubbleCell: UITableViewCell {
         messageLabel.text = text
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
         
+        // 🔧 AI 메시지 왼쪽 정렬 확실히 하기
+        messageLabel.textAlignment = .left  // 명시적으로 왼쪽 정렬
+        
         // 🔧 왼쪽 정렬 + 텍스트 크기에 맞는 버블
         leadingConstraint.priority = .required
         leadingConstraint.isActive = true
