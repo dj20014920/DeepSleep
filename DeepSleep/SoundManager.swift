@@ -81,6 +81,7 @@ final class SoundManager {
     
     // MARK: - AVAudioPlayer 관리
     var players: [AVAudioPlayer] = []
+    private var isApplyingPreset = false // 중복 적용 방지 플래그
     
     /// 현재 재생 중인지
     var isPlaying: Bool {
@@ -811,31 +812,46 @@ final class SoundManager {
     func applyPreset(volumes: [Float]) {
         print("🎵 applyPreset 시작: \(volumes)")
         
+        // 🚨 중복 적용 방지 체크
+        if isApplyingPreset {
+            print("⚠️ [applyPreset] 이미 적용 중 - 중복 호출 차단")
+            return
+        }
+        
+        isApplyingPreset = true
+        defer { isApplyingPreset = false }
+        
         // 1. 각 플레이어에 대해 볼륨 설정과 재생 상태를 동시에 처리
         for (index, volume) in volumes.enumerated() {
             guard index < players.count else { continue }
             
             let player = players[index]
-            // 🔧 이미 정규화된 값이 들어오므로 추가 정규화 불필요
-            let normalizedVolume = volume
+            // 🔧 볼륨 범위 정규화 (0-100 → 0-1)
+            let normalizedVolume = min(1.0, max(0.0, volume / 100.0))
             
-            // 볼륨 설정
-            player.volume = normalizedVolume
+            // 🔄 이전 볼륨과 동일한 경우 스킵 (불필요한 변동 방지)
+            if abs(player.volume - normalizedVolume) < 0.01 {
+                print("  ⏭️ 사운드 \(index) 볼륨 변화 없음 (현재: \(String(format: "%.2f", player.volume)))")
+                continue
+            }
+            
+            // 볼륨 설정 (부드럽게 변경)
+            player.setVolume(normalizedVolume, fadeDuration: 0.2)
             
             // 재생 상태 제어
             if volume > 0 {
                 if !player.isPlaying {
                     player.play()
-                    print("  ✅ 사운드 \(index) 재생 시작 (볼륨: \(volume))")
+                    print("  ✅ 사운드 \(index) 재생 시작 (볼륨: \(String(format: "%.1f", volume)) → \(String(format: "%.2f", normalizedVolume)))")
                 } else {
-                    print("  ℹ️ 사운드 \(index) 이미 재생 중, 볼륨만 업데이트 (볼륨: \(volume))")
+                    print("  🔄 사운드 \(index) 볼륨 업데이트 (볼륨: \(String(format: "%.1f", volume)) → \(String(format: "%.2f", normalizedVolume)))")
                 }
             } else {
                 if player.isPlaying {
                     player.pause()
                     print("  ⏸️ 사운드 \(index) 정지")
                 } else {
-                    print("  ⏭️ 사운드 \(index) 이미 정지 상태")
+                    print("  💤 사운드 \(index) 이미 정지 상태")
                 }
             }
         }

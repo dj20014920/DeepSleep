@@ -220,33 +220,50 @@ extension UserDefaults {
         }
     }
     
-    /// 오래된 데이터 정리 (지정된 일수 이전)
+    /// TLB식 오래된 데이터 정리 (14일 기준)
     func cleanOldData(olderThanDays days: Int) {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
         let cutoffDateString = formatDateKey(cutoffDate)
         
         let allKeys = Array(UserDefaults.standard.dictionaryRepresentation().keys)
         let dateKeys = allKeys.filter { key in
-            // "daily_", "compressed_" 등으로 시작하는 날짜 기반 키들
-            return (key.hasPrefix("daily_") || key.hasPrefix("compressed_")) &&
+            // "daily_", "compressed_", "ConversationCache_" 등 캐시 관련 키들  
+            return (key.hasPrefix("daily_") || 
+                   key.hasPrefix("compressed_") || 
+                   key.hasPrefix("ConversationCache_")) &&
                    key.contains("-") // 날짜 형식 포함
         }
         
         var cleanedCount = 0
         for key in dateKeys {
-            // ✅ String.Index 사용 오류 수정
-            if let underscoreIndex = key.firstIndex(of: "_") {
-                let dateString = String(key[key.index(after: underscoreIndex)...])
-                if dateString < cutoffDateString {
-                    removeObject(forKey: key)
-                    cleanedCount += 1
+            var shouldClean = false
+            
+                         if key.hasPrefix("ConversationCache_") {
+                 // 대화 캐시는 생성 시간 기준 정리 (타임스탬프 기반)
+                 if let cacheTimestamp = self.object(forKey: "\(key)_timestamp") as? Date {
+                     let timeSince = Date().timeIntervalSince(cacheTimestamp)
+                     shouldClean = timeSince > TimeInterval(days * 24 * 60 * 60)
+                 } else {
+                     // 타임스탬프가 없는 오래된 캐시는 삭제
+                     shouldClean = true
+                 }
+             } else {
+                // 일반 날짜 키는 문자열 비교
+                if let underscoreIndex = key.firstIndex(of: "_") {
+                    let dateString = String(key[key.index(after: underscoreIndex)...])
+                    shouldClean = dateString < cutoffDateString
                 }
+            }
+            
+            if shouldClean {
+                removeObject(forKey: key)
+                cleanedCount += 1
             }
         }
         
         #if DEBUG
         if cleanedCount > 0 {
-            print("🧹 \(days)일 이전 데이터 \(cleanedCount)개 정리 완료")
+            print("🧹 TLB식: \(days)일 이전 데이터 \(cleanedCount)개 정리 완료")
         }
         #endif
     }

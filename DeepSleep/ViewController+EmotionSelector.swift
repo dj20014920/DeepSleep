@@ -51,7 +51,7 @@ extension ViewController {
     }
     
     @objc func hashtagTapped() {
-        let chatVC = ChatViewController()
+        let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = nil
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
             self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)
@@ -64,7 +64,7 @@ extension ViewController {
         let selectedEmoji = emojis[emojiIndex]
         
         // 바로 AI 대화창으로 이동
-        let chatVC = ChatViewController()
+        let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = selectedEmoji
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
             self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)

@@ -81,7 +81,7 @@ extension EmotionCalendarViewController {
         // ✅ 사용 횟수 증가
         AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
         
-        let chatVC = ChatViewController()
+        let chatVC = ChatRouter.chatViewController()
         chatVC.title = "일기 분석 대화 - \(DateFormatter.localizedString(from: entry.date, dateStyle: .short, timeStyle: .none))"
         
         chatVC.diaryContext = DiaryContext(from: entry)

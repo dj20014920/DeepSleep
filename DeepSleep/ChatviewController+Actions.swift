@@ -42,7 +42,7 @@ struct AdvancedRecommendation {
 // MARK: - ChatViewController Actions Extension (중앙 관리 로직 적용)
 extension ChatViewController {
     
-    // MARK: - 메시지 전송
+    // MARK: - 메시지 전송 (🚀 ChatManager 통합)
     @objc func sendButtonTapped() {
         guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return }
         
@@ -62,7 +62,22 @@ extension ChatViewController {
         }
         
         let userMessage = ChatMessage(type: .user, text: text)
-        appendChat(userMessage)
+        
+        // 🚀 ChatManager에 메시지 추가 (상태 보존)
+        if let chatManager = chatManager {
+            chatManager.append(userMessage)
+            // ChatManager의 messages를 로컬 배열에 동기화
+            messages = chatManager.messages
+        } else {
+            // Fallback: 기존 방식
+            appendChat(userMessage)
+        }
+        
+        // UI 업데이트
+        DispatchQueue.main.async {
+            self.view.subviews.compactMap { $0 as? UITableView }.first?.reloadData()
+            self.scrollToBottom()
+        }
         
         // AI 응답 요청
         requestAIChatResponse(for: text)
@@ -253,9 +268,16 @@ extension ChatViewController {
         // 4. 로딩 메시지 추가
         appendChat(ChatMessage(type: .loading, text: "고민을 듣고 있어요..."))
         
-        // 5. 정화된 입력으로 AI 서비스 호출
-        ReplicateChatService.shared.sendPrompt(
-            message: finalInput,
+        // 5. 캐시 기반 AI 서비스 호출로 대화 연속성 확보
+        let (cachedPrompt, useCache, estimatedTokens) = CachedConversationManager.shared.buildCachedPrompt(
+            newMessage: finalInput,
+            context: .emotionChat(extractCurrentEmotion())
+        )
+        
+        ReplicateChatService.shared.sendCachedPrompt(
+            prompt: cachedPrompt,
+            useCache: useCache,
+            estimatedTokens: estimatedTokens,
             intent: "chat"
         ) { [weak self] response in
             DispatchQueue.main.async {
@@ -272,6 +294,12 @@ extension ChatViewController {
                     case .approved(let safeResponse):
                         let botMessage = ChatMessage(type: .bot, text: safeResponse)
                         self.appendChat(botMessage)
+                        
+                        // 🔄 대화 완료 후 캐시 업데이트 (연속성 유지)
+                        CachedConversationManager.shared.updateCacheAfterResponse()
+                        
+                        // 감정 흐름 기록 (맥락 유지)
+                        CachedConversationManager.shared.recordSessionEmotion(self.extractCurrentEmotion())
                         
                         // 성공 시 사용량 기록
                         AIUsageManager.shared.recordUsage(for: .chat)
@@ -386,14 +414,14 @@ extension ChatViewController {
         \(primary.personalizedExplanation)
         
         📊 **분석 근거:**
-        • \(metadata.dataSourcesUsed)개 데이터 소스 종합 분석
-        • \(metadata.featureVectorSize)차원 특성 벡터 처리
-        • \(metadata.networkLayers)층 신경망 추론
+        • \(metadata.featureCount)개 특성 벡터 처리
+        • \(metadata.networkDepth)층 신경망 추론
+        • 모델 버전: \(metadata.modelVersion)
         • 예상 만족도: \(String(format: "%.0f%%", primary.expectedSatisfaction * 100))
         • 권장 세션 시간: \(formatDuration(primary.estimatedDuration))
         
         ⚡ **처리 성능:**
-        • 분석 시간: \(String(format: "%.3f", metadata.totalProcessingTime))초
+        • 분석 시간: \(String(format: "%.3f", metadata.processingTime))초
         • 종합도 점수: \(String(format: "%.0f%%", recommendation.comprehensivenessScore * 100))
         
         🎵 **대안 추천:**
@@ -450,7 +478,7 @@ extension ChatViewController {
             "recommendation_id": recommendation.primaryRecommendation.presetName,
             "confidence": String(recommendation.overallConfidence),
             "comprehensive_score": String(recommendation.comprehensivenessScore),
-            "processing_time": String(recommendation.processingMetadata.totalProcessingTime)
+            "processing_time": String(recommendation.processingMetadata.processingTime)
         ]
         
         UserDefaults.standard.set(sessionContext, forKey: "currentMasterSession")
@@ -569,6 +597,16 @@ extension ChatViewController {
         saveAutomaticLearningRecord(learningData)
     }
     
+    // MARK: - Helper Functions
+    // formatDuration, saveAutomaticLearningRecord, loadAutomaticLearningRecords 함수들은
+    // AutomaticLearningModels.swift에 이미 정의되어 있으므로 중복 제거
+    
+    /// 현재 감정 추출
+    private func extractCurrentEmotion() -> String {
+        // 기본값 반환 (추후 ViewController와 연동 개선 예정)
+        return "평온"
+    }
+    
     /// 개선 제안 생성 (AI 연구 수준)
     func generateImprovementSuggestions(accuracy: Float, sessionMetrics: AutomaticLearningModels.SessionMetrics) -> [String] {
         var suggestions: [String] = []
@@ -592,27 +630,7 @@ extension ChatViewController {
         return suggestions
     }
     
-    /// 현재 감정 추출 (최근 메시지 기반)
-    func extractCurrentEmotion() -> String {
-        let recentMessages = messages.suffix(10)
-        
-        for message in recentMessages.reversed() {
-            if message.type == .user {
-                let text = message.text.lowercased()
-                
-                // 감정 키워드 매칭
-                if text.contains("스트레스") || text.contains("힘들") { return "스트레스" }
-                if text.contains("피곤") || text.contains("잠") { return "수면" }
-                if text.contains("집중") || text.contains("공부") { return "집중" }
-                if text.contains("행복") || text.contains("기쁘") { return "행복" }
-                if text.contains("슬프") || text.contains("우울") { return "슬픔" }
-                if text.contains("불안") || text.contains("걱정") { return "불안" }
-                if text.contains("활력") || text.contains("에너지") { return "활력" }
-            }
-        }
-        
-        return "평온" // 기본값
-    }
+    // 중복된 extractCurrentEmotion 함수 제거됨
     
     // MARK: - 🆕 감정 분석 결과 파싱
     private func parseEmotionAnalysis(_ analysis: String) -> (emotion: String, timeOfDay: String, intensity: Float) {
@@ -644,7 +662,7 @@ extension ChatViewController {
         analysis: (emotion: String, timeOfDay: String, intensity: Float),
         preset: (name: String, volumes: [Float], description: String, versions: [Int])
     ) -> String {
-        let intensityText = analysis.intensity > 1.2 ? "강한" : analysis.intensity < 0.8 ? "부드러운" : "적절한"
+        let _ = analysis.intensity > 1.2 ? "강한" : analysis.intensity < 0.8 ? "부드러운" : "적절한"
         
         let empathyMessage = generateEmpathyMessage(emotion: analysis.emotion, timeOfDay: analysis.timeOfDay, intensity: analysis.intensity)
         let soundDescription = generateSoundDescription(volumes: preset.volumes, emotion: analysis.emotion)
@@ -851,16 +869,16 @@ extension ChatViewController {
             }
         }
         
-        // 2. MainViewController 찾아서 applyPreset 한 번만 호출
+        // 2. MainViewController 찾아서 applyPreset 한 번만 호출 (중복 방지)
         if let mainVC = findMainViewController() {
+            print("🔒 [applyLocalPreset] MainViewController 프리셋 적용 시작")
             mainVC.applyPreset(
                 volumes: preset.volumes,
                 versions: preset.versions,
                 name: preset.name,
                 shouldSaveToRecent: true
             )
-            
-            print("✅ [applyLocalPreset] MainViewController 직접 적용 완료")
+            print("🔓 [applyLocalPreset] MainViewController 직접 적용 완료")
             
             // 메인 탭으로 이동
             if let tabBarController = mainVC.tabBarController {

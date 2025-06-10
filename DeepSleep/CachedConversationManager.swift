@@ -1,5 +1,26 @@
 import Foundation
 
+// MARK: - 🚀 TLB식 캐시 메시지 구조체
+struct CachedMessage: Codable, Identifiable {
+    let id: UUID
+    let role: ChatRole
+    let content: String
+    let createdAt: Date
+    
+    init(id: UUID = UUID(), role: ChatRole, content: String, createdAt: Date = Date()) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.createdAt = createdAt
+    }
+}
+
+enum ChatRole: String, Codable {
+    case user = "user"
+    case assistant = "assistant"
+    case system = "system"
+}
+
 // MARK: - Prompt Caching 기반 1주일 대화 관리자
 class CachedConversationManager {
     static let shared = CachedConversationManager()
@@ -10,8 +31,8 @@ class CachedConversationManager {
         let cacheId: String
         let weeklyHistory: String
         let cacheTimestamp: Date
-        let totalCachedTokens: Int
-        let conversationCount: Int
+        var totalCachedTokens: Int
+        var conversationCount: Int
     }
     
     struct WeeklyMemory: Codable {
@@ -39,10 +60,10 @@ struct LocalAIRecommendationRecord: Codable {
     let versions: [Int]
 }
     
-    // MARK: - 캐시 관리 (✅ internal로 변경)
-    var currentCache: CachedConversation?  // ✅ private 제거. (실제로는 internal 접근 수준이 적절할 수 있습니다.)
-    private let cacheExpiryTime: TimeInterval = 300 // 5분 (Claude 캐시 TTL)
-    private let maxCacheTokens = 3000 // 캐시 최대 토큰 제한
+    // MARK: - 캐시 관리 (14일 보존 + 3일 raw 시스템)
+    var currentCache: CachedConversation?
+    private let cacheExpiryTime: TimeInterval = TimeInterval(CacheConst.keepDays * 24 * 60 * 60) // 14일
+    private let maxCacheTokens = CacheConst.maxPromptTokens // 4000 토큰 제한
     
     // MARK: - ✅ 메인 캐싱 메서드
     func buildCachedPrompt(
@@ -50,7 +71,7 @@ struct LocalAIRecommendationRecord: Codable {
         context: ChatContext? = nil
     ) -> (prompt: String, useCache: Bool, estimatedTokens: Int) {
         
-        let recentMessages = getRecentMessages()
+        let recentMessages = getRecentRawMessages()
         
         // 캐시 유효성 검사
         if let cache = currentCache, isCacheValid(cache) {
@@ -156,17 +177,14 @@ struct LocalAIRecommendationRecord: Codable {
         return prompt
     }
     
-    // MARK: - ✅ 1주일 히스토리 구성
+    // MARK: - ✅ TLB식 히스토리 구성 (3일 raw + 14일 요약)
     private func buildWeeklyHistory() -> String {
         let weeklyMemory = loadWeeklyMemory()
-        let recentSummaries = loadRecentDailySummaries()
-        let localAIRecords = loadLocalAIRecommendations().suffix(10) // 최근 10개
+        let recentMessages = getRecentRawMessages() // 최근 3일 원본
+        let summaryCount = getOlderMessageCount() // 3일 이전 메시지 수
         
-        // 🆕 로컬 AI 추천 패턴 분석
-        let localAIAnalysis = analyzeLocalAIPatterns(Array(localAIRecords))
-        
-        return """
-        === 사용자 프로필 (7일 종합 분석) ===
+        var historyBuilder = """
+        === 사용자 프로필 (14일 종합 분석) ===
         
         🎭 감정 패턴: \(weeklyMemory.emotionalPattern)
         🎯 관심 주제: \(weeklyMemory.recurringThemes.prefix(4).joined(separator: ", "))
@@ -174,17 +192,156 @@ struct LocalAIRecommendationRecord: Codable {
         💡 효과적 조언: \(weeklyMemory.keyAdvice.prefix(3).joined(separator: "; "))
         📈 변화 추이: \(weeklyMemory.progressNotes.joined(separator: "; "))
         
-        === 로컬 AI 신경망 추천 패턴 (최근 10건) ===
-        \(localAIAnalysis)
-        
-        === 최근 3일 대화 요약 ===
-        \(recentSummaries.joined(separator: "\n"))
-        
-        === 종합 정보 종료 ===
-        
-        ⚠️ 중요: 위 정보는 사용자의 감정 상태와 선호도를 이해하기 위한 맥락입니다. 
-        이를 바탕으로 자연스럽고 공감적인 대화를 나누어주세요.
         """
+        
+        // 이전 대화 요약 (토큰 0 방식)
+        if summaryCount > 0 {
+            historyBuilder += """
+            === 이전 대화 요약 ===
+            …지난 \(summaryCount)개의 메시지 기록이 있습니다 (3일 이전)…
+            
+            """
+        }
+        
+        // 최근 3일 대화 (원본)
+        if !recentMessages.isEmpty {
+            historyBuilder += """
+            === 최근 3일 대화 원본 ===
+            \(recentMessages.joined(separator: "\n"))
+            
+            """
+        }
+        
+        historyBuilder += """
+        === 히스토리 종료 ===
+        
+        ⚠️ 중요: 위 정보를 바탕으로 연속적이고 개인화된 대화를 이어가주세요.
+        """
+        
+        return historyBuilder
+    }
+    
+    // MARK: - 🚀 TLB식 메시지 저장 및 로드
+    
+    /// 메시지 추가 (14일 보존)
+    func append(_ message: CachedMessage) throws {
+        var allMessages = try loadAllMessages()
+        allMessages.append(message)
+        
+        // 14일 이전 메시지 제거
+        let cutOff = Calendar.current.date(byAdding: .day, value: -CacheConst.keepDays, to: Date())!
+        allMessages.removeAll { $0.createdAt < cutOff }
+        
+        try saveAllMessages(allMessages)
+    }
+    
+    /// 최근 14일 메시지 반환
+    func recentHistory() throws -> [CachedMessage] {
+        let cutOff = Calendar.current.date(byAdding: .day, value: -CacheConst.keepDays, to: Date())!
+        let allMessages = try loadAllMessages()
+        return allMessages.filter { $0.createdAt >= cutOff }
+                          .sorted { $0.createdAt < $1.createdAt }
+    }
+    
+    /// 모든 메시지 로드
+    private func loadAllMessages() throws -> [CachedMessage] {
+        guard let data = UserDefaults.standard.data(forKey: "cached_messages"),
+              let messages = try? JSONDecoder().decode([CachedMessage].self, from: data) else {
+            return []
+        }
+        return messages
+    }
+    
+    /// 모든 메시지 저장
+    private func saveAllMessages(_ messages: [CachedMessage]) throws {
+        let data = try JSONEncoder().encode(messages)
+        UserDefaults.standard.set(data, forKey: "cached_messages")
+    }
+    
+    // MARK: - ✅ TLB 시스템 메서드들
+    
+    /// 최근 3일 원본 메시지 로드
+    func getRecentRawMessages() -> [String] {
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -CacheConst.recentDaysRaw, to: Date()) ?? Date()
+        
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        let messageKeys = allKeys.filter { $0.hasPrefix("chat_message_") }
+            .compactMap { key -> (String, Date)? in
+                guard let timestamp = extractTimestamp(from: key) else { return nil }
+                return (key, timestamp)
+            }
+            .filter { $0.1 >= cutoffDate }
+            .sorted { $0.1 < $1.1 } // 시간순
+        
+        return messageKeys.compactMap { key, _ in
+            guard let messageData = UserDefaults.standard.data(forKey: key),
+                  let message = try? JSONDecoder().decode(ChatMessage.self, from: messageData) else { return nil }
+            return message.text
+        }
+    }
+    
+    /// 3일 이전 메시지 개수
+    func getOlderMessageCount() -> Int {
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -CacheConst.recentDaysRaw, to: Date()) ?? Date()
+        
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        return allKeys.filter { key in
+            guard key.hasPrefix("chat_message_"),
+                  let timestamp = extractTimestamp(from: key) else { return false }
+            return timestamp < cutoffDate
+        }.count
+    }
+    
+    /// 키에서 타임스탬프 추출
+    private func extractTimestamp(from key: String) -> Date? {
+        let components = key.components(separatedBy: "_")
+        guard components.count >= 3,
+              let timestamp = Double(components[2]) else { return nil }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+    
+    /// 초기화 메서드
+    func initialize() {
+        // 필요한 경우 초기화 로직
+        #if DEBUG
+        print("🗄️ CachedConversationManager 초기화")
+        #endif
+    }
+    
+    /// 디버그 정보
+    func getDebugInfo() -> String {
+        let cacheInfo = currentCache != nil ? "활성" : "없음"
+        let recentCount = getRecentRawMessages().count
+        let olderCount = getOlderMessageCount()
+        
+        return """
+        📊 TLB 캐시 시스템 상태:
+        - 캐시: \(cacheInfo)
+        - 최근 3일: \(recentCount)개 메시지
+        - 이전 기록: \(olderCount)개 메시지
+        """
+    }
+    
+    // MARK: - TLB식 메시지 분리 헬퍼
+    
+    /// 메시지가 최근 3일 이내인지 확인
+    private func isMessageRecent(_ message: String, cutOff: Date) -> Bool {
+        // 메시지 포맷에서 날짜 추출: "M/d: ..." 형태
+        let components = message.components(separatedBy: ":")
+        guard let dateStr = components.first?.trimmingCharacters(in: .whitespaces) else { return true }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        formatter.calendar = Calendar.current
+        
+        if let messageDate = formatter.date(from: dateStr) {
+            // 올해 날짜로 보정
+            let year = Calendar.current.component(.year, from: Date())
+            let correctedDate = Calendar.current.date(bySetting: .year, value: year, of: messageDate) ?? messageDate
+            return correctedDate >= cutOff
+        }
+        
+        return true // 파싱 실패 시 최근 메시지로 간주
     }
     
     // MARK: - Public Access to Weekly History
@@ -766,74 +923,114 @@ struct LocalAIRecommendationRecord: Codable {
             return UserDefaults.standard.loadWeeklyMessages()
         }
     
-    // MARK: - ✅ 초기화
-    func initialize() {
-            // 만료된 캐시 정리
-            UserDefaults.standard.cleanExpiredCaches()
-            
-            // 캐시 로드
-            safeLoadCacheFromStorage()
-            
-            // 주간 메모리 업데이트 (비동기)
-            updateWeeklyMemoryAsync()
-            
-            #if DEBUG
-            if let cache = currentCache {
-                let timeRemaining = cacheExpiryTime - Date().timeIntervalSince(cache.cacheTimestamp)
-                print("🗄️ 캐시 초기화: \(cache.conversationCount)회 대화, \(Int(timeRemaining))초 남음")
-            } else {
-                print("🆕 캐시 없음: 새 캐시 생성 예정")
-            }
-            #endif
-        }
+
     
-    // MARK: - ✅ 디버그 정보
-#if DEBUG
-   func getDebugInfo() -> String {
-       let weeklyMemory = loadWeeklyMemory()
-       let cacheInfo = currentCache?.cacheId ?? "없음"
-       let cacheTokens = currentCache?.totalCachedTokens ?? 0
-       let cacheTimeLeft = currentCache.map { Int(cacheExpiryTime - Date().timeIntervalSince($0.cacheTimestamp)) } ?? 0
-       
-       return """
-       🗄️ 캐시 시스템 상태:
-       
-       📋 캐시 정보:
-       • ID: \(cacheInfo)
-       • 토큰: \(cacheTokens)개/\(maxCacheTokens)개
-       • 남은시간: \(cacheTimeLeft)초/\(Int(cacheExpiryTime))초
-       • 대화횟수: \(currentCache?.conversationCount ?? 0)회
-       
-       🧠 주간 메모리:
-       • 감정패턴: \(weeklyMemory.emotionalPattern)
-       • 주요주제: \(weeklyMemory.recurringThemes.prefix(3).joined(separator: ", "))
-       • 총메시지: \(weeklyMemory.totalMessages)개
-       
-       💾 저장소 상태:
-       • 오늘메시지: \(loadTodayMessages().count)개
-       • 주간메시지: \(loadWeeklyMessages().count)개
-       """
-   }
-   
-   // ✅ 캐시 성능 통계
-   func getCachePerformanceStats() -> String {
-       guard let cache = currentCache else {
-           return "캐시 없음"
-       }
-       
-       let efficiency = cache.conversationCount > 0 ?
-           Float(cache.totalCachedTokens) / Float(cache.conversationCount) : 0
-       
-       return """
-       📊 캐시 성능 통계:
-       
-       • 재사용 횟수: \(cache.conversationCount)회
-       • 토큰 효율성: \(String(format: "%.1f", efficiency)) 토큰/대화
-       • 메모리 절약: 약 \(cache.totalCachedTokens * cache.conversationCount)토큰
-       • 캐시 적중률: \(cache.conversationCount > 0 ? "활성" : "신규")
-       """
-   }
-   #endif
+    // MARK: - ✅ 대화 추가
+    func addConversation(messages: [ChatMessage], context: String = "일반 대화") {
+        #if DEBUG
+        print("💬 [대화 추가] 메시지 \(messages.count)개, 컨텍스트: \(context)")
+        #endif
+        
+        // 새 대화 생성
+        let conversationId = UUID().uuidString
+        let timestamp = Date()
+        
+        // 캐시 업데이트 또는 생성
+        if var cache = currentCache {
+            cache.conversationCount += 1
+            cache.totalCachedTokens += messages.reduce(0) { $0 + $1.text.count }
+            currentCache = cache
+        } else {
+            // 새 캐시 생성
+            let weeklyHistory = """
+            컨텍스트: \(context)
+            대화 내용:
+            \(messages.map { "[\(typeName(for: $0.type))] \($0.text)" }.joined(separator: "\n"))
+            """
+            
+            currentCache = CachedConversation(
+                cacheId: conversationId,
+                weeklyHistory: weeklyHistory,
+                cacheTimestamp: timestamp,
+                totalCachedTokens: messages.reduce(0) { $0 + $1.text.count },
+                conversationCount: 1
+            )
+        }
+        
+        // 메시지 저장
+        UserDefaults.standard.saveDailyMessages(messages, for: timestamp)
+        
+        // 캐시 저장
+        safeSaveCacheToStorage()
+        
+        #if DEBUG
+        print("✅ [대화 추가 완료] 총 \(currentCache?.conversationCount ?? 0)회 대화")
+        #endif
+    }
+    
+    // MARK: - ✅ 테스트 대화 생성
+    func createTestConversations() {
+        #if DEBUG
+        print("🧪 [테스트 대화 생성] 시작...")
+        #endif
+        
+        let testConversations: [(messages: [ChatMessage], context: String)] = [
+            // 1. 우울감 상담 대화
+            (messages: [
+                ChatMessage(type: .user, text: "요즘 너무 우울해서 잠이 안 와요"),
+                ChatMessage(type: .bot, text: "우울감으로 인한 수면 장애는 매우 흔한 증상입니다. 차분한 피아노 음악이나 자연의 소리를 들어보시는 것은 어떨까요?"),
+                ChatMessage(type: .user, text: "비가 오는 소리가 좋을 것 같아요")
+            ], context: "우울감 수면상담"),
+            
+            // 2. 불면증 대화
+            (messages: [
+                ChatMessage(type: .user, text: "밤에 계속 생각이 많아서 잠들 수가 없어요"),
+                ChatMessage(type: .bot, text: "머릿속 잡념을 줄이는 데는 백색소음이나 명상음악이 도움이 됩니다. 호흡에 집중할 수 있는 음향을 추천드려요."),
+                ChatMessage(type: .user, text: "명상음악으로 해볼게요")
+            ], context: "불면증 상담"),
+            
+            // 3. 스트레스 해소 대화
+            (messages: [
+                ChatMessage(type: .user, text: "회사 스트레스 때문에 잠이 안 와요"),
+                ChatMessage(type: .bot, text: "직장 스트레스로 인한 수면 장애는 심각합니다. 스트레스 해소에 도움이 되는 파도소리나 새소리를 들어보세요."),
+                ChatMessage(type: .user, text: "새소리가 좋네요. 더 자주 들어볼게요")
+            ], context: "스트레스 관리")
+        ]
+        
+        // 테스트 대화들 추가
+        for (messages, context) in testConversations {
+            addConversation(messages: messages, context: context)
+        }
+        
+        #if DEBUG
+        print("✅ [테스트 대화 생성 완료] 3개 대화 추가됨")
+        print("📊 현재 캐시 상태: \(currentCache?.conversationCount ?? 0)회 대화")
+        #endif
+    }
+    
+    // MARK: - ✅ 캐시 상태 출력
+    func printCacheStatus() {
+        #if DEBUG
+        let debugInfo = getDebugInfo()
+        print("=== 💾 캐시 상태 보고서 ===")
+        print(debugInfo)
+        print("===========================")
+        #endif
+    }
+    
+    // MARK: - ✅ 헬퍼 함수
+    private func typeName(for type: ChatMessageType) -> String {
+        switch type {
+        case .user:
+            return "사용자"
+        case .bot:
+            return "AI"
+        default:
+            return "시스템"
+        }
+    }
+    
+
 }
 
 // MARK: - ✅ 컨텍스트 열거형

@@ -404,7 +404,7 @@ class EditDiaryViewController: UIViewController {
     private func startAIChat() {
         guard let diaryEntry = diaryToEdit else { return }
         
-        let chatVC = ChatViewController()
+        let chatVC = ChatRouter.chatViewController()
         chatVC.title = "일기 분석 대화"
         
         chatVC.diaryContext = DiaryContext(from: diaryEntry)

@@ -153,13 +153,23 @@ final class FeedbackManager: ObservableObject {
     
     /// 최근 N개의 피드백 데이터 조회
     func getRecentFeedback(limit: Int = 20) -> [PresetFeedback] {
+        #if DEBUG
+        print("📋 [FeedbackManager] 최근 \(limit)개 피드백 조회 시작...")
+        #endif
+        
         let descriptor = FetchDescriptor<PresetFeedback>(
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
         
         do {
             let allFeedback = try modelContext.fetch(descriptor)
-            return Array(allFeedback.prefix(limit))
+            let result = Array(allFeedback.prefix(limit))
+            
+            #if DEBUG
+            print("✅ [FeedbackManager] 피드백 조회 완료: \(result.count)개")
+            #endif
+            
+            return result
         } catch {
             print("❌ [FeedbackManager] 피드백 조회 실패: \(error)")
             return []
@@ -330,6 +340,103 @@ final class FeedbackManager: ObservableObject {
         } catch {
             print("❌ [FeedbackManager] 데이터 삭제 실패: \(error)")
         }
+    }
+    
+    // MARK: - ✅ 테스트 피드백 데이터 생성
+    func createTestFeedbackData() {
+        #if DEBUG
+        print("🧪 [FeedbackManager] 테스트 피드백 데이터 생성 시작...")
+        #endif
+        
+        let testFeedbacks: [(preset: String, emotion: String, satisfaction: Float, duration: Int, dayOffset: Int)] = [
+            ("비 내리는 밤", "불안", 0.8, 1800, 1),
+            ("숲속 새소리", "스트레스", 0.9, 2400, 2),
+            ("파도 소리", "우울", 0.7, 1200, 3),
+            ("피아노 연주", "긴장", 0.85, 2100, 4),
+            ("백색소음", "불면", 0.75, 3600, 5),
+            ("명상 음악", "스트레스", 0.95, 1800, 6),
+            ("자연 소리", "우울", 0.8, 2700, 7),
+            ("클래식 음악", "불안", 0.9, 2100, 8),
+            ("바람 소리", "긴장", 0.7, 1500, 9),
+            ("심박동 소리", "불면", 0.8, 2400, 10)
+        ]
+        
+        for (preset, emotion, satisfaction, duration, dayOffset) in testFeedbacks {
+            let timestamp = Date().addingTimeInterval(-Double(dayOffset * 86400)) // dayOffset일 전
+            let hour = Calendar.current.component(.hour, from: timestamp)
+            
+            // 볼륨 데이터 생성 (실제적인 패턴)
+            let sampleCount = duration / 10 // 10초마다 샘플
+            let volumeData = (0..<sampleCount).map { i in
+                let baseVolume = Float.random(in: 0.3...0.7)
+                let timeDecay = 1.0 - (Float(i) / Float(sampleCount)) * 0.3 // 시간이 지날수록 살짝 감소
+                return baseVolume * timeDecay
+            }
+            
+            let feedback = PresetFeedback(
+                presetName: preset,
+                contextEmotion: emotion,
+                contextTime: hour,
+                recommendedVolumes: volumeData,
+                recommendedVersions: Array(0..<volumeData.count).map { _ in Int.random(in: 1...3) }
+            )
+            
+            // 추가 데이터 설정
+            feedback.listeningDuration = TimeInterval(duration)
+            feedback.userSatisfaction = satisfaction >= 0.8 ? 2 : (satisfaction >= 0.5 ? 1 : 0)
+            
+            modelContext.insert(feedback)
+        }
+        
+        do {
+            try modelContext.save()
+            #if DEBUG
+            print("✅ [FeedbackManager] 테스트 데이터 생성 완료: \(testFeedbacks.count)개")
+            print("📊 총 피드백 데이터: \(getTotalFeedbackCount())개")
+            #endif
+        } catch {
+            print("❌ [FeedbackManager] 테스트 데이터 저장 실패: \(error)")
+        }
+    }
+    
+    // MARK: - ✅ 피드백 상태 출력
+    func printFeedbackStatus() {
+        #if DEBUG
+        let totalCount = getTotalFeedbackCount()
+        let recentFeedback = getRecentFeedback(limit: 20)
+        let avgSatisfaction = getAverageSatisfaction()
+        let stats = getStorageStatistics()
+        
+        print("=== 📊 피드백 상태 보고서 ===")
+        print("""
+        📋 피드백 데이터 현황:
+        • 총 피드백 수: \(totalCount)개
+        • 최근 데이터: \(recentFeedback.count)개
+        • 평균 만족도: \(String(format: "%.1f", avgSatisfaction * 100))%
+        • 예상 용량: ~\(stats.estimatedSizeKB)KB
+        
+        🎯 최근 피드백 요약:
+        """)
+        
+        let emotionCounts = Dictionary(grouping: recentFeedback, by: { $0.contextEmotion })
+            .mapValues { $0.count }
+            .sorted { $0.value > $1.value }
+        
+        let presetCounts = Dictionary(grouping: recentFeedback, by: { $0.presetName })
+            .mapValues { $0.count }
+            .sorted { $0.value > $1.value }
+        
+        print("• 주요 감정: \(emotionCounts.prefix(3).map { "\($0.key)(\($0.value)회)" }.joined(separator: ", "))")
+        print("• 인기 프리셋: \(presetCounts.prefix(3).map { "\($0.key)(\($0.value)회)" }.joined(separator: ", "))")
+        
+        if let latest = recentFeedback.first {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M/d HH:mm"
+            print("• 최근 피드백: \(formatter.string(from: latest.timestamp)) - \(latest.presetName)")
+        }
+        
+        print("===============================")
+        #endif
     }
 }
 

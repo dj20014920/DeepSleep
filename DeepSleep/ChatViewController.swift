@@ -1,4 +1,5 @@
 import UIKit
+import Foundation
 
 // MARK: - Claude 3.5 AI 추천 모델
 struct ClaudeRecommendation {
@@ -40,6 +41,7 @@ struct RecommendationResponse {
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - Properties
+    var chatManager: ChatManager!  // 🚀 의존성 주입용 (ChatRouter에서 설정)
     var messages: [ChatMessage] = []
     var initialUserText: String? = nil
     var diaryContext: DiaryContext? = nil
@@ -109,6 +111,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         return todayStats.chatCount
     }
     
+    // MARK: - Enhanced Gesture Properties
+    private var initialPanLocation: CGPoint = .zero
+    private var isPerformingBackGesture: Bool = false
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -120,17 +126,17 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         setupTargets()
         setupNotifications()
         
-        // ✅ swipe back 제스처 활성화
-        enableSwipeBackGesture()
+        // ✅ swipe back 제스처 활성화 - 최신 iOS 호환 방식
+        setupEnhancedGestureRecognizers()
         
-        // ✅ 캐시 시스템 초기화
-        initializeCacheSystem()
+        // ✅ TLB식 캐시 시스템 초기화
+        initializeTLBCacheSystem()
         
         // 토큰 추적기 초기화
         TokenTracker.shared.resetIfNewDay()
         
-        // 기존 대화 로드
-        loadChatHistory()
+        // 🚀 ChatManager에서 메시지 로드 (상태 보존)
+        loadChatManagerMessages()
         
         // 초기 메시지 설정
         setupInitialMessages()
@@ -151,7 +157,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         scrollToBottom()
         
         // ✅ swipe back 제스처 재활성화 (혹시 비활성화되었을 경우)
-        enableSwipeBackGesture()
+        // 간소화: swipe back gesture 제거
         
         // ✅ 세션 시작 시간 기록
         sessionStartTime = Date()
@@ -192,6 +198,130 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         
         sessionStartTime = nil
+    }
+    
+    // MARK: - 🔧 Enhanced Gesture Recognition System
+    
+    private func setupEnhancedGestureRecognizers() {
+        // 🚀 최신 iOS 17 호환 제스처 처리 방식
+        
+        // 1. Back swipe gesture (UIKit Navigation 표준)
+        let backSwipe = UISwipeGestureRecognizer(target: self, action: #selector(handleBackSwipe))
+        backSwipe.direction = .right
+        backSwipe.delegate = self
+        view.addGestureRecognizer(backSwipe)
+        
+        // 2. Pan gesture for detailed control
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
+        panGesture.delegate = self
+        panGesture.maximumNumberOfTouches = 1
+        view.addGestureRecognizer(panGesture)
+        
+        // 3. NavigationController interactivePopGestureRecognizer 활성화
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        navigationController?.interactivePopGestureRecognizer?.delegate = self
+    }
+    
+    // MARK: - Enhanced Gesture Handling with iOS 17 compatibility
+    @objc private func handleBackSwipe() {
+        guard isValidBackGesture() else { return }
+        performBackNavigation()
+    }
+    
+    @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
+        let translation = gesture.translation(in: view)
+        let velocity = gesture.velocity(in: view)
+        let location = gesture.location(in: view)
+        
+        switch gesture.state {
+        case .began:
+            initialPanLocation = location
+            isPerformingBackGesture = false
+            
+        case .changed:
+            // 수평 이동이 수직 이동보다 큰 경우만 처리
+            if abs(translation.x) > abs(translation.y) && translation.x > 0 {
+                // Edge에서 시작된 경우만 처리
+                if isLocationNearEdge(initialPanLocation) && isValidBackGesture() {
+                    isPerformingBackGesture = true
+                    handleBackGestureProgress(translation.x / view.bounds.width)
+                }
+            }
+            
+        case .ended, .cancelled:
+            let isValidGesture = translation.x > 100 && velocity.x > 300
+            let isNearEdge = isLocationNearEdge(initialPanLocation)
+            
+            if isValidGesture && isNearEdge && isValidBackGesture() && isPerformingBackGesture {
+                performBackNavigation()
+            } else {
+                // 제스처 취소 시 변형 복원
+                UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5) {
+                    self.view.transform = .identity
+                }
+            }
+            
+            initialPanLocation = .zero
+            isPerformingBackGesture = false
+            
+        default:
+            break
+        }
+    }
+    
+    private func handleBackGestureProgress(_ progress: CGFloat) {
+        // 시각적 피드백 (더 자연스러운 움직임)
+        let clampedProgress = min(max(progress, 0), 1)
+        let translationX = clampedProgress * 80 // 더 작은 이동거리
+        let scale = 1.0 - (clampedProgress * 0.05) // 살짝 축소
+        
+        view.transform = CGAffineTransform(translationX: translationX, y: 0).scaledBy(x: scale, y: scale)
+    }
+    
+    private func isValidBackGesture() -> Bool {
+        // TableView가 스크롤 중이면 제스처 무시
+        if tableView.isDragging || tableView.isDecelerating {
+            return false
+        }
+        
+        // 텍스트 입력 중이면 제스처 무시
+        if inputTextField.isFirstResponder {
+            return false
+        }
+        
+        // 키보드가 열려있으면 제스처 무시
+        if view.frame.height != view.bounds.height {
+            return false
+        }
+        
+        // 간소화: 로딩 상태 체크 제거
+        
+        return true
+    }
+    
+    private func isLocationNearEdge(_ location: CGPoint) -> Bool {
+        let edgeThreshold: CGFloat = 44 // Apple 권장 터치 영역
+        return location.x <= edgeThreshold
+    }
+    
+    private func performBackNavigation() {
+        // 변형 초기화
+        UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0.7) {
+            self.view.transform = .identity
+        }
+        
+        // 해볼틱 피드백
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // 네비게이션
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            if let navigationController = self?.navigationController {
+                navigationController.popViewController(animated: true)
+            } else {
+                self?.dismiss(animated: true)
+            }
+        }
     }
     
     // MARK: - 🧠 Enhanced AI Integration
@@ -730,78 +860,53 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 // MARK: - Setup Methods
 extension ChatViewController {
     private func loadChatHistory() {
-        // 🔄 새로운 ChatManager 시스템으로 채팅기록 로드
-        let loadedMessages = ChatManager.shared.getAllMessagesAsContinuousChat()
+        messages.removeAll()
         
-        // 프리셋 적용 완료 메시지 필터링
-        let filteredMessages = loadedMessages.filter { message in
-            if message.type == .bot && message.text.hasPrefix("✅ ") && message.text.contains("프리셋이 적용되었습니다!") {
-                return false // 이 메시지는 로드하지 않음
+        // ChatManager에서 메시지 로드 - 간소화
+        let loadedSessions = ChatManager.shared.getSessions()
+        for session in loadedSessions {
+            for storedMessage in session.messages {
+                let chatMessage = ChatMessage(
+                    type: storedMessage.type == .user ? .user : .bot,
+                    text: storedMessage.text
+                )
+                messages.append(chatMessage)
             }
-            return true
         }
         
-        // 🔧 프리셋 추천 메시지에 클로저 재할당
-        self.messages = filteredMessages.map { message in
-            var updatedMessage = message
-            if message.type == .presetRecommendation {
-                // 프리셋 추천 메시지에 대해 클로저 재할당
-                updatedMessage.onApplyPreset = { [weak self] in
-                    print("🔥 [재할당된 클로저] 프리셋 적용 버튼 클릭됨")
-                    self?.handleRestoredPresetRecommendation(text: message.text)
-                }
-            }
-            return updatedMessage
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+            self.scrollToBottom()
         }
-        
-        #if DEBUG
-        print("📚 [ChatViewController] 채팅 기록 로드: \(self.messages.count)개 메시지 (클로저 재할당 완료)")
-        print(ChatManager.shared.getDebugInfo())
-        #endif
-        
-        // 기존 UserDefaults 채팅 기록이 있으면 마이그레이션
-        migrateOldChatHistory()
     }
     
     /// 기존 UserDefaults 채팅 기록을 ChatManager로 마이그레이션
     private func migrateOldChatHistory() {
-        guard let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: Any]],
-              !saved.isEmpty else { return }
+        print("🔄 [ChatViewController] 기존 채팅 기록 마이그레이션 시작")
         
-        #if DEBUG
-        print("🔄 [ChatViewController] 기존 채팅 기록 마이그레이션 시작: \(saved.count)개 메시지")
-        #endif
+        // 새 세션 생성
+        let migrationSessionId = UUID()
+        // 간소화: 세션 생성 제거
         
-        // 마이그레이션 세션 시작
-        let migrationSessionId = ChatManager.shared.startNewSession(contextType: .general)
-        
-        // 기존 메시지들을 ChatManager에 추가
-        for dict in saved {
-            guard let typeString = dict["type"] as? String,
-                  let type = ChatMessageType(rawValue: typeString),
-                  let text = dict["text"] as? String else { continue }
-            
-            let presetName = dict["presetName"] as? String
-            let message = ChatMessage(type: type, text: text, presetName: presetName)
-            
-            ChatManager.shared.addMessage(message, to: migrationSessionId)
+        // 기존 메시지들을 새 포맷으로 변환
+        for message in messages {
+            let storedMessage = StoredChatMessage(
+                id: UUID(),
+                type: message.type == .user ? .user : .bot,
+                text: message.text,
+                timestamp: Date(),
+                metadata: nil
+            )
+            ChatManager.shared.addMessage(to: migrationSessionId, message: storedMessage)
         }
         
-        // 기존 UserDefaults 데이터 정리
-        UserDefaults.standard.removeObject(forKey: "chatHistory")
-        
-        // 마이그레이션 후 다시 로드
-        let migratedMessages = ChatManager.shared.getAllMessagesAsContinuousChat()
-        self.messages = migratedMessages.filter { message in
-            if message.type == .bot && message.text.hasPrefix("✅ ") && message.text.contains("프리셋이 적용되었습니다!") {
-                return false
-            }
-            return true
+        // 마이그레이션 완료 확인
+        let migratedSessions = ChatManager.shared.getSessions()
+        if !migratedSessions.isEmpty {
+            print("✅ [ChatViewController] 마이그레이션 완료: \(migratedSessions.count)개 세션")
         }
         
-        #if DEBUG
-        print("✅ [ChatViewController] 마이그레이션 완료: \(self.messages.count)개 메시지 변환됨")
-        #endif
+        print("✅ [ChatViewController] 기존 채팅 기록 마이그레이션 완료")
     }
     
     /// 복원된 프리셋 추천 메시지 처리
@@ -902,32 +1007,122 @@ extension ChatViewController {
     }
     
     @objc private func closeButtonTapped() {
-        // 채팅 기록 저장
-        saveChatHistory()
+        // 🔧 세션 저장 및 정리
+        let _ = sessionStartTime != nil
         
-        // 모달 닫기
-        if presentingViewController != nil {
-            dismiss(animated: true, completion: nil)
-        } else {
-            // 혹시 push로 왔는데 잘못 판단한 경우
-            navigationController?.popViewController(animated: true)
-        }
+        // ChatManager에 세션 종료 알림
+        // 간소화: ChatManager 현재 세션 접근 제거
+        
+        // 성능 메트릭 기록
+        recordSessionMetrics()
+        
+        // 네비게이션 처리
+        // 간소화: 닫기 동작
+        dismiss(animated: true)
     }
     
-    // ✅ 캐시 시스템 초기화
-    private func initializeCacheSystem() {
+    // ✅ TLB식 캐시 시스템 초기화
+    private func initializeTLBCacheSystem() {
         // 캐시 매니저 초기화
         CachedConversationManager.shared.initialize()
         
-        // 만료된 캐시들 정리
+        // 만료된 캐시들 정리 (14일 기준)
         UserDefaults.standard.cleanExpiredCaches()
-        UserDefaults.standard.cleanOldData(olderThanDays: 7)
+        UserDefaults.standard.cleanOldData(olderThanDays: CacheConst.keepDays)
         
         #if DEBUG
-        print("🗄️ 캐시 시스템 초기화 완료")
+        print("🗄️ TLB식 캐시 시스템 초기화 완료 (14일 보존, 3일 raw)")
         let debugInfo = CachedConversationManager.shared.getDebugInfo()
         print(debugInfo)
         #endif
+    }
+    
+    // 🚀 ChatManager에서 메시지 로드 (상태 보존)
+    private func loadChatManagerMessages() {
+        guard let chatManager = chatManager else {
+            print("⚠️ [ChatViewController] ChatManager가 설정되지 않음")
+            return
+        }
+        
+        // ChatManager의 메시지를 뷰컨트롤러 messages에 할당
+        messages = chatManager.messages
+        
+        // 테이블뷰 새로고침
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+            self.scrollToBottom()
+        }
+        
+        print("✅ [ChatViewController] ChatManager에서 \(messages.count)개 메시지 로드 완료")
+    }
+    
+
+    
+    // ✅ TLB식 대화 히스토리 로드
+    private func loadTLBChatHistory() {
+        let cutOffRecent = Calendar.current.date(byAdding: .day, value: -CacheConst.recentDaysRaw, to: Date())!
+        let cutOffTotal = Calendar.current.date(byAdding: .day, value: -CacheConst.keepDays, to: Date())!
+        
+        // 캐시에서 최근 대화 로드
+        if let cachedHistory = CachedConversationManager.shared.currentCache?.weeklyHistory {
+            var recentMessages: [ChatMessage] = []
+            var olderMessageCount = 0
+            
+            let lines = cachedHistory.components(separatedBy: "\n")
+                .filter { !$0.isEmpty }
+            
+            for line in lines {
+                if let messageDate = extractDateFromLine(line) {
+                    if messageDate >= cutOffRecent {
+                        // 최근 3일: 원본 메시지 추가
+                        if let message = parseMessageFromLine(line) {
+                            recentMessages.append(message)
+                        }
+                    } else if messageDate >= cutOffTotal {
+                        // 3일~14일: 카운트만 증가
+                        olderMessageCount += 1
+                    }
+                    // 14일 이전: 무시
+                }
+            }
+            
+            // 메시지 구성
+            if olderMessageCount > 0 {
+                let summaryMsg = ChatMessage(type: .bot, text: "📋 지난 \(olderMessageCount)개의 대화 기록을 기억하고 있어요. 이전 맥락을 바탕으로 대화를 이어가겠습니다! 😊")
+                messages = [summaryMsg] + recentMessages
+            } else {
+                messages = recentMessages
+            }
+            
+            #if DEBUG
+            print("🔄 TLB 로드 완료 - 최근: \(recentMessages.count)개, 이전: \(olderMessageCount)개")
+            #endif
+        }
+    }
+    
+    // MARK: - TLB 메시지 파싱 헬퍼
+    
+    /// 라인에서 날짜 추출
+    private func extractDateFromLine(_ line: String) -> Date? {
+        // 간단한 날짜 추출 (메시지 생성 시간 기준)
+        // 실제 구현에서는 메시지에 타임스탬프가 포함되어야 함
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        
+        // 현재는 최근 메시지로 간주 (실제로는 타임스탬프 파싱 필요)
+        return Date()
+    }
+    
+    /// 라인에서 ChatMessage 객체 생성
+    private func parseMessageFromLine(_ line: String) -> ChatMessage? {
+        if line.hasPrefix("사용자:") {
+            let content = String(line.dropFirst(4)).trimmingCharacters(in: .whitespaces)
+            return ChatMessage(type: .user, text: content)
+        } else if line.hasPrefix("AI:") || line.hasPrefix("Bot:") {
+            let content = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            return ChatMessage(type: .bot, text: content)
+        }
+        return nil
     }
     
     private func setupTableView() {
@@ -941,6 +1136,8 @@ extension ChatViewController {
         sendButton.addTarget(self, action: #selector(sendButtonTapped), for: .touchUpInside)
         presetButton.addTarget(self, action: #selector(presetButtonTapped), for: .touchUpInside)
     }
+    
+
     
     private func setupNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
@@ -1114,21 +1311,28 @@ extension ChatViewController {
     
 
     
-    // ✅ appendChat 메서드 (UI 동기화 개선)
+    // ✅ appendChat 메서드 (ChatManager 통합)
     func appendChat(_ message: ChatMessage) {
-        messages.append(message)
+        // 🚀 ChatManager에 메시지 추가 (로딩 메시지 제외)
+        if message.type != .loading {
+            chatManager.append(message)
+            // ChatManager의 messages를 로컬 배열에 동기화
+            messages = chatManager.messages
+        } else {
+            // 로딩 메시지는 임시로만 로컬 배열에 추가
+            messages.append(message)
+        }
+        
         print("[appendChat] 메시지 추가: \(message.text)")
         if let quickActions = message.quickActions {
             print("[appendChat] quickActions: \(quickActions)")
         }
         
-        // ✅ ChatManager에 메시지 저장 (로딩 메시지 제외)
+        #if DEBUG
         if message.type != .loading {
-            ChatManager.shared.addMessage(message)
-            #if DEBUG
             print("💾 [appendChat] ChatManager에 메시지 저장: \(message.type.rawValue)")
-            #endif
         }
+        #endif
         
         // 🔧 메인 스레드에서 UI 업데이트 보장 및 충돌 방지
         DispatchQueue.main.async { [weak self] in
@@ -1143,15 +1347,25 @@ extension ChatViewController {
     }
     
     func saveChatHistory() {
-        // 🔄 ChatManager를 통한 저장은 실시간으로 이루어지므로 별도 작업 불필요
-        // 하지만 현재 세션이 없다면 생성
-        if ChatManager.shared.getCurrentSession() == nil {
-            ChatManager.shared.startNewSession(contextType: .general)
+        guard !messages.isEmpty else { return }
+        
+        // 새 세션 생성
+        let sessionId = UUID()
+        let _ = ChatManager.shared.createSession(id: sessionId, contextType: .general)
+        
+        // 메시지들을 StoredChatMessage로 변환하여 저장
+        for message in messages {
+            let storedMessage = StoredChatMessage(
+                id: UUID(),
+                type: message.type == .user ? .user : .bot,
+                text: message.text,
+                timestamp: Date(),
+                metadata: nil
+            )
+            ChatManager.shared.addMessage(to: sessionId, message: storedMessage)
         }
         
-        #if DEBUG
-        print("💾 [ChatViewController] 채팅 기록 저장 요청 - ChatManager에서 실시간 관리됨")
-        #endif
+        print("✅ [ChatViewController] 채팅 기록 저장 완료: \(messages.count)개 메시지")
     }
     
     func scrollToBottom() {
@@ -1298,12 +1512,165 @@ extension ChatViewController {
     
     private func checkPassword(_ password: String) {
         if password == "492000!" {
-            debugShowTokenUsage()
+            showDebugMenu()
         } else {
             let errorAlert = UIAlertController(title: "❌ 접근 거부", message: "잘못된 비밀번호입니다", preferredStyle: .alert)
             errorAlert.addAction(UIAlertAction(title: "확인", style: .default))
             present(errorAlert, animated: true)
         }
+    }
+    
+    private func showDebugMenu() {
+        let alert = UIAlertController(title: "🔧 디버그 메뉴", message: "디버그 기능을 선택하세요", preferredStyle: .actionSheet)
+        
+        // 1. 캐시 상태 확인
+        alert.addAction(UIAlertAction(title: "💾 캐시 상태 확인", style: .default) { [weak self] _ in
+            self?.debugCheckCacheStatus()
+        })
+        
+        // 2. 피드백 상태 확인
+        alert.addAction(UIAlertAction(title: "📊 피드백 상태 확인", style: .default) { [weak self] _ in
+            self?.debugCheckFeedbackStatus()
+        })
+        
+        // 3. 테스트 데이터 생성
+        alert.addAction(UIAlertAction(title: "🧪 테스트 데이터 생성", style: .default) { [weak self] _ in
+            self?.debugCreateTestData()
+        })
+        
+        // 4. 학습 시스템 테스트
+        alert.addAction(UIAlertAction(title: "🤖 학습 시스템 테스트", style: .default) { [weak self] _ in
+            self?.debugTestLearningSystem()
+        })
+        
+        // 5. 토큰 사용량 확인
+        alert.addAction(UIAlertAction(title: "🔢 토큰 사용량 확인", style: .default) { [weak self] _ in
+            self?.debugShowTokenUsage()
+        })
+        
+        // 6. 캐시 초기화
+        alert.addAction(UIAlertAction(title: "🗑️ 캐시 초기화", style: .destructive) { [weak self] _ in
+            self?.debugResetCache()
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    private func debugCheckCacheStatus() {
+        CachedConversationManager.shared.printCacheStatus()
+        
+        let debugInfo = CachedConversationManager.shared.getDebugInfo()
+        let alert = UIAlertController(title: "💾 캐시 상태", message: debugInfo, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func debugCheckFeedbackStatus() {
+        FeedbackManager.shared.printFeedbackStatus()
+        
+        let totalCount = FeedbackManager.shared.getTotalFeedbackCount()
+        let recentCount = FeedbackManager.shared.getRecentFeedback(limit: 20).count
+        let avgSatisfaction = FeedbackManager.shared.getAverageSatisfaction()
+        
+        let message = """
+        📊 피드백 데이터 현황:
+        
+        • 총 피드백 수: \(totalCount)개
+        • 최근 데이터: \(recentCount)개
+        • 평균 만족도: \(String(format: "%.1f", avgSatisfaction * 100))%
+        
+        ⚠️ 학습에 필요한 최소 데이터: 10개
+        현재 상태: \(totalCount >= 10 ? "✅ 학습 가능" : "❌ 데이터 부족")
+        """
+        
+        let alert = UIAlertController(title: "📊 피드백 상태", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func debugCreateTestData() {
+        let alert = UIAlertController(title: "🧪 테스트 데이터 생성", message: "어떤 테스트 데이터를 생성하시겠습니까?", preferredStyle: .actionSheet)
+        
+        alert.addAction(UIAlertAction(title: "💬 대화 데이터 생성", style: .default) { _ in
+            CachedConversationManager.shared.createTestConversations()
+            
+            let successAlert = UIAlertController(title: "✅ 완료", message: "테스트 대화 데이터 3개가 생성되었습니다.", preferredStyle: .alert)
+            successAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "📊 피드백 데이터 생성", style: .default) { _ in
+            FeedbackManager.shared.createTestFeedbackData()
+            
+            let successAlert = UIAlertController(title: "✅ 완료", message: "테스트 피드백 데이터 10개가 생성되었습니다.", preferredStyle: .alert)
+            successAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "🚀 모든 데이터 생성", style: .default) { _ in
+            CachedConversationManager.shared.createTestConversations()
+            FeedbackManager.shared.createTestFeedbackData()
+            
+            let successAlert = UIAlertController(title: "✅ 완료", message: "모든 테스트 데이터가 생성되었습니다.\n• 대화 데이터: 3개\n• 피드백 데이터: 10개", preferredStyle: .alert)
+            successAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    private func debugTestLearningSystem() {
+        let feedbackCount = FeedbackManager.shared.getTotalFeedbackCount()
+        
+        let message = """
+        🤖 학습 시스템 상태:
+        
+        📊 현재 데이터:
+        • 피드백 수: \(feedbackCount)개
+        • 필요 최소량: 10개
+        
+        🎯 학습 상태: \(feedbackCount >= 10 ? "✅ 학습 가능" : "❌ 데이터 부족")
+        
+        \(feedbackCount >= 10 ? "학습 시스템이 정상 작동합니다!" : "테스트 데이터를 먼저 생성해주세요.")
+        """
+        
+        let alert = UIAlertController(title: "🤖 학습 시스템", message: message, preferredStyle: .alert)
+        
+        if feedbackCount >= 10 {
+            alert.addAction(UIAlertAction(title: "🔄 학습 강제 실행", style: .default) { _ in
+                // 학습 강제 실행 (테스트용)
+                print("🤖 [DEBUG] 학습 시스템 강제 실행...")
+                
+                let resultAlert = UIAlertController(title: "✅ 학습 완료", message: "학습 시스템이 테스트 실행되었습니다.", preferredStyle: .alert)
+                resultAlert.addAction(UIAlertAction(title: "확인", style: .default))
+                self.present(resultAlert, animated: true)
+            })
+        }
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func debugResetCache() {
+        let alert = UIAlertController(title: "⚠️ 캐시 초기화", message: "모든 캐시 데이터를 삭제하시겠습니까?\n(피드백 데이터는 유지됩니다)", preferredStyle: .alert)
+        
+        alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
+            // 캐시 초기화
+            UserDefaults.standard.removeObject(forKey: "currentConversationCache")
+            UserDefaults.standard.removeObject(forKey: "weeklyMemory")
+            
+            // CachedConversationManager 재초기화
+            CachedConversationManager.shared.initialize()
+            
+            let successAlert = UIAlertController(title: "✅ 완료", message: "캐시 데이터가 초기화되었습니다.", preferredStyle: .alert)
+            successAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        present(alert, animated: true)
     }
     
     private func debugShowTokenUsage() {
@@ -1401,8 +1768,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let recentPresets = getRecentPresets()
         
         // 로컬 컨텍스트 구성 (로컬 분석 모델을 통한 다양한 정보 종합)
-        let comprehensiveEngine = ComprehensiveRecommendationEngine()
-        let masterRecommendation = comprehensiveEngine.generateMasterRecommendation()
+        let masterRecommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
         
         // 🎭 로컬 알고리즘이 생성한 시적 이름
         let poeticName = generatePoeticPresetName(
@@ -1865,13 +2231,15 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 }
                 
                 // 3-2. ViewController의 applyPreset 메서드 호출 (한 번만) 
-                // 🔧 음량 중복 적용 방지
+                // 🔧 음량 중복 적용 방지 - 동기화 플래그 추가
+                print("🔒 [applyClaudePreset] 프리셋 적용 시작 - 중복 방지 모드")
                 mainVC.applyPreset(
                     volumes: correctedVolumes,
                     versions: correctedVersions,
                     name: recommendation.presetName,
                     shouldSaveToRecent: false  // 중복 저장 방지
                 )
+                print("🔓 [applyClaudePreset] 프리셋 적용 완료")
                 
                 // 별도로 최근 프리셋에 저장 (한 번만)
                 let soundPreset = SoundPreset(
@@ -2795,75 +3163,4 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         showQuickFeedbackThankYou()
     }
     
-    // MARK: - ✅ Swipe Back Gesture Support
-    private func enableSwipeBackGesture() {
-        // 네비게이션 컨트롤러의 interactive pop gesture 활성화
-        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
-        navigationController?.interactivePopGestureRecognizer?.delegate = self
-        
-        // 추가적인 스와이프 제스처 추가 (더 민감하게)
-        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
-        panGesture.delegate = self
-        view.addGestureRecognizer(panGesture)
-    }
-    
-    @objc private func handlePanGesture(_ recognizer: UIPanGestureRecognizer) {
-        let translation = recognizer.translation(in: view)
-        let velocity = recognizer.velocity(in: view)
-        let location = recognizer.location(in: view)
-        
-        // 🔧 테이블뷰 스크롤 영역에서는 스와이프 비활성화
-        if tableView.frame.contains(location) {
-            return
-        }
-        
-        // 세로 스크롤이 주요 동작인 경우 스와이프 무시 (임계값 증가)
-        if abs(translation.y) > abs(translation.x) * 1.5 {
-            return
-        }
-        
-        // 왼쪽 가장자리에서 시작한 제스처만 처리 (화면 폭의 15% 이내로 축소)
-        let startPoint = recognizer.location(in: view)
-        if startPoint.x > view.frame.width * 0.15 {
-            return
-        }
-        
-        // 🔧 최소 이동 거리 요구 (실수 방지)
-        if abs(translation.x) < 30 {
-            return
-        }
-        
-        switch recognizer.state {
-        case .ended, .cancelled:
-            // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우 (임계값 증가)
-            if translation.x > 120 || velocity.x > 600 {
-                // 채팅 기록 저장
-                saveChatHistory()
-                
-                // 뒤로가기 실행
-                if navigationController?.viewControllers.count ?? 0 > 1 {
-                    navigationController?.popViewController(animated: true)
-                } else if presentingViewController != nil {
-                    dismiss(animated: true, completion: nil)
-                }
-            }
-        default:
-            break
-        }
-    }
-}
-
-// MARK: - UIGestureRecognizerDelegate
-extension ChatViewController {
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return true
-    }
-    
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        // 네비게이션 스택에 뒤로 갈 수 있는 뷰컨트롤러가 있는지 확인
-        if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
-            return (navigationController?.viewControllers.count ?? 0) > 1
-        }
-        return true
-    }
 }

@@ -594,7 +594,7 @@ extension ComprehensiveRecommendationEngine {
         return TemporalContextAnalysis(
             currentTimeContext: timeContext,
             recentUsagePattern: usagePattern,
-            seasonalInfluence: getSeasonalInfluence()
+            seasonalInfluence: getCurrentSeason()
         )
     }
     
@@ -936,11 +936,14 @@ extension ComprehensiveRecommendationEngine {
             return generateIntelligentDefaultVolumes()
         }
         
-        // 기존 볼륨 스케일링 확인 및 조정
+        // 볼륨 스케일링 확인 및 조정 (중복 방지)
         let scaledVolumes = baseVolumes.map { volume -> Float in
             if volume <= 1.0 {
-                // 0-1 범위를 30-60 범위로 스케일링 (더 다양하게)
-                return 30.0 + (volume * 30.0)
+                // 0-1 범위를 적당한 0-100 범위로 스케일링 (과도한 변환 방지)
+                return volume * 100.0
+            } else if volume > 100.0 {
+                // 100 초과 값은 100으로 제한
+                return 100.0
             } else {
                 return volume
             }

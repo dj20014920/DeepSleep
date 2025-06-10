@@ -1,326 +1,470 @@
 import Foundation
 import UIKit
+import CoreData
 
-// MARK: - 채팅 컨텍스트 타입 정의
-enum ChatContextType {
-    case general           // 일반 대화
-    case diaryAnalysis     // 일기 분석
-    case emotionPatternAnalysis  // 감정 패턴 분석
-    case presetRecommendation    // 프리셋 추천
-    case todoAdvice        // 할 일 조언
-}
-
-// MARK: - 채팅 세션 데이터
+// MARK: - 🚀 Enhanced Chat Models
 struct ChatSession: Codable {
     let id: UUID
-    let contextType: ChatContextType
-    let startDate: Date
-    var lastUpdate: Date
+    let contextType: ContextType
+    let startTime: Date
+    var lastAccessTime: Date
     var messages: [StoredChatMessage]
-    var metadata: [String: String]
     
-    init(contextType: ChatContextType) {
-        self.id = UUID()
-        self.contextType = contextType
-        self.startDate = Date()
-        self.lastUpdate = Date()
-        self.messages = []
-        self.metadata = [:]
+    enum ContextType: String, Codable, CaseIterable {
+        case general = "general"
+        case diaryAnalysis = "diary_analysis"
+        case emotionPatternAnalysis = "emotion_pattern"
+        case presetRecommendation = "preset_recommendation"
+        case enhancedTherapy = "enhanced_therapy"
     }
 }
 
-// MARK: - 저장용 채팅 메시지
 struct StoredChatMessage: Codable {
     let id: UUID
-    let type: String  // ChatMessageType의 rawValue
+    let type: MessageType
     let text: String
     let timestamp: Date
-    let presetName: String?
+    let metadata: [String: String]?
     
-    init(from chatMessage: ChatMessage) {
-        self.id = UUID()
-        self.type = chatMessage.type.rawValue
-        self.text = chatMessage.text
-        self.timestamp = Date()
-        self.presetName = chatMessage.presetName
-    }
-    
-    func toChatMessage() -> ChatMessage {
-        guard let messageType = ChatMessageType(rawValue: type) else {
-            return ChatMessage(type: .bot, text: text, presetName: presetName)
-        }
-        return ChatMessage(type: messageType, text: text, presetName: presetName)
+    enum MessageType: String, Codable {
+        case user = "user"
+        case bot = "bot"
+        case system = "system"
+        case loading = "loading"
+        case presetRecommendation = "preset_recommendation"
     }
 }
 
-// MARK: - ChatContextType Codable 지원
-extension ChatContextType: Codable {
-    enum CodingKeys: String, CodingKey {
-        case type
+// MARK: - 🚀 Core Data Entity Extensions
+@objc(ChatSessionEntity)
+public class ChatSessionEntity: NSManagedObject {}
+
+extension ChatSessionEntity {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<ChatSessionEntity> {
+        return NSFetchRequest<ChatSessionEntity>(entityName: "ChatSessionEntity")
     }
     
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let typeString = try container.decode(String.self)
-        
-        switch typeString {
-        case "general":
-            self = .general
-        case "diaryAnalysis":
-            self = .diaryAnalysis
-        case "emotionPatternAnalysis":
-            self = .emotionPatternAnalysis
-        case "presetRecommendation":
-            self = .presetRecommendation
-        case "todoAdvice":
-            self = .todoAdvice
-        default:
-            self = .general
-        }
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        
-        let typeString: String
-        switch self {
-        case .general:
-            typeString = "general"
-        case .diaryAnalysis:
-            typeString = "diaryAnalysis"
-        case .emotionPatternAnalysis:
-            typeString = "emotionPatternAnalysis"
-        case .presetRecommendation:
-            typeString = "presetRecommendation"
-        case .todoAdvice:
-            typeString = "todoAdvice"
-        }
-        
-        try container.encode(typeString)
-    }
+    @NSManaged public var sessionId: UUID
+    @NSManaged public var contextType: String
+    @NSManaged public var startTime: Date
+    @NSManaged public var lastAccessTime: Date
+    @NSManaged public var messagesData: Data?
 }
 
-// MARK: - ChatManager 클래스
+// MARK: - 🚀 Enhanced ChatManager with Core Data
 class ChatManager {
     static let shared = ChatManager()
     
-    private let userDefaults = UserDefaults.standard
-    private let chatSessionsKey = "DeepSleep_ChatSessions_v2"
-    private let maxRetentionDays = 14 // 2주
+    // MARK: - 🚀 채팅 상태 보존용 메시지 배열
+    private(set) var messages: [ChatMessage] = []
     
-    private var currentSessions: [ChatSession] = []
+    // Core Data Stack
+    private lazy var persistentContainer: NSPersistentContainer = {
+        let container = NSPersistentContainer(name: "ChatModel")
+        
+        // In-memory store for testing/privacy mode
+        if UserDefaults.standard.bool(forKey: "privacy_mode_enabled") {
+            let description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
+            container.persistentStoreDescriptions = [description]
+        }
+        
+        container.loadPersistentStores { _, error in
+            if let error = error {
+                print("⚠️ Core Data 로드 실패: \(error)")
+                // Fallback to UserDefaults
+                self.fallbackToUserDefaults = true
+            }
+        }
+        
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        return container
+    }()
+    
+    private var context: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
+    
+    // Fallback mechanism
+    private var fallbackToUserDefaults = false
+    private let legacyStorageKey = "cached_chat_sessions"
+    
+    // MARK: - Enhanced Memory Management
+    private var activeSessions: [UUID: ChatSession] = [:]
+    private let maxActiveSessions = 10
+    private let automaticCleanupInterval: TimeInterval = 24 * 60 * 60 // 24시간
+    private let maxSessionLifetime: TimeInterval = 14 * 24 * 60 * 60 // 2주
     
     private init() {
-        loadSavedSessions()
-        cleanExpiredSessions()
+        setupAutomaticCleanup()
+        migrateLegacyData()
+        loadRecentMessages() // 🚀 앱 시작 시 최근 메시지 로드
     }
     
-    // MARK: - 세션 관리
-    
-    /// 새로운 채팅 세션 시작
-    func startNewSession(contextType: ChatContextType) -> UUID {
-        let session = ChatSession(contextType: contextType)
-        currentSessions.append(session)
-        saveSessions()
-        
-        #if DEBUG
-        print("🆕 [ChatManager] 새 세션 시작: \(contextType), ID: \(session.id)")
-        #endif
-        
-        return session.id
+    // MARK: - 🚀 메시지 관리 (상태 보존용)
+    func append(_ message: ChatMessage) {
+        messages.append(message)
+        // CachedConversationManager에도 저장
+        do {
+            let cachedMessage = CachedMessage(
+                id: UUID(),
+                role: message.type == .user ? .user : .assistant,
+                content: message.text,
+                createdAt: Date()
+            )
+            try CachedConversationManager.shared.append(cachedMessage)
+        } catch {
+            print("⚠️ [ChatManager] 캐시 저장 실패: \(error)")
+        }
     }
     
-    /// 현재 활성 세션 가져오기 (가장 최근 세션)
-    func getCurrentSession() -> ChatSession? {
-        return currentSessions.last
-    }
-    
-    /// 특정 컨텍스트 타입의 최근 세션 가져오기
-    func getRecentSession(for contextType: ChatContextType) -> ChatSession? {
-        return currentSessions
-            .filter { $0.contextType == contextType }
-            .sorted { $0.lastUpdate > $1.lastUpdate }
-            .first
-    }
-    
-    /// 모든 메시지를 하나의 연속된 대화로 가져오기
-    func getAllMessagesAsContinuousChat() -> [ChatMessage] {
-        var allMessages: [ChatMessage] = []
-        
-        // 시간순으로 정렬된 모든 세션의 메시지들
-        let sortedSessions = currentSessions.sorted { $0.startDate < $1.startDate }
-        
-        var isFirstSession = true
-        for session in sortedSessions {
-            // 세션 구분자 추가 (첫 번째 세션 제외)
-            if !isFirstSession && !session.messages.isEmpty {
-                let separator = ChatMessage(type: .bot, text: "--- 새로운 대화 주제 ---")
-                allMessages.append(separator)
+    func loadRecentMessages() {
+        do {
+            let recentHistory = try CachedConversationManager.shared.recentHistory()
+            messages = recentHistory.map { cachedMsg in
+                ChatMessage(
+                    type: cachedMsg.role == .user ? .user : .bot,
+                    text: cachedMsg.content
+                )
             }
-            
-            // 세션의 메시지들 추가
-            let sessionMessages = session.messages.map { $0.toChatMessage() }
-            allMessages.append(contentsOf: sessionMessages)
-            
-            isFirstSession = false
+            print("✅ [ChatManager] 최근 메시지 \(messages.count)개 로드 완료")
+        } catch {
+            print("⚠️ [ChatManager] 최근 메시지 로드 실패: \(error)")
+            messages = []
         }
-        
-        return allMessages
     }
     
-    // MARK: - 메시지 관리
-    
-    /// 현재 세션에 메시지 추가
-    func addMessage(_ message: ChatMessage) {
-        guard let currentSessionIndex = currentSessions.indices.last else {
-            // 현재 세션이 없으면 일반 세션 생성
-            let sessionId = startNewSession(contextType: .general)
-            addMessage(message)
-            return
-        }
-        
-        let storedMessage = StoredChatMessage(from: message)
-        currentSessions[currentSessionIndex].messages.append(storedMessage)
-        currentSessions[currentSessionIndex].lastUpdate = Date()
-        
-        saveSessions()
-        
-        #if DEBUG
-        print("💬 [ChatManager] 메시지 추가: \(message.type.rawValue) - \(message.text.prefix(50))...")
-        #endif
+    func clearMessages() {
+        messages.removeAll()
+        print("🗑️ [ChatManager] 메시지 초기화 완료")
     }
     
-    /// 특정 세션에 메시지 추가
-    func addMessage(_ message: ChatMessage, to sessionId: UUID) {
-        guard let sessionIndex = currentSessions.firstIndex(where: { $0.id == sessionId }) else {
+    // MARK: - 🔄 Session Management
+    func createSession(contextType: ChatSession.ContextType = .general) -> UUID {
+        let sessionId = UUID()
+        let session = ChatSession(
+            id: sessionId,
+            contextType: contextType,
+            startTime: Date(),
+            lastAccessTime: Date(),
+            messages: []
+        )
+        
+        activeSessions[sessionId] = session
+        saveSession(session)
+        
+        print("✅ [ChatManager] 새 세션 생성: \(contextType) - \(sessionId)")
+        return sessionId
+    }
+    
+    func getSession(_ sessionId: UUID) -> ChatSession? {
+        // 메모리에서 먼저 확인
+        if let activeSession = activeSessions[sessionId] {
+            return activeSession
+        }
+        
+        // Core Data에서 로드
+        if let session = loadSessionFromCoreData(sessionId) {
+            activeSessions[sessionId] = session
+            return session
+        }
+        
+        // Fallback: UserDefaults에서 로드
+        return loadSessionFromUserDefaults(sessionId)
+    }
+    
+    func addMessage(to sessionId: UUID, message: StoredChatMessage) {
+        guard var session = getSession(sessionId) else {
             print("⚠️ [ChatManager] 세션을 찾을 수 없음: \(sessionId)")
             return
         }
         
-        let storedMessage = StoredChatMessage(from: message)
-        currentSessions[sessionIndex].messages.append(storedMessage)
-        currentSessions[sessionIndex].lastUpdate = Date()
+        session.messages.append(message)
+        session.lastAccessTime = Date()
         
-        saveSessions()
+        activeSessions[sessionId] = session
+        saveSession(session)
     }
     
-    /// 메시지 개수 제한 (메모리 관리)
-    private func limitMessagesPerSession() {
-        let maxMessagesPerSession = 100
+    func getMessages(for sessionId: UUID) -> [StoredChatMessage] {
+        return getSession(sessionId)?.messages ?? []
+    }
+    
+    // MARK: - 🔄 Enhanced Persistence
+    private func saveSession(_ session: ChatSession) {
+        if fallbackToUserDefaults {
+            saveSessionToUserDefaults(session)
+            return
+        }
         
-        for i in 0..<currentSessions.count {
-            if currentSessions[i].messages.count > maxMessagesPerSession {
-                // 오래된 메시지부터 제거 (첫 번째와 마지막 메시지는 보존)
-                let messagesToRemove = currentSessions[i].messages.count - maxMessagesPerSession
-                currentSessions[i].messages.removeSubrange(1..<(1 + messagesToRemove))
+        // Core Data 저장
+        let request: NSFetchRequest<ChatSessionEntity> = ChatSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "sessionId == %@", session.id as CVarArg)
+        
+        do {
+            let existingSessions = try context.fetch(request)
+            let entity = existingSessions.first ?? ChatSessionEntity(context: context)
+            
+            entity.sessionId = session.id
+            entity.contextType = session.contextType.rawValue
+            entity.startTime = session.startTime
+            entity.lastAccessTime = session.lastAccessTime
+            
+            if let encodedMessages = try? JSONEncoder().encode(session.messages) {
+                entity.messagesData = encodedMessages
+            }
+            
+            try context.save()
+        } catch {
+            print("⚠️ [ChatManager] Core Data 저장 실패: \(error)")
+            // Fallback to UserDefaults
+            saveSessionToUserDefaults(session)
+        }
+    }
+    
+    private func loadSessionFromCoreData(_ sessionId: UUID) -> ChatSession? {
+        let request: NSFetchRequest<ChatSessionEntity> = ChatSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "sessionId == %@", sessionId as CVarArg)
+        
+        do {
+            let entities = try context.fetch(request)
+            guard let entity = entities.first else { return nil }
+            
+            var messages: [StoredChatMessage] = []
+            if let messagesData = entity.messagesData,
+               let decodedMessages = try? JSONDecoder().decode([StoredChatMessage].self, from: messagesData) {
+                messages = decodedMessages
+            }
+            
+            let contextType = ChatSession.ContextType(rawValue: entity.contextType) ?? .general
+            
+            return ChatSession(
+                id: entity.sessionId,
+                contextType: contextType,
+                startTime: entity.startTime,
+                lastAccessTime: entity.lastAccessTime,
+                messages: messages
+            )
+        } catch {
+            print("⚠️ [ChatManager] Core Data 로드 실패: \(error)")
+            return nil
+        }
+    }
+    
+    // MARK: - 🔄 UserDefaults Fallback
+    private func saveSessionToUserDefaults(_ session: ChatSession) {
+        var allSessions = loadAllSessionsFromUserDefaults()
+        allSessions[session.id] = session
+        
+        if let encoded = try? JSONEncoder().encode(allSessions) {
+            UserDefaults.standard.set(encoded, forKey: legacyStorageKey)
+        }
+    }
+    
+    private func loadSessionFromUserDefaults(_ sessionId: UUID) -> ChatSession? {
+        let allSessions = loadAllSessionsFromUserDefaults()
+        return allSessions[sessionId]
+    }
+    
+    private func loadAllSessionsFromUserDefaults() -> [UUID: ChatSession] {
+        guard let data = UserDefaults.standard.data(forKey: legacyStorageKey),
+              let sessions = try? JSONDecoder().decode([UUID: ChatSession].self, from: data) else {
+            return [:]
+        }
+        return sessions
+    }
+    
+    // MARK: - 🧹 Automatic Cleanup
+    private func setupAutomaticCleanup() {
+        Timer.scheduledTimer(withTimeInterval: automaticCleanupInterval, repeats: true) { [weak self] _ in
+            self?.performAutomaticCleanup()
+        }
+    }
+    
+    private func performAutomaticCleanup() {
+        let cutoffDate = Date().addingTimeInterval(-maxSessionLifetime)
+        
+        // Core Data에서 오래된 세션 정리
+        if !fallbackToUserDefaults {
+            cleanupCoreDataSessions(olderThan: cutoffDate)
+        } else {
+            cleanupUserDefaultsSessions(olderThan: cutoffDate)
+        }
+        
+        // 메모리에서 비활성 세션 정리
+        activeSessions = activeSessions.filter { _, session in
+            session.lastAccessTime > cutoffDate
+        }
+        
+        print("🧹 [ChatManager] 자동 정리 완료 - 활성 세션: \(activeSessions.count)개")
+    }
+    
+    private func cleanupCoreDataSessions(olderThan cutoffDate: Date) {
+        let request: NSFetchRequest<ChatSessionEntity> = ChatSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "lastAccessTime < %@", cutoffDate as NSDate)
+        
+        do {
+            let oldSessions = try context.fetch(request)
+            for session in oldSessions {
+                context.delete(session)
+            }
+            try context.save()
+            print("🗑️ [ChatManager] Core Data에서 \(oldSessions.count)개 오래된 세션 정리")
+        } catch {
+            print("⚠️ [ChatManager] Core Data 정리 실패: \(error)")
+        }
+    }
+    
+    private func cleanupUserDefaultsSessions(olderThan cutoffDate: Date) {
+        var allSessions = loadAllSessionsFromUserDefaults()
+        let initialCount = allSessions.count
+        
+        allSessions = allSessions.filter { _, session in
+            session.lastAccessTime > cutoffDate
+        }
+        
+        if let encoded = try? JSONEncoder().encode(allSessions) {
+            UserDefaults.standard.set(encoded, forKey: legacyStorageKey)
+        }
+        
+        print("🗑️ [ChatManager] UserDefaults에서 \(initialCount - allSessions.count)개 오래된 세션 정리")
+    }
+    
+    // MARK: - 📊 Analytics & Stats
+    func getSessionStats() -> (totalSessions: Int, activeSessions: Int, oldestSession: Date?) {
+        let activeSessions = self.activeSessions.count
+        
+        if fallbackToUserDefaults {
+            let allSessions = loadAllSessionsFromUserDefaults()
+            let oldestSession = allSessions.values.map(\.startTime).min()
+            return (allSessions.count, activeSessions, oldestSession)
+        } else {
+            let request: NSFetchRequest<ChatSessionEntity> = ChatSessionEntity.fetchRequest()
+            do {
+                let totalSessions = try context.count(for: request)
+                
+                // 가장 오래된 세션 찾기
+                request.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: true)]
+                request.fetchLimit = 1
+                let oldestSessions = try context.fetch(request)
+                let oldestSession = oldestSessions.first?.startTime
+                
+                return (totalSessions, activeSessions, oldestSession)
+            } catch {
+                print("⚠️ [ChatManager] 통계 조회 실패: \(error)")
+                return (0, activeSessions, nil)
             }
         }
     }
     
-    // MARK: - 데이터 저장/로드
+    // MARK: - 🔄 Legacy Migration
+    private func migrateLegacyData() {
+        // 기존 ChatManager 데이터가 있다면 마이그레이션
+        if UserDefaults.standard.data(forKey: "chat_sessions_legacy") != nil {
+            print("🔄 [ChatManager] 레거시 데이터 마이그레이션 시작")
+            // 마이그레이션 로직 구현
+            UserDefaults.standard.removeObject(forKey: "chat_sessions_legacy")
+        }
+    }
     
-    private func saveSessions() {
-        limitMessagesPerSession()
+    // MARK: - 🆕 Enhanced Features
+    func exportSessionData(_ sessionId: UUID) -> Data? {
+        guard let session = getSession(sessionId) else { return nil }
+        return try? JSONEncoder().encode(session)
+    }
+    
+    func importSessionData(_ data: Data) -> UUID? {
+        guard let session = try? JSONDecoder().decode(ChatSession.self, from: data) else { return nil }
+        saveSession(session)
+        return session.id
+    }
+    
+    func clearAllSessions() {
+        activeSessions.removeAll()
+        
+        if fallbackToUserDefaults {
+            UserDefaults.standard.removeObject(forKey: legacyStorageKey)
+        } else {
+            let request: NSFetchRequest<NSFetchRequestResult> = ChatSessionEntity.fetchRequest()
+            let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
+            
+            do {
+                try context.execute(deleteRequest)
+                try context.save()
+            } catch {
+                print("⚠️ [ChatManager] 전체 세션 삭제 실패: \(error)")
+            }
+        }
+        
+        print("🗑️ [ChatManager] 모든 세션 삭제 완료")
+    }
+    
+    // MARK: - 🆕 추가된 getSessions 메서드
+    func getSessions() -> [ChatSession] {
+        // 1. 메모리에서 활성 세션들 가져오기
+        var allSessions = Array(activeSessions.values)
+        
+        // 2. Core Data에서 저장된 세션들 로드
+        if !fallbackToUserDefaults {
+            allSessions.append(contentsOf: getAllSessionsFromCoreData())
+        } else {
+            allSessions.append(contentsOf: loadAllSessionsFromUserDefaults().values)
+        }
+        
+        // 3. 중복 제거 (ID 기준)
+        var uniqueSessions: [UUID: ChatSession] = [:]
+        for session in allSessions {
+            uniqueSessions[session.id] = session
+        }
+        
+        // 4. 최신 순으로 정렬하여 반환
+        return Array(uniqueSessions.values).sorted { $0.lastAccessTime > $1.lastAccessTime }
+    }
+    
+    private func getAllSessionsFromCoreData() -> [ChatSession] {
+        let request: NSFetchRequest<ChatSessionEntity> = ChatSessionEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "lastAccessTime", ascending: false)]
         
         do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(currentSessions)
-            userDefaults.set(data, forKey: chatSessionsKey)
-            
-            #if DEBUG
-            print("💾 [ChatManager] 세션 저장 완료: \(currentSessions.count)개 세션, \(getTotalMessageCount())개 메시지")
-            #endif
+            let entities = try context.fetch(request)
+            return entities.compactMap { entity in
+                var messages: [StoredChatMessage] = []
+                if let messagesData = entity.messagesData,
+                   let decodedMessages = try? JSONDecoder().decode([StoredChatMessage].self, from: messagesData) {
+                    messages = decodedMessages
+                }
+                
+                let contextType = ChatSession.ContextType(rawValue: entity.contextType) ?? .general
+                
+                return ChatSession(
+                    id: entity.sessionId,
+                    contextType: contextType,
+                    startTime: entity.startTime,
+                    lastAccessTime: entity.lastAccessTime,
+                    messages: messages
+                )
+            }
         } catch {
-            print("❌ [ChatManager] 세션 저장 실패: \(error)")
+            print("⚠️ [ChatManager] 모든 세션 로드 실패: \(error)")
+            return []
         }
     }
     
-    private func loadSavedSessions() {
-        guard let data = userDefaults.data(forKey: chatSessionsKey) else {
-            print("📭 [ChatManager] 저장된 세션 없음")
-            return
-        }
+    func createSession(id: UUID, contextType: ChatSession.ContextType = .general) -> UUID {
+        let session = ChatSession(
+            id: id,
+            contextType: contextType,
+            startTime: Date(),
+            lastAccessTime: Date(),
+            messages: []
+        )
         
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            currentSessions = try decoder.decode([ChatSession].self, from: data)
-            
-            #if DEBUG
-            print("📚 [ChatManager] 세션 로드 완료: \(currentSessions.count)개 세션, \(getTotalMessageCount())개 메시지")
-            #endif
-        } catch {
-            print("❌ [ChatManager] 세션 로드 실패: \(error)")
-            currentSessions = []
-        }
-    }
-    
-    // MARK: - 데이터 정리
-    
-    /// 만료된 세션들 정리 (2주 이상 된 것들)
-    private func cleanExpiredSessions() {
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -maxRetentionDays, to: Date()) ?? Date()
+        activeSessions[id] = session
+        saveSession(session)
         
-        let beforeCount = currentSessions.count
-        currentSessions.removeAll { session in
-            session.lastUpdate < cutoffDate
-        }
-        
-        let removedCount = beforeCount - currentSessions.count
-        if removedCount > 0 {
-            saveSessions()
-            
-            #if DEBUG
-            print("🧹 [ChatManager] 만료된 세션 정리: \(removedCount)개 제거")
-            #endif
-        }
-    }
-    
-    /// 수동으로 데이터 정리
-    func cleanupOldData() {
-        cleanExpiredSessions()
-    }
-    
-    /// 모든 채팅 기록 삭제
-    func clearAllChatHistory() {
-        currentSessions.removeAll()
-        userDefaults.removeObject(forKey: chatSessionsKey)
-        
-        #if DEBUG
-        print("🗑️ [ChatManager] 모든 채팅 기록 삭제")
-        #endif
-    }
-    
-    // MARK: - 통계 및 정보
-    
-    func getTotalMessageCount() -> Int {
-        return currentSessions.reduce(0) { $0 + $1.messages.count }
-    }
-    
-    func getSessionCount() -> Int {
-        return currentSessions.count
-    }
-    
-    func getOldestSessionDate() -> Date? {
-        return currentSessions.map { $0.startDate }.min()
-    }
-    
-    func getDebugInfo() -> String {
-        let messageCount = getTotalMessageCount()
-        let sessionCount = getSessionCount()
-        let oldestDate = getOldestSessionDate()
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-        dateFormatter.timeStyle = .short
-        
-        return """
-        📊 ChatManager 상태:
-        • 세션 수: \(sessionCount)개
-        • 총 메시지: \(messageCount)개
-        • 가장 오래된 기록: \(oldestDate.map { dateFormatter.string(from: $0) } ?? "없음")
-        • 보존 기간: \(maxRetentionDays)일
-        """
+        print("✅ [ChatManager] 새 세션 생성 (ID 지정): \(contextType) - \(id)")
+        return id
     }
 } 

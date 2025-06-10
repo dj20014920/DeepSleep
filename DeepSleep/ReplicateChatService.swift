@@ -6,10 +6,10 @@ class ReplicateChatService {
     private init() {}
     
     private struct ConversationLimits {
-        static let maxTokensPerRequest = 500
-        static let maxConversationLength = 3000
-        static let maxMessagesInMemory = 20
-        static let contextCompressionThreshold = 2500
+        static let maxTokensPerRequest = CacheConst.maxPromptTokens // 4000 토큰
+        static let maxConversationLength = CacheConst.maxPromptTokens
+        static let maxMessagesInMemory = 50 // 14일치 대화 대응
+        static let contextCompressionThreshold = Int(Double(CacheConst.maxPromptTokens) * 0.8) // 80% 임계점
     }
     
     // 대화 히스토리 관리 (캐시 시스템과 분리)
@@ -98,60 +98,109 @@ class ReplicateChatService {
         }
     }
     
-    // ✅ 캐시 기반 시스템 프롬프트 - 자연스러운 대화 강조
+    // ✅ 캐시 기반 시스템 프롬프트 - 대화 연속성 대폭 강화
     private func getCachedSystemPrompt(for intent: String, useCache: Bool) -> String {
             let basePrompt = getSystemPrompt(for: intent)
             
             if useCache {
                 return basePrompt + """
                 
-                추가: 1주일 대화맥락 기억, 연속성 대화, 완성된 문장, 번호나 목록 금지, 자연스러운 문단, 적절한 이모지.
+                💾 **중요: 이전 대화 기억 지침**
+                • 사용자와 나눈 이전 대화 내용을 반드시 기억하고 참조하세요
+                • 사용자가 이전에 언급한 감정, 고민, 상황을 자연스럽게 연결하세요
+                • "지난번에 말씀하신 ○○에 대해서는 어떠신가요?" 같은 연결 표현 사용
+                • 사용자의 변화나 개선점이 있다면 구체적으로 인정하고 격려하세요
+                • 대화의 흐름과 맥락을 유지하며 연속성 있는 상담을 제공하세요
+                
+                이것은 단순한 질문-답변이 아닌, 연속적인 관계 속에서의 대화입니다.
                 """
             } else {
                 return basePrompt + """
                 
-                추가: 새로운 대화 시작, 자연스러운 소통, 완성된 문장, 번호나 목록 금지, 친구처럼 대화, 적절한 이모지.
+                🆕 **새로운 대화 시작 지침**
+                • 사용자와의 새로운 만남을 소중히 여기며 따뜻하게 시작하세요
+                • 사용자가 편안하게 이야기할 수 있는 분위기를 만들어주세요
+                • 앞으로 지속적인 대화와 도움을 제공할 것임을 알려주세요
+                • 자연스러운 소통으로 신뢰 관계를 구축하세요
                 """
             }
         }
     
-    // ✅ 캐시 기반 프리셋 프롬프트 구성 (13개 카테고리로 업데이트)
+    // ✅ TLB식 프롬프트 구성 (토큰 최적화)
     private func buildCachedPresetPrompt(cachedPrompt: String, emotionContext: String, useCache: Bool) -> String {
         // 시간대 정보 추가
         let currentHour = Calendar.current.component(.hour, from: Date())
         let timeOfDay = getTimeOfDay(from: currentHour)
         
         if useCache {
-            // 캐시된 맥락이 있을 때 - 간단한 감정 분석만 요청
+            // 캐시된 맥락이 있을 때 - TLB식 토큰 절약
+            let recentContext = extractRecentContext(from: cachedPrompt)
+            let tokenCount = TokenEstimator.roughCount(recentContext)
+            
             return """
-            이전 대화: \(String(cachedPrompt.suffix(200)))
+            최근 3일 대화 맥락 (\(tokenCount) 토큰):
+            \(recentContext)
             
-            사용자의 현재 상태를 간단히 분석해서 다음 형태로만 답변해주세요:
-            
-            감정: [불안/스트레스/우울/수면곤란/집중필요/창의성/분노/외로움/피로/기쁨/평온] (1-2개)
+            현재 감정: \(emotionContext)
             시간대: \(timeOfDay)
-            강도: [낮음/보통/높음]
-            상황: [휴식/작업/수면/명상] 중 하나
             
-            예시: "감정: 스트레스, 수면곤란 / 시간대: 밤 / 강도: 높음 / 상황: 수면"
+            위 맥락을 바탕으로 간결하게 추천해주세요.
             """
         } else {
-            // 새 캐시 생성 시 - 좀 더 자세한 분석이지만 여전히 간결
+            // 새 캐시 생성 시 - 기본 분석
             return """
-            사용자의 감정 상태와 현재 상황(\(timeOfDay))을 분석해서 사운드 추천을 위한 정보를 추출해주세요.
+            감정 상태: \(emotionContext)
+            시간대: \(timeOfDay)
             
-            다음 형태로만 간결하게 답변:
+            다음 형태로 간결하게 분석:
             
             주감정: [불안/스트레스/우울/수면곤란/집중필요/창의성/분노/외로움/피로/기쁨/평온]
-            부감정: [위와 동일, 없으면 생략]
-            시간대: \(timeOfDay)
-            강도: 1-5점 (1=매우 약함, 5=매우 강함)
-            목적: [수면/휴식/집중/명상/치유] 중 1개
-            특이사항: [급함/지속적/일시적] 등 (한 단어로)
+            강도: 1-5점
+            목적: [수면/휴식/집중/명상/치유]
             
-            이 정보를 바탕으로 최적의 사운드 조합을 추천드리겠습니다.
+            최적 사운드 조합을 추천해주세요.
             """
         }
+    }
+    
+    // MARK: - TLB식 토큰 관리 헬퍼
+    
+    /// 캐시에서 최근 맥락만 추출 (토큰 절약)
+    private func extractRecentContext(from cachedPrompt: String) -> String {
+        let lines = cachedPrompt.components(separatedBy: "\n")
+        var tokenCount = 0
+        var recentLines: [String] = []
+        
+        // 역순으로 순회하며 최근 메시지부터 수집
+        for line in lines.reversed() {
+            let lineTokens = TokenEstimator.roughCount(line)
+            if tokenCount + lineTokens > CacheConst.maxPromptTokens / 2 { // 절반만 사용
+                break
+            }
+            recentLines.insert(line, at: 0)
+            tokenCount += lineTokens
+        }
+        
+        return recentLines.joined(separator: "\n")
+    }
+    
+    /// 프롬프트 토큰 수 체크 및 자동 압축
+    private func compressPromptIfNeeded(_ prompt: String) -> String {
+        let currentTokens = TokenEstimator.roughCount(prompt)
+        
+        if currentTokens <= CacheConst.maxPromptTokens {
+            return prompt
+        }
+        
+        // 토큰 초과 시 중간 부분 압축
+        let lines = prompt.components(separatedBy: "\n")
+        let keepCount = Int(Double(lines.count) * 0.6) // 60%만 유지
+        
+        let preserved = Array(lines.prefix(keepCount/2)) + 
+                       ["…중간 내용 생략…"] + 
+                       Array(lines.suffix(keepCount/2))
+        
+        return preserved.joined(separator: "\n")
     }
     
     // 시간대 판별 함수
@@ -484,16 +533,17 @@ class ReplicateChatService {
             }
         }
 
-    // ✅ Intent별 최적 토큰 수 - 답변이 잘리지 않도록 충분히 증가
+    // ✅ Intent별 최적 토큰 수 - 실용적이고 상세한 조언을 위해 대폭 증가
     private func getOptimalTokens(for intent: String) -> Int {
             switch intent {
             case "pattern_analysis": return 2500
-            case "diary_analysis": return 800
-            case "diary": return 800
-            case "diary_chat", "analysis_chat", "advice_chat": return 750
-            case "casual_chat": return 600
-            case "recommendPreset", "preset_recommendation": return 600
-            default: return 750
+            case "diary_analysis": return 1200  // 800 → 1200 증가
+            case "diary": return 1200           // 800 → 1200 증가
+            case "diary_chat", "analysis_chat", "advice_chat": return 1000  // 750 → 1000 증가
+            case "casual_chat": return 800      // 600 → 800 증가
+            case "recommendPreset", "preset_recommendation": return 800  // 600 → 800 증가
+            case "chat": return 1000           // 새로 추가: 일반 채팅
+            default: return 1000               // 750 → 1000 증가
             }
     }
     
@@ -525,11 +575,21 @@ class ReplicateChatService {
                 실질적이고 따뜻한 조언을 제공하세요. 복잡한 감정도 이해하기 쉽게 설명해주세요.
                 """
                 
-            case "diary_chat", "analysis_chat", "advice_chat":
+            case "diary_chat", "analysis_chat", "advice_chat", "chat":
                 return """
-                당신은 진심으로 사용자를 이해하고 돕고 싶어하는 친구 같은 상담사입니다.
-                사용자의 상황에 깊이 공감하며, 실용적이면서도 따뜻한 조언을 자연스럽게 전달하세요.
-                딱딱한 조언보다는 진정성 있는 대화로 마음을 어루만져 주세요.
+                당신은 진심으로 사용자를 이해하고 돕고 싶어하는 친구 같은 전문 상담사입니다.
+                
+                🎯 **응답 가이드라인:**
+                • 사용자의 상황에 깊이 공감하며 시작하세요
+                • 구체적이고 실용적인 조언을 3-5가지 제시하세요  
+                • 각 조언마다 "왜 도움이 되는지" 이유를 설명하세요
+                • 사용자가 바로 실행할 수 있는 단계별 방법을 알려주세요
+                • 마무리는 따뜻한 격려와 희망의 메시지로 하세요
+                
+                🚫 **지양할 것:** 짧고 일반적인 답변, 단순 나열, 딱딱한 조언
+                ✅ **지향할 것:** 상세하고 개인화된 조언, 공감과 이해, 실행 가능한 방법
+                
+                마치 가장 믿을 만한 친구이자 전문가가 진심어린 조언을 해주는 것처럼 응답하세요.
                 """
                 
             case "casual_chat":

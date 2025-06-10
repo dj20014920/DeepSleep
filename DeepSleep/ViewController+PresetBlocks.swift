@@ -177,37 +177,69 @@ extension ViewController {
             return
         }
         
-        // 🔧 기존 "빈 슬롯" 텍스트 완전 제거
-        button.setTitle("", for: .normal)
+        // 🔧 방법 B: "청소 후 추가" - 완전한 중복 방지
+        // ① 기존 UILabel 전부 제거 (확실한 중복 방지)
+        button.subviews
+             .filter { $0 is UILabel }
+             .forEach { $0.removeFromSuperview() }
         
-        // 프리셋 이름을 버튼 제목으로 설정
-        let title = preset.emotion != nil ? "\(preset.emotion!)\n\(preset.name)" : preset.name
-        button.setTitle(title, for: .normal)
-        button.setTitleColor(.label, for: .normal)
+        // ② 새 라벨 하나만 추가
+        let nameLabel = UILabel()
+        let displayText = preset.emotion != nil ? "\(preset.emotion!)\n\(preset.name)" : preset.name
+        nameLabel.text = displayText
+        nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        nameLabel.textColor = .label
+        nameLabel.textAlignment = .center
+        nameLabel.numberOfLines = 2
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.adjustsFontSizeToFitWidth = true
+        nameLabel.minimumScaleFactor = 0.7
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ③ 버튼에 추가 및 오토레이아웃 설정
+        button.addSubview(nameLabel)
+        NSLayoutConstraint.activate([
+            nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            nameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: button.leadingAnchor, constant: 4),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -4)
+        ])
+        
+        // ④ 버튼 스타일 설정
+        button.setTitle("", for: .normal)  // 기본 제목 제거
         button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
         
-        // 🔧 텍스트 레이아웃 개선 - 겹침 방지
-        button.titleLabel?.lineBreakMode = .byTruncatingTail
-        button.titleLabel?.numberOfLines = 2
-        button.titleLabel?.textAlignment = .center
-        button.titleLabel?.adjustsFontSizeToFitWidth = true
-        button.titleLabel?.minimumScaleFactor = 0.7  // 더 작게 조정 가능
-        
-        // 🔧 버튼 패딩 확보 (텍스트가 버튼 가장자리에 닿지 않도록)
-        button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
-        button.titleLabel?.preferredMaxLayoutWidth = button.frame.width - 8  // 좌우 여백 확보
-        
-        print("  - 버튼 설정: '\(preset.name)' (겹침 방지 적용)")
+        print("  - 라벨 완전 재생성: '\(preset.name)' (겹침 방지 완료)")
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
-        button.setTitle("+ 빈 슬롯", for: .normal)
-        button.setTitleColor(.systemGray2, for: .normal)
+        // 🔧 방법 B: "청소 후 추가" - 빈 슬롯용
+        // ① 기존 UILabel 전부 제거
+        button.subviews
+             .filter { $0 is UILabel }
+             .forEach { $0.removeFromSuperview() }
+        
+        // ② 새 라벨 하나만 추가
+        let nameLabel = UILabel()
+        nameLabel.text = "+ 빈 슬롯"
+        nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        nameLabel.textColor = .systemGray2
+        nameLabel.textAlignment = .center
+        nameLabel.numberOfLines = 1
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ③ 버튼에 추가 및 오토레이아웃 설정
+        button.addSubview(nameLabel)
+        NSLayoutConstraint.activate([
+            nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor)
+        ])
+        
+        // ④ 버튼 스타일
+        button.setTitle("", for: .normal)
         button.backgroundColor = UIColor.systemGray6
         button.layer.borderColor = UIColor.systemGray4.cgColor
-        button.titleLabel?.numberOfLines = 1
-        button.titleLabel?.textAlignment = .center
     }
     
     func getRecentPresets() -> [SoundPreset] {

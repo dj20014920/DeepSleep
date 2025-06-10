@@ -246,29 +246,38 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // 🚀 성능 최적화: 비동기 설정
     @MainActor
     private func performAsyncSetup() async {
-        // 시간이 걸리는 작업들을 백그라운드에서 처리
-        await Task.detached { [weak self] in
-            await MainActor.run { [weak self] in
-                self?.setupOverallAdviceButtonArea()
-                self?.setupEmptyStateView()
-                
-                // 새 셀 등록
-                self?.tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
-                self?.tableView.separatorStyle = .none
-                
-                // 네비게이션 버튼 설정
-                let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(self?.didTapAddButton))
-                addButton.tintColor = UIDesignSystem.Colors.primaryText
-                self?.navigationItem.rightBarButtonItem = addButton
-                
-                self?.updateOverallAdviceButtonUI()
-                
-                // 🔧 Advice 버튼 설정 완료 후 테이블뷰 constraint 업데이트
-                self?.updateTableViewConstraints()
-                
-                print("✅ TodoCalendarViewController 백그라운드 설정 완료")
-            }
-        }.value
+        // ⚠️ 크래시 방지: Main Thread에서 직접 처리
+        setupOverallAdviceButtonArea()
+        setupEmptyStateView()
+        
+        // 🔧 크래시 방지: 셀 등록을 안전하게 처리
+        registerTableViewCells()
+        
+        // 네비게이션 버튼 설정
+        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAddButton))
+        addButton.tintColor = UIDesignSystem.Colors.primaryText
+        navigationItem.rightBarButtonItem = addButton
+        
+        updateOverallAdviceButtonUI()
+        
+        // 🔧 Advice 버튼 설정 완료 후 테이블뷰 constraint 업데이트
+        updateTableViewConstraints()
+        
+        print("✅ TodoCalendarViewController 백그라운드 설정 완료")
+    }
+    
+    // 🔧 안전한 셀 등록 메서드
+    private func registerTableViewCells() {
+        guard let tableView = tableView else {
+            print("⚠️ [TodoCalendarViewController] tableView가 nil입니다")
+            return
+        }
+        
+        // EmotionDiaryDisplayCell 등록 전 중복 등록 방지
+        tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
+        tableView.separatorStyle = .none
+        
+        print("✅ [TodoCalendarViewController] 테이블뷰 셀 등록 완료")
     }
     
     override func viewDidLayoutSubviews() {
@@ -551,35 +560,58 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        guard let currentSection = CalendarSection(rawValue: section) else { return 0 }
+        guard let currentSection = CalendarSection(rawValue: section) else { 
+            print("⚠️ [TodoCalendarViewController] numberOfRowsInSection - 잘못된 섹션: \(section)")
+            return 0 
+        }
         
         switch currentSection {
         case .diary:
-            return selectedDateDiary != nil ? 1 : 0 // 일기가 있으면 1개, 없으면 0개
+            let count = selectedDateDiary != nil ? 1 : 0
+            print("📊 [TodoCalendarViewController] diary section row count: \(count)")
+            return count // 일기가 있으면 1개, 없으면 0개
         case .todos:
-            return selectedDateTodos.count // 할 일 개수
+            let count = selectedDateTodos.count
+            print("📊 [TodoCalendarViewController] todos section row count: \(count)")
+            return count // 할 일 개수
         }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let currentSection = CalendarSection(rawValue: indexPath.section) else {
-            fatalError("Invalid section")
+            print("⚠️ [TodoCalendarViewController] 잘못된 섹션: \(indexPath.section)")
+            return UITableViewCell()
         }
         
         switch currentSection {
         case .diary:
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: EmotionDiaryDisplayCell.identifier, for: indexPath) as? EmotionDiaryDisplayCell,
-                  let diary = selectedDateDiary else {
-                // 이 부분은 호출되지 않아야 함 (numberOfRowsInSection에서 처리)
+            // 🔧 안전한 셀 dequeue 및 유효성 검사
+            guard let diary = selectedDateDiary else {
+                print("⚠️ [TodoCalendarViewController] selectedDateDiary가 nil입니다")
                 return UITableViewCell()
             }
+            
+            guard let cell = tableView.dequeueReusableCell(withIdentifier: EmotionDiaryDisplayCell.identifier, for: indexPath) as? EmotionDiaryDisplayCell else {
+                print("⚠️ [TodoCalendarViewController] EmotionDiaryDisplayCell dequeue 실패")
+                return UITableViewCell()
+            }
+            
             cell.configure(with: diary)
             cell.selectionStyle = .none // 일기 셀은 선택 스타일 없음
             return cell
+            
         case .todos:
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as? TodoTableViewCell else {
+            // 🔧 안전한 배열 접근
+            guard indexPath.row < selectedDateTodos.count else {
+                print("⚠️ [TodoCalendarViewController] todos 배열 범위 초과: \(indexPath.row)/\(selectedDateTodos.count)")
                 return UITableViewCell()
             }
+            
+            guard let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as? TodoTableViewCell else {
+                print("⚠️ [TodoCalendarViewController] TodoTableViewCell dequeue 실패")
+                return UITableViewCell()
+            }
+            
             let todo = selectedDateTodos[indexPath.row]
             cell.configure(with: todo)
             return cell
