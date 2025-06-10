@@ -17,7 +17,7 @@ class ReplicateChatService {
     private var currentTokenCount = 0
     private var consecutiveFailures = 0
 
-    // MARK: - ✅ 캐시 기반 메시지 전송 (새로운 메서드)
+    // MARK: - ✅ 캐시 기반 메시지 전송 (TLB식 히스토리 로드)
     func sendCachedPrompt(
         prompt: String,
         useCache: Bool,
@@ -25,6 +25,13 @@ class ReplicateChatService {
         intent: String,
         completion: @escaping (String?) -> Void
     ) {
+        // 🚀 TLB식 캐시에서 최근 대화 히스토리 로드
+        let finalPrompt = buildPromptWithTLBHistory(
+            userPrompt: prompt,
+            intent: intent,
+            useCache: useCache
+        )
+        
         // 캐시 사용 여부에 따른 최적화된 파라미터 설정
         let optimizedMaxTokens = getOptimalTokensForCachedRequest(
             baseTokens: getOptimalTokens(for: intent),
@@ -33,7 +40,7 @@ class ReplicateChatService {
         )
         
         let input: [String: Any] = [
-            "prompt": prompt,
+            "prompt": finalPrompt,
             "temperature": getTemperature(for: intent),
             "top_p": 0.9,
             "max_tokens": optimizedMaxTokens,
@@ -42,9 +49,65 @@ class ReplicateChatService {
         
         #if DEBUG
         print("📤 [CACHED-REQUEST] Intent: \(intent), MaxTokens: \(optimizedMaxTokens), UseCache: \(useCache)")
+        print("🗄️ TLB 히스토리 포함된 프롬프트 길이: \(finalPrompt.count) 문자")
         #endif
         
         sendToReplicate(input: input, completion: completion)
+    }
+    
+    // 🚀 TLB식 캐시에서 대화 히스토리를 포함한 프롬프트 구성
+    private func buildPromptWithTLBHistory(userPrompt: String, intent: String, useCache: Bool) -> String {
+        do {
+            // CachedConversationManager에서 최근 대화 로드
+            let recentMessages = try CachedConversationManager.shared.recentHistory()
+            
+            if recentMessages.isEmpty {
+                print("🆕 [TLB] 이전 대화 없음 - 새로운 시작")
+                return userPrompt
+            }
+            
+            // 최근 메시지들을 대화 형태로 변환
+            let historyText = recentMessages.suffix(10).map { msg in
+                let role = msg.role == .user ? "사용자" : "나"
+                return "\(role): \(msg.content)"
+            }.joined(separator: "\n")
+            
+            // 토큰 수 체크
+            let historyTokens = TokenEstimator.roughCount(historyText)
+            let promptTokens = TokenEstimator.roughCount(userPrompt)
+            
+            if historyTokens + promptTokens > CacheConst.maxPromptTokens {
+                // 토큰 초과 시 최근 대화만 선별
+                let compressedHistory = recentMessages.suffix(5).map { msg in
+                    let role = msg.role == .user ? "사용자" : "나"
+                    return "\(role): \(msg.content)"
+                }.joined(separator: "\n")
+                
+                print("🔧 [TLB] 토큰 압축: \(historyTokens) → \(TokenEstimator.roughCount(compressedHistory))")
+                
+                return """
+                📜 최근 대화 기록:
+                \(compressedHistory)
+                
+                현재 사용자 입력:
+                \(userPrompt)
+                """
+            } else {
+                print("✅ [TLB] 완전한 히스토리 포함: \(historyTokens) + \(promptTokens) = \(historyTokens + promptTokens) 토큰")
+                
+                return """
+                📜 이전 대화 기록:
+                \(historyText)
+                
+                현재 사용자 입력:
+                \(userPrompt)
+                """
+            }
+            
+        } catch {
+            print("⚠️ [TLB] 히스토리 로드 실패: \(error)")
+            return userPrompt
+        }
     }
     
     // ✅ 캐시 기반 프리셋 추천

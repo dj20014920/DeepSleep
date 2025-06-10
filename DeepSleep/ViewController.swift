@@ -876,7 +876,7 @@ class ViewController: UIViewController {
             }
             
             // 피드백
-            self.showToast(message: "앱 분석 추천 '\(name)' 적용됨")
+            self.showToast(message: "  앱 분석 추천 '\(name)' 적용됨. ")
             self.provideMediumHapticFeedback()
             
             print("🔄 [ViewController [\(self.instanceUUID)]] 로컬 추천 UI 업데이트 완료: \(name)")
@@ -963,7 +963,6 @@ class ViewController: UIViewController {
             }
             
             // 피드백
-            self.showToast(message: "앱 분석 추천 모델 업데이트 완료")
             self.provideMediumHapticFeedback()
             
             print("🔄 [ViewController [\(self.instanceUUID)] 로컬 추천 UI 업데이트 완료")

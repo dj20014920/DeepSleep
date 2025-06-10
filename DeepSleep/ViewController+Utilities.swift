@@ -192,11 +192,10 @@ extension ViewController {
             }
         }
         
-        // 3. 슬라이더와 텍스트필드 UI 업데이트
+        // 3. 🔧 통합된 볼륨 설정: updateAllSlidersAndFields에서 UI + SoundManager 모두 처리
         updateAllSlidersAndFields(volumes: correctedVolumes, versions: actualVersions)
         
-        // 4. SoundManager에서 프리셋 적용 (볼륨 설정 + 버전 정보 포함)
-        SoundManager.shared.applyPresetWithVersions(volumes: correctedVolumes, versions: actualVersions)
+        // 4. 🚫 중복된 SoundManager 호출 제거 (updateAllSlidersAndFields에서 이미 처리함)
         
         // 5. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()

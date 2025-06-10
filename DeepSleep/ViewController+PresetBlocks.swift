@@ -177,11 +177,11 @@ extension ViewController {
             return
         }
         
-        // 🔧 방법 B: "청소 후 추가" - 완전한 중복 방지
-        // ① 기존 UILabel 전부 제거 (확실한 중복 방지)
-        button.subviews
-             .filter { $0 is UILabel }
-             .forEach { $0.removeFromSuperview() }
+        // 🛡️ 강력한 겹침 방지: 모든 서브뷰 제거 후 재생성
+        // ① 모든 서브뷰 제거 (제약 조건까지 정리)
+        button.subviews.forEach { subview in
+            subview.removeFromSuperview()
+        }
         
         // ② 새 라벨 하나만 추가
         let nameLabel = UILabel()
@@ -195,6 +195,7 @@ extension ViewController {
         nameLabel.adjustsFontSizeToFitWidth = true
         nameLabel.minimumScaleFactor = 0.7
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        nameLabel.tag = 999999  // 고유 식별자
         
         // ③ 버튼에 추가 및 오토레이아웃 설정
         button.addSubview(nameLabel)
@@ -210,15 +211,15 @@ extension ViewController {
         button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
         
-        print("  - 라벨 완전 재생성: '\(preset.name)' (겹침 방지 완료)")
+        print("  - 🛡️ 강력한 겹침 방지 완료: '\(preset.name)' (모든 서브뷰 제거)")
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
-        // 🔧 방법 B: "청소 후 추가" - 빈 슬롯용
-        // ① 기존 UILabel 전부 제거
-        button.subviews
-             .filter { $0 is UILabel }
-             .forEach { $0.removeFromSuperview() }
+        // 🛡️ 강력한 겹침 방지: 모든 서브뷰 제거 후 재생성 (빈 슬롯용)
+        // ① 모든 서브뷰 제거 (제약 조건까지 정리)
+        button.subviews.forEach { subview in
+            subview.removeFromSuperview()
+        }
         
         // ② 새 라벨 하나만 추가
         let nameLabel = UILabel()
@@ -228,6 +229,7 @@ extension ViewController {
         nameLabel.textAlignment = .center
         nameLabel.numberOfLines = 1
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        nameLabel.tag = 999998  // 고유 식별자 (빈 슬롯용)
         
         // ③ 버튼에 추가 및 오토레이아웃 설정
         button.addSubview(nameLabel)

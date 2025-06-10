@@ -527,8 +527,7 @@ extension ViewController {
         // 3. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
         
-        // 4. 마스터 볼륨 적용
-        applyMasterVolumeToSoundManager()
+        // 4. 🚫 중복된 마스터 볼륨 적용 제거 (updateSliderAndTextField에서 이미 처리함)
         
         print("✅ [updateAllSlidersAndFields] 모든 슬라이더 및 버전 UI 업데이트 완료")
     }

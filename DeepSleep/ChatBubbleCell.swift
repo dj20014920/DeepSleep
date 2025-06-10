@@ -51,7 +51,6 @@ class GifCatView: UIView {
         
         for (method, pathFunc) in searchMethods {
             if let gifPath = pathFunc() {
-                print("✅ \(method)에서 GIF 찾음: \(gifPath)")
                 if loadGifFromPath(gifPath) {
                     return
                 }
