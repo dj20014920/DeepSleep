@@ -1376,6 +1376,31 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         // 네비게이션 컨트롤러의 interactive pop gesture 활성화
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         navigationController?.interactivePopGestureRecognizer?.delegate = self
+        
+        // 추가적인 스와이프 제스처 추가 (더 민감하게)
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
+        panGesture.delegate = self
+        view.addGestureRecognizer(panGesture)
+    }
+    
+    @objc private func handlePanGesture(_ recognizer: UIPanGestureRecognizer) {
+        let translation = recognizer.translation(in: view)
+        let velocity = recognizer.velocity(in: view)
+        
+        switch recognizer.state {
+        case .ended, .cancelled:
+            // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우
+            if translation.x > 100 || velocity.x > 500 {
+                // 뒤로가기 실행
+                if navigationController?.viewControllers.count ?? 0 > 1 {
+                    navigationController?.popViewController(animated: true)
+                } else if presentingViewController != nil {
+                    dismiss(animated: true, completion: nil)
+                }
+            }
+        default:
+            break
+        }
     }
 }
 

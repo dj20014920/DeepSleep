@@ -730,22 +730,65 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 // MARK: - Setup Methods
 extension ChatViewController {
     private func loadChatHistory() {
-        if let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: Any]] {
-            self.messages = saved.compactMap { dict -> ChatMessage? in
-                guard let typeString = dict["type"] as? String,
-                      let type = ChatMessageType(rawValue: typeString),
-                      let text = dict["text"] as? String else { return nil }
-                
-                let presetName = dict["presetName"] as? String
-                let message = ChatMessage(type: type, text: text, presetName: presetName)
-                
-                // ✅ 프리셋 적용 완료 메시지 필터링 로직 추가
-                if type == .bot && text.hasPrefix("✅ ") && text.contains("프리셋이 적용되었습니다!") {
-                    return nil // 이 메시지는 로드하지 않음
-                }
-                return message
+        // 🔄 새로운 ChatManager 시스템으로 채팅기록 로드
+        let loadedMessages = ChatManager.shared.getAllMessagesAsContinuousChat()
+        
+        // 프리셋 적용 완료 메시지 필터링
+        self.messages = loadedMessages.filter { message in
+            if message.type == .bot && message.text.hasPrefix("✅ ") && message.text.contains("프리셋이 적용되었습니다!") {
+                return false // 이 메시지는 로드하지 않음
             }
+            return true
         }
+        
+        #if DEBUG
+        print("📚 [ChatViewController] 채팅 기록 로드: \(self.messages.count)개 메시지")
+        print(ChatManager.shared.getDebugInfo())
+        #endif
+        
+        // 기존 UserDefaults 채팅 기록이 있으면 마이그레이션
+        migrateOldChatHistory()
+    }
+    
+    /// 기존 UserDefaults 채팅 기록을 ChatManager로 마이그레이션
+    private func migrateOldChatHistory() {
+        guard let saved = UserDefaults.standard.array(forKey: "chatHistory") as? [[String: Any]],
+              !saved.isEmpty else { return }
+        
+        #if DEBUG
+        print("🔄 [ChatViewController] 기존 채팅 기록 마이그레이션 시작: \(saved.count)개 메시지")
+        #endif
+        
+        // 마이그레이션 세션 시작
+        let migrationSessionId = ChatManager.shared.startNewSession(contextType: .general)
+        
+        // 기존 메시지들을 ChatManager에 추가
+        for dict in saved {
+            guard let typeString = dict["type"] as? String,
+                  let type = ChatMessageType(rawValue: typeString),
+                  let text = dict["text"] as? String else { continue }
+            
+            let presetName = dict["presetName"] as? String
+            let message = ChatMessage(type: type, text: text, presetName: presetName)
+            
+            ChatManager.shared.addMessage(message, to: migrationSessionId)
+        }
+        
+        // 기존 UserDefaults 데이터 정리
+        UserDefaults.standard.removeObject(forKey: "chatHistory")
+        
+        // 마이그레이션 후 다시 로드
+        let migratedMessages = ChatManager.shared.getAllMessagesAsContinuousChat()
+        self.messages = migratedMessages.filter { message in
+            if message.type == .bot && message.text.hasPrefix("✅ ") && message.text.contains("프리셋이 적용되었습니다!") {
+                return false
+            }
+            return true
+        }
+        
+        #if DEBUG
+        print("✅ [ChatViewController] 마이그레이션 완료: \(self.messages.count)개 메시지 변환됨")
+        #endif
     }
     
     private func setupNavigationBar() {
@@ -773,12 +816,34 @@ extension ChatViewController {
         
         // 타이틀 설정 (이미 있는 title 사용)
         if title == nil || title?.isEmpty == true {
-            title = "AI 대화"
+            title = "#Todays_Mood"
         }
         
         // 네비게이션 바 스타일
         navigationController?.navigationBar.prefersLargeTitles = false
         navigationController?.navigationBar.tintColor = .systemBlue
+    }
+    
+    // MARK: - 뒤로가기 버튼 액션들
+    @objc private func backButtonTapped() {
+        // 채팅 기록 저장
+        saveChatHistory()
+        
+        // 네비게이션 스택에서 이전 화면으로 이동
+        navigationController?.popViewController(animated: true)
+    }
+    
+    @objc private func closeButtonTapped() {
+        // 채팅 기록 저장
+        saveChatHistory()
+        
+        // 모달 닫기
+        if presentingViewController != nil {
+            dismiss(animated: true, completion: nil)
+        } else {
+            // 혹시 push로 왔는데 잘못 판단한 경우
+            navigationController?.popViewController(animated: true)
+        }
     }
     
     // ✅ 캐시 시스템 초기화
@@ -979,13 +1044,7 @@ extension ChatViewController {
     
     // ✅ 화면 하단 로딩 시스템 제거됨 (채팅 버블 내 고양이로 대체)
     
-    @objc private func backButtonTapped() {
-        navigationController?.popViewController(animated: true)
-    }
-    
-    @objc func closeButtonTapped() {
-        dismiss(animated: true, completion: nil)
-    }
+
     
     // ✅ appendChat 메서드 (UI 동기화 개선)
     func appendChat(_ message: ChatMessage) {
@@ -993,6 +1052,14 @@ extension ChatViewController {
         print("[appendChat] 메시지 추가: \(message.text)")
         if let quickActions = message.quickActions {
             print("[appendChat] quickActions: \(quickActions)")
+        }
+        
+        // ✅ ChatManager에 메시지 저장 (로딩 메시지 제외)
+        if message.type != .loading {
+            ChatManager.shared.addMessage(message)
+            #if DEBUG
+            print("💾 [appendChat] ChatManager에 메시지 저장: \(message.type.rawValue)")
+            #endif
         }
         
         // 🔧 메인 스레드에서 UI 업데이트 보장 및 충돌 방지
@@ -1005,25 +1072,18 @@ extension ChatViewController {
                 self.scrollToBottom()
             }
         }
-        
-        // 기존 히스토리 저장 (로딩 메시지는 저장하지 않음)
-        if message.type != .loading {
-            saveChatHistory()
-        }
     }
     
     func saveChatHistory() {
-        let dictionaries = messages.map { message in
-            var dict: [String: Any] = [
-                "type": message.type.rawValue,
-                "text": message.text
-            ]
-            if let presetName = message.presetName {
-                dict["presetName"] = presetName
-            }
-            return dict
+        // 🔄 ChatManager를 통한 저장은 실시간으로 이루어지므로 별도 작업 불필요
+        // 하지만 현재 세션이 없다면 생성
+        if ChatManager.shared.getCurrentSession() == nil {
+            ChatManager.shared.startNewSession(contextType: .general)
         }
-        UserDefaults.standard.set(dictionaries, forKey: "chatHistory")
+        
+        #if DEBUG
+        print("💾 [ChatViewController] 채팅 기록 저장 요청 - ChatManager에서 실시간 관리됨")
+        #endif
     }
     
     func scrollToBottom() {
@@ -2607,6 +2667,34 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         // 네비게이션 컨트롤러의 interactive pop gesture 활성화
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         navigationController?.interactivePopGestureRecognizer?.delegate = self
+        
+        // 추가적인 스와이프 제스처 추가 (더 민감하게)
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
+        panGesture.delegate = self
+        view.addGestureRecognizer(panGesture)
+    }
+    
+    @objc private func handlePanGesture(_ recognizer: UIPanGestureRecognizer) {
+        let translation = recognizer.translation(in: view)
+        let velocity = recognizer.velocity(in: view)
+        
+        switch recognizer.state {
+        case .ended, .cancelled:
+            // 오른쪽으로 충분히 스와이프했거나 속도가 충분한 경우
+            if translation.x > 100 || velocity.x > 500 {
+                // 채팅 기록 저장
+                saveChatHistory()
+                
+                // 뒤로가기 실행
+                if navigationController?.viewControllers.count ?? 0 > 1 {
+                    navigationController?.popViewController(animated: true)
+                } else if presentingViewController != nil {
+                    dismiss(animated: true, completion: nil)
+                }
+            }
+        default:
+            break
+        }
     }
 }
 
