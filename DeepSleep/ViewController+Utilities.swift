@@ -212,7 +212,7 @@ extension ViewController {
         // 5. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
         
-        // 6. ✅ 프리셋 저장/갱신 로직
+        // 6. ✅ 프리셋 저장/갱신 로직 - 🛡️ 안전한 저장 사용
         if let id = presetId {
             // ID가 있으면 기존 프리셋의 사용 시간 갱신
             SettingsManager.shared.updatePresetTimestamp(id: id)
@@ -223,7 +223,7 @@ extension ViewController {
                 NotificationCenter.default.post(name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
             }
         } else if saveAsNew {
-            // ID가 없고 saveAsNew가 true이면 새로운 프리셋으로 저장
+            // ID가 없고 saveAsNew가 true이면 새로운 프리셋으로 저장 - 🛡️ 안전한 저장 사용
             let newPreset = SoundPreset(
                 name: name,
                 volumes: correctedVolumes,
@@ -231,8 +231,22 @@ extension ViewController {
                 isAIGenerated: false,
                 description: "신규 저장된 프리셋"
             )
-            SettingsManager.shared.saveSoundPreset(newPreset)
-            print("💾 [applyPreset] ID 없는 신규 프리셋으로 저장: \(name)")
+            
+            // 🛡️ 안전한 저장 메서드 사용
+            let result = SettingsManager.shared.saveSoundPresetSafely(newPreset, allowOverwrite: false)
+            
+            if result.success {
+                if result.wasRenamed {
+                    print("💾 [applyPreset] 중복 이름으로 인해 변경됨: \(name) → \(result.finalName)")
+                    showToast(message: "프리셋이 '\(result.finalName)'으로 저장되었습니다")
+                } else {
+                    print("💾 [applyPreset] 신규 프리셋 저장 완료: \(result.finalName)")
+                    showToast(message: "'\(result.finalName)' 프리셋이 저장되었습니다")
+                }
+            } else {
+                print("❌ [applyPreset] 프리셋 저장 실패: \(name)")
+                showToast(message: "프리셋 저장에 실패했습니다")
+            }
         }
         
         // 7. UI 상태 업데이트

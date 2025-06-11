@@ -1,0 +1,698 @@
+{
+  "" : {
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DeepSleep-master.dia",
+    "emit-module-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DeepSleep-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DeepSleep-master-emit-module.dia",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DeepSleep-master.swiftdeps"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ EmotionDiaryCell.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ EmotionDiaryCell~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AISecurityManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AISecurityManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AIUsageManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AIUsageManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AddEditTodoViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AddEditTodoViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AnalysisInitExtensions.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AnalysisInitExtensions~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AppDelegate.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/AutomaticLearningModels.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/AutomaticLearningModels~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/BatteryOptimizationManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/BatteryOptimizationManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/CachedConversationManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/CachedConversationManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatBubbleCell.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatBubbleCell~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatMessage.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatMessage~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatRouter.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatRouter~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatViewController+Analysis.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Analysis~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatViewController+Preset.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController+Preset~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ChatviewController+Actions.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ChatviewController+Actions~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ComprehensiveRecommendationEngine.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ComprehensiveRecommendationEngine~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/Constants.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Constants~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/DiaryWriteViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/DiaryWriteViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EditDiaryViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EditDiaryViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionAnalysisChatViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalysisChatViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionAnalyzer.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionAnalyzer~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionCalendarViewController+AI.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+AI~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionCalendarViewController+Collection.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController+Collection~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionCalendarViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionCalendarViewcontroller+Diary.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionCalendarViewcontroller+Diary~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionDiaryDisplayCell.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryDisplayCell~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionDiaryViewController+Actions.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Actions~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionDiaryViewController+Insights.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+Insights~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionDiaryViewController+TableView.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController+TableView~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionDiaryViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionDiaryViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionInputViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionInputViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EmotionResponseManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EmotionResponseManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EnhancedFeedbackViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnhancedFeedbackViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/EnvironmentConfig.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/EnvironmentConfig~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/FeedbackManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/FeedbackPromptViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/FeedbackPromptViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/HealthKitManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/HealthKitManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/LaunchViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LaunchViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/LegacyPresetManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/LegacyPresetManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/Models.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/Models~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/PresetListViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetListViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/PresetSharingManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PresetSharingManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/PsychoacousticOptimizationEngine.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/PsychoacousticOptimizationEngine~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/RemoteLogger.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/RemoteLogger~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ReplicateChatService.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ReplicateChatService~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ScalableSoundCatalog.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ScalableSoundCatalog~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/SceneDelegate.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SceneDelegate~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/SettingsManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SettingsManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/SoundFilterManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundFilterManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/SoundManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/SoundPresetCatalog.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/SoundPresetCatalog~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/TimerViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TimerViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/TodoCalendarViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoCalendarViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/TodoItem.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoItem~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/TodoManager.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TodoManager~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/TokenTracker.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/TokenTracker~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/UIDesignSystem.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UIDesignSystem~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/UserBehaviorAnalytics.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserBehaviorAnalytics~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/UserDefaults+Extensions.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/UserDefaults+Extensions~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController+EmotionSelector.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+EmotionSelector~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController+PlaybackControls.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PlaybackControls~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController+PresetBlocks.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+PresetBlocks~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController+SliderControls.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+SliderControls~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController+Utilities.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController+Utilities~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/ViewController.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/ViewController~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/DeepSleep/forceSyncMainViewControllerPreset.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/forceSyncMainViewControllerPreset~partial.swiftmodule"
+  },
+  "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/dj20014920/Desktop/DeepSleep/build/DeepSleep.build/Debug-iphoneos/DeepSleep.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

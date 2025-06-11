@@ -1,0 +1,27 @@
+# 🔐 보안 설정 파일들 (절대 커밋 금지!)
+Secrets.xcconfig
+SecureSecrets.xcconfig
+*.secret
+*.env
+.env.*
+
+# 🔨 Xcode 빌드 파일들
+build/
+DerivedData/
+*.xcuserdata/
+*.xcuserdatad/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# 🗃️ 임시 파일들
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

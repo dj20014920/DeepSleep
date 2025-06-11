@@ -433,4 +433,88 @@ class SettingsManager {
             presetVersion: preset.presetVersion
         )
     }
+    
+    // MARK: - 🛡️ 프리셋 이름 중복 체크 및 충돌 방지
+    
+    /// 프리셋 이름 중복 체크
+    func isPresetNameExists(_ name: String, excludingId: UUID? = nil) -> Bool {
+        let presets = loadSoundPresets()
+        return presets.contains { preset in
+            preset.name.lowercased() == name.lowercased() && preset.id != excludingId
+        }
+    }
+    
+    /// 중복되지 않는 프리셋 이름 생성
+    func generateUniquePresetName(baseName: String) -> String {
+        var uniqueName = baseName
+        var counter = 1
+        
+        while isPresetNameExists(uniqueName) {
+            uniqueName = "\(baseName) (\(counter))"
+            counter += 1
+        }
+        
+        return uniqueName
+    }
+    
+    /// 안전한 프리셋 저장 (중복 이름 체크 포함)
+    func saveSoundPresetSafely(_ preset: SoundPreset, allowOverwrite: Bool = false) -> (success: Bool, finalName: String, wasRenamed: Bool) {
+        let existingPresets = loadSoundPresets()
+        
+        // 동일 ID를 가진 기존 프리셋이 있는지 확인 (업데이트인지 체크)
+        let isUpdate = existingPresets.contains { $0.id == preset.id }
+        
+        if isUpdate {
+            // 업데이트의 경우 기존 로직 사용
+            var presets = existingPresets
+            if let index = presets.firstIndex(where: { $0.id == preset.id }) {
+                presets[index] = preset
+                if let encoded = try? JSONEncoder().encode(presets) {
+                    userDefaults.set(encoded, forKey: Keys.soundPresets)
+                    return (true, preset.name, false)
+                }
+            }
+            return (false, preset.name, false)
+        }
+        
+        // 새로운 프리셋 저장 시 중복 이름 체크
+        if isPresetNameExists(preset.name) && !allowOverwrite {
+            // 중복 이름이 있고 덮어쓰기를 허용하지 않는 경우 고유 이름 생성
+            let uniqueName = generateUniquePresetName(baseName: preset.name)
+            let renamedPreset = SoundPreset(
+                id: preset.id,
+                name: uniqueName,
+                volumes: preset.volumes,
+                emotion: preset.emotion,
+                isAIGenerated: preset.isAIGenerated,
+                description: preset.description,
+                scientificBasis: preset.scientificBasis,
+                createdDate: preset.createdDate,
+                selectedVersions: preset.selectedVersions,
+                presetVersion: preset.presetVersion,
+                lastUsed: preset.lastUsed
+            )
+            
+            // 기존 saveSoundPreset 사용
+            saveSoundPreset(renamedPreset)
+            return (true, uniqueName, true)
+        } else {
+            // 중복이 없거나 덮어쓰기를 허용하는 경우
+            if allowOverwrite && isPresetNameExists(preset.name) {
+                // 동일 이름의 기존 프리셋 삭제
+                var presets = existingPresets
+                presets.removeAll { $0.name.lowercased() == preset.name.lowercased() }
+                presets.append(preset)
+                
+                if let encoded = try? JSONEncoder().encode(presets) {
+                    userDefaults.set(encoded, forKey: Keys.soundPresets)
+                    print("🔄 [SettingsManager] 프리셋 덮어쓰기: \(preset.name)")
+                }
+            } else {
+                // 기존 saveSoundPreset 사용
+                saveSoundPreset(preset)
+            }
+            return (true, preset.name, false)
+        }
+    }
 }
