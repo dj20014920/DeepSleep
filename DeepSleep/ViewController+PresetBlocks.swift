@@ -157,25 +157,25 @@ extension ViewController {
         // 🛡️ UI 업데이트를 메인 스레드에서 실행
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            
-            // 최근 사용한 프리셋 버튼 업데이트
+        
+        // 최근 사용한 프리셋 버튼 업데이트
             for (index, button) in self.recentPresetButtons.enumerated() {
-                if index < recentPresets.count {
-                    let preset = recentPresets[index]
+            if index < recentPresets.count {
+                let preset = recentPresets[index]
                     self.configurePresetButton(button, with: preset, isEmpty: false)
-                    print("  - 최근 프리셋 \(index): \(preset.name)")
-                } else {
+                print("  - 최근 프리셋 \(index): \(preset.name)")
+            } else {
                     self.configureEmptyPresetButton(button)
-                }
             }
-            
-            // 즐겨찾기 프리셋 버튼 업데이트
+        }
+        
+        // 즐겨찾기 프리셋 버튼 업데이트
             for (index, button) in self.favoritePresetButtons.enumerated() {
-                if index < favoritePresets.count {
-                    let preset = favoritePresets[index]
+            if index < favoritePresets.count {
+                let preset = favoritePresets[index]
                     self.configurePresetButton(button, with: preset, isEmpty: false)
-                    print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
-                } else {
+                print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
+            } else {
                     self.configureEmptyPresetButton(button)
                 }
             }
@@ -265,8 +265,8 @@ extension ViewController {
                 nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor)
             ])
             
-            button.backgroundColor = UIColor.systemGray6
-            button.layer.borderColor = UIColor.systemGray4.cgColor
+        button.backgroundColor = UIColor.systemGray6
+        button.layer.borderColor = UIColor.systemGray4.cgColor
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 12
             

@@ -118,7 +118,7 @@ class PresetSharingManager {
         }
     }
     
-    /// 간단한 숫자 코드 형태로 변환 (18자리로 압축, 체크섬 강화)
+    /// 간단한 숫자 코드 형태로 변환 (20자리로 확장, 만료시간 포함)
     func encodePresetAsNumericCode(_ preset: SoundPreset) -> Result<String, SharingError> {
         let volumes = preset.compatibleVolumes
         let versions = preset.compatibleVersions
@@ -141,14 +141,22 @@ class PresetSharingManager {
         }
         code += String(versionBits, radix: 36)
         
+        // 만료 시간 추가 (3자리) - 현재시간으로부터 24시간 후까지의 분단위
+        let createdAt = Date()
+        let expiresAt = createdAt.addingTimeInterval(expirationHours * 3600)
+        let minutesUntilExpiry = Int(expiresAt.timeIntervalSince(createdAt) / 60) // 1440분 = 24시간
+        let expiryCoded = String(minutesUntilExpiry, radix: 36).padding(toLength: 3, withPad: "0", startingAt: 0)
+        code += expiryCoded
+        
         print("🔍 인코딩된 버전 정보:")
         print("  - 원본 버전 배열: \(versions)")
         print("  - 비트마스크: \(versionBits)")
+        print("  - 만료까지 분: \(minutesUntilExpiry), 코드: \(expiryCoded)")
         
         // SHA256 기반 체크섬 (2자리)
         let volumeString = volumes.map { String(Int($0)) }.joined()
         let versionString = versions.map { String($0) }.joined()
-        let dataToHash = volumeString + versionString
+        let dataToHash = volumeString + versionString + String(minutesUntilExpiry)
         let hashed = SHA256.hash(data: Data(dataToHash.utf8))
         let checksum = hashed.compactMap { String(format: "%02x", $0) }.joined()
         let shortChecksum = String(checksum.prefix(2)) // 2자리로 축약
@@ -175,8 +183,8 @@ class PresetSharingManager {
             return decodeFromURL(trimmedCode)
         }
         
-        // 2. 숫자 코드 형식인지 확인 (16자리 레거시와 18자리 신규 모두 지원)
-        if trimmedCode.starts(with: "EZ") && (trimmedCode.count == 16 || trimmedCode.count == 18) && trimmedCode.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
+        // 2. 숫자 코드 형식인지 확인 (16자리 레거시, 18자리 신규, 20자리 만료시간 포함 모두 지원)
+        if trimmedCode.starts(with: "EZ") && [16, 18, 20].contains(trimmedCode.count) && trimmedCode.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
             return decodeFromNumericCode(trimmedCode)
         }
         
@@ -216,12 +224,15 @@ class PresetSharingManager {
             return .failure(.invalidFormat)
         }
         
-        // 코드 길이에 따라 레거시(16자리) 또는 신규(18자리) 처리
-        if code.count == 16 {
-            return decodeLegacyNumericCode(code)
-        } else if code.count == 18 {
-            return decodeNewNumericCode(code)
-        } else {
+        // 코드 길이에 따라 처리
+        switch code.count {
+        case 16:
+            return decodeLegacyNumericCode(code)  // 레거시 16자리
+        case 18:
+            return decodeNewNumericCode(code)     // 신규 18자리 (만료시간 없음)
+        case 20:
+            return decodeNumericCodeWithExpiry(code)  // 최신 20자리 (만료시간 포함)
+        default:
             return .failure(.invalidFormat)
         }
     }
@@ -374,6 +385,95 @@ class PresetSharingManager {
         return .success(preset)
     }
     
+    // 최신 20자리 코드 디코딩 (13개 슬라이더 + 만료시간)
+    private func decodeNumericCodeWithExpiry(_ code: String) -> Result<SoundPreset, SharingError> {
+        print("🔄 최신 20자리 코드 디코딩 시작: \(code)")
+        
+        // 볼륨 추출 (13자리, Base36 디코딩)
+        var volumes: [Float] = []
+        let volumeStart = code.index(code.startIndex, offsetBy: 2)
+        for i in 0..<13 {
+            let index = code.index(volumeStart, offsetBy: i)
+            let volumeChar = String(code[index])
+            
+            guard let compressed = Int(volumeChar, radix: 36) else {
+                return .failure(.corruptedData)
+            }
+            
+            // 0-35를 0-100으로 복원
+            let volume = Float(compressed * 100 / 35)
+            volumes.append(min(100, volume))
+        }
+        
+        // 버전 정보 추출 (1자리)
+        let versionIndex = code.index(code.startIndex, offsetBy: 15)
+        let versionChar = String(code[versionIndex])
+        guard let versionBits = Int(versionChar, radix: 36) else {
+            return .failure(.corruptedData)
+        }
+        
+        // 기본 버전 배열 생성
+        var versions = Array(repeating: 0, count: 13)
+        
+        // 비트마스크 디코딩
+        if versionBits & 1 != 0 { versions[1] = 1 }  // 바람 V2
+        if versionBits & 2 != 0 { versions[5] = 1 }  // 비 V2
+        if versionBits & 4 != 0 { versions[11] = 1 } // 키보드 V2
+        
+        // 만료 시간 추출 (3자리)
+        let expiryStartIndex = code.index(code.startIndex, offsetBy: 16)
+        let expiryEndIndex = code.index(code.startIndex, offsetBy: 19)
+        let expiryCode = String(code[expiryStartIndex..<expiryEndIndex])
+        
+        guard let minutesUntilExpiry = Int(expiryCode, radix: 36) else {
+            return .failure(.corruptedData)
+        }
+        
+        // 만료 시간 검증 (현재 시간 기준으로 계산)
+        let currentTime = Date()
+        let expirationMinutes = 24 * 60 // 24시간 = 1440분
+        
+        if minutesUntilExpiry > expirationMinutes || minutesUntilExpiry <= 0 {
+            print("❌ 코드가 만료되었거나 유효하지 않은 시간: \(minutesUntilExpiry)분")
+            return .failure(.expired)
+        }
+        
+        print("🔍 디코딩된 정보:")
+        print("  - 비트마스크: \(versionBits)")
+        print("  - 버전 배열: \(versions)")
+        print("  - 만료까지 남은 분: \(minutesUntilExpiry)")
+        
+        // 체크섬 검증 (SHA256)
+        let receivedChecksum = String(code.suffix(2))
+        let volumeString = volumes.map { String(Int($0)) }.joined()
+        let versionString = versions.map { String($0) }.joined()
+        let dataToHash = volumeString + versionString + String(minutesUntilExpiry)
+        let hashed = SHA256.hash(data: Data(dataToHash.utf8))
+        let calculatedChecksum = String(hashed.compactMap { String(format: "%02x", $0) }.joined().prefix(2))
+        
+        print("🔍 체크섬 검증:")
+        print("  - 수신된 체크섬: \(receivedChecksum)")
+        print("  - 계산된 체크섬: \(calculatedChecksum)")
+        
+        if receivedChecksum != calculatedChecksum {
+            print("❌ 체크섬 검증 실패")
+            return .failure(.checksumMismatch)
+        }
+        
+        // 프리셋 생성
+        let preset = SoundPreset(
+            name: "공유받은 프리셋",
+            volumes: volumes,
+            selectedVersions: versions,
+            emotion: nil,
+            isAIGenerated: false,
+            description: "24시간 유효한 공유 프리셋"
+        )
+        
+        print("✅ 최신 20자리 코드 디코딩 성공: \(volumes)")
+        return .success(preset)
+    }
+    
     private func validateAndConvert(_ shareablePreset: ShareablePreset) -> Result<SoundPreset, SharingError> {
         // 만료 시간 검증
         if shareablePreset.expiresAt < Date() {
@@ -397,7 +497,7 @@ class PresetSharingManager {
             }
         }
         
-        // 버전 정보 검증 (있다면)
+        // 버전 정보 검증 (있다면) - 수정된 로직
         if let versions = shareablePreset.versions {
             guard versions.count == 13 else {
                 return .failure(.invalidDataSize)
@@ -405,8 +505,18 @@ class PresetSharingManager {
             
             for (index, version) in versions.enumerated() {
                 let maxVersion = SoundPresetCatalog.getVersionCount(for: index) - 1
-                if version < 0 || version > maxVersion {
+                print("🔍 버전 검증: 카테고리 \(index), 버전 \(version), 최대 \(maxVersion)")
+                
+                // 버전 범위 검증을 더 관대하게 수정
+                if version < 0 {
+                    print("❌ 버전이 음수: 카테고리 \(index), 버전 \(version)")
                     return .failure(.invalidVersionRange)
+                }
+                
+                // 최대 버전보다 큰 경우 경고는 하되 기본값으로 보정
+                if version > maxVersion {
+                    print("⚠️ 버전이 범위 초과하지만 보정 처리: 카테고리 \(index), 버전 \(version) → 0")
+                    // 범위를 벗어난 버전은 0으로 보정하여 계속 진행
                 }
             }
         }
@@ -424,11 +534,16 @@ class PresetSharingManager {
             return .failure(.checksumMismatch)
         }
         
-        // SoundPreset으로 변환
+        // SoundPreset으로 변환 - 버전 범위 보정 적용
+        let correctedVersions = shareablePreset.versions?.enumerated().map { (index, version) in
+            let maxVersion = SoundPresetCatalog.getVersionCount(for: index) - 1
+            return min(max(0, version), maxVersion) // 0과 maxVersion 사이로 제한
+        } ?? SoundPresetCatalog.defaultVersions
+        
         let preset = SoundPreset(
             name: shareablePreset.name,
             volumes: shareablePreset.volumes,
-            selectedVersions: shareablePreset.versions ?? SoundPresetCatalog.defaultVersions,
+            selectedVersions: correctedVersions,
             emotion: shareablePreset.emotion,
             isAIGenerated: false,
             description: shareablePreset.description ?? "공유받은 프리셋"

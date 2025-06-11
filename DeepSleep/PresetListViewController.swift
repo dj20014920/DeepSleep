@@ -8,6 +8,10 @@ class PresetTableViewCell: UITableViewCell {
     var onFavoriteToggle: (() -> Void)?
     var onSelectionToggle: (() -> Void)?
     
+    // Constraint references for dynamic adjustment
+    private var titleLeadingConstraint: NSLayoutConstraint!
+    private var subtitleLeadingConstraint: NSLayoutConstraint!
+    
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 16, weight: .medium)
@@ -55,13 +59,17 @@ class PresetTableViewCell: UITableViewCell {
         favoriteButton.addTarget(self, action: #selector(favoriteButtonTapped), for: .touchUpInside)
         selectionButton.addTarget(self, action: #selector(selectionButtonTapped), for: .touchUpInside)
         
+        // Create constraint references for dynamic adjustment
+        titleLeadingConstraint = titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+        subtitleLeadingConstraint = subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+        
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            titleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8),
+            titleLeadingConstraint,
             titleLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -8),
             
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            subtitleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8),
+            subtitleLeadingConstraint,
             subtitleLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -8),
             subtitleLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
             
@@ -95,17 +103,23 @@ class PresetTableViewCell: UITableViewCell {
         // 선택 모드 UI 업데이트
         selectionButton.isHidden = !isInSelectionMode
         
+        updateSelectionMode(isInSelectionMode)
+        
         if isInSelectionMode {
             selectionButton.setTitle(isSelected ? "☑️" : "☐", for: .normal)
             selectionButton.setTitleColor(isSelected ? .systemBlue : .systemGray3, for: .normal)
-            
-            // 선택 모드일 때 titleLabel 위치 조정
-            titleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8).isActive = true
-            subtitleLabel.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 8).isActive = true
-        } else {
-            // 일반 모드일 때 titleLabel 위치 조정  
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16).isActive = true
-            subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16).isActive = true
+        }
+    }
+    
+    func updateSelectionMode(_ isSelectionMode: Bool) {
+        selectionButton.isHidden = !isSelectionMode
+        
+        // Update leading constraints based on selection mode
+        titleLeadingConstraint.constant = isSelectionMode ? 54 : 16  // 16 + 30 + 8 = 54
+        subtitleLeadingConstraint.constant = isSelectionMode ? 54 : 16
+        
+        UIView.animate(withDuration: 0.2) {
+            self.layoutIfNeeded()
         }
     }
 }

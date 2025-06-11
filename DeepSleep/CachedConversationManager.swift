@@ -36,29 +36,29 @@ class CachedConversationManager {
     }
     
     struct WeeklyMemory: Codable {
-    let emotionalPattern: String
-    let recurringThemes: [String]
-    let userConcerns: [String]
-    let keyAdvice: [String]
-    let progressNotes: [String]
-    let totalMessages: Int
-    
-    // 🆕 로컬 AI 추천 기록 추가
-    let localAIRecommendations: [LocalAIRecommendationRecord]
-    let preferredSoundCategories: [String]
-    let optimalListeningTimes: [String]
-}
+        let emotionalPattern: String
+        let recurringThemes: [String]
+        let userConcerns: [String]
+        let keyAdvice: [String]
+        let progressNotes: [String]
+        let totalMessages: Int
+        
+        // 🆕 로컬 AI 추천 기록 추가
+        let localAIRecommendations: [LocalAIRecommendationRecord]
+        let preferredSoundCategories: [String]
+        let optimalListeningTimes: [String]
+    }
 
-// 🆕 로컬 AI 추천 기록 구조체
-struct LocalAIRecommendationRecord: Codable {
-    let date: Date
-    let recommendationType: String // "local" or "ai"
-    let presetName: String
-    let confidence: Float
-    let userContext: String
-    let volumes: [Float]
-    let versions: [Int]
-}
+    // 🆕 로컬 AI 추천 기록 구조체
+    struct LocalAIRecommendationRecord: Codable {
+        let date: Date
+        let recommendationType: String // "local" or "ai"
+        let presetName: String
+        let confidence: Float
+        let userContext: String
+        let volumes: [Float]
+        let versions: [Int]
+    }
     
     // MARK: - 캐시 관리 (14일 보존 + 3일 raw 시스템)
     var currentCache: CachedConversation?
@@ -868,8 +868,8 @@ struct LocalAIRecommendationRecord: Codable {
                 #if DEBUG
                 print("❌ 캐시 저장 실패")
                 #endif
-            }
         }
+    }
     
     private func safeLoadCacheFromStorage() {
             currentCache = UserDefaults.standard.getCacheData(CachedConversation.self, forKey: "currentConversationCache")
@@ -921,7 +921,7 @@ struct LocalAIRecommendationRecord: Codable {
         // ✅ loadWeeklyMessages 메서드 수정 (UserDefaults 확장 사용)
         private func loadWeeklyMessages() -> [ChatMessage] {
             return UserDefaults.standard.loadWeeklyMessages()
-        }
+                }
     
 
     
@@ -1002,11 +1002,11 @@ struct LocalAIRecommendationRecord: Codable {
             addConversation(messages: messages, context: context)
         }
         
-        #if DEBUG
+            #if DEBUG
         print("✅ [테스트 대화 생성 완료] 3개 대화 추가됨")
         print("📊 현재 캐시 상태: \(currentCache?.conversationCount ?? 0)회 대화")
-        #endif
-    }
+            #endif
+        }
     
     // MARK: - ✅ 캐시 상태 출력
     func printCacheStatus() {
@@ -1027,10 +1027,10 @@ struct LocalAIRecommendationRecord: Codable {
             return "AI"
         default:
             return "시스템"
-        }
+       }
     }
     
-
+    // 캐시 새로고침 메서드는 기존 구조에 맞게 제거
 }
 
 // MARK: - ✅ 컨텍스트 열거형

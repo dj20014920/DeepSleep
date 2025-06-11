@@ -70,7 +70,7 @@ extension ChatViewController {
             messages = chatManager.messages
         } else {
             // Fallback: 기존 방식
-            appendChat(userMessage)
+        appendChat(userMessage)
         }
         
         // UI 업데이트
@@ -228,7 +228,7 @@ extension ChatViewController {
             
         case .flagged(let warning, let cleanInput):
             let warningMessage = ChatMessage(type: .bot, text: "⚠️ \(warning)\n\n정화된 입력으로 처리하겠습니다.")
-            appendChat(warningMessage)
+           appendChat(warningMessage)
             finalInput = cleanInput
             
         case .approved(let sanitizedInput):
@@ -263,7 +263,7 @@ extension ChatViewController {
         // 🔒 **3단계: 사용량 제한 확인**
         guard AIUsageManager.shared.canUse(feature: .chat) else {
             let limitMessage = ChatMessage(type: .error, text: "하루 채팅 사용량을 모두 사용했어요. 내일 다시 만나요! 😊")
-            appendChat(limitMessage)
+        appendChat(limitMessage)
             // 사용자에게 alert로도 안내
             DispatchQueue.main.async {
                 let alert = UIAlertController(title: "사용량 초과", message: "하루 채팅 사용량을 모두 사용했습니다. 내일 다시 이용해주세요!", preferredStyle: .alert)
@@ -318,12 +318,12 @@ extension ChatViewController {
                         
                         // 대안 응답 제공
                         let alternativeMessage = ChatMessage(type: .bot, text: "죄송해요, 더 안전한 방식으로 다시 질문해 주시겠어요? 😊")
-                        self.appendChat(alternativeMessage)
+              self.appendChat(alternativeMessage)
                     }
                 } else {
                     // 8. 에러 처리
                     let errorMessage = ChatMessage(type: .error, text: "응답을 불러올 수 없어요. 네트워크 연결을 확인하고 다시 시도해주세요.")
-                    self.appendChat(errorMessage)
+      self.appendChat(errorMessage)
                 }
             }
         }
@@ -367,7 +367,7 @@ extension ChatViewController {
     private func requestMasterComprehensiveRecommendation() {
         // 사용자 메시지 추가
         let userMessage = ChatMessage(type: .user, text: "🧠 지금까지의 모든 정보를 종합해서 완벽한 프리셋 추천받기")
-        appendChat(userMessage)
+    appendChat(userMessage)
         
         // 로딩 메시지 표시
         let loadingMessage = ChatMessage(type: .loading, text: "🔮 모든 데이터를 종합 분석 중...\n• 대화 기록 분석\n• 일기 감정 분석\n• 사용 패턴 분석\n• 환경 컨텍스트 분석")
@@ -452,7 +452,7 @@ extension ChatViewController {
         // 1. 프리셋 적용
         if let parentVC = self.parent as? ViewController {
             parentVC.applyPreset(
-                volumes: primary.optimizedVolumes,
+            volumes: primary.optimizedVolumes,
                 versions: primary.optimizedVersions,
                 name: primary.presetName,
                 presetId: nil,
@@ -868,18 +868,11 @@ extension ChatViewController {
     
     // MARK: - 🆕 로컬 프리셋 적용 (수정됨)
     private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
-        print("🎵 [applyLocalPreset] 프리셋 적용 시작: \(preset.name)")
+        print("🎵 [applyLocalPreset] 로컬 추천 적용 시작: \(preset.name)")
         print("  - 볼륨: \(preset.volumes)")
         print("  - 버전: \(preset.versions)")
         
-        // 1. 버전 정보를 SettingsManager에 저장
-        for (categoryIndex, versionIndex) in preset.versions.enumerated() {
-            if categoryIndex < SoundPresetCatalog.categoryCount {
-                SettingsManager.shared.updateSelectedVersion(for: categoryIndex, to: versionIndex)
-            }
-        }
-        
-        // 2. MainViewController 찾아서 applyPreset 한 번만 호출 (중복 방지)
+        // MainViewController를 직접 찾아서 적용 (UI 동기화 보장)
         if let mainVC = findMainViewController() {
             print("🔒 [applyLocalPreset] MainViewController 프리셋 적용 시작")
             mainVC.applyPreset(
@@ -891,10 +884,10 @@ extension ChatViewController {
             )
             print("🔓 [applyLocalPreset] MainViewController 직접 적용 완료")
             
-            // ✅ 최근 프리셋 UI 갱신 명시적 알림 발송
+            // ✅ 즉시 UI 업데이트 강제 실행
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
-                print("📡 [applyLocalPreset] 최근 프리셋 UI 갱신 알림 발송")
+                mainVC.updatePresetBlocks()
+                print("🔄 [applyLocalPreset] 프리셋 블록 UI 강제 갱신 완료")
             }
             
             // 메인 탭으로 이동
@@ -917,7 +910,7 @@ extension ChatViewController {
             )
             SettingsManager.shared.saveSoundPreset(newPreset)
             
-            // ✅ 최근 프리셋 UI 갱신 명시적 알림 발송
+            // ✅ Fallback에서도 최근 프리셋 UI 갱신 알림 발송
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
                 print("📡 [applyLocalPreset] Fallback 최근 프리셋 UI 갱신 알림 발송")
@@ -1327,7 +1320,7 @@ extension ChatViewController {
         for i in 0..<totalVolumes.count {
             if counts[i] > 0 {
                 totalVolumes[i] = totalVolumes[i] / Float(counts[i])
-            } else {
+        } else {
                 totalVolumes[i] = 50.0 // 기본값
             }
         }

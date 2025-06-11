@@ -280,23 +280,23 @@ class ChatBubbleCell: UITableViewCell {
 
         // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트) - bottomAnchor 제거로 다른 버블에 영향 안 줌
         NSLayoutConstraint.activate([
-            loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
+            loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 2),
             loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
-            loadingContainer.widthAnchor.constraint(equalToConstant: 120), // 2배 크게 + 텍스트 공간
-            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48), // 유연한 높이로 변경
+            loadingContainer.widthAnchor.constraint(equalToConstant: 200),
+            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
             // ✅ bottomAnchor 제거 - 다른 버블에 영향주지 않도록
             
-            // ✅ 고양이 뷰 (2배 크게)
             gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
-            gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor),
-            gifCatView.widthAnchor.constraint(equalToConstant: 48), // 24 * 2
-            gifCatView.heightAnchor.constraint(equalToConstant: 48), // 24 * 2
+            gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor, constant: 0),
+            gifCatView.widthAnchor.constraint(equalToConstant: 48),
+            gifCatView.heightAnchor.constraint(equalToConstant: 48),
             
-            // ✅ 생각중 라벨 (고양이 시작 위치 왼쪽 밑에)
             thinkingLabel.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
-            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
-            thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -8)
+            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 2),
+            thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
         ])
+        thinkingLabel.numberOfLines = 1
+        thinkingLabel.lineBreakMode = .byTruncatingTail;
         
         // bubbleView 제약조건 복원 (우선순위 조정)
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
@@ -733,9 +733,9 @@ class ChatBubbleCell: UITableViewCell {
         let moveDistance: CGFloat = 2.5 // 한번에 이동할 거리 (기존 5px의 절반)
         
         catAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
-            guard let self = self else {
+            guard let self = self else { 
                 timer.invalidate()
-                return
+                return 
             }
             
             // 현재 위치에서 계속 오른쪽으로 이동
@@ -816,7 +816,7 @@ class ChatBubbleCell: UITableViewCell {
         
         // 고양이 GIF 시작
         startLoadingAnimation()
-        }
+    }
     
     // 🆕 퀵 액션 버튼들 구성 - 챗 버블 전체 너비에 맞게 확장
     private func configureQuickActionButtons(_ quickActions: [(String, String)]) {
