@@ -1,6 +1,0 @@
-Target dependency graph (3 targets)
-Target 'DeepSleep' in project 'DeepSleep'
-➜ Explicit dependency on target 'FSCalendar' in project 'FSCalendar'
-Target 'FSCalendar' in project 'FSCalendar'
-➜ Explicit dependency on target 'FSCalendar' in project 'FSCalendar'
-Target 'FSCalendar' in project 'FSCalendar' (no dependencies)
