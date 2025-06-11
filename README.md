@@ -118,24 +118,6 @@ open DeepSleep.xcodeproj   # ⌘R 로 실행
 
 ⸻
 
-🧪 테스트
-
-⌘ U   # Xcode 단위·UI 테스트 실행
-
-	•	SoundManager 동시 재생
-	•	프리셋 저장/로드
-	•	AI 응답 파싱
-	•	메모리 누수 (Instruments)
-
-⸻
-
-📄 라이선스
-
-MIT © 2025 DongDong
-사운드 리소스: Pixabay(CC0) & 자체 제작 ( Assets/Sounds/LICENSES.md 참고 )
-
-⸻
-
 
 <div align="center">
 
