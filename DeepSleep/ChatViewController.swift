@@ -151,6 +151,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         #if DEBUG
         setupDebugGestures()
         #endif
+        tableView.contentInset.bottom = 18
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -844,14 +845,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     deinit {
-        NotificationCenter.default.removeObserver(self)
-        
-        // ✅ 최종 세션 시간 기록
-        recordSessionTime()
-        
-        #if DEBUG
+        // 메모리 해제 시 간단한 정리만 수행
+        messages.removeAll()
         print("🗑️ ChatViewController 메모리 해제")
-        #endif
     }
 }
 
@@ -1162,11 +1158,11 @@ extension ChatViewController {
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            tableView.bottomAnchor.constraint(equalTo: presetButton.topAnchor, constant: -12),
+            tableView.bottomAnchor.constraint(equalTo: presetButton.topAnchor, constant: 0), // ✅ 간격 완전 제거
 
             presetButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             presetButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            presetButton.bottomAnchor.constraint(equalTo: inputContainerView.topAnchor, constant: -12),
+            presetButton.bottomAnchor.constraint(equalTo: inputContainerView.topAnchor, constant: -8), // ✅ 12 → 8로 간격 줄임
             presetButton.heightAnchor.constraint(equalToConstant: 50),
 
             inputTextField.leadingAnchor.constraint(equalTo: inputContainerView.leadingAnchor, constant: 16),
@@ -1343,22 +1339,17 @@ extension ChatViewController {
     }
     
     func saveChatHistory() {
-        guard !messages.isEmpty else { return }
+        guard !messages.isEmpty else { 
+            print("💭 [ChatViewController] 저장할 메시지가 없음")
+            return 
+        }
         
-        // 새 세션 생성
-        let sessionId = UUID()
-        let _ = ChatManager.shared.createSession(id: sessionId, contextType: .general)
+        // 기존 ChatManager의 메시지에 새로운 메시지들만 추가 (중복 방지)
+        let existingCount = ChatManager.shared.messages.count
+        let newMessages = messages.dropFirst(existingCount)
         
-        // 메시지들을 StoredChatMessage로 변환하여 저장
-        for message in messages {
-            let storedMessage = StoredChatMessage(
-                id: UUID(),
-                type: message.type == .user ? .user : .bot,
-                text: message.text,
-                timestamp: Date(),
-                metadata: nil
-            )
-            ChatManager.shared.addMessage(to: sessionId, message: storedMessage)
+        for message in newMessages {
+            ChatManager.shared.append(message)
         }
         
         print("✅ [ChatViewController] 채팅 기록 저장 완료: \(messages.count)개 메시지")
@@ -2243,6 +2234,12 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     saveAsNew: true
                 )
                 print("🔓 [applyClaudePreset] 프리셋 적용 완료")
+                
+                // ✅ 즉시 UI 업데이트 강제 실행
+                DispatchQueue.main.async {
+                    mainVC.updatePresetBlocks()
+                    print("🔄 [applyClaudePreset] 프리셋 블록 UI 강제 갱신 완료")
+                }
                 
                 // 5. 메인 탭으로 이동 (UI/UX 개선)
                 if let tabBarController = mainVC.tabBarController, tabBarController.selectedIndex != 0 {

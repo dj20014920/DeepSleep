@@ -243,7 +243,7 @@ extension ViewController {
                     print("💾 [applyPreset] 신규 프리셋 저장 완료: \(result.finalName)")
                     showToast(message: "'\(result.finalName)' 프리셋이 저장되었습니다")
                 }
-            } else {
+        } else {
                 print("❌ [applyPreset] 프리셋 저장 실패: \(name)")
                 showToast(message: "프리셋 저장에 실패했습니다")
             }

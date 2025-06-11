@@ -123,11 +123,29 @@ class SettingsManager {
     func saveSoundPreset(_ preset: SoundPreset) {
         var presets = loadSoundPresets()
         
+        // ✅ 새로 저장되는 프리셋의 lastUsed를 현재 시간으로 설정
+        var updatedPreset = preset
+        if preset.lastUsed == nil {
+            updatedPreset = SoundPreset(
+                id: preset.id,
+                name: preset.name,
+                volumes: preset.volumes,
+                emotion: preset.emotion,
+                isAIGenerated: preset.isAIGenerated,
+                description: preset.description,
+                scientificBasis: preset.scientificBasis,
+                createdDate: preset.createdDate,
+                selectedVersions: preset.selectedVersions,
+                presetVersion: preset.presetVersion,
+                lastUsed: Date() // ✅ 현재 시간으로 설정
+            )
+        }
+        
         // ID가 같으면 덮어쓰기 (이름 대신 ID 사용)
-        if let index = presets.firstIndex(where: { $0.id == preset.id }) {
-            presets[index] = preset
+        if let index = presets.firstIndex(where: { $0.id == updatedPreset.id }) {
+            presets[index] = updatedPreset
         } else {
-            presets.append(preset)
+            presets.append(updatedPreset)
         }
         
         if let encoded = try? JSONEncoder().encode(presets) {
@@ -140,7 +158,13 @@ class SettingsManager {
               let presets = try? JSONDecoder().decode([SoundPreset].self, from: data) else {
             return []
         }
-        return presets.sorted { $0.createdDate > $1.createdDate }
+        
+        // ✅ 수정: lastUsed 기준으로 정렬 (nil인 경우 createdDate 사용)
+        return presets.sorted { preset1, preset2 in
+            let date1 = preset1.lastUsed ?? preset1.createdDate
+            let date2 = preset2.lastUsed ?? preset2.createdDate
+            return date1 > date2
+        }
     }
     
     // ✅ 프리셋의 날짜만 업데이트하여 '최근 사용'으로 만드는 함수
@@ -492,7 +516,7 @@ class SettingsManager {
                 createdDate: preset.createdDate,
                 selectedVersions: preset.selectedVersions,
                 presetVersion: preset.presetVersion,
-                lastUsed: preset.lastUsed
+                lastUsed: Date() // ✅ 수정: 현재 시간으로 설정
             )
             
             // 기존 saveSoundPreset 사용

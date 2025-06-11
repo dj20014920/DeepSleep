@@ -145,7 +145,7 @@ extension ChatViewController {
         return EnhancedRecommendationResponse(
             volumes: filteredVolumes,
             selectedVersions: versions,
-            presetName: presetName
+            presetName: safePresetName(presetName)
         )
     }
     
@@ -219,7 +219,7 @@ extension ChatViewController {
         return EnhancedRecommendationResponse(
             volumes: filteredVolumes,
             selectedVersions: SoundPresetCatalog.defaultVersions,
-            presetName: presetName
+            presetName: safePresetName(presetName)
         )
     }
     
@@ -239,7 +239,7 @@ extension ChatViewController {
         return EnhancedRecommendationResponse(
             volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
             selectedVersions: generateOptimalVersions(volumes: volumes),
-            presetName: "🌊 마음 달래는 소리"
+            presetName: safePresetName("🌊 마음 달래는 소리")
         )
     }
     
@@ -338,7 +338,7 @@ extension ChatViewController {
         return EnhancedRecommendationResponse(
             volumes: volumes,
             selectedVersions: generateOptimalVersions(volumes: volumes),
-            presetName: koreanName,
+            presetName: safePresetName(koreanName),
             explanation: description,
             confidence: 0.9,
             scientificBasis: description,
@@ -431,5 +431,13 @@ extension ChatViewController {
         ]
         
         return nameMapping[englishName] ?? "🎵 \(englishName)"
+    }
+    
+    // 사람이 읽을 수 없는 이름(배열/숫자/비문자열 등) 방어용 함수
+    private func safePresetName(_ name: Any?) -> String {
+        if let str = name as? String, str.count > 1, !str.contains("[") && !str.contains("]") && !str.contains(",") && str.rangeOfCharacter(from: .letters) != nil {
+            return str
+        }
+        return "🧠 AI 추천 프리셋"
     }
 }
