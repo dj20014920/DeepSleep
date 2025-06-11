@@ -88,6 +88,9 @@ final class SoundManager {
         return players.contains { $0.isPlaying }
     }
     
+    // MARK: - 🆕 Scene 상태 추적을 위한 프로퍼티 추가
+    private var isSceneActive: Bool = true
+    
     private init() {
         // 저장된 오디오 모드 불러오기
         loadSavedAudioMode()
@@ -536,7 +539,11 @@ final class SoundManager {
         
         // 🆕 전체 멈춤 플래그 해제
         isGloballyPaused = false
-        print("  - isGloballyPaused = false로 설정")
+        
+        // 🆕 사용자가 명시적으로 재생한 것으로 기록 (수동 멈춤 해제)
+        UserDefaults.standard.set(false, forKey: "wasManuallyPaused")
+        
+        print("  - isGloballyPaused = false로 설정, 수동 멈춤 해제됨")
         
         var playedSomething = false
         var currentVolumes: [Float] = []
@@ -574,8 +581,6 @@ final class SoundManager {
         if playedSomething {
             updateNowPlayingPlaybackStatus() // 전체 재생 상태 업데이트
             print("  - NowPlayingInfo 업데이트 완료")
-        } else {
-            print("  - 재생할 플레이어가 없어 NowPlayingInfo 업데이트 건너뜀")
         }
     }
     
@@ -721,6 +726,9 @@ final class SoundManager {
         // 🆕 전체 멈춤 플래그 설정
         isGloballyPaused = true
         
+        // 🆕 사용자가 명시적으로 멈춘 것으로 기록
+        UserDefaults.standard.set(true, forKey: "wasManuallyPaused")
+        
         for player in players {
             currentVolumes.append(player.volume * 100.0)
             if player.isPlaying {
@@ -729,7 +737,7 @@ final class SoundManager {
             }
         }
         
-        print("🔇 SoundManager: pauseAll() 호출됨 - isGloballyPaused = true")
+        print("🔇 SoundManager: pauseAll() 호출됨 - isGloballyPaused = true, 수동 조작 기록됨")
         
         // Phase 2: 피드백 세션 종료
         if pausedSomething {
@@ -920,7 +928,7 @@ final class SoundManager {
         // 기존 매핑 유지 (임시)
         let legacyMapping: [String: Int] = [
             "Rain": 4,      // 🌧️ 비
-            "Thunder": 4,   // ��️ 비 (천둥 소리가 없으므로 비로 매핑)
+            "Thunder": 4,   // 🌧️ 비 (천둥 소리가 없으므로 비로 매핑)
             "Ocean": 10,    // 🌊 파도
             "Fire": 3,      // 🔥 불
             "Steam": 5,     // 🏞️ 시냇물 (비슷한 소리)
@@ -1255,6 +1263,32 @@ final class SoundManager {
         return players[index].volume
     }
     
+    /// 🆕 Scene 상태 변경 감지 메서드 (AppDelegate에서 호출)
+    func handleSceneStateChange(isActive: Bool) {
+        print("🔄 [SoundManager] Scene 상태 변경: \(isActive ? "활성" : "비활성")")
+        isSceneActive = isActive
+        
+        if !isActive {
+            // Scene이 비활성화될 때 자동 재생 방지
+            isGloballyPaused = true
+            print("🔇 [SoundManager] Scene 비활성화로 인한 자동 멈춤 설정")
+        }
+    }
 
+    /// 🆕 Scene 복귀 시 상태 복원 메서드
+    func restorePlaybackStateIfNeeded() {
+        guard isSceneActive else { return }
+        
+        // 사용자가 명시적으로 멈췄는지 확인 (UserDefaults 활용)
+        let wasManuallyPaused = UserDefaults.standard.bool(forKey: "wasManuallyPaused")
+        
+        if !wasManuallyPaused {
+            // 자동 멈춤이었다면 재생 복원
+            isGloballyPaused = false
+            print("✅ [SoundManager] Scene 복귀로 인한 재생 상태 복원")
+        } else {
+            print("⏸️ [SoundManager] 사용자가 명시적으로 멈춰서 복원하지 않음")
+        }
+    }
 }
 
