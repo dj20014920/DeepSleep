@@ -446,7 +446,9 @@ extension ChatViewController {
             parentVC.applyPreset(
                 volumes: primary.optimizedVolumes,
                 versions: primary.optimizedVersions,
-                name: primary.presetName
+                name: primary.presetName,
+                presetId: nil,
+                saveAsNew: true
             )
         }
         
@@ -876,7 +878,8 @@ extension ChatViewController {
                 volumes: preset.volumes,
                 versions: preset.versions,
                 name: preset.name,
-                shouldSaveToRecent: true
+                presetId: nil,
+                saveAsNew: true
             )
             print("🔓 [applyLocalPreset] MainViewController 직접 적용 완료")
             
@@ -2371,32 +2374,58 @@ extension ChatViewController {
     }
     
     private func applyAdvancedLocalPreset(_ recommendation: AdvancedRecommendation) {
-        print("🎯 [applyAdvancedLocalPreset] 로컬 추천 적용 시작")
-        print("  - 추천 볼륨: \(recommendation.volumes)")
-        print("  - 추천 버전: \(recommendation.versions)")
-        
-        // MainViewController 찾기
-        if let navController = parent as? UINavigationController,
-           let mainVC = navController.viewControllers.first as? ViewController {
-            
-            // ViewController의 applyPreset 메서드 한 번만 호출
+        // 프리셋 적용 로직
+        if let mainVC = findMainViewController() {
             mainVC.applyPreset(
                 volumes: recommendation.volumes,
                 versions: recommendation.versions,
                 name: recommendation.name,
-                shouldSaveToRecent: true
+                presetId: nil,
+                saveAsNew: true
             )
-            
-            print("✅ [applyAdvancedLocalPreset] 로컬 추천 적용 완료 (신뢰도: \(Int(recommendation.confidence * 100))%)")
-            
-            // 메인 탭으로 이동
-            if let tabBarController = mainVC.tabBarController {
-                tabBarController.selectedIndex = 0
-                print("🏠 메인 탭으로 이동 완료")
-            }
-        } else {
-            print("⚠️ [applyAdvancedLocalPreset] MainViewController 접근 불가")
         }
+        
+        // 성공 메시지 표시
+        let successMessage = ChatMessage(
+            type: .bot,
+            text: "✅ **'\(recommendation.name)'** 프리셋이 성공적으로 적용되었습니다!"
+        )
+        appendChat(successMessage)
+    }
+    
+    /// 메인 뷰 컨트롤러를 찾는 헬퍼 함수
+    private func findViewController() -> ViewController? {
+        // 1. parent를 통해 찾기
+        if let parentVC = self.parent as? ViewController {
+            return parentVC
+        }
+        
+        // 2. navigation stack에서 찾기
+        if let navController = self.navigationController {
+            for viewController in navController.viewControllers {
+                if let mainVC = viewController as? ViewController {
+                    return mainVC
+                }
+            }
+        }
+        
+        // 3. tab bar에서 찾기
+        if let tabBarController = self.tabBarController {
+            for viewController in tabBarController.viewControllers ?? [] {
+                if let mainVC = viewController as? ViewController {
+                    return mainVC
+                }
+                if let navController = viewController as? UINavigationController {
+                    for vc in navController.viewControllers {
+                        if let mainVC = vc as? ViewController {
+                            return mainVC
+                        }
+                    }
+                }
+            }
+        }
+        
+        return nil
     }
     
     // MARK: - 누락된 메서드들 구현

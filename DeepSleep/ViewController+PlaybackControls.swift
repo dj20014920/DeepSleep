@@ -12,6 +12,7 @@ extension ViewController {
             SoundManager.shared.pause(at: index)
         } else {
             SoundManager.shared.play(at: index)
+            
         }
         
         updatePlayButtonStates()
@@ -26,6 +27,7 @@ extension ViewController {
         SoundManager.shared.updateNowPlayingInfo(presetName: "DeepSleep 믹스", isPlayingOverride: true)
         updatePlayButtonStates()
         provideMediumHapticFeedback()
+
     }
 
     @objc func pauseAllTapped() {
@@ -38,6 +40,7 @@ extension ViewController {
         SoundManager.shared.updateNowPlayingInfo(presetName: SoundManager.shared.currentPresetName, isPlayingOverride: false)
         updatePlayButtonStates()
         provideMediumHapticFeedback()
+
     }
     
     // MARK: - 실시간 재생 상태 모니터링

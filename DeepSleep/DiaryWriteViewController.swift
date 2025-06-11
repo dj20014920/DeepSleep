@@ -399,7 +399,6 @@ class DiaryWriteViewController: UIViewController {
         guard let diaryEntry = savedDiaryEntry else { return }
         
         let chatVC = ChatViewController()
-        chatVC.title = "일기 분석 대화"
         
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"
@@ -411,6 +410,7 @@ class DiaryWriteViewController: UIViewController {
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
     }
+    
     private func applyPresetToMainScreen(_ recommendation: RecommendationResponse) {
         // 메인 SoundViewController에 프리셋 적용
         NotificationCenter.default.post(

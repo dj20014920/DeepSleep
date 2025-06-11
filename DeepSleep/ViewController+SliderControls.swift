@@ -474,7 +474,7 @@ extension ViewController {
         provideMediumHapticFeedback()
     }
     
-    func updateSliderAndTextField(at index: Int, volume: Float) {
+    func updateSliderAndTextField(at index: Int, volume: Float, shouldPlay: Bool = true) {
         guard index >= 0, index < sliders.count else { return }
         
         // ✅ Float 볼륨값을 올바른 정수로 변환
@@ -494,9 +494,11 @@ extension ViewController {
         
         // 마스터 볼륨을 적용한 실제 볼륨을 SoundManager에 전달
         let actualVolume = Float(clampedVolume) * (masterVolumeLevel / 100.0)
-        SoundManager.shared.setVolume(at: index, volume: actualVolume)
         
-        print("🎚️ [updateSliderAndTextField] 인덱스 \(index): 입력볼륨=\(volume) → 표시볼륨=\(clampedVolume) → 실제볼륨=\(actualVolume)")
+        // 🆕 UI 업데이트 목적이면 forUIUpdate: true로 전달하여 재생 방지
+        SoundManager.shared.setVolume(at: index, volume: actualVolume, forUIUpdate: !shouldPlay)
+        
+        print("🎚️ [updateSliderAndTextField] 인덱스 \(index): 입력볼륨=\(volume) → 표시볼륨=\(clampedVolume) → 실제볼륨=\(actualVolume), shouldPlay=\(shouldPlay)")
     }
     
     // MARK: - 전체 볼륨 업데이트 (프리셋 적용 시 사용)

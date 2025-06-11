@@ -5,6 +5,7 @@ import MediaPlayer
 class ViewController: UIViewController {
     
     let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
+
     
     // MARK: - Properties (13개 카테고리로 업데이트)
     
@@ -31,6 +32,9 @@ class ViewController: UIViewController {
     var favoritePresetButtons: [UIButton] = []
     var presetStackView: UIStackView!
     
+    // 🛡️ 프리셋 업데이트 디바운싱을 위한 타이머
+    var updateTimer: Timer?
+    
     // 실시간 재생 상태 모니터링 (기존 유지)
     var playbackMonitorTimer: Timer?
     
@@ -39,6 +43,10 @@ class ViewController: UIViewController {
     var previewSliderUpdateTimer: Timer?
 
     var globalVolume: Float = 0.75 // 기본 글로벌 볼륨 (0.0 ~ 1.0) - 0.01에서 0.75로 변경
+    
+    // 🆕 초기화 상태 추적 플래그들
+    private var hasCompletedInitialSetup: Bool = false
+    private var hasPerformedDelayedInit: Bool = false
     
     // 오디오 모드 버튼
     var audioModeButton: UIButton!
@@ -104,7 +112,7 @@ class ViewController: UIViewController {
     
     /// 3단계: 지연 로딩 (viewDidAppear에서 호출)
     private func performDelayedInitialization() {
-        // ❌ 시간이 오래 걸리는 작업들을 여기로 이동
+        print("🚀 [performDelayedInitialization] 지연 초기화 시작")
         
         // 🆕 애플워치 헬스킷 초기화 (지연)
         Task {
@@ -119,12 +127,23 @@ class ViewController: UIViewController {
             }
         }
         
-        // 온디바이스 학습 (지연)
-        Task {
-            await checkAndTriggerOnDeviceLearning()
+        // 🆕 온디바이스 학습은 앱 시작 후 5분 후에만 실행 (성능 최적화)
+        let lastLearningTime = UserDefaults.standard.double(forKey: "lastOnDeviceLearningTime")
+        let now = Date().timeIntervalSince1970
+        let fiveMinutes = 5 * 60.0
+        
+        if now - lastLearningTime > fiveMinutes {
+            Task {
+                await checkAndTriggerOnDeviceLearning()
+                // 학습 시간 업데이트
+                UserDefaults.standard.set(now, forKey: "lastOnDeviceLearningTime")
+            }
+            print("🤖 [performDelayedInitialization] 온디바이스 학습 스케줄됨 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
+        } else {
+            print("⏭️ [performDelayedInitialization] 온디바이스 학습 스킵 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
         }
         
-        print("✅ 지연 초기화 시작")
+        print("✅ [performDelayedInitialization] 지연 초기화 완료")
     }
     
     /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)
@@ -150,25 +169,39 @@ class ViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        print("👍 [ViewController] viewWillAppear(_:) - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController))")
+        print("👍 [ViewController] viewWillAppear(_:) - isGloballyPaused: \(SoundManager.shared.isGloballyPaused)")
         
         updatePlayButtonStates()
         startPlaybackStateMonitoring()
-        updatePresetBlocks()
+        
+        // 🆕 프리셋 블록 업데이트는 초기화 완료 후에만
+        if hasCompletedInitialSetup {
+            updatePresetBlocks()
+        }
+        
         updateAudioModeButtonTitle() // 오디오 모드 버튼 제목 업데이트
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("👍 [ViewController] viewDidAppear(_:) - 🚀 지연 초기화 시작")
+        print("👍 [ViewController] viewDidAppear(_:) - hasPerformedDelayedInit: \(hasPerformedDelayedInit)")
         
         // ✅ 카테고리 버튼 UI 업데이트 (저장된 버전 정보 반영)
         updateAllCategoryButtonTitles()
         
         startPlaybackStateMonitoring()
         
-        // 🚀 3단계: 지연 초기화 실행 (화면이 완전히 표시된 후)
-        performDelayedInitialization()
+        // 🚀 지연 초기화는 최초 1회만 실행
+        if !hasPerformedDelayedInit {
+            hasPerformedDelayedInit = true
+            print("🚀 [ViewController] 지연 초기화 최초 실행")
+            performDelayedInitialization()
+        } else {
+            print("🔄 [ViewController] 지연 초기화 이미 완료됨 - 스킵")
+        }
+        
+        // 🆕 초기화 완료 플래그 설정
+        hasCompletedInitialSetup = true
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -182,6 +215,8 @@ class ViewController: UIViewController {
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LocalPresetApplied"), object: nil)
         NotificationCenter.default.removeObserver(self, name: .modelUpdated, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("FavoritesUpdated"), object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
         stopPlaybackStateMonitoring()
@@ -248,19 +283,7 @@ class ViewController: UIViewController {
     }
     
     private func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillShow),
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillHide),
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-        // ✅ ApplyPresetFromChat 알림 옵저버 추가
+        // 채팅에서 프리셋 적용 요청 받기
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleApplyPresetFromChat(_:)),
@@ -268,23 +291,7 @@ class ViewController: UIViewController {
             object: nil
         )
         
-        // 🆕 사운드 볼륨 업데이트 알림 옵저버 추가
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleSoundVolumesUpdated(_:)),
-            name: NSNotification.Name("SoundVolumesUpdated"),
-            object: nil
-        )
-        
-        // 🆕 ChatViewController에서 프리셋 적용 시 알림 옵저버 추가 (fallback용)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePresetAppliedFromChat(_:)),
-            name: NSNotification.Name("PresetAppliedFromChat"),
-            object: nil
-        )
-        
-        // 🆕 로컬 추천 프리셋 적용 알림 옵저버 추가
+        // 외부에서 로컬 프리셋 적용 알림 받기 (채팅 → 메인 뷰)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleLocalPresetApplied(_:)),
@@ -292,7 +299,15 @@ class ViewController: UIViewController {
             object: nil
         )
         
-        // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 추가
+        // SoundManager 볼륨 변경 동기화
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSoundVolumesUpdated(_:)),
+            name: NSNotification.Name("SoundVolumesUpdated"),
+            object: nil
+        )
+        
+        // 감정 분석 모델 업데이트 알림
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleModelUpdated),
@@ -300,7 +315,15 @@ class ViewController: UIViewController {
             object: nil
         )
         
-        // ✅ 즐겨찾기 업데이트 노티피케이션 구독 추가
+        // ✅ 최근 사용한 프리셋 갱신 알림 받기
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRecentPresetsUpdated),
+            name: NSNotification.Name("RecentPresetsUpdated"),
+            object: nil
+        )
+        
+        // ✅ 즐겨찾기 프리셋 갱신 알림 받기
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleFavoritesUpdated),
@@ -308,13 +331,7 @@ class ViewController: UIViewController {
             object: nil
         )
         
-        // ✅ 프리셋 블록 업데이트 알림 구독 추가
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePresetBlocksUpdate),
-            name: NSNotification.Name("PresetBlocksNeedUpdate"),
-            object: nil
-        )
+        print("✅ ViewController 알림 옵저버 설정 완료")
     }
     
     private func setupGestures() {
@@ -441,6 +458,8 @@ class ViewController: UIViewController {
         provideLightHapticFeedback()
         print("⚡ 빠른 볼륨 조정: \(presetVolume)%")
     }
+
+
     
     /// 랜덤 프리셋 생성
     @objc func generateRandomPreset() {
@@ -806,9 +825,9 @@ class ViewController: UIViewController {
 
     // 🆕 사운드 볼륨 업데이트 핸들러
     @objc private func handleSoundVolumesUpdated(_ notification: Notification) {
-        DispatchQueue.main.async { [weak self] in
-            self?.refreshSlidersFromSoundManager()
-        }
+        guard let volumes = notification.userInfo?["volumes"] as? [Float] else { return }
+        
+        applyPreset(volumes: volumes, name: "실시간 조절")
     }
     
     // 🆕 ChatViewController fallback 프리셋 적용 핸들러
@@ -862,6 +881,21 @@ class ViewController: UIViewController {
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            
+            // ✅ 프리셋 이름으로 실제 프리셋을 찾아서 ID 가져오기
+            let allPresets = SettingsManager.shared.loadSoundPresets()
+            if let foundPreset = allPresets.first(where: { $0.name == name }) {
+                SettingsManager.shared.updatePresetTimestamp(id: foundPreset.id)
+                print("  - 프리셋 ID \(foundPreset.id.uuidString)의 사용 시간 갱신 완료")
+            } else {
+                print("  - 프리셋 '\(name)'을 찾을 수 없어 사용 시간 갱신 생략")
+            }
+            
+            applyPreset(
+                volumes: volumes,
+                versions: versions,
+                name: name
+            )
             
             // UI 업데이트 (이미 SoundManager에 적용되어 있음)
             self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
@@ -968,10 +1002,47 @@ class ViewController: UIViewController {
             print("🔄 [ViewController [\(self.instanceUUID)] 로컬 추천 UI 업데이트 완료")
         }
     }
+    
+    // ✅ 최근 사용한 프리셋 갱신 처리
+    @objc private func handleRecentPresetsUpdated() {
+        print("🔄 [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 갱신 알림 수신")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.updatePresetBlocks()
+            print("✅ [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 UI 갱신 완료")
+        }
+    }
 }
 
-// MARK: - 프리셋 적용 (볼륨 및 버전)
+    // MARK: - 프리셋 적용 (볼륨 및 버전)
 extension ViewController {
     // ViewController+Utilities.swift의 applyPreset 함수 사용
     // 중복 함수 제거됨
+    // --- 아래는 실제 applyPreset 구현 예시 (ViewController+PresetBlocks.swift에서 override 가능) ---
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String? = nil) {
+        print("🎵 [applyPreset] 시작 - isGloballyPaused: \(SoundManager.shared.isGloballyPaused), name: \(name ?? "Unknown")")
+        
+        // 🆕 전체 멈춤 상태일 때는 볼륨만 설정하고 재생은 하지 않음
+        let shouldAutoPlay = !SoundManager.shared.isGloballyPaused
+        
+        // 볼륨과 버전 설정 (재생 여부와 관계없이)
+        for (i, volume) in volumes.enumerated() where i < sliders.count {
+            updateSliderAndTextField(at: i, volume: volume, shouldPlay: shouldAutoPlay)
+        }
+        
+        if let versions = versions {
+            // 버전 정보 적용
+            // updateVersionButtons(versions: versions) 등
+        }
+        
+        updatePlayButtonStates()
+        
+        if SoundManager.shared.isGloballyPaused {
+            print("🔇 [applyPreset] 전체 멈춤 상태로 볼륨만 설정, 재생하지 않음")
+            // 전체 멈춤 상태는 사용자가 명시적으로 해제할 때까지 유지
+        } else {
+            print("▶️ [applyPreset] 일반 프리셋 적용 및 재생")
+        }
+    }
 }

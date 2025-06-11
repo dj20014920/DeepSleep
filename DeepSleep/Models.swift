@@ -74,7 +74,8 @@ struct SoundPreset: Codable {
     let isAIGenerated: Bool
     let description: String?
     let scientificBasis: String?  // 과학적 근거
-    let createdDate: Date
+    var createdDate: Date         // 🛑 let에서 var로 변경하여 업데이트 가능하도록 함
+    var lastUsed: Date?           // ✅ 최근 사용 시간 추가
     
     // ✅ 새로 추가: 버전 정보 (11개 카테고리)
     let selectedVersions: [Int]?  // 각 카테고리별 선택된 버전 인덱스
@@ -90,6 +91,7 @@ struct SoundPreset: Codable {
         self.description = description
         self.scientificBasis = nil  // 기존 호환성을 위해 nil
         self.createdDate = Date()
+        self.lastUsed = nil         // ✅ 초기값은 nil
         
         // 기존 버전 호환성
         if volumes.count == 12 {
@@ -112,20 +114,41 @@ struct SoundPreset: Codable {
         self.description = description
         self.scientificBasis = scientificBasis
         self.createdDate = Date()
+        self.lastUsed = nil         // ✅ 초기값은 nil
         self.presetVersion = "v2.0"  // 항상 새 버전
+    }
+    
+    // MARK: - 내부 사용을 위한 전체 속성 초기화 (타임스탬프 업데이트 등에 사용)
+    internal init(id: UUID, name: String, volumes: [Float], emotion: String?, isAIGenerated: Bool, description: String?, scientificBasis: String?, createdDate: Date, selectedVersions: [Int]?, presetVersion: String, lastUsed: Date? = nil) {
+        self.id = id
+        self.name = name
+        self.volumes = volumes
+        self.emotion = emotion
+        self.isAIGenerated = isAIGenerated
+        self.description = description
+        self.scientificBasis = scientificBasis
+        self.createdDate = createdDate
+        self.selectedVersions = selectedVersions
+        self.presetVersion = presetVersion
+        self.lastUsed = lastUsed    // ✅ lastUsed 추가
     }
     
     // MARK: - 버전 호환성 메서드
     
     /// 11개 카테고리용 볼륨 배열 반환
     var compatibleVolumes: [Float] {
+        // v1.0 (12개) -> 13개로 변환 (패딩 1개)
         if presetVersion == "v1.0" && volumes.count == 12 {
-            // 기존 12개를 11개로 변환
-            return volumes.count == 13 ? volumes : Array(repeating: 0.0, count: 13)
-        } else {
-            // 이미 11개이거나 새 버전
-            return volumes
+            return volumes + [0.0]
         }
+        
+        // 초기 버전 (11개) -> 13개로 변환 (패딩 2개)
+        if volumes.count == 11 {
+            return volumes + [0.0, 0.0]
+        }
+        
+        // 크기가 이미 맞거나 다른 경우, 원본을 반환하여 applyPreset의 보정 로직에 위임
+        return volumes
     }
     
     /// 현재 선택된 버전들 반환 (없으면 기본값)

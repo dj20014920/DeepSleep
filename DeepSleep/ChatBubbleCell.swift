@@ -689,7 +689,6 @@ class ChatBubbleCell: UITableViewCell {
         
         optionButtonStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         optionButtonStackView.isHidden = true
-        print("[ChatBubbleCell] prepareForReuse - optionButtonStackView 초기화")
     }
     
     // MARK: - ✅ 로딩 애니메이션 관련 함수들
@@ -730,9 +729,9 @@ class ChatBubbleCell: UITableViewCell {
         let moveDistance: CGFloat = 2.5 // 한번에 이동할 거리 (기존 5px의 절반)
         
         catAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
-            guard let self = self else { 
+            guard let self = self else {
                 timer.invalidate()
-                return 
+                return
             }
             
             // 현재 위치에서 계속 오른쪽으로 이동
@@ -813,9 +812,7 @@ class ChatBubbleCell: UITableViewCell {
         
         // 고양이 GIF 시작
         startLoadingAnimation()
-        
-        print("🐱 로딩 메시지 설정 완료 - 고양이 GIF 시작")
-    }
+        }
     
     // 🆕 퀵 액션 버튼들 구성 - 챗 버블 전체 너비에 맞게 확장
     private func configureQuickActionButtons(_ quickActions: [(String, String)]) {

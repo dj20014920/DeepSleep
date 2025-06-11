@@ -987,10 +987,8 @@ extension ChatViewController {
             )
         }
         
-        // 타이틀 설정 (이미 있는 title 사용)
-        if title == nil || title?.isEmpty == true {
-            title = "#Todays_Mood"
-        }
+        // ✅ 타이틀을 항상 "#Todays_Mood"로 통일 (일관성 확보)
+        title = "#Todays_Mood"
         
         // 네비게이션 바 스타일
         navigationController?.navigationBar.prefersLargeTitles = false
@@ -1195,8 +1193,10 @@ extension ChatViewController {
         if let diary = diaryContext {
             appendChat(ChatMessage(type: .user, text: "📝 이 일기를 분석해주세요"))
             
+            // ✅ 안전한 옵셔널 처리로 크래시 방지
+            let emotionText = diary.emotion ?? "알 수 없는 감정"
             let initialResponse = """
-            📖 \(diary.emotion) 이런 기분으로 일기를 써주셨군요 😊
+            📖 \(emotionText) 이런 기분으로 일기를 써주셨군요 😊
             
             차근차근 마음 이야기를 나눠볼까요? 
             어떤 부분이 가장 마음에 남으셨나요? 💭
@@ -1205,7 +1205,7 @@ extension ChatViewController {
             appendChat(ChatMessage(type: .bot, text: initialResponse))
             requestDiaryAnalysisWithTracking(diary: diary)
             
-        } else if let patternData = emotionPatternData {
+        } else if let patternData = emotionPatternData, !patternData.isEmpty {
             appendChat(ChatMessage(type: .user, text: "📊 최근 감정 패턴을 분석해주세요"))
             
             let initialResponse = """
@@ -1315,31 +1315,29 @@ extension ChatViewController {
     func appendChat(_ message: ChatMessage) {
         // 🚀 ChatManager에 메시지 추가 (로딩 메시지 제외)
         if message.type != .loading {
-            chatManager.append(message)
-            // ChatManager의 messages를 로컬 배열에 동기화
-            messages = chatManager.messages
+            if let chatManager = chatManager {
+                chatManager.append(message)
+                messages = chatManager.messages
+            } else {
+                // Fallback: 로컬 배열만 사용
+                messages.append(message)
+                print("⚠️ [appendChat] chatManager가 nil이어서 로컬 배열에만 추가됨")
+            }
         } else {
-            // 로딩 메시지는 임시로만 로컬 배열에 추가
             messages.append(message)
         }
-        
         print("[appendChat] 메시지 추가: \(message.text)")
         if let quickActions = message.quickActions {
             print("[appendChat] quickActions: \(quickActions)")
         }
-        
         #if DEBUG
         if message.type != .loading {
             print("💾 [appendChat] ChatManager에 메시지 저장: \(message.type.rawValue)")
         }
         #endif
-        
-        // 🔧 메인 스레드에서 UI 업데이트 보장 및 충돌 방지
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.tableView.reloadData()
-            
-            // 애니메이션과 함께 스크롤 (부드러운 UX)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.scrollToBottom()
             }
@@ -2230,53 +2228,28 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     }
                 }
                 
-                // 3-2. ViewController의 applyPreset 메서드 호출 (한 번만) 
                 // 🔧 음량 중복 적용 방지 - 동기화 플래그 추가
                 print("🔒 [applyClaudePreset] 프리셋 적용 시작 - 중복 방지 모드")
                 mainVC.applyPreset(
                     volumes: correctedVolumes,
                     versions: correctedVersions,
                     name: recommendation.presetName,
-                    shouldSaveToRecent: false  // 중복 저장 방지
+                    presetId: nil,
+                    saveAsNew: true
                 )
                 print("🔓 [applyClaudePreset] 프리셋 적용 완료")
                 
-                // 별도로 최근 프리셋에 저장 (한 번만)
-                let soundPreset = SoundPreset(
-                    name: recommendation.presetName,
-                    volumes: correctedVolumes,
-                    selectedVersions: correctedVersions,
-                    emotion: nil,
-                    isAIGenerated: true,
-                    description: "AI 추천 프리셋"
-                )
-                SettingsManager.shared.saveSoundPreset(soundPreset)
-                
-                print("✅ applyPreset 호출 완료 - 추가 볼륨 조절 생략")
-                
-                // 3-3. 메인 탭으로 자동 이동
-                if let tabBarController = mainVC.tabBarController {
+                // 5. 메인 탭으로 이동 (UI/UX 개선)
+                if let tabBarController = mainVC.tabBarController, tabBarController.selectedIndex != 0 {
                     tabBarController.selectedIndex = 0
                     print("🏠 메인 탭으로 이동 완료")
                 }
-                
             } else {
-                // 4. Fallback: SoundManager + 알림 방식
-                print("⚠️ [applyClaudePreset] MainViewController 접근 불가, 대체 방법 사용")
-                self.applyClaudeFallbackMethod(correctedVolumes, correctedVersions, recommendation.presetName)
+                print("⚠️ [applyClaudePreset] MainViewController를 찾을 수 없어 SoundManager만 사용")
+                SoundManager.shared.applyPresetWithVersions(volumes: correctedVolumes, versions: correctedVersions)
             }
             
-            // 5. Claude 추천 기록
-            CachedConversationManager.shared.recordLocalAIRecommendation(
-                type: "claude",
-                presetName: recommendation.presetName,
-                confidence: recommendation.confidence,
-                context: "Claude 3.5 외부 분석",
-                volumes: correctedVolumes,
-                versions: correctedVersions
-            )
-            
-            // 6. 성공 메시지
+            // 6. 성공 메시지 및 피드백 요청
             let successMessage = ChatMessage(
                 type: .bot, 
                 text: "✅ AI 추천 '\(recommendation.presetName)'가 적용되었습니다!\n\n메인 화면에서 슬라이더와 버전이 업데이트되었는지 확인해보세요."
@@ -2617,7 +2590,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     volumes: correctedVolumes,
                     versions: correctedVersions,
                     name: preset.name,
-                    shouldSaveToRecent: true
+                    presetId: nil,
+                    saveAsNew: true
                 )
                 
                 print("✅ [applyLocalPreset] MainViewController.applyPreset 호출 완료")
@@ -2982,7 +2956,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     volumes: preset.volumes,
                     versions: preset.selectedVersions,
                     name: preset.name,
-                    shouldSaveToRecent: true
+                    presetId: preset.id,
+                    saveAsNew: false
                 )
                 
                 print("✅ [applyPresetInMainViewController] applyPreset 호출 완료")

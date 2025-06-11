@@ -123,9 +123,12 @@ class SettingsManager {
     func saveSoundPreset(_ preset: SoundPreset) {
         var presets = loadSoundPresets()
         
-        // 같은 이름이 있으면 덮어쓰기
-        presets.removeAll { $0.name == preset.name }
-        presets.append(preset)
+        // ID가 같으면 덮어쓰기 (이름 대신 ID 사용)
+        if let index = presets.firstIndex(where: { $0.id == preset.id }) {
+            presets[index] = preset
+        } else {
+            presets.append(preset)
+        }
         
         if let encoded = try? JSONEncoder().encode(presets) {
             userDefaults.set(encoded, forKey: Keys.soundPresets)
@@ -138,6 +141,39 @@ class SettingsManager {
             return []
         }
         return presets.sorted { $0.createdDate > $1.createdDate }
+    }
+    
+    // ✅ 프리셋의 날짜만 업데이트하여 '최근 사용'으로 만드는 함수
+    func updatePresetTimestamp(id: UUID) {
+        var presets = loadSoundPresets()
+        
+        guard let index = presets.firstIndex(where: { $0.id == id }) else {
+            print("⚠️ [updatePresetTimestamp] ID에 해당하는 프리셋을 찾지 못함: \(id)")
+            return
+        }
+        
+        // ✅ lastUsed를 현재 시간으로 변경 (createdDate가 아닌)
+        let updatedPreset = SoundPreset(
+            id: presets[index].id,
+            name: presets[index].name,
+            volumes: presets[index].volumes,
+            emotion: presets[index].emotion,
+            isAIGenerated: presets[index].isAIGenerated,
+            description: presets[index].description,
+            scientificBasis: presets[index].scientificBasis,
+            createdDate: presets[index].createdDate, // 원본 생성 날짜 유지
+            selectedVersions: presets[index].selectedVersions,
+            presetVersion: presets[index].presetVersion,
+            lastUsed: Date() // ✅ 현재 시간으로 업데이트
+        )
+        
+        presets[index] = updatedPreset
+        
+        // 전체 배열을 다시 저장
+        if let encoded = try? JSONEncoder().encode(presets) {
+            userDefaults.set(encoded, forKey: Keys.soundPresets)
+            print("🔄 [updatePresetTimestamp] 프리셋 lastUsed 시간 갱신 완료: \(presets[index].name)")
+        }
     }
     
     func deleteSoundPreset(id: UUID) {
@@ -378,5 +414,23 @@ class SettingsManager {
         updateTodayStats { stats in
             stats.patternAnalysisCount += 1
         }
+    }
+    
+    // MARK: - Sound Presets V2 (버전 관리 포함)
+    
+    // SoundPreset에 있는 init을 사용하여 객체 생성하도록 변경
+    private func mutablePreset(from preset: SoundPreset, createdDate: Date? = nil, selectedVersions: [Int]? = nil) -> SoundPreset {
+        return SoundPreset(
+            id: preset.id,
+            name: preset.name,
+            volumes: preset.volumes,
+            emotion: preset.emotion,
+            isAIGenerated: preset.isAIGenerated,
+            description: preset.description,
+            scientificBasis: preset.scientificBasis,
+            createdDate: createdDate ?? preset.createdDate,
+            selectedVersions: selectedVersions ?? preset.selectedVersions,
+            presetVersion: preset.presetVersion
+        )
     }
 }

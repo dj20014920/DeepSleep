@@ -405,7 +405,6 @@ class EditDiaryViewController: UIViewController {
         guard let diaryEntry = diaryToEdit else { return }
         
         let chatVC = ChatRouter.chatViewController()
-        chatVC.title = "일기 분석 대화"
         
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"

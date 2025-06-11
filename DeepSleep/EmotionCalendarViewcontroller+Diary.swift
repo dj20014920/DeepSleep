@@ -52,7 +52,7 @@ extension EmotionCalendarViewController {
         present(alert, animated: true)
     }
     
-    // MARK: - ✅ 일기 대화 시작 - 하루 1회 제한 추가
+    // MARK: - ✅ 일기 대화 시작 - 하루 1회 제한 추가 & 안전한 데이터 전달
     func startDiaryConversation(with entry: EmotionDiary) {
         // ✅ 하루 1회 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
@@ -78,20 +78,71 @@ extension EmotionCalendarViewController {
             return
         }
         
-        // ✅ 사용 횟수 증가
+        // 🛡️ 안전한 데이터 검증 및 준비
+        guard !entry.userMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let errorAlert = UIAlertController(
+                title: "오류",
+                message: "일기 내용이 비어있어 AI와 대화할 수 없습니다.",
+                preferredStyle: .alert
+            )
+            errorAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(errorAlert, animated: true)
+            return
+        }
+        
+        // 🛡️ 필수 데이터 확인
+        let verifiedEmotion = entry.selectedEmotion.isEmpty ? "😐" : entry.selectedEmotion
+        let verifiedMessage = entry.userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let verifiedAIResponse = entry.aiResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        print("🔍 [일기 대화 시작] 데이터 검증:")
+        print("  - 감정: \(verifiedEmotion)")
+        print("  - 일기 길이: \(verifiedMessage.count)자")
+        print("  - AI 응답 길이: \(verifiedAIResponse.count)자")
+        print("  - 날짜: \(entry.date)")
+        
+        // ✅ 사용 횟수 증가 (실제 대화 시작 직전에)
         AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
         
+        // 🛡️ ChatViewController 생성 및 안전한 데이터 설정
         let chatVC = ChatRouter.chatViewController()
-        chatVC.title = "일기 분석 대화 - \(DateFormatter.localizedString(from: entry.date, dateStyle: .short, timeStyle: .none))"
         
-        chatVC.diaryContext = DiaryContext(from: entry)
-        chatVC.initialUserText = "일기_분석_모드"
+        // 🛡️ 확실한 일기 컨텍스트 생성
+        let safeEntry = EmotionDiary(
+            selectedEmotion: verifiedEmotion,
+            userMessage: verifiedMessage,
+            aiResponse: verifiedAIResponse,
+            date: entry.date
+        )
+        
+        // 🛡️ 여러 방법으로 데이터 전달 (안전성 보장)
+        let diaryContext = DiaryContext(from: safeEntry)
+        chatVC.diaryContext = diaryContext
+        
+        // 🛡️ 초기 사용자 텍스트 설정
+        chatVC.initialUserText = "일기_분석_모드_확인"
+        
+        // 🛡️ 타이틀 통일
+        // chatVC.title = "#Todays_Mood"
+        
+        // 🛡️ 프리셋 적용 콜백 설정
         chatVC.onPresetApply = { [weak self] recommendation in
-                self?.applyPresetFromCalendar(recommendation)
-            }
+            self?.applyPresetFromCalendar(recommendation)
+        }
+        
+        // 🛡️ 네비게이션 설정 및 표시
         let navController = UINavigationController(rootViewController: chatVC)
+        navController.navigationBar.prefersLargeTitles = false
+        navController.navigationBar.tintColor = .systemBlue
         navController.modalPresentationStyle = .fullScreen
-        present(navController, animated: true)
+        navController.modalTransitionStyle = .coverVertical
+        
+        present(navController, animated: true) {
+            // 🛡️ 표시 완료 후 데이터 전달 재확인
+            print("✅ [일기 대화] ChatViewController 표시 완료")
+            print("  - diaryContext 설정됨: \(chatVC.diaryContext != nil)")
+            print("  - initialUserText: \(chatVC.initialUserText ?? "없음")")
+        }
     }
     private func applyPresetFromCalendar(_ recommendation: RecommendationResponse) {
         NotificationCenter.default.post(

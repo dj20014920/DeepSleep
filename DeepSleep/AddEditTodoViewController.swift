@@ -515,7 +515,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
         }
     }
 
-    // MARK: - AI 조언 기능
+    // MARK: - AI 조언 기능 - 통합 횟수 관리
     private func updateAIHelpUI() {
         guard let currentTodo = todoToEdit else {
             // 새 할 일 추가 모드: AI 버튼 비활성화
@@ -525,15 +525,16 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
             return
         }
 
-        if currentTodo.hasReceivedAIAdvice {
+        // 🛡️ 통합된 조언 횟수 관리
+        if !currentTodo.canReceiveAdvice {
             aiHelpButton.isEnabled = false
-            aiHelpButton.setTitle("✔️ 이 할 일 조언 완료", for: .disabled)
+            aiHelpButton.setTitle("✔️ 이 할 일 조언 완료 (\(currentTodo.adviceUsageText))", for: .disabled)
             aiHelpButton.backgroundColor = .systemGray
         } else {
             let remainingDailyCount = AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice)
             if remainingDailyCount > 0 {
                 aiHelpButton.isEnabled = true
-                aiHelpButton.setTitle("AI에게 조언 구하기 (오늘 \(remainingDailyCount)회 남음)", for: .normal)
+                aiHelpButton.setTitle("AI에게 조언 구하기 (\(currentTodo.adviceUsageText), 오늘 \(remainingDailyCount)회 남음)", for: .normal)
                 aiHelpButton.backgroundColor = .systemGreen
             } else {
                 aiHelpButton.isEnabled = false
@@ -544,13 +545,14 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
     }
 
     @objc private func didTapAIHelpButton() {
-        guard todoToEdit != nil else {
+        guard var currentTodo = todoToEdit else {
             showAlert(title: "알림", message: "할 일을 먼저 저장한 후 AI 조언을 받을 수 있습니다.")
             return
         }
 
-        guard todoToEdit?.hasReceivedAIAdvice == false else {
-             showAlert(title: "알림", message: "이 할 일에 대한 AI 조언을 이미 받았습니다.")
+        // 🛡️ 통합된 조언 횟수 체크
+        guard currentTodo.canReceiveAdvice else {
+             showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(currentTodo.adviceUsageText))")
             return
         }
         
@@ -634,28 +636,40 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
                     guard let self = self else { return }
                     self.aiHelpActivityIndicator.stopAnimating()
                     
-                    self.currentTodoAdvices.append(advice)
-                    self.populateAdvicesInStackView() // UI 업데이트
-                    
-                    // 조언 저장
-                    self.todoToEdit?.hasReceivedAIAdvice = true // 조언 받음 플래그 설정
-                    self.todoToEdit?.aiAdvices = self.currentTodoAdvices // 현재 조언 목록으로 업데이트
-                    self.todoToEdit?.aiAdvicesGeneratedAt = Date() // 이 줄 추가
-                    
-                    if let todoToUpdateWithAdvice = self.todoToEdit {
-                        TodoManager.shared.updateTodo(todoToUpdateWithAdvice) { (updatedItem, error) in
+                    // 🛡️ 통합된 조언 횟수 관리
+                    if currentTodo.requestAdvice() {
+                        // 현재 조언을 저장
+                        self.currentTodoAdvices.append(advice)
+                        self.populateAdvicesInStackView() // UI 업데이트
+                        
+                        // 🛡️ 조언 저장 및 횟수 업데이트
+                        currentTodo.hasReceivedAIAdvice = true // 하위 호환성 유지
+                        currentTodo.aiAdvices = self.currentTodoAdvices // 현재 조언 목록으로 업데이트
+                        currentTodo.aiAdvicesGeneratedAt = Date() // 생성 시간 기록
+                        
+                        // 업데이트된 할 일을 다시 설정
+                        self.todoToEdit = currentTodo
+                        
+                        // 저장소에 업데이트
+                        TodoManager.shared.updateTodo(currentTodo) { (updatedItem, error) in
                             if let error = error {
-                                print("AI 조언 저장 실패: \(error.localizedDescription)")
+                                print("⚠️ AI 조언 저장 실패: \(error.localizedDescription)")
                             } else if updatedItem != nil {
-                                print("AI 조언이 성공적으로 저장 및 업데이트되었습니다.")
+                                print("✅ AI 조언 및 횟수가 성공적으로 저장되었습니다. (\(currentTodo.adviceUsageText))")
                             } else {
-                                print("AI 조언 저장/업데이트 후 nil이 반환되었습니다.")
+                                print("⚠️ AI 조언 저장/업데이트 후 nil이 반환되었습니다.")
                             }
                         }
+                        
+                        // 전체 일일 제한 횟수도 기록
+                        AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
+                        
+                        // UI 업데이트
+                        self.updateAIHelpUI() // 버튼 상태 등 UI 업데이트
+                    } else {
+                        print("⚠️ 조언 횟수 초과로 인해 요청이 거부되었습니다.")
+                        self.showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다.")
                     }
-                    
-                    AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
-                    self.updateAIHelpUI() // 버튼 상태 등 UI 업데이트
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in

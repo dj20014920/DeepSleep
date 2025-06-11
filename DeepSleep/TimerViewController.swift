@@ -408,8 +408,16 @@ class TimerViewController: UIViewController {
     
     private func startFadeOut(duration: TimeInterval) {
         print("페이드아웃 시작: \(duration)초 동안")
-        SoundManager.shared.pauseAll()
+        
+        // ✅ 실제 페이드아웃 호출 (SoundManager의 fadeOutAll 메서드 사용)
+        SoundManager.shared.fadeOutAll(duration: duration)
+        
         statusLabel.text = "🎵 사운드가 서서히 작아집니다..."
+        
+        // 페이드아웃 완료 후 상태 업데이트
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            self?.statusLabel.text = "🔇 페이드아웃 완료"
+        }
     }
     
     // MARK: –– 알림 처리
@@ -417,7 +425,7 @@ class TimerViewController: UIViewController {
     private func scheduleNotification(at date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "EmoZleep 타이머 완료"
-        content.body = "설정하신 시간이 되었습니다. 사운드가 서서히 꺼집니다."
+        content.body = "설정하신 시간이 되었습니다. 사운드가 꺼집니다."
         content.sound = .default
         content.badge = 1
         

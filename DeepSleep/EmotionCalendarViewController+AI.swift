@@ -63,7 +63,7 @@ extension EmotionCalendarViewController {
         AIUsageManager.shared.recordUsage(for: .patternAnalysis)
         
         let chatVC = ChatViewController()
-        chatVC.title = "감정 패턴 분석 대화"
+        // ✅ 타이틀 제거 - ChatViewController에서 통일된 타이틀 설정
         
         chatVC.emotionPatternData = anonymizedData
         chatVC.initialUserText = "감정_패턴_분석_모드"

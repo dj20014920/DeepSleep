@@ -54,7 +54,14 @@ extension ViewController {
         let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = nil
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-            self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)
+            // AI 추천 프리셋은 ID가 없으므로 새로 저장
+            self?.applyPreset(
+                volumes: preset.volumes,
+                versions: preset.selectedVersions,
+                name: preset.presetName,
+                presetId: nil,
+                saveAsNew: true
+            )
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }
@@ -67,7 +74,14 @@ extension ViewController {
         let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = selectedEmoji
         chatVC.onPresetApply = { [weak self] (preset: RecommendationResponse) in
-            self?.applyPreset(volumes: preset.volumes, versions: preset.selectedVersions, name: preset.presetName, shouldSaveToRecent: true)
+            // AI 추천 프리셋은 ID가 없으므로 새로 저장
+            self?.applyPreset(
+                volumes: preset.volumes,
+                versions: preset.selectedVersions,
+                name: preset.presetName,
+                presetId: nil,
+                saveAsNew: true
+            )
         }
         navigationController?.pushViewController(chatVC, animated: true)
     }

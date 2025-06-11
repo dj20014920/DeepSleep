@@ -24,7 +24,13 @@ func forceSyncMainViewControllerPreset(volumes: [Float], versions: [Int], name: 
         }
         if let mainVC = mainVC {
             print("✅ [forceSyncMainViewControllerPreset] 메인VC 직접 동기화")
-            mainVC.applyPreset(volumes: volumes, versions: versions, name: name, shouldSaveToRecent: false)
+            mainVC.applyPreset(
+                volumes: volumes,
+                versions: versions,
+                name: name,
+                presetId: nil,
+                saveAsNew: true
+            )
             mainVC.updatePresetBlocks()
         } else {
             print("❌ [forceSyncMainViewControllerPreset] 메인VC를 찾을 수 없음")

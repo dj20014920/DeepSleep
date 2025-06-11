@@ -661,19 +661,35 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         return CalendarSection(rawValue: indexPath.section) == .todos
     }
     
-    // 🆕 스와이프 액션 설정 (조언 기능 추가)
+    // 🆕 스와이프 액션 설정 (조언 기능 추가) - 통합 횟수 관리
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         guard CalendarSection(rawValue: indexPath.section) == .todos else { return nil }
         
         let todo = selectedDateTodos[indexPath.row]
         
-        // 조언 액션
-        let adviceAction = UIContextualAction(style: .normal, title: "조언") { [weak self] (action, view, completionHandler) in
+        // 🛡️ 조언 액션 - 할 일별 횟수 체크
+        let canReceiveAdvice = todo.canReceiveAdvice
+        let adviceTitle = canReceiveAdvice ? "조언\n(\(todo.adviceUsageText))" : "조언 완료"
+        
+        let adviceAction = UIContextualAction(style: .normal, title: adviceTitle) { [weak self] (action, view, completionHandler) in
+            guard canReceiveAdvice else {
+                self?.showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(todo.adviceUsageText))")
+                completionHandler(false)
+                return
+            }
+            
             self?.requestTodoAdvice(for: todo)
             completionHandler(true)
         }
-        adviceAction.backgroundColor = UIColor.systemBlue
-        adviceAction.image = UIImage(systemName: "lightbulb.fill")
+        
+        // 🛡️ 조언 가능 여부에 따른 시각적 피드백
+        if canReceiveAdvice {
+            adviceAction.backgroundColor = UIColor.systemBlue
+            adviceAction.image = UIImage(systemName: "lightbulb.fill")
+        } else {
+            adviceAction.backgroundColor = UIColor.systemGray
+            adviceAction.image = UIImage(systemName: "checkmark.circle.fill")
+        }
         
         // 삭제 액션
         let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (action, view, completionHandler) in
@@ -1048,8 +1064,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
     }
     
-    // MARK: - 🆕 할 일 개별 조언 기능
+    // MARK: - 🆕 할 일 개별 조언 기능 - 통합 횟수 관리
     private func requestTodoAdvice(for todo: TodoItem) {
+        // 🛡️ 할 일별 조언 횟수 체크 (통합 관리)
+        guard todo.canReceiveAdvice else {
+            showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(todo.adviceUsageText))")
+            return
+        }
+        
+        // 🛡️ 전체 일일 제한도 함께 체크
         guard AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice) > 0 else {
             showAlert(title: "알림", message: "오늘 사용할 수 있는 개별 할 일 조언 횟수를 모두 사용했습니다.")
             return
@@ -1092,6 +1115,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         • 마감일: \(todo.dueDateString)
         • 긴급도: \(urgencyText)
         • 현재 시간: \(currentTimeString)
+        • 조언 횟수: \(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount) (이번이 \(todo.adviceRequestCount + 1)번째)
         """
         
         if let notes = todo.notes, !notes.isEmpty {
@@ -1142,7 +1166,31 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice)
+                    // 🛡️ 할 일 조언 횟수 증가 (통합 관리)
+                    if let todoIndex = self.selectedDateTodos.firstIndex(where: { $0.id == todo.id }) {
+                        var updatedTodo = self.selectedDateTodos[todoIndex]
+                        if updatedTodo.requestAdvice() {
+                            // 할 일 업데이트
+                            self.selectedDateTodos[todoIndex] = updatedTodo
+                            
+                            // 저장소에도 업데이트
+                            TodoManager.shared.updateTodo(updatedTodo) { (_, error) in
+                                if let error = error {
+                                    print("⚠️ 할 일 조언 횟수 업데이트 실패: \(error.localizedDescription)")
+                                } else {
+                                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
+                                }
+                            }
+                            
+                            // UI 새로고침
+                            self.tableView.reloadData()
+                        }
+                    }
+                    
+                    // 조언 표시
+                    self.showAdvice(title: "💡 \(todo.title) 조언 (\(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount))", advice: advice)
+                    
+                    // 전체 일일 제한 횟수도 기록
                     AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                 }
             } catch {

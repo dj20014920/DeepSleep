@@ -162,8 +162,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             
             // 프리셋 선택 시 메인 화면에 적용하는 콜백 설정 (버전 정보 포함)
             presetListVC.onPresetSelected = { [weak mainVC] preset in
-                // URL로 가져온 프리셋은 새로운 프리셋으로 저장하지 않음
-                mainVC?.applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: false)
+                // URL로 가져온 프리셋은 적용만 하고, 로컬에 저장하거나 갱신하지 않음
+                mainVC?.applyPreset(
+                    volumes: preset.compatibleVolumes,
+                    versions: preset.compatibleVersions,
+                    name: preset.name,
+                    presetId: nil,
+                    saveAsNew: false
+                )
             }
             
             navController.pushViewController(presetListVC, animated: true)

@@ -138,7 +138,15 @@ extension ViewController {
     
     // MARK: - 프리셋 관리
     func updatePresetBlocks() {
-        print("🔄 [updatePresetBlocks] 프리셋 블록 업데이트 시작")
+        // 🛡️ 디바운싱: 연속된 업데이트 요청을 방지
+        updateTimer?.invalidate()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+            self?.performPresetBlocksUpdate()
+        }
+    }
+    
+    private func performPresetBlocksUpdate() {
+        print("🔄 [performPresetBlocksUpdate] 프리셋 블록 업데이트 시작")
         
         let recentPresets = getRecentPresets()
         let favoritePresets = getFavoritePresets()
@@ -146,29 +154,34 @@ extension ViewController {
         print("  - 최근 프리셋 수: \(recentPresets.count)")
         print("  - 즐겨찾기 프리셋 수: \(favoritePresets.count)")
         
-        // 최근 사용한 프리셋 버튼 업데이트
-        for (index, button) in recentPresetButtons.enumerated() {
-            if index < recentPresets.count {
-                let preset = recentPresets[index]
-                configurePresetButton(button, with: preset, isEmpty: false)
-                print("  - 최근 프리셋 \(index): \(preset.name)")
-            } else {
-                configureEmptyPresetButton(button)
+        // 🛡️ UI 업데이트를 메인 스레드에서 실행
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 최근 사용한 프리셋 버튼 업데이트
+            for (index, button) in self.recentPresetButtons.enumerated() {
+                if index < recentPresets.count {
+                    let preset = recentPresets[index]
+                    self.configurePresetButton(button, with: preset, isEmpty: false)
+                    print("  - 최근 프리셋 \(index): \(preset.name)")
+                } else {
+                    self.configureEmptyPresetButton(button)
+                }
             }
-        }
-        
-        // 즐겨찾기 프리셋 버튼 업데이트
-        for (index, button) in favoritePresetButtons.enumerated() {
-            if index < favoritePresets.count {
-                let preset = favoritePresets[index]
-                configurePresetButton(button, with: preset, isEmpty: false)
-                print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
-            } else {
-                configureEmptyPresetButton(button)
+            
+            // 즐겨찾기 프리셋 버튼 업데이트
+            for (index, button) in self.favoritePresetButtons.enumerated() {
+                if index < favoritePresets.count {
+                    let preset = favoritePresets[index]
+                    self.configurePresetButton(button, with: preset, isEmpty: false)
+                    print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
+                } else {
+                    self.configureEmptyPresetButton(button)
+                }
             }
+            
+            print("✅ [performPresetBlocksUpdate] 프리셋 블록 업데이트 완료")
         }
-        
-        print("✅ [updatePresetBlocks] 프리셋 블록 업데이트 완료")
     }
     
     func configurePresetButton(_ button: UIButton, with preset: SoundPreset, isEmpty: Bool) {
@@ -177,81 +190,122 @@ extension ViewController {
             return
         }
         
-        // 🛡️ 강력한 겹침 방지: 모든 서브뷰 제거 후 재생성
-        // ① 모든 서브뷰 제거 (제약 조건까지 정리)
-        button.subviews.forEach { subview in
-            subview.removeFromSuperview()
+        print("🔧 프리셋 버튼 설정 시작: \(preset.name)")
+        
+        // 🛡️ 완전한 초기화: 모든 UI 요소를 완전히 제거
+        cleanButton(button)
+        
+        // 🛡️ 추가 안전장치: 잠시 대기 후 UI 업데이트
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak button] in
+            guard let button = button else { return }
+            
+            // 🛡️ 마지막 확인: 모든 라벨이 제거되었는지 재확인
+            let remainingLabels = button.subviews.compactMap { $0 as? UILabel }
+            remainingLabels.forEach { $0.removeFromSuperview() }
+            
+            // 새 라벨 추가
+            let nameLabel = UILabel()
+            let displayText = preset.emotion != nil ? "\(preset.emotion!)\n\(preset.name)" : preset.name
+            nameLabel.text = displayText
+            nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
+            nameLabel.textColor = .label
+            nameLabel.textAlignment = .center
+            nameLabel.numberOfLines = 2
+            nameLabel.lineBreakMode = .byTruncatingTail
+            nameLabel.adjustsFontSizeToFitWidth = true
+            nameLabel.minimumScaleFactor = 0.7
+            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+            nameLabel.tag = 999999 // 고유 태그
+            nameLabel.backgroundColor = .clear // 배경 투명
+            
+            button.addSubview(nameLabel)
+            NSLayoutConstraint.activate([
+                nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+                nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+                nameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: button.leadingAnchor, constant: 4),
+                nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -4)
+            ])
+            
+            button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+            button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
+            button.layer.borderWidth = 1
+            button.layer.cornerRadius = 12
+            
+            print("✅ 프리셋 버튼 설정 완료: \(preset.name)")
         }
-        
-        // ② 새 라벨 하나만 추가
-        let nameLabel = UILabel()
-        let displayText = preset.emotion != nil ? "\(preset.emotion!)\n\(preset.name)" : preset.name
-        nameLabel.text = displayText
-        nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        nameLabel.textColor = .label
-        nameLabel.textAlignment = .center
-        nameLabel.numberOfLines = 2
-        nameLabel.lineBreakMode = .byTruncatingTail
-        nameLabel.adjustsFontSizeToFitWidth = true
-        nameLabel.minimumScaleFactor = 0.7
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.tag = 999999  // 고유 식별자
-        
-        // ③ 버튼에 추가 및 오토레이아웃 설정
-        button.addSubview(nameLabel)
-        NSLayoutConstraint.activate([
-            nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-            nameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: button.leadingAnchor, constant: 4),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -4)
-        ])
-        
-        // ④ 버튼 스타일 설정
-        button.setTitle("", for: .normal)  // 기본 제목 제거
-        button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
-        button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
-        
-        print("  - 🛡️ 강력한 겹침 방지 완료: '\(preset.name)' (모든 서브뷰 제거)")
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
-        // 🛡️ 강력한 겹침 방지: 모든 서브뷰 제거 후 재생성 (빈 슬롯용)
-        // ① 모든 서브뷰 제거 (제약 조건까지 정리)
-        button.subviews.forEach { subview in
-            subview.removeFromSuperview()
+        print("🔧 빈 프리셋 버튼 설정 시작")
+        
+        // 🛡️ 완전한 초기화
+        cleanButton(button)
+        
+        // 🛡️ 추가 안전장치: 잠시 대기 후 UI 업데이트
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak button] in
+            guard let button = button else { return }
+            
+            // 🛡️ 마지막 확인: 모든 라벨이 제거되었는지 재확인
+            let remainingLabels = button.subviews.compactMap { $0 as? UILabel }
+            remainingLabels.forEach { $0.removeFromSuperview() }
+            
+            let nameLabel = UILabel()
+            nameLabel.text = "+ 빈 슬롯"
+            nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
+            nameLabel.textColor = .systemGray2
+            nameLabel.textAlignment = .center
+            nameLabel.numberOfLines = 1
+            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+            nameLabel.tag = 999998 // 고유 태그
+            nameLabel.backgroundColor = .clear // 배경 투명
+            
+            button.addSubview(nameLabel)
+            NSLayoutConstraint.activate([
+                nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+                nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor)
+            ])
+            
+            button.backgroundColor = UIColor.systemGray6
+            button.layer.borderColor = UIColor.systemGray4.cgColor
+            button.layer.borderWidth = 1
+            button.layer.cornerRadius = 12
+            
+            print("✅ 빈 프리셋 버튼 설정 완료")
+        }
+    }
+    
+    // 🛡️ 버튼 초기화 함수 - 간소화된 안전 버전
+    private func cleanButton(_ button: UIButton) {
+        // 기존 라벨들만 제거 (제약조건은 건드리지 않음)
+        let problematicTags = [999999, 999998]
+        for tag in problematicTags {
+            if let taggedView = button.viewWithTag(tag) {
+                taggedView.removeFromSuperview()
+            }
         }
         
-        // ② 새 라벨 하나만 추가
-        let nameLabel = UILabel()
-        nameLabel.text = "+ 빈 슬롯"
-        nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        nameLabel.textColor = .systemGray2
-        nameLabel.textAlignment = .center
-        nameLabel.numberOfLines = 1
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.tag = 999998  // 고유 식별자 (빈 슬롯용)
+        // 버튼 타이틀 정리
+        button.setTitle(nil, for: .normal)
+        button.setAttributedTitle(nil, for: .normal)
         
-        // ③ 버튼에 추가 및 오토레이아웃 설정
-        button.addSubview(nameLabel)
-        NSLayoutConstraint.activate([
-            nameLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            nameLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor)
-        ])
-        
-        // ④ 버튼 스타일
-        button.setTitle("", for: .normal)
-        button.backgroundColor = UIColor.systemGray6
-        button.layer.borderColor = UIColor.systemGray4.cgColor
+        print("🧹 버튼 초기화 완료 - 서브뷰 수: \(button.subviews.count)")
     }
     
     func getRecentPresets() -> [SoundPreset] {
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        // ✅ 수정: isAIGenerated 필터링 제거하고 실제 최근 사용 순으로 정렬
-        // 최신 생성 날짜 순으로 4개까지 (AI/로컬 구분 없이)
-        let recentPresets = Array(allPresets.prefix(4))
-        print("  - getRecentPresets: \(recentPresets.count)개 반환 (AI/로컬 구분 없이)")
+        
+        // 1. lastUsed 날짜가 있는 프리셋만 필터링
+        // 2. 최신순으로 정렬 (내림차순)
+        let sortedRecentPresets = allPresets
+            .filter { $0.lastUsed != nil }
+            .sorted { $0.lastUsed! > $1.lastUsed! }
+        
+        // 3. 상위 4개만 선택
+        let recentPresets = Array(sortedRecentPresets.prefix(4))
+        
+        print("  - getRecentPresets: 최근 사용 프리셋 \(recentPresets.count)개 반환 (실제 사용순)")
         for (index, preset) in recentPresets.enumerated() {
-            print("    [\(index)] \(preset.name) - \(preset.isAIGenerated ? "AI" : "User")")
+            print("    [\(index)] \(preset.name) - 마지막 사용: \(preset.lastUsed ?? Date.distantPast)")
         }
         return recentPresets
     }
@@ -283,17 +337,18 @@ extension ViewController {
         
         let preset = presets[buttonIndex]
         
-        print("🎵 [presetButtonTapped] 프리셋 버튼 클릭: \(preset.name)")
-        print("  - 최근 버튼: \(isRecentButton)")
+        print("🎵 [presetButtonTapped] 프리셋 버튼 클릭: \(preset.name), ID: \(preset.id.uuidString)")
         print("  - 볼륨: \(preset.compatibleVolumes)")
         print("  - 버전: \(preset.compatibleVersions)")
         
-        // 최근 프리셋인 경우 새로운 프리셋을 생성하지 않음 (중복 저장 방지)
-        // 즐겨찾기 프리셋인 경우도 최근 프리셋에 저장하지 않음 (기존 동작 유지)
-        let shouldSaveToRecent = false  // 클릭한 프리셋은 이미 존재하므로 저장하지 않음
-        
-        // 통합된 applyPreset 메서드 사용 (UI 동기화 포함)
-        applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: shouldSaveToRecent)
+        // ID를 전달하여 최근 사용 시간을 갱신하는 새 applyPreset 함수 호출
+        applyPreset(
+            volumes: preset.compatibleVolumes,
+            versions: preset.compatibleVersions,
+            name: preset.name,
+            presetId: preset.id,
+            saveAsNew: false
+        )
         
         // 햅틱 피드백
         provideMediumHapticFeedback()
@@ -382,12 +437,13 @@ extension ViewController {
         let scientificPreset = SoundPresetCatalog.getRandomScientificPreset()
         let koreanName = convertToKoreanName(scientificPreset.name)
         
-        // 프리셋 적용
+        // 프리셋 적용 (ID가 없으므로 nil, 신규 저장 옵션 true)
         applyPreset(
             volumes: scientificPreset.volumes,
             versions: SoundPresetCatalog.defaultVersions,
             name: koreanName,
-            shouldSaveToRecent: true
+            presetId: nil,
+            saveAsNew: true
         )
         
         // 상세 정보와 함께 결과 표시
@@ -429,12 +485,13 @@ extension ViewController {
         let description = SoundPresetCatalog.scientificDescriptions[presetName] ?? "과학적 연구 기반 음향 치료"
         let duration = SoundPresetCatalog.recommendedDurations[presetName] ?? "20-30분"
         
-        // 프리셋 적용
+        // 프리셋 적용 (ID가 없으므로 nil, 신규 저장 옵션 true)
         applyPreset(
             volumes: volumes,
             versions: SoundPresetCatalog.defaultVersions,
             name: koreanName,
-            shouldSaveToRecent: true
+            presetId: nil,
+            saveAsNew: true
         )
         
         // 결과 표시
@@ -567,8 +624,14 @@ extension ViewController {
         let presetListVC = PresetListViewController()
         // SoundPreset으로 변경된 콜백 - 버전 정보 포함
         presetListVC.onPresetSelected = { [weak self] preset in
-            // 프리셋 목록에서 선택한 경우 새로운 프리셋 생성하지 않음
-            self?.applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, shouldSaveToRecent: false)
+            // 프리셋 목록에서 선택 시 ID를 전달하여 시간 갱신
+            self?.applyPreset(
+                volumes: preset.compatibleVolumes,
+                versions: preset.compatibleVersions,
+                name: preset.name,
+                presetId: preset.id,
+                saveAsNew: false
+            )
         }
         navigationController?.pushViewController(presetListVC, animated: true)
     }

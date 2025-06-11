@@ -142,7 +142,7 @@ extension ViewController {
     private func applyRecommendedPreset(_ presetName: String) {
         // SoundPresetCatalog에서 해당 프리셋 찾기
         if let volumes = SoundPresetCatalog.samplePresets[presetName] {
-            applyPreset(volumes: volumes, versions: SoundPresetCatalog.defaultVersions, name: presetName, shouldSaveToRecent: true)
+            applyPreset(volumes: volumes, versions: SoundPresetCatalog.defaultVersions, name: presetName)
         } else {
             showPresetAppliedFeedback(name: "⚠️ 추천 프리셋을 찾을 수 없습니다")
         }
@@ -150,10 +150,22 @@ extension ViewController {
     */
     
     // MARK: - 프리셋 적용 (Apple Developer 계정 무관)
-    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String, shouldSaveToRecent: Bool = true) {
-        print("🎵 [applyPreset] 프리셋 적용 시작: \(name)")
+    
+    /// `presetId`가 필요 없는 기존 호출을 위한 래퍼 함수
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String) {
+        // "실시간 조절"의 경우, 프리셋으로 저장하거나 사용시간을 갱신하지 않음
+        if name == "실시간 조절" {
+             applyPreset(volumes: volumes, versions: versions, name: name, presetId: nil, saveAsNew: false)
+        } else {
+            // 그 외의 경우는 신규 저장으로 간주 (채팅 추천 등)
+            applyPreset(volumes: volumes, versions: versions, name: name, presetId: nil, saveAsNew: true)
+        }
+    }
+
+    /// 모든 로직을 처리하는 메인 프리셋 적용 함수
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String, presetId: UUID?, saveAsNew: Bool = false) {
+        print("🎵 [applyPreset] 프리셋 적용 시작: \(name), ID: \(presetId?.uuidString ?? "없음"), 신규 저장: \(saveAsNew)")
         print("  - 원본 볼륨: \(volumes) (길이: \(volumes.count))")
-        print("  - shouldSaveToRecent: \(shouldSaveToRecent)")
         
         // ✅ 배열 크기 자동 보정 (11개 → 13개, 12개 → 13개)
         var correctedVolumes = volumes
@@ -200,12 +212,27 @@ extension ViewController {
         // 5. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
         
-        // 6. 최근 프리셋에 저장 (shouldSaveToRecent가 true인 경우만)
-        if shouldSaveToRecent {
-            addToRecentPresetsWithVersions(name: name, volumes: correctedVolumes, versions: actualVersions)
-            print("💾 [applyPreset] 최근 프리셋에 저장: \(name) (보정된 볼륨 사용)")
-        } else {
-            print("⏭️ [applyPreset] 최근 프리셋 저장 생략 (shouldSaveToRecent: false)")
+        // 6. ✅ 프리셋 저장/갱신 로직
+        if let id = presetId {
+            // ID가 있으면 기존 프리셋의 사용 시간 갱신
+            SettingsManager.shared.updatePresetTimestamp(id: id)
+            print("💾 [applyPreset] 최근 프리셋으로 시간 갱신: \(name)")
+            
+            // ✅ 최근 사용한 프리셋 UI 갱신 알림 발송
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
+            }
+        } else if saveAsNew {
+            // ID가 없고 saveAsNew가 true이면 새로운 프리셋으로 저장
+            let newPreset = SoundPreset(
+                name: name,
+                volumes: correctedVolumes,
+                selectedVersions: actualVersions,
+                isAIGenerated: false,
+                description: "신규 저장된 프리셋"
+            )
+            SettingsManager.shared.saveSoundPreset(newPreset)
+            print("💾 [applyPreset] ID 없는 신규 프리셋으로 저장: \(name)")
         }
         
         // 7. UI 상태 업데이트
@@ -216,21 +243,6 @@ extension ViewController {
         showPresetAppliedFeedback(name: name)
         
         print("✅ [applyPreset] 프리셋 적용 완료: \(name)")
-    }
-    
-    // 버전 정보 포함한 최근 프리셋 저장
-    func addToRecentPresetsWithVersions(name: String, volumes: [Float], versions: [Int]) {
-        let preset = SoundPreset(
-            name: name,
-            volumes: volumes,
-            selectedVersions: versions,
-            emotion: nil,
-            isAIGenerated: false, // ✅ Recent Presets에 표시되도록 false로 설정
-            description: "최근 사용한 프리셋"
-        )
-        SettingsManager.shared.saveSoundPreset(preset)
-        print("💾 [addToRecentPresetsWithVersions] Recent Presets에 저장: \(name)")
-        updatePresetBlocks() // 저장 후 즉시 UI 갱신
     }
     
     // MARK: - 피드백 (Apple Developer 계정 무관)

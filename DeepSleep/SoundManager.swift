@@ -534,6 +534,10 @@ final class SoundManager {
         print("🔊 SoundManager: playAll() 호출됨")
         print("  - 총 플레이어 수: \(players.count)")
         
+        // 🆕 전체 멈춤 플래그 해제
+        isGloballyPaused = false
+        print("  - isGloballyPaused = false로 설정")
+        
         var playedSomething = false
         var currentVolumes: [Float] = []
         
@@ -714,6 +718,9 @@ final class SoundManager {
         var pausedSomething = false
         var currentVolumes: [Float] = []
         
+        // 🆕 전체 멈춤 플래그 설정
+        isGloballyPaused = true
+        
         for player in players {
             currentVolumes.append(player.volume * 100.0)
             if player.isPlaying {
@@ -722,7 +729,7 @@ final class SoundManager {
             }
         }
         
-        print("🔇 SoundManager: pauseAll() 호출됨")
+        print("🔇 SoundManager: pauseAll() 호출됨 - isGloballyPaused = true")
         
         // Phase 2: 피드백 세션 종료
         if pausedSomething {
@@ -779,25 +786,33 @@ final class SoundManager {
     
     // MARK: - 볼륨 제어 (기존 API 유지)
     
+    /// 🆕 전체 멈춤 상태 플래그
+    var isGloballyPaused: Bool = false
+    
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이. (피드백 실시간 업데이트)
-    func setVolume(at index: Int, volume: Float) {
+    func setVolume(at index: Int, volume: Float, forUIUpdate: Bool = false) {
         guard index >= 0, index < players.count else { return }
         let normalizedVolume = volume / 100.0
         players[index].volume = normalizedVolume
         
-        print("🔊 SoundManager.setVolume(at: \(index), volume: \(volume)) → 정규화된 볼륨: \(normalizedVolume)")
+        print("🔊 SoundManager.setVolume(at: \(index), volume: \(volume)) → 정규화된 볼륨: \(normalizedVolume), UI업데이트: \(forUIUpdate), 전체멈춤: \(isGloballyPaused)")
         
-        // 재생 상태 제어
-        if normalizedVolume > 0 && !players[index].isPlaying {
-            players[index].play()
-            print("▶️ 카테고리 \(index) 재생 시작")
-        } else if normalizedVolume == 0 && players[index].isPlaying {
-            players[index].pause()
-            print("⏸️ 카테고리 \(index) 일시정지")
+        // 🆕 UI 업데이트 목적이거나 전체 멈춤 상태면 재생하지 않음
+        if !forUIUpdate && !isGloballyPaused {
+            // 재생 상태 제어
+            if normalizedVolume > 0 && !players[index].isPlaying {
+                players[index].play()
+                print("▶️ 카테고리 \(index) 재생 시작")
+            } else if normalizedVolume == 0 && players[index].isPlaying {
+                players[index].pause()
+                print("⏸️ 카테고리 \(index) 일시정지")
+            }
+            
+            // Phase 2: 실시간 볼륨 변경 피드백
+            updateCurrentSessionVolumes()
+        } else {
+            print("🔇 재생 건너뜀 (UI업데이트: \(forUIUpdate), 전체멈춤: \(isGloballyPaused))")
         }
-        
-        // Phase 2: 실시간 볼륨 변경 피드백
-        updateCurrentSessionVolumes()
     }
     
     /// 배열 단위로 한 번에 설정
@@ -1239,5 +1254,7 @@ final class SoundManager {
         guard index >= 0, index < players.count else { return 0.0 }
         return players[index].volume
     }
+    
+
 }
 

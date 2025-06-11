@@ -829,203 +829,107 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     // 🆕 로컬 프리셋 적용 (수정됨)
     private func applyLocalPreset(_ preset: (name: String, volumes: [Float], description: String, versions: [Int])) {
         print("🎵 [EmotionAnalysisChatViewController] 프리셋 적용 시작: \(preset.name)")
-        print("  - 볼륨: \(preset.volumes)")
-        print("  - 버전: \(preset.versions)")
-        
-        // 1. 볼륨과 버전 배열 검증 및 보정
+
         let correctedVolumes = validateAndCorrectVolumes(preset.volumes)
         let correctedVersions = validateAndCorrectVersions(preset.versions)
-        
-        print("  - 보정된 볼륨: \(correctedVolumes)")
-        print("  - 보정된 버전: \(correctedVersions)")
-        
+
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // 🎯 강화된 MainViewController 찾기
-            var mainVC: ViewController?
-            var searchMethod = "not_found"
-            
-            // 방법 1: 현재 presented된 뷰컨트롤러의 presentingViewController 확인
-            if let presentingVC = self.presentingViewController {
-                if let tabBarController = presentingVC as? UITabBarController,
-                   let firstTab = tabBarController.viewControllers?.first as? ViewController {
-                    mainVC = firstTab
-                    searchMethod = "presentingViewController_tabBar"
-                } else if let navController = presentingVC as? UINavigationController,
-                          let tabBarController = navController.topViewController as? UITabBarController,
-                          let firstTab = tabBarController.viewControllers?.first as? ViewController {
-                    mainVC = firstTab
-                    searchMethod = "presentingViewController_nav_tabBar"
-                } else if let viewController = presentingVC as? ViewController {
-                    mainVC = viewController
-                    searchMethod = "presentingViewController_direct"
-                }
-            }
-            
-            // 방법 2: SceneDelegate를 통한 접근
-            if mainVC == nil {
-                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
-                   let tabBarController = sceneDelegate.window?.rootViewController as? UITabBarController,
-                   let firstTab = tabBarController.viewControllers?.first as? ViewController {
-                    mainVC = firstTab
-                    searchMethod = "sceneDelegate"
-                }
-            }
-            
-            // 방법 3: 윈도우 계층구조 탐색
-            if mainVC == nil {
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first,
-                   let tabBarController = window.rootViewController as? UITabBarController,
-                   let firstTab = tabBarController.viewControllers?.first as? ViewController {
-                    mainVC = firstTab
-                    searchMethod = "windowScene"
-                }
-            }
-            
-            // 방법 4: 모든 윈도우 검색
-            if mainVC == nil {
-                for window in UIApplication.shared.windows {
-                    if let tabBarController = window.rootViewController as? UITabBarController,
-                       let firstTab = tabBarController.viewControllers?.first as? ViewController {
-                        mainVC = firstTab
-                        searchMethod = "allWindows"
-                        break
-                    }
-                }
-            }
-            
-            if let targetVC = mainVC {
-                print("🎯 [EmotionAnalysisChatViewController] MainViewController 발견 (\(searchMethod))")
+            if let mainVC = self.findMainViewController() {
+                print("🎯 [EmotionAnalysisChatViewController] MainViewController 발견")
                 
-                // Step 1: 직접 applyPreset 호출 (완전한 UI + 사운드 동기화 + 최근 프리셋 저장)
-                targetVC.applyPreset(
+                mainVC.applyPreset(
                     volumes: correctedVolumes,
                     versions: correctedVersions,
                     name: preset.name,
-                    shouldSaveToRecent: true
+                    presetId: nil,
+                    saveAsNew: true
                 )
                 
                 print("✅ [EmotionAnalysisChatViewController] MainViewController.applyPreset 호출 완료")
                 
-                // Step 2: 메인 탭으로 자동 이동
-                if let tabBarController = targetVC.tabBarController {
+                if let tabBarController = mainVC.tabBarController {
                     tabBarController.selectedIndex = 0
                     print("🏠 메인 탭으로 이동 완료")
                 }
                 
             } else {
-                // 강화된 Fallback: 모든 방법 동원
-                print("⚠️ [EmotionAnalysisChatViewController] MainViewController를 찾을 수 없음, 강화된 fallback 사용")
+                print("⚠️ [EmotionAnalysisChatViewController] MainViewController를 찾을 수 없음, fallback 사용")
                 
-                // 1. SoundManager 직접 적용
                 SoundManager.shared.applyPresetWithVersions(volumes: correctedVolumes, versions: correctedVersions)
                 
-                // 2. 수동으로 Recent Presets에 저장
                 let soundPreset = SoundPreset(
                     name: preset.name,
                     volumes: correctedVolumes,
                     selectedVersions: correctedVersions,
                     emotion: nil,
-                    isAIGenerated: false,
+                    isAIGenerated: true,
                     description: preset.description
                 )
                 SettingsManager.shared.saveSoundPreset(soundPreset)
-                
-                // 3. 모든 가능한 UI 업데이트 알림 전송 (다중 알림)
-                let userInfo: [String: Any] = [
-                    "volumes": correctedVolumes,
-                    "versions": correctedVersions,
-                    "name": preset.name,
-                    "source": "emotion_analysis_fallback"
-                ]
-                
-                // 기본 LocalPresetApplied 알림
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("LocalPresetApplied"),
-                    object: nil,
-                    userInfo: userInfo
-                )
-                
-                // SoundVolumesUpdated 알림
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("SoundVolumesUpdated"),
-                    object: nil,
-                    userInfo: userInfo
-                )
-                
-                // PresetAppliedFromChat 알림 (fallback용)
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("PresetAppliedFromChat"),
-                    object: preset.name,
-                    userInfo: userInfo
-                )
-                
-                // ApplyPresetFromChat 알림 (또 다른 fallback)
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("ApplyPresetFromChat"),
-                    object: nil,
-                    userInfo: userInfo
-                )
-                
-                print("📢 [EmotionAnalysisChatViewController] 4개 알림 전송 완료 - 확실한 UI 업데이트 보장")
-                
-                // 4. 메인 탭으로 강제 이동 시도
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let window = windowScene.windows.first,
-                       let tabBarController = window.rootViewController as? UITabBarController {
-                        tabBarController.selectedIndex = 0
-                        print("🏠 강제 메인 탭 이동 성공")
-                    }
-                }
             }
             
-            // Step 3: 성공 메시지 및 메인화면 이동 버튼
             let successMessage = "✅ '\(preset.name)' 프리셋이 적용되었습니다! 🎵\n\n메인 화면에서 슬라이더와 음량을 확인해보세요."
             self.addAIMessage(successMessage)
             self.addMainScreenNavigationButtons()
             
-            // Step 4: 3초 후 자동으로 메인화면 이동 (시간 단축)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
                 self?.goToMainScreen()
             }
-            
-            print("✅ [EmotionAnalysisChatViewController] 프리셋 적용 완료: \(preset.name)")
         }
+    }
+    
+    // 🔍 MainViewController 찾기 헬퍼 메서드 추가
+    private func findMainViewController() -> ViewController? {
+        if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
+           let rootVC = sceneDelegate.window?.rootViewController {
+            if let tabBarController = rootVC as? UITabBarController,
+               let navController = tabBarController.selectedViewController as? UINavigationController,
+               let mainVC = navController.topViewController as? ViewController {
+                return mainVC
+            } else if let navController = rootVC as? UINavigationController,
+                      let mainVC = navController.topViewController as? ViewController {
+                return mainVC
+            } else if let mainVC = rootVC as? ViewController {
+                return mainVC
+            }
+        }
+        
+        // 최후의 수단으로 윈도우 계층 구조 탐색
+        for window in UIApplication.shared.windows {
+            if let rootVC = window.rootViewController {
+                if let tabBarController = rootVC as? UITabBarController,
+                   let navController = tabBarController.selectedViewController as? UINavigationController,
+                   let mainVC = navController.topViewController as? ViewController {
+                    return mainVC
+                }
+            }
+        }
+        
+        return nil
     }
     
     // 배열 크기 보정 헬퍼 함수들
     private func validateAndCorrectVolumes(_ volumes: [Float]) -> [Float] {
-        if volumes.count == 11 {
-            return volumes + [0.0, 0.0]
-        } else if volumes.count == 12 {
-            return volumes + [0.0]
-        } else if volumes.count == 13 {
+        let targetCount = SoundPresetCatalog.categoryCount
+        if volumes.count == targetCount {
             return volumes
+        } else if volumes.count < targetCount {
+            return volumes + Array(repeating: 0.0, count: targetCount - volumes.count)
         } else {
-            var corrected = Array(repeating: Float(0.0), count: 13)
-            for i in 0..<min(volumes.count, 13) {
-                corrected[i] = volumes[i]
-            }
-            return corrected
+            return Array(volumes.prefix(targetCount))
         }
     }
     
     private func validateAndCorrectVersions(_ versions: [Int]) -> [Int] {
-        if versions.count == 11 {
-            return versions + [0, 0]
-        } else if versions.count == 12 {
-            return versions + [0]
-        } else if versions.count == 13 {
+        let targetCount = SoundPresetCatalog.categoryCount
+        if versions.count == targetCount {
             return versions
+        } else if versions.count < targetCount {
+            return versions + Array(repeating: 0, count: targetCount - versions.count)
         } else {
-            var corrected = Array(repeating: 0, count: 13)
-            for i in 0..<min(versions.count, 13) {
-                corrected[i] = versions[i]
-            }
-            return corrected
+            return Array(versions.prefix(targetCount))
         }
     }
     
