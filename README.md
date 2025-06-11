@@ -1,7 +1,5 @@
 ## 🔑 API 토큰 설정
 
-`.gitignore` 덕분에 토큰 값은 저장소에 포함되지 않습니다. 로컬에서 두 줄만 실행하세요.
-
 ```bash
 export REPLICATE_API_TOKEN=r8_관리자에게_문의하세요
 ./generate-secrets.sh                  # Secrets.xcconfig 자동 생성
