@@ -125,24 +125,26 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         setupTableView()
         setupTargets()
         setupNotifications()
-        
-        // ✅ swipe back 제스처 활성화 - 최신 iOS 호환 방식
         setupEnhancedGestureRecognizers()
-        
-        // ✅ TLB식 캐시 시스템 초기화
         initializeTLBCacheSystem()
-        
-        // 토큰 추적기 초기화
         TokenTracker.shared.resetIfNewDay()
-        
-        // 🚀 ChatManager에서 메시지 로드 (상태 보존)
         loadChatManagerMessages()
-        
-        // 초기 메시지 설정
         setupInitialMessages()
         
-        // 초기 사용자 텍스트 처리
+        // 🔧 감정 일기에서 진입한 경우에만 필수 데이터 검증
+        // (일반 채팅은 diaryContext, initialUserText 없이도 정상 작동)
         if let initialText = initialUserText {
+            // 일기 분석 요청이 있는 경우에만 diaryContext 필수
+            if initialText.contains("일기를 분석해줘") && diaryContext == nil {
+                DispatchQueue.main.async { [weak self] in
+                    let alert = UIAlertController(title: "데이터 오류", message: "일기 데이터가 누락되어 분석을 시작할 수 없습니다.", preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
+                        self?.dismiss(animated: true)
+                    })
+                    self?.present(alert, animated: true)
+                }
+                return
+            }
             handleInitialUserText(initialText)
         }
         
@@ -305,21 +307,17 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     private func performBackNavigation() {
-        // 변형 초기화
         UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0.7) {
             self.view.transform = .identity
         }
-        
-        // 해볼틱 피드백
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
-        
-        // 네비게이션
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            if let navigationController = self?.navigationController {
+            guard let self = self else { return }
+            if let navigationController = self.navigationController, navigationController.viewControllers.count > 1 {
                 navigationController.popViewController(animated: true)
             } else {
-                self?.dismiss(animated: true)
+                self.dismiss(animated: true)
             }
         }
     }
@@ -1994,7 +1992,14 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     /// Claude 3.5 분석 프롬프트 구성
     private func buildClaudeAnalysisPrompt(weeklyHistory: String, currentContext: [String: Any]) -> String {
         return """
-        당신은 음향 치료 전문가이자 감정 분석 AI입니다. 사용자의 7일간 대화 기록과 현재 상황을 종합 분석하여 최적의 자연 사운드 조합을 추천해주세요.
+        당신의 이름은 '미니'입니다. 당신은 음향 치료 전문가이자 감정 분석 AI 어시스턴트 '미니'입니다. 
+        
+        ⚠️ 중요 지시사항:
+        - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+        - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+        - 자신을 소개할 때도 항상 '미니'라는 이름을 사용하세요.
+        
+        사용자의 7일간 대화 기록과 현재 상황을 종합 분석하여 최적의 자연 사운드 조합을 추천해주세요.
         
         ## 📊 7일간 종합 데이터:
         
@@ -2959,7 +2964,6 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     presetId: preset.id,
                     saveAsNew: false
                 )
-                
                 print("✅ [applyPresetInMainViewController] applyPreset 호출 완료")
             }
         } else {
@@ -2968,21 +2972,20 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             // Fallback: SoundManager 직접 사용
             SoundManager.shared.applyPresetWithVersions(volumes: preset.volumes, versions: preset.selectedVersions)
             
-            // UI 업데이트 알림
+            // UI 업데이트 알림 (key 표준화)
             let userInfo: [String: Any] = [
                 "volumes": preset.volumes,
-                "versions": preset.selectedVersions,
-                "name": preset.name,
+                "selectedVersions": preset.selectedVersions ?? [],
+                "presetName": preset.name,
                 "source": "chat_fallback"
             ]
             
             NotificationCenter.default.post(
-                name: NSNotification.Name("PresetAppliedFromChat"),
+                name: NSNotification.Name("ApplyPresetFromChat"),
                 object: nil,
                 userInfo: userInfo
             )
-            
-            print("📢 [applyPresetInMainViewController] Fallback 알림 전송")
+            print("📢 [applyPresetInMainViewController] Fallback 알림 전송 (key 표준화)")
         }
     }
     

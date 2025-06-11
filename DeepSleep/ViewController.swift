@@ -688,12 +688,19 @@ class ViewController: UIViewController {
 
     // MARK: - Notification Handlers
     @objc private func handleApplyPresetFromChat(_ notification: Notification) {
-        print("🎵 ViewController [\(self.instanceUUID)] received ApplyPresetFromChat notification.") // UUID 로깅 추가
+        print("🎵 ViewController [\(self.instanceUUID)] received ApplyPresetFromChat notification.")
 
-        guard let userInfo = notification.userInfo,
-              let volumes = userInfo["volumes"] as? [Float],
-              let presetName = userInfo["presetName"] as? String,
-              let selectedVersions = userInfo["selectedVersions"] as? [Int] else {
+        guard let userInfo = notification.userInfo else {
+            print("⚠️ [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 오류: userInfo 없음")
+            return
+        }
+        
+        // 모든 key 조합 허용 (이전/신규 모두)
+        let volumes = userInfo["volumes"] as? [Float]
+        let presetName = userInfo["presetName"] as? String ?? userInfo["name"] as? String
+        let selectedVersions = userInfo["selectedVersions"] as? [Int] ?? userInfo["versions"] as? [Int]
+
+        guard let volumes = volumes, let presetName = presetName, let selectedVersions = selectedVersions else {
             print("⚠️ [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 오류: userInfo 파싱 실패. Info: \(String(describing: notification.userInfo))")
             DispatchQueue.main.async {
                 print("Error: Toast - Preset application failed due to userInfo parsing. (Instance: \(self.instanceUUID))")
@@ -710,7 +717,6 @@ class ViewController: UIViewController {
 
         DispatchQueue.main.async { [weak self] in 
             guard let strongSelf = self else {
-                // 이 시점에서는 strongSelf가 nil이므로 instanceUUID에 접근하기 어려울 수 있습니다.
                 print("  [ViewController] self is nil before calling applyPreset on main thread. Aborting for preset: \(presetName).")
                 return
             }
@@ -1011,38 +1017,6 @@ class ViewController: UIViewController {
             guard let self = self else { return }
             self.updatePresetBlocks()
             print("✅ [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 UI 갱신 완료")
-        }
-    }
-}
-
-    // MARK: - 프리셋 적용 (볼륨 및 버전)
-extension ViewController {
-    // ViewController+Utilities.swift의 applyPreset 함수 사용
-    // 중복 함수 제거됨
-    // --- 아래는 실제 applyPreset 구현 예시 (ViewController+PresetBlocks.swift에서 override 가능) ---
-    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String? = nil) {
-        print("🎵 [applyPreset] 시작 - isGloballyPaused: \(SoundManager.shared.isGloballyPaused), name: \(name ?? "Unknown")")
-        
-        // 🆕 전체 멈춤 상태일 때는 볼륨만 설정하고 재생은 하지 않음
-        let shouldAutoPlay = !SoundManager.shared.isGloballyPaused
-        
-        // 볼륨과 버전 설정 (재생 여부와 관계없이)
-        for (i, volume) in volumes.enumerated() where i < sliders.count {
-            updateSliderAndTextField(at: i, volume: volume, shouldPlay: shouldAutoPlay)
-        }
-        
-        if let versions = versions {
-            // 버전 정보 적용
-            // updateVersionButtons(versions: versions) 등
-        }
-        
-        updatePlayButtonStates()
-        
-        if SoundManager.shared.isGloballyPaused {
-            print("🔇 [applyPreset] 전체 멈춤 상태로 볼륨만 설정, 재생하지 않음")
-            // 전체 멈춤 상태는 사용자가 명시적으로 해제할 때까지 유지
-        } else {
-            print("▶️ [applyPreset] 일반 프리셋 적용 및 재생")
         }
     }
 }

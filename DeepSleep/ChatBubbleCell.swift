@@ -283,7 +283,7 @@ class ChatBubbleCell: UITableViewCell {
             loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
             loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
             loadingContainer.widthAnchor.constraint(equalToConstant: 120), // 2배 크게 + 텍스트 공간
-            loadingContainer.heightAnchor.constraint(equalToConstant: 60), // 2배 크게 + 여유 공간
+            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48), // 유연한 높이로 변경
             // ✅ bottomAnchor 제거 - 다른 버블에 영향주지 않도록
             
             // ✅ 고양이 뷰 (2배 크게)
@@ -298,13 +298,17 @@ class ChatBubbleCell: UITableViewCell {
             thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -8)
         ])
         
-        // bubbleView 제약조건 복원
+        // bubbleView 제약조건 복원 (우선순위 조정)
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
         trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         
+        // 🔧 bubbleView의 bottom 제약조건 우선순위를 낮춰서 오토레이아웃 충돌 방지
+        let bubbleBottomConstraint = bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2)
+        bubbleBottomConstraint.priority = UILayoutPriority(999) // required보다 낮춤
+        
         NSLayoutConstraint.activate([
             bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 2),
-            bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2)
+            bubbleBottomConstraint
         ])
         
         // 🔧 버블 크기 동적 조정: 최대 너비만 제한하고 최소 너비는 컨텐츠에 맞게

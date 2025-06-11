@@ -5,6 +5,20 @@ SecureSecrets.xcconfig
 *.env
 .env.*
 
+# 🔨 Xcode 빌드 파일들
+build/
+DerivedData/
+*.xcuserdata/
+*.xcuserdatad/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# 🗃️ 임시 파일들
+.DS_Store
+*.swp
+*.swo
+*~
+
 # Playwright
 node_modules/
 /test-results/

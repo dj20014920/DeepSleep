@@ -397,49 +397,48 @@ class DiaryWriteViewController: UIViewController {
     
     private func startAIChat() {
         guard let diaryEntry = savedDiaryEntry else { return }
-        
         let chatVC = ChatViewController()
-        
+        // 필수 데이터 검증
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"
         chatVC.onPresetApply = { [weak self] recommendation in
-            self?.applyPresetToMainScreen(recommendation)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ApplyPresetFromChat"),
+                object: nil,
+                userInfo: [
+                    "volumes": recommendation.volumes,
+                    "presetName": recommendation.presetName,
+                    "selectedVersions": recommendation.selectedVersions
+                ]
+            )
+            // dismiss 중첩/race condition 방지
+            if let presented = self?.presentedViewController {
+                presented.dismiss(animated: true) {
+                    // TabBar 이동 및 popToRoot 일관성
+                    if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
+                       let tabBarController = sceneDelegate.window?.rootViewController as? UITabBarController {
+                        tabBarController.selectedIndex = 0
+                        if let navController = tabBarController.viewControllers?[0] as? UINavigationController {
+                            navController.popToRootViewController(animated: false)
+                        }
+                    }
+                }
+            } else {
+                // TabBar 이동 및 popToRoot 일관성
+                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
+                   let tabBarController = sceneDelegate.window?.rootViewController as? UITabBarController {
+                    tabBarController.selectedIndex = 0
+                    if let navController = tabBarController.viewControllers?[0] as? UINavigationController {
+                        navController.popToRootViewController(animated: false)
+                    }
+                }
+            }
         }
-        
         let navController = UINavigationController(rootViewController: chatVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
     }
     
-    private func applyPresetToMainScreen(_ recommendation: RecommendationResponse) {
-        // 메인 SoundViewController에 프리셋 적용
-        NotificationCenter.default.post(
-            name: NSNotification.Name("ApplyPresetFromChat"),
-            object: nil,
-            userInfo: [
-                "volumes": recommendation.volumes,
-                "presetName": recommendation.presetName,
-                "selectedVersions": recommendation.selectedVersions
-            ]
-        )
-
-        // ChatViewController를 포함하는 UINavigationController를 먼저 dismiss 하고,
-        // 완료되면 DiaryWriteViewController 자신(을 포함하는 UINavigationController)을 dismiss 합니다.
-        self.presentingViewController?.dismiss(animated: true) { [weak self] in
-            // dismiss 완료 후, SceneDelegate를 통해 TabBarController에 접근합니다.
-            if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
-               let tabBarController = sceneDelegate.window?.rootViewController as? UITabBarController {
-                // 첫 번째 탭(사운드 뷰)으로 이동합니다. (인덱스 0)
-                tabBarController.selectedIndex = 0
-                
-                // 첫 번째 탭이 UINavigationController를 가지고 있다면, 그 네비게이션 스택의 루트로 이동합니다.
-                if let navController = tabBarController.viewControllers?[0] as? UINavigationController {
-                    navController.popToRootViewController(animated: false) // 전환 애니메이션 없이 바로 이동
-                }
-            }
-        }
-    }
-
     // ✅ 오른쪽 버튼 액션 - 저장 상태에 따라 다르게 동작
     @objc private func rightBarButtonTapped() {
         if isDiarySaved {

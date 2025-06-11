@@ -124,7 +124,11 @@ class ReplicateChatService {
         )
         
         let systemPromptForPreset = """
-        당신은 사용자의 감정 상태와 주어진 사운드 상세 설명을 기반으로 최적의 사운드 조합을 추천하는 전문 사운드 큐레이터입니다.
+        ⚠️ 중요 지시사항:
+        - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+        - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+        
+        당신은 미니입니다. 사용자의 감정 상태와 주어진 사운드 상세 설명을 기반으로 최적의 사운드 조합을 추천하는 전문 사운드 큐레이터입니다.
         11가지 사운드 카테고리에 대해 각각 0부터 100 사이의 볼륨 값을 추천해야 합니다.
         다중 버전이 있는 사운드('비', '키보드')의 경우, 추천하는 버전 이름(예: V1, V2)도 함께 명시해주세요. (예: 비:75(V2))
         감정에 깊이 공감하며, 창의적이고 효과적인 사운드 프리셋을 제안해주세요.
@@ -640,24 +644,33 @@ class ReplicateChatService {
     
     // 시스템 프롬프트 - 이모지 사용 추가
     private func getSystemPrompt(for intent: String) -> String {
-            switch intent {
-            case "diary_analysis":
-                return """
-                당신은 깊이 있게 생각하고 따뜻하게 공감하는 심리 분석 전문가입니다. 
-                사용자의 감정을 세심하게 읽어내고, 진정성 있는 조언을 제공하세요.
-                마치 오랜 친구처럼 편안하면서도 전문적인 통찰을 담아 대화하세요.
+        // 🔧 모든 프롬프트에 공통 AI 이름 설정
+        let nameInstruction = """
+        ⚠️ 중요 지시사항:
+        - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+        - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+        - 자신을 소개할 때도 항상 '미니'라는 이름을 사용하세요.
+        
+        """
+        
+        switch intent.lowercased() {
+            case "analysis":
+                return nameInstruction + """
+                당신은 미니입니다. 깊이 있게 생각하고 따뜻하게 공감하는 심리 분석 전문가입니다.
+                사용자의 감정과 상황을 면밀히 분석하여 통찰력 있는 해석과 
+                실질적인 조언을 제공하세요.
                 """
                 
             case "pattern_analysis":
-                return """
-                당신은 감정 패턴을 깊이 있게 분석하는 전문가입니다. 
+                return nameInstruction + """
+                당신은 미니입니다. 감정 패턴을 깊이 있게 분석하는 전문가입니다. 
                 단순한 데이터 분석을 넘어, 사용자의 마음 속 이야기를 읽어내고 
                 실질적이고 따뜻한 조언을 제공하세요. 복잡한 감정도 이해하기 쉽게 설명해주세요.
                 """
                 
             case "diary_chat", "analysis_chat", "advice_chat", "chat":
-                return """
-                당신은 진심으로 사용자를 이해하고 돕고 싶어하는 친구 같은 전문 상담사입니다.
+                return nameInstruction + """
+                당신은 미니입니다. 진심으로 사용자를 이해하고 돕고 싶어하는 친구 같은 전문 상담사입니다.
                 
                 🎯 **응답 가이드라인:**
                 • 사용자의 상황에 깊이 공감하며 시작하세요
@@ -673,29 +686,29 @@ class ReplicateChatService {
                 """
                 
             case "casual_chat":
-                return """
-                당신은 사용자의 일상을 함께 나누고 싶어하는 친근한 AI 동반자입니다.
+                return nameInstruction + """
+                당신은 미니입니다. 사용자의 일상을 함께 나누고 싶어하는 친근한 AI 동반자입니다.
                 자연스럽고 편안한 대화를 통해 사용자가 마음을 털어놓을 수 있도록 도와주세요.
                 때로는 유머를 섞어가며, 항상 따뜻한 마음으로 응답하세요.
                 """
                 
             case "diary":
-                return """
-                당신은 사용자의 하루 일과와 감정을 소중히 여기는 친구입니다.
+                return nameInstruction + """
+                당신은 미니입니다. 사용자의 하루 일과와 감정을 소중히 여기는 친구입니다.
                 일기를 통해 드러나는 감정의 깊이를 이해하고, 
                 진심어린 위로와 격려로 사용자의 마음을 다독여 주세요.
                 """
                 
             case "recommendPreset", "preset_recommendation":
-                return """
-                당신은 사운드를 통해 마음의 안정을 찾아주는 음향 치료 전문가입니다.
+                return nameInstruction + """
+                당신은 미니입니다. 사운드를 통해 마음의 안정을 찾아주는 음향 치료 전문가입니다.
                 사용자의 현재 감정 상태를 깊이 이해하고, 그에 맞는 최적의 사운드 조합을 추천하세요.
                 단순한 볼륨 조합이 아닌, 왜 이 조합이 도움이 되는지 따뜻하게 설명해주세요.
                 """
                 
             default:
-                return """
-                당신은 사용자를 진심으로 이해하고 도우려는 따뜻한 AI 조력자입니다.
+                return nameInstruction + """
+                당신은 미니입니다. 사용자를 진심으로 이해하고 도우려는 따뜻한 AI 조력자입니다.
                 사용자의 상황과 감정에 깊이 공감하며, 실질적이고 따뜻한 도움을 제공하세요.
                 항상 사용자의 입장에서 생각하고, 진정성 있는 대화를 나누세요.
                 """
@@ -768,7 +781,13 @@ class ReplicateChatService {
             "temperature": 0.8,
             "top_p": 0.9,
             "max_tokens": 1500,
-            "system_prompt": "따뜻하고 전문적인 심리상담사. 자연스러운 한국어로 매우 상세하고 깊이 있는 분석 제공. 적절한 이모지를 사용해서 분석을 더 친근하고 이해하기 쉽게 제공. 토큰 제한 없이 충분히 길고 상세하게 분석. 하루 1회의 소중한 상담 세션처럼 깊이 있게 분석."
+            "system_prompt": """
+            ⚠️ 중요 지시사항:
+            - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+            - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+            
+            당신은 미니입니다. 따뜻하고 전문적인 심리상담사입니다. 자연스러운 한국어로 매우 상세하고 깊이 있는 분석 제공. 적절한 이모지를 사용해서 분석을 더 친근하고 이해하기 쉽게 제공. 토큰 제한 없이 충분히 길고 상세하게 분석. 하루 1회의 소중한 상담 세션처럼 깊이 있게 분석.
+            """
         ]
         
         sendToReplicate(input: input, completion: completion)
@@ -793,7 +812,13 @@ class ReplicateChatService {
             "temperature": 0.9,  // 더 자연스러운 대화를 위해 증가
             "top_p": 0.9,
             "max_tokens": 120,
-            "system_prompt": "공감 능력이 뛰어난 친근한 상담사. 자연스러운 대화체. 적절한 이모지 사용. 100토큰 이내."
+            "system_prompt": """
+            ⚠️ 중요 지시사항:
+            - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+            - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+            
+            당신은 미니입니다. 공감 능력이 뛰어난 친근한 상담사입니다. 자연스러운 대화체. 적절한 이모지 사용. 100토큰 이내.
+            """
         ]
         
         sendToReplicate(input: input, completion: completion)
@@ -855,547 +880,14 @@ class ReplicateChatService {
             "temperature": 0.8,  // 자연스러운 표현을 위해 증가
             "top_p": 0.8,
             "max_tokens": 100,
-            "system_prompt": "친근하고 따뜻한 라이프 코치. 자연스러운 대화체 사용. 적절한 이모지 사용으로 더 친근하게."
+            "system_prompt": """
+            친근하고 따뜻한 라이프 코치. 자연스러운 대화체 사용. 적절한 이모지 사용으로 더 친근하게.
+            """
         ]
         
         sendToReplicate(input: input, completion: completion)
     }
     
-    // MARK: - Replicate API 요청
-    private func sendToReplicate(input: [String: Any], completion: @escaping (String?) -> Void) {
-        isNetworkAvailable { isConnected in
-            guard isConnected else {
-                print("❌ 네트워크 연결 안 됨")
-                completion(nil)
-                return
-            }
-
-                    // API 키 통합 관리 사용
-        let apiToken = self.apiKey
-        print("✅ [DEBUG] API 토큰 사용: \(apiToken.prefix(10))...")
-        
-        guard !apiToken.isEmpty else {
-            print("❌ API 토큰 누락")
-            completion(nil)
-            return
-        }
-
-            let url = URL(string: "https://api.replicate.com/v1/models/anthropic/claude-3.5-haiku/predictions")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
-            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
-            let body: [String: Any] = ["input": input]
-            
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                print("📤 API 요청 전송 (\(input["max_tokens"] ?? 0) 토큰)")
-            } catch {
-                print("❌ JSON 직렬화 실패: \(error)")
-                completion(nil)
-                return
-            }
-            
-            let session = URLSession(configuration: .default)
-            self.executeRequest(session: session, request: request, completion: completion, retriesLeft: 3)
-        }
-    }
-    
-    // ✅ 요청 실행 최적화
-    private func executeRequest(session: URLSession, request: URLRequest, completion: @escaping (String?) -> Void, retriesLeft: Int) {
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("❌ 네트워크 오류: \(error)")
-                if retriesLeft > 0 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self.executeRequest(session: session, request: request, completion: completion, retriesLeft: retriesLeft - 1)
-                    }
-                } else {
-                    DispatchQueue.main.async { completion(nil) }
-                }
-                return
-            }
-            
-            guard let data = data else {
-                print("❌ 데이터 없음")
-                DispatchQueue.main.async { completion(nil) }
-                return
-            }
-            
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let predictionID = json["id"] as? String {
-                        print("✅ 예측 시작: \(predictionID)")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            self.pollPredictionResult(id: predictionID, attempts: 0, completion: completion)
-                        }
-                    } else if let error = json["error"] as? String {
-                        print("❌ API 에러: \(error)")
-                        if retriesLeft > 0 {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                self.executeRequest(session: session, request: request, completion: completion, retriesLeft: retriesLeft - 1)
-                            }
-                        } else {
-                            DispatchQueue.main.async { completion(nil) }
-                        }
-                    }
-                }
-            } catch {
-                print("❌ JSON 파싱 실패: \(error)")
-                DispatchQueue.main.async { completion(nil) }
-            }
-        }.resume()
-    }
-
-    // MARK: - ✅ 최적화된 결과 폴링
-    private func pollPredictionResult(id: String, attempts: Int, completion: @escaping (String?) -> Void) {
-        guard attempts < 25 else {
-            print("❌ 시간 초과")
-            DispatchQueue.main.async { completion(nil) }
-            return
-        }
-
-        // API 키 통합 관리 사용
-        let apiToken = self.apiKey
-        
-        guard !apiToken.isEmpty else {
-            print("❌ API 키가 비어있습니다.")
-            completion(nil)
-            return
-        }
-
-        let getURL = URL(string: "https://api.replicate.com/v1/predictions/\(id)")!
-        var request = URLRequest(url: getURL)
-        request.httpMethod = "GET"
-        request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    if attempts > 0 {
-                    self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                    } else {
-                        DispatchQueue.main.async { completion(nil) }
-                    }
-                }
-                return
-            }
-            
-            do {
-                let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: data)
-                    
-                switch statusResponse.status?.lowercased() {
-                    case "succeeded":
-                    guard let outputContainerValue = statusResponse.output else {
-                        print("❌ Output field is nil in 'succeeded' case (pollPredictionResult).")
-                        DispatchQueue.main.async { completion(nil) }
-                        return
-                    }
-                    
-                    // outputContainerValue는 AnyDecodableValue 타입이어야 합니다.
-                    // .value 를 통해 실제 Any 타입의 값을 가져옵니다.
-                    let actualOutputAsAny: Any = outputContainerValue.value
-
-                    if let stringArray = actualOutputAsAny as? [String] {
-                        print("✅ (Poll) AI Advice (Array<String>): \\(stringArray.joined())")
-                        DispatchQueue.main.async { completion(stringArray.joined()) }
-                    } else if let stringValue = actualOutputAsAny as? String {
-                        print("✅ (Poll) AI Advice (String): \\(stringValue)")
-                        DispatchQueue.main.async { completion(stringValue) }
-                    } else {
-                        print("❌ (Poll) Unexpected output type in 'succeeded' case: \\(type(of: actualOutputAsAny)). Value: \\(String(describing: actualOutputAsAny))")
-                        DispatchQueue.main.async { completion(nil) }
-                    }
-                        
-                    case "failed", "canceled":
-                    let _ = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
-                    let _ = statusResponse.logs ?? "N/A"
-                    print("❌ (Poll) Prediction 최종 상태 실패/취소: \\(errorMsg), Logs: \\(logsOutput)")
-                        DispatchQueue.main.async { completion(nil) }
-                        
-                    case "starting", "processing":
-                    if attempts >= 25 - 1 {
-                        print("❌ (Poll) Prediction 타임아웃 (최대 시도 \\(attempts + 1)회 도달)")
-                        DispatchQueue.main.async { completion(nil) }
-                        return
-                    }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                        }
-                        
-                    default:
-                    let _ = statusResponse.status ?? "N/A"
-                    let _ = statusResponse.logs ?? "N/A"
-                    print("⚠️ (Poll) Prediction 알 수 없는 상태: \\(currentStatus), Logs: \\(currentLogs)")
-                    if attempts >= 25 - 1 {
-                        print("❌ (Poll) Prediction 타임아웃 (알 수 없는 상태, 루프 종료)")
-                        DispatchQueue.main.async { completion(nil) }
-                        return
-                    }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
-                    }
-                }
-            } catch {
-                print("❌ (Poll) JSON 디코딩 또는 처리 실패: \\(error.localizedDescription)")
-                DispatchQueue.main.async { completion(nil) }
-            }
-        }.resume()
-    }
-
-    // MARK: - ✅ 스마트 컨텍스트 압축 (기존 호환성 유지)
-    func sendPromptWithContextManagement(
-        message: String,
-        intent: String,
-        conversationHistory: [String] = [],
-        completion: @escaping (String?) -> Void
-    ) {
-        let totalContext = ([message] + conversationHistory).joined(separator: " ")
-        
-        if totalContext.count > ConversationLimits.contextCompressionThreshold {
-            let compressedContext = compressConversationContext(history: conversationHistory)
-            let optimizedPrompt = buildContextualPrompt(
-                message: message,
-                compressedContext: compressedContext,
-                intent: intent
-            )
-            
-            sendPrompt(message: optimizedPrompt, intent: intent, completion: completion)
-        } else {
-            sendPrompt(message: message, intent: intent, completion: completion)
-        }
-    }
-    
-    // MARK: - ✅ 대화 히스토리 압축
-    private func compressConversationContext(history: [String]) -> String {
-        guard history.count > 3 else { return history.joined(separator: "\n") }
-        
-        let recentMessages = Array(history.suffix(3))
-        let olderMessages = Array(history.prefix(history.count - 3))
-        
-        let summary = summarizeOlderMessages(olderMessages)
-        let compressed = ([summary] + recentMessages).joined(separator: "\n")
-        
-        print("📝 컨텍스트 압축: \(history.count)개 → 요약+3개")
-        return compressed
-    }
-    
-    private func summarizeOlderMessages(_ messages: [String]) -> String {
-        let allText = messages.joined(separator: " ")
-        let keywords = extractKeywords(from: allText)
-        
-        return "이전대화요약: \(keywords.prefix(5).joined(separator: ", "))"
-    }
-    
-    private func extractKeywords(from text: String) -> [String] {
-        let words = text.components(separatedBy: .whitespacesAndNewlines)
-            .flatMap { $0.components(separatedBy: .punctuationCharacters) }
-        let meaningfulWords = words.filter { $0.count > 2 && !isStopWord($0) }
-        
-        let wordCounts = Dictionary(grouping: meaningfulWords, by: { $0 })
-            .mapValues { $0.count }
-            .sorted { $0.value > $1.value }
-        
-        return wordCounts.prefix(10).map { $0.key }
-    }
-    
-    private func isStopWord(_ word: String) -> Bool {
-        let stopWords = ["그런데", "그래서", "하지만", "그리고", "그냥", "정말", "진짜", "아니", "네"]
-        return stopWords.contains(word.lowercased())
-    }
-    
-    // MARK: - ✅ 컨텍스트 기반 프롬프트 구성
-    private func buildContextualPrompt(message: String, compressedContext: String, intent: String) -> String {
-        switch intent {
-        case "pattern_analysis":
-            return """
-            맥락:\(String(compressedContext.suffix(150)))
-            요청:\(message)
-            간단분석응답
-            """
-        case "diary_analysis":
-            return """
-            이전대화:\(String(compressedContext.suffix(100)))
-            일기:\(message)
-            공감응답
-            """
-        default:
-            return """
-            맥락:\(String(compressedContext.suffix(100)))
-            질문:\(message)
-            """
-        }
-    }
-    
-    // MARK: - ✅ 자동 새 대화 시작 감지
-    func shouldStartNewConversation(currentLength: Int, messageCount: Int) -> Bool {
-        return currentLength > ConversationLimits.maxConversationLength ||
-               messageCount > ConversationLimits.maxMessagesInMemory
-    }
-    
-    // MARK: - ✅ 대화 초기화 알림
-    func handleConversationReset(completion: @escaping (String) -> Void) {
-        let resetMessage = """
-        💾 대화가 길어져서 새로운 대화를 시작합니다.
-        
-        이전 대화의 맥락을 기억하면서 계속 도움을 드릴게요! 😊
-        무엇에 대해 이야기하고 싶으신가요? ✨
-        """
-        
-        conversationHistory.removeAll()
-        currentTokenCount = 0
-        
-        completion(resetMessage)
-    }
-    
-    // MARK: - ✅ 에러 복구 전략
-    func handleAPIError(_ error: String, retryAttempt: Int, completion: @escaping (String?) -> Void) {
-        switch error {
-        case let e where e.contains("token"):
-            if retryAttempt == 0 {
-                handleConversationReset { resetMessage in
-                    completion(resetMessage)
-                }
-            } else {
-                completion("죄송해요, 서버가 바쁩니다 😅 잠시 후 다시 시도해주세요.")
-            }
-        case let e where e.contains("rate"):
-            completion("⏰ 잠시 쉬었다가 다시 대화해보세요. (1분 후 재시도) 😊")
-        case let e where e.contains("network"):
-            completion("🌐 네트워크 연결을 확인해주세요.")
-        default:
-            completion("일시적인 문제가 발생했습니다 😓 다시 시도해주세요.")
-        }
-    }
-    
-    // MARK: - ✅ 프리엠티브 메모리 관리
-    func preemptiveMemoryCheck(conversationLength: Int) -> (shouldCompress: Bool, shouldReset: Bool) {
-        let shouldCompress = conversationLength > ConversationLimits.contextCompressionThreshold
-        let shouldReset = conversationLength > ConversationLimits.maxConversationLength
-        
-        if shouldReset {
-            print("⚠️ 대화 길이 초과, 리셋 필요: \(conversationLength)")
-        } else if shouldCompress {
-            print("📝 컨텍스트 압축 권장: \(conversationLength)")
-        }
-        
-        return (shouldCompress, shouldReset)
-    }
-    
-    // MARK: - ✅ 네트워크 상태 모니터링
-    func getOptimalTokensForNetworkCondition(baseTokens: Int) -> Int {
-        // 네트워크 체크는 비동기이므로 기본값 반환
-        return baseTokens
-    }
-    
-    func adjustTokensForFailures(baseTokens: Int) -> Int {
-        let reduction = min(consecutiveFailures * 20, 100)
-        return max(baseTokens - reduction, 50)
-    }
-    
-    func resetFailureCount() {
-        consecutiveFailures = 0
-    }
-    
-    func incrementFailureCount() {
-        consecutiveFailures += 1
-        if consecutiveFailures > 5 {
-            print("⚠️ 연속 실패 감지, 토큰 제한 강화")
-        }
-    }
-    
-    // MARK: - ✅ 토큰 사용량 모니터링
-    private func logTokenUsage(intent: String, tokens: Int) {
-        print("📊 토큰 사용: \(intent) - \(tokens)토큰")
-        
-        if tokens > 300 {
-            print("⚠️ 높은 토큰 사용량 감지: \(tokens)")
-        }
-    }
-    
-    private func validatePromptLength(_ prompt: String, maxLength: Int = 500) -> String {
-        if prompt.count > maxLength {
-            print("⚠️ 프롬프트 길이 초과, 자동 단축: \(prompt.count) -> \(maxLength)")
-            return String(prompt.prefix(maxLength)) + "..."
-        }
-        return prompt
-    }
-
-    // MARK: - 🔐 새로운 보안 환경 설정 시스템 사용
-    private var apiKey: String {
-        return EnvironmentConfig.shared.replicateAPIKey
-    }
-
-    enum ServiceError: Error, LocalizedError {
-        case invalidAPIKey
-        case invalidModelIdentifier
-        case replicateAPIError(String)
-        case predictionFailed(String)
-        case predictionProcessingError(String)
-        case predictionTimeout
-        case outputParsingFailed
-        case requestCreationFailed
-        case unexpectedResponseStructure
-
-        var errorDescription: String? {
-            switch self {
-            case .invalidAPIKey: return "Replicate API 키가 유효하지 않거나 설정되지 않았습니다."
-            case .invalidModelIdentifier: return "Replicate 모델 식별자 또는 버전이 유효하지 않습니다."
-            case .replicateAPIError(let message): return "Replicate API 통신 오류: \(message)"
-            case .predictionFailed(let status): return "AI 모델 예측 실패 (상태: \(status)). Replicate 대시보드에서 상세 로그를 확인하세요."
-            case .predictionProcessingError(let message): return "AI 모델 입력 처리 오류: \(message)"
-            case .predictionTimeout: return "AI 모델 응답 시간 초과."
-            case .outputParsingFailed: return "AI 모델 응답에서 결과를 파싱하는 데 실패했습니다."
-            case .requestCreationFailed: return "API 요청 객체 생성에 실패했습니다."
-            case .unexpectedResponseStructure: return "Replicate API로부터 예상치 못한 응답 구조를 받았습니다."
-            }
-        }
-    }
-
-    /// 🆕 AI 모델로부터 할 일 관련 조언을 얻습니다. (향상된 프롬프트 처리)
-    func getAIAdvice(prompt: String, systemPrompt: String?) async throws -> String {
-        let currentApiKey = self.apiKey
-
-        guard !currentApiKey.isEmpty else { throw ServiceError.invalidAPIKey }
-
-        // Claude 3.5 Haiku 모델 사용 (더 빠르고 효율적)
-        let modelOwnerAndName = "anthropic/claude-3.5-haiku"
-
-        guard let predictionCreationUrl = URL(string: "https://api.replicate.com/v1/models/\(modelOwnerAndName)/predictions") else {
-            throw ServiceError.requestCreationFailed
-        }
-
-        var request = URLRequest(url: predictionCreationUrl)
-        request.httpMethod = "POST"
-        request.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
-
-        // 🆕 향상된 프롬프트 파라미터 설정
-        var inputPayload: [String: Any] = [
-            "prompt": prompt,
-            "temperature": 0.7,     // 창의적이면서도 일관된 조언
-            "top_p": 0.9,          // 다양성 증가
-            "max_tokens": 400       // 충분한 토큰으로 완전한 조언 생성
-        ]
-        
-        if let sysPrompt = systemPrompt, !sysPrompt.isEmpty {
-            inputPayload["system_prompt"] = sysPrompt
-        }
-        
-        let body: [String: Any] = [
-            "input": inputPayload
-        ]
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        } catch {
-            throw ServiceError.requestCreationFailed
-        }
-        
-        let (initialData, initialResponse) = try await URLSession.shared.data(for: request)
-
-        guard let httpInitialResponse = initialResponse as? HTTPURLResponse else {
-            throw ServiceError.replicateAPIError("초기 요청에 대한 유효하지 않은 HTTP 응답입니다.")
-        }
-
-        guard httpInitialResponse.statusCode == 201 else { // 201 Created
-            var errorDetail = "Prediction 생성 실패 (HTTP \(httpInitialResponse.statusCode))"
-            if let responseData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: initialData) {
-                errorDetail += ": \(responseData.detail ?? "알 수 없는 Replicate API 오류")"
-            }
-            throw ServiceError.replicateAPIError(errorDetail)
-        }
-
-        // 2. Prediction 결과 폴링
-        guard let predictionResponse = try? JSONDecoder().decode(ReplicatePredictionResponse.self, from: initialData),
-              let getUrlString = predictionResponse.urls?.get, // 이 URL은 prediction ID를 포함한 GET 요청 URL
-              let getUrl = URL(string: getUrlString) else {
-            throw ServiceError.unexpectedResponseStructure
-        }
-        
-        // predictionResponse.id를 사용할 수도 있지만, urls.get 이 더 직접적입니다.
-        guard predictionResponse.id != nil else {
-             throw ServiceError.unexpectedResponseStructure // ID가 없으면 폴링 불가
-        }
-
-
-        let maxAttempts = 25 // 약 25초 타임아웃 (딜레이 고려)
-        let delayBetweenAttempts: TimeInterval = 1.0 // 1초
-
-        for attempt in 0..<maxAttempts {
-            // 폴링 요청은 predictionResponse.urls.get으로 받은 URL 사용
-            var pollingRequest = URLRequest(url: getUrl)
-            pollingRequest.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
-            pollingRequest.addValue("application/json", forHTTPHeaderField: "Accept") // Content-Type 불필요
-
-            let (pollData, pollResponse) = try await URLSession.shared.data(for: pollingRequest)
-            
-            guard let httpPollResponse = pollResponse as? HTTPURLResponse, httpPollResponse.statusCode == 200 else {
-                // 여기서도 상세 오류 로깅 가능
-                let statusCode = (pollResponse as? HTTPURLResponse)?.statusCode ?? 0
-                var errorDetail = "Prediction 폴링 실패 (HTTP \(statusCode))"
-                 if let responseErrorData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: pollData) {
-                    errorDetail += ": \(responseErrorData.detail ?? "알 수 없는 Replicate API 오류")"
-                } else if let responseString = String(data: pollData, encoding: .utf8) {
-                     errorDetail += "\nResponse: \(responseString)"
-                 }
-                print("Poll Error Detail: \(errorDetail)")
-                throw ServiceError.replicateAPIError("Prediction 폴링 실패 (HTTP \(statusCode))")
-            }
-
-            let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: pollData)
-
-            switch statusResponse.status?.lowercased() {
-            case "succeeded":
-                guard let outputContainer = statusResponse.output else {
-                    print("❌ Output field is nil in 'succeeded' case.")
-                    throw ServiceError.outputParsingFailed
-                }
-
-                // Claude Haiku는 주로 문자열 배열로 응답합니다.
-                if let stringArray = outputContainer.value as? [String] {
-                    print("✅ AI Advice (Array<String>): \\(stringArray.joined())")
-                    return stringArray.joined()
-                } 
-                // 간혹 단일 문자열로 올 수도 있습니다.
-                else if let stringValue = outputContainer.value as? String {
-                    print("✅ AI Advice (String): \\(stringValue)")
-                    return stringValue
-                } 
-                // 만약 예상치 못한 다른 타입이라면
-                else {
-                    print("❌ Unexpected output type in 'succeeded' case: \\(type(of: outputContainer.value)). Value: \\(outputContainer.value)")
-                    throw ServiceError.outputParsingFailed
-                }
-            case "failed", "canceled":
-                let _ = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
-                let _ = statusResponse.logs ?? "N/A"
-                print("❌ Prediction 최종 상태 실패/취소: \\(errorMsg), Logs: \\(logsOutput)")
-                throw ServiceError.predictionFailed(statusResponse.status ?? "N/A")
-            case "starting", "processing":
-                if attempt == maxAttempts - 1 {
-                    print("❌ Prediction 타임아웃 (최대 시도 \\(maxAttempts)회 도달)")
-                    throw ServiceError.predictionTimeout
-                }
-                try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
-            default:
-                let _ = statusResponse.status ?? "알 수 없음"
-                let _ = statusResponse.logs ?? "N/A"
-                print("⚠️ Prediction 알 수 없는 상태 (in getAIAdvice loop): \\(unknownStatus), Logs: \\(currentLogs)")
-                if attempt == maxAttempts - 1 {
-                    print("❌ Prediction 타임아웃 (알 수 없는 상태에서 최대 시도 \\(maxAttempts)회 도달)")
-                    throw ServiceError.predictionTimeout
-                }
-                try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
-            }
-        }
-        // 루프가 정상적으로 끝나면 (maxAttempts에 도달했지만 succeeded, failed, canceled가 아닌 경우) 타임아웃으로 처리
-        print("❌ Prediction 타임아웃 (루프 종료)")
-        throw ServiceError.predictionTimeout
-    }
-
     // MARK: - 🧠 고급 AI 프리셋 추천 시스템
     
     /// 종합적인 상황 분석을 바탕으로 한 고급 프리셋 추천
@@ -1404,44 +896,584 @@ class ReplicateChatService {
         completion: @escaping (String?) -> Void
     ) {
         let advancedPrompt = """
-        \(analysisData)
-        
-        위 종합적인 분석 데이터를 바탕으로 사용자에게 최적화된 사운드 프리셋을 추천해주세요.
-        
-        반드시 다음 형식으로만 응답해주세요:
-        
-        EMOTION: [평온/휴식/집중/수면/활력/안정/이완/창의/명상 중 하나]
-        INTENSITY: [0.5-1.5 사이의 소수점 한 자리 수치]
-        REASON: [추천 이유를 한두 문장으로 친근하고 따뜻하게]
-        TIMEOFDAY: [새벽/아침/오전/점심/오후/저녁/밤/자정 중 하나]
-        
-        예시:
-        EMOTION: 수면
-        INTENSITY: 0.8
-        REASON: 현재 밤 시간대이고 스트레스 키워드가 많이 감지되어 편안한 잠들기를 위한 부드러운 사운드가 필요합니다.
-        TIMEOFDAY: 밤
-        """
-        
-        let input: [String: Any] = [
-            "prompt": advancedPrompt,
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "max_tokens": 300,
-            "system_prompt": """
-            당신은 종합적인 상황 분석을 바탕으로 맞춤형 사운드를 추천하는 전문 AI 상담사입니다.
-            사용자의 시간대, 감정, 대화 맥락, 사용 패턴을 모두 고려하여 최적의 추천을 제공합니다.
-            응답은 반드시 지정된 형식을 정확히 따라주세요.
-            """
-        ]
-        
-        #if DEBUG
-        print("🧠 [ADVANCED-AI] 종합 분석 기반 프리셋 추천 요청")
-        print("분석 데이터 길이: \(analysisData.count)자")
-        #endif
-        
-        sendToReplicate(input: input, completion: completion)
+                \(analysisData)
+                
+                위 종합적인 분석 데이터를 바탕으로 사용자에게 최적화된 사운드 프리셋을 추천해주세요.
+                
+                반드시 다음 형식으로만 응답해주세요:
+                
+                EMOTION: [평온/휴식/집중/수면/활력/안정/이완/창의/명상 중 하나]
+                INTENSITY: [0.5-1.5 사이의 소수점 한 자리 수치]
+                REASON: [추천 이유를 한두 문장으로 친근하고 따뜻하게]
+                TIMEOFDAY: [새벽/아침/오전/점심/오후/저녁/밤/자정 중 하나]
+                
+                예시:
+                EMOTION: 수면
+                INTENSITY: 0.8
+                REASON: 현재 밤 시간대이고 스트레스 키워드가 많이 감지되어 편안한 잠들기를 위한 부드러운 사운드가 필요합니다.
+                TIMEOFDAY: 밤
+                """
+                
+                let input: [String: Any] = [
+                    "prompt": advancedPrompt,
+                    "temperature": 0.7,
+                    "top_p": 0.9,
+                    "max_tokens": 300,
+                    "system_prompt": """
+                    ⚠️ 중요 지시사항:
+                    - 당신의 이름은 반드시 '미니'입니다. 다른 이름(클로드, Claude 등)을 절대로 언급하지 마세요.
+                    - 사용자가 이름을 물어보면 반드시 "안녕하세요! 저는 미니예요 😊"라고 대답하세요.
+                    
+                    당신은 미니입니다. 종합적인 상황 분석을 바탕으로 맞춤형 사운드를 추천하는 전문 AI 상담사입니다.
+                    사용자의 시간대, 감정, 대화 맥락, 사용 패턴을 모두 고려하여 최적의 추천을 제공합니다.
+                    응답은 반드시 지정된 형식을 정확히 따라주세요.
+                    """
+                ]
+                
+                #if DEBUG
+                print("🧠 [ADVANCED-AI] 종합 분석 기반 프리셋 추천 요청")
+                print("분석 데이터 길이: \(analysisData.count)자")
+                #endif
+                
+                sendToReplicate(input: input, completion: completion)
+            }
+            
+            // MARK: - Replicate API 요청
+            private func sendToReplicate(input: [String: Any], completion: @escaping (String?) -> Void) {
+                isNetworkAvailable { isConnected in
+                    guard isConnected else {
+                        print("❌ 네트워크 연결 안 됨")
+                        completion(nil)
+                        return
+                    }
+
+                            // API 키 통합 관리 사용
+                let apiToken = self.apiKey
+                print("✅ [DEBUG] API 토큰 사용: \(apiToken.prefix(10))...")
+                
+                guard !apiToken.isEmpty else {
+                    print("❌ API 토큰 누락")
+                    completion(nil)
+                    return
+                }
+
+                    let url = URL(string: "https://api.replicate.com/v1/models/anthropic/claude-3.5-haiku/predictions")!
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+                    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                    let body: [String: Any] = ["input": input]
+                    
+                    do {
+                        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                        print("📤 API 요청 전송 (\(input["max_tokens"] ?? 0) 토큰)")
+                    } catch {
+                        print("❌ JSON 직렬화 실패: \(error)")
+                        completion(nil)
+                        return
+                    }
+                    
+                    let session = URLSession(configuration: .default)
+                    self.executeRequest(session: session, request: request, completion: completion, retriesLeft: 3)
+                }
+            }
+            
+            // ✅ 요청 실행 최적화
+            private func executeRequest(session: URLSession, request: URLRequest, completion: @escaping (String?) -> Void, retriesLeft: Int) {
+                session.dataTask(with: request) { data, response, error in
+                    if let error = error {
+                        print("❌ 네트워크 오류: \(error)")
+                        if retriesLeft > 0 {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                self.executeRequest(session: session, request: request, completion: completion, retriesLeft: retriesLeft - 1)
+                            }
+                        } else {
+                            DispatchQueue.main.async { completion(nil) }
+                        }
+                        return
+                    }
+                    
+                    guard let data = data else {
+                        print("❌ 데이터 없음")
+                        DispatchQueue.main.async { completion(nil) }
+                        return
+                    }
+                    
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            if let predictionID = json["id"] as? String {
+                                print("✅ 예측 시작: \(predictionID)")
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                    self.pollPredictionResult(id: predictionID, attempts: 0, completion: completion)
+                                }
+                            } else if let error = json["error"] as? String {
+                                print("❌ API 에러: \(error)")
+                                if retriesLeft > 0 {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                        self.executeRequest(session: session, request: request, completion: completion, retriesLeft: retriesLeft - 1)
+                                    }
+                                } else {
+                                    DispatchQueue.main.async { completion(nil) }
+                                }
+                            }
+                        }
+                    } catch {
+                        print("❌ JSON 파싱 실패: \(error)")
+                        DispatchQueue.main.async { completion(nil) }
+                    }
+                }.resume()
+            }
+
+            // MARK: - ✅ 최적화된 결과 폴링
+            private func pollPredictionResult(id: String, attempts: Int, completion: @escaping (String?) -> Void) {
+                guard attempts < 25 else {
+                    print("❌ 시간 초과")
+                    DispatchQueue.main.async { completion(nil) }
+                    return
+                }
+
+                // API 키 통합 관리 사용
+                let apiToken = self.apiKey
+                
+                guard !apiToken.isEmpty else {
+                    print("❌ API 키가 비어있습니다.")
+                    completion(nil)
+                    return
+                }
+
+                let getURL = URL(string: "https://api.replicate.com/v1/predictions/\(id)")!
+                var request = URLRequest(url: getURL)
+                request.httpMethod = "GET"
+                request.addValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+
+                URLSession.shared.dataTask(with: request) { data, response, error in
+                    guard let data = data, error == nil else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            if attempts > 0 {
+                            self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                            } else {
+                                DispatchQueue.main.async { completion(nil) }
+                            }
+                        }
+                        return
+                    }
+                    
+                    do {
+                        let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: data)
+                            
+                        switch statusResponse.status?.lowercased() {
+                            case "succeeded":
+                            guard let outputContainerValue = statusResponse.output else {
+                                print("❌ Output field is nil in 'succeeded' case (pollPredictionResult).")
+                                DispatchQueue.main.async { completion(nil) }
+                                return
+                            }
+                            
+                            // outputContainerValue는 AnyDecodableValue 타입이어야 합니다.
+                            // .value 를 통해 실제 Any 타입의 값을 가져옵니다.
+                            let actualOutputAsAny: Any = outputContainerValue.value
+
+                            if let stringArray = actualOutputAsAny as? [String] {
+                                print("✅ (Poll) AI Advice (Array<String>): \(stringArray.joined())")
+                                DispatchQueue.main.async { completion(stringArray.joined()) }
+                            } else if let stringValue = actualOutputAsAny as? String {
+                                print("✅ (Poll) AI Advice (String): \(stringValue)")
+                                DispatchQueue.main.async { completion(stringValue) }
+                            } else {
+                                print("❌ (Poll) Unexpected output type in 'succeeded' case: \(type(of: actualOutputAsAny)). Value: \(String(describing: actualOutputAsAny))")
+                                DispatchQueue.main.async { completion(nil) }
+                            }
+                                
+                            case "failed", "canceled":
+                            let errorMsg = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
+                            let logsOutput = statusResponse.logs ?? "N/A"
+                            print("❌ (Poll) Prediction 최종 상태 실패/취소: \(errorMsg), Logs: \(logsOutput)")
+                                DispatchQueue.main.async { completion(nil) }
+                                
+                            case "starting", "processing":
+                            if attempts >= 25 - 1 {
+                                print("❌ (Poll) Prediction 타임아웃 (최대 시도 \(attempts + 1)회 도달)")
+                                DispatchQueue.main.async { completion(nil) }
+                                return
+                            }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                    self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                                }
+                                
+                            default:
+                            let currentStatus = statusResponse.status ?? "N/A"
+                            let currentLogs = statusResponse.logs ?? "N/A"
+                            print("⚠️ (Poll) Prediction 알 수 없는 상태: \(currentStatus), Logs: \(currentLogs)")
+                            if attempts >= 25 - 1 {
+                                print("❌ (Poll) Prediction 타임아웃 (알 수 없는 상태, 루프 종료)")
+                                DispatchQueue.main.async { completion(nil) }
+                                return
+                            }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                    self.pollPredictionResult(id: id, attempts: attempts + 1, completion: completion)
+                            }
+                        }
+                    } catch {
+                        print("❌ (Poll) JSON 디코딩 또는 처리 실패: \(error.localizedDescription)")
+                        DispatchQueue.main.async { completion(nil) }
+                    }
+                }.resume()
+            }
+
+            // MARK: - ✅ 스마트 컨텍스트 압축 (기존 호환성 유지)
+            func sendPromptWithContextManagement(
+                message: String,
+                intent: String,
+                conversationHistory: [String] = [],
+                completion: @escaping (String?) -> Void
+            ) {
+                let totalContext = ([message] + conversationHistory).joined(separator: " ")
+                
+                if totalContext.count > ConversationLimits.contextCompressionThreshold {
+                    let compressedContext = compressConversationContext(history: conversationHistory)
+                    let optimizedPrompt = buildContextualPrompt(
+                        message: message,
+                        compressedContext: compressedContext,
+                        intent: intent
+                    )
+                    
+                    sendPrompt(message: optimizedPrompt, intent: intent, completion: completion)
+                } else {
+                    sendPrompt(message: message, intent: intent, completion: completion)
+                }
+            }
+            
+            // MARK: - ✅ 대화 히스토리 압축
+            private func compressConversationContext(history: [String]) -> String {
+                guard history.count > 3 else { return history.joined(separator: "\n") }
+                
+                let recentMessages = Array(history.suffix(3))
+                let olderMessages = Array(history.prefix(history.count - 3))
+                
+                let summary = summarizeOlderMessages(olderMessages)
+                let compressed = ([summary] + recentMessages).joined(separator: "\n")
+                
+                print("📝 컨텍스트 압축: \(history.count)개 → 요약+3개")
+                return compressed
+            }
+            
+            private func summarizeOlderMessages(_ messages: [String]) -> String {
+                let allText = messages.joined(separator: " ")
+                let keywords = extractKeywords(from: allText)
+                
+                return "이전대화요약: \(keywords.prefix(5).joined(separator: ", "))"
+            }
+            
+            private func extractKeywords(from text: String) -> [String] {
+                let words = text.components(separatedBy: .whitespacesAndNewlines)
+                    .flatMap { $0.components(separatedBy: .punctuationCharacters) }
+                let meaningfulWords = words.filter { $0.count > 2 && !isStopWord($0) }
+                
+                let wordCounts = Dictionary(grouping: meaningfulWords, by: { $0 })
+                    .mapValues { $0.count }
+                    .sorted { $0.value > $1.value }
+                
+                return wordCounts.prefix(10).map { $0.key }
+            }
+            
+            private func isStopWord(_ word: String) -> Bool {
+                let stopWords = ["그런데", "그래서", "하지만", "그리고", "그냥", "정말", "진짜", "아니", "네"]
+                return stopWords.contains(word.lowercased())
+            }
+            
+            // MARK: - ✅ 컨텍스트 기반 프롬프트 구성
+            private func buildContextualPrompt(message: String, compressedContext: String, intent: String) -> String {
+                switch intent {
+                case "pattern_analysis":
+                    return """
+                    맥락:\(String(compressedContext.suffix(150)))
+                    요청:\(message)
+                    간단분석응답
+                    """
+                case "diary_analysis":
+                    return """
+                    이전대화:\(String(compressedContext.suffix(100)))
+                    일기:\(message)
+                    공감응답
+                    """
+                default:
+                    return """
+                    맥락:\(String(compressedContext.suffix(100)))
+                    질문:\(message)
+                    """
+                }
+            }
+            
+            // MARK: - ✅ 자동 새 대화 시작 감지
+            func shouldStartNewConversation(currentLength: Int, messageCount: Int) -> Bool {
+                return currentLength > ConversationLimits.maxConversationLength ||
+                       messageCount > ConversationLimits.maxMessagesInMemory
+            }
+            
+            // MARK: - ✅ 대화 초기화 알림
+            func handleConversationReset(completion: @escaping (String) -> Void) {
+                let resetMessage = """
+                💾 대화가 길어져서 새로운 대화를 시작합니다.
+                
+                이전 대화의 맥락을 기억하면서 계속 도움을 드릴게요! 😊
+                무엇에 대해 이야기하고 싶으신가요? ✨
+                """
+                
+                conversationHistory.removeAll()
+                currentTokenCount = 0
+                
+                completion(resetMessage)
+            }
+            
+            // MARK: - ✅ 에러 복구 전략
+            func handleAPIError(_ error: String, retryAttempt: Int, completion: @escaping (String?) -> Void) {
+                switch error {
+                case let e where e.contains("token"):
+                    if retryAttempt == 0 {
+                        handleConversationReset { resetMessage in
+                            completion(resetMessage)
+                        }
+                    } else {
+                        completion("죄송해요, 서버가 바쁩니다 😅 잠시 후 다시 시도해주세요.")
+                    }
+                case let e where e.contains("rate"):
+                    completion("⏰ 잠시 쉬었다가 다시 대화해보세요. (1분 후 재시도) 😊")
+                case let e where e.contains("network"):
+                    completion("🌐 네트워크 연결을 확인해주세요.")
+                default:
+                    completion("일시적인 문제가 발생했습니다 😓 다시 시도해주세요.")
+                }
+            }
+            
+            // MARK: - ✅ 프리엠티브 메모리 관리
+            func preemptiveMemoryCheck(conversationLength: Int) -> (shouldCompress: Bool, shouldReset: Bool) {
+                let shouldCompress = conversationLength > ConversationLimits.contextCompressionThreshold
+                let shouldReset = conversationLength > ConversationLimits.maxConversationLength
+                
+                if shouldReset {
+                    print("⚠️ 대화 길이 초과, 리셋 필요: \(conversationLength)")
+                } else if shouldCompress {
+                    print("📝 컨텍스트 압축 권장: \(conversationLength)")
+                }
+                
+                return (shouldCompress, shouldReset)
+            }
+            
+            // MARK: - ✅ 네트워크 상태 모니터링
+            func getOptimalTokensForNetworkCondition(baseTokens: Int) -> Int {
+                // 네트워크 체크는 비동기이므로 기본값 반환
+                return baseTokens
+            }
+            
+            func adjustTokensForFailures(baseTokens: Int) -> Int {
+                let reduction = min(consecutiveFailures * 20, 100)
+                return max(baseTokens - reduction, 50)
+            }
+            
+            func resetFailureCount() {
+                consecutiveFailures = 0
+            }
+            
+            func incrementFailureCount() {
+                consecutiveFailures += 1
+                if consecutiveFailures > 5 {
+                    print("⚠️ 연속 실패 감지, 토큰 제한 강화")
+                }
+            }
+            
+            // MARK: - ✅ 토큰 사용량 모니터링
+            private func logTokenUsage(intent: String, tokens: Int) {
+                print("📊 토큰 사용: \(intent) - \(tokens)토큰")
+                
+                if tokens > 300 {
+                    print("⚠️ 높은 토큰 사용량 감지: \(tokens)")
+                }
+            }
+            
+            private func validatePromptLength(_ prompt: String, maxLength: Int = 500) -> String {
+                if prompt.count > maxLength {
+                    print("⚠️ 프롬프트 길이 초과, 자동 단축: \(prompt.count) -> \(maxLength)")
+                    return String(prompt.prefix(maxLength)) + "..."
+                }
+                return prompt
+            }
+
+            // MARK: - 🔐 새로운 보안 환경 설정 시스템 사용
+            private var apiKey: String {
+                return EnvironmentConfig.shared.replicateAPIKey
+            }
+
+            enum ServiceError: Error, LocalizedError {
+                case invalidAPIKey
+                case invalidModelIdentifier
+                case replicateAPIError(String)
+                case predictionFailed(String)
+                case predictionProcessingError(String)
+                case predictionTimeout
+                case outputParsingFailed
+                case requestCreationFailed
+                case unexpectedResponseStructure
+
+                var errorDescription: String? {
+                    switch self {
+                    case .invalidAPIKey: return "Replicate API 키가 유효하지 않거나 설정되지 않았습니다."
+                    case .invalidModelIdentifier: return "Replicate 모델 식별자 또는 버전이 유효하지 않습니다."
+                    case .replicateAPIError(let message): return "Replicate API 통신 오류: \(message)"
+                    case .predictionFailed(let status): return "AI 모델 예측 실패 (상태: \(status)). Replicate 대시보드에서 상세 로그를 확인하세요."
+                    case .predictionProcessingError(let message): return "AI 모델 입력 처리 오류: \(message)"
+                    case .predictionTimeout: return "AI 모델 응답 시간 초과."
+                    case .outputParsingFailed: return "AI 모델 응답에서 결과를 파싱하는 데 실패했습니다."
+                    case .requestCreationFailed: return "API 요청 객체 생성에 실패했습니다."
+                    case .unexpectedResponseStructure: return "Replicate API로부터 예상치 못한 응답 구조를 받았습니다."
+                    }
+                }
+            }
+
+            /// 🆕 AI 모델로부터 할 일 관련 조언을 얻습니다. (향상된 프롬프트 처리)
+            func getAIAdvice(prompt: String, systemPrompt: String?) async throws -> String {
+                let currentApiKey = self.apiKey
+
+                guard !currentApiKey.isEmpty else { throw ServiceError.invalidAPIKey }
+
+                // Claude 3.5 Haiku 모델 사용 (더 빠르고 효율적)
+                let modelOwnerAndName = "anthropic/claude-3.5-haiku"
+
+                guard let predictionCreationUrl = URL(string: "https://api.replicate.com/v1/models/\(modelOwnerAndName)/predictions") else {
+                    throw ServiceError.requestCreationFailed
+                }
+
+                var request = URLRequest(url: predictionCreationUrl)
+                request.httpMethod = "POST"
+                request.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.addValue("application/json", forHTTPHeaderField: "Accept")
+
+                // 🆕 향상된 프롬프트 파라미터 설정
+                var inputPayload: [String: Any] = [
+                    "prompt": prompt,
+                    "temperature": 0.7,     // 창의적이면서도 일관된 조언
+                    "top_p": 0.9,          // 다양성 증가
+                    "max_tokens": 400       // 충분한 토큰으로 완전한 조언 생성
+                ]
+                
+                if let sysPrompt = systemPrompt, !sysPrompt.isEmpty {
+                    inputPayload["system_prompt"] = sysPrompt
+                }
+                
+                let body: [String: Any] = [
+                    "input": inputPayload
+                ]
+                
+                do {
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                } catch {
+                    throw ServiceError.requestCreationFailed
+                }
+                
+                let (initialData, initialResponse) = try await URLSession.shared.data(for: request)
+
+                guard let httpInitialResponse = initialResponse as? HTTPURLResponse else {
+                    throw ServiceError.replicateAPIError("초기 요청에 대한 유효하지 않은 HTTP 응답입니다.")
+                }
+
+                guard httpInitialResponse.statusCode == 201 else { // 201 Created
+                    var errorDetail = "Prediction 생성 실패 (HTTP \(httpInitialResponse.statusCode))"
+                    if let responseData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: initialData) {
+                        errorDetail += ": \(responseData.detail ?? "알 수 없는 Replicate API 오류")"
+                    }
+                    throw ServiceError.replicateAPIError(errorDetail)
+                }
+
+                // 2. Prediction 결과 폴링
+                guard let predictionResponse = try? JSONDecoder().decode(ReplicatePredictionResponse.self, from: initialData),
+                      let getUrlString = predictionResponse.urls?.get, // 이 URL은 prediction ID를 포함한 GET 요청 URL
+                      let getUrl = URL(string: getUrlString) else {
+                    throw ServiceError.unexpectedResponseStructure
+                }
+                
+                // predictionResponse.id를 사용할 수도 있지만, urls.get 이 더 직접적입니다.
+                guard predictionResponse.id != nil else {
+                     throw ServiceError.unexpectedResponseStructure // ID가 없으면 폴링 불가
+                }
+
+
+                let maxAttempts = 25 // 약 25초 타임아웃 (딜레이 고려)
+                let delayBetweenAttempts: TimeInterval = 1.0 // 1초
+
+                for attempt in 0..<maxAttempts {
+                    // 폴링 요청은 predictionResponse.urls.get으로 받은 URL 사용
+                    var pollingRequest = URLRequest(url: getUrl)
+                    pollingRequest.addValue("Token \(currentApiKey)", forHTTPHeaderField: "Authorization")
+                    pollingRequest.addValue("application/json", forHTTPHeaderField: "Accept") // Content-Type 불필요
+
+                    let (pollData, pollResponse) = try await URLSession.shared.data(for: pollingRequest)
+                    
+                    guard let httpPollResponse = pollResponse as? HTTPURLResponse, httpPollResponse.statusCode == 200 else {
+                        // 여기서도 상세 오류 로깅 가능
+                        let statusCode = (pollResponse as? HTTPURLResponse)?.statusCode ?? 0
+                        var errorDetail = "Prediction 폴링 실패 (HTTP \(statusCode))"
+                         if let responseErrorData = try? JSONDecoder().decode(ReplicateErrorResponse.self, from: pollData) {
+                            errorDetail += ": \(responseErrorData.detail ?? "알 수 없는 Replicate API 오류")"
+                        } else if let responseString = String(data: pollData, encoding: .utf8) {
+                             errorDetail += "\nResponse: \(responseString)"
+                         }
+                        print("Poll Error Detail: \(errorDetail)")
+                        throw ServiceError.replicateAPIError("Prediction 폴링 실패 (HTTP \(statusCode))")
+                    }
+
+                    let statusResponse = try JSONDecoder().decode(ReplicatePredictionResponse.self, from: pollData)
+
+                    switch statusResponse.status?.lowercased() {
+                    case "succeeded":
+                        guard let outputContainer = statusResponse.output else {
+                            print("❌ Output field is nil in 'succeeded' case.")
+                            throw ServiceError.outputParsingFailed
+                        }
+
+                        // Claude Haiku는 주로 문자열 배열로 응답합니다.
+                        if let stringArray = outputContainer.value as? [String] {
+                            print("✅ AI Advice (Array<String>): \(stringArray.joined())")
+                            return stringArray.joined()
+                        }
+                        // 간혹 단일 문자열로 올 수도 있습니다.
+                        else if let stringValue = outputContainer.value as? String {
+                            print("✅ AI Advice (String): \(stringValue)")
+                            return stringValue
+                        }
+                        // 만약 예상치 못한 다른 타입이라면
+                        else {
+                            print("❌ Unexpected output type in 'succeeded' case: \(type(of: outputContainer.value)). Value: \(outputContainer.value)")
+                            throw ServiceError.outputParsingFailed
+                        }
+                    case "failed", "canceled":
+                        let errorMsg = statusResponse.error ?? "알 수 없는 이유로 실패 또는 취소됨"
+                        let logsOutput = statusResponse.logs ?? "N/A"
+                        print("❌ Prediction 최종 상태 실패/취소: \(errorMsg), Logs: \(logsOutput)")
+                        throw ServiceError.predictionFailed(statusResponse.status ?? "N/A")
+                    case "starting", "processing":
+                        if attempt == maxAttempts - 1 {
+                            print("❌ Prediction 타임아웃 (최대 시도 \(maxAttempts)회 도달)")
+                            throw ServiceError.predictionTimeout
+                        }
+                        try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
+                    default:
+                        let unknownStatus = statusResponse.status ?? "알 수 없음"
+                        let currentLogs = statusResponse.logs ?? "N/A"
+                        print("⚠️ Prediction 알 수 없는 상태 (in getAIAdvice loop): \(unknownStatus), Logs: \(currentLogs)")
+                        if attempt == maxAttempts - 1 {
+                            print("❌ Prediction 타임아웃 (알 수 없는 상태에서 최대 시도 \(maxAttempts)회 도달)")
+                            throw ServiceError.predictionTimeout
+                        }
+                        try await Task.sleep(nanoseconds: UInt64(delayBetweenAttempts * 1_000_000_000))
+                    }
+                }
+                // 루프가 정상적으로 끝나면 (maxAttempts에 도달했지만 succeeded, failed, canceled가 아닌 경우) 타임아웃으로 처리
+                print("❌ Prediction 타임아웃 (루프 종료)")
+                throw ServiceError.predictionTimeout
+            }
     }
-}
+
 
 // MARK: - Replicate API 응답 구조체들
 
