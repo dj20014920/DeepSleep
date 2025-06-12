@@ -14,7 +14,7 @@ class ViewController: UIViewController {
         return SoundPresetCatalog.displayLabels
     }
     
-    /// 기존 호환성을 위한 슬라이더 라벨 (deprecated)
+    ///  슬라이더 라벨
     @available(*, deprecated, message: "Use categoryLabels instead")
     let sliderLabels = Array("ABCDEFGHIJKLM")  // 13개로 변경
     
@@ -32,7 +32,7 @@ class ViewController: UIViewController {
     var favoritePresetButtons: [UIButton] = []
     var presetStackView: UIStackView!
     
-    // 🛡️ 프리셋 업데이트 디바운싱을 위한 타이머
+    // 프리셋 업데이트 디바운싱을 위한 타이머
     var updateTimer: Timer?
     
     // 실시간 재생 상태 모니터링 (기존 유지)

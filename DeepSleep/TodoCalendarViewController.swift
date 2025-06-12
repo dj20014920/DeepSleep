@@ -250,9 +250,6 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         setupOverallAdviceButtonArea()
         setupEmptyStateView()
         
-        // 🔧 크래시 방지: 셀 등록을 안전하게 처리
-        registerTableViewCells()
-        
         // 네비게이션 버튼 설정
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAddButton))
         addButton.tintColor = UIDesignSystem.Colors.primaryText
@@ -360,6 +357,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(TodoTableViewCell.self, forCellReuseIdentifier: TodoTableViewCell.identifier)
+        tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
+        tableView.separatorStyle = .none
         
         self.view.addSubview(tableView)
         self.tableView = tableView

@@ -3,7 +3,7 @@
 //  DeepSleep
 //
 //  Created by Psychoacoustic Research Team on 2024-01-19.
-//  Copyright © 2024 DeepSleep. All rights reserved.
+//  Copyright © 2025 DeepSleep. All rights reserved.
 //
 
 import Foundation
