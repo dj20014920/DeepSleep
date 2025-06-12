@@ -28,12 +28,10 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 🤖 AI 기반 개인화
     •    Claude 3.5 Haiku(Replicate API) 통합
     •    감정 분석 → 최적 사운드 프리셋 추천
-    •    HealthKit 연동(심박/수면/활동)으로 정밀 분석
 
 📖 감정 일기 & 분석
     •    감정 기록 + AI 대화
-    •    패턴 분석 & 인사이트 카드
-    •    일기 내용으로 프리셋 자동 생성
+    •    패턴 분석 & 인사이트
 
 📅 스마트 일정 관리
     •    감정과 연계된 할 일 관리
@@ -41,7 +39,6 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 🔗 소셜 기능
     •    프리셋 QR/URL 공유
-    •    설정 백업·복원 JSON 내보내기
 
 ⸻
 
@@ -49,9 +46,8 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 프론트엔드
 
-Swift 5.9 + UIKit
+Swift + UIKit
 ├─ MVC 기반 구조
-├─ SceneDelegate 로 최신 생명주기 관리
 ├─ Auto Layout 반응형 UI (다크모드 완전 대응)
 └─ URL Scheme / 딥링크
 
@@ -60,7 +56,7 @@ AI & 외부 서비스
 Replicate API  (Claude 3.5 Haiku)
 ├─ 실시간 AI 대화
 ├─ 감정 분석 · 추천
-└─ 토큰 사용량 최적화 & 오류 복구
+└─ 토큰 사용량 최적화 
 
 데이터 관리
 
@@ -75,19 +71,6 @@ AVFoundation
 ├─ 싱글톤 AVAudioEngine 믹서
 ├─ 다중 트랙 실시간 믹싱
 └─ 배터리 효율 최적화
-
-
-⸻
-
-📋 시스템 요구사항
-
-구분    최소 사양
-iOS    17.0 이상
-Xcode    15.4 이상
-Swift    5.9
-기기    iPhone · iPad
-권한    알림, 캘린더, HealthKit(선택)
-
 
 ⸻
 
