@@ -4,6 +4,8 @@ SecureSecrets.xcconfig
 *.secret
 *.env
 .env.*
+.cursor
+*.txt
 
 # 🔨 Xcode 빌드 파일들
 build/
