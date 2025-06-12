@@ -538,7 +538,7 @@ class AddEditTodoViewController: UIViewController, UITextViewDelegate {
                 aiHelpButton.backgroundColor = .systemGreen
             } else {
                 aiHelpButton.isEnabled = false
-                aiHelpButton.setTitle("오늘 AI 조언 모두 사용 (총 2회)", for: .disabled)
+                aiHelpButton.setTitle("오늘 AI 조언 모두 사용 (총 3회)", for: .disabled)
                 aiHelpButton.backgroundColor = .systemGray
             }
         }
