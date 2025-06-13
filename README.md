@@ -1,3 +1,9 @@
+# DeepSleep
+
+![Coverage](https://img.shields.io/badge/coverage--green.svg)
+
+---
+
 ## 🔑 API 토큰 설정
 
 ```bash
@@ -135,6 +141,9 @@ bundle exec fastlane test
 - 커버리지 80% 미만 시 워크플로 실패
 
 ## 🛠️ 환경 변수/Secrets
-- `CODECOV_TOKEN` (repo secret)
-```
+- `CODECOV_TOKEN` (codecov 업로드용)
+
+---
+
+# ... 이하 기존 내용 ...
 
