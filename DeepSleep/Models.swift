@@ -1,6 +1,10 @@
 import Foundation
 import UIKit
+import CoreData
+
+#if canImport(SwiftData)
 import SwiftData
+#endif
 
 // MARK: - 감정 관련 모델 (기존 유지)
 struct Emotion {
@@ -426,7 +430,7 @@ struct EnhancedRecommendationResponse {
 
 // MARK: - Phase 2: SwiftData 기반 피드백 모델
 
-/// Phase 2: 사용자 피드백 데이터 모델 (SwiftData)
+#if canImport(SwiftData)
 @Model
 class PresetFeedback {
     @Attribute(.unique) var id: UUID
@@ -546,6 +550,7 @@ class PresetFeedback {
         }
     }
 }
+#endif
 
 /// Phase 2: 사용자 프로필 벡터 (피드백 기반 분석)
 struct UserProfileVector {
@@ -1400,4 +1405,62 @@ struct CleanupResult: Codable {
         return freedSpaceKB > 100 || deletedFeedbackCount > 10
     }
 }
+
+/// iOS 16 이하에서 사용하는 CoreData 기반 PresetFeedback 모델
+/// - Note: SwiftData의 PresetFeedback과 구조를 맞춤
+@objc(PresetFeedbackCoreData)
+public class PresetFeedbackCoreData: NSManagedObject {
+    @NSManaged public var id: UUID
+    @NSManaged public var timestamp: Date
+    @NSManaged public var presetName: String
+    @NSManaged public var contextEmotion: String
+    @NSManaged public var contextTime: Int16
+    @NSManaged public var recommendedVolumes: [Float]
+    @NSManaged public var recommendedVersions: [Int]
+    @NSManaged public var finalVolumes: [Float]
+    @NSManaged public var listeningDuration: Double
+    @NSManaged public var wasSkipped: Bool
+    @NSManaged public var wasSaved: Bool
+    @NSManaged public var userSatisfaction: Int16
+}
+
+extension PresetFeedbackCoreData {
+    /// CoreData Entity 이름
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<PresetFeedbackCoreData> {
+        return NSFetchRequest<PresetFeedbackCoreData>(entityName: "PresetFeedbackCoreData")
+    }
+}
+
+/// [Float], [Int] 타입을 CoreData에서 Transformable로 저장/복원하기 위한 ValueTransformer
+@objc(FloatArrayTransformer)
+class FloatArrayTransformer: ValueTransformer {
+    override class func transformedValueClass() -> AnyClass { return NSData.self }
+    override class func allowsReverseTransformation() -> Bool { return true }
+    override func transformedValue(_ value: Any?) -> Any? {
+        guard let array = value as? [Float] else { return nil }
+        return try? NSKeyedArchiver.archivedData(withRootObject: array, requiringSecureCoding: false)
+    }
+    override func reverseTransformedValue(_ value: Any?) -> Any? {
+        guard let data = value as? Data else { return nil }
+        return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [Float]
+    }
+}
+
+@objc(IntArrayTransformer)
+class IntArrayTransformer: ValueTransformer {
+    override class func transformedValueClass() -> AnyClass { return NSData.self }
+    override class func allowsReverseTransformation() -> Bool { return true }
+    override func transformedValue(_ value: Any?) -> Any? {
+        guard let array = value as? [Int] else { return nil }
+        return try? NSKeyedArchiver.archivedData(withRootObject: array, requiringSecureCoding: false)
+    }
+    override func reverseTransformedValue(_ value: Any?) -> Any? {
+        guard let data = value as? Data else { return nil }
+        return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [Int]
+    }
+}
+
+// 앱 시작 시 아래 코드로 등록 필요 (예시)
+// ValueTransformer.setValueTransformer(FloatArrayTransformer(), forName: NSValueTransformerName("FloatArrayTransformer"))
+// ValueTransformer.setValueTransformer(IntArrayTransformer(), forName: NSValueTransformerName("IntArrayTransformer"))
 
