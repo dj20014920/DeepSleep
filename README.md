@@ -15,7 +15,7 @@ AI와 함께하는 개인 맞춤형 수면 사운드 경험
 📱 프로젝트 개요
 
 EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 맞춤형 수면 사운드를 제공하는 iOS 앱입니다.
-단순 Sleep-Timer 를 넘어, 감정 일기·캘린더·AI 코칭까지 아우르는 ‘종합 웰니스 플랫폼’을 목표로 합니다.
+단순 Sleep-Timer 를 넘어, 감정 일기·캘린더·AI 코칭까지 아우르는 '종합 웰니스 플랫폼'을 목표로 합니다.
 
 ⸻
 
@@ -112,5 +112,29 @@ open DeepSleep.xcodeproj   # ⌘R 로 실행
 ⭐ Star • 🐛 Bug • 💡 Feature
 
 </div>
+
+## 📦 빌드 & 테스트 배지
+
+[![CI](https://github.com/dj20014920/DeepSleep/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/dj20014920/DeepSleep/actions/workflows/ios-ci.yml)
+[![codecov](https://codecov.io/gh/dj20014920/DeepSleep/branch/ai_hybrid/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/gh/dj20014920/DeepSleep)
+
+## 🚦 로컬 테스트/커버리지
+
+```sh
+# 전체 테스트 및 커버리지 측정
+xcodebuild test -scheme DeepSleep -destination 'platform=iOS Simulator,name=iPhone 16' -enableCodeCoverage YES
+# Fastlane 사용
+bundle exec fastlane test
+# 커버리지 80% 미만 시 실패 처리
+./scripts/coverage_check.sh 80
+```
+
+## 🤖 CI 자동화
+- GitHub Actions: `.github/workflows/ios-ci.yml` (iOS 16.4/17.4, codecov 연동)
+- Fastlane: `fastlane test`, `fastlane beta`, `fastlane release` 지원
+- 커버리지 80% 미만 시 워크플로 실패
+
+## 🛠️ 환경 변수/Secrets
+- `CODECOV_TOKEN` (repo secret)
 ```
 
