@@ -1,0 +1,18 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "FSCalendar-arm64-apple-macosx15.0-debug.module": ["<FSCalendar-arm64-apple-macosx15.0-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": []
+  "test": []
+default: "main"
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: []
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

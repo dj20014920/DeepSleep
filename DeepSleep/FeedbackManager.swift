@@ -1,5 +1,8 @@
 import Foundation
+#if canImport(SwiftData)
 import SwiftData
+#endif
+import CoreData
 
 /// Phase 2: 피드백 수집 및 관리 매니저
 /// SwiftData를 사용한 사용자 피드백 데이터 관리 시스템
@@ -7,24 +10,43 @@ import SwiftData
 final class FeedbackManager: ObservableObject {
     static let shared = FeedbackManager()
     
-    // MARK: - SwiftData 컨텍스트
-    private var modelContainer: ModelContainer
-    private var modelContext: ModelContext
+    // MARK: - SwiftData (iOS 17+)
+    @available(iOS 17, *)
+    private var modelContainer: ModelContainer?
+    @available(iOS 17, *)
+    private var modelContext: ModelContext? {
+        modelContainer?.mainContext
+    }
+    
+    // MARK: - CoreData (iOS 16 이하)
+    private var persistentContainer: NSPersistentContainer?
+    private var coreDataContext: NSManagedObjectContext? {
+        persistentContainer?.viewContext
+    }
     
     // MARK: - 현재 세션 추적
     private var currentSession: PresetFeedback?
     private var sessionStartTime: Date?
     
     private init() {
-        do {
-            // SwiftData 모델 컨테이너 초기화
-            self.modelContainer = try ModelContainer(for: PresetFeedback.self)
-            self.modelContext = modelContainer.mainContext
-            
-            print("✅ [FeedbackManager] SwiftData 초기화 성공")
-        } catch {
-            print("❌ [FeedbackManager] SwiftData 초기화 실패: \(error)")
-            fatalError("SwiftData 초기화에 실패했습니다.")
+        if #available(iOS 17, *) {
+            // SwiftData 초기화
+            modelContainer = try? ModelContainer(for: PresetFeedback.self)
+        } else {
+            // CoreData ValueTransformer 등록
+            ValueTransformer.setValueTransformer(FloatArrayTransformer(), forName: NSValueTransformerName("FloatArrayTransformer"))
+            ValueTransformer.setValueTransformer(IntArrayTransformer(), forName: NSValueTransformerName("IntArrayTransformer"))
+            // CoreData 스택 초기화
+            let container = NSPersistentContainer(name: "PresetFeedbackCoreData")
+            let description = NSPersistentStoreDescription()
+            description.type = NSSQLiteStoreType
+            container.persistentStoreDescriptions = [description]
+            container.loadPersistentStores { _, error in
+                if let error = error {
+                    print("[CoreData] Persistent store load error: \(error)")
+                }
+            }
+            self.persistentContainer = container
         }
     }
     
@@ -104,8 +126,8 @@ final class FeedbackManager: ObservableObject {
         
         // SwiftData에 저장
         do {
-            modelContext.insert(session)
-            try modelContext.save()
+            modelContext?.insert(session)
+            try modelContext?.save()
             
             print("✅ [FeedbackManager] 세션 저장 완료: \(session.presetName)")
             print("  - 청취 시간: \(String(format: "%.1f", listeningDuration))초")
@@ -142,7 +164,7 @@ final class FeedbackManager: ObservableObject {
         
         // 즉시 저장 (명시적 피드백은 중요하므로)
         do {
-            try modelContext.save()
+            try modelContext?.save()
             print("✅ [FeedbackManager] 명시적 피드백 저장: \(satisfaction == 1 ? "👎 싫어요" : satisfaction == 2 ? "👍 좋아요" : "😐 보통")")
         } catch {
             print("❌ [FeedbackManager] 피드백 저장 실패: \(error)")
@@ -162,7 +184,7 @@ final class FeedbackManager: ObservableObject {
         )
         
         do {
-            let allFeedback = try modelContext.fetch(descriptor)
+            let allFeedback = try modelContext?.fetch(descriptor) ?? []
             let result = Array(allFeedback.prefix(limit))
             
             #if DEBUG
@@ -184,7 +206,7 @@ final class FeedbackManager: ObservableObject {
         )
         
         do {
-            let feedbacks = try modelContext.fetch(descriptor)
+            let feedbacks = try modelContext?.fetch(descriptor) ?? []
             return Array(feedbacks.prefix(limit))
         } catch {
             print("❌ [FeedbackManager] 감정별 피드백 조회 실패: \(error)")
@@ -202,7 +224,7 @@ final class FeedbackManager: ObservableObject {
         )
         
         do {
-            let feedbacks = try modelContext.fetch(descriptor)
+            let feedbacks = try modelContext?.fetch(descriptor) ?? []
             return Array(feedbacks.prefix(limit))
         } catch {
             print("❌ [FeedbackManager] 시간대별 피드백 조회 실패: \(error)")
@@ -221,7 +243,7 @@ final class FeedbackManager: ObservableObject {
         let descriptor = FetchDescriptor<PresetFeedback>()
         
         do {
-            return try modelContext.fetchCount(descriptor)
+            return try modelContext?.fetchCount(descriptor) ?? 0
         } catch {
             print("❌ [FeedbackManager] 피드백 개수 조회 실패: \(error)")
             return 0
@@ -248,7 +270,7 @@ final class FeedbackManager: ObservableObject {
         )
         
         do {
-            let oldFeedbacks = try modelContext.fetch(descriptor)
+            let oldFeedbacks = try modelContext?.fetch(descriptor) ?? []
             let deletedCount = oldFeedbacks.count
             
             // 삭제 전 용량 계산
@@ -256,9 +278,9 @@ final class FeedbackManager: ObservableObject {
             let beforeSizeKB = beforeCount * 3 // 피드백당 약 3KB (볼륨 배열 + 메타데이터)
             
             for feedback in oldFeedbacks {
-                modelContext.delete(feedback)
+                modelContext?.delete(feedback)
             }
-            try modelContext.save()
+            try modelContext?.save()
             
             // 삭제 후 통계
             let afterCount = getTotalFeedbackCount()
@@ -306,7 +328,7 @@ final class FeedbackManager: ObservableObject {
     private func optimizeDatabase() {
         do {
             // SwiftData에서는 명시적 VACUUM이 없으므로 컨텍스트 저장으로 최적화
-            try modelContext.save()
+            try modelContext?.save()
             print("💾 [FeedbackManager] 데이터베이스 최적화 완료")
         } catch {
             print("❌ [FeedbackManager] 데이터베이스 최적화 실패: \(error)")
@@ -330,11 +352,11 @@ final class FeedbackManager: ObservableObject {
         let descriptor = FetchDescriptor<PresetFeedback>()
         
         do {
-            let allFeedbacks = try modelContext.fetch(descriptor)
+            let allFeedbacks = try modelContext?.fetch(descriptor) ?? []
             for feedback in allFeedbacks {
-                modelContext.delete(feedback)
+                modelContext?.delete(feedback)
             }
-            try modelContext.save()
+            try modelContext?.save()
             
             print("🗑️ [FeedbackManager] 모든 피드백 데이터 삭제 완료")
         } catch {
@@ -385,11 +407,11 @@ final class FeedbackManager: ObservableObject {
             feedback.listeningDuration = TimeInterval(duration)
             feedback.userSatisfaction = satisfaction >= 0.8 ? 2 : (satisfaction >= 0.5 ? 1 : 0)
             
-            modelContext.insert(feedback)
+            modelContext?.insert(feedback)
         }
         
         do {
-            try modelContext.save()
+            try modelContext?.save()
             #if DEBUG
             print("✅ [FeedbackManager] 테스트 데이터 생성 완료: \(testFeedbacks.count)개")
             print("📊 총 피드백 데이터: \(getTotalFeedbackCount())개")
@@ -438,6 +460,42 @@ final class FeedbackManager: ObservableObject {
         print("===============================")
         #endif
     }
+    
+    /// PresetFeedback 업데이트
+    func updateFeedback(id: UUID, updateBlock: (Any) -> Void) {
+        if #available(iOS 17, *) {
+            // SwiftData 업데이트
+            let fetchDescriptor = FetchDescriptor<PresetFeedback>(predicate: #Predicate { $0.id == id })
+            guard let feedback = (try? modelContext?.fetch(fetchDescriptor))?.first else { return }
+            updateBlock(feedback)
+            try? modelContext?.save()
+        } else {
+            // CoreData 업데이트
+            guard let ctx = coreDataContext else { return }
+            let request = PresetFeedbackCoreData.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            guard let feedback = (try? ctx.fetch(request))?.first else { return }
+            updateBlock(feedback)
+            do { try ctx.save() } catch { print("[CoreData] Update error: \(error)") }
+        }
+    }
+
+    /// PresetFeedback 삭제
+    func deleteFeedback(id: UUID) {
+        if #available(iOS 17, *) {
+            let fetchDescriptor = FetchDescriptor<PresetFeedback>(predicate: #Predicate { $0.id == id })
+            guard let feedback = (try? modelContext?.fetch(fetchDescriptor))?.first else { return }
+            modelContext?.delete(feedback)
+            try? modelContext?.save()
+        } else {
+            guard let ctx = coreDataContext else { return }
+            let request = PresetFeedbackCoreData.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            guard let feedback = (try? ctx.fetch(request))?.first else { return }
+            ctx.delete(feedback)
+            do { try ctx.save() } catch { print("[CoreData] Delete error: \(error)") }
+        }
+    }
 }
 
 // MARK: - 편의 메서드들
@@ -478,4 +536,76 @@ extension FeedbackManager {
         • 데이터 기간: 최근 30일
         """
     }
+}
+
+// MARK: - CRUD (공통 인터페이스)
+extension FeedbackManager {
+    /// PresetFeedback 저장
+    func saveFeedback(
+        presetName: String,
+        contextEmotion: String,
+        contextTime: Int,
+        recommendedVolumes: [Float],
+        recommendedVersions: [Int],
+        finalVolumes: [Float],
+        listeningDuration: TimeInterval,
+        wasSkipped: Bool,
+        wasSaved: Bool,
+        userSatisfaction: Int
+    ) {
+        if #available(iOS 17, *) {
+            // SwiftData 저장
+            let feedback = PresetFeedback(
+                presetName: presetName,
+                contextEmotion: contextEmotion,
+                contextTime: contextTime,
+                recommendedVolumes: recommendedVolumes,
+                recommendedVersions: recommendedVersions
+            )
+            feedback.finalVolumes = finalVolumes
+            feedback.listeningDuration = listeningDuration
+            feedback.wasSkipped = wasSkipped
+            feedback.wasSaved = wasSaved
+            feedback.userSatisfaction = userSatisfaction
+            modelContext?.insert(feedback)
+            try? modelContext?.save()
+        } else {
+            // CoreData 저장
+            guard let ctx = coreDataContext else { return }
+            let entity = NSEntityDescription.entity(forEntityName: "PresetFeedbackCoreData", in: ctx)!
+            let feedback = PresetFeedbackCoreData(entity: entity, insertInto: ctx)
+            feedback.id = UUID()
+            feedback.timestamp = Date()
+            feedback.presetName = presetName
+            feedback.contextEmotion = contextEmotion
+            feedback.contextTime = Int16(contextTime)
+            feedback.recommendedVolumes = recommendedVolumes
+            feedback.recommendedVersions = recommendedVersions
+            feedback.finalVolumes = finalVolumes
+            feedback.listeningDuration = listeningDuration
+            feedback.wasSkipped = wasSkipped
+            feedback.wasSaved = wasSaved
+            feedback.userSatisfaction = Int16(userSatisfaction)
+            do {
+                try ctx.save()
+            } catch {
+                print("[CoreData] Save error: \(error)")
+            }
+        }
+    }
+    
+    /// PresetFeedback 전체 조회
+    func fetchAllFeedback() -> [Any] {
+        if #available(iOS 17, *) {
+            // SwiftData 조회
+            let fetchDescriptor = FetchDescriptor<PresetFeedback>()
+            return (try? modelContext?.fetch(fetchDescriptor)) ?? []
+        } else {
+            // CoreData 조회
+            guard let ctx = coreDataContext else { return [] }
+            let request = PresetFeedbackCoreData.fetchRequest()
+            return (try? ctx.fetch(request)) ?? []
+        }
+    }
+    // (필요시 update/delete 등 추가)
 } 
