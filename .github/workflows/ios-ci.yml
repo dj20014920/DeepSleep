@@ -1,0 +1,36 @@
+name: iOS CI
+on:
+  push:
+    branches: [ai_hybrid]
+  pull_request:
+    branches: [ai_hybrid]
+jobs:
+  build-test:
+    runs-on: macos-13
+    strategy:
+      matrix:
+        ios_version: [16.4, 17.4]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby & Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Install Fastlane
+        run: gem install fastlane
+      - name: Xcode Select
+        run: sudo xcode-select -s "/Applications/Xcode_15.3.app"
+      - name: Run tests (iOS ${{ matrix.ios_version }})
+        run: |
+          xcodebuild test -scheme DeepSleep \
+            -destination "platform=iOS Simulator,OS=${{ matrix.ios_version }},name=iPhone 15 Pro" \
+            -enableCodeCoverage YES
+      - name: Check coverage >= 80%
+        run: ./scripts/coverage_check.sh 80
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          flags: ios
+          verbose: true 

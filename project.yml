@@ -35,4 +35,14 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
     dependencies:
-      - package: FSCalendar 
+      - package: FSCalendar
+  DeepSleepTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+        excludes: [Info.plist]
+    info:
+      path: Tests/Tests-Info.plist
+    dependencies:
+      - target: DeepSleep 

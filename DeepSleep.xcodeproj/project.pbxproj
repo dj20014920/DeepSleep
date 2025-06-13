@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00CEC4BDDA0BC04A988C4DB9 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E4F7D947AC69A230F54EE9 /* EmotionCalendarViewController.swift */; };
 		00EA2B1824CFDD95C63C2E70 /* UIDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 032F7C36F9ADF7699B0D8BA0 /* UIDesignSystem.swift */; };
+		080B70F23E8378BE712D3603 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5EF3E7184EC8D5DA76B0B5 /* ClaudeService.swift */; };
 		08BFF28BA24DF9F92F1CF9FF /* PresetSharingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7038BE244ED935B89FCD3892 /* PresetSharingManager.swift */; };
 		08D66E57413D1B438A48C717 /* forceSyncMainViewControllerPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8173C443994983C5ED506032 /* forceSyncMainViewControllerPreset.swift */; };
 		090193CAACDB4C68C4AF1A4D /* 우주.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 587E6A9B5032AC5C8487D908 /* 우주.mp3 */; };
@@ -18,7 +19,9 @@
 		1006FD800D091447DE95CB75 /* BatteryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAEAF97564FBBCCAD21D20A7 /* BatteryOptimizationManager.swift */; };
 		16E6EB577E538CCC4623BA3E /* ScalableSoundCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B63B5A55916BBA6B5E666B /* ScalableSoundCatalog.swift */; };
 		1834D61C85A8C5D6DAB5A1CD /* PresetListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDEE7C0CC6C42EDF5631D93E /* PresetListViewController.swift */; };
+		19773D3831FF21917D9F53A5 /* SecureEnclaveKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47748CBA38789A0217FD9B9 /* SecureEnclaveKeyStore.swift */; };
 		19D2908AF1A9C1856A4A9314 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B501442C6C8625C0C2347A /* EmotionDiaryViewController+Insights.swift */; };
+		1D12B43751F6F1C4F75D551A /* AdapterDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C26D332F55B93ED5F31134 /* AdapterDownloader.swift */; };
 		1DC06D3E6429164B098E1C9E /* AutomaticLearningModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AF426592B6843E87AAB283 /* AutomaticLearningModels.swift */; };
 		1DC9504B8AFA70D311958431 /* AppInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 233E58870410AD90E8FDD2B2 /* AppInfo.plist */; };
 		1E26C8036681D797ED09AC7B /* UserBehaviorAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F870012ADB0D29A28AA5D50 /* UserBehaviorAnalytics.swift */; };
@@ -30,6 +33,7 @@
 		2FAC7A3ED6AD5DC388BDDAA0 /* ComprehensiveRecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F539B35FA76D45A270169A3B /* ComprehensiveRecommendationEngine.swift */; };
 		2FE5311CBE0768D50021D175 /* LaunchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CF480625F9172E544117B5 /* LaunchViewController.swift */; };
 		351DDEB5F9F2A609ECBFAD75 /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C5FB149274DD34FA8F16FD /* ChatManager.swift */; };
+		364FE974457C40F355E8C06D /* LoRAAdapterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98CE317583CF9850D77D7AB /* LoRAAdapterManager.swift */; };
 		3728017D3266919189B3FED3 /* EmotionResponseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CAF0F63507A49B2FBC7B40 /* EmotionResponseManager.swift */; };
 		372C65F49AE00844BB484D9B /* EnvironmentConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C61F985B37C55F522AFCAB3 /* EnvironmentConfig.swift */; };
 		3A317896D05B1E3DCE8AF2FC /* TimerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B7CEADA7DE4AFFEC4C93DF1 /* TimerViewController.swift */; };
@@ -40,6 +44,7 @@
 		4074644669934D4CE1FC90D2 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FFD748E73948DED58474612 /* ViewController+EmotionSelector.swift */; };
 		448692C917087800C9B8D95D /* ChatRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E99CC40DB596C3B3D2464 /* ChatRouter.swift */; };
 		48CFB5EBF621F55EA04D88A6 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02BCDC03A7910B8BA2E74EEE /* FeedbackManager.swift */; };
+		49204CF38EC11156E4BB0923 /* ClaudeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */; };
 		4B85DC86122FD8373A9FC104 /*  EmotionDiaryCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91C0B3A23E38DBF757967AC5 /*  EmotionDiaryCell.swift */; };
 		4D4367EE938FEE4792100746 /* 쿨링팬.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */; };
 		4D6E5241513521768E65D8C6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B498A7F0D6AE7E0DBF336CF /* Models.swift */; };
@@ -81,6 +86,7 @@
 		B815E978CC1D1EF7076DAF48 /* PsychoacousticOptimizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D37563C8768A341C5C48BCD /* PsychoacousticOptimizationEngine.swift */; };
 		B8D2B53E9902637C0E8E4F47 /* ReplicateChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */; };
 		BBA78DC5F8CBF36400B31735 /* 바람.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 07A76940CACD2487BBF915AF /* 바람.mp3 */; };
+		BBE927B63C7BDC1C54E8021C /* LoRAAdapterManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E45AD14F484C5EF6BE10C29 /* LoRAAdapterManagerTests.swift */; };
 		BD5504941C414E90E3C7D763 /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17D3A667FD0638CB4F9ADDB /* ViewController+PlaybackControls.swift */; };
 		BFE72E0E4E385CD58B285DF2 /* 불1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 88469BEB9954F8D482927AD0 /* 불1.mp3 */; };
 		C5986A3268927420C8C59DE9 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55DE793C26A01123052DF82 /* ChatMessage.swift */; };
@@ -90,6 +96,7 @@
 		CBBD066EDC0D88EF1AC4B9D0 /* EmotionDiaryDisplayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5233264A87477C9BD8492E90 /* EmotionDiaryDisplayCell.swift */; };
 		CE0881AD71FE99ABC60FD2D0 /* PROJECTGOAL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 76EC111F022DC80E863C6FC2 /* PROJECTGOAL.txt */; };
 		D0C5BA9E680E772A9FE71D29 /* TodoCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D71F73AE7A63BC1D9B43095 /* TodoCalendarViewController.swift */; };
+		D5D4F3FCD7BACA352675C678 /* LRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */; };
 		D781F8C21C5FE2152418D336 /* 새-비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DA62AB69027588ED6309ACCB /* 새-비.mp3 */; };
 		D8862B7A63C421D4AC23C17C /* EmotionCalendarViewcontroller+Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28DF1850097FA3E0F83A27D7 /* EmotionCalendarViewcontroller+Diary.swift */; };
 		DA0CA5983B74281EBECEE28B /* ChatViewController+Analysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CAFD3E98EEC5E6006B5322F /* ChatViewController+Analysis.swift */; };
@@ -98,12 +105,23 @@
 		E37BA76A7CB917D686167B23 /* AIUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19C483A7B153AB19F6D8C45 /* AIUsageManager.swift */; };
 		EE215DD846E1F24708648653 /* 새.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 228C09865820C28339C2FD9F /* 새.mp3 */; };
 		EF7CAA0B5C6EB566319FEB70 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F0AA54716DC8703A96B04 /* SettingsManager.swift */; };
+		F1D754398B81E74133205622 /* LRUCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A5D065690814322AEA7F5A /* LRUCacheTests.swift */; };
 		F265B3BEBB51ECDD422C59D6 /* EmotionCalendarViewController+Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1172F0E35484D07267D97C /* EmotionCalendarViewController+Collection.swift */; };
 		F53AE6FBE0DF699F16628B09 /* cat.gif in Resources */ = {isa = PBXBuildFile; fileRef = 4FE3129D61B807C5BC3A7182 /* cat.gif */; };
 		F87FE90ABBC9F5A8D6491BB8 /* 비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 05CC92C5D2D169794B992D19 /* 비.mp3 */; };
 		FB2ACED08953F86A7BCA974B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28F6410EDEC9DE20EBBC224 /* SceneDelegate.swift */; };
 		FF100E7DB1D16679B3C98850 /* RemoteLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6089582DACAC752873B369F3 /* RemoteLogger.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		308E7D694E4705B1433E7B99 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A70E7CEF9846EEE400125BCF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8EECD2DF0612360142B148BA;
+			remoteInfo = DeepSleep;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		02BCDC03A7910B8BA2E74EEE /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
@@ -154,12 +172,17 @@
 		7351B5E3A12CC204D36373CD /* ChatBubbleCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleCell.swift; sourceTree = "<group>"; };
 		76EC111F022DC80E863C6FC2 /* PROJECTGOAL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = PROJECTGOAL.txt; sourceTree = "<group>"; };
 		790FA387C47370AE0279184E /* EmotionDiaryViewController+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Actions.swift"; sourceTree = "<group>"; };
+		7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCache.swift; sourceTree = "<group>"; };
 		7D71F73AE7A63BC1D9B43095 /* TodoCalendarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoCalendarViewController.swift; sourceTree = "<group>"; };
+		7E45AD14F484C5EF6BE10C29 /* LoRAAdapterManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoRAAdapterManagerTests.swift; sourceTree = "<group>"; };
 		8002A2578F62FAE5DA7DA944 /* EmotionAnalysisChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisChatViewController.swift; sourceTree = "<group>"; };
+		80C26D332F55B93ED5F31134 /* AdapterDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdapterDownloader.swift; sourceTree = "<group>"; };
 		8173C443994983C5ED506032 /* forceSyncMainViewControllerPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = forceSyncMainViewControllerPreset.swift; sourceTree = "<group>"; };
 		82B501442C6C8625C0C2347A /* EmotionDiaryViewController+Insights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Insights.swift"; sourceTree = "<group>"; };
 		831B365A5E34297E37B1FC30 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		83A5D065690814322AEA7F5A /* LRUCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCacheTests.swift; sourceTree = "<group>"; };
 		84E666B9E361F34B4E5B4C71 /* generate-secrets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-secrets.sh"; sourceTree = "<group>"; };
+		87D5C906CC35C0DA9552414F /* Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Tests-Info.plist"; sourceTree = "<group>"; };
 		88469BEB9954F8D482927AD0 /* 불1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "불1.mp3"; sourceTree = "<group>"; };
 		8A3CBA9ADFC59D9F4642636E /* .gitignore */ = {isa = PBXFileReference; path = .gitignore; sourceTree = "<group>"; };
 		8D37563C8768A341C5C48BCD /* PsychoacousticOptimizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PsychoacousticOptimizationEngine.swift; sourceTree = "<group>"; };
@@ -177,6 +200,9 @@
 		A2F2F53D3F4E77FCC49A7BCA /* EmotionAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalyzer.swift; sourceTree = "<group>"; };
 		A4C3A98F4E77843C3EDFE6D5 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A55DE793C26A01123052DF82 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		AC5EF3E7184EC8D5DA76B0B5 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		AF30D607BD2DD56662E5E224 /* DeepSleepTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DeepSleepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeServiceTests.swift; sourceTree = "<group>"; };
 		B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "밤2.mp3"; sourceTree = "<group>"; };
 		B5894F2F351E88D2FBA510A2 /* TokenTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTracker.swift; sourceTree = "<group>"; };
 		BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "고양이.mp3"; sourceTree = "<group>"; };
@@ -193,6 +219,7 @@
 		DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈2.mp3"; sourceTree = "<group>"; };
 		DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람2.mp3"; sourceTree = "<group>"; };
 		E2E92646EB63505374DBA702 /* EmotionDiaryViewController+TableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+TableView.swift"; sourceTree = "<group>"; };
+		E47748CBA38789A0217FD9B9 /* SecureEnclaveKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveKeyStore.swift; sourceTree = "<group>"; };
 		E9AF426592B6843E87AAB283 /* AutomaticLearningModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomaticLearningModels.swift; sourceTree = "<group>"; };
 		EB1172F0E35484D07267D97C /* EmotionCalendarViewController+Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewController+Collection.swift"; sourceTree = "<group>"; };
 		EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "시냇물.mp3"; sourceTree = "<group>"; };
@@ -201,6 +228,7 @@
 		F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비-창문.mp3"; sourceTree = "<group>"; };
 		F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplicateChatService.swift; sourceTree = "<group>"; };
 		F86701BF2E80092075BD0AB4 /* ViewController+SliderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+SliderControls.swift"; sourceTree = "<group>"; };
+		F98CE317583CF9850D77D7AB /* LoRAAdapterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoRAAdapterManager.swift; sourceTree = "<group>"; };
 		FC13358A08AF9B3C0E3706B7 /* ViewController+Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Utilities.swift"; sourceTree = "<group>"; };
 		FDEE7C0CC6C42EDF5631D93E /* PresetListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetListViewController.swift; sourceTree = "<group>"; };
 		FEC0BA654D6AE6A00EA21650 /* DiaryWriteViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryWriteViewController.swift; sourceTree = "<group>"; };
@@ -223,6 +251,7 @@
 			isa = PBXGroup;
 			children = (
 				ECEB04EB4814B1A1D37C1900 /* DeepSleep */,
+				E6F3E3B1B6550231A7462B2D /* Tests */,
 				30DD0D7E0ED513A527381A29 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -231,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				C621046B4A0FEBDD66540895 /* DeepSleep.app */,
+				AF30D607BD2DD56662E5E224 /* DeepSleepTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -279,11 +309,23 @@
 			path = workflows;
 			sourceTree = "<group>";
 		};
+		E6F3E3B1B6550231A7462B2D /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */,
+				7E45AD14F484C5EF6BE10C29 /* LoRAAdapterManagerTests.swift */,
+				83A5D065690814322AEA7F5A /* LRUCacheTests.swift */,
+				87D5C906CC35C0DA9552414F /* Tests-Info.plist */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		ECEB04EB4814B1A1D37C1900 /* DeepSleep */ = {
 			isa = PBXGroup;
 			children = (
 				91C0B3A23E38DBF757967AC5 /*  EmotionDiaryCell.swift */,
 				8A3CBA9ADFC59D9F4642636E /* .gitignore */,
+				80C26D332F55B93ED5F31134 /* AdapterDownloader.swift */,
 				FFD647C6CDA1F4CFF9A3D8A8 /* AddEditTodoViewController.swift */,
 				04FB0B08435B7E1C5CBEE75C /* AISecurityManager.swift */,
 				A19C483A7B153AB19F6D8C45 /* AIUsageManager.swift */,
@@ -302,6 +344,7 @@
 				2A7F6DE0B8042DB10513362F /* ChatviewController+Actions.swift */,
 				4CAFD3E98EEC5E6006B5322F /* ChatViewController+Analysis.swift */,
 				507A413D676212F7CE7EE0AC /* ChatViewController+Preset.swift */,
+				AC5EF3E7184EC8D5DA76B0B5 /* ClaudeService.swift */,
 				F539B35FA76D45A270169A3B /* ComprehensiveRecommendationEngine.swift */,
 				210EF6DFD49177F0B790BF77 /* Constants.swift */,
 				5EE605C0C8D7CAEE0495DD9D /* DeepSleep.entitlements */,
@@ -331,6 +374,8 @@
 				36F982C19DB11B706E99B1E9 /* LaunchScreen.storyboard */,
 				12CF480625F9172E544117B5 /* LaunchViewController.swift */,
 				65743E7975E0B2AE71FE4FCE /* LegacyPresetManager.swift */,
+				F98CE317583CF9850D77D7AB /* LoRAAdapterManager.swift */,
+				7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */,
 				9B498A7F0D6AE7E0DBF336CF /* Models.swift */,
 				FDEE7C0CC6C42EDF5631D93E /* PresetListViewController.swift */,
 				7038BE244ED935B89FCD3892 /* PresetSharingManager.swift */,
@@ -340,6 +385,7 @@
 				F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */,
 				62B63B5A55916BBA6B5E666B /* ScalableSoundCatalog.swift */,
 				A28F6410EDEC9DE20EBBC224 /* SceneDelegate.swift */,
+				E47748CBA38789A0217FD9B9 /* SecureEnclaveKeyStore.swift */,
 				2B0F0AA54716DC8703A96B04 /* SettingsManager.swift */,
 				2505666B6E7F08BA2EA92462 /* SoundFilterManager.swift */,
 				08F3B50B9EE7679A0B097FBC /* SoundManager.swift */,
@@ -367,6 +413,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		7A0F762F16DA5B90E23E8E33 /* DeepSleepTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3BB1AD18263291B4DF7C958B /* Build configuration list for PBXNativeTarget "DeepSleepTests" */;
+			buildPhases = (
+				0C4C663CCAE56610A08B862A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA533BB4EB5EC7705990E745 /* PBXTargetDependency */,
+			);
+			name = DeepSleepTests;
+			packageProductDependencies = (
+			);
+			productName = DeepSleepTests;
+			productReference = AF30D607BD2DD56662E5E224 /* DeepSleepTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		8EECD2DF0612360142B148BA /* DeepSleep */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 75BA69671E884BA1925A08F7 /* Build configuration list for PBXNativeTarget "DeepSleep" */;
@@ -420,6 +484,7 @@
 			projectRoot = "";
 			targets = (
 				8EECD2DF0612360142B148BA /* DeepSleep */,
+				7A0F762F16DA5B90E23E8E33 /* DeepSleepTests */,
 			);
 		};
 /* End PBXProject section */
@@ -462,6 +527,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0C4C663CCAE56610A08B862A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49204CF38EC11156E4BB0923 /* ClaudeServiceTests.swift in Sources */,
+				F1D754398B81E74133205622 /* LRUCacheTests.swift in Sources */,
+				BBE927B63C7BDC1C54E8021C /* LoRAAdapterManagerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		571324C492598142AF054E0C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -469,6 +544,7 @@
 				4B85DC86122FD8373A9FC104 /*  EmotionDiaryCell.swift in Sources */,
 				1F7342AD25C6EB7E0BBBD32F /* AISecurityManager.swift in Sources */,
 				E37BA76A7CB917D686167B23 /* AIUsageManager.swift in Sources */,
+				1D12B43751F6F1C4F75D551A /* AdapterDownloader.swift in Sources */,
 				89E8816682FCAA62F7B3E0E0 /* AddEditTodoViewController.swift in Sources */,
 				5197DC899195FCE4A392F48A /* AnalysisInitExtensions.swift in Sources */,
 				5CF047FA11D64F6D5A7CF6FB /* AppDelegate.swift in Sources */,
@@ -483,6 +559,7 @@
 				0FEEA85DF3D3DF75872D8995 /* ChatViewController+Preset.swift in Sources */,
 				3ECF3797183246B5DF3AA7A5 /* ChatViewController.swift in Sources */,
 				0F15F8B00D93A3DE6031DF9F /* ChatviewController+Actions.swift in Sources */,
+				080B70F23E8378BE712D3603 /* ClaudeService.swift in Sources */,
 				2FAC7A3ED6AD5DC388BDDAA0 /* ComprehensiveRecommendationEngine.swift in Sources */,
 				9BC3468FC351ECDFFBB76765 /* Constants.swift in Sources */,
 				78FE4D3A5DAF9DEC10A5661D /* DiaryWriteViewController.swift in Sources */,
@@ -505,8 +582,10 @@
 				48CFB5EBF621F55EA04D88A6 /* FeedbackManager.swift in Sources */,
 				80A706BA09925FCF216E4C3C /* FeedbackPromptViewController.swift in Sources */,
 				558994590246F59AD31B39D2 /* HealthKitManager.swift in Sources */,
+				D5D4F3FCD7BACA352675C678 /* LRUCache.swift in Sources */,
 				2FE5311CBE0768D50021D175 /* LaunchViewController.swift in Sources */,
 				CABDBFD68EA86152D9A881D6 /* LegacyPresetManager.swift in Sources */,
+				364FE974457C40F355E8C06D /* LoRAAdapterManager.swift in Sources */,
 				4D6E5241513521768E65D8C6 /* Models.swift in Sources */,
 				1834D61C85A8C5D6DAB5A1CD /* PresetListViewController.swift in Sources */,
 				08BFF28BA24DF9F92F1CF9FF /* PresetSharingManager.swift in Sources */,
@@ -515,6 +594,7 @@
 				B8D2B53E9902637C0E8E4F47 /* ReplicateChatService.swift in Sources */,
 				16E6EB577E538CCC4623BA3E /* ScalableSoundCatalog.swift in Sources */,
 				FB2ACED08953F86A7BCA974B /* SceneDelegate.swift in Sources */,
+				19773D3831FF21917D9F53A5 /* SecureEnclaveKeyStore.swift in Sources */,
 				EF7CAA0B5C6EB566319FEB70 /* SettingsManager.swift in Sources */,
 				4040309E047FB6EEBF5C81A2 /* SoundFilterManager.swift in Sources */,
 				7B2956DEA4FA5B5CFEC78F66 /* SoundManager.swift in Sources */,
@@ -538,6 +618,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA533BB4EB5EC7705990E745 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8EECD2DF0612360142B148BA /* DeepSleep */;
+			targetProxy = 308E7D694E4705B1433E7B99 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		36F982C19DB11B706E99B1E9 /* LaunchScreen.storyboard */ = {
@@ -606,6 +694,23 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
+		};
+		0919E17A3D3E84AB456040A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = "Tests/Tests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.DeepSleepTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepSleep.app/DeepSleep";
+			};
+			name = Debug;
 		};
 		5C6613A1A808F83D4AB554BC /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -712,9 +817,35 @@
 			};
 			name = Debug;
 		};
+		FC55F10EDE1941DA5E0579AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = "Tests/Tests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.DeepSleepTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepSleep.app/DeepSleep";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3BB1AD18263291B4DF7C958B /* Build configuration list for PBXNativeTarget "DeepSleepTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0919E17A3D3E84AB456040A5 /* Debug */,
+				FC55F10EDE1941DA5E0579AD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		75BA69671E884BA1925A08F7 /* Build configuration list for PBXNativeTarget "DeepSleep" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

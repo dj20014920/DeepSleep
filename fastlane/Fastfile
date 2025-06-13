@@ -1,0 +1,21 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Run tests and generate coverage report"
+  lane :test do
+    sh "xcodebuild test -scheme DeepSleep -destination 'platform=iOS Simulator,name=iPhone 16' -enableCodeCoverage YES"
+    sh "./scripts/coverage_check.sh 80"
+  end
+
+  desc "Beta build (TestFlight)"
+  lane :beta do
+    # TODO: Add build & upload to TestFlight
+    sh "echo 'Beta lane placeholder'"
+  end
+
+  desc "Release build (App Store)"
+  lane :release do
+    # TODO: Add build & upload to App Store
+    sh "echo 'Release lane placeholder'"
+  end
+end 
