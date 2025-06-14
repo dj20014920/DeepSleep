@@ -8,27 +8,47 @@ class EnvironmentConfig {
     
     /// 🔑 Replicate API 키 (런타임에서만 접근 가능)
     var replicateAPIKey: String {
+        #if DEBUG
+        let envValue = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"]
+        print("🔍 [EnvironmentConfig] environment variable REPLICATE_API_TOKEN = \(envValue ?? "nil")")
+        #endif
         // 1. 환경 변수에서 먼저 확인
-        if let envKey = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"] {
+        if let envKey = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"], !envKey.isEmpty {
+            #if DEBUG
+            print("✅ [EnvironmentConfig] using environment key -> \(envKey)")
+            #endif
             return envKey
         }
-        
-        // 2. Info.plist에서 확인 (xcconfig를 통해 주입됨)
+        #if DEBUG
+        let plistValue = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String
+        print("🔍 [EnvironmentConfig] Info.plist REPLICATE_API_TOKEN = \(plistValue ?? "nil")")
+        #endif
+        // 2. Info.plist에서 확인
         if let plistKey = Bundle.main.object(forInfoDictionaryKey: "REPLICATE_API_TOKEN") as? String,
            !plistKey.isEmpty && plistKey != "$(REPLICATE_API_TOKEN)" {
+            #if DEBUG
+            print("✅ [EnvironmentConfig] using Info.plist key -> \(plistKey)")
+            #endif
             return plistKey
         }
-        
-        // 3. 키체인에서 확인 (향후 구현)
+        #if DEBUG
+        let keychainValue = getFromKeychain() ?? "nil"
+        print("🔍 [EnvironmentConfig] keychain value = \(keychainValue)")
+        #endif
+        // 3. 키체인에서 확인
         if let keychainKey = getFromKeychain() {
+            #if DEBUG
+            print("✅ [EnvironmentConfig] using keychain key -> \(keychainKey)")
+            #endif
             return keychainKey
         }
-        
-        // 4. 개발 중에만 사용할 fallback (배포 시 제거됨)
         #if DEBUG
-        print("⚠️ API 키를 찾을 수 없습니다. 환경 변수 또는 xcconfig를 확인하세요.")
+        print("⚠️ [EnvironmentConfig] API 키를 찾을 수 없어 빈 문자열 반환")
         #endif
-        
+        // 4. 개발 중에만 사용할 fallback
+        #if DEBUG
+        print("⚠️ [EnvironmentConfig] fallback empty string in DEBUG")
+        #endif
         return ""
     }
     

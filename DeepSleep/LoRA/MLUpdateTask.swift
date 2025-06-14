@@ -19,8 +19,12 @@ public final class MLUpdateTask {
             // 실제 환경에서는 MLUpdateTask/MLUpdateProgress 등 활용
             // 아래는 placeholder: 실제 학습 API로 대체 필요
             let updatedModel = model // TODO: 실제 학습 적용
-            // 저장
-            try updatedModel.write(to: saveURL)
+            // 저장 (placeholder: 어댑터 파일 복사)
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: saveURL.path) {
+                try fileManager.removeItem(at: saveURL)
+            }
+            try fileManager.copyItem(at: adapterURL, to: saveURL)
             return saveURL
         } catch {
             // graceful fallback: 기존 어댑터 반환

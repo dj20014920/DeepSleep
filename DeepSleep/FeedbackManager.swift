@@ -6,14 +6,13 @@ import CoreData
 
 /// Phase 2: 피드백 수집 및 관리 매니저
 /// SwiftData를 사용한 사용자 피드백 데이터 관리 시스템
+@available(iOS 17.0, *)
 @MainActor
 final class FeedbackManager: ObservableObject {
     static let shared = FeedbackManager()
     
     // MARK: - SwiftData (iOS 17+)
-    @available(iOS 17, *)
     private var modelContainer: ModelContainer?
-    @available(iOS 17, *)
     private var modelContext: ModelContext? {
         modelContainer?.mainContext
     }

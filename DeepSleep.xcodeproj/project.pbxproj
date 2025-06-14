@@ -3,16 +3,18 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		00CEC4BDDA0BC04A988C4DB9 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E4F7D947AC69A230F54EE9 /* EmotionCalendarViewController.swift */; };
 		00EA2B1824CFDD95C63C2E70 /* UIDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 032F7C36F9ADF7699B0D8BA0 /* UIDesignSystem.swift */; };
+		0764ED9804FA73FEC3F8B019 /* DynamicLoRAAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3CE7F44D8B15A7675CD6FF /* DynamicLoRAAdapterTests.swift */; };
 		080B70F23E8378BE712D3603 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5EF3E7184EC8D5DA76B0B5 /* ClaudeService.swift */; };
 		08BFF28BA24DF9F92F1CF9FF /* PresetSharingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7038BE244ED935B89FCD3892 /* PresetSharingManager.swift */; };
 		08D66E57413D1B438A48C717 /* forceSyncMainViewControllerPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8173C443994983C5ED506032 /* forceSyncMainViewControllerPreset.swift */; };
-		090193CAACDB4C68C4AF1A4D /* 우주.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 587E6A9B5032AC5C8487D908 /* 우주.mp3 */; };
+		090193CAACDB4C68C4AF1A4D /* 우주.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 587E6A9B5032AC5C8487D908 /* 우주.mp3 */; };
+		0D91B9ABFC78BC13376AABD2 /* FoundationModelRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32262627DD4F89B17A945D3 /* FoundationModelRunnerTests.swift */; };
 		0DEAAF27B60F66E974BEE851 /* ViewController+Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13358A08AF9B3C0E3706B7 /* ViewController+Utilities.swift */; };
 		0F15F8B00D93A3DE6031DF9F /* ChatviewController+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7F6DE0B8042DB10513362F /* ChatviewController+Actions.swift */; };
 		0FEEA85DF3D3DF75872D8995 /* ChatViewController+Preset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507A413D676212F7CE7EE0AC /* ChatViewController+Preset.swift */; };
@@ -23,13 +25,12 @@
 		19D2908AF1A9C1856A4A9314 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B501442C6C8625C0C2347A /* EmotionDiaryViewController+Insights.swift */; };
 		1D12B43751F6F1C4F75D551A /* AdapterDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C26D332F55B93ED5F31134 /* AdapterDownloader.swift */; };
 		1DC06D3E6429164B098E1C9E /* AutomaticLearningModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AF426592B6843E87AAB283 /* AutomaticLearningModels.swift */; };
-		1DC9504B8AFA70D311958431 /* AppInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 233E58870410AD90E8FDD2B2 /* AppInfo.plist */; };
 		1E26C8036681D797ED09AC7B /* UserBehaviorAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F870012ADB0D29A28AA5D50 /* UserBehaviorAnalytics.swift */; };
 		1F7342AD25C6EB7E0BBBD32F /* AISecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB0B08435B7E1C5CBEE75C /* AISecurityManager.swift */; };
-		1FF29EFBBC1C42D1A8B969FD /* 비-창문.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */; };
-		289E872D70BB371960344BD3 /* playwright.yml in Resources */ = {isa = PBXBuildFile; fileRef = 90038EE34C1C691D07081373 /* playwright.yml */; };
+		1FF29EFBBC1C42D1A8B969FD /* 비-창문.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */; };
 		2AF6602DADD22FE14BABC744 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2A254C6F99DA91B61020664F /* Assets.xcassets */; };
-		2C64A0FA5FC15EB4D7B43D01 /* 발걸음-눈2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */; };
+		2C64A0FA5FC15EB4D7B43D01 /* 발걸음-눈2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */; };
+		2E317FA8101E5A8A3D722FF8 /* LLMRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 040B831E097C340306A37BF2 /* LLMRouterTests.swift */; };
 		2FAC7A3ED6AD5DC388BDDAA0 /* ComprehensiveRecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F539B35FA76D45A270169A3B /* ComprehensiveRecommendationEngine.swift */; };
 		2FE5311CBE0768D50021D175 /* LaunchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CF480625F9172E544117B5 /* LaunchViewController.swift */; };
 		351DDEB5F9F2A609ECBFAD75 /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C5FB149274DD34FA8F16FD /* ChatManager.swift */; };
@@ -39,6 +40,7 @@
 		3A317896D05B1E3DCE8AF2FC /* TimerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B7CEADA7DE4AFFEC4C93DF1 /* TimerViewController.swift */; };
 		3C0E80BCAB477296CFF1EA9D /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F2F53D3F4E77FCC49A7BCA /* EmotionAnalyzer.swift */; };
 		3C42A5BD4F991FF8F6A4CBFA /* EnhancedFeedbackViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D518A4ADE33045EC9E044233 /* EnhancedFeedbackViewController.swift */; };
+		3E67F81C81F3ADF89D75C778 /* MLUpdateTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4E446BF08ACC9C46C7790E /* MLUpdateTaskTests.swift */; };
 		3ECF3797183246B5DF3AA7A5 /* ChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D22511B67C8399E214F478 /* ChatViewController.swift */; };
 		4040309E047FB6EEBF5C81A2 /* SoundFilterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2505666B6E7F08BA2EA92462 /* SoundFilterManager.swift */; };
 		4074644669934D4CE1FC90D2 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FFD748E73948DED58474612 /* ViewController+EmotionSelector.swift */; };
@@ -46,22 +48,23 @@
 		48CFB5EBF621F55EA04D88A6 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02BCDC03A7910B8BA2E74EEE /* FeedbackManager.swift */; };
 		49204CF38EC11156E4BB0923 /* ClaudeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */; };
 		4B85DC86122FD8373A9FC104 /*  EmotionDiaryCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91C0B3A23E38DBF757967AC5 /*  EmotionDiaryCell.swift */; };
-		4D4367EE938FEE4792100746 /* 쿨링팬.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */; };
+		4D4367EE938FEE4792100746 /* 쿨링팬.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */; };
 		4D6E5241513521768E65D8C6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B498A7F0D6AE7E0DBF336CF /* Models.swift */; };
-		51691E87EFE00B549C308066 /* 발걸음-눈.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */; };
+		51691E87EFE00B549C308066 /* 발걸음-눈.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */; };
 		5197DC899195FCE4A392F48A /* AnalysisInitExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7193E8DC577AA6F656CB40B4 /* AnalysisInitExtensions.swift */; };
-		54551D85A93069B5EA2352EC /* 시냇물.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */; };
+		54551D85A93069B5EA2352EC /* 시냇물.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */; };
 		558994590246F59AD31B39D2 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7063BAE6D641111F7C2762D2 /* HealthKitManager.swift */; };
 		5C680B6264D66D6981FE464C /* UserDefaults+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A5875F50C4D2808FACE04B1 /* UserDefaults+Extensions.swift */; };
 		5CF047FA11D64F6D5A7CF6FB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68F588C53CC45F52D04A434B /* AppDelegate.swift */; };
+		5E1F85F46258C59E0D273E56 /* LLMEndToEndTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7508CB620824BD11D3034438 /* LLMEndToEndTests.swift */; };
 		6187C5DF4FB214EA3D43B4E5 /* ChatBubbleCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7351B5E3A12CC204D36373CD /* ChatBubbleCell.swift */; };
 		65C43BD257B19FFEE11A3171 /* ViewController+SliderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = F86701BF2E80092075BD0AB4 /* ViewController+SliderControls.swift */; };
-		663F2539AA33FDB8A1D9120B /* 키보드1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */; };
-		67F1996C50D6DE3F592DDC69 /* 파도.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 33CC274F929A003CD608A1C1 /* 파도.mp3 */; };
+		663F2539AA33FDB8A1D9120B /* 키보드1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */; };
+		67F1996C50D6DE3F592DDC69 /* 파도.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 33CC274F929A003CD608A1C1 /* 파도.mp3 */; };
 		6850BA2A8686BB04BAB7FC89 /* CachedConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0613510BA91C4782EFBA538 /* CachedConversationManager.swift */; };
 		6A970D8A37DF39BB5E88AF76 /* EmotionDiaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93FE57620DE30D01E2CD5FA /* EmotionDiaryViewController.swift */; };
 		6C3CBF008DF21F373F879DAF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 36F982C19DB11B706E99B1E9 /* LaunchScreen.storyboard */; };
-		721F50A1F16811AD8269C03F /* 연필.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1F314685178D76622277AB78 /* 연필.mp3 */; };
+		721F50A1F16811AD8269C03F /* 연필.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1F314685178D76622277AB78 /* 연필.mp3 */; };
 		78FE4D3A5DAF9DEC10A5661D /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC0BA654D6AE6A00EA21650 /* DiaryWriteViewController.swift */; };
 		7B2956DEA4FA5B5CFEC78F66 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3B50B9EE7679A0B097FBC /* SoundManager.swift */; };
 		7C00330F07A72A9021324484 /* EmotionDiaryViewController+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790FA387C47370AE0279184E /* EmotionDiaryViewController+Actions.swift */; };
@@ -69,26 +72,29 @@
 		7F6DE49530A5D5B5635B35E0 /* TokenTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5894F2F351E88D2FBA510A2 /* TokenTracker.swift */; };
 		803177F1430E1D4AB19C9194 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = F42E21EF540B5D4B12F02EEC /* FSCalendar */; };
 		80A706BA09925FCF216E4C3C /* FeedbackPromptViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618A5B3AAB714636A8F21D5D /* FeedbackPromptViewController.swift */; };
-		84AEE11E44FAA745A71712D6 /* 파도2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9105125811AA507B0E7E9591 /* 파도2.mp3 */; };
+		8382E775EF46F521C0E5A0B1 /* MLAssetManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE70D2EF1B72D2D7046D0B8B /* MLAssetManagerTests.swift */; };
+		84AEE11E44FAA745A71712D6 /* 파도2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9105125811AA507B0E7E9591 /* 파도2.mp3 */; };
 		86D589BDFB013BA25FAA325A /* EmotionInputViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E80C6331DDB5AEED984D19 /* EmotionInputViewController.swift */; };
 		89E8816682FCAA62F7B3E0E0 /* AddEditTodoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD647C6CDA1F4CFF9A3D8A8 /* AddEditTodoViewController.swift */; };
-		8A33416E811A75E2A83C2A42 /* 밤2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */; };
+		8A33416E811A75E2A83C2A42 /* 밤2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */; };
 		8C337BF214DA24809302378A /* EmotionAnalysisChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8002A2578F62FAE5DA7DA944 /* EmotionAnalysisChatViewController.swift */; };
-		95410D8812C334B6456B1B11 /* 고양이.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */; };
+		95410D8812C334B6456B1B11 /* 고양이.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */; };
 		9BC3468FC351ECDFFBB76765 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210EF6DFD49177F0B790BF77 /* Constants.swift */; };
 		9DC65BE9D9CA6D18F652E6CC /* generate-secrets.sh in Resources */ = {isa = PBXBuildFile; fileRef = 84E666B9E361F34B4E5B4C71 /* generate-secrets.sh */; };
-		9E47925792363595D382133B /* 키보드2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */; };
+		9E47925792363595D382133B /* 키보드2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */; };
 		9F54F379597665223C8730F1 /* TodoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910B0461CE69BE74BE785200 /* TodoManager.swift */; };
 		A49D99699BA90D8FEAEDCCA2 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67C8C21FE592ECC6027C91A6 /* ViewController.swift */; };
 		A5ECE96942F7ACCE5D50E831 /* EmotionCalendarViewController+AI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9D32A51B612AEA62D3151C /* EmotionCalendarViewController+AI.swift */; };
-		B4647E268790CF5FDF54B84B /* 바람2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */; };
-		B801ABEF248CA8A7F7B62AC0 /* 밤.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C1871B14B84F0CA135E3F68E /* 밤.mp3 */; };
+		B4647E268790CF5FDF54B84B /* 바람2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */; };
+		B560340A37E408B016984243 /* DynamicLoRAAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33788E0561B0F5A30EC5B60 /* DynamicLoRAAdapter.swift */; };
+		B6939EFBB209F12C9E98DE97 /* LLMRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3802BE2A93D4C4F8EE24B875 /* LLMRouter.swift */; };
+		B801ABEF248CA8A7F7B62AC0 /* 밤.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C1871B14B84F0CA135E3F68E /* 밤.mp3 */; };
 		B815E978CC1D1EF7076DAF48 /* PsychoacousticOptimizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D37563C8768A341C5C48BCD /* PsychoacousticOptimizationEngine.swift */; };
 		B8D2B53E9902637C0E8E4F47 /* ReplicateChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */; };
-		BBA78DC5F8CBF36400B31735 /* 바람.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 07A76940CACD2487BBF915AF /* 바람.mp3 */; };
+		BBA78DC5F8CBF36400B31735 /* 바람.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 07A76940CACD2487BBF915AF /* 바람.mp3 */; };
 		BBE927B63C7BDC1C54E8021C /* LoRAAdapterManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E45AD14F484C5EF6BE10C29 /* LoRAAdapterManagerTests.swift */; };
 		BD5504941C414E90E3C7D763 /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17D3A667FD0638CB4F9ADDB /* ViewController+PlaybackControls.swift */; };
-		BFE72E0E4E385CD58B285DF2 /* 불1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 88469BEB9954F8D482927AD0 /* 불1.mp3 */; };
+		BFE72E0E4E385CD58B285DF2 /* 불1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 88469BEB9954F8D482927AD0 /* 불1.mp3 */; };
 		C5986A3268927420C8C59DE9 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55DE793C26A01123052DF82 /* ChatMessage.swift */; };
 		C5C658454A7CFD91D4708EAC /* ViewController+PresetBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8E51D61127C839C6FF95DB /* ViewController+PresetBlocks.swift */; };
 		CABDBFD68EA86152D9A881D6 /* LegacyPresetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65743E7975E0B2AE71FE4FCE /* LegacyPresetManager.swift */; };
@@ -97,18 +103,21 @@
 		CE0881AD71FE99ABC60FD2D0 /* PROJECTGOAL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 76EC111F022DC80E863C6FC2 /* PROJECTGOAL.txt */; };
 		D0C5BA9E680E772A9FE71D29 /* TodoCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D71F73AE7A63BC1D9B43095 /* TodoCalendarViewController.swift */; };
 		D5D4F3FCD7BACA352675C678 /* LRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */; };
-		D781F8C21C5FE2152418D336 /* 새-비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DA62AB69027588ED6309ACCB /* 새-비.mp3 */; };
+		D72B3E193FA4488598CC236B /* MLUpdateTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF9ABD52748A1AD72C19AB4 /* MLUpdateTask.swift */; };
+		D781F8C21C5FE2152418D336 /* 새-비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DA62AB69027588ED6309ACCB /* 새-비.mp3 */; };
 		D8862B7A63C421D4AC23C17C /* EmotionCalendarViewcontroller+Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28DF1850097FA3E0F83A27D7 /* EmotionCalendarViewcontroller+Diary.swift */; };
 		DA0CA5983B74281EBECEE28B /* ChatViewController+Analysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CAFD3E98EEC5E6006B5322F /* ChatViewController+Analysis.swift */; };
 		DB76953D349A03C9208FC599 /* SoundPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA4111FE618165CD9591353 /* SoundPresetCatalog.swift */; };
+		DBDB9400DBEDDC448CA761F4 /* FoundationModelRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C389A6CAAA8C7232F0530E69 /* FoundationModelRunner.swift */; };
 		E20CBEC2C636C209927603E5 /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7293D636177C4206EEC477 /* TodoItem.swift */; };
 		E37BA76A7CB917D686167B23 /* AIUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19C483A7B153AB19F6D8C45 /* AIUsageManager.swift */; };
-		EE215DD846E1F24708648653 /* 새.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 228C09865820C28339C2FD9F /* 새.mp3 */; };
+		ED4ADA72A9BBD3A0BC400EAB /* MLAssetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B05AD7CF6513B407E7D6373 /* MLAssetManager.swift */; };
+		EE215DD846E1F24708648653 /* 새.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 228C09865820C28339C2FD9F /* 새.mp3 */; };
 		EF7CAA0B5C6EB566319FEB70 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F0AA54716DC8703A96B04 /* SettingsManager.swift */; };
 		F1D754398B81E74133205622 /* LRUCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A5D065690814322AEA7F5A /* LRUCacheTests.swift */; };
 		F265B3BEBB51ECDD422C59D6 /* EmotionCalendarViewController+Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1172F0E35484D07267D97C /* EmotionCalendarViewController+Collection.swift */; };
 		F53AE6FBE0DF699F16628B09 /* cat.gif in Resources */ = {isa = PBXBuildFile; fileRef = 4FE3129D61B807C5BC3A7182 /* cat.gif */; };
-		F87FE90ABBC9F5A8D6491BB8 /* 비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 05CC92C5D2D169794B992D19 /* 비.mp3 */; };
+		F87FE90ABBC9F5A8D6491BB8 /* 비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 05CC92C5D2D169794B992D19 /* 비.mp3 */; };
 		FB2ACED08953F86A7BCA974B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28F6410EDEC9DE20EBBC224 /* SceneDelegate.swift */; };
 		FF100E7DB1D16679B3C98850 /* RemoteLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6089582DACAC752873B369F3 /* RemoteLogger.swift */; };
 /* End PBXBuildFile section */
@@ -126,19 +135,20 @@
 /* Begin PBXFileReference section */
 		02BCDC03A7910B8BA2E74EEE /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
 		032F7C36F9ADF7699B0D8BA0 /* UIDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIDesignSystem.swift; sourceTree = "<group>"; };
+		040B831E097C340306A37BF2 /* LLMRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouterTests.swift; sourceTree = "<group>"; };
 		04FB0B08435B7E1C5CBEE75C /* AISecurityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISecurityManager.swift; sourceTree = "<group>"; };
-		05CC92C5D2D169794B992D19 /* 비.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비.mp3"; sourceTree = "<group>"; };
-		07A76940CACD2487BBF915AF /* 바람.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람.mp3"; sourceTree = "<group>"; };
+		05CC92C5D2D169794B992D19 /* 비.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비.mp3"; sourceTree = "<group>"; };
+		07A76940CACD2487BBF915AF /* 바람.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람.mp3"; sourceTree = "<group>"; };
 		08F3B50B9EE7679A0B097FBC /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 		0C7293D636177C4206EEC477 /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		12CF480625F9172E544117B5 /* LaunchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchViewController.swift; sourceTree = "<group>"; };
 		17D22511B67C8399E214F478 /* ChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewController.swift; sourceTree = "<group>"; };
 		17E4F7D947AC69A230F54EE9 /* EmotionCalendarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionCalendarViewController.swift; sourceTree = "<group>"; };
-		1F314685178D76622277AB78 /* 연필.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "연필.mp3"; sourceTree = "<group>"; };
+		1F314685178D76622277AB78 /* 연필.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "연필.mp3"; sourceTree = "<group>"; };
 		1F870012ADB0D29A28AA5D50 /* UserBehaviorAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBehaviorAnalytics.swift; sourceTree = "<group>"; };
 		202E99CC40DB596C3B3D2464 /* ChatRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRouter.swift; sourceTree = "<group>"; };
 		210EF6DFD49177F0B790BF77 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
-		228C09865820C28339C2FD9F /* 새.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "새.mp3"; sourceTree = "<group>"; };
+		228C09865820C28339C2FD9F /* 새.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "새.mp3"; sourceTree = "<group>"; };
 		233E58870410AD90E8FDD2B2 /* AppInfo.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = AppInfo.plist; sourceTree = "<group>"; };
 		2505666B6E7F08BA2EA92462 /* SoundFilterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundFilterManager.swift; sourceTree = "<group>"; };
 		28DF1850097FA3E0F83A27D7 /* EmotionCalendarViewcontroller+Diary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewcontroller+Diary.swift"; sourceTree = "<group>"; };
@@ -146,7 +156,8 @@
 		2A7F6DE0B8042DB10513362F /* ChatviewController+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatviewController+Actions.swift"; sourceTree = "<group>"; };
 		2B0F0AA54716DC8703A96B04 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		30C5FB149274DD34FA8F16FD /* ChatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManager.swift; sourceTree = "<group>"; };
-		33CC274F929A003CD608A1C1 /* 파도.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "파도.mp3"; sourceTree = "<group>"; };
+		33CC274F929A003CD608A1C1 /* 파도.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "파도.mp3"; sourceTree = "<group>"; };
+		3802BE2A93D4C4F8EE24B875 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		3FFD748E73948DED58474612 /* ViewController+EmotionSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+EmotionSelector.swift"; sourceTree = "<group>"; };
 		4A5875F50C4D2808FACE04B1 /* UserDefaults+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+Extensions.swift"; sourceTree = "<group>"; };
 		4C61F985B37C55F522AFCAB3 /* EnvironmentConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentConfig.swift; sourceTree = "<group>"; };
@@ -155,8 +166,8 @@
 		507A413D676212F7CE7EE0AC /* ChatViewController+Preset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatViewController+Preset.swift"; sourceTree = "<group>"; };
 		5233264A87477C9BD8492E90 /* EmotionDiaryDisplayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionDiaryDisplayCell.swift; sourceTree = "<group>"; };
 		53E80C6331DDB5AEED984D19 /* EmotionInputViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionInputViewController.swift; sourceTree = "<group>"; };
-		587E6A9B5032AC5C8487D908 /* 우주.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "우주.mp3"; sourceTree = "<group>"; };
-		5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드1.mp3"; sourceTree = "<group>"; };
+		587E6A9B5032AC5C8487D908 /* 우주.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "우주.mp3"; sourceTree = "<group>"; };
+		5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드1.mp3"; sourceTree = "<group>"; };
 		5EE605C0C8D7CAEE0495DD9D /* DeepSleep.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepSleep.entitlements; sourceTree = "<group>"; };
 		5F8E51D61127C839C6FF95DB /* ViewController+PresetBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+PresetBlocks.swift"; sourceTree = "<group>"; };
 		6089582DACAC752873B369F3 /* RemoteLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLogger.swift; sourceTree = "<group>"; };
@@ -165,11 +176,14 @@
 		65743E7975E0B2AE71FE4FCE /* LegacyPresetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyPresetManager.swift; sourceTree = "<group>"; };
 		67C8C21FE592ECC6027C91A6 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		68F588C53CC45F52D04A434B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		6B05AD7CF6513B407E7D6373 /* MLAssetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLAssetManager.swift; sourceTree = "<group>"; };
+		6B4E446BF08ACC9C46C7790E /* MLUpdateTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLUpdateTaskTests.swift; sourceTree = "<group>"; };
 		6DA4111FE618165CD9591353 /* SoundPresetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPresetCatalog.swift; sourceTree = "<group>"; };
 		7038BE244ED935B89FCD3892 /* PresetSharingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetSharingManager.swift; sourceTree = "<group>"; };
 		7063BAE6D641111F7C2762D2 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		7193E8DC577AA6F656CB40B4 /* AnalysisInitExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisInitExtensions.swift; sourceTree = "<group>"; };
 		7351B5E3A12CC204D36373CD /* ChatBubbleCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleCell.swift; sourceTree = "<group>"; };
+		7508CB620824BD11D3034438 /* LLMEndToEndTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMEndToEndTests.swift; sourceTree = "<group>"; };
 		76EC111F022DC80E863C6FC2 /* PROJECTGOAL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = PROJECTGOAL.txt; sourceTree = "<group>"; };
 		790FA387C47370AE0279184E /* EmotionDiaryViewController+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Actions.swift"; sourceTree = "<group>"; };
 		7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCache.swift; sourceTree = "<group>"; };
@@ -179,21 +193,20 @@
 		80C26D332F55B93ED5F31134 /* AdapterDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdapterDownloader.swift; sourceTree = "<group>"; };
 		8173C443994983C5ED506032 /* forceSyncMainViewControllerPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = forceSyncMainViewControllerPreset.swift; sourceTree = "<group>"; };
 		82B501442C6C8625C0C2347A /* EmotionDiaryViewController+Insights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Insights.swift"; sourceTree = "<group>"; };
-		831B365A5E34297E37B1FC30 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		83A5D065690814322AEA7F5A /* LRUCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCacheTests.swift; sourceTree = "<group>"; };
 		84E666B9E361F34B4E5B4C71 /* generate-secrets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-secrets.sh"; sourceTree = "<group>"; };
 		87D5C906CC35C0DA9552414F /* Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Tests-Info.plist"; sourceTree = "<group>"; };
-		88469BEB9954F8D482927AD0 /* 불1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "불1.mp3"; sourceTree = "<group>"; };
-		8A3CBA9ADFC59D9F4642636E /* .gitignore */ = {isa = PBXFileReference; path = .gitignore; sourceTree = "<group>"; };
+		88469BEB9954F8D482927AD0 /* 불1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "불1.mp3"; sourceTree = "<group>"; };
+		8A3CBA9ADFC59D9F4642636E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		8D37563C8768A341C5C48BCD /* PsychoacousticOptimizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PsychoacousticOptimizationEngine.swift; sourceTree = "<group>"; };
-		90038EE34C1C691D07081373 /* playwright.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = playwright.yml; sourceTree = "<group>"; };
-		9105125811AA507B0E7E9591 /* 파도2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "파도2.mp3"; sourceTree = "<group>"; };
+		9105125811AA507B0E7E9591 /* 파도2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "파도2.mp3"; sourceTree = "<group>"; };
 		910B0461CE69BE74BE785200 /* TodoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoManager.swift; sourceTree = "<group>"; };
 		91C0B3A23E38DBF757967AC5 /*  EmotionDiaryCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = " EmotionDiaryCell.swift"; sourceTree = "<group>"; };
 		96EBEA6197C2DD322E1C0264 /* EditDiaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditDiaryViewController.swift; sourceTree = "<group>"; };
+		9B3CE7F44D8B15A7675CD6FF /* DynamicLoRAAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicLoRAAdapterTests.swift; sourceTree = "<group>"; };
 		9B498A7F0D6AE7E0DBF336CF /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		9B7CEADA7DE4AFFEC4C93DF1 /* TimerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewController.swift; sourceTree = "<group>"; };
-		9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈.mp3"; sourceTree = "<group>"; };
+		9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈.mp3"; sourceTree = "<group>"; };
 		9F9D32A51B612AEA62D3151C /* EmotionCalendarViewController+AI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewController+AI.swift"; sourceTree = "<group>"; };
 		A19C483A7B153AB19F6D8C45 /* AIUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageManager.swift; sourceTree = "<group>"; };
 		A28F6410EDEC9DE20EBBC224 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -201,31 +214,37 @@
 		A4C3A98F4E77843C3EDFE6D5 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A55DE793C26A01123052DF82 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		AC5EF3E7184EC8D5DA76B0B5 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		AE70D2EF1B72D2D7046D0B8B /* MLAssetManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLAssetManagerTests.swift; sourceTree = "<group>"; };
 		AF30D607BD2DD56662E5E224 /* DeepSleepTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DeepSleepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AFF9ABD52748A1AD72C19AB4 /* MLUpdateTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLUpdateTask.swift; sourceTree = "<group>"; };
 		B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeServiceTests.swift; sourceTree = "<group>"; };
-		B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "밤2.mp3"; sourceTree = "<group>"; };
+		B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "밤2.mp3"; sourceTree = "<group>"; };
 		B5894F2F351E88D2FBA510A2 /* TokenTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTracker.swift; sourceTree = "<group>"; };
-		BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "고양이.mp3"; sourceTree = "<group>"; };
-		C1871B14B84F0CA135E3F68E /* 밤.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "밤.mp3"; sourceTree = "<group>"; };
-		C621046B4A0FEBDD66540895 /* DeepSleep.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드2.mp3"; sourceTree = "<group>"; };
+		BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "고양이.mp3"; sourceTree = "<group>"; };
+		C1871B14B84F0CA135E3F68E /* 밤.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "밤.mp3"; sourceTree = "<group>"; };
+		C389A6CAAA8C7232F0530E69 /* FoundationModelRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelRunner.swift; sourceTree = "<group>"; };
+		C621046B4A0FEBDD66540895 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드2.mp3"; sourceTree = "<group>"; };
 		D17D3A667FD0638CB4F9ADDB /* ViewController+PlaybackControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+PlaybackControls.swift"; sourceTree = "<group>"; };
-		D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "쿨링팬.mp3"; sourceTree = "<group>"; };
+		D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "쿨링팬.mp3"; sourceTree = "<group>"; };
 		D1CAF0F63507A49B2FBC7B40 /* EmotionResponseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionResponseManager.swift; sourceTree = "<group>"; };
+		D32262627DD4F89B17A945D3 /* FoundationModelRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelRunnerTests.swift; sourceTree = "<group>"; };
 		D518A4ADE33045EC9E044233 /* EnhancedFeedbackViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedFeedbackViewController.swift; sourceTree = "<group>"; };
 		D93FE57620DE30D01E2CD5FA /* EmotionDiaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionDiaryViewController.swift; sourceTree = "<group>"; };
-		DA62AB69027588ED6309ACCB /* 새-비.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "새-비.mp3"; sourceTree = "<group>"; };
+		DA62AB69027588ED6309ACCB /* 새-비.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "새-비.mp3"; sourceTree = "<group>"; };
 		DAEAF97564FBBCCAD21D20A7 /* BatteryOptimizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryOptimizationManager.swift; sourceTree = "<group>"; };
-		DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈2.mp3"; sourceTree = "<group>"; };
-		DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람2.mp3"; sourceTree = "<group>"; };
+		DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈2.mp3"; sourceTree = "<group>"; };
+		DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람2.mp3"; sourceTree = "<group>"; };
 		E2E92646EB63505374DBA702 /* EmotionDiaryViewController+TableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+TableView.swift"; sourceTree = "<group>"; };
+		E33788E0561B0F5A30EC5B60 /* DynamicLoRAAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicLoRAAdapter.swift; sourceTree = "<group>"; };
 		E47748CBA38789A0217FD9B9 /* SecureEnclaveKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveKeyStore.swift; sourceTree = "<group>"; };
 		E9AF426592B6843E87AAB283 /* AutomaticLearningModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomaticLearningModels.swift; sourceTree = "<group>"; };
 		EB1172F0E35484D07267D97C /* EmotionCalendarViewController+Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewController+Collection.swift"; sourceTree = "<group>"; };
-		EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "시냇물.mp3"; sourceTree = "<group>"; };
+		EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "시냇물.mp3"; sourceTree = "<group>"; };
 		F0613510BA91C4782EFBA538 /* CachedConversationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedConversationManager.swift; sourceTree = "<group>"; };
+		F0FADDC2EBBE6B1CCC9F0226 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		F539B35FA76D45A270169A3B /* ComprehensiveRecommendationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComprehensiveRecommendationEngine.swift; sourceTree = "<group>"; };
-		F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비-창문.mp3"; sourceTree = "<group>"; };
+		F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비-창문.mp3"; sourceTree = "<group>"; };
 		F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplicateChatService.swift; sourceTree = "<group>"; };
 		F86701BF2E80092075BD0AB4 /* ViewController+SliderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+SliderControls.swift"; sourceTree = "<group>"; };
 		F98CE317583CF9850D77D7AB /* LoRAAdapterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoRAAdapterManager.swift; sourceTree = "<group>"; };
@@ -256,6 +275,23 @@
 			);
 			sourceTree = "<group>";
 		};
+		22E6C3EFF43E7DA6D405329B /* DeepSleep */ = {
+			isa = PBXGroup;
+			children = (
+				638BC38CD17BD44C0C214EE1 /* ML */,
+			);
+			path = DeepSleep;
+			sourceTree = "<group>";
+		};
+		2980634B8CD228582015B356 /* LoRA */ = {
+			isa = PBXGroup;
+			children = (
+				E33788E0561B0F5A30EC5B60 /* DynamicLoRAAdapter.swift */,
+				AFF9ABD52748A1AD72C19AB4 /* MLUpdateTask.swift */,
+			);
+			path = LoRA;
+			sourceTree = "<group>";
+		};
 		30DD0D7E0ED513A527381A29 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -265,56 +301,62 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		638BC38CD17BD44C0C214EE1 /* ML */ = {
+			isa = PBXGroup;
+			children = (
+				6B05AD7CF6513B407E7D6373 /* MLAssetManager.swift */,
+			);
+			path = ML;
+			sourceTree = "<group>";
+		};
 		645F5A66923EB9344FE755A2 /* Sound */ = {
 			isa = PBXGroup;
 			children = (
-				BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */,
-				07A76940CACD2487BBF915AF /* 바람.mp3 */,
-				DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */,
-				9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */,
-				DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */,
-				C1871B14B84F0CA135E3F68E /* 밤.mp3 */,
-				B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */,
-				88469BEB9954F8D482927AD0 /* 불1.mp3 */,
-				F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */,
-				05CC92C5D2D169794B992D19 /* 비.mp3 */,
-				DA62AB69027588ED6309ACCB /* 새-비.mp3 */,
-				228C09865820C28339C2FD9F /* 새.mp3 */,
-				EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */,
-				1F314685178D76622277AB78 /* 연필.mp3 */,
-				587E6A9B5032AC5C8487D908 /* 우주.mp3 */,
-				D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */,
-				5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */,
-				CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */,
-				33CC274F929A003CD608A1C1 /* 파도.mp3 */,
-				9105125811AA507B0E7E9591 /* 파도2.mp3 */,
+				BDF978423BC88AFA03E0B5CC /* 고양이.mp3 */,
+				07A76940CACD2487BBF915AF /* 바람.mp3 */,
+				DDFE2053C5ECE0B0A2B7E511 /* 바람2.mp3 */,
+				9BA588BA58C3DF895966DD0A /* 발걸음-눈.mp3 */,
+				DDA78C5CBC7B013EB6880D3B /* 발걸음-눈2.mp3 */,
+				C1871B14B84F0CA135E3F68E /* 밤.mp3 */,
+				B407DB1148EC3EE0EFF724BE /* 밤2.mp3 */,
+				88469BEB9954F8D482927AD0 /* 불1.mp3 */,
+				F59A1A4656BED236EDCCA53C /* 비-창문.mp3 */,
+				05CC92C5D2D169794B992D19 /* 비.mp3 */,
+				DA62AB69027588ED6309ACCB /* 새-비.mp3 */,
+				228C09865820C28339C2FD9F /* 새.mp3 */,
+				EDA9ECBF843F1202772C5811 /* 시냇물.mp3 */,
+				1F314685178D76622277AB78 /* 연필.mp3 */,
+				587E6A9B5032AC5C8487D908 /* 우주.mp3 */,
+				D19FEA9C5D8190F5EE39BE61 /* 쿨링팬.mp3 */,
+				5A62080EFEB7CE0516B48973 /* 키보드1.mp3 */,
+				CEAEF27C1EBC9D861ABD6DCB /* 키보드2.mp3 */,
+				33CC274F929A003CD608A1C1 /* 파도.mp3 */,
+				9105125811AA507B0E7E9591 /* 파도2.mp3 */,
 				4FE3129D61B807C5BC3A7182 /* cat.gif */,
 			);
 			path = Sound;
 			sourceTree = "<group>";
 		};
-		6BEAAC0B3D4C4879C07951D0 /* .github */ = {
+		BED1ACCACFACC2A0D4301E4A /* LLM */ = {
 			isa = PBXGroup;
 			children = (
-				E0B3DEA7AA2AB7A4A696B5CC /* workflows */,
+				C389A6CAAA8C7232F0530E69 /* FoundationModelRunner.swift */,
 			);
-			path = .github;
-			sourceTree = "<group>";
-		};
-		E0B3DEA7AA2AB7A4A696B5CC /* workflows */ = {
-			isa = PBXGroup;
-			children = (
-				90038EE34C1C691D07081373 /* playwright.yml */,
-			);
-			path = workflows;
+			path = LLM;
 			sourceTree = "<group>";
 		};
 		E6F3E3B1B6550231A7462B2D /* Tests */ = {
 			isa = PBXGroup;
 			children = (
 				B0A1CE99F303F4CBAFF752FE /* ClaudeServiceTests.swift */,
+				9B3CE7F44D8B15A7675CD6FF /* DynamicLoRAAdapterTests.swift */,
+				D32262627DD4F89B17A945D3 /* FoundationModelRunnerTests.swift */,
+				7508CB620824BD11D3034438 /* LLMEndToEndTests.swift */,
+				040B831E097C340306A37BF2 /* LLMRouterTests.swift */,
 				7E45AD14F484C5EF6BE10C29 /* LoRAAdapterManagerTests.swift */,
 				83A5D065690814322AEA7F5A /* LRUCacheTests.swift */,
+				AE70D2EF1B72D2D7046D0B8B /* MLAssetManagerTests.swift */,
+				6B4E446BF08ACC9C46C7790E /* MLUpdateTaskTests.swift */,
 				87D5C906CC35C0DA9552414F /* Tests-Info.plist */,
 			);
 			path = Tests;
@@ -370,10 +412,10 @@
 				8173C443994983C5ED506032 /* forceSyncMainViewControllerPreset.swift */,
 				84E666B9E361F34B4E5B4C71 /* generate-secrets.sh */,
 				7063BAE6D641111F7C2762D2 /* HealthKitManager.swift */,
-				831B365A5E34297E37B1FC30 /* Info.plist */,
 				36F982C19DB11B706E99B1E9 /* LaunchScreen.storyboard */,
 				12CF480625F9172E544117B5 /* LaunchViewController.swift */,
 				65743E7975E0B2AE71FE4FCE /* LegacyPresetManager.swift */,
+				3802BE2A93D4C4F8EE24B875 /* LLMRouter.swift */,
 				F98CE317583CF9850D77D7AB /* LoRAAdapterManager.swift */,
 				7CF733F733F195EDC4CBBCA3 /* LRUCache.swift */,
 				9B498A7F0D6AE7E0DBF336CF /* Models.swift */,
@@ -385,6 +427,7 @@
 				F62135B001F51DEAD16B9215 /* ReplicateChatService.swift */,
 				62B63B5A55916BBA6B5E666B /* ScalableSoundCatalog.swift */,
 				A28F6410EDEC9DE20EBBC224 /* SceneDelegate.swift */,
+				F0FADDC2EBBE6B1CCC9F0226 /* Secrets.xcconfig */,
 				E47748CBA38789A0217FD9B9 /* SecureEnclaveKeyStore.swift */,
 				2B0F0AA54716DC8703A96B04 /* SettingsManager.swift */,
 				2505666B6E7F08BA2EA92462 /* SoundFilterManager.swift */,
@@ -404,7 +447,9 @@
 				5F8E51D61127C839C6FF95DB /* ViewController+PresetBlocks.swift */,
 				F86701BF2E80092075BD0AB4 /* ViewController+SliderControls.swift */,
 				FC13358A08AF9B3C0E3706B7 /* ViewController+Utilities.swift */,
-				6BEAAC0B3D4C4879C07951D0 /* .github */,
+				22E6C3EFF43E7DA6D405329B /* DeepSleep */,
+				BED1ACCACFACC2A0D4301E4A /* LLM */,
+				2980634B8CD228582015B356 /* LoRA */,
 				645F5A66923EB9344FE755A2 /* Sound */,
 			);
 			path = DeepSleep;
@@ -461,7 +506,6 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					8EECD2DF0612360142B148BA = {
-						DevelopmentTeam = YOUR_TEAM_ID;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -479,7 +523,6 @@
 			packageReferences = (
 				AFBE95BA5EBD874E4E618BE0 /* XCRemoteSwiftPackageReference "FSCalendar" */,
 			);
-			preferredProjectObjectVersion = 54;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -494,33 +537,31 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1DC9504B8AFA70D311958431 /* AppInfo.plist in Resources */,
 				2AF6602DADD22FE14BABC744 /* Assets.xcassets in Resources */,
 				6C3CBF008DF21F373F879DAF /* LaunchScreen.storyboard in Resources */,
 				CE0881AD71FE99ABC60FD2D0 /* PROJECTGOAL.txt in Resources */,
 				F53AE6FBE0DF699F16628B09 /* cat.gif in Resources */,
 				9DC65BE9D9CA6D18F652E6CC /* generate-secrets.sh in Resources */,
-				289E872D70BB371960344BD3 /* playwright.yml in Resources */,
-				95410D8812C334B6456B1B11 /* 고양이.mp3 in Resources */,
-				BBA78DC5F8CBF36400B31735 /* 바람.mp3 in Resources */,
-				B4647E268790CF5FDF54B84B /* 바람2.mp3 in Resources */,
-				51691E87EFE00B549C308066 /* 발걸음-눈.mp3 in Resources */,
-				2C64A0FA5FC15EB4D7B43D01 /* 발걸음-눈2.mp3 in Resources */,
-				B801ABEF248CA8A7F7B62AC0 /* 밤.mp3 in Resources */,
-				8A33416E811A75E2A83C2A42 /* 밤2.mp3 in Resources */,
-				BFE72E0E4E385CD58B285DF2 /* 불1.mp3 in Resources */,
-				1FF29EFBBC1C42D1A8B969FD /* 비-창문.mp3 in Resources */,
-				F87FE90ABBC9F5A8D6491BB8 /* 비.mp3 in Resources */,
-				D781F8C21C5FE2152418D336 /* 새-비.mp3 in Resources */,
-				EE215DD846E1F24708648653 /* 새.mp3 in Resources */,
-				54551D85A93069B5EA2352EC /* 시냇물.mp3 in Resources */,
-				721F50A1F16811AD8269C03F /* 연필.mp3 in Resources */,
-				090193CAACDB4C68C4AF1A4D /* 우주.mp3 in Resources */,
-				4D4367EE938FEE4792100746 /* 쿨링팬.mp3 in Resources */,
-				663F2539AA33FDB8A1D9120B /* 키보드1.mp3 in Resources */,
-				9E47925792363595D382133B /* 키보드2.mp3 in Resources */,
-				67F1996C50D6DE3F592DDC69 /* 파도.mp3 in Resources */,
-				84AEE11E44FAA745A71712D6 /* 파도2.mp3 in Resources */,
+				95410D8812C334B6456B1B11 /* 고양이.mp3 in Resources */,
+				BBA78DC5F8CBF36400B31735 /* 바람.mp3 in Resources */,
+				B4647E268790CF5FDF54B84B /* 바람2.mp3 in Resources */,
+				51691E87EFE00B549C308066 /* 발걸음-눈.mp3 in Resources */,
+				2C64A0FA5FC15EB4D7B43D01 /* 발걸음-눈2.mp3 in Resources */,
+				B801ABEF248CA8A7F7B62AC0 /* 밤.mp3 in Resources */,
+				8A33416E811A75E2A83C2A42 /* 밤2.mp3 in Resources */,
+				BFE72E0E4E385CD58B285DF2 /* 불1.mp3 in Resources */,
+				1FF29EFBBC1C42D1A8B969FD /* 비-창문.mp3 in Resources */,
+				F87FE90ABBC9F5A8D6491BB8 /* 비.mp3 in Resources */,
+				D781F8C21C5FE2152418D336 /* 새-비.mp3 in Resources */,
+				EE215DD846E1F24708648653 /* 새.mp3 in Resources */,
+				54551D85A93069B5EA2352EC /* 시냇물.mp3 in Resources */,
+				721F50A1F16811AD8269C03F /* 연필.mp3 in Resources */,
+				090193CAACDB4C68C4AF1A4D /* 우주.mp3 in Resources */,
+				4D4367EE938FEE4792100746 /* 쿨링팬.mp3 in Resources */,
+				663F2539AA33FDB8A1D9120B /* 키보드1.mp3 in Resources */,
+				9E47925792363595D382133B /* 키보드2.mp3 in Resources */,
+				67F1996C50D6DE3F592DDC69 /* 파도.mp3 in Resources */,
+				84AEE11E44FAA745A71712D6 /* 파도2.mp3 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -532,8 +573,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				49204CF38EC11156E4BB0923 /* ClaudeServiceTests.swift in Sources */,
+				0764ED9804FA73FEC3F8B019 /* DynamicLoRAAdapterTests.swift in Sources */,
+				0D91B9ABFC78BC13376AABD2 /* FoundationModelRunnerTests.swift in Sources */,
+				5E1F85F46258C59E0D273E56 /* LLMEndToEndTests.swift in Sources */,
+				2E317FA8101E5A8A3D722FF8 /* LLMRouterTests.swift in Sources */,
 				F1D754398B81E74133205622 /* LRUCacheTests.swift in Sources */,
 				BBE927B63C7BDC1C54E8021C /* LoRAAdapterManagerTests.swift in Sources */,
+				8382E775EF46F521C0E5A0B1 /* MLAssetManagerTests.swift in Sources */,
+				3E67F81C81F3ADF89D75C778 /* MLUpdateTaskTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -563,6 +610,7 @@
 				2FAC7A3ED6AD5DC388BDDAA0 /* ComprehensiveRecommendationEngine.swift in Sources */,
 				9BC3468FC351ECDFFBB76765 /* Constants.swift in Sources */,
 				78FE4D3A5DAF9DEC10A5661D /* DiaryWriteViewController.swift in Sources */,
+				B560340A37E408B016984243 /* DynamicLoRAAdapter.swift in Sources */,
 				7C58CB8AE3203F0A2B759C76 /* EditDiaryViewController.swift in Sources */,
 				8C337BF214DA24809302378A /* EmotionAnalysisChatViewController.swift in Sources */,
 				3C0E80BCAB477296CFF1EA9D /* EmotionAnalyzer.swift in Sources */,
@@ -581,11 +629,15 @@
 				372C65F49AE00844BB484D9B /* EnvironmentConfig.swift in Sources */,
 				48CFB5EBF621F55EA04D88A6 /* FeedbackManager.swift in Sources */,
 				80A706BA09925FCF216E4C3C /* FeedbackPromptViewController.swift in Sources */,
+				DBDB9400DBEDDC448CA761F4 /* FoundationModelRunner.swift in Sources */,
 				558994590246F59AD31B39D2 /* HealthKitManager.swift in Sources */,
+				B6939EFBB209F12C9E98DE97 /* LLMRouter.swift in Sources */,
 				D5D4F3FCD7BACA352675C678 /* LRUCache.swift in Sources */,
 				2FE5311CBE0768D50021D175 /* LaunchViewController.swift in Sources */,
 				CABDBFD68EA86152D9A881D6 /* LegacyPresetManager.swift in Sources */,
 				364FE974457C40F355E8C06D /* LoRAAdapterManager.swift in Sources */,
+				ED4ADA72A9BBD3A0BC400EAB /* MLAssetManager.swift in Sources */,
+				D72B3E193FA4488598CC236B /* MLUpdateTask.swift in Sources */,
 				4D6E5241513521768E65D8C6 /* Models.swift in Sources */,
 				1834D61C85A8C5D6DAB5A1CD /* PresetListViewController.swift in Sources */,
 				08BFF28BA24DF9F92F1CF9FF /* PresetSharingManager.swift in Sources */,
@@ -777,13 +829,14 @@
 		};
 		6FCBAB88E803866C8EF4B56E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0FADDC2EBBE6B1CCC9F0226 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = YOUR_TEAM_ID;
-				INFOPLIST_FILE = DeepSleep/Info.plist;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
+				INFOPLIST_FILE = DeepSleep/AppInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -798,13 +851,14 @@
 		};
 		CDCD55103E3F8C6719E456C2 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0FADDC2EBBE6B1CCC9F0226 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = YOUR_TEAM_ID;
-				INFOPLIST_FILE = DeepSleep/Info.plist;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
+				INFOPLIST_FILE = DeepSleep/AppInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

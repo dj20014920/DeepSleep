@@ -5,6 +5,9 @@ import UserNotifications
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
+    /// Fallback window for non-scene UI
+    var window: UIWindow?
+
     // iOS 13 이상부터 SceneDelegate로 UI 진입점을 분리했어도
     // 여기는 앱 전체 초기화 코드(오디오 세션, 백그라운드 재생 등)를 넣습니다.
     func application(
@@ -34,6 +37,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         // 앱 시작 시 모든 알림 재스케줄링
         TodoManager.shared.rescheduleAllNotifications()
+        
+        // MARK: - Fallback UI Setup
+        // If SceneDelegate is not invoked, ensure LaunchViewController appears
+        let fallbackWindow = UIWindow(frame: UIScreen.main.bounds)
+        fallbackWindow.rootViewController = LaunchViewController()
+        fallbackWindow.makeKeyAndVisible()
+        self.window = fallbackWindow
         
         return true
     }
