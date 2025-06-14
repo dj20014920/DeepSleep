@@ -200,6 +200,30 @@ extension ViewController {
     // MARK: - 마스터 볼륨 액션
     
     @objc private func masterVolumeChanged(_ sender: UISlider) {
+        // 마스터 볼륨 임계값 체크
+        let volumeInt = Int(sender.value)
+        if volumeInt > volumeThreshold && !hasMasterOverride {
+            if let vc = findViewController() {
+                let alert = UIAlertController(title: "주의", message: "큰 소리는 집중이나 수면을 방해할 수 있습니다. 계속 높이시겠습니까?", preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "계속", style: .default) { _ in
+                    self.hasMasterOverride = true
+                    self.masterVolumeChanged(sender)
+                })
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in
+                    let thresholdValue = Float(self.volumeThreshold)
+                    sender.value = thresholdValue
+                    self.masterVolumeField.text = "\(self.volumeThreshold)"
+                    self.masterVolumeLevel = thresholdValue
+                    self.applyMasterVolumeToSoundManager()
+                })
+                vc.present(alert, animated: true)
+            }
+            return
+        }
+        // 임계값 이하로 낮추면 재확인 필요
+        if volumeInt <= volumeThreshold {
+            hasMasterOverride = false
+        }
         let newMasterVolume = sender.value
         masterVolumeLevel = newMasterVolume
         masterVolumeField.text = "\(Int(newMasterVolume))"
@@ -218,18 +242,41 @@ extension ViewController {
     }
     
     @objc private func masterVolumeFieldEditingEnded(_ sender: UITextField) {
-        guard let text = sender.text else { return }
-        
-        let volume = validateAndClampMasterVolume(text)
-        sender.text = "\(volume)"
-        masterVolumeSlider.value = Float(volume)
-        masterVolumeLevel = Float(volume)
+        // 마스터 볼륨 임계값 체크
+        guard let text = sender.text,
+              let volume = Int(text) else { return }
+        if volume > volumeThreshold && !hasMasterOverride {
+            if let vc = findViewController() {
+                let alert = UIAlertController(title: "주의: 큰 소리", message: "이 소리는 집중이나 수면을 방해할 수 있습니다. 계속 높이시겠습니까?", preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "계속", style: .default) { _ in
+                    self.hasMasterOverride = true
+                    self.masterVolumeFieldEditingEnded(sender)
+                })
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in
+                    let threshold = self.volumeThreshold
+                    sender.text = "\(threshold)"
+                    self.masterVolumeSlider.value = Float(threshold)
+                    self.masterVolumeLevel = Float(threshold)
+                    self.applyMasterVolumeToSoundManager()
+                })
+                vc.present(alert, animated: true)
+            }
+            return
+        }
+        // 임계값 이하로 낮추면 재확인 필요
+        if volume <= volumeThreshold {
+            hasMasterOverride = false
+        }
+        let clampedVolume = validateAndClampMasterVolume(text)
+        sender.text = "\(clampedVolume)"
+        masterVolumeSlider.value = Float(clampedVolume)
+        masterVolumeLevel = Float(clampedVolume)
         
         // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
         applyMasterVolumeToSoundManager()
         provideMediumHapticFeedback()
         
-        print("🔊 마스터볼륨 변경: \(volume)% (최대 200% 가능)")
+        print("🔊 마스터볼륨 변경: \(clampedVolume)% (최대 200% 가능)")
     }
     
     /// 마스터 볼륨을 SoundManager에만 적용 (슬라이더 위치는 변경하지 않음)
@@ -437,6 +484,32 @@ extension ViewController {
         let index = sender.tag
         let volume = Int(sender.value)
         
+        // 임계값 초과 시 사용자 확인
+        if volume > volumeThreshold && !hasVolumeOverride[index] {
+            if let vc = findViewController() {
+                let alert = UIAlertController(title: "주의: 큰 소리", message: "이 소리는 집중이나 수면을 방해할 수 있습니다. 계속 높이시겠습니까?", preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "계속", style: .default) { _ in
+                    self.hasVolumeOverride[index] = true
+                    // 재호출하여 실제 볼륨 적용
+                    self.sliderChanged(sender)
+                })
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in
+                    // 임계값으로 복원
+                    sender.value = Float(self.volumeThreshold)
+                    self.volumeFields[index].text = "\(self.volumeThreshold)"
+                    let actual = Float(self.volumeThreshold) * (self.masterVolumeLevel / 100.0)
+                    SoundManager.shared.setVolume(at: index, volume: actual)
+                })
+                vc.present(alert, animated: true)
+            }
+            return
+        }
+
+        // 임계값 이하로 낮추면 재확인 필요하도록 초기화
+        if volume <= volumeThreshold {
+            hasVolumeOverride[index] = false
+        }
+
         sender.value = Float(volume)
         volumeFields[index].text = "\(volume)"
         

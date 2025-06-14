@@ -56,6 +56,15 @@ class ViewController: UIViewController {
     var masterVolumeField: UITextField!
     internal var masterVolumeLevel: Float = 50.0  // 마스터 볼륨 레벨 (0-100), 기본값 50
 
+    // MARK: - 데시벨 임계값 및 사용자 선택 상태 저장
+    
+    /// 데시벨 임계값 (이 값을 넘으면 사용자에게 확인 다이얼로그 표시)
+    let volumeThreshold: Int = 80
+    /// 임계값 초과 시 사용자의 재생 허용 상태 (카테고리별)
+    var hasVolumeOverride: [Bool] = Array(repeating: false, count: SoundPresetCatalog.categoryCount)
+    /// 마스터 볼륨 임계값 초과 시 사용자 확인 상태 저장
+    var hasMasterOverride: Bool = false
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()

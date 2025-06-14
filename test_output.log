@@ -1,0 +1,496 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme DeepSleep -destination "platform=iOS Simulator,name=iPhone 16,OS=18.5"
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  FSCalendar: https://github.com/WenchaoD/FSCalendar.git @ 2.8.4
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (4 targets)
+    Target 'DeepSleepTests' in project 'DeepSleep'
+        ➜ Explicit dependency on target 'DeepSleep' in project 'DeepSleep'
+    Target 'DeepSleep' in project 'DeepSleep'
+        ➜ Explicit dependency on target 'FSCalendar' in project 'FSCalendar'
+    Target 'FSCalendar' in project 'FSCalendar'
+        ➜ Explicit dependency on target 'FSCalendar' in project 'FSCalendar'
+    Target 'FSCalendar' in project 'FSCalendar' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -x objective-c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+Build description signature: 247fca0d0deaf97392272a9ccb372c63
+Build description path: /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/XCBuildData/247fca0d0deaf97392272a9ccb372c63.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache
+    cd /Users/dj20014920/Desktop/DeepSleep/DeepSleep.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -o /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache
+
+ProcessProductPackaging "" /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+    Entitlements:
+    
+    {
+    "application-identifier" = "D4P5YAD8CF.com.deepsleep.app.DeepSleep";
+}
+    
+    builtin-productPackagingUtility -entitlements -format xml -o /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent
+
+ProcessProductPackagingDER /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent.der (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    /usr/bin/derq query -f xml -i /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent -o /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep.app-Simulated.xcent.der --raw
+
+GenerateAssetSymbols /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets --compile /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app --output-format human-readable-text --notices --warnings --export-dependency-info /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_dependencies --output-partial-info-plist /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 17.0 --platform iphonesimulator --bundle-identifier com.deepsleep.app.DeepSleep --generate-swift-asset-symbol-extensions NO --generate-swift-asset-symbols /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.swift --generate-objc-asset-symbols /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.h --generate-asset-symbol-index /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/* com.apple.actool.compilation-results */
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.h
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.swift
+
+
+CompileAssetCatalogVariant thinned /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets --compile /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --filter-for-thinning-device-configuration iPhone17,3 --filter-for-device-os-version 18.5 --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 17.0 --platform iphonesimulator
+/* com.apple.actool.compilation-results */
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist_thinned
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/thinned/AppIcon60x60@2x.png
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/thinned/AppIcon76x76@2x~ipad.png
+/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/thinned/Assets.car
+
+
+SwiftDriver DeepSleep normal arm64 com.apple.xcode.tools.swift.compiler (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name DeepSleep -Onone -enforce-exclusivity\=checked @/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -target arm64-apple-ios17.0-simulator -g -module-cache-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Index.noindex/DataStore -swift-version 5 -I /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -output-file-map /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep_const_extract_protocols.json -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-generated-files.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-own-target-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep-2711921755f8634499613a85e5931617-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-project-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/SourcePackages/checkouts/FSCalendar/FSCalendar/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources-normal/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep-Swift.h -working-directory /Users/dj20014920/Desktop/DeepSleep -experimental-emit-module-separately -disable-cmo
+
+CompileStoryboard /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Base.lproj/LaunchScreen.storyboard (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --errors --warnings --notices --module DeepSleep --output-partial-info-plist /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Base.lproj/LaunchScreen-SBPartialInfo.plist --auto-activate-custom-fonts --target-device iphone --target-device ipad --minimum-deployment-target 17.0 --output-format human-readable-text /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Base.lproj/LaunchScreen.storyboard --compilation-directory /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Base.lproj
+
+LinkStoryboards (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --errors --warnings --notices --module DeepSleep --target-device iphone --target-device ipad --minimum-deployment-target 17.0 --output-format human-readable-text --link /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Base.lproj/LaunchScreen.storyboardc
+
+SwiftCompile normal arm64 Compiling\ EnvironmentConfig.swift,\ FeedbackManager.swift,\ FeedbackPromptViewController.swift,\ FoundationModelRunner.swift,\ HealthKitManager.swift,\ LLMRouter.swift,\ LaunchViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EnvironmentConfig.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackPromptViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LLM/FoundationModelRunner.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/HealthKitManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LLMRouter.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LaunchViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EnvironmentConfig.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:31:12: warning: unnecessary check for 'iOS'; enclosing scope ensures guard will always be true
+        if #available(iOS 17, *) {
+           ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:11:13: note: enclosing scope here
+final class FeedbackManager: ObservableObject {
+            ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:465:12: warning: unnecessary check for 'iOS'; enclosing scope ensures guard will always be true
+        if #available(iOS 17, *) {
+           ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:11:13: note: enclosing scope here
+final class FeedbackManager: ObservableObject {
+            ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:484:12: warning: unnecessary check for 'iOS'; enclosing scope ensures guard will always be true
+        if #available(iOS 17, *) {
+           ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackManager.swift:11:13: note: enclosing scope here
+final class FeedbackManager: ObservableObject {
+            ^
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/FeedbackPromptViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LLM/FoundationModelRunner.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/HealthKitManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/HealthKitManager.swift:177:13: warning: initialization of immutable value 'isEvening' was never used; consider replacing with assignment to '_' or removing it
+        let isEvening = currentHour >= 18
+        ~~~~^~~~~~~~~
+        _
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LLMRouter.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LaunchViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LaunchViewController.swift:32:15: warning: 'traitCollectionDidChange' was deprecated in iOS 17.0: Use the trait change registration APIs declared in the UITraitChangeObservable protocol
+        super.traitCollectionDidChange(previousTraitCollection)
+              ^
+
+SwiftCompile normal arm64 Compiling\ EmotionDiaryDisplayCell.swift,\ EmotionDiaryViewController+Actions.swift,\ EmotionDiaryViewController+Insights.swift,\ EmotionDiaryViewController+TableView.swift,\ EmotionInputViewController.swift,\ EmotionResponseManager.swift,\ EnhancedFeedbackViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryDisplayCell.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+Actions.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+Insights.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+TableView.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionInputViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionResponseManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EnhancedFeedbackViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryDisplayCell.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+Actions.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+Insights.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController+TableView.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionInputViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionResponseManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EnhancedFeedbackViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EnhancedFeedbackViewController.swift:346:21: warning: initialization of immutable value 'feedback' was never used; consider replacing with assignment to '_' or removing it
+                let feedback = self.createFeedbackObject()
+                ~~~~^~~~~~~~
+                _
+
+SwiftCompile normal arm64 Compiling\ LegacyPresetManager.swift,\ LoRAAdapterManager.swift,\ MLAssetManager.swift,\ MLUpdateTask.swift,\ Models.swift,\ PresetListViewController.swift,\ PresetSharingManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LegacyPresetManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRAAdapterManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ML/MLAssetManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/MLUpdateTask.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Models.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PresetListViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PresetSharingManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LegacyPresetManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRAAdapterManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ML/MLAssetManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/MLUpdateTask.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Models.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PresetListViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PresetSharingManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 Compiling\ ChatViewController.swift,\ ChatviewController+Actions.swift,\ ClaudeService.swift,\ ComprehensiveRecommendationEngine.swift,\ Constants.swift,\ DiaryWriteViewController.swift,\ DynamicLoRAAdapter.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ChatViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ChatviewController+Actions.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ClaudeService.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ComprehensiveRecommendationEngine.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Constants.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/DiaryWriteViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/DynamicLoRAAdapter.swift (in target 'DeepSleep' from project 'DeepSleep')
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ChatViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ChatviewController+Actions.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ClaudeService.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ComprehensiveRecommendationEngine.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Constants.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/DiaryWriteViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/DynamicLoRAAdapter.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 Compiling\ PsychoacousticOptimizationEngine.swift,\ RemoteLogger.swift,\ ReplicateChatService.swift,\ ScalableSoundCatalog.swift,\ SceneDelegate.swift,\ SecureEnclaveKeyStore.swift,\ SettingsManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PsychoacousticOptimizationEngine.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/RemoteLogger.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ReplicateChatService.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ScalableSoundCatalog.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SceneDelegate.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SecureEnclaveKeyStore.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SettingsManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/PsychoacousticOptimizationEngine.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/RemoteLogger.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ReplicateChatService.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ScalableSoundCatalog.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SceneDelegate.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SecureEnclaveKeyStore.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SettingsManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 Compiling\ SoundFilterManager.swift,\ SoundManager.swift,\ SoundPresetCatalog.swift,\ TimerViewController.swift,\ TodoCalendarViewController.swift,\ TodoItem.swift,\ TodoManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundFilterManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundManager.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundPresetCatalog.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TimerViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoCalendarViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoItem.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundFilterManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/SoundPresetCatalog.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TimerViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoCalendarViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoItem.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TodoManager.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 Compiling\ EditDiaryViewController.swift,\ EmotionAnalysisChatViewController.swift,\ EmotionAnalyzer.swift,\ EmotionCalendarViewController+AI.swift,\ EmotionCalendarViewController+Collection.swift,\ EmotionCalendarViewController.swift,\ EmotionCalendarViewcontroller+Diary.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EditDiaryViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalysisChatViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalyzer.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController+AI.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController+Collection.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewcontroller+Diary.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EditDiaryViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalysisChatViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalysisChatViewController.swift:635:13: warning: initialization of immutable value 'intensityText' was never used; consider replacing with assignment to '_' or removing it
+        let intensityText = analysis.intensity > 1.2 ? "강한" : analysis.intensity < 0.8 ? "부드러운" : "적절한"
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalysisChatViewController.swift:900:44: warning: 'windows' was deprecated in iOS 15.0: Use UIWindowScene.windows on a relevant window scene instead
+        for window in UIApplication.shared.windows {
+                                           ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalysisChatViewController.swift:1058:13: warning: initialization of immutable value 'soundPreset' was never used; consider replacing with assignment to '_' or removing it
+        let soundPreset = SoundPreset(
+        ~~~~^~~~~~~~~~~
+        _
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionAnalyzer.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController+AI.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController+Collection.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionCalendarViewcontroller+Diary.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ DeepSleep (in target 'DeepSleep' from project 'DeepSleep')
+
+EmitSwiftModule normal arm64 (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+LinkAssetCatalog /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Assets.xcassets (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-linkAssetCatalog --thinned /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/thinned --thinned-dependencies /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist_thinned --unthinned /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_output/unthinned --unthinned-dependencies /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist_unthinned --output /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app --plist-output /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist
+note: Emplaced /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/Assets.car (in target 'DeepSleep' from project 'DeepSleep')
+note: Emplaced /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/AppIcon76x76@2x~ipad.png (in target 'DeepSleep' from project 'DeepSleep')
+note: Emplaced /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/AppIcon60x60@2x.png (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftDriverJobDiscovery normal arm64 Compiling EmotionDiaryDisplayCell.swift, EmotionDiaryViewController+Actions.swift, EmotionDiaryViewController+Insights.swift, EmotionDiaryViewController+TableView.swift, EmotionInputViewController.swift, EmotionResponseManager.swift, EnhancedFeedbackViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 Compiling\ TokenTracker.swift,\ UIDesignSystem.swift,\ UserBehaviorAnalytics.swift,\ UserDefaults+Extensions.swift,\ ViewController+EmotionSelector.swift,\ GeneratedAssetSymbols.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TokenTracker.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UIDesignSystem.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UserBehaviorAnalytics.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UserDefaults+Extensions.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ViewController+EmotionSelector.swift /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/TokenTracker.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UIDesignSystem.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UserBehaviorAnalytics.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/UserDefaults+Extensions.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ViewController+EmotionSelector.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+ProcessInfoPlistFile /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/Info.plist /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/AppInfo.plist (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-infoPlistUtility /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/AppInfo.plist -producttype com.apple.product-type.application -genpkginfo /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Base.lproj/LaunchScreen-SBPartialInfo.plist -additionalcontentfile /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/assetcatalog_generated_info.plist -o /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.app/Info.plist
+
+SwiftDriverJobDiscovery normal arm64 Compiling EnvironmentConfig.swift, FeedbackManager.swift, FeedbackPromptViewController.swift, FoundationModelRunner.swift, HealthKitManager.swift, LLMRouter.swift, LaunchViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftDriverJobDiscovery normal arm64 Compiling EditDiaryViewController.swift, EmotionAnalysisChatViewController.swift, EmotionAnalyzer.swift, EmotionCalendarViewController+AI.swift, EmotionCalendarViewController+Collection.swift, EmotionCalendarViewController.swift, EmotionCalendarViewcontroller+Diary.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 Compiling\ EmotionDiaryViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/EmotionDiaryViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftCompile normal arm64 Compiling\ ViewController.swift /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftCompile normal arm64 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ViewController.swift (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for DeepSleep (in target 'DeepSleep' from project 'DeepSleep')
+
+SwiftDriver\ Compilation\ Requirements DeepSleep normal arm64 com.apple.xcode.tools.swift.compiler (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name DeepSleep -Onone -enforce-exclusivity\=checked @/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -target arm64-apple-ios17.0-simulator -g -module-cache-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Index.noindex/DataStore -swift-version 5 -I /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -output-file-map /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep_const_extract_protocols.json -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-generated-files.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-own-target-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep-2711921755f8634499613a85e5931617-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DeepSleep-project-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/SourcePackages/checkouts/FSCalendar/FSCalendar/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources-normal/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep-Swift.h -working-directory /Users/dj20014920/Desktop/DeepSleep -experimental-emit-module-separately -disable-cmo
+
+Copy /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.swiftmodule/arm64-apple-ios-simulator.abi.json /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.abi.json (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.abi.json /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.swiftmodule/arm64-apple-ios-simulator.abi.json
+
+Copy /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.swiftsourceinfo (in target 'DeepSleep' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep.build/Objects-normal/arm64/DeepSleep.swiftsourceinfo /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/DeepSleep.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo
+
+SwiftDriver DeepSleepTests normal arm64 com.apple.xcode.tools.swift.compiler (in target 'DeepSleepTests' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name DeepSleepTests -Onone -enforce-exclusivity\=checked @/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.SwiftFileList -DDEBUG -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -target arm64-apple-ios17.0-simulator -g -module-cache-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Index.noindex/DataStore -swift-version 5 -I /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -output-file-map /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests_const_extract_protocols.json -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-generated-files.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-own-target-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep-2711921755f8634499613a85e5931617-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-project-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/SourcePackages/checkouts/FSCalendar/FSCalendar/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources-normal/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests-Swift.h -working-directory /Users/dj20014920/Desktop/DeepSleep -experimental-emit-module-separately -disable-cmo
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ DeepSleepTests (in target 'DeepSleepTests' from project 'DeepSleep')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -emit-module -experimental-skip-non-inlinable-function-bodies-without-types /Users/dj20014920/Desktop/DeepSleep/Tests/ClaudeServiceTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/DynamicLoRAAdapterTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/FoundationModelRunnerTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/LLMRouterTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/LRUCacheTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/LoRAAdapterManagerTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/MLAssetManagerTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/MLUpdateTaskTests.swift -target arm64-apple-ios17.0-simulator -Xllvm -aarch64-use-tbi -enable-objc-interop -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -I /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk/Developer/Library/Frameworks -no-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -module-cache-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -profile-generate -profile-coverage-mapping -swift-version 5 -enforce-exclusivity\=checked -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests_const_extract_protocols.json -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -validate-clang-modules-once -clang-build-session-file /Users/dj20014920/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/dj20014920/Desktop/DeepSleep -resource-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -enable-anonymous-context-mangled-names -file-compilation-dir /Users/dj20014920/Desktop/DeepSleep -Xcc -ivfsstatcache -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-generated-files.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-own-target-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleep-2711921755f8634499613a85e5931617-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DeepSleepTests-project-headers.hmap -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/SourcePackages/checkouts/FSCalendar/FSCalendar/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources-normal/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources/arm64 -Xcc -I/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/DerivedSources -Xcc -DDEBUG\=1 -module-name DeepSleepTests -frontend-parseable-output -disable-clang-spi -target-sdk-version 18.5 -target-sdk-name iphonesimulator18.5 -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -emit-module-doc-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.swiftdoc -emit-module-source-info-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.swiftsourceinfo -emit-objc-header-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests-Swift.h -serialize-diagnostics-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests-master-emit-module.dia -emit-dependencies-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests-master-emit-module.d -o /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.swiftmodule -emit-abi-descriptor-path /Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Build/Intermediates.noindex/DeepSleep.build/Debug-iphonesimulator/DeepSleepTests.build/Objects-normal/arm64/DeepSleepTests.abi.json
+
+EmitSwiftModule normal arm64 (in target 'DeepSleepTests' from project 'DeepSleep')
+    cd /Users/dj20014920/Desktop/DeepSleep
+    
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:21:56: warning: nul character embedded in middle of file
+            return URL(fileURLWithPath: "/mock/adapter- \(rank)")
+                                                       ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:8:23: error: overriding non-open instance method outside of its defining module
+        override func sendMessage(_ message: String, completion: @escaping (Result<String, Error>) -> Void) {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:8:23: error: instance method overrides a 'final' instance method
+        override func sendMessage(_ message: String, completion: @escaping (Result<String, Error>) -> Void) {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/ClaudeService.swift:14:10: note: overridden declaration is here
+    func sendMessage(_ message: String, completion: @escaping (Result<String, Error>) -> Void) {
+         ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:7:11: error: inheritance from a final class 'ClaudeService'
+    class MockClaudeService: ClaudeService {
+          ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:14:23: error: overriding non-open instance method outside of its defining module
+        override func generateResponse(from prompt: String, useKVCache: Bool) async throws -> LLMOutput {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:14:23: error: instance method overrides a 'final' instance method
+        override func generateResponse(from prompt: String, useKVCache: Bool) async throws -> LLMOutput {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LLM/FoundationModelRunner.swift:36:17: note: overridden declaration is here
+    public func generateResponse(from prompt: String, useKVCache: Bool) async throws -> LLMOutput {
+                ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:13:11: error: inheritance from a final class 'FoundationModelRunner'
+    class MockFoundationModelRunner: FoundationModelRunner {
+          ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:20:23: error: overriding non-open instance method outside of its defining module
+        override func downloadAdapter(from url: URL, rank: Int) async throws -> URL {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:20:23: error: instance method overrides a 'final' instance method
+        override func downloadAdapter(from url: URL, rank: Int) async throws -> URL {
+                      ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/DynamicLoRAAdapter.swift:22:17: note: overridden declaration is here
+    public func downloadAdapter(from url: URL, rank: Int) async throws -> URL {
+                ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:19:11: error: inheritance from a final class 'DynamicLoRAAdapter'
+    class MockDynamicLoRAAdapter: DynamicLoRAAdapter {
+          ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:26:29: error: overriding non-open class method outside of its defining module
+        override class func updateAdapter(adapterURL: URL, feedback: [Float], saveURL: URL) async throws -> URL {
+                            ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:26:29: error: cannot override static method
+        override class func updateAdapter(adapterURL: URL, feedback: [Float], saveURL: URL) async throws -> URL {
+                            ^
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/LoRA/MLUpdateTask.swift:13:24: note: overridden declaration is here
+    public static func updateAdapter(adapterURL: URL, feedback: [Float], saveURL: URL) async throws -> URL {
+                       ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift:25:11: error: inheritance from a final class 'MLUpdateTask'
+    class MockMLUpdateTask: MLUpdateTask {
+          ^
+/Users/dj20014920/Desktop/DeepSleep/Tests/MLAssetManagerTests.swift:137:29: error: cannot find type 'URLSessionProtocol' in scope
+final class MockURLSession: URLSessionProtocol {
+                            ^~~~~~~~~~~~~~~~~~
+/Users/dj20014920/Desktop/DeepSleep/Tests/MLAssetManagerTests.swift:157:29: error: cannot find type 'Unarchiver' in scope
+final class MockUnarchiver: Unarchiver {
+                            ^~~~~~~~~~
+
+SwiftCompile normal arm64 Compiling\ LLMEndToEndTests.swift /Users/dj20014920/Desktop/DeepSleep/Tests/LLMEndToEndTests.swift (in target 'DeepSleepTests' from project 'DeepSleep')
+Command SwiftCompile failed with a nonzero exit code
+
+
+Test session results, code coverage, and logs:
+	/Users/dj20014920/Library/Developer/Xcode/DerivedData/DeepSleep-ahbtrietzvwwmmezjdqemtpnnmgy/Logs/Test/Test-DeepSleep-2025.06.14_14-29-54-+0900.xcresult
+

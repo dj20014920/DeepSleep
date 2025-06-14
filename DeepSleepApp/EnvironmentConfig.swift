@@ -54,8 +54,8 @@ class EnvironmentConfig {
     
     /// 🔐 키체인에서 API 키 조회 (미래 구현)
     private func getFromKeychain() -> String? {
-        // TODO: 키체인 접근 구현
-        return nil
+        // Keychain에서 API 키 조회
+        return SecureEnclaveKeyStore.shared.loadAPIKey()
     }
     
     /// ✅ API 키 유효성 검증

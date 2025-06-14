@@ -121,7 +121,7 @@ class LaunchViewController: UIViewController {
             await performBackgroundInitialization()
         }
         
-        // 3초 로딩 시간에 맞춘 부드러운 애니메이션
+        // 1.3초 로딩 시간에 맞춘 부드러운 애니메이션
         // 아이콘이 먼저 천천히 나타나고 (0.5초 후, 1초간)
         UIView.animate(withDuration: 1.0, delay: 0.5, options: .curveEaseOut) {
             self.iconImageView.alpha = 1.0

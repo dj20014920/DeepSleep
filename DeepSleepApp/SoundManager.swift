@@ -1269,9 +1269,9 @@ final class SoundManager {
         isSceneActive = isActive
         
         if !isActive {
-            // Scene이 비활성화될 때 자동 재생 방지
-            isGloballyPaused = true
-            print("🔇 [SoundManager] Scene 비활성화로 인한 자동 멈춤 설정")
+            // Scene이 비활성화 시에도 백그라운드 재생 유지
+            // 자동 일시정지 비활성화되어 백그라운드에서 계속 재생됩니다.
+            print("🔇 [SoundManager] Scene 비활성화 시에도 백그라운드 재생 유지")
         }
     }
 
