@@ -19,7 +19,7 @@ jobs:
       - name: Install Fastlane
         run: gem install fastlane
       - name: Xcode Select
-        run: sudo xcode-select -s "/Applications/Xcode_15.3.app"
+        run: sudo xcode-select -s "/Applications/Xcode_15.0.1.app"
       - name: Run tests (iOS ${{ matrix.ios_version }})
         run: |
           xcodebuild test -scheme DeepSleep \
