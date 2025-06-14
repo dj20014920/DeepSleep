@@ -10,6 +10,9 @@ class LaunchViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        #if DEBUG
+        print("🚀 [LaunchViewController] viewDidLoad 호출됨")
+        #endif
         setupGradientBackground()
         setupViews()
     }
@@ -109,6 +112,9 @@ class LaunchViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        #if DEBUG
+        print("🚀 [LaunchViewController] viewDidAppear 호출됨")
+        #endif
         
         // 🚀 백그라운드에서 앱 초기화 시작 (UI 애니메이션과 병렬 실행)
         Task {
@@ -131,8 +137,8 @@ class LaunchViewController: UIViewController {
             self.subtitleLabel.alpha = 1.0
         }
         
-        // 2.5초 후 메인 화면으로 이동 (사용자 경험 개선)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+        // 1.3초 후 메인 화면으로 이동 (사용자 경험 개선)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             self.transitionToMainInterface()
         }
     }

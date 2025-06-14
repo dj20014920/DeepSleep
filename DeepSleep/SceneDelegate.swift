@@ -15,19 +15,28 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene,
                    willConnectTo session: UISceneSession,
                    options connectionOptions: UIScene.ConnectionOptions) {
-
-            guard let windowScene = (scene as? UIWindowScene) else { return }
-            
-            // 앱 시작 시 오래된 AI 조언 정리
-            TodoManager.shared.cleanupOldAIAdvices()
-
-            let window = UIWindow(windowScene: windowScene)
+        #if DEBUG
+        print("🟢 [SceneDelegate] scene(_:willConnectTo:) 호출됨, scene=\(scene), session=\(session)")
+        #endif
+        guard let windowScene = (scene as? UIWindowScene) else {
+            #if DEBUG
+            print("⚠️ [SceneDelegate] scene is not UIWindowScene, cannot create window")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("🟢 [SceneDelegate] 성공적으로 UIWindowScene 확인, window 생성 시작")
+        #endif
+        let window = UIWindow(windowScene: windowScene)
 
         // LaunchViewController만 루트로 설정
-                window.rootViewController = LaunchViewController()
-                self.window = window
-                window.makeKeyAndVisible()
-        }
+        window.rootViewController = LaunchViewController()
+        self.window = window
+        window.makeKeyAndVisible()
+        #if DEBUG
+        print("🟢 [SceneDelegate] LaunchViewController set as rootViewController and window made keyVisible")
+        #endif
+    }
 
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
@@ -209,6 +218,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     // MARK: - 메인 화면 전환
     func showMainInterface() {
+        print("🚀🚀🚀 [SceneDelegate] showMainInterface() 호출됨 - 메인 인터페이스 전환 시작")
+        
         // TabBarController 생성
         let tabBarController = UITabBarController()
 

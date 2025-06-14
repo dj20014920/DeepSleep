@@ -432,12 +432,13 @@ struct EnhancedRecommendationResponse {
 
 #if canImport(SwiftData)
 @Model
+@available(iOS 17.0, *)
 class PresetFeedback {
     @Attribute(.unique) var id: UUID
     var timestamp: Date
     var presetName: String
     var contextEmotion: String
-    var contextTime: Int // 시간 (0-23)
+    var contextTime: Int
     
     // 추천 데이터
     var recommendedVolumes: [Float]
@@ -553,6 +554,7 @@ class PresetFeedback {
 #endif
 
 /// Phase 2: 사용자 프로필 벡터 (피드백 기반 분석)
+@available(iOS 17.0, *)
 struct UserProfileVector {
     // 사운드 선호도 (13차원)
     let soundPreferences: [Float]

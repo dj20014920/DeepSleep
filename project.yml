@@ -18,22 +18,36 @@ targets:
     platform: iOS
     sources:
       - path: DeepSleep
+        group: ""
     info:
-      path: DeepSleep/Info.plist
+      path: DeepSleep/AppInfo.plist
       properties:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UILaunchStoryboardName: LaunchScreen
         LSApplicationQueriesSchemes:
           - "kakaokompassauth"
           - "kakaolink"
+        REPLICATE_API_TOKEN: $(REPLICATE_API_TOKEN)
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default Configuration
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
     settings:
       base:
+        INFOPLIST_FILE: "DeepSleep/AppInfo.plist"
         DEVELOPMENT_TEAM: YOUR_TEAM_ID
         CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
+    configFiles:
+      Debug: DeepSleep/Secrets.xcconfig
+      Release: DeepSleep/Secrets.xcconfig
     dependencies:
       - package: FSCalendar
   DeepSleepTests:
@@ -45,4 +59,4 @@ targets:
     info:
       path: Tests/Tests-Info.plist
     dependencies:
-      - target: DeepSleep 
+      - target: DeepSleep
