@@ -2259,6 +2259,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             self.appendChat(successMessage)
             
             print("✅ [applyClaudePreset] Claude 추천 적용 완료")
+            // 🎵 AI 추천 적용 후 오디오 재생 재시작
+            SoundManager.shared.playAll(presetName: recommendation.presetName)
         }
     }
     

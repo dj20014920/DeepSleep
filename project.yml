@@ -17,10 +17,10 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: DeepSleep
+      - path: DeepSleepApp
         group: ""
     info:
-      path: DeepSleep/AppInfo.plist
+      path: DeepSleepApp/AppInfo.plist
       properties:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -39,15 +39,15 @@ targets:
                 UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
     settings:
       base:
-        INFOPLIST_FILE: "DeepSleep/AppInfo.plist"
+        INFOPLIST_FILE: "DeepSleepApp/AppInfo.plist"
         DEVELOPMENT_TEAM: YOUR_TEAM_ID
         CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
     configFiles:
-      Debug: DeepSleep/Secrets.xcconfig
-      Release: DeepSleep/Secrets.xcconfig
+      Debug: DeepSleepApp/Secrets.xcconfig
+      Release: DeepSleepApp/Secrets.xcconfig
     dependencies:
       - package: FSCalendar
   DeepSleepTests:

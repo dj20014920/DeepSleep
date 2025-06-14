@@ -918,6 +918,11 @@ extension ChatViewController {
         }
         
         print("✅ [applyLocalPreset] 프리셋 적용 완료: \(preset.name)")
+        // 🎵 프리셋 적용 후 오디오 재생 재시작
+        DispatchQueue.main.async {
+            print("🔊 [applyLocalPreset] 오디오 재생 재시작")
+            SoundManager.shared.playAll(presetName: preset.name)
+        }
     }
      
      // 🔍 MainViewController 찾기 헬퍼 메서드 추가

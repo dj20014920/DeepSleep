@@ -1,4 +1,8 @@
 import UIKit
+import CryptoKit
+#if canImport(Compression)
+import Compression
+#endif
 
 // MARK: - 프리셋 블록 UI 관련 Extension
 extension ViewController {
@@ -26,6 +30,12 @@ extension ViewController {
         
         presetStackView.addArrangedSubview(recentSection.container)
         presetStackView.addArrangedSubview(favoriteSection.container)
+        
+        // AI 개인화 추천 버튼 추가
+        if #available(iOS 17.0, *) {
+            let recSection = createRecommendationSection()
+            presetStackView.addArrangedSubview(recSection)
+        }
         
         if let scrollView = view.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
            let containerView = scrollView.subviews.first {
@@ -635,4 +645,103 @@ extension ViewController {
         }
         navigationController?.pushViewController(presetListVC, animated: true)
     }
+    
+    // MARK: - 개인화 추천 버튼 UI 및 로직
+    @available(iOS 17.0, *)
+    private func createRecommendationSection() -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        let button = UIButton(type: .system)
+        button.setTitle("🔍 개인화 추천", for: .normal)
+        button.layer.cornerRadius = 12
+        button.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.1)
+        button.setTitleColor(.systemPurple, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(recommendationButtonTapped), for: .touchUpInside)
+        container.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            button.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            button.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        return container
+    }
+
+    @objc @available(iOS 17.0, *)
+    private func recommendationButtonTapped() {
+        let urlString = "https://example.com/adapterfile.adapter.gz"
+        let hash = SHA256.hash(data: Data(urlString.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let cacheFile = base.appendingPathComponent("com.deepsleep/adapter_cache/").appendingPathComponent("\(hash)_rank4.adapter")
+        // 첫 다운로드 유도
+        if !FileManager.default.fileExists(atPath: cacheFile.path) {
+            let alert = UIAlertController(
+                title: "개인화 모델 다운로드",
+                message: "더 정확한 추천을 위해 개인화 모델(LoRA)을 다운로드해야 합니다. 첫 실행 시 한 번만 필요하며, 다운로드 후 서비스가 향상됩니다.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "다운로드", style: .default) { [weak self] _ in
+                guard let self = self else { return }
+                self.downloadAndApplyLoRAAdapter()
+            })
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+            present(alert, animated: true)
+        } else {
+            // 로컬 기반 추천(LoRA 적용)
+            let recommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
+            showRecommendationResult(recommendation)
+        }
+    }
+
+    /// 추천 결과를 사용자에게 표시하고 적용할 수 있는 알림창을 띄웁니다.
+    @available(iOS 17.0, *)
+    private func showRecommendationResult(_ result: ComprehensiveMasterRecommendation) {
+        let primary = result.primaryRecommendation
+        let alert = UIAlertController(
+            title: primary.presetName,
+            message: primary.personalizedExplanation ?? primary.reasoning,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "적용", style: .default) { [weak self] _ in
+            self?.applyPreset(
+                volumes: primary.optimizedVolumes,
+                versions: primary.optimizedVersions,
+                name: primary.presetName,
+                presetId: nil,
+                saveAsNew: true
+            )
+        })
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        present(alert, animated: true)
+    }
+
+    /// LoRA 어댑터 다운로드 및 결합 모델 추천 실행
+    @available(iOS 17.0, *)
+    private func downloadAndApplyLoRAAdapter() {
+        Task {
+            let urlStringRaw = "https://example.com/adapterfile.adapter.gz"
+            guard let url = URL(string: urlStringRaw) else {
+                await MainActor.run { showToast(message: "잘못된 URL") }
+                return
+            }
+            do {
+                // 어댑터 다운로드 및 캐시
+                let adapterURL = try await DynamicLoRAAdapter.shared.downloadAdapter(from: url, rank: 4)
+                print("🔽 [LoRA] 다운로드 및 캐시 완료: \(adapterURL)")
+                // 결합 모델로 추천 생성
+                let recommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
+                await MainActor.run {
+                    showToast(message: "개인화 모델 적용 완료")
+                    showRecommendationResult(recommendation)
+                }
+            } catch {
+                await MainActor.run { showToast(message: "LoRA 다운로드 실패: \(error.localizedDescription)") }
+            }
+        }
+    }
 }
+
+// URLSessionDownloadDelegate extension removed in refactoring. Recommendation flow unified.
