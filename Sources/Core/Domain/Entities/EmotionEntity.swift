@@ -15,6 +15,101 @@ public enum EmotionCategory: String, CaseIterable, Codable {
     }
 }
 
+// MARK: - Legacy EmotionType for Compatibility
+public enum EmotionType: String, CaseIterable, Codable, Hashable {
+    case happy = "happy"
+    case sad = "sad"
+    case anxious = "anxious"
+    case stressed = "stressed"
+    case excited = "excited"
+    case tired = "tired"
+    case angry = "angry"
+    case calm = "calm"
+    case nostalgic = "nostalgic"
+    case grateful = "grateful"
+    case confused = "confused"
+    case neutral = "neutral"
+    
+    public var emoji: String {
+        switch self {
+        case .happy: return "😊"
+        case .sad: return "😢"
+        case .anxious: return "😰"
+        case .stressed: return "😣"
+        case .excited: return "😄"
+        case .tired: return "😴"
+        case .angry: return "😡"
+        case .calm: return "😌"
+        case .nostalgic: return "🥺"
+        case .grateful: return "🙏"
+        case .confused: return "😕"
+        case .neutral: return "😐"
+        }
+    }
+    
+    public var localizedName: String {
+        switch self {
+        case .happy: return "기쁨"
+        case .sad: return "슬픔"
+        case .anxious: return "불안"
+        case .stressed: return "스트레스"
+        case .excited: return "신남"
+        case .tired: return "피곤"
+        case .angry: return "화남"
+        case .calm: return "평온"
+        case .nostalgic: return "그리움"
+        case .grateful: return "감사"
+        case .confused: return "혼란"
+        case .neutral: return "무덤덤"
+        }
+    }
+    
+    public var category: EmotionCategory {
+        switch self {
+        case .happy, .excited, .grateful:
+            return .happy
+        case .sad, .nostalgic:
+            return .sad
+        case .anxious, .stressed, .confused:
+            return .anxious
+        case .tired:
+            return .tired
+        case .angry:
+            return .angry
+        case .calm, .neutral:
+            return .neutral
+        }
+    }
+    
+    public var intensity: Float {
+        switch self {
+        case .happy: return 0.7
+        case .sad: return 0.6
+        case .anxious: return 0.8
+        case .stressed: return 0.9
+        case .excited: return 0.9
+        case .tired: return 0.7
+        case .angry: return 0.8
+        case .calm: return 0.3
+        case .nostalgic: return 0.5
+        case .grateful: return 0.6
+        case .confused: return 0.6
+        case .neutral: return 0.2
+        }
+    }
+    
+    // Convert to EmotionEntity
+    public func toEntity() -> EmotionEntity {
+        return EmotionEntity(
+            emoji: self.emoji,
+            name: self.localizedName,
+            description: self.localizedName,
+            category: self.category,
+            intensity: self.intensity
+        )
+    }
+}
+
 public struct EmotionEntity: Codable, Identifiable, Equatable {
     public let id: UUID
     public let emoji: String
@@ -41,6 +136,11 @@ public struct EmotionEntity: Codable, Identifiable, Equatable {
     
     public static func == (lhs: EmotionEntity, rhs: EmotionEntity) -> Bool {
         return lhs.id == rhs.id
+    }
+    
+    // Convert to EmotionType
+    public func toType() -> EmotionType? {
+        return EmotionType.allCases.first { $0.localizedName == self.name }
     }
 }
 

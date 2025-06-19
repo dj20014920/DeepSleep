@@ -1,265 +1,607 @@
 import Foundation
 import Combine
+import ComposableArchitecture
 
-// MARK: - Chat View Model
-
-@MainActor
-public final class ChatViewModel: ObservableObject {
-    // MARK: - Published Properties
-    @Published public var messages: [ChatMessageViewModel] = []
-    @Published public var isLoading: Bool = false
-    @Published public var errorMessage: String?
-    @Published public var currentSessionId: UUID = UUID()
-    @Published public var isTyping: Bool = false
+// MARK: - Chat Feature (TCA Style)
+@Reducer
+struct ChatFeature {
     
-    // MARK: - Dependencies (will be injected in Phase 2)
-    // private let chatService: ChatService?
-    // private let emotionAnalyzer: EmotionAnalyzer?
-    private let aiRecommendationService: any AIRecommendationService
-    // private let tokenTracker: TokenTracker
-    
-    // MARK: - Session Properties
-    private var sessionStartTime: Date?
-    private var messageCount: Int = 0
-    private let maxMessages: Int = 75
-    private var isProcessingRecommendation: Bool = false
-    
-    // MARK: - Initialization
-    public init(
-        aiRecommendationService: any AIRecommendationService = MockAIRecommendationService()
-    ) {
-        self.aiRecommendationService = aiRecommendationService
+    // MARK: - State
+    @ObservableState
+    struct State: Equatable {
+        var messages: [ChatMessage] = []
+        var currentText: String = ""
+        var isLoading: Bool = false
+        var error: String?
+        var selectedEmotion: EmotionType?
+        var soundRecommendations: [SoundRecommendation] = []
         
-        startSession()
+        // Analysis states
+        var sentimentScore: Double = 0.0
+        var emotionalContext: String = ""
+        var isAnalyzing: Bool = false
+        
+        // Preset and sharing
+        var generatedPresets: [SoundPreset] = []
+        var isSharingEnabled: Bool = false
+        
+        // Performance optimization
+        var lastMessageTimestamp: Date = Date()
+        var messageCount: Int = 0
+        
+        // Feedback integration
+        var feedbackPrompt: String?
+        var showFeedbackAlert: Bool = false
+        
+        // Typing indicator
+        var isTyping: Bool = false
+        var typingUsers: Set<String> = []
+        
+        // Chat session
+        var sessionId: String = UUID().uuidString
+        var isSessionActive: Bool = true
     }
     
-    // MARK: - Public Methods
-    
-    public func sendMessage(_ content: String) async {
-        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    // MARK: - Action
+    enum Action: ViewAction, BindableAction {
+        case binding(BindingAction<State>)
+        case view(View)
         
-        let userMessage = ChatMessageViewModel(
-            id: UUID(),
-            content: content,
-            isUser: true,
-            timestamp: Date(),
-            messageType: .user
+        // Internal actions
+        case messageReceived(ChatMessage)
+        case analysisCompleted(SentimentResult)
+        case recommendationsGenerated([SoundRecommendation])
+        case presetsGenerated([SoundPreset])
+        case errorOccurred(String)
+        case feedbackPromptTriggered(String)
+        case sessionStarted
+        case sessionEnded
+        
+        @CasePathable
+        enum View {
+            case sendMessage
+            case clearMessages
+            case selectEmotion(EmotionType?)
+            case regenerateRecommendations
+            case sharePreset(SoundPreset)
+            case dismissError
+            case submitFeedback(String)
+            case startNewSession
+            case loadPreviousMessages
+            case toggleTyping(Bool)
+        }
+    }
+    
+    // MARK: - Dependencies
+    @Dependency(\.chatRepository) var chatRepository
+    @Dependency(\.sentimentAnalyzer) var sentimentAnalyzer
+    @Dependency(\.recommendationEngine) var recommendationEngine
+    @Dependency(\.presetManager) var presetManager
+    @Dependency(\.feedbackManager) var feedbackManager
+    @Dependency(\.uuid) var uuid
+    @Dependency(\.date) var date
+    @Dependency(\.mainQueue) var mainQueue
+    @Dependency(\.logger) var logger
+    
+    // MARK: - Body
+    var body: some ReducerOf<Self> {
+        BindingReducer()
+        
+        Reduce { state, action in
+            switch action {
+            case .binding(\.currentText):
+                // Handle text input changes
+                state.isTyping = !state.currentText.isEmpty
+                return .none
+                
+            case .view(.sendMessage):
+                return sendMessage(&state)
+                
+            case .view(.clearMessages):
+                state.messages.removeAll()
+                state.messageCount = 0
+                logger.info("Messages cleared for session: \(state.sessionId)")
+                return .none
+                
+            case let .view(.selectEmotion(emotion)):
+                state.selectedEmotion = emotion
+                if emotion != nil {
+                    return .send(.view(.regenerateRecommendations))
+                }
+                return .none
+                
+            case .view(.regenerateRecommendations):
+                return regenerateRecommendations(state)
+                
+            case let .view(.sharePreset(preset)):
+                return sharePreset(preset, state: state)
+                
+            case .view(.dismissError):
+                state.error = nil
+                return .none
+                
+            case let .view(.submitFeedback(feedback)):
+                return submitFeedback(feedback, state: state)
+                
+            case .view(.startNewSession):
+                return startNewSession(&state)
+                
+            case .view(.loadPreviousMessages):
+                return loadPreviousMessages(state)
+                
+            case let .view(.toggleTyping(isTyping)):
+                state.isTyping = isTyping
+                return .none
+                
+            case let .messageReceived(message):
+                return handleMessageReceived(message, state: &state)
+                
+            case let .analysisCompleted(result):
+                return handleAnalysisCompleted(result, state: &state)
+                
+            case let .recommendationsGenerated(recommendations):
+                state.soundRecommendations = recommendations
+                state.isLoading = false
+                logger.info("Generated \(recommendations.count) recommendations")
+                return .none
+                
+            case let .presetsGenerated(presets):
+                state.generatedPresets = presets
+                logger.info("Generated \(presets.count) presets")
+                return .none
+                
+            case let .errorOccurred(error):
+                state.error = error
+                state.isLoading = false
+                state.isAnalyzing = false
+                logger.error("Error occurred: \(error)")
+                return .none
+                
+            case let .feedbackPromptTriggered(prompt):
+                state.feedbackPrompt = prompt
+                state.showFeedbackAlert = true
+                return .none
+                
+            case .sessionStarted:
+                state.sessionId = uuid().uuidString
+                state.isSessionActive = true
+                state.lastMessageTimestamp = date()
+                logger.info("New session started: \(state.sessionId)")
+                return .none
+                
+            case .sessionEnded:
+                state.isSessionActive = false
+                logger.info("Session ended: \(state.sessionId)")
+                return .none
+                
+            case .binding:
+                return .none
+            }
+        }
+        .onChange(of: \.messageCount) { oldValue, newValue in
+            Reduce { state, action in
+                // Trigger feedback prompt every 5 messages
+                if newValue > 0 && newValue % 5 == 0 {
+                    return .send(.feedbackPromptTriggered("How are the recommendations helping you?"))
+                }
+                return .none
+            }
+        }
+    }
+}
+
+// MARK: - Private Methods
+private extension ChatFeature {
+    
+    func sendMessage(_ state: inout State) -> Effect<Action> {
+        guard !state.currentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .none
+        }
+        
+        let userMessage = ChatMessage(
+            id: uuid(),
+            content: state.currentText,
+            type: .user,
+            timestamp: date(),
+            emotion: state.selectedEmotion
         )
         
-        messages.append(userMessage)
-        messageCount += 1
+        state.messages.append(userMessage)
+        state.messageCount += 1
+        state.lastMessageTimestamp = date()
+        let messageText = state.currentText
+        state.currentText = ""
+        state.isLoading = true
+        state.isAnalyzing = true
+        state.isTyping = false
         
-        // Process AI response
-        await processAIResponse(for: content)
+        logger.info("User message sent: \(messageText)")
+        
+        return .run { send in
+            do {
+                // Parallel execution of analysis and AI response
+                async let sentimentResult = sentimentAnalyzer.analyze(messageText)
+                async let aiResponse = chatRepository.sendMessage(messageText, emotion: state.selectedEmotion)
+                
+                let (sentiment, response) = try await (sentimentResult, aiResponse)
+                
+                await send(.analysisCompleted(sentiment))
+                await send(.messageReceived(response))
+                
+                // Generate recommendations based on analysis
+                let recommendations = try await recommendationEngine.generateRecommendations(
+                    sentiment: sentiment,
+                    emotion: state.selectedEmotion,
+                    context: messageText
+                )
+                await send(.recommendationsGenerated(recommendations))
+                
+                // Generate presets if sentiment is significant
+                if abs(sentiment.score) > 0.5 {
+                    let presets = try await presetManager.generatePresets(
+                        basedOn: recommendations,
+                        emotion: state.selectedEmotion
+                    )
+                    await send(.presetsGenerated(presets))
+                }
+                
+            } catch {
+                await send(.errorOccurred(error.localizedDescription))
+            }
+        }
     }
     
-    public func requestRecommendation() async {
-        guard !isProcessingRecommendation else { return }
-        
-        isProcessingRecommendation = true
-        isLoading = true
-        
-        defer {
-            isProcessingRecommendation = false
-            isLoading = false
+    func regenerateRecommendations(_ state: State) -> Effect<Action> {
+        guard let emotion = state.selectedEmotion else {
+            return .send(.errorOccurred("Please select an emotion first"))
         }
         
-        do {
-            // Get recent conversation context
-            let recentMessages = Array(messages.suffix(5))
-            let context = recentMessages.map { "\($0.isUser ? "User" : "AI"): \($0.content)" }.joined(separator: "\n")
-            
-            // Request AI recommendation
-            let recommendation = try await aiRecommendationService.getRecommendation(context: context)
-            
-            let recommendationMessage = ChatMessageViewModel(
-                id: UUID(),
-                content: formatRecommendation(recommendation),
-                isUser: false,
-                timestamp: Date(),
-                messageType: .presetRecommendation,
-                metadata: recommendation
-            )
-            
-            messages.append(recommendationMessage)
-            
-        } catch {
-            errorMessage = "추천을 가져오는 중 오류가 발생했습니다: \(error.localizedDescription)"
+        let recentMessages = state.messages.suffix(5).map(\.content).joined(separator: " ")
+        
+        return .run { send in
+            do {
+                let recommendations = try await recommendationEngine.generateRecommendations(
+                    emotion: emotion,
+                    context: recentMessages,
+                    preferredCount: 6
+                )
+                await send(.recommendationsGenerated(recommendations))
+            } catch {
+                await send(.errorOccurred("Failed to regenerate recommendations: \(error.localizedDescription)"))
+            }
         }
     }
     
-    public func loadChatHistory() async {
-        // Load existing chat history if available
-        // This will be implemented with actual repository in Phase 2
+    func sharePreset(_ preset: SoundPreset, state: State) -> Effect<Action> {
+        guard state.isSharingEnabled else {
+            return .send(.errorOccurred("Sharing is not enabled"))
+        }
+        
+        return .run { send in
+            do {
+                try await presetManager.sharePreset(preset)
+                logger.info("Preset shared successfully: \(preset.name)")
+            } catch {
+                await send(.errorOccurred("Failed to share preset: \(error.localizedDescription)"))
+            }
+        }
     }
     
-    public func clearSession() {
-        messages.removeAll()
-        messageCount = 0
-        currentSessionId = UUID()
-        startSession()
+    func submitFeedback(_ feedback: String, state: State) -> Effect<Action> {
+        return .run { send in
+            do {
+                try await feedbackManager.submitFeedback(
+                    feedback,
+                    sessionId: state.sessionId,
+                    context: state.messages.suffix(3).map(\.content).joined(separator: "\n")
+                )
+                logger.info("Feedback submitted successfully")
+            } catch {
+                await send(.errorOccurred("Failed to submit feedback: \(error.localizedDescription)"))
+            }
+        }
+    }
+    
+    func startNewSession(_ state: inout State) -> Effect<Action> {
+        state.messages.removeAll()
+        state.messageCount = 0
+        state.currentText = ""
+        state.error = nil
+        state.soundRecommendations.removeAll()
+        state.generatedPresets.removeAll()
+        state.isLoading = false
+        state.isAnalyzing = false
+        state.selectedEmotion = nil
+        
+        return .send(.sessionStarted)
+    }
+    
+    func loadPreviousMessages(_ state: State) -> Effect<Action> {
+        return .run { send in
+            do {
+                let messages = try await chatRepository.loadPreviousMessages(sessionId: state.sessionId)
+                for message in messages {
+                    await send(.messageReceived(message))
+                }
+            } catch {
+                await send(.errorOccurred("Failed to load previous messages: \(error.localizedDescription)"))
+            }
+        }
+    }
+    
+    func handleMessageReceived(_ message: ChatMessage, state: inout State) -> Effect<Action> {
+        state.messages.append(message)
+        if message.type == .ai {
+            state.isLoading = false
+        }
+        state.lastMessageTimestamp = date()
+        
+        logger.info("Message received: \(message.type.rawValue)")
+        return .none
+    }
+    
+    func handleAnalysisCompleted(_ result: SentimentResult, state: inout State) -> Effect<Action> {
+        state.sentimentScore = result.score
+        state.emotionalContext = result.context
+        state.isAnalyzing = false
+        
+        logger.info("Sentiment analysis completed: score=\(result.score)")
+        return .none
+    }
+}
+
+// MARK: - Legacy ViewModel for Migration Support
+@Observable
+class ChatViewModel: ObservableObject {
+    
+    // MARK: - Published Properties
+    @Published var messages: [ChatMessage] = []
+    @Published var currentText: String = ""
+    @Published var isLoading: Bool = false
+    @Published var error: String?
+    @Published var selectedEmotion: EmotionType?
+    @Published var soundRecommendations: [SoundRecommendation] = []
+    @Published var sentimentScore: Double = 0.0
+    @Published var emotionalContext: String = ""
+    @Published var isAnalyzing: Bool = false
+    
+    // MARK: - Private Properties
+    private var cancellables = Set<AnyCancellable>()
+    private let store: StoreOf<ChatFeature>
+    
+    // MARK: - Dependencies (Legacy)
+    private let chatRepository: ChatRepository
+    private let sentimentAnalyzer: SentimentAnalyzer
+    private let recommendationEngine: RecommendationEngine
+    
+    // MARK: - Initialization
+    init(
+        chatRepository: ChatRepository = ChatRepositoryImpl(),
+        sentimentAnalyzer: SentimentAnalyzer = SentimentAnalyzerImpl(),
+        recommendationEngine: RecommendationEngine = RecommendationEngineImpl()
+    ) {
+        self.chatRepository = chatRepository
+        self.sentimentAnalyzer = sentimentAnalyzer
+        self.recommendationEngine = recommendationEngine
+        
+        // Initialize TCA store
+        self.store = Store(initialState: ChatFeature.State()) {
+            ChatFeature()
+        }
+        
+        // Bind TCA state to legacy properties
+        setupStateBinding()
+    }
+    
+    // MARK: - Legacy Methods
+    func sendMessage() {
+        store.send(.view(.sendMessage))
+    }
+    
+    func clearMessages() {
+        store.send(.view(.clearMessages))
+    }
+    
+    func selectEmotion(_ emotion: EmotionType?) {
+        store.send(.view(.selectEmotion(emotion)))
+    }
+    
+    func regenerateRecommendations() {
+        store.send(.view(.regenerateRecommendations))
+    }
+    
+    func dismissError() {
+        store.send(.view(.dismissError))
     }
     
     // MARK: - Private Methods
-    
-    private func startSession() {
-        sessionStartTime = Date()
-        // tokenTracker.resetIfNewDay() // Will be implemented in Phase 2
-        
-        // Add welcome message
-        let welcomeMessage = ChatMessageViewModel(
-            id: UUID(),
-            content: "안녕하세요! 오늘 기분은 어떠신가요? 편안하게 대화를 나눠보세요 😊",
-            isUser: false,
-            timestamp: Date(),
-            messageType: .system
-        )
-        
-        messages.append(welcomeMessage)
+    private func setupStateBinding() {
+        store.publisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.updateFromState(state)
+            }
+            .store(in: &cancellables)
     }
     
-    private func processAIResponse(for userMessage: String) async {
-        isTyping = true
-        
-        defer { isTyping = false }
-        
-        do {
-            // Simulate AI processing delay
-            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            
-            // Generate AI response based on user message
-            let aiResponse = await generateAIResponse(for: userMessage)
-            
-            let aiMessage = ChatMessageViewModel(
-                id: UUID(),
-                content: aiResponse,
-                isUser: false,
-                timestamp: Date(),
-                messageType: .aiResponse
-            )
-            
-            messages.append(aiMessage)
-            
-        } catch {
-            errorMessage = "AI 응답을 생성하는 중 오류가 발생했습니다."
-        }
-    }
-    
-    private func generateAIResponse(for userMessage: String) async -> String {
-        // Analyze emotion from user message
-        let emotion = analyzeEmotion(from: userMessage)
-        
-        // Generate contextual response
-        return generateContextualResponse(emotion: emotion, userMessage: userMessage)
-    }
-    
-    private func analyzeEmotion(from message: String) -> String {
-        // Simple emotion analysis (will be replaced with actual EmotionAnalyzer)
-        let lowerMessage = message.lowercased()
-        
-        if lowerMessage.contains("피곤") || lowerMessage.contains("힘들") || lowerMessage.contains("지쳐") {
-            return "피곤"
-        } else if lowerMessage.contains("기쁘") || lowerMessage.contains("행복") || lowerMessage.contains("좋아") {
-            return "기쁨"
-        } else if lowerMessage.contains("슬프") || lowerMessage.contains("우울") || lowerMessage.contains("마음") {
-            return "슬픔"
-        } else if lowerMessage.contains("불안") || lowerMessage.contains("걱정") || lowerMessage.contains("두려") {
-            return "불안"
-        } else if lowerMessage.contains("화") || lowerMessage.contains("짜증") || lowerMessage.contains("분노") {
-            return "화남"
-        } else {
-            return "중립"
-        }
-    }
-    
-    private func generateContextualResponse(emotion: String, userMessage: String) -> String {
-        switch emotion {
-        case "피곤":
-            return "많이 피곤하신 것 같네요. 휴식이 필요한 시간이에요. 🌙 편안한 음악과 함께 잠시 쉬어보시는 건 어떨까요?"
-        case "기쁨":
-            return "기분이 좋으시다니 저도 기뻐요! 😊 이런 좋은 기분을 더 오래 유지할 수 있는 음악을 들어보시겠어요?"
-        case "슬픔":
-            return "마음이 무거우신 것 같아요. 괜찮아요, 이런 감정도 자연스러운 거예요. 💙 위로가 되는 음악으로 마음을 달래보시면 어떨까요?"
-        case "불안":
-            return "불안한 마음이 드시는군요. 심호흡을 천천히 해보세요. 🌊 안정감을 주는 자연 소리가 도움이 될 것 같아요."
-        case "화남":
-            return "화가 많이 나셨나 보네요. 감정을 느끼는 것은 자연스러워요. 🔥 마음을 진정시킬 수 있는 음악을 들어보시겠어요?"
-        default:
-            return "오늘 하루는 어떠셨나요? 어떤 음악이나 소리가 지금 기분에 맞을지 함께 찾아보아요. 🎵"
-        }
-    }
-    
-    private func formatRecommendation(_ recommendation: [String: Any]) -> String {
-        // Format AI recommendation into user-friendly message
-        let presetName = recommendation["presetName"] as? String ?? "맞춤 프리셋"
-        let description = recommendation["description"] as? String ?? "현재 기분에 맞는 사운드입니다"
-        
-        return "🎵 **\(presetName)** 추천드려요!\n\n\(description)\n\n이 사운드가 지금 기분에 딱 맞을 것 같아요. 사용해보시겠어요?"
+    private func updateFromState(_ state: ChatFeature.State) {
+        messages = state.messages
+        currentText = state.currentText
+        isLoading = state.isLoading
+        error = state.error
+        selectedEmotion = state.selectedEmotion
+        soundRecommendations = state.soundRecommendations
+        sentimentScore = state.sentimentScore
+        emotionalContext = state.emotionalContext
+        isAnalyzing = state.isAnalyzing
     }
 }
 
-// MARK: - Chat Message View Model
-
-public struct ChatMessageViewModel: Identifiable, Hashable {
-    public let id: UUID
-    public let content: String
-    public let isUser: Bool
-    public let timestamp: Date
-    public let messageType: MessageType
-    public let metadata: [String: Any]?
-    
-    public init(
-        id: UUID = UUID(),
-        content: String,
-        isUser: Bool,
-        timestamp: Date = Date(),
-        messageType: MessageType,
-        metadata: [String: Any]? = nil
-    ) {
-        self.id = id
-        self.content = content
-        self.isUser = isUser
-        self.timestamp = timestamp
-        self.messageType = messageType
-        self.metadata = metadata
+// MARK: - Dependencies
+extension DependencyValues {
+    var chatRepository: ChatRepository {
+        get { self[ChatRepositoryKey.self] }
+        set { self[ChatRepositoryKey.self] = newValue }
     }
     
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+    var sentimentAnalyzer: SentimentAnalyzer {
+        get { self[SentimentAnalyzerKey.self] }
+        set { self[SentimentAnalyzerKey.self] = newValue }
     }
     
-    public static func == (lhs: ChatMessageViewModel, rhs: ChatMessageViewModel) -> Bool {
-        lhs.id == rhs.id
+    var recommendationEngine: RecommendationEngine {
+        get { self[RecommendationEngineKey.self] }
+        set { self[RecommendationEngineKey.self] = newValue }
+    }
+    
+    var presetManager: PresetManager {
+        get { self[PresetManagerKey.self] }
+        set { self[PresetManagerKey.self] = newValue }
+    }
+    
+    var feedbackManager: FeedbackManager {
+        get { self[FeedbackManagerKey.self] }
+        set { self[FeedbackManagerKey.self] = newValue }
+    }
+    
+    var logger: Logger {
+        get { self[LoggerKey.self] }
+        set { self[LoggerKey.self] = newValue }
     }
 }
 
-// MARK: - Message Types
-
-public enum MessageType: String, CaseIterable {
-    case user = "user"
-    case aiResponse = "ai_response"
-    case system = "system"
-    case presetRecommendation = "preset_recommendation"
-    case loading = "loading"
-    case error = "error"
+// MARK: - Dependency Keys
+private enum ChatRepositoryKey: DependencyKey {
+    static let liveValue: ChatRepository = ChatRepositoryImpl()
 }
 
-// MARK: - Mock Services (임시)
+private enum SentimentAnalyzerKey: DependencyKey {
+    static let liveValue: SentimentAnalyzer = SentimentAnalyzerImpl()
+}
 
-public struct MockAIRecommendationService: AIRecommendationService {
-    public func getRecommendation(context: String) async throws -> [String: Any] {
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-        
-        return [
-            "presetName": "편안한 자연음",
-            "description": "잔잔한 물소리와 새소리가 마음을 안정시켜줍니다",
-            "volumes": [0.6, 0.4, 0.3, 0.2, 0.5],
-            "confidence": 0.85
-        ]
+private enum RecommendationEngineKey: DependencyKey {
+    static let liveValue: RecommendationEngine = RecommendationEngineImpl()
+}
+
+private enum PresetManagerKey: DependencyKey {
+    static let liveValue: PresetManager = PresetManagerImpl()
+}
+
+private enum FeedbackManagerKey: DependencyKey {
+    static let liveValue: FeedbackManager = FeedbackManagerImpl()
+}
+
+private enum LoggerKey: DependencyKey {
+    static let liveValue: Logger = LoggerImpl()
+}
+
+// MARK: - Supporting Types
+struct SentimentResult: Equatable {
+    let score: Double
+    let context: String
+    let confidence: Double
+}
+
+struct SoundRecommendation: Equatable, Identifiable {
+    let id: UUID
+    let soundName: String
+    let description: String
+    let emotionMatch: Double
+    let filePath: String
+}
+
+struct SoundPreset: Equatable, Identifiable {
+    let id: UUID
+    let name: String
+    let description: String
+    let sounds: [String]
+    let emotion: EmotionType?
+}
+
+// MARK: - Protocol Definitions
+protocol ChatRepository {
+    func sendMessage(_ text: String, emotion: EmotionType?) async throws -> ChatMessage
+    func loadPreviousMessages(sessionId: String) async throws -> [ChatMessage]
+}
+
+protocol SentimentAnalyzer {
+    func analyze(_ text: String) async throws -> SentimentResult
+}
+
+protocol RecommendationEngine {
+    func generateRecommendations(sentiment: SentimentResult, emotion: EmotionType?, context: String) async throws -> [SoundRecommendation]
+    func generateRecommendations(emotion: EmotionType, context: String, preferredCount: Int) async throws -> [SoundRecommendation]
+}
+
+protocol PresetManager {
+    func generatePresets(basedOn recommendations: [SoundRecommendation], emotion: EmotionType?) async throws -> [SoundPreset]
+    func sharePreset(_ preset: SoundPreset) async throws
+}
+
+protocol FeedbackManager {
+    func submitFeedback(_ feedback: String, sessionId: String, context: String) async throws
+}
+
+protocol Logger {
+    func info(_ message: String)
+    func error(_ message: String)
+}
+
+// MARK: - Implementation Stubs
+class ChatRepositoryImpl: ChatRepository {
+    func sendMessage(_ text: String, emotion: EmotionType?) async throws -> ChatMessage {
+        // Implementation here
+        return ChatMessage(id: UUID(), content: "AI Response", type: .ai, timestamp: Date())
+    }
+    
+    func loadPreviousMessages(sessionId: String) async throws -> [ChatMessage] {
+        // Implementation here
+        return []
     }
 }
 
-public protocol AIRecommendationService {
-    func getRecommendation(context: String) async throws -> [String: Any]
+class SentimentAnalyzerImpl: SentimentAnalyzer {
+    func analyze(_ text: String) async throws -> SentimentResult {
+        // Implementation here
+        return SentimentResult(score: 0.0, context: text, confidence: 0.8)
+    }
+}
+
+class RecommendationEngineImpl: RecommendationEngine {
+    func generateRecommendations(sentiment: SentimentResult, emotion: EmotionType?, context: String) async throws -> [SoundRecommendation] {
+        // Implementation here
+        return []
+    }
+    
+    func generateRecommendations(emotion: EmotionType, context: String, preferredCount: Int) async throws -> [SoundRecommendation] {
+        // Implementation here
+        return []
+    }
+}
+
+class PresetManagerImpl: PresetManager {
+    func generatePresets(basedOn recommendations: [SoundRecommendation], emotion: EmotionType?) async throws -> [SoundPreset] {
+        // Implementation here
+        return []
+    }
+    
+    func sharePreset(_ preset: SoundPreset) async throws {
+        // Implementation here
+    }
+}
+
+class FeedbackManagerImpl: FeedbackManager {
+    func submitFeedback(_ feedback: String, sessionId: String, context: String) async throws {
+        // Implementation here
+    }
+}
+
+class LoggerImpl: Logger {
+    func info(_ message: String) {
+        print("ℹ️ \(message)")
+    }
+    
+    func error(_ message: String) {
+        print("❌ \(message)")
+    }
 } 
