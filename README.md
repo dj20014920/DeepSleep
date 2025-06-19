@@ -1,4 +1,3 @@
-
 ## 🔑 API 토큰 설정
 
 ```bash
@@ -24,7 +23,6 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 🎵 스마트 사운드 시스템
     •    13가지 고품질 자연 사운드(🌊 파도, 🌧️ 비, 🔥 벽난로 …)
-
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/1.PNG)
 
     •    여러 사운드를 실시간 믹싱·프리셋 저장
@@ -34,13 +32,15 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/4.PNG)
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/5.PNG)
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/6.PNG)
-
 🤖 AI 기반 개인화
     •    Claude 3.5 Haiku(Replicate API) 통합
     •    감정 분석 → 최적 사운드 프리셋 추천
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/7.PNG)
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/8.PNG)
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/9.PNG)
+
 🧠 로컬 기반 추천
     •	실시간 분석: 다양한 사용자 데이터를 디바이스 내 신경망으로 실시간 분석
     •	다차원 통합: 일기·채팅·행동·환경·시간대·감정 등 다차원 데이터 통합
@@ -53,11 +53,15 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 📖 감정 일기 & 분석
     •    감정 기록 + AI 대화
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/11.PNG)
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/12.PNG)
 
     •    패턴 분석 & 인사이트
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/13.PNG)
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/14.PNG)
 
 
@@ -67,10 +71,10 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/15.PNG)
 🔗 소셜 기능
     •    프리셋 QR/URL 공유
+
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/16.PNG)
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/17.PNG)
 ![Image](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/18.PNG)
-
 ⸻
 
 🏗 기술 아키텍처
@@ -108,7 +112,7 @@ AVFoundation
 🚀 설치 & 실행
     1.    클론
 
-git clone https://github.com/dj20014920/DeepSleep.git
+git clone [https://github.com/dj20014920/DeepSleep.git](https://github.com/dj20014920/DeepSleep.git)
 cd DeepSleep
 
 
@@ -142,4 +146,3 @@ open DeepSleep.xcodeproj   # ⌘R 로 실행
 ⭐ Star • 🐛 Bug • 💡 Feature
 
 </div>
-```
