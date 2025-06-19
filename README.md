@@ -23,7 +23,7 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 🎵 스마트 사운드 시스템
     •    13가지 고품질 자연 사운드(🌊 파도, 🌧️ 비, 🔥 벽난로 …)
-
+![Image](https://github.com/user-attachments/assets/c02b30f1-b60c-4663-9f2d-9de65a28fba4)
 ![Image](1.PNG)
 
     •    여러 사운드를 실시간 믹싱·프리셋 저장
