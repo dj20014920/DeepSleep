@@ -10,22 +10,22 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 
 🎵 **스마트 사운드 시스템**
 • 13가지 고품질 자연 사운드(🌊 파도, 🌧️ 비, 🔥 벽난로 ...)
-![사운드 선택 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/8.PNG)
-![사운드 믹싱 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/1.PNG)
+![사운드 선택 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/1.PNG)
+![사운드 믹싱 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/2.PNG)
 • 여러 사운드를 실시간 믹싱·프리셋 저장
-![프리셋 저장 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/2.PNG)
+![프리셋 저장 화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/3.PNG)
 • 백그라운드 오디오 & 제어 센터 통합(집중 모드, 혼합 모드)
-![백그라운드 재생 - 잠금화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/3.PNG)
-![제어 센터 - 백그라운드 재생](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/4.PNG)
-![집중 모드 알림](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/5.PNG)
-![사운드 혼합 모드](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/6.PNG)
+![백그라운드 재생 - 잠금화면](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/4.PNG)
+![제어 센터 - 백그라운드 재생](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/5.PNG)
+![집중 모드 알림](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/6.PNG)
+![사운드 혼합 모드](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/7.PNG)
 
 🤖 **AI 기반 개인화**
 • Claude 3.5 Haiku(Replicate API) 통합
 • 감정 분석 → 최적 사운드 프리셋 추천
-![AI 추천 로딩](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/7.PNG)
-![AI 추천 결과](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/8.PNG)
-![AI 추천 사운드 재생](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/9.PNG)
+![AI 추천 로딩](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/8.PNG)
+![AI 추천 결과](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/9.PNG)
+![AI 추천 사운드 재생](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/10.PNG)
 
 🧠 **로컬 기반 추천**
 • 실시간 분석: 다양한 사용자 데이터를 디바이스 내 신경망으로 실시간 분석
@@ -35,26 +35,26 @@ EmoZleep은 사용자의 감정 상태와 건강 데이터를 AI로 분석해 �
 • 오프라인 처리: 모든 분석/추천이 디바이스 내에서 빠르고 안전하게 실행
 • 자동 학습·적응: 행동 기록 및 실시간 패턴 분석으로 자동 맞춤 최적화
 • UI 자연 연동: UI와 부드럽게 연동되어 풍부한 인사이트와 추천 제공
-![로컬 기반 추천 시스템](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/10.PNG)
+![로컬 기반 추천 시스템](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/11.PNG)
 
 📖 **감정 일기 & 분석**
 • 감정 기록 + AI 대화
-![감정 일기 메인](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/11.PNG)
-![AI 감정 대화](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/12.PNG)
+![감정 일기 메인](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/12.PNG)
+![AI 감정 대화](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/13.PNG)
 • 패턴 분석 & 인사이트
-![감정 캘린더](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/13.PNG)
-![감정 통계 분석](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/14.PNG)
+![감정 캘린더](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/14.PNG)
+![감정 통계 분석](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/15.PNG)
 
 📅 **스마트 일정 관리**
 • 감정과 연계된 할 일 관리
 • iOS 캘린더 동기화 + 스마트 알림
-![일정 관리](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/15.PNG)
+![일정 관리](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/16.PNG)
 
 🔗 **소셜 기능**
 • 프리셋 QR/URL 공유
-![프리셋 공유 - QR 생성](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/16.PNG)
-![프리셋 공유 - URL 공유](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/17.PNG)
-![공유된 프리셋 열기](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/18.PNG)
+![프리셋 공유 - QR 생성](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/17.PNG)
+![프리셋 공유 - URL 공유](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/18.PNG)
+![공유된 프리셋 열기](https://raw.githubusercontent.com/dj20014920/DeepSleep/main/19.PNG)
 ⸻
 🏗 **기술 아키텍처**
 
