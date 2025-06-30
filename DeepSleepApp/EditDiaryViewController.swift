@@ -18,16 +18,21 @@ class EditDiaryViewController: UIViewController {
     
     private let emotionSelectionView: UIView = {
         let view = UIView()
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 12
+        view.backgroundColor = .systemBackground
+        view.layer.cornerRadius = 16
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOpacity = 0.1
+        view.layer.shadowOffset = CGSize(width: 0, height: 2)
+        view.layer.shadowRadius = 8
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
     
     private let emotionLabel: UILabel = {
         let label = UILabel()
-        label.text = "오늘의 기분을 선택해주세요"
-        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.text = "오늘의 감정을 선택해주세요"
+        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -46,7 +51,7 @@ class EditDiaryViewController: UIViewController {
         textView.font = .systemFont(ofSize: 16)
         textView.layer.cornerRadius = 12
         textView.layer.borderWidth = 1
-        textView.layer.borderColor = UIColor.systemGray4.cgColor
+        textView.layer.borderColor = UIColor.lightGray.cgColor
         textView.backgroundColor = .systemBackground
         textView.translatesAutoresizingMaskIntoConstraints = false
         return textView
@@ -298,8 +303,8 @@ class EditDiaryViewController: UIViewController {
         }
         
         // 새 선택 표시
-        sender.layer.borderColor = UIColor.systemBlue.cgColor
-        sender.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        sender.layer.borderColor = UIColor.blue.cgColor
+        sender.backgroundColor = UIColor.blue.withAlphaComponent(0.1)
         
         selectedEmotion = emotions[sender.tag]
         
@@ -317,8 +322,8 @@ class EditDiaryViewController: UIViewController {
         }
         
         let selectedButton = emotionButtons[emotionIndex]
-        selectedButton.layer.borderColor = UIColor.systemBlue.cgColor
-        selectedButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        selectedButton.layer.borderColor = UIColor.blue.cgColor
+        selectedButton.backgroundColor = UIColor.blue.withAlphaComponent(0.1)
     }
     
     @objc private func updateDiary() {

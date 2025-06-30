@@ -14,10 +14,53 @@ class SettingsManager {
         static let lastOpenDate = "lastOpenDate"
         static let onboardingCompleted = "onboardingCompleted"
         static let selectedSoundVersions = "selectedSoundVersions"
+        static let selectedLLM = "selectedLLM"
     }
     
     private init() {
         setupDefaultSettings()
+    }
+    
+    // MARK: - AI Model Selection
+    
+    /// 사용 가능한 모든 LLM 모델의 목록입니다.
+    /// 향후 OS 버전에 따라 동적으로 온디바이스 모델을 포함하거나 제외할 수 있습니다.
+    var availableLLMs: [LLMServiceType] {
+        var models = LLMServiceType.allCases.filter { $0 != .onDevice }
+        
+        if #available(iOS 18.0, *) {
+            models.append(.onDevice)
+        }
+        return models
+    }
+    
+    /// 사용자가 선택한 AI 모델을 가져오거나 설정합니다.
+    /// 기본값은 Claude 입니다.
+    var selectedLLM: LLMServiceType {
+        get {
+            // 저장된 값이 있으면 해당 값을 사용하고, 없으면 기본값 .claude 반환
+            if let rawValue = userDefaults.string(forKey: Keys.selectedLLM),
+               let model = LLMServiceType(rawValue: rawValue) {
+                return model
+            }
+            return .claude // 기본 모델
+        }
+        set {
+            // 새로운 모델의 rawValue를 UserDefaults에 저장
+            userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
+        }
+    }
+    
+    /// (iOS 18+) 온디바이스 AI 모델을 우선적으로 사용할지 여부를 결정합니다.
+    /// 이 설정은 `selectedLLM` 보다 우선 순위를 가질 수 있습니다.
+    var useOnDeviceModelIfNeeded: Bool {
+        get {
+            // TODO: - 별도의 UserDefaults 키를 사용하여 값 관리 필요
+            return true // 우선 true로 고정
+        }
+        set {
+            // TODO: - UserDefaults에 값 저장 로직 구현
+        }
     }
     
     // MARK: - User Settings

@@ -22,11 +22,18 @@ class Random {
 /// 최신 연구(2024-2025) 기반으로 설계된 사운드 치료 시스템
 class SoundPresetCatalog {
     
-    // MARK: - 기본 카테고리 설정 (그룹화된 13개 슬라이더)
-    static let categoryCount = 13  // 그룹화된 13개 슬라이더
-    // ✅ 개선된 기본 버전 - 버전 2를 적극 활용
-    static let defaultVersions = [0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1]  // 다양한 버전 조합
-    // 바람2, 밤2, 비-창문, 새-비, 키보드2, 파도2 등을 기본으로 포함
+    // MARK: - 🆕 동적 카테고리 설정
+    static var categoryCount: Int {
+        return SoundManager.shared.categoryCount
+    }
+    
+    // 🆕 동적 기본 버전 - JSON 카탈로그의 is_default 기반
+    static var defaultVersions: [Int] {
+        return (0..<categoryCount).map { index in
+            guard let catalog = SoundManager.shared.getSoundCatalog(at: index) else { return 0 }
+            return catalog.versions.firstIndex { $0.isDefault } ?? 0
+        }
+    }
     
     /// 🎲 지능적 버전 추천 시스템 - 다양성과 적합성을 고려
     static func getIntelligentVersions(emotion: String, timeOfDay: String, randomSeed: Int = Int(Date().timeIntervalSince1970)) -> [Int] {
@@ -83,16 +90,18 @@ class SoundPresetCatalog {
         return finalVersions
     }
     
-    // 그룹화된 카테고리 이름들 (사용자 요청대로)
-    static let categoryNames = [
-        "🐱 고양이", "🌪 바람", "👣 발걸음-눈", "🌙 밤", "🔥 불1", "🌧 비", 
-        "🐦 새", "🏞 시냇물", "✏️ 연필", "🌌 우주", "❄️ 쿨링팬", "⌨️ 키보드", "🌊 파도"
-    ]
+    // 🆕 동적 카테고리 이름들
+    static var categoryNames: [String] {
+        return (0..<categoryCount).compactMap { index in
+            SoundManager.shared.getCategoryDisplay(at: index)
+        }
+    }
     
-    static let categoryEmojis = [
-        "🐱", "🌪", "👣", "🌙", "🔥", "🌧", 
-        "🐦", "🏞", "✏️", "🌌", "❄️", "⌨️", "🌊"
-    ]
+    static var categoryEmojis: [String] {
+        return (0..<categoryCount).compactMap { index in
+            SoundManager.shared.getCurrentVersion(at: index).emoji
+        }
+    }
     
     // MARK: - 감정 상태 분류 (음향 심리학 기반)
     enum EmotionalState: String, CaseIterable {

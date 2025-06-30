@@ -1,8 +1,9 @@
 import UIKit
 import MediaPlayer
+import AVFoundation
 
 // MARK: - 재생 제어 관련 Extension
-extension ViewController {
+extension MainViewController {
     
     // MARK: - 재생 제어
     @objc func toggleTrack(_ sender: UIButton) {

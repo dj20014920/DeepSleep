@@ -21,7 +21,7 @@ struct UIDesignSystem {
         static let primaryDark = UIColor(red: 0.0, green: 0.48, blue: 0.84, alpha: 1.0)
         
         // Background Colors - 다크모드는 완전 검은색, 일반모드는 밝은 파스텔
-        static let background = UIColor.systemBackground // 라이트: 흰색, 다크: 검은색
+        static let background = UIColor.white // 라이트: 흰색, 다크: 검은색
         static let secondaryBackground = UIColor.secondarySystemBackground 
         static let tertiaryBackground = UIColor.tertiarySystemBackground 
         static let groupedBackground = UIColor.systemGroupedBackground 
@@ -361,12 +361,46 @@ extension UIButton {
         }
         
         // 공통 속성
-        contentEdgeInsets = UIEdgeInsets(
-            top: UIDesignSystem.Spacing.small,
-            left: UIDesignSystem.Spacing.medium,
-            bottom: UIDesignSystem.Spacing.small,
-            right: UIDesignSystem.Spacing.medium
-        )
+        if #available(iOS 15.0, *) {
+            // iOS 15+ uses UIButtonConfiguration
+            var config: UIButton.Configuration
+            switch style {
+            case .primary:
+                config = UIButton.Configuration.filled()
+                config.baseBackgroundColor = UIDesignSystem.Colors.primary
+                config.baseForegroundColor = .white
+            case .secondary:
+                config = UIButton.Configuration.filled()
+                config.baseBackgroundColor = UIDesignSystem.Colors.primaryLight
+                config.baseForegroundColor = UIDesignSystem.Colors.primary
+            case .tertiary:
+                config = UIButton.Configuration.bordered()
+                config.baseForegroundColor = UIDesignSystem.Colors.primary
+            case .danger:
+                config = UIButton.Configuration.filled()
+                config.baseBackgroundColor = UIDesignSystem.Colors.error
+                config.baseForegroundColor = .white
+            case .success:
+                config = UIButton.Configuration.filled()
+                config.baseBackgroundColor = UIDesignSystem.Colors.success
+                config.baseForegroundColor = .white
+            }
+            config.contentInsets = NSDirectionalEdgeInsets(
+                top: UIDesignSystem.Spacing.small,
+                leading: UIDesignSystem.Spacing.medium,
+                bottom: UIDesignSystem.Spacing.small,
+                trailing: UIDesignSystem.Spacing.medium
+            )
+            configuration = config
+        } else {
+            // iOS 14 and below
+            contentEdgeInsets = UIEdgeInsets(
+                top: UIDesignSystem.Spacing.small,
+                left: UIDesignSystem.Spacing.medium,
+                bottom: UIDesignSystem.Spacing.small,
+                right: UIDesignSystem.Spacing.medium
+            )
+        }
     }
     
     func addTouchAnimation() {

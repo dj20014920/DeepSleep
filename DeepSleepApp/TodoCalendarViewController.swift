@@ -1017,7 +1017,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
         Task {
             do {
-                let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
+                // let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1040,7 +1041,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.overallAdviceActivityIndicator?.stopAnimating()
                     
                     // 구체적인 오류 메시지 제공
-                    var errorMessage = "전체 조언을 받아오는 데 실패했습니다."
+                    var errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    /*
                     if let serviceError = error as? ReplicateChatService.ServiceError {
                         switch serviceError {
                         case .invalidAPIKey:
@@ -1055,6 +1057,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     } else {
                         errorMessage += " (\(error.localizedDescription))"
                     }
+                    */
                     
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
                     self.updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트 (다시 활성화 등)
@@ -1157,7 +1160,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         Task {
             do {
-                let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
+                // let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1200,7 +1204,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay = nil
                     
                     // 구체적인 오류 메시지 제공
-                    var errorMessage = "할 일 조언을 받아오는 데 실패했습니다."
+                    var errorMessage = "할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    /*
                     if let serviceError = error as? ReplicateChatService.ServiceError {
                         switch serviceError {
                         case .invalidAPIKey:
@@ -1215,6 +1220,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     } else {
                         errorMessage += " (\(error.localizedDescription))"
                     }
+                    */
                     
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
                 }
@@ -1319,6 +1325,69 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         return eventContext
+    }
+ 
+    // MARK: - 🧠 AI 조언 기능 (리팩토링 완료)
+ 
+    private func getAIAdvice(for date: Date) {
+        let todosForDate = TodoManager.shared.getTodos(for: date)
+        guard !todosForDate.isEmpty else {
+            presentAlert(title: "✅", message: "선택한 날짜에 할 일이 없어 조언을 드릴 수 없어요.")
+            return
+        }
+
+        // 로딩 UI 시작
+        showLoadingOverlay()
+
+        Task {
+            do {
+                let todoTitles = todosForDate.map { $0.title }
+                
+                // 새로운 LLMRouter를 통해 할 일 추천(recommendTodo) 작업을 요청합니다.
+                let advice = try await LLMRouter.shared.send(task: .recommendTodo(todos: todoTitles))
+
+                // 메인 스레드에서 UI 업데이트
+                await MainActor.run {
+                    self.hideLoadingOverlay()
+                    self.presentAlert(title: "💡 AI 조언", message: advice)
+                }
+            } catch {
+                // 메인 스레드에서 에러 처리
+                await MainActor.run {
+                    self.hideLoadingOverlay()
+                    self.presentAlert(title: "오류", message: "AI 조언을 가져오는 데 실패했습니다: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // 🆕 로딩 오버레이 표시/숨김
+    private func showLoadingOverlay() {
+        // ... existing code ...
+    }
+
+    @objc private func addAITaskButtonTapped() {
+        // ... 기존 코드 ...
+        let promptContent = "현재 할 일 목록: \(currentTasks). 사용자가 다음으로 하면 좋을 만한 창의적이고 실용적인 할 일 아이템 하나를 제안해줘. 형식: '작업명: 설명'"
+        
+        Task {
+            do {
+                let service = try LLMServiceFactory.shared.getService(for: .claude)
+                let config = LLMRequestConfig(temperature: 0.8, maxTokens: 200)
+                
+                let (suggestion, _) = try await service.sendMessage(promptContent, config: config)
+                
+                await MainActor.run {
+                    // AI가 제안한 작업을 파싱하고 목록에 추가하는 로직
+                    // 예: self.parseAndAddNewTask(suggestion)
+                    self.showAlert(title: "AI 추천 작업", message: suggestion)
+                }
+            } catch {
+                await MainActor.run {
+                    self.showAlert(title: "오류", message: "AI 추천을 가져오는 데 실패했습니다.")
+                }
+            }
+        }
     }
 }
 

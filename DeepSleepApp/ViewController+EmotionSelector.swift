@@ -1,7 +1,7 @@
 import UIKit
 
 // MARK: - 감정 선택 UI 관련 Extension
-extension ViewController {
+extension MainViewController {
     
     func setupEmojiSelector() {
         let hashtagButton = UIButton(type: .system)

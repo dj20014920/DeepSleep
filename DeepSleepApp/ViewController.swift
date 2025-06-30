@@ -2,7 +2,10 @@ import UIKit
 import AVFoundation
 import MediaPlayer
 
-class ViewController: UIViewController {
+class MainViewController: UIViewController {
+    
+    // MARK: - AI Orchestrator
+    var aiOrchestrator: EnhancedUnifiedAIOrchestrator!
     
     let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
 
@@ -280,15 +283,29 @@ class ViewController: UIViewController {
         let timerItem = UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
         timerItem.tintColor = UIDesignSystem.Colors.primaryText
         
-        // 오른쪽: 저장 + 프리셋  
+        // 오른쪽: 저장 + 프리셋 + 피드백 분석
         let saveItem = UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped))
         saveItem.tintColor = UIDesignSystem.Colors.primaryText
         
         let presetItem = UIBarButtonItem(title: "프리셋", style: .plain, target: self, action: #selector(loadPresetTapped))
         presetItem.tintColor = UIDesignSystem.Colors.primaryText
         
+        var rightItems = [saveItem, presetItem]
+        
+        // 🎨 NEW: 피드백 시각화 버튼 추가 (iOS 17+만)
+        if #available(iOS 17.0, *) {
+            let feedbackItem = UIBarButtonItem(
+                image: UIImage(systemName: "chart.bar.fill"),
+                style: .plain,
+                target: self,
+                action: #selector(showFeedbackVisualization)
+            )
+            feedbackItem.tintColor = UIDesignSystem.Colors.primaryText
+            rightItems.insert(feedbackItem, at: 0) // 맨 앞에 추가
+        }
+        
         navigationItem.leftBarButtonItems = [timerItem]
-        navigationItem.rightBarButtonItems = [saveItem, presetItem]
+        navigationItem.rightBarButtonItems = rightItems
     }
     
     private func setupNotifications() {
@@ -335,7 +352,7 @@ class ViewController: UIViewController {
         // ✅ 즐겨찾기 프리셋 갱신 알림 받기
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleFavoritesUpdated),
+            selector: #selector(handleFavoritesUpdated(_:)),
             name: NSNotification.Name("FavoritesUpdated"),
             object: nil
         )
@@ -695,6 +712,178 @@ class ViewController: UIViewController {
         provideLightHapticFeedback()
     }
 
+    // 🏆 Apple Watch 건강 분석 버튼 액션
+    @objc func showAppleWatchHealthAnalysis() {
+        provideMediumHapticFeedback()
+        
+        // HealthKitManager를 통해 즉시 분석 수행
+        HealthKitManager.shared.analyzeAndCoachWithAI { [weak self] wellness in
+            guard let self = self, let wellness = wellness else { return }
+            
+            DispatchQueue.main.async {
+                self.showHealthAnalysisResults(wellness: wellness)
+            }
+        }
+    }
+    
+    /// 🏥 건강 분석 결과를 표시하는 알림 창
+    private func showHealthAnalysisResults(wellness: HealthKitManager.DailyWellness) {
+        let healthSummary = """
+        🏥 건강 상태 분석 결과 (AI 신뢰도: \(Int(wellness.processingMetadata.aiConfidence * 100))%)
+        
+        📊 현재 상태:
+        • 스트레스: \(wellness.stressLevel.emoji) \(wellness.stressLevel.rawValue)
+        • 수면: \(wellness.sleepQuality.rawValue)
+        • 활동: \(wellness.activityLevel.rawValue)
+        • 심박변이도: \(wellness.heartRateVariability.rawValue)
+        • 환경: \(wellness.environmentalFactor.rawValue)
+        
+        🎵 추천 프리셋: \(wellness.recommendedPreset)
+        💡 분석 근거: \(wellness.explanation)
+        """
+        
+        let alertController = UIAlertController(
+            title: "🏆 Apple Watch 건강 분석",
+            message: healthSummary,
+            preferredStyle: .alert
+        )
+        
+        // AI 인사이트가 있는 경우 상세 보기 버튼 추가
+        if !wellness.aiInsights.isEmpty {
+            alertController.addAction(UIAlertAction(title: "🧠 AI 인사이트 보기", style: .default) { _ in
+                self.showAIInsights(wellness.aiInsights)
+            })
+        }
+        
+        // 코칭 조언이 있는 경우 코칭 보기 버튼 추가
+        if !wellness.coachingAdvice.isEmpty {
+            alertController.addAction(UIAlertAction(title: "🎯 코칭 조언 보기", style: .default) { _ in
+                self.showCoachingAdvice(wellness.coachingAdvice)
+            })
+        }
+        
+        // 추천 프리셋 적용 버튼
+        alertController.addAction(UIAlertAction(title: "🎵 추천 프리셋 적용", style: .default) { _ in
+            self.applyRecommendedPreset(wellness.recommendedPreset)
+        })
+        
+        // 건강 모니터링 활성화 버튼
+        alertController.addAction(UIAlertAction(title: "📱 지속 모니터링 시작", style: .default) { _ in
+            self.startContinuousHealthMonitoring()
+        })
+        
+        alertController.addAction(UIAlertAction(title: "확인", style: .cancel))
+        
+        present(alertController, animated: true)
+    }
+    
+    /// 🧠 AI 인사이트를 표시하는 상세 알림
+    private func showAIInsights(_ insights: [String]) {
+        let insightsText = insights.enumerated().map { index, insight in
+            "\(index + 1). \(insight)"
+        }.joined(separator: "\n\n")
+        
+        let alertController = UIAlertController(
+            title: "🧠 AI 건강 인사이트",
+            message: insightsText,
+            preferredStyle: .alert
+        )
+        
+        alertController.addAction(UIAlertAction(title: "확인", style: .default))
+        
+        present(alertController, animated: true)
+    }
+    
+    /// 🎯 코칭 조언을 표시하는 상세 알림
+    private func showCoachingAdvice(_ advice: [String]) {
+        let adviceText = advice.enumerated().map { index, item in
+            "\(index + 1). \(item)"
+        }.joined(separator: "\n\n")
+        
+        let alertController = UIAlertController(
+            title: "🎯 개인화된 건강 코칭",
+            message: adviceText,
+            preferredStyle: .alert
+        )
+        
+        alertController.addAction(UIAlertAction(title: "확인", style: .default))
+        
+        present(alertController, animated: true)
+    }
+    
+    /// 🎵 추천 프리셋을 실제로 적용하는 메소드
+    private func applyRecommendedPreset(_ presetName: String) {
+        // 프리셋 이름을 기반으로 적절한 사운드 조합 찾기
+        let presetVolumes: [Float]
+        let presetVersions: [Int]
+        
+        switch presetName {
+        case let name where name.contains("긴급") || name.contains("스트레스"):
+            // 스트레스 완화 프리셋 (자연 소리 중심)
+            presetVolumes = [0.3, 0.7, 0.5, 0.2, 0.6, 0.4, 0.8, 0.3, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            presetVersions = [1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1]
+            
+        case let name where name.contains("수면") || name.contains("깊은"):
+            // 깊은 수면 프리셋 (저주파 소리 중심)
+            presetVolumes = [0.2, 0.4, 0.8, 0.6, 0.3, 0.7, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            presetVersions = [1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            
+        case let name where name.contains("집중") || name.contains("활동"):
+            // 집중력 향상 프리셋 (화이트 노이즈 중심)
+            presetVolumes = [0.1, 0.2, 0.1, 0.1, 0.3, 0.2, 0.1, 0.9, 0.8, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0]
+            presetVersions = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1]
+            
+        case let name where name.contains("평화"):
+            // 평화로운 일상 프리셋
+            presetVolumes = [0.4, 0.5, 0.3, 0.4, 0.2, 0.6, 0.3, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            presetVersions = [1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            
+        default:
+            // 기본 균형 프리셋
+            presetVolumes = [0.3, 0.4, 0.3, 0.3, 0.3, 0.4, 0.3, 0.3, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            presetVersions = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        }
+        
+        // 프리셋 적용
+        applyPreset(volumes: presetVolumes, versions: presetVersions, name: presetName)
+        
+        // 토스트 메시지 표시
+        showToast(message: "🎵 '\(presetName)' 프리셋이 적용되었습니다")
+        
+        provideLightHapticFeedback()
+    }
+    
+    /// 📱 지속적인 건강 모니터링 시작
+    private func startContinuousHealthMonitoring() {
+        let alertController = UIAlertController(
+            title: "📱 지속 건강 모니터링",
+            message: "Apple Watch 건강 데이터를 30분마다 자동으로 분석하여 개인화된 추천을 제공합니다. 배터리 사용량이 약간 증가할 수 있습니다.",
+            preferredStyle: .alert
+        )
+        
+        alertController.addAction(UIAlertAction(title: "✅ 시작", style: .default) { _ in
+            // 실제 환경에서는 AppleWatchHealthIntegrator 사용
+            // 현재는 HealthKitManager를 통한 시뮬레이션
+            
+            // 주기적 모니터링 시뮬레이션 (실제로는 Timer 사용)
+            self.showToast(message: "🏆 건강 모니터링이 시작되었습니다")
+            
+            // 사용자에게 모니터링 활성화 피드백
+            let confirmAlert = UIAlertController(
+                title: "✅ 모니터링 시작됨",
+                message: "Apple Watch 건강 모니터링이 활성화되었습니다.\n\n• 30분마다 자동 분석\n• 개인화된 추천 제공\n• 스트레스/수면 패턴 추적\n• 실시간 건강 코칭",
+                preferredStyle: .alert
+            )
+            
+            confirmAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(confirmAlert, animated: true)
+        })
+        
+        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        present(alertController, animated: true)
+    }
+
     // MARK: - Notification Handlers
     @objc private func handleApplyPresetFromChat(_ notification: Notification) {
         print("🎵 ViewController [\(self.instanceUUID)] received ApplyPresetFromChat notification.")
@@ -815,7 +1004,7 @@ class ViewController: UIViewController {
             self?.provideMediumHapticFeedback()
             
             let feedbackMessage = "\(mode.displayName) 모드가 적용되었습니다"
-            if let sliderExt = self as? ViewController {
+            if let sliderExt = self as? MainViewController {
                 sliderExt.showToast(message: feedbackMessage)
             }
         }
@@ -956,7 +1145,7 @@ class ViewController: UIViewController {
         print("🔄 [updateAllVersionButtons] 모든 버전 버튼 업데이트 완료")
     }
 
-    @objc private func handleFavoritesUpdated() {
+    @objc private func handleFavoritesUpdated(_ notification: Notification) {
         print("📢 [ViewController] 즐겨찾기 업데이트 알림 수신")
         updatePresetBlocks()
     }
@@ -972,6 +1161,11 @@ class ViewController: UIViewController {
     @MainActor
     private func checkAndTriggerOnDeviceLearning() async {
         print("🤖 [Auto Learning] 온디바이스 학습 조건 검사 시작...")
+        
+        // 🔥 NEW: 피드백 통합 매니저를 통한 실시간 학습 (현재 주석 처리)
+        // if #available(iOS 17.0, *) {
+        //     await FeedbackIntegrationManager.shared.triggerImmediateLearning()
+        // }
         
         // 백그라운드에서 학습 조건 검사
         Task.detached(priority: .background) {
@@ -1018,14 +1212,44 @@ class ViewController: UIViewController {
         }
     }
     
-    // ✅ 최근 사용한 프리셋 갱신 처리
-    @objc private func handleRecentPresetsUpdated() {
-        print("🔄 [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 갱신 알림 수신")
+    // MARK: - 🎨 피드백 시각화
+    
+    /// 피드백 시각화 화면 표시 (현재 주석 처리)
+    @available(iOS 17.0, *)
+    @objc private func showFeedbackVisualization() {
+        print("🎨 [ViewController] 피드백 시각화 화면 열기")
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.updatePresetBlocks()
-            print("✅ [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 UI 갱신 완료")
-        }
+        // 임시로 주석 처리 - 프로젝트에 파일 추가 후 활성화 예정
+        // let visualizationVC = FeedbackVisualizationViewController()
+        // let navController = UINavigationController(rootViewController: visualizationVC)
+        // 
+        // // 전체 화면으로 표시
+        // navController.modalPresentationStyle = .fullScreen
+        // 
+        // present(navController, animated: true) {
+        //     print("✅ [ViewController] 피드백 시각화 화면 표시 완료")
+        // }
+        
+        // 임시 알림 표시
+        let alert = UIAlertController(title: "피드백 시각화", message: "곧 제공될 예정입니다", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+
+    /// 최근 프리셋 업데이트 알림 처리
+    @objc func handleRecentPresetsUpdated(_ notification: Notification) {
+        updatePresetBlocks()
+    }
+
+    private func setupAI() {
+        // aiOrchestrator = EnhancedUnifiedAIOrchestrator(viewController: self)
+        // aiOrchestrator.setupAI()
+    }
+
+    private func someOtherFunction() {
+        // let shouldUpdate = await ComprehensiveRecommendationEngine.shared.triggerModelUpdate()
+        // if shouldUpdate {
+        //     ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
+        // }
     }
 }

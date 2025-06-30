@@ -32,7 +32,8 @@ class RemoteLogger {
     }
     
     private init() {
-        startNetworkMonitoring()
+        // 네트워크 모니터링 비활성화 - nw_connection 오류 방지
+        // startNetworkMonitoring() // 주석 처리
         setupPeriodicLogSend()
     }
     
@@ -162,11 +163,11 @@ class RemoteLogger {
     }
     
     private func sendLogsToServer(_ logs: [LogEntry]) {
-        // 🚫 원격 로그 전송 비활성화 (배포 시 실제 서버 URL로 변경)
-        // placeholder URL로 인한 네트워크 오류 방지
+        // 🚫 원격 로그 전송 완전 비활성화 - 네트워크 연결 시도 없음
+        // 로컬 로그만 사용하여 nw_connection 오류 방지
         
         #if DEBUG
-        print("📝 [RemoteLogger] \(logs.count)개 로그가 로컬에 저장됨 (원격 전송 비활성화)")
+        print("📝 [RemoteLogger] \(logs.count)개 로그가 로컬에 저장됨 (원격 전송 완전 비활성화)")
         #endif
         
         // 로컬에서 버퍼 정리
@@ -174,31 +175,8 @@ class RemoteLogger {
             self.logBuffer.removeAll()
         }
         
-        /* 실제 서버 연결 시 아래 코드 활성화
-        guard let url = URL(string: "https://실제서버URL.com/api/logs") else { return }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        do {
-            let jsonData = try JSONEncoder().encode(logs)
-            request.httpBody = jsonData
-            
-            URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-                if let error = error {
-                    print("로그 전송 실패: \(error)")
-                } else {
-                    // 전송 성공하면 버퍼에서 제거
-                    self?.queue.async {
-                        self?.logBuffer.removeAll()
-                    }
-                }
-            }.resume()
-        } catch {
-            print("로그 인코딩 실패: \(error)")
-        }
-        */
+        // 네트워크 연결 시도 코드 완전 제거 - 모든 로그는 로컬에서만 처리
+        // 향후 실제 서버 연결이 필요할 때만 별도 구현
     }
     
     // MARK: - 유틸리티 메서드들

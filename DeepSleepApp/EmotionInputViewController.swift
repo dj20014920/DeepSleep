@@ -114,14 +114,16 @@ class EmotionInputViewController: UIViewController, UITextViewDelegate {
         // 1) 우선순위: 텍스트가 있으면 텍스트 분석
         let rawText = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !rawText.isEmpty {
-            let emotion = EmotionAnalyzer.analyze(text: rawText)
+            let emotionString = EmotionAnalyzer.analyze(text: rawText)
+            let emotion = EmotionType(rawValue: emotionString) ?? .neutral
             onEmotionInputComplete?(emotion, rawText)
             return
         }
 
         // 2) 텍스트가 없고 이모지 선택됐으면 매핑
         if let e = selectedEmoji {
-            let emotion = EmotionAnalyzer.mapEmojiToEmotion(e)
+            let emotionString = EmotionAnalyzer.mapEmojiToEmotion(e)
+            let emotion = EmotionType(rawValue: emotionString) ?? .neutral
             onEmotionInputComplete?(emotion, e)
             return
         }

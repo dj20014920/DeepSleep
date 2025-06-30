@@ -1,85 +1,68 @@
+//
+//  LLMRouter.swift
+//  DeepSleep
+//
+//  Created by AI on 2025/06/28.
+//
+
 import Foundation
-import UIKit
+import OSLog
 
-/// LLM 입력 구조체
-public struct LLMInput {
-    public let prompt: String
-    /// 토큰 수 추정 (간단히 문자수/4)
-    public var estimatedTokenCount: Int { prompt.count / 4 }
-    public init(prompt: String) { self.prompt = prompt }
-}
-
-/// LLM 출력 구조체 (Claude/Foundational 공통)
-public struct LLMOutput: Decodable, Equatable {
-    public let text: String
-    public let metadata: [String: String]?
-    public let soundPreset: SoundPreset?
-    public init(text: String, metadata: [String: String]? = nil, soundPreset: SoundPreset? = nil) {
-        self.text = text
-        self.metadata = metadata
-        self.soundPreset = soundPreset
-    }
-}
-
-/// LLM 라우팅/분기/예외처리 컴포넌트
-@available(iOS 16.0, *)
+/// `LLMRouter`는 모든 AI 관련 요청을 처리하는 중앙 컨트롤 타워입니다.
+/// `AITask`를 입력받아, 사용자의 모델 선택, OS 버전, 기타 시스템 상태를 종합적으로 고려하여
+/// 최적의 `LLMService`로 요청을 라우팅합니다.
 public final class LLMRouter {
+    
     public static let shared = LLMRouter()
-    private init() {}
-
-    /// LLM 입력에 대해 적절한 엔진(FM/Claude)으로 분기 실행
-    /// - Parameter input: LLMInput (prompt)
-    /// - Returns: LLMOutput (텍스트, 사운드 프리셋 등)
-    /// - Throws: Claude/Foundational 예측 실패 시 오류
-    public func route(input: LLMInput) async throws -> LLMOutput {
-        // iOS 17 이상 + FoundationModelRunner 지원
-        if #available(iOS 17.0, *) {
-            if shouldUseClaude(for: input.prompt) {
-                return try await callClaude(input: input)
-            }
-            do {
-                let runner = FoundationModelRunner(modelName: "phi-mini", adapterURL: nil)
-                let output = try await runner.generateResponse(from: input.prompt, useKVCache: true)
-                return LLMOutput(text: output.text, metadata: output.metadata, soundPreset: nil)
-            } catch {
-                // FoundationModelRunner 실패 시 Claude fallback
-                return try await callClaude(input: input)
-            }
-        } else {
-            // iOS 16 이하: Claude 3.5만 사용
-            return try await callClaude(input: input)
+    
+    private let logger = Logger(subsystem: "com.deepsleep.app", category: "LLMRouter")
+    private let settingsManager = SettingsManager.shared
+    
+    // `LLMServiceFactory`를 통해 서비스 인스턴스를 동적으로 가져옵니다.
+    private let serviceFactory: LLMServiceFactory
+    
+    private init(serviceFactory: LLMServiceFactory = .shared) {
+        self.serviceFactory = serviceFactory
+    }
+    
+    /// 주어진 `AITask`를 조건에 맞는 최적의 LLM 서비스로 전달하여 응답을 생성합니다.
+    ///
+    /// - Parameter task: AI에게 요청할 작업 명세서 (`AITask`).
+    /// - Returns: LLM의 응답을 담은 `LLMResponseEntity`.
+    public func send(task: AITask) async throws -> String {
+        let service = try selectService(for: task)
+        let serviceName = String(describing: type(of: service))
+        
+        logger.info("Routing task '\(String(describing: task))' to \(serviceName)")
+        
+        do {
+            // TODO: - LLMService의 generateResponse가 AITask를 직접 받도록 수정 필요
+            // 우선은 기존 인터페이스에 맞추어 userPrompt를 전달합니다.
+            let response = try await service.generateResponse(prompt: task.userPrompt)
+            
+            logger.info("Successfully received response from \(serviceName)")
+            return response
+        } catch {
+            logger.error("LLM service '\(serviceName)' failed: \(error.localizedDescription).")
+            // TODO: - 실패 시 예비 서비스(fallback)로 재시도하는 로직 구현
+            throw error
         }
     }
-
-    /// Claude 3.5 API 호출 (보안 키 자동 처리)
-    private func callClaude(input: LLMInput) async throws -> LLMOutput {
-        let apiKey = try fetchAPIToken()
-        let result = try await ClaudeService.shared.sendChat(prompt: input.prompt, apiKey: apiKey)
-        // ClaudeService는 LLMOutput 또는 String 반환한다고 가정
-        if let output = result as? LLMOutput {
-            return output
-        } else if let text = result as? String {
-            return LLMOutput(text: text, metadata: ["engine": "claude-3.5"])
-        } else {
-            throw NSError(domain: "LLMRouter", code: 2, userInfo: [NSLocalizedDescriptionKey: "Claude 응답 파싱 실패"])
+    
+    /// `AITask`에 가장 적합한 `LLMService`를 선택합니다.
+    private func selectService(for task: AITask) throws -> LLMService {
+        // TODO: - 온디바이스 모델 정책 확정 필요 (예: 특정 Task는 무조건 온디바이스)
+        // 예를 들어, 간단한 텍스트 분류나 요약 등은 온디바이스가 적합할 수 있습니다.
+        
+        // 1순위: iOS 18 이상이며, 온디바이스 모델이 사용 가능한 경우 (향후 구현)
+        if #available(iOS 18.0, *), settingsManager.useOnDeviceModelIfNeeded {
+             logger.info("Attempting to use On-Device model for iOS 18+.")
+             // return try serviceFactory.createService(for: .onDevice)
         }
-    }
-
-    /// Claude fallback 조건: 장문/코드블록 포함
-    private func shouldUseClaude(for prompt: String) -> Bool {
-        return prompt.count > 1000 || prompt.contains("```")
-    }
-
-    /// Info.plist/Keychain 기반 API 키 보안 처리
-    private func fetchAPIToken() throws -> String {
-        // 1. Keychain 우선
-        if let key = SecureEnclaveKeyStore.shared.get(key: "REPLICATE_API_TOKEN") {
-            return key
-        }
-        // 2. Info.plist fallback
-        if let key = Bundle.main.infoDictionary?["REPLICATE_API_TOKEN"] as? String, !key.isEmpty {
-            return key
-        }
-        throw NSError(domain: "LLMRouter", code: 1, userInfo: [NSLocalizedDescriptionKey: "API 토큰이 없습니다."])
+        
+        // 2순위: 사용자가 설정에서 선택한 모델
+        let selectedModelType = settingsManager.selectedLLM
+        logger.info("User-selected model is '\(String(describing: selectedModelType))'. Routing to corresponding service.")
+        return try serviceFactory.createService(for: selectedModelType)
     }
 } 

@@ -4,12 +4,35 @@ import SwiftData
 #endif
 import CoreData
 
+// MARK: - Core Data Entity for Preset Feedback
+@objc(PresetFeedbackCoreData)
+public class PresetFeedbackCoreData: NSManagedObject {
+    @NSManaged public var id: UUID
+    @NSManaged public var timestamp: Date
+    @NSManaged public var presetName: String
+    @NSManaged public var contextEmotion: String
+    @NSManaged public var contextTime: Int16
+    @NSManaged public var recommendedVolumes: [Float]
+    @NSManaged public var recommendedVersions: [Int]
+    @NSManaged public var finalVolumes: [Float]
+    @NSManaged public var listeningDuration: TimeInterval
+    @NSManaged public var wasSkipped: Bool
+    @NSManaged public var wasSaved: Bool
+    @NSManaged public var userSatisfaction: Int16
+}
+
+public extension PresetFeedbackCoreData {
+    @nonobjc class func fetchRequest() -> NSFetchRequest<PresetFeedbackCoreData> {
+        return NSFetchRequest<PresetFeedbackCoreData>(entityName: "PresetFeedbackCoreData")
+    }
+}
+
 /// Phase 2: 피드백 수집 및 관리 매니저
 /// SwiftData를 사용한 사용자 피드백 데이터 관리 시스템
 @available(iOS 17.0, *)
 @MainActor
 final class FeedbackManager: ObservableObject {
-    static let shared = FeedbackManager()
+    public static let shared = FeedbackManager()
     
     // MARK: - SwiftData (iOS 17+)
     private var modelContainer: ModelContainer?
@@ -28,25 +51,8 @@ final class FeedbackManager: ObservableObject {
     private var sessionStartTime: Date?
     
     private init() {
-        if #available(iOS 17, *) {
-            // SwiftData 초기화
-            modelContainer = try? ModelContainer(for: PresetFeedback.self)
-        } else {
-            // CoreData ValueTransformer 등록
-            ValueTransformer.setValueTransformer(FloatArrayTransformer(), forName: NSValueTransformerName("FloatArrayTransformer"))
-            ValueTransformer.setValueTransformer(IntArrayTransformer(), forName: NSValueTransformerName("IntArrayTransformer"))
-            // CoreData 스택 초기화
-            let container = NSPersistentContainer(name: "PresetFeedbackCoreData")
-            let description = NSPersistentStoreDescription()
-            description.type = NSSQLiteStoreType
-            container.persistentStoreDescriptions = [description]
-            container.loadPersistentStores { _, error in
-                if let error = error {
-                    print("[CoreData] Persistent store load error: \(error)")
-                }
-            }
-            self.persistentContainer = container
-        }
+        // SwiftData initialization for iOS 17+
+        modelContainer = try? ModelContainer(for: PresetFeedback.self)
     }
     
     // MARK: - 세션 관리

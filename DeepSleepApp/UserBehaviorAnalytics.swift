@@ -390,6 +390,7 @@ struct InteractionEvent: Codable {
         case resume = "resume"
         case skip = "skip"
         case favorite = "favorite"
+        case satisfactionRating = "satisfaction_rating"
     }
 }
 

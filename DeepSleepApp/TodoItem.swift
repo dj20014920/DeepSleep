@@ -17,6 +17,8 @@ struct TodoItem: Codable, Identifiable, Hashable {
     var aiAdvices: [String]? = nil // AI가 생성한 조언들 저장 (여러 개 누적 가능)
     var aiAdvicesGeneratedAt: Date? = nil // AI 조언이 생성된 시간 (3개월 후 자동 삭제용)
     
+    var createdDate: Date = Date() // 생성일(기본값: 현재)
+    
     // 🛡️ 기존 데이터 호환성을 위한 커스텀 디코딩
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -37,6 +39,7 @@ struct TodoItem: Codable, Identifiable, Hashable {
         hasReceivedAIAdvice = try container.decodeIfPresent(Bool.self, forKey: .hasReceivedAIAdvice) ?? false
         aiAdvices = try container.decodeIfPresent([String].self, forKey: .aiAdvices)
         aiAdvicesGeneratedAt = try container.decodeIfPresent(Date.self, forKey: .aiAdvicesGeneratedAt)
+        createdDate = try container.decodeIfPresent(Date.self, forKey: .createdDate) ?? Date()
     }
     
     // 🛡️ 조언 관련 computed properties
@@ -129,7 +132,8 @@ struct TodoItem: Codable, Identifiable, Hashable {
          maxAdviceCount: Int = 3,
          hasReceivedAIAdvice: Bool = false,
          aiAdvices: [String]? = nil,
-         aiAdvicesGeneratedAt: Date? = nil) {
+         aiAdvicesGeneratedAt: Date? = nil,
+         createdDate: Date = Date()) {
         self.id = id
         self.title = title
         self.dueDate = dueDate
@@ -143,5 +147,10 @@ struct TodoItem: Codable, Identifiable, Hashable {
         self.hasReceivedAIAdvice = hasReceivedAIAdvice
         self.aiAdvices = aiAdvices
         self.aiAdvicesGeneratedAt = aiAdvicesGeneratedAt
+        self.createdDate = createdDate
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, dueDate, endDate, isCompleted, notes, priority, calendarEventIdentifier, adviceRequestCount, maxAdviceCount, hasReceivedAIAdvice, aiAdvices, aiAdvicesGeneratedAt, createdDate
     }
 } 

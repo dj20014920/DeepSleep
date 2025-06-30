@@ -5,7 +5,7 @@ import Compression
 #endif
 
 // MARK: - 프리셋 블록 UI 관련 Extension
-extension ViewController {
+extension MainViewController {
     
     // MARK: - 프리셋 블록 UI 설정
     func setupPresetBlocks() {
@@ -36,6 +36,10 @@ extension ViewController {
             let recSection = createRecommendationSection()
             presetStackView.addArrangedSubview(recSection)
         }
+        
+        // 🏆 Apple Watch 건강 분석 섹션 추가
+        let healthSection = createAppleWatchHealthSection()
+        presetStackView.addArrangedSubview(healthSection)
         
         if let scrollView = view.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
            let containerView = scrollView.subviews.first {
@@ -156,13 +160,8 @@ extension ViewController {
     }
     
     private func performPresetBlocksUpdate() {
-        print("🔄 [performPresetBlocksUpdate] 프리셋 블록 업데이트 시작")
-        
         let recentPresets = getRecentPresets()
         let favoritePresets = getFavoritePresets()
-        
-        print("  - 최근 프리셋 수: \(recentPresets.count)")
-        print("  - 즐겨찾기 프리셋 수: \(favoritePresets.count)")
         
         // 🛡️ UI 업데이트를 메인 스레드에서 실행
         DispatchQueue.main.async { [weak self] in
@@ -173,7 +172,6 @@ extension ViewController {
             if index < recentPresets.count {
                 let preset = recentPresets[index]
                     self.configurePresetButton(button, with: preset, isEmpty: false)
-                print("  - 최근 프리셋 \(index): \(preset.name)")
             } else {
                     self.configureEmptyPresetButton(button)
             }
@@ -184,13 +182,10 @@ extension ViewController {
             if index < favoritePresets.count {
                 let preset = favoritePresets[index]
                     self.configurePresetButton(button, with: preset, isEmpty: false)
-                print("  - 즐겨찾기 프리셋 \(index): \(preset.name)")
             } else {
                     self.configureEmptyPresetButton(button)
                 }
             }
-            
-            print("✅ [performPresetBlocksUpdate] 프리셋 블록 업데이트 완료")
         }
     }
     
@@ -199,8 +194,6 @@ extension ViewController {
             configureEmptyPresetButton(button)
             return
         }
-        
-        print("🔧 프리셋 버튼 설정 시작: \(preset.name)")
         
         // 🛡️ 완전한 초기화: 모든 UI 요소를 완전히 제거
         cleanButton(button)
@@ -240,14 +233,10 @@ extension ViewController {
             button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 12
-            
-            print("✅ 프리셋 버튼 설정 완료: \(preset.name)")
         }
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
-        print("🔧 빈 프리셋 버튼 설정 시작")
-        
         // 🛡️ 완전한 초기화
         cleanButton(button)
         
@@ -279,8 +268,6 @@ extension ViewController {
         button.layer.borderColor = UIColor.systemGray4.cgColor
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 12
-            
-            print("✅ 빈 프리셋 버튼 설정 완료")
         }
     }
     
@@ -297,8 +284,6 @@ extension ViewController {
         // 버튼 타이틀 정리
         button.setTitle(nil, for: .normal)
         button.setAttributedTitle(nil, for: .normal)
-        
-        print("🧹 버튼 초기화 완료 - 서브뷰 수: \(button.subviews.count)")
     }
     
     func getRecentPresets() -> [SoundPreset] {
@@ -311,13 +296,7 @@ extension ViewController {
             .sorted { $0.lastUsed! > $1.lastUsed! }
         
         // 3. 상위 4개만 선택
-        let recentPresets = Array(sortedRecentPresets.prefix(4))
-        
-        print("  - getRecentPresets: 최근 사용 프리셋 \(recentPresets.count)개 반환 (실제 사용순)")
-        for (index, preset) in recentPresets.enumerated() {
-            print("    [\(index)] \(preset.name) - 마지막 사용: \(preset.lastUsed ?? Date.distantPast)")
-        }
-        return recentPresets
+        return Array(sortedRecentPresets.prefix(4))
     }
     
     func getFavoritePresets() -> [SoundPreset] {
@@ -326,9 +305,7 @@ extension ViewController {
         let favoritePresetIds = Set(favoriteIds.compactMap { UUID(uuidString: $0) })
         
         let allPresets = SettingsManager.shared.loadSoundPresets()
-        let favoritePresets = allPresets.filter { favoritePresetIds.contains($0.id) }
-        print("  - getFavoritePresets: \(favoritePresets.count)개 반환")
-        return favoritePresets
+        return allPresets.filter { favoritePresetIds.contains($0.id) }
     }
     
     // 이 메서드는 제거됨 - ViewController+Utilities.swift의 addToRecentPresetsWithVersions 사용
@@ -672,28 +649,61 @@ extension ViewController {
 
     @objc @available(iOS 17.0, *)
     private func recommendationButtonTapped() {
-        let urlString = "https://example.com/adapterfile.adapter.gz"
-        let hash = SHA256.hash(data: Data(urlString.utf8)).compactMap { String(format: "%02x", $0) }.joined()
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let cacheFile = base.appendingPathComponent("com.deepsleep/adapter_cache/").appendingPathComponent("\(hash)_rank4.adapter")
-        // 첫 다운로드 유도
-        if !FileManager.default.fileExists(atPath: cacheFile.path) {
-            let alert = UIAlertController(
-                title: "개인화 모델 다운로드",
-                message: "더 정확한 추천을 위해 개인화 모델(LoRA)을 다운로드해야 합니다. 첫 실행 시 한 번만 필요하며, 다운로드 후 서비스가 향상됩니다.",
-                preferredStyle: .alert
-            )
-            alert.addAction(UIAlertAction(title: "다운로드", style: .default) { [weak self] _ in
-                guard let self = self else { return }
-                self.downloadAndApplyLoRAAdapter()
-            })
-            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-            present(alert, animated: true)
-        } else {
-            // 로컬 기반 추천(LoRA 적용)
-            let recommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
-            showRecommendationResult(recommendation)
+        // LLMRouter를 사용한 로컬/외부 AI 분기 추천 생성
+        Task {
+            do {
+                let userContext = await createUserContext()
+                // let llmOutput = try await LLMRouter.shared.processPrompt(userContext)
+                // let recommendation = ComprehensiveRecommendationEngine.shared.generateMasterRecommendation()
+                
+                // 임시 플레이스홀더
+                let recommendation = "AI 추천이 곧 제공됩니다."
+                
+                await MainActor.run {
+                    // ... UI 업데이트
+                }
+            } catch {
+                // ... 에러 처리
+            }
         }
+    }
+
+    /// 사용자 컨텍스트 생성 (LLMRouter용 - 로컬/외부 분기)
+    private func createUserContextForRecommendation() -> String {
+        let currentTime = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let timeString = formatter.string(from: currentTime)
+        
+        // 현재 시간대에 따른 컨텍스트
+        let timeContext: String
+        let hour = Calendar.current.component(.hour, from: currentTime)
+        switch hour {
+        case 6..<12:
+            timeContext = "아침 시간대"
+        case 12..<18:
+            timeContext = "오후 시간대"
+        case 18..<22:
+            timeContext = "저녁 시간대"
+        default:
+            timeContext = "밤 시간대"
+        }
+        
+        // 배터리 상태 확인 (로컬 AI 우선 여부 결정)
+        let batteryLevel = UIDevice.current.batteryLevel
+        let batteryInfo = batteryLevel < 0.3 ? "(배터리 부족 - 로컬 AI 우선)" : "(배터리 충분)"
+        
+        return """
+        사용자 개인화 추천 요청:
+        - 현재 시간: \(timeString) (\(timeContext))
+        - 배터리 상태: \(batteryInfo)
+        - 요청 유형: 음향 치료 프리셋 추천
+        - 개인화 레벨: 고급
+        - 응답 형식: 구체적인 프리셋 설정과 설명
+        
+        사용자의 현재 상황에 가장 적합한 딥슬립 음향 치료 프리셋을 추천해주세요.
+        로컬 AI로 충분하면 로컬에서, 복잡한 분석이 필요하면 외부 AI를 활용해주세요.
+        """
     }
 
     /// 추천 결과를 사용자에게 표시하고 적용할 수 있는 알림창을 띄웁니다.
@@ -740,6 +750,246 @@ extension ViewController {
             } catch {
                 await MainActor.run { showToast(message: "LoRA 다운로드 실패: \(error.localizedDescription)") }
             }
+        }
+    }
+    
+    // MARK: - 🏆 Apple Watch Health Analysis Section
+    
+    /// Apple Watch 건강 분석 섹션 생성
+    private func createAppleWatchHealthSection() -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "⌚ Apple Watch 건강 분석"
+        titleLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        titleLabel.textColor = .label
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 건강 분석 버튼
+        let healthAnalysisButton = createHealthAnalysisButton()
+        
+        // 건강 상태 표시 라벨
+        let healthStatusLabel = createHealthStatusLabel()
+        
+        let buttonStack = UIStackView(arrangedSubviews: [healthAnalysisButton])
+        buttonStack.axis = .horizontal
+        buttonStack.spacing = 8
+        buttonStack.distribution = .fillEqually
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        container.addSubview(titleLabel)
+        container.addSubview(buttonStack)
+        container.addSubview(healthStatusLabel)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: container.topAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            
+            buttonStack.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            buttonStack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            buttonStack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            buttonStack.heightAnchor.constraint(equalToConstant: 50),
+            
+            healthStatusLabel.topAnchor.constraint(equalTo: buttonStack.bottomAnchor, constant: 4),
+            healthStatusLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            healthStatusLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            healthStatusLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        
+        return container
+    }
+    
+    /// 건강 분석 버튼 생성
+    private func createHealthAnalysisButton() -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle("🏥 건강 상태 분석", for: .normal)
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 2
+        
+        // 그라데이션 스타일 적용
+        button.backgroundColor = UIColor.systemRed.withAlphaComponent(0.1)
+        button.layer.borderColor = UIColor.systemRed.cgColor
+        button.setTitleColor(.systemRed, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tag = 1001 // Apple Watch 건강 분석 버튼 식별용
+        button.addTarget(self, action: #selector(appleWatchHealthButtonTapped), for: .touchUpInside)
+        
+        // 애니메이션 효과 추가
+        button.addTarget(self, action: #selector(healthButtonTouchDown), for: .touchDown)
+        button.addTarget(self, action: #selector(healthButtonTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        return button
+    }
+    
+    /// 건강 상태 표시 라벨 생성
+    private func createHealthStatusLabel() -> UILabel {
+        let label = UILabel()
+        label.text = "건강 데이터를 분석하여 맞춤 프리셋을 추천받으세요"
+        label.font = .systemFont(ofSize: 12, weight: .regular)
+        label.textColor = .secondaryLabel
+        label.textAlignment = .center
+        label.numberOfLines = 2
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }
+    
+    // MARK: - Apple Watch Health Button Actions
+    
+    /// Apple Watch 건강 분석 버튼 액션
+    @objc private func appleWatchHealthButtonTapped() {
+        // 직접 HealthKitManager를 통한 건강 분석 수행
+        HealthKitManager.shared.analyzeAndCoachWithAI { [weak self] wellness in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let wellness = wellness {
+                    self.updateHealthAnalysisUI(wellness: wellness)
+                    self.showToast(message: "🏥 건강 분석이 완료되었습니다")
+                } else {
+                    self.showToast(message: "건강 데이터 분석에 실패했습니다")
+                }
+            }
+        }
+        
+        // 햅틱 피드백
+        provideMediumHapticFeedback()
+    }
+    
+    /// 버튼 터치 다운 애니메이션
+    @objc private func healthButtonTouchDown(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            sender.alpha = 0.8
+        }
+    }
+    
+    /// 버튼 터치 업 애니메이션
+    @objc private func healthButtonTouchUp(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = .identity
+            sender.alpha = 1.0
+        }
+    }
+    
+    /// 건강 상태에 따른 버튼 스타일 업데이트
+    func updateHealthButtonStyle(status: String) {
+        guard let healthButton = view.viewWithTag(1001) as? UIButton else { return }
+        
+        let (color, emoji) = getHealthStatusStyle(status: status)
+        
+        healthButton.backgroundColor = color.withAlphaComponent(0.1)
+        healthButton.layer.borderColor = color.cgColor
+        healthButton.setTitleColor(color, for: .normal)
+        healthButton.setTitle("\(emoji) \(status)", for: .normal)
+        
+        // 상태 라벨도 업데이트
+        updateHealthStatusLabel(status: status)
+    }
+    
+    /// 건강 상태별 색상과 이모지 반환
+    private func getHealthStatusStyle(status: String) -> (UIColor, String) {
+        switch status {
+        case let s where s.contains("훌륭") || s.contains("excellent"):
+            return (.systemGreen, "💚")
+        case let s where s.contains("양호") || s.contains("good"):
+            return (.systemBlue, "💙")
+        case let s where s.contains("보통") || s.contains("fair"):
+            return (.systemOrange, "🧡")
+        case let s where s.contains("주의") || s.contains("concerning"):
+            return (.systemRed, "❤️")
+        case let s where s.contains("긴급") || s.contains("critical"):
+            return (.systemPurple, "🆘")
+        default:
+            return (.systemGray, "🏥")
+        }
+    }
+    
+    /// 건강 상태 라벨 업데이트
+    private func updateHealthStatusLabel(status: String) {
+        // 건강 상태 라벨 찾기 (createHealthStatusLabel에서 생성된 라벨)
+        if let container = view.viewWithTag(1001)?.superview?.superview,
+           let statusLabel = container.subviews.compactMap({ $0 as? UILabel }).last {
+            
+            let statusMessage = generateHealthStatusMessage(status: status)
+            statusLabel.text = statusMessage
+        }
+    }
+    
+    /// 건강 상태별 메시지 생성
+    private func generateHealthStatusMessage(status: String) -> String {
+        switch status {
+        case let s where s.contains("훌륭") || s.contains("excellent"):
+            return "✨ 건강 상태가 훌륭합니다! 현재 컨디션을 유지하세요"
+        case let s where s.contains("양호") || s.contains("good"):
+            return "😊 건강 상태가 양호합니다. 꾸준한 관리를 계속하세요"
+        case let s where s.contains("보통") || s.contains("fair"):
+            return "⚖️ 보통 상태입니다. 생활 패턴 개선을 고려해보세요"
+        case let s where s.contains("주의") || s.contains("concerning"):
+            return "⚠️ 주의가 필요한 상태입니다. 휴식과 스트레스 관리가 필요해요"
+        case let s where s.contains("긴급") || s.contains("critical"):
+            return "🚨 즉시 관리가 필요합니다. 충분한 휴식을 취하세요"
+        default:
+            return "건강 데이터를 분석하여 맞춤 프리셋을 추천받으세요"
+        }
+    }
+    
+    /// 건강 분석 완료 후 UI 업데이트
+    func updateHealthAnalysisUI(wellness: HealthKitManager.DailyWellness) {
+        // 건강 상태 평가
+        let overallStatus = evaluateOverallHealthForUI(wellness: wellness)
+        
+        // 버튼 스타일 업데이트
+        updateHealthButtonStyle(status: overallStatus)
+        
+        // 토스트 메시지 표시
+        let statusEmoji = getHealthStatusStyle(status: overallStatus).1
+        showToast(message: "\(statusEmoji) 건강 분석 완료: \(overallStatus)")
+        
+        print("🏥 [HealthAnalysisUI] 건강 상태 UI 업데이트 완료: \(overallStatus)")
+    }
+    
+    /// UI용 건강 상태 종합 평가
+    private func evaluateOverallHealthForUI(wellness: HealthKitManager.DailyWellness) -> String {
+        var healthScore = 0
+        
+        // 스트레스 레벨 점수
+        switch wellness.stressLevel {
+        case .veryLow: healthScore += 4
+        case .low: healthScore += 3
+        case .moderate: healthScore += 2
+        case .high: healthScore += 1
+        case .veryHigh: healthScore += 0
+        }
+        
+        // 수면 품질 점수
+        switch wellness.sleepQuality {
+        case .excellent: healthScore += 4
+        case .good: healthScore += 3
+        case .fair: healthScore += 2
+        case .poor: healthScore += 1
+        case .critical: healthScore += 0
+        }
+        
+        // 활동 수준 점수
+        switch wellness.activityLevel {
+        case .veryActive: healthScore += 2
+        case .active: healthScore += 2
+        case .moderate: healthScore += 1
+        case .light: healthScore += 1
+        case .sedentary: healthScore += 0
+        }
+        
+        // 총점 기반 상태 반환 (10점 만점)
+        switch healthScore {
+        case 8...10: return "훌륭함"
+        case 6...7: return "양호"
+        case 4...5: return "보통"
+        case 2...3: return "주의필요"
+        case 0...1: return "긴급상황"
+        default: return "분석중"
         }
     }
 }

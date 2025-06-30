@@ -198,9 +198,14 @@ class ChatBubbleCell: UITableViewCell {
     private var goToMainAction: (() -> Void)?
     private var continueAction: (() -> Void)?
     
+    // ✅ 가르치기 액션을 위한 클로저 추가
+    var teachAction: ((String) -> Void)?
+    private var originalUserMessageForTeachable: String?
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
+        setupGestureRecognizers() // 제스처 초기화 호출
     }
 
     required init?(coder: NSCoder) {
@@ -326,6 +331,48 @@ class ChatBubbleCell: UITableViewCell {
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
     }
 
+    private func setupGestureRecognizers() {
+        let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
+        bubbleView.addGestureRecognizer(longPressGesture)
+        bubbleView.isUserInteractionEnabled = true
+    }
+    
+    @objc private func handleLongPress(gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began,
+              let isUser = (leadingConstraint.isActive == false && trailingConstraint.isActive == true) ? true : false,
+              !isUser, // AI 메시지인 경우에만 메뉴 표시
+              let originalUserMessage = originalUserMessageForTeachable, // 가르칠 원본 메시지가 있을 때만
+              !originalUserMessage.isEmpty
+        else { return }
+        
+        becomeFirstResponder()
+        
+        let teachMenuItem = UIMenuItem(title: "가르치기", action: #selector(teachTapped))
+        let copyMenuItem = UIMenuItem(title: "복사하기", action: #selector(copyTapped))
+        
+        UIMenuController.shared.menuItems = [teachMenuItem, copyMenuItem]
+        UIMenuController.shared.showMenu(from: bubbleView, rect: bubbleView.bounds)
+    }
+
+    @objc private func teachTapped() {
+        guard let originalUserMessage = originalUserMessageForTeachable else { return }
+        teachAction?(originalUserMessage)
+        resignFirstResponder()
+    }
+
+    @objc private func copyTapped() {
+        UIPasteboard.general.string = messageLabel.text
+        resignFirstResponder()
+    }
+
+    override var canBecomeFirstResponder: Bool {
+        return true
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        return action == #selector(copyTapped) || action == #selector(teachTapped)
+    }
+    
     func configure(with message: ChatMessage) {
         // 초기화
         resetConstraints()

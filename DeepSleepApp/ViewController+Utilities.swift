@@ -2,7 +2,7 @@ import UIKit
 import CryptoKit
 
 // MARK: - 유틸리티 & 피드백 관련 Extension
-extension ViewController {
+extension MainViewController {
     
     // MARK: - ⚠️ 애플워치 헬스킷 초기화 (Apple Developer 계정 권한 부족으로 임시 비활성화)
     

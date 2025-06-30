@@ -2,8 +2,11 @@ name: DeepSleep
 options:
   bundleIdPrefix: com.deepsleep.app
   deploymentTarget:
-    iOS: 17.0
+    iOS: 15.0
 packages:
+  GoogleGenerativeAI:
+    url: https://github.com/google/generative-ai-swift
+    from: 0.5.6 # Specify a recent, stable version
   FSCalendar:
     url: https://github.com/WenchaoD/FSCalendar.git
     from: 2.8.4
@@ -16,9 +19,14 @@ targets:
   DeepSleep:
     type: application
     platform: iOS
+    deploymentTarget: "15.0"
     sources:
       - path: DeepSleepApp
-        group: ""
+    resources:
+      - path: DeepSleepApp/Resources
+      - path: docs
+        excludes: 
+          - "**/*.md"
     info:
       path: DeepSleepApp/AppInfo.plist
       properties:
@@ -50,9 +58,12 @@ targets:
       Release: DeepSleepApp/Secrets.xcconfig
     dependencies:
       - package: FSCalendar
+        product: FSCalendar
+      - target: Core
   DeepSleepTests:
     type: bundle.unit-test
     platform: iOS
+    deploymentTarget: "15.0"
     sources:
       - path: Tests
         excludes: [Info.plist]
@@ -60,3 +71,17 @@ targets:
       path: Tests/Tests-Info.plist
     dependencies:
       - target: DeepSleep
+      - target: Core
+  Core:
+    type: framework
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources/Core
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+    dependencies:
+      - package: GoogleGenerativeAI
+        product: GoogleGenerativeAI

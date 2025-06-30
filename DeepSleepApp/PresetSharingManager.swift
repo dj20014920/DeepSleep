@@ -760,11 +760,12 @@ extension PresetSharingManager {
               let window = windowScene.windows.first,
               let rootVC = window.rootViewController else { return }
         
-        var targetVC: ViewController?
+        // MainViewController 인스턴스 획득
+        var targetVC: MainViewController?
         
         if let navController = rootVC as? UINavigationController {
-            targetVC = navController.viewControllers.first as? ViewController
-        } else if let mainVC = rootVC as? ViewController {
+            targetVC = navController.viewControllers.first as? MainViewController
+        } else if let mainVC = rootVC as? MainViewController {
             targetVC = mainVC
         }
         

@@ -1,12 +1,34 @@
 import UIKit
 import AVFoundation
 import UserNotifications
+import SwiftData
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     /// Fallback window for non-scene UI
     var window: UIWindow?
+
+    static var shared: AppDelegate {
+        return UIApplication.shared.delegate as! AppDelegate
+    }
+
+    @available(iOS 17.0, *)
+    static var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            PersonaMemoryModel.self,
+            ConversationTurn.self,
+            FeedbackLog.self,
+            UserContext.self
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        do {
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            fatalError("Could not create ModelContainer: \(error)")
+        }
+    }()
 
     // iOS 13 이상부터 SceneDelegate로 UI 진입점을 분리했어도
     // 여기는 앱 전체 초기화 코드(오디오 세션, 백그라운드 재생 등)를 넣습니다.

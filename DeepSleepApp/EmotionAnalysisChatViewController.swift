@@ -39,7 +39,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         let view = UIView()
         view.backgroundColor = .systemBackground
         view.layer.borderWidth = 1
-        view.layer.borderColor = UIColor.separator.cgColor
+        view.layer.borderColor = UIColor.lightGray.cgColor
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
@@ -75,6 +75,11 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     private var chatHistory: [(isUser: Bool, message: String)] = []
     private var isWaitingForResponse = false
     
+    // MARK: - 🧠 피드백 학습 시스템
+    private var feedbackHistory: [EnhancedSoundRecommendationEngine.PresetFeedback] = []
+    private var currentRecommendationId: String?
+    private var lastRecommendedSounds: [(soundId: String, version: String, volume: Float)] = []
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -89,6 +94,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         
         setupUI()
         setupKeyboardNotifications()
+        
+        // 피드백 히스토리 로드
+        loadFeedbackHistory()
         
         // 초기 분석 시작
         startInitialAnalysis()
@@ -227,14 +235,28 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         setLoading(true)
         
         // ✅ 최적화된 감정 분석 메서드 사용
-        ReplicateChatService.shared.analyzeEmotionPattern(data: emotionPatternData) { [weak self] response in
-            DispatchQueue.main.async {
-                self?.setLoading(false)
-                if let response = response {
-                    self?.addAIMessage(response)
-                    self?.addQuickActionButtons()
-                } else {
-                    self?.addAIMessage("죄송해요, 분석 중 문제가 발생했습니다. 네트워크 연결을 확인해주세요.")
+        analyzeEmotionData()
+    }
+    
+    private func analyzeEmotionData() {
+        showLoading(true)
+
+        Task {
+            do {
+                // TODO: - AITask에 .analyzeEmotionPattern(data: String) 케이스 추가하고 아래 로직 변경 필요
+                let prompt = "다음 감정 패턴 데이터를 기반으로 사용자에게 따뜻한 위로와 함께, 앞으로의 기분 관리를 위한 실용적인 팁을 한 가지 제안해주세요: \(emotionPatternData)"
+                
+                // 새로운 LLMRouter를 통해 작업을 요청합니다.
+                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: prompt))
+                
+                await MainActor.run {
+                    self.addAIMessage(responseText)
+                    self.showLoading(false)
+                }
+            } catch {
+                await MainActor.run {
+                    self.addAIMessage("오류가 발생했습니다: \(error.localizedDescription)")
+                    self.showLoading(false)
                 }
             }
         }
@@ -381,16 +403,29 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         let emotionSummary = extractRecentEmotions()
         let tipType = mapIntentToTipType(intent)
         
-        ReplicateChatService.shared.getQuickEmotionTip(
-            emotion: emotionSummary,
-            type: tipType
-        ) { [weak self] response in
-            DispatchQueue.main.async {
-                self?.setLoading(false)
-                if let response = response {
-                    self?.addAIMessage(response)
-                } else {
-                    self?.addAIMessage("죄송해요, 응답 중 문제가 발생했습니다.")
+        fetchQuickTip()
+    }
+    
+    private func fetchQuickTip() {
+        let prompt = "요즘 잠들기 힘든 사람을 위한 간단한 수면 팁 하나만 알려줘."
+        
+        showLoading(true)
+        
+        Task {
+            do {
+                let service = try LLMServiceFactory.shared.getService(for: .claude)
+                let config = LLMRequestConfig(temperature: 0.6)
+                
+                let (tip, _) = try await service.sendMessage(prompt, config: config)
+                
+                await MainActor.run {
+                    self.showLoading(false)
+                    self.addMessage(text: tip, isUser: false)
+                }
+            } catch {
+                await MainActor.run {
+                    self.showLoading(false)
+                    self.addMessage(text: "팁을 가져오는 중 오류 발생", isUser: false)
                 }
             }
         }
@@ -400,65 +435,179 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     private func handleAIRecommendation() {
         // ✅ AI 사용 횟수 초과 시에도 로컬 추천으로 대체
         if !AIUsageManager.shared.canUse(feature: .presetRecommendation) {
-            provideLocalFallbackRecommendation()
+            provideEnhancedLocalFallbackRecommendation()
             return
         }
         
         addUserMessage("🎵 지금 기분에 맞는 사운드 추천받기")
         setLoading(true)
         
-        // 🆕 하이브리드 방식: AI는 감정 분석만, 프리셋은 로컬에서
-        ReplicateChatService.shared.sendPrompt(
-            message: "지금 기분에 맞는 사운드 프리셋을 추천해주세요",
-            intent: "emotion_analysis_for_preset"
-        ) { [weak self] response in
-            DispatchQueue.main.async {
+        // 🚀 고도화된 AI 추천 서비스 사용
+        EnhancedAIRecommendationService.shared.performAdvancedRecommendation(
+            userMessage: "지금 기분에 맞는 사운드 프리셋을 추천해주세요"
+        ) { [weak self] result in
+            DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 
                 self.setLoading(false)
                 
-                if let analysisResult = response, !analysisResult.isEmpty {
-                    // AI 분석 결과 파싱
-                    let parsedAnalysis = self.parseEmotionAnalysis(analysisResult)
-                    
-                    // 로컬 추천 시스템으로 프리셋 생성 - 감성적인 이름
-                    let recommendedVolumes = SoundPresetCatalog.getRecommendedPreset(for: parsedAnalysis.emotion)
-                    let poeticName = self.generatePoeticPresetName(emotion: parsedAnalysis.emotion, timeOfDay: "현재", isAI: true)
-                    let recommendedPreset = (
-                        name: poeticName,
-                        volumes: recommendedVolumes,
-                        description: "\(parsedAnalysis.emotion) 감정을 위해 특별히 조합된 감성적 사운드스케이프",
-                        versions: SoundPresetCatalog.defaultVersions
+                switch result {
+                case .success(let recommendation):
+                    // 고도화된 AI 추천 결과 적용
+                    let preset = (
+                        name: recommendation.poeticName,
+                        volumes: self.convertSoundsToVolumes(sounds: recommendation.sounds),
+                        description: "AI 심층 분석을 통한 맞춤형 음향 치료",
+                        versions: self.convertSoundsToVersions(sounds: recommendation.sounds)
                     )
                     
-                    // 🧠 음향심리학 기반 상세 분석 메시지 생성
-                    let presetMessage = self.createEnhancedPsychoacousticMessage(
-                        analysis: parsedAnalysis,
-                        preset: recommendedPreset
-                    )
-                    
-                    // 프리셋 적용 메시지 추가
-                    self.addPresetRecommendationMessage(presetMessage, preset: recommendedPreset)
+                    self.addPresetRecommendationMessage(recommendation.explanation, preset: preset)
                     AIUsageManager.shared.recordUsage(for: .presetRecommendation)
                     
-                } else {
-                    // AI 분석 실패 시 기본 추천 - 감성적인 이름
-                    let fallbackVolumes = SoundPresetCatalog.getRecommendedPreset(for: "평온")
-                    let fallbackPoeticName = self.generatePoeticPresetName(emotion: "평온", timeOfDay: "현재", isAI: true)
-                    let fallbackPreset = (
-                        name: fallbackPoeticName,
-                        volumes: fallbackVolumes,
-                        description: "마음을 편안하게 하는 균형 잡힌 사운드 여행",
-                        versions: SoundPresetCatalog.defaultVersions
-                    )
-                    
-                    let fallbackMessage = "🎵 [\(fallbackPoeticName)] 현재 시간에 맞는 균형잡힌 사운드 조합입니다."
-                    
-                    self.addPresetRecommendationMessage(fallbackMessage, preset: fallbackPreset)
-                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                case .failure(let error):
+                    print("⚠️ AI 추천 실패: \(error)")
+                    // AI 실패 시 고도화된 로컬 추천으로 대체
+                    self.provideEnhancedLocalFallbackRecommendation()
                 }
             }
         }
+    }
+    
+    /// 🏠 고도화된 로컬 추천 (AI 실패 시 대체)
+    private func provideEnhancedLocalFallbackRecommendation() {
+        let enhancedRecommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
+            emotion: "평온",
+            timeOfDay: nil as String?,
+            intensity: 1.0,
+            context: "일반"
+        )
+        
+        let preset = (
+            name: "고요한 마음의 정원",
+            volumes: convertSoundsToVolumes(sounds: enhancedRecommendation.sounds),
+            description: "현재 시간에 최적화된 로컬 AI 추천",
+            versions: convertSoundsToVersions(sounds: enhancedRecommendation.sounds)
+                    )
+                    
+        // 추천 기록 저장
+        currentRecommendationId = UUID().uuidString
+        lastRecommendedSounds = enhancedRecommendation.sounds
+        
+        addPresetRecommendationMessage(enhancedRecommendation.explanation, preset: preset)
+    }
+    
+    /// 🎲 다양한 프리셋 생성 기능
+    private func generateDiversePresetRecommendations(for emotion: String) {
+        addUserMessage("다양한 프리셋 추천받기")
+                    
+        // 피드백 히스토리를 기반으로 다양한 프리셋 생성
+        let diversePresets = EnhancedSoundRecommendationEngine.shared.generateDiversePresets(
+            emotion: emotion,
+            feedbackHistory: feedbackHistory,
+            diversityLevel: 4 // 높은 다양성
+        )
+        
+        let message = """
+        🎨 **다양한 프리셋 컬렉션**
+        
+        \(emotion) 상태를 위한 \(diversePresets.count)가지 서로 다른 조합을 생성했습니다.
+        각각 1개부터 13개까지 다양한 사운드 개수로 구성되어 있습니다.
+        
+        🎯 **개인화 학습**
+        과거 피드백 \(feedbackHistory.count)개를 반영하여 맞춤 추천했습니다.
+        """
+        
+        addAIMessage(message)
+        
+        // 상위 3개 프리셋을 버튼으로 제공
+        for (index, preset) in diversePresets.prefix(3).enumerated() {
+            addDiversePresetButton(preset, index: index + 1)
+        }
+        
+        scrollToBottom()
+    }
+    
+    /// 🎵 다양한 프리셋 버튼 추가
+    private func addDiversePresetButton(_ preset: EnhancedSoundRecommendationEngine.PresetRecommendation, index: Int) {
+        let button = UIButton(type: .system)
+        
+        let buttonTitle = """
+        \(index). \(preset.name)
+        (\(preset.soundCount)곡 조합 • 신뢰도: \(Int(preset.confidenceScore * 100))%)
+        """
+        
+        button.setTitle(buttonTitle, for: .normal)
+        button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        button.setTitleColor(.systemBlue, for: .normal)
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.systemBlue.cgColor
+        button.titleLabel?.font = .systemFont(ofSize: 14)
+        button.titleLabel?.numberOfLines = 0
+        button.titleLabel?.textAlignment = .center
+        
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        
+        button.addAction(UIAction { [weak self] _ in
+            self?.applyDiversePreset(preset)
+        }, for: .touchUpInside)
+        
+        contentStackView.addArrangedSubview(button)
+    }
+    
+    /// 🎵 다양한 프리셋 적용
+    private func applyDiversePreset(_ preset: EnhancedSoundRecommendationEngine.PresetRecommendation) {
+        currentRecommendationId = preset.id
+        
+        // SoundInfo를 튜플로 변환
+        let soundTuples = preset.sounds.map { (soundId: $0.soundId, version: $0.version, volume: $0.volume) }
+        lastRecommendedSounds = soundTuples
+        
+        let convertedPreset = (
+            name: preset.name,
+            volumes: convertSoundsToVolumes(sounds: soundTuples),
+            description: preset.explanation,
+            versions: convertSoundsToVersions(sounds: soundTuples)
+        )
+        
+        applyLocalPreset(convertedPreset)
+        
+        // 피드백 요청
+        addFeedbackRequest(for: preset.id)
+    }
+    
+    /// 🔄 사운드 배열을 볼륨 배열로 변환
+    private func convertSoundsToVolumes(sounds: [(soundId: String, version: String, volume: Float)]) -> [Float] {
+        // SoundManager의 카테고리 순서에 맞춰 볼륨 배열 생성
+        let categoryCount = SoundManager.shared.categoryCount
+        var volumes = Array(repeating: Float(0.0), count: categoryCount)
+        
+        for sound in sounds {
+            if let categoryIndex = SoundManager.shared.getSoundIndex(for: sound.soundId) {
+                volumes[categoryIndex] = sound.volume
+            }
+        }
+        
+        return volumes
+    }
+    
+    /// 🔄 사운드 배열을 버전 배열로 변환  
+    private func convertSoundsToVersions(sounds: [(soundId: String, version: String, volume: Float)]) -> [Int] {
+        let categoryCount = SoundManager.shared.categoryCount
+        var versions = Array(repeating: 0, count: categoryCount)
+        
+        for sound in sounds {
+            if let categoryIndex = SoundManager.shared.getSoundIndex(for: sound.soundId) {
+                // 버전 문자열을 인덱스로 변환 (예: "1.0" -> 0, "2.0" -> 1)
+                if sound.version == "2.0" {
+                    versions[categoryIndex] = 1
+                } else {
+                    versions[categoryIndex] = 0
+                }
+            }
+        }
+        
+        return versions
     }
     
     /// 시적이고 감성적인 프리셋 이름 생성 (ChatviewController+Actions와 동일)
@@ -541,13 +690,176 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         
         applyButton.addAction(UIAction { [weak self] _ in
             self?.applyLocalPreset(preset)
+            // 피드백 요청 추가
+            if let recommendationId = self?.currentRecommendationId {
+                self?.addFeedbackRequest(for: recommendationId)
+            }
         }, for: .touchUpInside)
         
         contentStackView.addArrangedSubview(applyButton)
         scrollToBottom()
     }
     
-    // 🆕 로컬 추천 처리 메서드
+    /// 🔄 피드백 요청 추가
+    private func addFeedbackRequest(for recommendationId: String) {
+        let feedbackContainer = UIView()
+        feedbackContainer.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.1)
+        feedbackContainer.layer.cornerRadius = 12
+        feedbackContainer.layer.borderWidth = 1
+        feedbackContainer.layer.borderColor = UIColor.systemYellow.cgColor
+        
+        let feedbackLabel = UILabel()
+        feedbackLabel.text = "💬 이 추천이 도움이 되었나요?"
+        feedbackLabel.font = .boldSystemFont(ofSize: 16)
+        feedbackLabel.textColor = .label
+        feedbackLabel.textAlignment = .center
+        
+        let buttonStackView = UIStackView()
+        buttonStackView.axis = .horizontal
+        buttonStackView.distribution = .fillEqually
+        buttonStackView.spacing = 8
+        
+        // 평점 버튼 생성 (1~5점)
+        for rating in 1...5 {
+            let ratingButton = UIButton(type: .system)
+            ratingButton.setTitle("\(rating)⭐", for: .normal)
+            ratingButton.backgroundColor = .systemBlue
+            ratingButton.setTitleColor(.white, for: .normal)
+            ratingButton.layer.cornerRadius = 8
+            ratingButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+            
+            ratingButton.addAction(UIAction { [weak self] _ in
+                self?.recordFeedback(recommendationId: recommendationId, rating: rating)
+                feedbackContainer.removeFromSuperview()
+            }, for: .touchUpInside)
+            
+            buttonStackView.addArrangedSubview(ratingButton)
+        }
+        
+        feedbackContainer.addSubview(feedbackLabel)
+        feedbackContainer.addSubview(buttonStackView)
+        
+        feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        buttonStackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            feedbackLabel.topAnchor.constraint(equalTo: feedbackContainer.topAnchor, constant: 12),
+            feedbackLabel.leadingAnchor.constraint(equalTo: feedbackContainer.leadingAnchor, constant: 16),
+            feedbackLabel.trailingAnchor.constraint(equalTo: feedbackContainer.trailingAnchor, constant: -16),
+            
+            buttonStackView.topAnchor.constraint(equalTo: feedbackLabel.bottomAnchor, constant: 12),
+            buttonStackView.leadingAnchor.constraint(equalTo: feedbackContainer.leadingAnchor, constant: 16),
+            buttonStackView.trailingAnchor.constraint(equalTo: feedbackContainer.trailingAnchor, constant: -16),
+            buttonStackView.bottomAnchor.constraint(equalTo: feedbackContainer.bottomAnchor, constant: -12),
+            buttonStackView.heightAnchor.constraint(equalToConstant: 36)
+        ])
+        
+        contentStackView.addArrangedSubview(feedbackContainer)
+        scrollToBottom()
+    }
+    
+    /// 🧠 피드백 기록 및 학습
+    private func recordFeedback(recommendationId: String, rating: Int) {
+        guard !lastRecommendedSounds.isEmpty else { return }
+        
+        let soundInfos = lastRecommendedSounds.map { 
+            EnhancedSoundRecommendationEngine.SoundInfo(soundId: $0.soundId, version: $0.version, volume: $0.volume) 
+        }
+        
+        let feedback = EnhancedSoundRecommendationEngine.PresetFeedback(
+            presetId: recommendationId,
+            sounds: soundInfos,
+            rating: rating,
+            emotion: getCurrentEmotion() ?? "평온",
+            timeOfDay: getCurrentTimeOfDay(),
+            feedback: nil as String?,
+            timestamp: Date()
+        )
+        
+        feedbackHistory.append(feedback)
+        saveFeedbackHistory()
+        
+        // 피드백 감사 메시지
+        let thankYouMessage = """
+        🙏 **피드백 감사합니다!**
+        
+        ⭐ 평점: \(rating)/5
+        📚 학습 데이터: \(feedbackHistory.count)개
+        
+        \(rating >= 4 ? "좋은 평가를 주셔서 감사합니다! 비슷한 조합을 더 추천해드릴게요." : "더 나은 추천을 위해 학습하겠습니다. 다른 조합을 시도해보세요.")
+        """
+        
+        addAIMessage(thankYouMessage)
+        
+        // 높은 평점의 경우 유사한 추천 제안
+        if rating >= 4 {
+            addSimilarRecommendationButton()
+        }
+    }
+    
+    /// 🎯 유사한 추천 버튼 추가
+    private func addSimilarRecommendationButton() {
+        let similarButton = UIButton(type: .system)
+        similarButton.setTitle("🔄 비슷한 조합 더 추천받기", for: .normal)
+        similarButton.backgroundColor = .systemGreen
+        similarButton.setTitleColor(.white, for: .normal)
+        similarButton.layer.cornerRadius = 12
+        similarButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
+        similarButton.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
+        
+        similarButton.addAction(UIAction { [weak self] _ in
+            self?.generateSimilarRecommendations()
+        }, for: .touchUpInside)
+        
+        contentStackView.addArrangedSubview(similarButton)
+        scrollToBottom()
+    }
+    
+    /// 🔄 유사한 추천 생성
+    private func generateSimilarRecommendations() {
+        let currentEmotion = getCurrentEmotion() ?? "평온"
+        generateDiversePresetRecommendations(for: currentEmotion)
+    }
+    
+    /// 📱 현재 감정 상태 추출 (간단한 구현)
+    private func getCurrentEmotion() -> String? {
+        // 최근 대화 내용에서 감정 키워드 추출
+        let recentMessages = chatHistory.suffix(5).map { $0.message }.joined(separator: " ")
+        
+        let emotionKeywords = [
+            "스트레스": ["스트레스", "피로", "지침", "답답"],
+            "불안": ["불안", "걱정", "초조", "긴장"],
+            "슬픔": ["슬픔", "우울", "우울함", "처짐"],
+            "행복": ["행복", "기쁨", "활력", "긍정"],
+            "평온": ["평온", "안정", "차분", "이완"],
+            "집중": ["집중", "몰입", "작업", "공부"]
+        ]
+        
+        for (emotion, keywords) in emotionKeywords {
+            if keywords.contains(where: { recentMessages.contains($0) }) {
+                return emotion
+            }
+        }
+        
+        return nil
+    }
+    
+    /// 💾 피드백 히스토리 저장
+    private func saveFeedbackHistory() {
+        if let data = try? JSONEncoder().encode(feedbackHistory) {
+            UserDefaults.standard.set(data, forKey: "PresetFeedbackHistory")
+        }
+    }
+    
+    /// 📂 피드백 히스토리 로드
+    private func loadFeedbackHistory() {
+        if let data = UserDefaults.standard.data(forKey: "PresetFeedbackHistory"),
+           let history = try? JSONDecoder().decode([EnhancedSoundRecommendationEngine.PresetFeedback].self, from: data) {
+            feedbackHistory = history
+        }
+    }
+    
+    // 🆕 고도화된 로컬 추천 처리 메서드
     private func handleLocalRecommendation() {
         addUserMessage("앱 분석 추천받기")
         
@@ -555,9 +867,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         let currentTimeOfDay = getCurrentTimeOfDay()
         var recommendedEmotion = "평온"
         
-        // 시간대별 기본 감정 추천
+        // 시간대별 기본 감정 추천 (더 정교한 로직)
         switch currentTimeOfDay {
-        case "새벽", "자정":
+        case "새벽", "깊은밤":
             recommendedEmotion = "수면"
         case "아침":
             recommendedEmotion = "활력"
@@ -568,34 +880,44 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         case "저녁":
             recommendedEmotion = "이완"
         case "밤":
-            recommendedEmotion = "수면"
+            recommendedEmotion = "휴식"
         default:
             recommendedEmotion = "평온"
         }
         
-        // 로컬 추천 시스템으로 프리셋 생성 - 감성적인 이름
-        let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: recommendedEmotion)
+        // 🚀 고도화된 로컬 추천 엔진 사용
+        let enhancedRecommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
+            emotion: recommendedEmotion,
+            timeOfDay: currentTimeOfDay,
+            intensity: 1.0,
+            context: "시간대 기반 추천"
+        )
+        
         let poeticName = generatePoeticPresetName(emotion: recommendedEmotion, timeOfDay: currentTimeOfDay, isAI: false)
         let recommendedPreset = (
             name: poeticName,
-            volumes: baseVolumes,
-            description: "\(currentTimeOfDay)의 \(recommendedEmotion) 상태를 위한 자연스럽고 조화로운 사운드 여행입니다.",
-            versions: SoundPresetCatalog.defaultVersions
+            volumes: convertSoundsToVolumes(sounds: enhancedRecommendation.sounds),
+            description: "\(currentTimeOfDay)의 \(recommendedEmotion) 상태를 위한 고도화된 사운드 조합입니다.",
+            versions: convertSoundsToVersions(sounds: enhancedRecommendation.sounds)
         )
         
-        // 사용자 친화적인 메시지 생성
+        // 고도화된 로컬 추천 메시지
         let presetMessage = """
-        🏠 **로컬 기반 추천**
-        현재 시간: \(currentTimeOfDay)
-        추천 상태: \(recommendedEmotion)
+        🏠 **고도화된 로컬 기반 추천**
+        
+        📊 **상황 분석**
+        • 현재 시간: \(currentTimeOfDay)
+        • 추천 상태: \(recommendedEmotion)
+        • 개인화 학습: 적용됨
         
         🎵 **[\(recommendedPreset.name)]**
         \(recommendedPreset.description)
         
-        로컬 알고리즘으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다. 
-        바로 적용해보세요! ✨
+        🧠 **고급 로컬 엔진**
+        \(enhancedRecommendation.explanation)
         
-        ℹ️ 이 추천은 AI 사용량에 영향을 주지 않는 로컬 추천입니다.
+        ✨ 이 추천은 AI 사용량에 영향을 주지 않으면서도
+        고도화된 개인 학습 데이터를 활용한 추천입니다.
         """
         
         // 프리셋 적용 메시지 추가
@@ -881,17 +1203,17 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     }
     
     // 🔍 MainViewController 찾기 헬퍼 메서드 추가
-    private func findMainViewController() -> ViewController? {
+    private func findMainViewController() -> MainViewController? {
         if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate,
            let rootVC = sceneDelegate.window?.rootViewController {
             if let tabBarController = rootVC as? UITabBarController,
                let navController = tabBarController.selectedViewController as? UINavigationController,
-               let mainVC = navController.topViewController as? ViewController {
+               let mainVC = navController.topViewController as? MainViewController {
                 return mainVC
             } else if let navController = rootVC as? UINavigationController,
-                      let mainVC = navController.topViewController as? ViewController {
+                      let mainVC = navController.topViewController as? MainViewController {
                 return mainVC
-            } else if let mainVC = rootVC as? ViewController {
+            } else if let mainVC = rootVC as? MainViewController {
                 return mainVC
             }
         }
@@ -901,7 +1223,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
             if let rootVC = window.rootViewController {
                 if let tabBarController = rootVC as? UITabBarController,
                    let navController = tabBarController.selectedViewController as? UINavigationController,
-                   let mainVC = navController.topViewController as? ViewController {
+                   let mainVC = navController.topViewController as? MainViewController {
                     return mainVC
                 }
             }
@@ -1124,9 +1446,18 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         localTestButton.translatesAutoresizingMaskIntoConstraints = false
         localTestButton.addTarget(self, action: #selector(testLocalRecommendation), for: .touchUpInside)
         
+        let diverseTestButton = UIButton(type: .system)
+        diverseTestButton.setTitle("다양한 프리셋", for: .normal)
+        diverseTestButton.backgroundColor = .systemPurple
+        diverseTestButton.setTitleColor(.white, for: .normal)
+        diverseTestButton.layer.cornerRadius = 6
+        diverseTestButton.translatesAutoresizingMaskIntoConstraints = false
+        diverseTestButton.addTarget(self, action: #selector(testDiversePresets), for: .touchUpInside)
+        
         testButtonsContainer.addSubview(testLabel)
         testButtonsContainer.addSubview(aiTestButton)
         testButtonsContainer.addSubview(localTestButton)
+        testButtonsContainer.addSubview(diverseTestButton)
         
         view.addSubview(testButtonsContainer)
         
@@ -1134,7 +1465,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
             testButtonsContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             testButtonsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             testButtonsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            testButtonsContainer.heightAnchor.constraint(equalToConstant: 80),
+            testButtonsContainer.heightAnchor.constraint(equalToConstant: 100),
             
             testLabel.topAnchor.constraint(equalTo: testButtonsContainer.topAnchor, constant: 8),
             testLabel.leadingAnchor.constraint(equalTo: testButtonsContainer.leadingAnchor, constant: 8),
@@ -1142,13 +1473,18 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
             
             aiTestButton.topAnchor.constraint(equalTo: testLabel.bottomAnchor, constant: 8),
             aiTestButton.leadingAnchor.constraint(equalTo: testButtonsContainer.leadingAnchor, constant: 8),
-            aiTestButton.widthAnchor.constraint(equalToConstant: 120),
+            aiTestButton.widthAnchor.constraint(equalToConstant: 100),
             aiTestButton.heightAnchor.constraint(equalToConstant: 32),
             
             localTestButton.topAnchor.constraint(equalTo: testLabel.bottomAnchor, constant: 8),
-            localTestButton.leadingAnchor.constraint(equalTo: aiTestButton.trailingAnchor, constant: 8),
-            localTestButton.widthAnchor.constraint(equalToConstant: 120),
-            localTestButton.heightAnchor.constraint(equalToConstant: 32)
+            localTestButton.leadingAnchor.constraint(equalTo: aiTestButton.trailingAnchor, constant: 4),
+            localTestButton.widthAnchor.constraint(equalToConstant: 100),
+            localTestButton.heightAnchor.constraint(equalToConstant: 32),
+            
+            diverseTestButton.topAnchor.constraint(equalTo: testLabel.bottomAnchor, constant: 8),
+            diverseTestButton.leadingAnchor.constraint(equalTo: localTestButton.trailingAnchor, constant: 4),
+            diverseTestButton.widthAnchor.constraint(equalToConstant: 100),
+            diverseTestButton.heightAnchor.constraint(equalToConstant: 32)
         ])
     }
     
@@ -1159,14 +1495,40 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     @objc private func testLocalRecommendation() {
         handleLocalRecommendation()
     }
+    
+    @objc private func testDiversePresets() {
+        let testEmotions = ["스트레스", "불안", "평온", "집중", "수면"]
+        let randomEmotion = testEmotions.randomElement() ?? "평온"
+        generateDiversePresetRecommendations(for: randomEmotion)
+    }
 
     // MARK: - Actions
     @objc private func closeTapped() {
         dismiss(animated: true)
     }
     
-    @objc private func sendTapped() {
-        sendMessage()
+    @objc private func sendTapped(_ sender: UIButton) {
+        guard let text = messageTextField.text, !text.isEmpty, !isWaitingForResponse else { return }
+        
+        addUserMessage(text)
+        messageTextField.text = ""
+        setLoading(true)
+        
+        Task {
+            do {
+                // 사용자의 후속 질문도 generalChat Task로 처리합니다.
+                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: text))
+                await MainActor.run {
+                    self.addAIMessage(responseText)
+                    self.setLoading(false)
+                }
+            } catch {
+                await MainActor.run {
+                    self.addAIMessage("오류가 발생했습니다: \(error.localizedDescription)")
+                    self.setLoading(false)
+                }
+            }
+        }
     }
     
     @objc private func keyboardWillShow(notification: NSNotification) {
@@ -1510,6 +1872,56 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
             return "보통 (0.8-1.0)"
         } else {
             return "낮음 (<0.8)"
+        }
+    }
+    
+    private func requestAdvancedRecommendation() {
+        setLoading(true)
+        let context = buildContextForAdvancedRecommendation()
+
+        Task {
+            do {
+                // TODO: - AITask에 .requestAdvancedRecommendation(context: String) 케이스 추가 고려
+                let prompt = "다음은 사용자의 이전 피드백 기록과 현재 상황입니다. 이를 바탕으로 더욱 발전된 사운드 프리셋을 추천해주세요.\n\n\(context)"
+                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: prompt))
+
+                await MainActor.run {
+                    // TODO: - 서버로부터 받은 추천 응답을 파싱하고 UI에 표시하는 로직 필요
+                    self.addAIMessage("발전된 추천 응답:\n\(responseText)")
+                    self.setLoading(false)
+                }
+            } catch {
+                await MainActor.run {
+                    self.addAIMessage("고급 추천을 생성하는 중 오류가 발생했습니다: \(error.localizedDescription)")
+                    self.setLoading(false)
+                }
+            }
+        }
+    }
+    
+    private func buildContextForAdvancedRecommendation() -> String {
+        // ... existing code ...
+    }
+    
+    private func getHelpfulTip() {
+        setLoading(true)
+
+        Task {
+            do {
+                let prompt = "현재 대화 내용과 감정 분석 결과를 바탕으로, 사용자에게 도움이 될 만한 짧은 팁을 한 가지 제안해줘."
+                // TODO: - AITask에 .getHelpfulTip(context: String) 케이스 추가 고려
+                let tip = try await LLMRouter.shared.send(task: .generalChat(message: prompt))
+                
+                await MainActor.run {
+                    self.addAIMessage("💡 팁: \(tip)")
+                    self.setLoading(false)
+                }
+            } catch {
+                await MainActor.run {
+                    self.addAIMessage("팁을 가져오는 중 오류가 발생했습니다: \(error.localizedDescription)")
+                    self.setLoading(false)
+                }
+            }
         }
     }
 }

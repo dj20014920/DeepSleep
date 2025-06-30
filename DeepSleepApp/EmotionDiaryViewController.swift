@@ -312,7 +312,7 @@ class EmotionDiaryViewController: UIViewController {
         navigationController.viewControllers.forEach { print("- \(type(of: $0))") }
 
         // 메인 ViewController 찾기 (스택의 맨 아래에서부터 찾기)
-        if let mainVC = navigationController.viewControllers.first(where: { $0 is ViewController }) as? ViewController {
+        if let mainVC = navigationController.viewControllers.first(where: { $0 is MainViewController }) as? MainViewController {
             print("✅ Main ViewController 찾음")
             
             // 약한 참조로 클로저 캡처
@@ -346,7 +346,7 @@ class EmotionDiaryViewController: UIViewController {
     
     // 간단한 토스트 메시지 (ViewController의 showToast 활용)
     private func showSimpleToast(message: String) {
-        if let mainVC = navigationController?.viewControllers.first(where: { $0 is ViewController }) as? ViewController {
+        if let mainVC = navigationController?.viewControllers.first(where: { $0 is MainViewController }) as? MainViewController {
             mainVC.showToast(message: message)
         } else {
             // ViewController를 찾지 못한 경우의 대체 처리 (예: print 또는 자체 간단 토스트)

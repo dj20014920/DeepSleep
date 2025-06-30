@@ -6,11 +6,14 @@
 //
 
 import UIKit
+import SwiftData
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
+    // MARK: - AI Services
+    var aiOrchestrator: EnhancedUnifiedAIOrchestrator?
 
     func scene(_ scene: UIScene,
                    willConnectTo session: UISceneSession,
@@ -27,6 +30,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         #if DEBUG
         print("🟢 [SceneDelegate] 성공적으로 UIWindowScene 확인, window 생성 시작")
         #endif
+        
+        // 🚀 AI 서비스 스택 초기화
+        setupAIServices()
+        
         let window = UIWindow(windowScene: windowScene)
 
         // LaunchViewController만 루트로 설정
@@ -36,6 +43,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         #if DEBUG
         print("🟢 [SceneDelegate] LaunchViewController set as rootViewController and window made keyVisible")
         #endif
+        
+        // 만약 presented view controller가 있다면 dismiss
+        if let presentedVC = window.rootViewController as? UITabBarController {
+            presentedVC.selectedIndex = 0
+            presentedVC.dismiss(animated: true)
+            print("✅ 모달 뷰 dismiss 완료")
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -83,6 +97,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Called as the scene transitions from the foreground to the background.
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
+        
+        // 📱 백그라운드 진입 시 채팅 기록 저장
+        print("💾 [SceneDelegate] 백그라운드 진입 시 채팅 기록 보존 (ChatManager 자동 관리)")
     }
     
     // MARK: - 노티피케이션 처리
@@ -170,7 +187,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
               let window = windowScene.windows.first else { return }
         
         // LaunchViewController에서 메인 화면으로 전환
-        let mainVC = ViewController()
+        let mainVC = MainViewController()
         let navController = UINavigationController(rootViewController: mainVC)
         
         window.rootViewController = navController
@@ -223,8 +240,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // TabBarController 생성
         let tabBarController = UITabBarController()
 
-        // 1. 메인 사운드 화면 (ViewController)
-        let mainVC = ViewController()
+        // 1. 메인 사운드 화면 (MainViewController)
+        let mainVC = MainViewController()
+        mainVC.aiOrchestrator = self.aiOrchestrator
+        
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
         mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)
@@ -235,27 +254,39 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         diaryNav.navigationBar.prefersLargeTitles = true
         diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
         
-        // 3. 감정 캘린더 화면 (TodoCalendarViewController)
-        let todoCalendarVC = TodoCalendarViewController()
-        let todoCalendarNav = UINavigationController(rootViewController: todoCalendarVC)
-        todoCalendarNav.navigationBar.prefersLargeTitles = true
-        todoCalendarNav.tabBarItem = UITabBarItem(title: "내 일정", image: UIImage(systemName: "calendar.badge.plus"), tag: 2)
+        // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
+        let fortuneVC = TodaysFortuneViewController()
+        let fortuneNav = UINavigationController(rootViewController: fortuneVC)
+        fortuneNav.navigationBar.prefersLargeTitles = true
+        fortuneNav.tabBarItem = UITabBarItem(title: "오늘의 운세", image: UIImage(systemName: "sparkles"), tag: 2)
         
         // TabBarController에 뷰 컨트롤러들 설정
-        tabBarController.viewControllers = [mainNav, diaryNav, todoCalendarNav]
+        tabBarController.viewControllers = [mainNav, diaryNav, fortuneNav]
         tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
 
-        // CrossDissolve 전환
-        UIView.transition(
-            with: window!,
-            duration: 0.7,
-            options: .transitionCrossDissolve,
-            animations: {
+        // 현재 윈도우의 루트 뷰 컨트롤러를 탭바 컨트롤러로 교체
                 self.window?.rootViewController = tabBarController
-            }
-        )
+        self.window?.makeKeyAndVisible()
+        
+        print("✅ [SceneDelegate] 메인 인터페이스(TabBarController)로 전환 완료")
     }
 
-
+    // MARK: - AI 서비스 초기화
+    
+    private func setupAIServices() {
+        // AppDelegate에 생성된 공유 ModelContainer에서 ModelContext를 가져옴
+        let modelContext = AppDelegate.sharedModelContainer.mainContext
+        
+        // 1. PersonaMemoryManager 초기화
+        let personaMemoryManager = PersonaMemoryManager(modelContext: modelContext)
+        
+        // 2. EnhancedUnifiedAIOrchestrator 초기화 (PersonaMemoryManager 주입)
+        let orchestrator = EnhancedUnifiedAIOrchestrator(memoryManager: personaMemoryManager)
+        
+        // 3. SceneDelegate의 프로퍼티에 할당
+        self.aiOrchestrator = orchestrator
+        
+        print("✅ [SceneDelegate] AI 서비스 스택 초기화 완료")
+    }
 }
 

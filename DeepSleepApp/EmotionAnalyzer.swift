@@ -1,15 +1,10 @@
 import Foundation
 import NaturalLanguage
 
-/// 감정 카테고리
-enum EmotionType: String {
-    case happy, sad, angry, anxious, tired, neutral
-}
-
 struct EmotionAnalyzer {
 
     /// 자유 텍스트로 입력된 문장을 NLTagger로 분석해 감정 카테고리로 매핑
-    static func analyze(text: String) -> EmotionType {
+    static func analyze(text: String) -> String {
         let tagger = NLTagger(tagSchemes: [.sentimentScore])
         tagger.string = text
 
@@ -20,28 +15,28 @@ struct EmotionAnalyzer {
         )
         guard let scoreStr = sentimentTag?.rawValue,
               let score = Double(scoreStr) else {
-            return .neutral
+            return "neutral"
         }
 
         switch score {
         case let x where x > 0.3:
-            return .happy
+            return "happy"
         case let x where x < -0.3:
-            return .sad
+            return "sad"
         default:
-            return .neutral
+            return "neutral"
         }
     }
 
     /// 이모지 선택 시 간단 매핑
-    static func mapEmojiToEmotion(_ emoji: String) -> EmotionType {
+    static func mapEmojiToEmotion(_ emoji: String) -> String {
         switch emoji {
-        case "😊": return .happy
-        case "😢": return .sad
-        case "😠": return .angry
-        case "😰": return .anxious
-        case "😴": return .tired
-        default:    return .neutral
+        case "😊": return "happy"
+        case "😢": return "sad"
+        case "😠": return "angry"
+        case "😰": return "anxious"
+        case "😴": return "tired"
+        default:    return "neutral"
         }
     }
     
@@ -50,12 +45,13 @@ struct EmotionAnalyzer {
         let emotion = EmotionAnalyzer.analyze(text: text)
         
         switch emotion {
-        case .happy: return "행복"
-        case .sad: return "슬픔"
-        case .angry: return "분노"
-        case .anxious: return "불안"
-        case .tired: return "피로"
-        case .neutral: return "평온"
+        case "happy": return "행복"
+        case "sad": return "슬픔"
+        case "angry": return "분노"
+        case "anxious": return "불안"
+        case "tired": return "피로"
+        case "neutral": return "평온"
+        default: return "평온"
         }
     }
 }

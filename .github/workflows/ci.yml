@@ -1,10 +1,52 @@
-name: iOS CI & Coverage
+name: CI
+
 on:
   push:
-    branches: [ai_hybrid]
+    branches: [ main ]
   pull_request:
-    branches: [ai_hybrid]
+    branches: [ main ]
+
 jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        make setup
+
+    - name: Run full pipeline
+      run: |
+        make all
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Notify Slack
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: python3 scripts/notify_slack.py
+
+    - name: Notify Discord
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: python3 scripts/notify_discord.py
+
+    - name: Upload logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs
+        path: logs/
+
   build-test-coverage:
     runs-on: macos-13
     steps:

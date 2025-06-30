@@ -298,20 +298,50 @@ class AISecurityManager {
     // MARK: - 🔍 출력 검증 세부 메서드
     
     private func containsSystemPromptLeakage(_ text: String) -> Bool {
-        let systemPromptIndicators = [
-            "system:",
-            "instruction:",
-            "role:",
-            "당신은",
-            "you are",
-            "your role is",
-            "시스템 설정",
-            "initial prompt",
-            "base instruction"
+        // 🛡️ 진짜 심각한 시스템 프롬프트 누출만 탐지
+        let criticalSystemLeaks = [
+            "system:", "assistant:", "user:",
+            "instruction:", "initial prompt", "base instruction",
+            "시스템 설정", "프롬프트 설정", "역할 설정",
+            "you are a", "your role is to", "you have been instructed",
+            "as an ai assistant", "i am programmed to"
         ]
         
         let lowercaseText = text.lowercased()
-        return systemPromptIndicators.contains { lowercaseText.contains($0) }
+        
+        // 정확한 패턴 매칭으로 오탐지 방지
+        for leak in criticalSystemLeaks {
+            if lowercaseText.contains(leak) {
+                // 추가 검증: 문맥상 진짜 시스템 누출인지 확인
+                if isActualSystemLeak(text, pattern: leak) {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
+    
+    // 문맥상 진짜 시스템 누출인지 추가 검증
+    private func isActualSystemLeak(_ text: String, pattern: String) -> Bool {
+        let lowercaseText = text.lowercased()
+        
+        // "당신은", "you are" 등은 일반적인 대화 표현이므로 허용
+        if pattern == "당신은" || pattern == "you are" {
+            return false
+        }
+        
+        // "system:", "instruction:" 등은 진짜 누출일 가능성 높음
+        if pattern.contains(":") {
+            return true
+        }
+        
+        // "역할", "프롬프트" 등 시스템 관련 명시적 언급
+        if pattern.contains("역할") || pattern.contains("프롬프트") || pattern.contains("설정") {
+            return true
+        }
+        
+        return false
     }
     
     private func containsPersonalInformation(_ text: String) -> Bool {
@@ -334,27 +364,75 @@ class AISecurityManager {
     }
     
     private func containsHarmfulContent(_ text: String) -> Bool {
-        let harmfulKeywords = [
-            // 자해/폭력
-            "자살", "자해", "죽고 싶", "해를 끼치",
-            // 불법 활동
-            "마약", "폭탄", "해킹", "불법 다운로드",
-            // 혐오 표현
-            "혐오", "차별", "비하"
+        // 🛡️ 진짜 위험한 내용만 차단 (정상적인 감정 표현은 허용)
+        let criticalHarmfulPatterns = [
+            // 직접적인 자해 지시 (감정 표현과 구분)
+            "자살하세요", "자살하라", "죽어버려", "자해하세요",
+            // 구체적인 불법 활동
+            "폭탄 제조법", "마약 제조", "해킹 방법", "불법 다운로드 사이트",
+            // 명시적 혐오 표현
+            "혐오합니다", "차별하자", "비하하자"
         ]
         
         let lowercaseText = text.lowercased()
-        return harmfulKeywords.contains { lowercaseText.contains($0) }
+        
+        // 정확한 패턴 매칭으로 오탐지 방지
+        for pattern in criticalHarmfulPatterns {
+            if lowercaseText.contains(pattern) {
+                return true
+            }
+        }
+        
+        // 추가 검증: 문맥상 정말 위험한 내용인지 확인
+        return isActuallyHarmful(text)
+    }
+    
+    // 실제로 위험한 내용인지 문맥 분석
+    private func isActuallyHarmful(_ text: String) -> Bool {
+        let lowercaseText = text.lowercased()
+        
+        // 감정 표현은 허용 (슬퍼, 우울해, 힘들어 등)
+        let emotionExpressions = ["슬퍼", "우울", "힘들", "속상", "화나", "걱정"]
+        for emotion in emotionExpressions {
+            if lowercaseText.contains(emotion) {
+                return false // 정상적인 감정 표현으로 판단
+            }
+        }
+        
+        // 도움 요청은 허용
+        let helpRequests = ["도와줘", "상담", "치료", "극복", "해결"]
+        for help in helpRequests {
+            if lowercaseText.contains(help) {
+                return false // 도움 요청으로 판단
+            }
+        }
+        
+        return false // 기본적으로 허용
     }
     
     private func containsCodeExecution(_ text: String) -> Bool {
-        let codePatterns = [
-            "```", "exec(", "eval(", "system(",
-            "import os", "subprocess", "__import__",
-            "shell_exec", "passthru", "system"
+        // 🛡️ 실제 위험한 코드 실행만 탐지 (마크다운 코드 블록은 허용)
+        let dangerousCodePatterns = [
+            // 직접적인 시스템 명령 실행
+            "exec(", "eval(", "system(", "shell_exec(", "passthru(",
+            // 위험한 모듈 임포트
+            "import os", "import subprocess", "__import__",
+            // 실제 쉘 명령어
+            "rm -rf", "del /f", "format c:", "shutdown",
+            // SQL 인젝션 패턴
+            "'; DROP TABLE", "; DELETE FROM"
         ]
         
-        return codePatterns.contains { text.contains($0) }
+        let lowercaseText = text.lowercased()
+        
+        // 정확한 패턴 매칭
+        for pattern in dangerousCodePatterns {
+            if lowercaseText.contains(pattern) {
+                return true
+            }
+        }
+        
+        return false // 마크다운 코드 블록(```)은 허용
     }
     
     /// 📊 **7. 보안 이벤트 로깅**

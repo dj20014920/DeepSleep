@@ -192,8 +192,8 @@ class LaunchViewController: UIViewController {
         
         let tabBarController = UITabBarController()
         
-        // 1. 메인 사운드 화면 (ViewController)
-        let mainVC = ViewController()
+        // 1. 메인 사운드 화면 (MainViewController)
+        let mainVC = MainViewController()
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
         mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)
@@ -204,14 +204,14 @@ class LaunchViewController: UIViewController {
         diaryNav.navigationBar.prefersLargeTitles = true
         diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
         
-        // 3. 감정 캘린더 화면 (TodoCalendarViewController)
-        let todoCalendarVC = TodoCalendarViewController()
-        let todoCalendarNav = UINavigationController(rootViewController: todoCalendarVC)
-        todoCalendarNav.navigationBar.prefersLargeTitles = true
-        todoCalendarNav.tabBarItem = UITabBarItem(title: "내 일정", image: UIImage(systemName: "calendar.badge.plus"), tag: 2)
+        // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
+        let fortuneVC = TodaysFortuneViewController()
+        let fortuneNav = UINavigationController(rootViewController: fortuneVC)
+        fortuneNav.navigationBar.prefersLargeTitles = true
+        fortuneNav.tabBarItem = UITabBarItem(title: "오늘의 운세", image: UIImage(systemName: "sparkles"), tag: 2)
         
         // TabBarController에 모든 뷰 컨트롤러들 설정
-        tabBarController.viewControllers = [mainNav, diaryNav, todoCalendarNav]
+        tabBarController.viewControllers = [mainNav, diaryNav, fortuneNav]
         tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
         
         UIView.transition(

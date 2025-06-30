@@ -30,7 +30,7 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
     case confused = "confused"
     case neutral = "neutral"
     
-    public var emoji: String {
+    public var emojiSymbol: String {
         switch self {
         case .happy: return "😊"
         case .sad: return "😢"
@@ -101,7 +101,7 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
     // Convert to EmotionEntity
     public func toEntity() -> EmotionEntity {
         return EmotionEntity(
-            emoji: self.emoji,
+            emoji: self.emojiSymbol,
             name: self.localizedName,
             description: self.localizedName,
             category: self.category,

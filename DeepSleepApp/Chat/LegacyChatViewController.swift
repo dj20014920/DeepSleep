@@ -6,11 +6,11 @@ import SwiftUI
 
 class LegacyChatViewController: UIViewController {
     
-    // MARK: - Legacy Integration Properties
-    private var chatView: ChatView?
+    // MARK: - Properties
     private var hostingController: UIHostingController<AnyView>?
+    private var chatView: ModernChatViewWrapper?
     
-    // MARK: - Backward Compatibility Properties
+    // Legacy compatibility properties
     var onPresetApply: ((RecommendationResponse) -> Void)?
     var initialUserText: String?
     var diaryContext: DiaryContext?
@@ -141,37 +141,6 @@ struct ModernChatViewWrapper: View {
                 .padding()
         }
         .navigationTitle("AI 채팅")
-    }
-}
-
-// MARK: - Legacy Data Structures
-// Maintaining compatibility with existing code
-
-struct DiaryContext {
-    let entryId: UUID
-    let content: String
-    let emotion: String
-    let date: Date
-    let tags: [String]
-    
-    init(entryId: UUID, content: String, emotion: String, date: Date, tags: [String] = []) {
-        self.entryId = entryId
-        self.content = content
-        self.emotion = emotion
-        self.date = date
-        self.tags = tags
-    }
-}
-
-struct RecommendationResponse {
-    let volumes: [Float]
-    let presetName: String
-    let selectedVersions: [Int]
-    
-    init(volumes: [Float], presetName: String = "맞춤 프리셋", selectedVersions: [Int]? = nil) {
-        self.volumes = volumes
-        self.presetName = presetName
-        self.selectedVersions = selectedVersions ?? Array(repeating: 0, count: 5)
     }
 }
 

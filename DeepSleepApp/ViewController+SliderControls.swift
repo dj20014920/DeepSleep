@@ -1,7 +1,7 @@
 import UIKit
 
 // MARK: - 슬라이더 UI 및 제어 관련 Extension (11개 이모지 카테고리)
-extension ViewController {
+extension MainViewController {
     
     func setupSliderUI() {
         let scrollView = UIScrollView()
@@ -570,19 +570,13 @@ extension ViewController {
         
         // 🆕 UI 업데이트 목적이면 forUIUpdate: true로 전달하여 재생 방지
         SoundManager.shared.setVolume(at: index, volume: actualVolume, forUIUpdate: !shouldPlay)
-        
-        print("🎚️ [updateSliderAndTextField] 인덱스 \(index): 입력볼륨=\(volume) → 표시볼륨=\(clampedVolume) → 실제볼륨=\(actualVolume), shouldPlay=\(shouldPlay)")
     }
     
     // MARK: - 전체 볼륨 업데이트 (프리셋 적용 시 사용)
     
     func updateAllSlidersAndFields(volumes: [Float], versions: [Int]? = nil) {
-        print("🔄 [updateAllSlidersAndFields] UI 업데이트 시작")
-        print("  - 볼륨: \(volumes)")
-        
         // 1. 버전 정보가 있으면 먼저 적용
         if let versions = versions {
-            print("  - 버전: \(versions)")
             for (categoryIndex, versionIndex) in versions.enumerated() {
                 if categoryIndex < SoundPresetCatalog.categoryCount {
                     SoundManager.shared.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
@@ -593,7 +587,6 @@ extension ViewController {
         
         // 2. 볼륨 정보 적용 (배열 크기 안전 검사)
         let targetCount = min(volumes.count, sliders.count, volumeFields.count)
-        print("  - 업데이트할 슬라이더 수: \(targetCount)")
         
         for i in 0..<targetCount {
             updateSliderAndTextField(at: i, volume: volumes[i])
@@ -601,10 +594,6 @@ extension ViewController {
         
         // 3. 카테고리 버튼 UI 업데이트 (버전 정보 반영)
         updateAllCategoryButtonTitles()
-        
-        // 4. 🚫 중복된 마스터 볼륨 적용 제거 (updateSliderAndTextField에서 이미 처리함)
-        
-        print("✅ [updateAllSlidersAndFields] 모든 슬라이더 및 버전 UI 업데이트 완료")
     }
     
     // MARK: - 입력 검증 (기존 로직 유지)
@@ -685,7 +674,7 @@ extension ViewController {
 }
 
 // MARK: - UITextFieldDelegate (기존 유지)
-extension ViewController: UITextFieldDelegate {
+extension MainViewController: UITextFieldDelegate {
     func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
         let currentText = textField.text ?? ""
         guard let textRange = Range(range, in: currentText) else { return false }

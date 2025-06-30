@@ -1,10 +1,187 @@
 import Foundation
-import UIKit
 import CoreData
+import SwiftUI
 
 #if canImport(SwiftData)
 import SwiftData
 #endif
+
+// MARK: - Note: UIColor compatibility handled by UIColorExtensions.swift
+// typealias UIColor = Color doesn't work properly in this context
+
+// Note: SoundPresetCatalog is defined in SoundPresetCatalog.swift - removed duplicate struct definition
+// Note: SettingsManager is defined in SettingsManager.swift - removed duplicate struct definition
+
+// MARK: - Common Models
+
+// MARK: - Message Type for Models (Local Definition)
+public enum ModelsMessageType: String, Codable {
+    case user = "user"
+    case bot = "bot"
+    case system = "system"
+    case aiResponse = "aiResponse"
+    case presetRecommendation = "presetRecommendation"
+    case recommendationSelector = "recommendationSelector"
+    case loading = "loading"
+    case error = "error"
+    case presetOptions = "presetOptions"
+    case postPresetOptions = "postPresetOptions"
+}
+
+// MARK: - Chat Message Models
+public struct ChatMessage: Codable, Identifiable {
+    public let id = UUID()
+    public let type: ModelsMessageType
+    public let text: String
+    public let presetName: String?
+    public let timestamp: Date
+    
+    // Non-codable properties
+    public var onApplyPreset: (() -> Void)?
+    public var onSavePreset: (() -> Void)?
+    public var onFeedback: (() -> Void)?
+    public var onContinueChat: (() -> Void)?
+    public var onRetry: (() -> Void)?
+    public var quickActions: [(String, String)]?
+
+    private enum CodingKeys: String, CodingKey {
+        case type, text, presetName, timestamp
+    }
+    
+    public init(type: ModelsMessageType, text: String, presetName: String? = nil, timestamp: Date = Date()) {
+        self.type = type
+        self.text = text
+        self.presetName = presetName
+        self.timestamp = timestamp
+    }
+    
+    // Custom Codable implementation
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(ModelsMessageType.self, forKey: .type)
+        text = try container.decode(String.self, forKey: .text)
+        presetName = try container.decodeIfPresent(String.self, forKey: .presetName)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encode(text, forKey: .text)
+        try container.encodeIfPresent(presetName, forKey: .presetName)
+        try container.encode(timestamp, forKey: .timestamp)
+    }
+}
+
+// MARK: - ChatMessage Codable dictionary conversion
+public extension ChatMessage {
+    func toDictionary() -> [String: Any]? {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(self),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return jsonObject
+    }
+
+    static func from(dictionary: [String: Any]) -> ChatMessage? {
+        guard let data = try? JSONSerialization.data(withJSONObject: dictionary, options: []),
+              let message = try? JSONDecoder().decode(ChatMessage.self, from: data) else {
+            return nil
+        }
+        return message
+    }
+}
+
+// MARK: - Emotional Profile Model
+public struct EmotionalProfile: Codable, Equatable {
+    public let primaryEmotion: String
+    public let intensity: Float
+    public let complexity: Float
+    public let description: String
+    
+    public init(primaryEmotion: String, intensity: Float, complexity: Float, description: String) {
+        self.primaryEmotion = primaryEmotion
+        self.intensity = intensity
+        self.complexity = complexity
+        self.description = description
+    }
+}
+
+// MARK: - LLM Output Model
+public struct LLMOutput: Codable, Equatable {
+    public let text: String
+    public let metadata: [String: String]?
+    public let soundPreset: SoundPreset?
+    
+    public init(text: String, metadata: [String: String]? = nil, soundPreset: SoundPreset? = nil) {
+        self.text = text
+        self.metadata = metadata
+        self.soundPreset = soundPreset
+    }
+}
+
+// MARK: - Storage Info Models
+public struct StorageInfo: Codable {
+    public let totalSizeKB: Int
+    public let feedbackCount: Int
+    public let feedbackSizeKB: Int
+    public let diaryCount: Int
+    public let diarySizeKB: Int
+    public let presetCount: Int
+    public let presetSizeKB: Int
+    public let retentionDays: Int
+    
+    public var totalSizeFormatted: String {
+        if totalSizeKB < 1024 {
+            return "\(totalSizeKB)KB"
+        } else {
+            let sizeMB = Double(totalSizeKB) / 1024.0
+            return String(format: "%.1fMB", sizeMB)
+        }
+    }
+    
+    public var detailDescription: String {
+        return """
+        📊 저장소 사용량 상세
+        
+        🎵 피드백 데이터: \(feedbackCount)개 (~\(feedbackSizeKB)KB)
+        📝 감정 일기: \(diaryCount)개 (~\(diarySizeKB)KB)
+        🎼 사운드 프리셋: \(presetCount)개 (~\(presetSizeKB)KB)
+        
+        📅 데이터 보관 기간: \(retentionDays)일
+        💾 총 사용량: \(totalSizeFormatted)
+        
+        ℹ️ 데이터는 \(retentionDays)일 후 자동으로 정리됩니다.
+        """
+    }
+}
+
+public struct CleanupResult: Codable {
+    public let beforeSizeKB: Int
+    public let afterSizeKB: Int
+    public let freedSpaceKB: Int
+    public let deletedFeedbackCount: Int
+    
+    public var summaryDescription: String {
+        let freedSpaceMB = Double(freedSpaceKB) / 1024.0
+        return """
+        🧹 데이터 정리 완료
+        
+        📉 정리 전: \(beforeSizeKB)KB
+        📈 정리 후: \(afterSizeKB)KB
+        💾 절약된 용량: \(freedSpaceKB)KB (~\(String(format: "%.1f", freedSpaceMB))MB)
+        🗑️ 삭제된 피드백: \(deletedFeedbackCount)개
+        
+        ✅ 앱 성능이 개선되었습니다!
+        """
+    }
+    
+    public var hasSignificantCleanup: Bool {
+        return freedSpaceKB > 100 || deletedFeedbackCount > 10
+    }
+}
 
 // MARK: - 감정 관련 모델 (기존 유지)
 struct Emotion {
@@ -70,14 +247,16 @@ struct EmotionDiary: Codable, Identifiable {
 }
 
 // MARK: - ✅ 확장된 사운드 프리셋 모델 (버전 정보 포함)
-struct SoundPreset: Codable {
-    let id: UUID
-    let name: String
-    let volumes: [Float]
-    let emotion: String?
-    let isAIGenerated: Bool
-    let description: String?
-    let scientificBasis: String?  // 과학적 근거
+public struct SoundPreset: Codable, Equatable {
+    public let id: UUID
+    public let name: String
+    /// Alias for compatibility with tests
+    public var presetName: String { name }
+    public let volumes: [Float]
+    public let emotion: String?
+    public let isAIGenerated: Bool
+    public let description: String?
+    public let scientificBasis: String?  // 과학적 근거
     var createdDate: Date         // 🛑 let에서 var로 변경하여 업데이트 가능하도록 함
     var lastUsed: Date?           // ✅ 최근 사용 시간 추가
     
@@ -264,6 +443,19 @@ struct PresetManager {
         
         SettingsManager.shared.saveSoundPreset(preset)
         print("✅ 새 형식 프리셋 저장: \(name)")
+    }
+}
+
+// MARK: - 추천 응답 모델 (중복 정의 방지를 위해 통합)
+struct RecommendationResponse {
+    let volumes: [Float]
+    let presetName: String
+    let selectedVersions: [Int]
+    
+    init(volumes: [Float], presetName: String = "맞춤 프리셋", selectedVersions: [Int]? = nil) {
+        self.volumes = volumes
+        self.presetName = presetName
+        self.selectedVersions = selectedVersions ?? Array(repeating: 0, count: 13)
     }
 }
 
@@ -1342,127 +1534,4 @@ struct MasterRecommendation: Codable {
         self.createdAt = Date()
     }
 }
-
-// MARK: - 📊 저장소 관리 모델
-struct StorageInfo: Codable {
-    let totalSizeKB: Int
-    let feedbackCount: Int
-    let feedbackSizeKB: Int
-    let diaryCount: Int
-    let diarySizeKB: Int
-    let presetCount: Int
-    let presetSizeKB: Int
-    let retentionDays: Int
-    
-    /// 사용자 친화적 크기 표시
-    var totalSizeFormatted: String {
-        if totalSizeKB < 1024 {
-            return "\(totalSizeKB)KB"
-        } else {
-            let sizeMB = Double(totalSizeKB) / 1024.0
-            return String(format: "%.1fMB", sizeMB)
-        }
-    }
-    
-    /// 상세 정보 문자열
-    var detailDescription: String {
-        return """
-        📊 저장소 사용량 상세
-        
-        🎵 피드백 데이터: \(feedbackCount)개 (~\(feedbackSizeKB)KB)
-        📝 감정 일기: \(diaryCount)개 (~\(diarySizeKB)KB)
-        🎼 사운드 프리셋: \(presetCount)개 (~\(presetSizeKB)KB)
-        
-        📅 데이터 보관 기간: \(retentionDays)일
-        💾 총 사용량: \(totalSizeFormatted)
-        
-        ℹ️ 데이터는 \(retentionDays)일 후 자동으로 정리됩니다.
-        """
-    }
-}
-
-struct CleanupResult: Codable {
-    let beforeSizeKB: Int
-    let afterSizeKB: Int
-    let freedSpaceKB: Int
-    let deletedFeedbackCount: Int
-    
-    /// 정리 결과 요약
-    var summaryDescription: String {
-        let freedSpaceMB = Double(freedSpaceKB) / 1024.0
-        return """
-        🧹 데이터 정리 완료
-        
-        📉 정리 전: \(beforeSizeKB)KB
-        📈 정리 후: \(afterSizeKB)KB
-        💾 절약된 용량: \(freedSpaceKB)KB (~\(String(format: "%.1f", freedSpaceMB))MB)
-        🗑️ 삭제된 피드백: \(deletedFeedbackCount)개
-        
-        ✅ 앱 성능이 개선되었습니다!
-        """
-    }
-    
-    /// 정리 효과가 있었는지 확인
-    var hasSignificantCleanup: Bool {
-        return freedSpaceKB > 100 || deletedFeedbackCount > 10
-    }
-}
-
-/// iOS 16 이하에서 사용하는 CoreData 기반 PresetFeedback 모델
-/// - Note: SwiftData의 PresetFeedback과 구조를 맞춤
-@objc(PresetFeedbackCoreData)
-public class PresetFeedbackCoreData: NSManagedObject {
-    @NSManaged public var id: UUID
-    @NSManaged public var timestamp: Date
-    @NSManaged public var presetName: String
-    @NSManaged public var contextEmotion: String
-    @NSManaged public var contextTime: Int16
-    @NSManaged public var recommendedVolumes: [Float]
-    @NSManaged public var recommendedVersions: [Int]
-    @NSManaged public var finalVolumes: [Float]
-    @NSManaged public var listeningDuration: Double
-    @NSManaged public var wasSkipped: Bool
-    @NSManaged public var wasSaved: Bool
-    @NSManaged public var userSatisfaction: Int16
-}
-
-extension PresetFeedbackCoreData {
-    /// CoreData Entity 이름
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<PresetFeedbackCoreData> {
-        return NSFetchRequest<PresetFeedbackCoreData>(entityName: "PresetFeedbackCoreData")
-    }
-}
-
-/// [Float], [Int] 타입을 CoreData에서 Transformable로 저장/복원하기 위한 ValueTransformer
-@objc(FloatArrayTransformer)
-class FloatArrayTransformer: ValueTransformer {
-    override class func transformedValueClass() -> AnyClass { return NSData.self }
-    override class func allowsReverseTransformation() -> Bool { return true }
-    override func transformedValue(_ value: Any?) -> Any? {
-        guard let array = value as? [Float] else { return nil }
-        return try? NSKeyedArchiver.archivedData(withRootObject: array, requiringSecureCoding: false)
-    }
-    override func reverseTransformedValue(_ value: Any?) -> Any? {
-        guard let data = value as? Data else { return nil }
-        return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [Float]
-    }
-}
-
-@objc(IntArrayTransformer)
-class IntArrayTransformer: ValueTransformer {
-    override class func transformedValueClass() -> AnyClass { return NSData.self }
-    override class func allowsReverseTransformation() -> Bool { return true }
-    override func transformedValue(_ value: Any?) -> Any? {
-        guard let array = value as? [Int] else { return nil }
-        return try? NSKeyedArchiver.archivedData(withRootObject: array, requiringSecureCoding: false)
-    }
-    override func reverseTransformedValue(_ value: Any?) -> Any? {
-        guard let data = value as? Data else { return nil }
-        return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [Int]
-    }
-}
-
-// 앱 시작 시 아래 코드로 등록 필요 (예시)
-// ValueTransformer.setValueTransformer(FloatArrayTransformer(), forName: NSValueTransformerName("FloatArrayTransformer"))
-// ValueTransformer.setValueTransformer(IntArrayTransformer(), forName: NSValueTransformerName("IntArrayTransformer"))
 

@@ -48,7 +48,7 @@ class TodoManager {
     }
 
     // MARK: - Calendar Access
-    private func requestCalendarAccessIfNeeded(completion: @escaping (Bool, Error?) -> Void) {
+    internal func requestCalendarAccessIfNeeded(completion: @escaping (Bool, Error?) -> Void) {
         let status = EKEventStore.authorizationStatus(for: .event)
         switch status {
         case .authorized, .fullAccess:
