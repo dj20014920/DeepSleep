@@ -22,26 +22,14 @@ Temporary Items
 
 # ===== Xcode =====
 # Build products
-*/build/*
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
-profile
-*.moved-aside
-DerivedData
-.idea/
-*.hmap
-*.xccheckout
-*.xcuserstate
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
 
 # User settings
-*.xcuserdata/
+xcuserdata/
 *.xcuserstate
 *.xcuserdatad
 *.xcworkspace/xcuserdata/
@@ -53,13 +41,17 @@ playground.xcworkspace
 # Fastlane
 fastlane/report.xml
 fastlane/Preview.html
-fastlane/screenshots
+fastlane/screenshots/**/*.png
 fastlane/test_output
 
 # Code Injection
 iOSInjectionProject/
 
 # ===== Swift Package Manager =====
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
 .build/
 .swiftpm/
 
@@ -330,20 +322,4 @@ vendor/bundle/
 
 # Config Files
 ## IMPORTANT: Add your secret config files here
-DeepSleepApp/Secrets.xcconfig
-
-# CocoaPods
-Pods/
-*.xcworkspace
-!default.xcworkspace
-
-# Carthage
-Carthage/Build/
-
-# Code Coverage
-*.coverage.txt
-*.gcda
-*.gcno
-
-# Other
-*.generated.swift 
+DeepSleepApp/Secrets.xcconfig 

@@ -164,7 +164,9 @@ class LaunchViewController: UIViewController {
             _ = ComprehensiveRecommendationEngine.shared
             
             // 🧹 피드백 데이터 자동 정리 (백그라운드에서 실행)
-            await FeedbackManager.shared.performStartupCleanup()
+            if #available(iOS 17.0, *) {
+                await FeedbackManager.shared.performStartupCleanup()
+            }
             
             #if DEBUG
             print("✅ [Launch] 백그라운드 초기화 완료")

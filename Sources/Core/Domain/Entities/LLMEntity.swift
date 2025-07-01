@@ -3,14 +3,14 @@ import Foundation
 // MARK: - LLM Service Types
 
 /// LLM 서비스 타입 정의
-public enum LLMServiceType: String, Codable, CaseIterable {
+public enum LLMServiceType: String, Codable, CaseIterable, Hashable {
     case claude = "claude"      // Claude 3.5
     case gemini = "gemini"      // Gemini Flash
     case naver = "naver"        // Naver HyperCLOVA X
     case openAI = "openAI"      // OpenAI GPT-4o-mini
     case onDevice = "onDevice"  // iOS 18+ 온디바이스
     
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .claude: return "클로드"
         case .gemini: return "잼미니"

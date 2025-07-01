@@ -1,20 +1,18 @@
 import SwiftUI
 
-struct AIModelSettingsView: View {
+public struct AIModelSettingsView: View {
     
     @StateObject private var viewModel = AIModelSettingsViewModel()
     
-    var body: some View {
+    public init() {}
+    
+    public var body: some View {
         Form {
             Section(header: Text(viewModel.selectionSectionTitle)) {
                 Picker("모델 선택", selection: $viewModel.selectedModel) {
                     ForEach(viewModel.availableModels, id: \.self) { model in
-                        VStack(alignment: .leading) {
-                            Text(model.displayName).tag(model)
-                            Text(model.description)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
+                        Text(model.displayName)
+                            .tag(model)
                     }
                 }
                 .pickerStyle(.inline)
@@ -39,4 +37,4 @@ struct AIModelSettingsView_Previews: PreviewProvider {
             AIModelSettingsView()
         }
     }
-} 
+}

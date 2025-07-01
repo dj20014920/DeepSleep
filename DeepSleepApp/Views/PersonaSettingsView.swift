@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import Core
 
 /// 사용자 페르소나 및 AI 설정 화면
+@available(iOS 17.0, *)
 struct PersonaSettingsView: View {
     @ObservedObject var personaManager: PersonaMemoryManager
     @State private var isEditing = false
@@ -376,6 +378,7 @@ struct MemoryPreferenceSlider: View {
 
 // MARK: - Preview
 
+@available(iOS 17.0, *)
 struct PersonaSettingsView_Previews: PreviewProvider {
     static var previews: some View {
         PersonaSettingsView(personaManager: PersonaMemoryManager(modelContext: ModelContext(try! ModelContainer(for: AdvancedUserPersona.self))))
