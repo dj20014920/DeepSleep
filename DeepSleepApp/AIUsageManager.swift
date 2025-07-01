@@ -130,4 +130,3 @@ class AIUsageManager {
 
 // CaseIterable 추가
 extension AIFeatureType: CaseIterable {} 
-

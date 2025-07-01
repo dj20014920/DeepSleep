@@ -28,8 +28,7 @@ func forceSyncMainViewControllerPreset(volumes: [Float], versions: [Int], name: 
                 volumes: volumes,
                 versions: versions,
                 name: name,
-                presetId: nil,
-                saveAsNew: true
+                presetId: nil
             )
             mainVC.updatePresetBlocks()
         } else {

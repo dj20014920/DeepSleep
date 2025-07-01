@@ -2,11 +2,16 @@ import UIKit
 import SwiftUI
 import Charts
 import SwiftData
+import Combine
+
+protocol PresetFeedbackDelegate: AnyObject {
+    func didSubmitFeedback(satisfaction: Float, comments: String?)
+}
 
 /// 🌈 프리셋 조화도 시각화 및 피드백 수집 전담 뷰 컨트롤러
 /// 사용자에게 조화 점수, 문제점, 개선 제안을 시각적으로 제시하고 피드백을 수집
 @available(iOS 17.0, *)
-class HarmonyVisualizationViewController: UIViewController {
+class HarmonyVisualizationViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, PresetFeedbackDelegate {
     
     // MARK: - Properties
     private var scrollView: UIScrollView!
@@ -825,7 +830,7 @@ class HarmonyVisualizationViewController: UIViewController {
 }
 
 // MARK: - Data Models
-
+@available(iOS 17.0, *)
 struct HarmonyFeedback {
     let harmonyScore: Float
     let userRating: Int?
@@ -835,4 +840,24 @@ struct HarmonyFeedback {
     let conflicts: [SoundHarmonyAnalyzer.HarmonyConflict]
     let timestamp: Date
     let combinationFeedback: [String: String]
+}
+
+// MARK: - UICollectionViewDataSource
+@available(iOS 17.0, *)
+extension HarmonyVisualizationViewController {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return harmonyAnalysis?.conflicts.count ?? 0
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        return UICollectionViewCell()
+    }
+}
+
+// MARK: - PresetFeedbackDelegate
+@available(iOS 17.0, *)
+extension HarmonyVisualizationViewController {
+    func didSubmitFeedback(satisfaction: Float, comments: String?) {
+        // Placeholder
+    }
 } 

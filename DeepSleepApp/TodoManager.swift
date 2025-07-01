@@ -176,6 +176,13 @@ class TodoManager {
         }
     }
 
+    func updateTodoItem(_ todoToUpdate: TodoItem) {
+        updateTodo(todoToUpdate) { _, _ in
+            // The synchronous call doesn't handle completion, so we can leave this empty.
+            // Consider adding logging or error handling here in the future.
+        }
+    }
+
     func deleteTodo(withId id: UUID, completion: @escaping (Bool, Error?) -> Void) {
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
             guard let self = self else { return }

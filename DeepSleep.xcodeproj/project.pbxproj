@@ -15,25 +15,19 @@
 		0A2847045517DBFD41230CD2 /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA688248D5320737E50F8B62 /* EmotionAnalyzer.swift */; };
 		0A7C7CD1E9AB6894C28DB99C /* UserDefaults+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE87ED59329DD0F275A1AE50 /* UserDefaults+Extensions.swift */; };
 		0AB067FC3371EC991678CCEF /* FeedbackPromptViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C6A14B28A3F76FD857D0D3 /* FeedbackPromptViewController.swift */; };
-		0D526F7B9AD30989E985DB06 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2C330034910041265ECBAF /* LLMService.swift */; };
 		0FD72A31251510B3A1E6CFD5 /* 발걸음-눈.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 17F61988D9A8E7F4B7888962 /* 발걸음-눈.mp3 */; };
-		101C53FCB478052052358FC0 /* LLMSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51BD0419941A004392D5BD79 /* LLMSettingsView.swift */; };
 		105DC9F2A0EB5A9856568E7A /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61214B204E1361A7230F46ED /* LLMService.swift */; };
 		116248452915D0D1DFE14C83 /* SoundCatalogManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49DE4E9BF0DBA5298060F880 /* SoundCatalogManager.swift */; };
-		15FA7AC75B4DC8845E7386E6 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF704FBCA8B0258C129AE8F /* ViewController+EmotionSelector.swift */; };
 		1A8539875CB0DD9953458A1D /* ComprehensiveRecommendationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5707172052678BE50B13AECB /* ComprehensiveRecommendationModels.swift */; };
 		200952B5C4FB1CCD5F2183DC /* PsychoacousticOptimizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBBFEEEE28D8FF61CEA398C /* PsychoacousticOptimizationEngine.swift */; };
 		23E932252E5D4C6F7C4D2B2A /* EmotionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01B3B8D25C977A8651D472 /* EmotionRepository.swift */; };
 		240C54B112E13A023AED1675 /* EmotionAnalysisChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F2870F5B91CDA2B60DDAB7 /* EmotionAnalysisChatViewController.swift */; };
+		26F420AD974E70474569C135 /* CompilerFixStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA1497BC502C3383456ACA8 /* CompilerFixStubs.swift */; };
 		298D44A3E478E1496DB68B51 /* LaunchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4975CA14D4880DAE52C6EAA /* LaunchViewController.swift */; };
 		2B3C6227EE91A37CFD3E7C32 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24CFD7036B0529B69D202AD7 /* ClaudeService.swift */; };
 		2E8A432F36FE75F37D67F07B /* AIModelSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9865046D943BA86D9A3B983C /* AIModelSettingsView.swift */; };
-		33EC70C47AF1FE33E2FAE5B4 /* ViewController+SliderControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7051F08C633539BBD2F766C /* ViewController+SliderControls.swift */; };
 		35B5D4EA75E044E7C42EF872 /* SecureEnclaveKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44718586E746E4D3C543EEB /* SecureEnclaveKeyStore.swift */; };
-		3AA8480A66AA248D679950DC /* HealthKitManager.swift.backup in Resources */ = {isa = PBXBuildFile; fileRef = 6AD0EA5C84AD570691A9D882 /* HealthKitManager.swift.backup */; };
-		3B38323DE49A6C9B2215CD6B /* ADVANCED_AI_DEVELOPMENT_PLAN.txt in Resources */ = {isa = PBXBuildFile; fileRef = 27865642C1F077964D247B19 /* ADVANCED_AI_DEVELOPMENT_PLAN.txt */; };
 		3B7AB725B2F8A798C47333F9 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E1EBF275CB48DBCE5FCBB24 /* EmotionCalendarViewController.swift */; };
-		3EDB67715E7AF48867D52947 /* EmotionCalendarViewController+Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2540DF7453A6268BD5D5BC4B /* EmotionCalendarViewController+Collection.swift */; };
 		3FACA89656FB172D55B5CE2B /* FeedbackVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E516E24045FAC1391F56F13C /* FeedbackVisualizationViewController.swift */; };
 		485515FE86584B94A6EBF04F /* ConversationPipelineProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0C27C133AA7BD64C5B24E2 /* ConversationPipelineProtocols.swift */; };
 		49D2678ECCFCDCD127A1C7A9 /* SoundRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479E8DA35224A4E2A9E821E3 /* SoundRepository.swift */; };
@@ -46,6 +40,7 @@
 		53FCC64544A818E20FC74CC3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A82BEFD2478445039A0B88C8 /* LaunchScreen.storyboard */; };
 		55435F38AF729F4C25EF8431 /* SoundRepositoryImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E23D29601C163FB8818A6A /* SoundRepositoryImpl.swift */; };
 		56358947709FD5526297D107 /* CachedConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0949F87B90BAE78EB741FE7E /* CachedConversationManager.swift */; };
+		56695CCA87A1A163DD157E1D /* Stubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599A4E792DCB3C7DF4E219DB /* Stubs.swift */; };
 		57D5B5AB6B5F6D81998FC9E8 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F3BAB0482DCD69F1DF5302 /* EmotionDiaryViewController+Insights.swift */; };
 		586F7564A9F8281B859C46DB /* 새.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 14DF6DD598B764101D0AED4F /* 새.mp3 */; };
 		58713D9E811373A2C307C050 /* Core.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BD2552FF2959A49C879EF0B1 /* Core.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -62,11 +57,9 @@
 		69F22A2A09A190761B69A139 /* EmotionDiaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DE71D6A7373D4CD2368FAD /* EmotionDiaryViewController.swift */; };
 		6AC2B41A37DFAF95D6B76197 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E2B0F79454C84A478EF96B6 /* GoogleGenerativeAI */; };
 		6C3574E186C72A2D42EC6302 /* CoreDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB425BBD9557DB0725F4585 /* CoreDataModels.swift */; };
-		6C4594F860FB722D1C4787A4 /* EmotionCalendarViewController+AI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 266DC540CC534E26D2C00951 /* EmotionCalendarViewController+AI.swift */; };
 		6C67951B2B9BF332D5774392 /* 바람.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7D4C4AECF096E9CB5762ED14 /* 바람.mp3 */; };
 		6D141097230C1FDA278EDA01 /* 새-비.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0E06AB04B4A0C3FEB6BA1748 /* 새-비.mp3 */; };
 		6D18E1CFE0613CCB89DE6B06 /* EmotionRepositoryImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11DC2102552B815BE83A9C6 /* EmotionRepositoryImpl.swift */; };
-		6E18A25C8838BC31D6E53F55 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18DA7F9CE6129CCF65B30870 /* ClaudeService.swift */; };
 		6FEE3688A4E9520FEF691A35 /* ChatViewController.swift.current_backup in Resources */ = {isa = PBXBuildFile; fileRef = C332E017ADD1621677C32CCF /* ChatViewController.swift.current_backup */; };
 		7186015DDD71689FC7A44403 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46958ED21695D4CA9CEA27F7 /* SceneDelegate.swift */; };
 		762CEC3447AADCD702EA1A4C /* SoundEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A4B658C552A8B3777FBFE0 /* SoundEntity.swift */; };
@@ -101,7 +94,6 @@
 		98E62893B3573C583A05A402 /*  EmotionDiaryCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E6ACF2C8E144F1255FB829 /*  EmotionDiaryCell.swift */; };
 		9B119CE54F135204DDA54D51 /* NaverService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072B05D3B8D5F220C2C817BC /* NaverService.swift */; };
 		9CBD78E623216D5A7CC7CB41 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517B1E388B0605480535EDB8 /* FeedbackManager.swift */; };
-		9DFFFA15EF66A7D0B714EC3B /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFD4DD0D26E16B4FFAE7C18 /* GeminiService.swift */; };
 		9E41E0629F1C64EB77AEC0DD /* EditDiaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132E5E8AFEBC602D592C8226 /* EditDiaryViewController.swift */; };
 		9FC283A8D890E9B352DE507E /* PerformanceOptimizedAISystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB5C38BA98BF5A8B9558461 /* PerformanceOptimizedAISystem.swift */; };
 		A0A9698F82E00787C4054592 /* 비-창문.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CA4E9599E84F87C8B2B12C02 /* 비-창문.mp3 */; };
@@ -110,10 +102,8 @@
 		A4413177DA27A8BF42F45DBF /* PresetSharingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A17AF5B528BCE16D5A9409 /* PresetSharingManager.swift */; };
 		A4E3E6CDA607DA60C2BC3377 /* LLMCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1318FCA786DBF42A7C521F59 /* LLMCache.swift */; };
 		A6C6ECF6142BCBCB37BB6EF3 /* LLMRepositoryImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDEC32D3C0F22D4D696CED37 /* LLMRepositoryImpl.swift */; };
-		A791940780677E5D779F2471 /* ViewController+PresetBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC980E4597BEB96A796D775 /* ViewController+PresetBlocks.swift */; };
 		A7AA5AB2F1D967135994C23F /* SoundPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C30560ED3C7AD3F9676E89 /* SoundPresetCatalog.swift */; };
 		AB6ACA28390FB70B6DA72A02 /* 쿨링팬.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3B73B0911287A7CC4B3BD6A4 /* 쿨링팬.mp3 */; };
-		ABB9220713E8E78A81D83C2F /* LegacyStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF0194513829F41927CB516F /* LegacyStubs.swift */; };
 		AC1C0216F20A3ED02C199E23 /* AITask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 177E19AC074524CD49407B98 /* AITask.swift */; };
 		AD45B0A5FFD177CC13B7896D /* AIModelSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5741C7E3950856B464726C86 /* AIModelSettingsViewModel.swift */; };
 		AE52DB44E811C8D379DFDDED /* UserBehaviorAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990AD15404FD99C83A5B4A6B /* UserBehaviorAnalytics.swift */; };
@@ -123,6 +113,7 @@
 		B92363C60EB60269BC105894 /* EmotionEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA01F7304DC8DCACFA915663 /* EmotionEntity.swift */; };
 		BB857C3A54B056640A1573CA /* ChatUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F26B611B8D2678B7DC99650 /* ChatUseCases.swift */; };
 		BD3168E4CE034F99BB7D8C03 /* 파도2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 10E8848D657E71D16924F19E /* 파도2.mp3 */; };
+		BDFDD368594C7636224172D9 /* AddEditTodoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B710909E9E65E9358B980DC /* AddEditTodoViewController.swift */; };
 		BE7AC9D090FAB45A52AC207C /* RemoteLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 051A9C08F887E1342F322A35 /* RemoteLogger.swift */; };
 		C070E90820D21B36EB302705 /* LLMRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61673BA95EF432DBE8148E70 /* LLMRepository.swift */; };
 		C36676B63B7D7A86D6FB461A /* Core.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BD2552FF2959A49C879EF0B1 /* Core.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -137,22 +128,18 @@
 		D056D7B2F4A8E9C647F12C8D /* cat.gif in Resources */ = {isa = PBXBuildFile; fileRef = 2FD69A3F0D1BCD75194BA5BF /* cat.gif */; };
 		D2F02D88EABCBAD56C986F8A /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C565D7C1995501B64F4296C /* SoundManager.swift */; };
 		D307CAD576FECF45E397BB26 /* FortuneGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D742E483AAB7D4C9C54E40 /* FortuneGenerator.swift */; };
-		DA12C469F9CC3D1D35F93800 /* ChatViewController+Preset.swift in Sources */ = {isa = PBXBuildFile; fileRef = D277FBBB9E383F5E40224DFD /* ChatViewController+Preset.swift */; };
 		DAC24D02289CE7170F816F9B /* AISecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF9D62FDB0D52FAB259704A5 /* AISecurityManager.swift */; };
 		DB8EB7BB14CA6ADC31B658C2 /* AnalysisInitExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A25A8BE0EB1DB9BF2D37946 /* AnalysisInitExtensions.swift */; };
 		DD7C84EEC25BFF81BF4CC069 /* Core.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BD2552FF2959A49C879EF0B1 /* Core.framework */; };
-		DEA68C81DB66CE28E5475D9E /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7800630928644BFAAA2F0F3 /* ViewController+PlaybackControls.swift */; };
 		E0F508B7A45072D238FC8482 /* EmotionResponseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93686EEF2A170CF8F6203756 /* EmotionResponseManager.swift */; };
 		E2949C4459D330F64658EE59 /* ConversationProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1EB41A31435B0CD12918D4 /* ConversationProcessor.swift */; };
 		E2B84A655D2088863F75EDA1 /* forceSyncMainViewControllerPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0C3A9B3077AFDAA5F4CA5B /* forceSyncMainViewControllerPreset.swift */; };
 		E31E937ACA3EB0F77855E2C9 /* MemoryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61605DE3E24E7DC328D6CEDF /* MemoryOptimizationManager.swift */; };
-		E32D6A990249AFE9308B95CA /* EmotionCalendarViewcontroller+Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFEF98FE9DFF2290F6DB9FF /* EmotionCalendarViewcontroller+Diary.swift */; };
 		E376062C25EDF1D360E18DB9 /* SoundFilterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32860D51F4756EF02DB989E6 /* SoundFilterManager.swift */; };
 		E4C31D1C653959766AABD947 /* LegacyPresetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412E060BE032A60032CDB180 /* LegacyPresetManager.swift */; };
 		E5B398115C2D0C8AB2799CA2 /* EmotionDiaryViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D31E4F22D35AE3CC1DDADC /* EmotionDiaryViewController+TableView.swift */; };
 		E80E7D04FE67A710835F95E1 /* UsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1621EB79C194BD9382B0009E /* UsageManager.swift */; };
 		E8A2CDC9814F8722401DFD8D /* PersonaMemoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1F55C87D4D62C27EAE42F /* PersonaMemoryModel.swift */; };
-		E9C548404180BC02C6182329 /* ViewController+Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BC2CE6CFCEF97C58ED7A4F /* ViewController+Utilities.swift */; };
 		EA65D3A3D12E8F7534A95405 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF57F47DA67FE453EE30973E /* GeminiService.swift */; };
 		EBD1B1210ED2621780E8D34A /* LLMEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D798478D5C763ACEA906279E /* LLMEntity.swift */; };
 		ECBCEA65A6B4BCA6B056C3BB /* HarmonyVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34A4A463AA653E7CEBE50C1 /* HarmonyVisualizationViewController.swift */; };
@@ -161,7 +148,6 @@
 		F25C60691A72560851E9FE33 /* ChatBubbleCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7F85490CE5EB88495AB377 /* ChatBubbleCell.swift */; };
 		F2E6B9BF36DE14D8A52EA902 /* SoundHarmonyAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C65D8325E09283100491901D /* SoundHarmonyAnalyzer.swift */; };
 		F30B08B142B8B77AEC277152 /* generate-secrets.sh in Resources */ = {isa = PBXBuildFile; fileRef = 0AFA45EBFC482577223B5089 /* generate-secrets.sh */; };
-		F619193CF24B6A09D46452A3 /* LLMSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A8C9E57ECD7AEFC6623AB3 /* LLMSettingsViewModel.swift */; };
 		F8E9AABC0AFF0D67F887BC9E /* BatteryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19902F631581B4241110DB2 /* BatteryOptimizationManager.swift */; };
 		FAE0429C944AC9D3EBEA9F54 /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB8E50A56891D24BF1305E31 /* DiaryWriteViewController.swift */; };
 		FCC931D23E6A87A952A8AE52 /* PersonaMemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9175A4FA265A2DA7CDFB554A /* PersonaMemoryManager.swift */; };
@@ -220,7 +206,6 @@
 
 /* Begin PBXFileReference section */
 		051A9C08F887E1342F322A35 /* RemoteLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLogger.swift; sourceTree = "<group>"; };
-		06BC2CE6CFCEF97C58ED7A4F /* ViewController+Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Utilities.swift"; sourceTree = "<group>"; };
 		072B05D3B8D5F220C2C817BC /* NaverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaverService.swift; sourceTree = "<group>"; };
 		0949F87B90BAE78EB741FE7E /* CachedConversationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedConversationManager.swift; sourceTree = "<group>"; };
 		0AFA45EBFC482577223B5089 /* generate-secrets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-secrets.sh"; sourceTree = "<group>"; };
@@ -234,18 +219,13 @@
 		1621EB79C194BD9382B0009E /* UsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageManager.swift; sourceTree = "<group>"; };
 		177E19AC074524CD49407B98 /* AITask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITask.swift; sourceTree = "<group>"; };
 		17F61988D9A8E7F4B7888962 /* 발걸음-눈.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈.mp3"; sourceTree = "<group>"; };
-		18DA7F9CE6129CCF65B30870 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
 		1A0C27C133AA7BD64C5B24E2 /* ConversationPipelineProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPipelineProtocols.swift; sourceTree = "<group>"; };
 		1C252CC353E14AAA6E47C832 /* PersonalizedHarmonyLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalizedHarmonyLearner.swift; sourceTree = "<group>"; };
 		1F01B3B8D25C977A8651D472 /* EmotionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionRepository.swift; sourceTree = "<group>"; };
 		209C549CC911D8A8921B22F8 /* ChatEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatEntity.swift; sourceTree = "<group>"; };
-		24A8C9E57ECD7AEFC6623AB3 /* LLMSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMSettingsViewModel.swift; sourceTree = "<group>"; };
 		24CFD7036B0529B69D202AD7 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
-		2540DF7453A6268BD5D5BC4B /* EmotionCalendarViewController+Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewController+Collection.swift"; sourceTree = "<group>"; };
 		25A79374F53A8826E3FD51C3 /* FeedbackIntegrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackIntegrationManager.swift; sourceTree = "<group>"; };
-		266DC540CC534E26D2C00951 /* EmotionCalendarViewController+AI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewController+AI.swift"; sourceTree = "<group>"; };
 		27661601B3D81E04B0443C92 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		27865642C1F077964D247B19 /* ADVANCED_AI_DEVELOPMENT_PLAN.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ADVANCED_AI_DEVELOPMENT_PLAN.txt; sourceTree = "<group>"; };
 		29DAC6A8B4734E25A148A47C /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		2C1EB41A31435B0CD12918D4 /* ConversationProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationProcessor.swift; sourceTree = "<group>"; };
 		2C565D7C1995501B64F4296C /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
@@ -279,11 +259,11 @@
 		4DDC2CF51D37FEECCB5F58E3 /* PROJECTGOAL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = PROJECTGOAL.txt; sourceTree = "<group>"; };
 		4FDF3E59372105824DB9FEDB /* UIDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIDesignSystem.swift; sourceTree = "<group>"; };
 		517B1E388B0605480535EDB8 /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
-		51BD0419941A004392D5BD79 /* LLMSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMSettingsView.swift; sourceTree = "<group>"; };
 		52E6ACF2C8E144F1255FB829 /*  EmotionDiaryCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = " EmotionDiaryCell.swift"; sourceTree = "<group>"; };
 		5707172052678BE50B13AECB /* ComprehensiveRecommendationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComprehensiveRecommendationModels.swift; sourceTree = "<group>"; };
 		5741C7E3950856B464726C86 /* AIModelSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSettingsViewModel.swift; sourceTree = "<group>"; };
 		58A1F55C87D4D62C27EAE42F /* PersonaMemoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaMemoryModel.swift; sourceTree = "<group>"; };
+		599A4E792DCB3C7DF4E219DB /* Stubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stubs.swift; sourceTree = "<group>"; };
 		5A25A8BE0EB1DB9BF2D37946 /* AnalysisInitExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisInitExtensions.swift; sourceTree = "<group>"; };
 		5B1A7DBF49999F23ABDA6D71 /* ChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewController.swift; sourceTree = "<group>"; };
 		5F26B611B8D2678B7DC99650 /* ChatUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatUseCases.swift; sourceTree = "<group>"; };
@@ -294,7 +274,6 @@
 		63C6A14B28A3F76FD857D0D3 /* FeedbackPromptViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackPromptViewController.swift; sourceTree = "<group>"; };
 		67EFE12A56E4AFCD58CBCA50 /* LLMServiceFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMServiceFactory.swift; sourceTree = "<group>"; };
 		69A4B658C552A8B3777FBFE0 /* SoundEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEntity.swift; sourceTree = "<group>"; };
-		6AD0EA5C84AD570691A9D882 /* HealthKitManager.swift.backup */ = {isa = PBXFileReference; lastKnownFileType = text; path = HealthKitManager.swift.backup; sourceTree = "<group>"; };
 		6FB5C38BA98BF5A8B9558461 /* PerformanceOptimizedAISystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceOptimizedAISystem.swift; sourceTree = "<group>"; };
 		708C3E6ADDB5343B1E6883E8 /* 우주.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "우주.mp3"; sourceTree = "<group>"; };
 		710251E7CA274BFA279DE48D /* HarmonyVisualizationCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationCharts.swift; sourceTree = "<group>"; };
@@ -302,6 +281,7 @@
 		7706EB998E86857B6629E077 /* 키보드2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드2.mp3"; sourceTree = "<group>"; };
 		78B8F49E6D2312BE8F27C376 /* 연필.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "연필.mp3"; sourceTree = "<group>"; };
 		7A3A234D44D9C0CAC8D00D4C /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
+		7B710909E9E65E9358B980DC /* AddEditTodoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditTodoViewController.swift; sourceTree = "<group>"; };
 		7D4C4AECF096E9CB5762ED14 /* 바람.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "바람.mp3"; sourceTree = "<group>"; };
 		7D7E6BB1DEBAA7A9691CF011 /* PersonaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaSettingsView.swift; sourceTree = "<group>"; };
 		7FFC11655C1136E6736DE8EF /* 불1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "불1.mp3"; sourceTree = "<group>"; };
@@ -322,7 +302,6 @@
 		990AD15404FD99C83A5B4A6B /* UserBehaviorAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBehaviorAnalytics.swift; sourceTree = "<group>"; };
 		9AAE1257D7E9517E38103CD1 /* 비.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비.mp3"; sourceTree = "<group>"; };
 		9CB5B82E289F9F54B4988D80 /* LegacyChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyChatViewController.swift; sourceTree = "<group>"; };
-		9CF704FBCA8B0258C129AE8F /* ViewController+EmotionSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+EmotionSelector.swift"; sourceTree = "<group>"; };
 		9D514DA26AB4EA0FE02AB22D /* OnDeviceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceService.swift; sourceTree = "<group>"; };
 		A11DC2102552B815BE83A9C6 /* EmotionRepositoryImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionRepositoryImpl.swift; sourceTree = "<group>"; };
 		A19902F631581B4241110DB2 /* BatteryOptimizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryOptimizationManager.swift; sourceTree = "<group>"; };
@@ -332,29 +311,24 @@
 		A99F41141D9C5224A55E1963 /* 고양이.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "고양이.mp3"; sourceTree = "<group>"; };
 		AA01F7304DC8DCACFA915663 /* EmotionEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionEntity.swift; sourceTree = "<group>"; };
 		AA611853D142174D282A3364 /* DeepSleep.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepSleep.entitlements; sourceTree = "<group>"; };
-		AB2C330034910041265ECBAF /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
 		AB8E50A56891D24BF1305E31 /* DiaryWriteViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryWriteViewController.swift; sourceTree = "<group>"; };
 		ADB6393DFC6F3CD7966E4EFA /* ScalableSoundCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalableSoundCatalog.swift; sourceTree = "<group>"; };
 		AF30D607BD2DD56662E5E224 /* DeepSleepTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DeepSleepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF57F47DA67FE453EE30973E /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
 		B0E23D29601C163FB8818A6A /* SoundRepositoryImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundRepositoryImpl.swift; sourceTree = "<group>"; };
 		B5F3BAB0482DCD69F1DF5302 /* EmotionDiaryViewController+Insights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Insights.swift"; sourceTree = "<group>"; };
-		B7800630928644BFAAA2F0F3 /* ViewController+PlaybackControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+PlaybackControls.swift"; sourceTree = "<group>"; };
 		BD018193765568548DD1942B /* AIUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageManager.swift; sourceTree = "<group>"; };
 		BD2552FF2959A49C879EF0B1 /* Core.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Core.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE07FD2AC561F93CD57910CB /* 키보드1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드1.mp3"; sourceTree = "<group>"; };
-		BFFD4DD0D26E16B4FFAE7C18 /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
 		C010F763039F3F5D45C704E1 /* LLMRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouter.swift; sourceTree = "<group>"; };
 		C1FABC2D17D787BA81F366D6 /* UserRulesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRulesManager.swift; sourceTree = "<group>"; };
 		C332E017ADD1621677C32CCF /* ChatViewController.swift.current_backup */ = {isa = PBXFileReference; lastKnownFileType = text; path = ChatViewController.swift.current_backup; sourceTree = "<group>"; };
 		C621046B4A0FEBDD66540895 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C65D8325E09283100491901D /* SoundHarmonyAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundHarmonyAnalyzer.swift; sourceTree = "<group>"; };
-		C7051F08C633539BBD2F766C /* ViewController+SliderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+SliderControls.swift"; sourceTree = "<group>"; };
 		C9276A5B4EF1023D8F518E22 /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		CA4E9599E84F87C8B2B12C02 /* 비-창문.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "비-창문.mp3"; sourceTree = "<group>"; };
 		CB4B591357CBAC40C6F293BE /* EnvironmentConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentConfig.swift; sourceTree = "<group>"; };
-		CCC980E4597BEB96A796D775 /* ViewController+PresetBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+PresetBlocks.swift"; sourceTree = "<group>"; };
-		D277FBBB9E383F5E40224DFD /* ChatViewController+Preset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatViewController+Preset.swift"; sourceTree = "<group>"; };
+		CDA1497BC502C3383456ACA8 /* CompilerFixStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompilerFixStubs.swift; sourceTree = "<group>"; };
 		D34A4A463AA653E7CEBE50C1 /* HarmonyVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationViewController.swift; sourceTree = "<group>"; };
 		D44718586E746E4D3C543EEB /* SecureEnclaveKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveKeyStore.swift; sourceTree = "<group>"; };
 		D4A17AF5B528BCE16D5A9409 /* PresetSharingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetSharingManager.swift; sourceTree = "<group>"; };
@@ -367,10 +341,8 @@
 		DE87ED59329DD0F275A1AE50 /* UserDefaults+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+Extensions.swift"; sourceTree = "<group>"; };
 		DE88D825C361E5380524E0B8 /* EnhancedSoundRecommendationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedSoundRecommendationEngine.swift; sourceTree = "<group>"; };
 		DE9D15D0558ABDC20F792F4A /* ChatManager.swift.backup2 */ = {isa = PBXFileReference; lastKnownFileType = text; path = ChatManager.swift.backup2; sourceTree = "<group>"; };
-		DF0194513829F41927CB516F /* LegacyStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyStubs.swift; sourceTree = "<group>"; };
 		E21E7594BF94D6EFD2A51D48 /* EmotionInputViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionInputViewController.swift; sourceTree = "<group>"; };
 		E516E24045FAC1391F56F13C /* FeedbackVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackVisualizationViewController.swift; sourceTree = "<group>"; };
-		EAFEF98FE9DFF2290F6DB9FF /* EmotionCalendarViewcontroller+Diary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionCalendarViewcontroller+Diary.swift"; sourceTree = "<group>"; };
 		EDEC32D3C0F22D4D696CED37 /* LLMRepositoryImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRepositoryImpl.swift; sourceTree = "<group>"; };
 		EF422926871C03A1B87AE8CF /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		EFCF5ED310AC5D3A3B92344C /* 발걸음-눈2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "발걸음-눈2.mp3"; sourceTree = "<group>"; };
@@ -472,7 +444,6 @@
 			isa = PBXGroup;
 			children = (
 				5741C7E3950856B464726C86 /* AIModelSettingsViewModel.swift */,
-				24A8C9E57ECD7AEFC6623AB3 /* LLMSettingsViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -560,7 +531,7 @@
 			children = (
 				52E6ACF2C8E144F1255FB829 /*  EmotionDiaryCell.swift */,
 				27661601B3D81E04B0443C92 /* .gitignore */,
-				27865642C1F077964D247B19 /* ADVANCED_AI_DEVELOPMENT_PLAN.txt */,
+				7B710909E9E65E9358B980DC /* AddEditTodoViewController.swift */,
 				FF9D62FDB0D52FAB259704A5 /* AISecurityManager.swift */,
 				BD018193765568548DD1942B /* AIUsageManager.swift */,
 				5A25A8BE0EB1DB9BF2D37946 /* AnalysisInitExtensions.swift */,
@@ -577,9 +548,8 @@
 				D924E9C910FB97E7083165F7 /* ChatRouter.swift */,
 				5B1A7DBF49999F23ABDA6D71 /* ChatViewController.swift */,
 				C332E017ADD1621677C32CCF /* ChatViewController.swift.current_backup */,
-				D277FBBB9E383F5E40224DFD /* ChatViewController+Preset.swift */,
-				18DA7F9CE6129CCF65B30870 /* ClaudeService.swift */,
 				D8432EF04287D21964EB770F /* CommonUtilities.swift */,
+				CDA1497BC502C3383456ACA8 /* CompilerFixStubs.swift */,
 				5707172052678BE50B13AECB /* ComprehensiveRecommendationModels.swift */,
 				40ACC8DECA21F22F55F626EA /* ComprehensiveUserAnalysisEngine.swift */,
 				4CB425BBD9557DB0725F4585 /* CoreDataModels.swift */,
@@ -589,9 +559,6 @@
 				80F2870F5B91CDA2B60DDAB7 /* EmotionAnalysisChatViewController.swift */,
 				DA688248D5320737E50F8B62 /* EmotionAnalyzer.swift */,
 				0E1EBF275CB48DBCE5FCBB24 /* EmotionCalendarViewController.swift */,
-				266DC540CC534E26D2C00951 /* EmotionCalendarViewController+AI.swift */,
-				2540DF7453A6268BD5D5BC4B /* EmotionCalendarViewController+Collection.swift */,
-				EAFEF98FE9DFF2290F6DB9FF /* EmotionCalendarViewcontroller+Diary.swift */,
 				A54F4D4B0C22C1ECA83D0D71 /* EmotionDiaryDisplayCell.swift */,
 				32DE71D6A7373D4CD2368FAD /* EmotionDiaryViewController.swift */,
 				9862042A48D10154DA9CF27D /* EmotionDiaryViewController+Actions.swift */,
@@ -613,11 +580,9 @@
 				710251E7CA274BFA279DE48D /* HarmonyVisualizationCharts.swift */,
 				D34A4A463AA653E7CEBE50C1 /* HarmonyVisualizationViewController.swift */,
 				8D374EA0C6AAAC31E3DE930E /* HealthKitManager.swift */,
-				6AD0EA5C84AD570691A9D882 /* HealthKitManager.swift.backup */,
 				A82BEFD2478445039A0B88C8 /* LaunchScreen.storyboard */,
 				F4975CA14D4880DAE52C6EAA /* LaunchViewController.swift */,
 				412E060BE032A60032CDB180 /* LegacyPresetManager.swift */,
-				DF0194513829F41927CB516F /* LegacyStubs.swift */,
 				2E63159F763A071A43133E5E /* LRUCache.swift */,
 				61605DE3E24E7DC328D6CEDF /* MemoryOptimizationManager.swift */,
 				29DAC6A8B4734E25A148A47C /* Models.swift */,
@@ -637,6 +602,7 @@
 				C65D8325E09283100491901D /* SoundHarmonyAnalyzer.swift */,
 				2C565D7C1995501B64F4296C /* SoundManager.swift */,
 				33C30560ED3C7AD3F9676E89 /* SoundPresetCatalog.swift */,
+				599A4E792DCB3C7DF4E219DB /* Stubs.swift */,
 				0F0300A16B90A7BD87F0F947 /* TimerViewController.swift */,
 				4A454C11EF852FA938857D78 /* TodaysFortuneViewController.swift */,
 				3B9409B838E1ADADFE7C5044 /* TodoCalendarViewController.swift */,
@@ -648,11 +614,6 @@
 				990AD15404FD99C83A5B4A6B /* UserBehaviorAnalytics.swift */,
 				DE87ED59329DD0F275A1AE50 /* UserDefaults+Extensions.swift */,
 				94EB98E15828ACC998EEA91F /* ViewController.swift */,
-				9CF704FBCA8B0258C129AE8F /* ViewController+EmotionSelector.swift */,
-				B7800630928644BFAAA2F0F3 /* ViewController+PlaybackControls.swift */,
-				CCC980E4597BEB96A796D775 /* ViewController+PresetBlocks.swift */,
-				C7051F08C633539BBD2F766C /* ViewController+SliderControls.swift */,
-				06BC2CE6CFCEF97C58ED7A4F /* ViewController+Utilities.swift */,
 				5BBE5C0CFE5285661C9D4545 /* AI */,
 				F6B41FF8D1FAE1D07233641E /* Chat */,
 				DA9A4E41008EBB2B6B2B1ABC /* LLM */,
@@ -716,7 +677,6 @@
 			isa = PBXGroup;
 			children = (
 				9865046D943BA86D9A3B983C /* AIModelSettingsView.swift */,
-				51BD0419941A004392D5BD79 /* LLMSettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -764,9 +724,7 @@
 		DA9A4E41008EBB2B6B2B1ABC /* LLM */ = {
 			isa = PBXGroup;
 			children = (
-				BFFD4DD0D26E16B4FFAE7C18 /* GeminiService.swift */,
 				C010F763039F3F5D45C704E1 /* LLMRouter.swift */,
-				AB2C330034910041265ECBAF /* LLMService.swift */,
 			);
 			path = LLM;
 			sourceTree = "<group>";
@@ -913,13 +871,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3B38323DE49A6C9B2215CD6B /* ADVANCED_AI_DEVELOPMENT_PLAN.txt in Resources */,
 				924009AEA679FAF2042816DC /* Assets.xcassets in Resources */,
 				B86DB4932F31770096391495 /* ChatBubbleCell.swift.current_backup in Resources */,
 				4EFBAC56E44E9DBDF4FEA2B4 /* ChatManager.swift.backup2 in Resources */,
 				7DE9AC998439E09AFAB7C276 /* ChatManager.swift.current_backup in Resources */,
 				6FEE3688A4E9520FEF691A35 /* ChatViewController.swift.current_backup in Resources */,
-				3AA8480A66AA248D679950DC /* HealthKitManager.swift.backup in Resources */,
 				53FCC64544A818E20FC74CC3 /* LaunchScreen.storyboard in Resources */,
 				7FEFC85EAF7439610819C25A /* PROJECTGOAL.txt in Resources */,
 				D056D7B2F4A8E9C647F12C8D /* cat.gif in Resources */,
@@ -964,6 +920,7 @@
 				98E62893B3573C583A05A402 /*  EmotionDiaryCell.swift in Sources */,
 				DAC24D02289CE7170F816F9B /* AISecurityManager.swift in Sources */,
 				A2FEC763604838027BB66620 /* AIUsageManager.swift in Sources */,
+				BDFDD368594C7636224172D9 /* AddEditTodoViewController.swift in Sources */,
 				DB8EB7BB14CA6ADC31B658C2 /* AnalysisInitExtensions.swift in Sources */,
 				CA00D9E971259549BD45CFEC /* AppDelegate.swift in Sources */,
 				03AAF748F0257C6CAA553E4E /* AutomaticLearningModels.swift in Sources */,
@@ -971,10 +928,9 @@
 				56358947709FD5526297D107 /* CachedConversationManager.swift in Sources */,
 				F25C60691A72560851E9FE33 /* ChatBubbleCell.swift in Sources */,
 				89601C7254598F279F19D750 /* ChatRouter.swift in Sources */,
-				DA12C469F9CC3D1D35F93800 /* ChatViewController+Preset.swift in Sources */,
 				04E6BCDA67D838593391D192 /* ChatViewController.swift in Sources */,
-				6E18A25C8838BC31D6E53F55 /* ClaudeService.swift in Sources */,
 				CD58AB3FF632435F52EB700B /* CommonUtilities.swift in Sources */,
+				26F420AD974E70474569C135 /* CompilerFixStubs.swift in Sources */,
 				1A8539875CB0DD9953458A1D /* ComprehensiveRecommendationModels.swift in Sources */,
 				7B3C8A86F563A6BA5B40AD9F /* ComprehensiveUserAnalysisEngine.swift in Sources */,
 				485515FE86584B94A6EBF04F /* ConversationPipelineProtocols.swift in Sources */,
@@ -984,10 +940,7 @@
 				9E41E0629F1C64EB77AEC0DD /* EditDiaryViewController.swift in Sources */,
 				240C54B112E13A023AED1675 /* EmotionAnalysisChatViewController.swift in Sources */,
 				0A2847045517DBFD41230CD2 /* EmotionAnalyzer.swift in Sources */,
-				6C4594F860FB722D1C4787A4 /* EmotionCalendarViewController+AI.swift in Sources */,
-				3EDB67715E7AF48867D52947 /* EmotionCalendarViewController+Collection.swift in Sources */,
 				3B7AB725B2F8A798C47333F9 /* EmotionCalendarViewController.swift in Sources */,
-				E32D6A990249AFE9308B95CA /* EmotionCalendarViewcontroller+Diary.swift in Sources */,
 				FD59ED51BC4C34E9DEE540D4 /* EmotionDiaryDisplayCell.swift in Sources */,
 				7E52E659ED90315C1CAC1CF4 /* EmotionDiaryViewController+Actions.swift in Sources */,
 				57D5B5AB6B5F6D81998FC9E8 /* EmotionDiaryViewController+Insights.swift in Sources */,
@@ -1004,17 +957,14 @@
 				89106A8A11A298835E339121 /* FeedbackVisualizationCharts.swift in Sources */,
 				3FACA89656FB172D55B5CE2B /* FeedbackVisualizationViewController.swift in Sources */,
 				D307CAD576FECF45E397BB26 /* FortuneGenerator.swift in Sources */,
-				9DFFFA15EF66A7D0B714EC3B /* GeminiService.swift in Sources */,
 				59AA07EECF39A63A363948F4 /* HarmonyVisualizationCharts.swift in Sources */,
 				ECBCEA65A6B4BCA6B056C3BB /* HarmonyVisualizationViewController.swift in Sources */,
 				6160DE2A848CD2E79094A275 /* HealthKitManager.swift in Sources */,
 				8414655DF078D38CA5F3C71F /* LLMRouter.swift in Sources */,
-				0D526F7B9AD30989E985DB06 /* LLMService.swift in Sources */,
 				C4653965DB3D22B15A421BD1 /* LRUCache.swift in Sources */,
 				298D44A3E478E1496DB68B51 /* LaunchViewController.swift in Sources */,
 				89FBE625B527121FB7BB0AD0 /* LegacyChatViewController.swift in Sources */,
 				E4C31D1C653959766AABD947 /* LegacyPresetManager.swift in Sources */,
-				ABB9220713E8E78A81D83C2F /* LegacyStubs.swift in Sources */,
 				E31E937ACA3EB0F77855E2C9 /* MemoryOptimizationManager.swift in Sources */,
 				807F66F8A1BB8F2D56158982 /* Models.swift in Sources */,
 				9FC283A8D890E9B352DE507E /* PerformanceOptimizedAISystem.swift in Sources */,
@@ -1034,6 +984,7 @@
 				F2E6B9BF36DE14D8A52EA902 /* SoundHarmonyAnalyzer.swift in Sources */,
 				D2F02D88EABCBAD56C986F8A /* SoundManager.swift in Sources */,
 				A7AA5AB2F1D967135994C23F /* SoundPresetCatalog.swift in Sources */,
+				56695CCA87A1A163DD157E1D /* Stubs.swift in Sources */,
 				831EE55FE9788A873CB2D5DF /* TimerViewController.swift in Sources */,
 				63629AA1E985210640C7B79F /* TodaysFortuneViewController.swift in Sources */,
 				FD0A9EC5625241001FA71DB0 /* TodoCalendarViewController.swift in Sources */,
@@ -1047,11 +998,6 @@
 				0A7C7CD1E9AB6894C28DB99C /* UserDefaults+Extensions.swift in Sources */,
 				96A49AFC170FD33CCCFD33C5 /* UserRulesApplierStep.swift in Sources */,
 				5017738A3E9E6B6D545D6C27 /* UserRulesManager.swift in Sources */,
-				15FA7AC75B4DC8845E7386E6 /* ViewController+EmotionSelector.swift in Sources */,
-				DEA68C81DB66CE28E5475D9E /* ViewController+PlaybackControls.swift in Sources */,
-				A791940780677E5D779F2471 /* ViewController+PresetBlocks.swift in Sources */,
-				33EC70C47AF1FE33E2FAE5B4 /* ViewController+SliderControls.swift in Sources */,
-				E9C548404180BC02C6182329 /* ViewController+Utilities.swift in Sources */,
 				4FAE43551C4609CC059EC95B /* ViewController.swift in Sources */,
 				E2B84A655D2088863F75EDA1 /* forceSyncMainViewControllerPreset.swift in Sources */,
 			);
@@ -1082,8 +1028,6 @@
 				A6C6ECF6142BCBCB37BB6EF3 /* LLMRepositoryImpl.swift in Sources */,
 				105DC9F2A0EB5A9856568E7A /* LLMService.swift in Sources */,
 				5F833BBA674F9C702DCB96EF /* LLMServiceFactory.swift in Sources */,
-				101C53FCB478052052358FC0 /* LLMSettingsView.swift in Sources */,
-				F619193CF24B6A09D46452A3 /* LLMSettingsViewModel.swift in Sources */,
 				9B119CE54F135204DDA54D51 /* NaverService.swift in Sources */,
 				60947E8FFF94FF1780B42814 /* OnDeviceService.swift in Sources */,
 				5C73B743C46988189639D50D /* OpenAIService.swift in Sources */,
@@ -1203,9 +1147,11 @@
 		21D86A14DDD370598E0180A5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -1217,6 +1163,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.Core;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -1291,9 +1238,11 @@
 		64853CB4EDC3935B0E37BA04 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -1305,6 +1254,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.Core;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;

@@ -1,363 +1,115 @@
 import UIKit
 import AVFoundation
 import MediaPlayer
+import CoreData
+import Combine
 
 class MainViewController: UIViewController {
     
-    // MARK: - AI Orchestrator
-    var aiOrchestrator: EnhancedUnifiedAIOrchestrator!
+    // MARK: - Properties
     
-    let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
-
+    let instanceUUID = UUID().uuidString
     
-    // MARK: - Properties (13개 카테고리로 업데이트)
-    
-    /// 새로운 13개 이모지 라벨 (기존 A-L 대신)
-    var categoryLabels: [String] {
-        return SoundPresetCatalog.displayLabels
-    }
-    
-    ///  슬라이더 라벨
-    @available(*, deprecated, message: "Use categoryLabels instead")
-    let sliderLabels = Array("ABCDEFGHIJKLM")  // 13개로 변경
-    
-    /// 감정 이모지 (6개로 확장 - 기본 감정들)
-    let emojis = ["😴","😢","😠","😊","😔","😐"]
-    
-    /// UI 요소들 (13개 카테고리)
     var sliders: [UISlider] = []
     var volumeFields: [UITextField] = []
     var playButtons: [UIButton] = []
-    var previewSeekSliders: [UISlider] = [] // 미리듣기 탐색 슬라이더들
     
-    // 프리셋 블록 UI 요소들 (기존 유지)
     var recentPresetButtons: [UIButton] = []
     var favoritePresetButtons: [UIButton] = []
     var presetStackView: UIStackView!
     
-    // 프리셋 업데이트 디바운싱을 위한 타이머
-    var updateTimer: Timer?
-    
-    // 실시간 재생 상태 모니터링 (기존 유지)
-    var playbackMonitorTimer: Timer?
-    
-    // 현재 미리듣기 상태
-    var currentlyPreviewingIndex: Int? = nil
-    var previewSliderUpdateTimer: Timer?
-
-    var globalVolume: Float = 0.75 // 기본 글로벌 볼륨 (0.0 ~ 1.0) - 0.01에서 0.75로 변경
-    
-    // 🆕 초기화 상태 추적 플래그들
-    private var hasCompletedInitialSetup: Bool = false
-    private var hasPerformedDelayedInit: Bool = false
-    
-    // 오디오 모드 버튼
     var audioModeButton: UIButton!
     
-    // 마스터 볼륨 컨트롤
-    var masterVolumeSlider: UISlider!
-    var masterVolumeField: UITextField!
-    internal var masterVolumeLevel: Float = 50.0  // 마스터 볼륨 레벨 (0-100), 기본값 50
-
-    // MARK: - 데시벨 임계값 및 사용자 선택 상태 저장
+    var overallVolumeSlider: UISlider!
+    var overallVolumeField: UITextField!
+    var overallVolumeLevel: Float = 100.0
     
-    /// 데시벨 임계값 (이 값을 넘으면 사용자에게 확인 다이얼로그 표시)
+    var updateTimer: Timer?
+    var playbackMonitorTimer: Timer?
+    
     let volumeThreshold: Int = 80
-    /// 임계값 초과 시 사용자의 재생 허용 상태 (카테고리별)
     var hasVolumeOverride: [Bool] = Array(repeating: false, count: SoundPresetCatalog.categoryCount)
-    /// 마스터 볼륨 임계값 초과 시 사용자 확인 상태 저장
     var hasMasterOverride: Bool = false
 
-    // MARK: - Lifecycle
+    private var hasCompletedInitialSetup: Bool = false
+    private var hasPerformedDelayedInit: Bool = false
+
+    var persistentContainer: NSPersistentContainer? {
+        (UIApplication.shared.delegate as? AppDelegate)?.persistentContainer
+    }
+
+    // MARK: - Lifecycle & Staged Initialization
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("👍 [ViewController] viewDidLoad() - 초기화 시작")
-        print("✅ ViewController [\(instanceUUID)] viewDidLoad.") // UUID 로깅 추가
-        
-        // 🚀 1단계: 필수 UI만 먼저 설정 (즉시)
+        print("✅ ViewController [\(instanceUUID)] viewDidLoad.")
         setupCriticalUI()
-        
-        // 🚀 2단계: 나머지 초기화는 백그라운드에서 비동기 처리
-        Task {
-            await performAsyncInitialization()
-        }
-        
-        // 🚀 3단계: 지연 로딩 항목들은 viewDidAppear에서 처리
-        // (별도 메서드로 이동)
+        Task { await performAsyncInitialization() }
     }
-    
-    // MARK: - 🚀 성능 최적화: 단계별 초기화
-    
-    /// 1단계: 즉시 필요한 최소한의 UI만 설정
-    private func setupCriticalUI() {
-        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        configureNavBar()
-        
-        // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
-        setupBasicSliderUI()
-        
-        print("✅ 필수 UI 설정 완료 (즉시)")
-    }
-    
-    /// 2단계: 백그라운드에서 비동기 초기화
-    @MainActor
-    private func performAsyncInitialization() async {
-        // 데이터 검증 (백그라운드)
-        await Task.detached { [weak self] in
-            #if DEBUG
-            print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
-            #endif
-            
-            // 마이그레이션 실행 (백그라운드)
-            PresetManager.shared.migrateLegacyPresetsIfNeeded()
-            
-            await MainActor.run { [weak self] in
-                self?.setupKeyboardNotifications()
-                self?.setupNotifications()
-                print("✅ 백그라운드 초기화 완료")
-            }
-        }.value
-        
-        // UI 업데이트는 메인 스레드에서
-        setupInitialState()
-    }
-    
-    /// 3단계: 지연 로딩 (viewDidAppear에서 호출)
-    private func performDelayedInitialization() {
-        print("🚀 [performDelayedInitialization] 지연 초기화 시작")
-        
-        // 🆕 애플워치 헬스킷 초기화 (지연)
-        Task {
-            await setupHealthKitIfNeeded()
-        }
-        
-        // 프리셋 블록 업데이트 (지연)
-        Task {
-            await MainActor.run {
-                setupPresetBlocks()
-                updatePresetBlocks()
-            }
-        }
-        
-        // 🆕 온디바이스 학습은 앱 시작 후 5분 후에만 실행 (성능 최적화)
-        let lastLearningTime = UserDefaults.standard.double(forKey: "lastOnDeviceLearningTime")
-        let now = Date().timeIntervalSince1970
-        let fiveMinutes = 5 * 60.0
-        
-        if now - lastLearningTime > fiveMinutes {
-            Task {
-                await checkAndTriggerOnDeviceLearning()
-                // 학습 시간 업데이트
-                UserDefaults.standard.set(now, forKey: "lastOnDeviceLearningTime")
-            }
-            print("🤖 [performDelayedInitialization] 온디바이스 학습 스케줄됨 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
-        } else {
-            print("⏭️ [performDelayedInitialization] 온디바이스 학습 스킵 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
-        }
-        
-        print("✅ [performDelayedInitialization] 지연 초기화 완료")
-    }
-    
-    /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)
-    private func setupBasicSliderUI() {
-        // 슬라이더만 기본값으로 빠르게 표시
-        setupSliderUI()
-        
-        // 이모지 셀렉터는 지연 로딩
-        Task { @MainActor in
-            setupEmojiSelector()
-        }
-    }
-    
-    // MARK: - 프리셋 마이그레이션
-    private func migratePresets() {
-        // 통합된 프리셋 마이그레이션 (12개 → 11개 + 버전 정보 추가)
-        PresetManager.shared.migrateLegacyPresetsIfNeeded()
-        
-        print("✅ 프리셋 마이그레이션 완료")
-    }
-    
-    // MARK: - viewWillAppear 중복 제거 - Extension에서 처리
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        print("👍 [ViewController] viewWillAppear(_:) - isGloballyPaused: \(SoundManager.shared.isGloballyPaused)")
-        
-        updatePlayButtonStates()
         startPlaybackStateMonitoring()
-        
-        // 🆕 프리셋 블록 업데이트는 초기화 완료 후에만
-        if hasCompletedInitialSetup {
-            updatePresetBlocks()
-        }
-        
-        updateAudioModeButtonTitle() // 오디오 모드 버튼 제목 업데이트
+        if hasCompletedInitialSetup { updatePresetBlocks() }
+        if audioModeButton != nil { updateAudioModeButtonTitle() }
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("👍 [ViewController] viewDidAppear(_:) - hasPerformedDelayedInit: \(hasPerformedDelayedInit)")
-        
-        // ✅ 카테고리 버튼 UI 업데이트 (저장된 버전 정보 반영)
-        updateAllCategoryButtonTitles()
-        
-        startPlaybackStateMonitoring()
-        
-        // 🚀 지연 초기화는 최초 1회만 실행
         if !hasPerformedDelayedInit {
             hasPerformedDelayedInit = true
-            print("🚀 [ViewController] 지연 초기화 최초 실행")
             performDelayedInitialization()
-        } else {
-            print("🔄 [ViewController] 지연 초기화 이미 완료됨 - 스킵")
         }
-        
-        // 🆕 초기화 완료 플래그 설정
         hasCompletedInitialSetup = true
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
         stopPlaybackStateMonitoring()
+        saveCurrentState()
     }
 
     deinit {
-        // 명시적으로 특정 옵저버만 제거 (안전성 향상)
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("ApplyPresetFromChat"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("SoundVolumesUpdated"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LocalPresetApplied"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: .modelUpdated, object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("FavoritesUpdated"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+        NotificationCenter.default.removeObserver(self)
         stopPlaybackStateMonitoring()
-        
-        #if DEBUG
-        print("🗑️ ViewController [\(instanceUUID)] 메모리 해제됨")
-        #endif
+    }
+
+    private func setupCriticalUI() {
+        view.backgroundColor = .systemBackground
+        configureNavBar()
+        setupSliderUI()
+    }
+    
+    @MainActor
+    private func performAsyncInitialization() async {
+        await Task.detached { PresetManager.shared.migrateLegacyPresetsIfNeeded() }.value
+        setupNotifications()
+        setupGestures()
+        restoreLastState()
+    }
+    
+    private func performDelayedInitialization() {
+        setupPresetBlocks()
+        updatePresetBlocks()
+        Task { await checkAndTriggerOnDeviceLearning() }
     }
 
     // MARK: - Setup
-    private func setupUI() {
-        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        configureNavBar()
-        
-        // ✅ 필수 UI 초기화 추가
-        setupEmojiSelector()
-        setupSliderUI()
-        setupPresetBlocks()
-        setupNotifications()
-        setupGestures()
-        
-        print("✅ ViewController UI 설정 완료")
-    }
-    
-    private func setupInitialState() {
-        // 초기 상태 설정
-        updatePlayButtonStates()
-        updateAllCategoryButtonTitles()
-        updateAllVersionButtons()
-        updatePresetBlocks()
-        print("✅ ViewController 초기 상태 설정 완료")
-    }
-    
-    private func setupKeyboardNotifications() {
-        // 키보드 알림 설정
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillShow),
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillHide),
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-    }
     
     private func configureNavBar() {
-        // 왼쪽: 타이머
+        navigationItem.title = "Deep Sleep"
         let timerItem = UIBarButtonItem(title: "타이머", style: .plain, target: self, action: #selector(showTimer))
-        timerItem.tintColor = UIDesignSystem.Colors.primaryText
-        
-        // 오른쪽: 저장 + 프리셋 + 피드백 분석
         let saveItem = UIBarButtonItem(title: "저장", style: .plain, target: self, action: #selector(savePresetTapped))
-        saveItem.tintColor = UIDesignSystem.Colors.primaryText
-        
         let presetItem = UIBarButtonItem(title: "프리셋", style: .plain, target: self, action: #selector(loadPresetTapped))
-        presetItem.tintColor = UIDesignSystem.Colors.primaryText
-        
-        var rightItems = [saveItem, presetItem]
-        
-        // 🎨 NEW: 피드백 시각화 버튼 추가 (iOS 17+만)
-        if #available(iOS 17.0, *) {
-            let feedbackItem = UIBarButtonItem(
-                image: UIImage(systemName: "chart.bar.fill"),
-                style: .plain,
-                target: self,
-                action: #selector(showFeedbackVisualization)
-            )
-            feedbackItem.tintColor = UIDesignSystem.Colors.primaryText
-            rightItems.insert(feedbackItem, at: 0) // 맨 앞에 추가
-        }
-        
         navigationItem.leftBarButtonItems = [timerItem]
-        navigationItem.rightBarButtonItems = rightItems
+        navigationItem.rightBarButtonItems = [saveItem, presetItem]
     }
     
     private func setupNotifications() {
-        // 채팅에서 프리셋 적용 요청 받기
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleApplyPresetFromChat(_:)),
-            name: NSNotification.Name("ApplyPresetFromChat"),
-            object: nil
-        )
-        
-        // 외부에서 로컬 프리셋 적용 알림 받기 (채팅 → 메인 뷰)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleLocalPresetApplied(_:)),
-            name: NSNotification.Name("LocalPresetApplied"),
-            object: nil
-        )
-        
-        // SoundManager 볼륨 변경 동기화
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleSoundVolumesUpdated(_:)),
-            name: NSNotification.Name("SoundVolumesUpdated"),
-            object: nil
-        )
-        
-        // 감정 분석 모델 업데이트 알림
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleModelUpdated),
-            name: .modelUpdated,
-            object: nil
-        )
-        
-        // ✅ 최근 사용한 프리셋 갱신 알림 받기
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleRecentPresetsUpdated),
-            name: NSNotification.Name("RecentPresetsUpdated"),
-            object: nil
-        )
-        
-        // ✅ 즐겨찾기 프리셋 갱신 알림 받기
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleFavoritesUpdated(_:)),
-            name: NSNotification.Name("FavoritesUpdated"),
-            object: nil
-        )
-        
-        print("✅ ViewController 알림 옵저버 설정 완료")
+        NotificationCenter.default.addObserver(self, selector: #selector(handleApplyPresetFromChat(_:)), name: NSNotification.Name("ApplyPresetFromChat"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleModelUpdated), name: .modelUpdated, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleRecentPresetsUpdated), name: NSNotification.Name("RecentPresetsUpdated"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleFavoritesUpdated(_:)), name: NSNotification.Name("FavoritesUpdated"), object: nil)
     }
     
     private func setupGestures() {
@@ -365,891 +117,612 @@ class MainViewController: UIViewController {
         view.addGestureRecognizer(tapGesture)
     }
     
-    // MARK: - 햅틱 피드백 타입 정의
-    enum HapticType {
-        case light, medium, heavy
-    }
-    
-    // MARK: - 햅틱 피드백 wrapper 메서드 (ViewController+Utilities.swift와 연동)
-    func provideHapticFeedback(_ type: HapticType) {
-        switch type {
-        case .light:
-            provideLightHapticFeedback()
-        case .medium:
-            provideMediumHapticFeedback()
-        case .heavy:
-            let feedback = UIImpactFeedbackGenerator(style: .heavy)
-            feedback.impactOccurred()
-        }
-    }
-    
-    // MARK: - 기존 API 호환성 보장 (중요!)
-    
-    /// 기존 A-L 인덱스를 사용하는 메서드들 (레거시 지원)
-    var sliderCount: Int {
-        return SoundPresetCatalog.categoryCount  // 11개
-    }
-    
-    /// 기존 코드에서 sliderLabels 사용하는 부분 지원
-    func getSliderLabel(at index: Int) -> String {
-        guard index >= 0, index < SoundPresetCatalog.categoryCount else {
-            return "Unknown"
-        }
-        return SoundPresetCatalog.displayLabels[index]
-    }
-    
-    /// 기존 12개 볼륨 배열을 받아서 11개로 변환 후 적용
-    func applyLegacyPreset(volumes12: [Float], name: String) {
-        if volumes12.count == 12 {
-            let convertedVolumes = volumes12.count == 13 ? volumes12 : Array(repeating: 0.0, count: 13)
-            // 레거시 프리셋은 기본 버전을 사용하거나, 별도의 버전 변환 로직이 필요할 수 있음
-            // 여기서는 nil을 전달하여 applyPreset 내부에서 기본값을 사용하도록 함
-            applyPreset(volumes: convertedVolumes, versions: nil, name: name)
-            print("✅ 12개 → 11개 프리셋 변환 적용: \(name)")
-        } else {
-            // 12개가 아닌 다른 개수의 레거시 볼륨은 버전 정보 없이 적용 시도
-            applyPreset(volumes: volumes12, versions: nil, name: name)
-        }
-    }
-    
-    /// 현재 11개 볼륨을 12개 형식으로 반환 (기존 시스템과의 호환성)
-    func getCurrentVolumesAs12() -> [Float] {
-        let current11 = getCurrentVolumes()
-        return current11.count == 13 ? current11 : Array(repeating: 0.0, count: 12)
-    }
-    
-    // MARK: - 재생 상태 관리 (기존 기능 유지)
-    
-    /// 현재 재생 중인 트랙들의 인덱스 반환
-    func getPlayingTracks() -> [Int] {
-        var playingTracks: [Int] = []
-        for i in 0..<sliders.count {
-            if SoundManager.shared.isPlaying(at: i) {
-                playingTracks.append(i)
-            }
-        }
-        return playingTracks
-    }
-    
-    /// 특정 볼륨 이상의 트랙들만 재생
-    func playTracksAboveVolume(_ minVolume: Float) {
-        for i in 0..<sliders.count {
-            if sliders[i].value >= minVolume {
-                SoundManager.shared.play(at: i)
-            }
-        }
-        updatePlayButtonStates()
-    }
-    
-    /// 모든 볼륨을 특정 비율로 조정
-    func adjustAllVolumes(by ratio: Float) {
-        for i in 0..<sliders.count {
-            let newVolume = min(100, max(0, sliders[i].value * ratio))
-            updateSliderAndTextField(at: i, volume: newVolume)
-        }
-    }
-    
-    // MARK: - 기존 인터페이스 메서드들 (반드시 유지)
-    
-    @objc func fadeOutTapped() {
-        SoundManager.shared.pauseAll()
-        // UI 업데이트를 위한 타이머 (메모리 누수 방지)
-        let fadeOutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
-            guard let self = self else {
-                timer.invalidate()
-                return
-            }
-            self.updatePlayButtonStates()
-        }
+    func setupSliderUI() {
+        let scrollView = UIScrollView()
+        let containerView = UIView()
+        let stackView = UIStackView(axis: .vertical, spacing: 16)
+        [scrollView, containerView, stackView].forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
         
-        // 30초 후 타이머 정리 (메모리 누수 방지)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak fadeOutTimer] in
-            fadeOutTimer?.invalidate()
-        }
-        
-        provideMediumHapticFeedback()
-        print("🌅 페이드아웃 시작")
-    }
-    
-    /// 볼륨 프리셋 빠른 적용
-    @objc func quickVolumePreset(_ sender: UIButton) {
-        let presetVolume: Float = Float(sender.tag)  // 버튼 태그를 볼륨으로 사용
-        
-        for i in 0..<sliders.count {
-            if sliders[i].value > 0 {  // 현재 재생 중인 트랙만
-                updateSliderAndTextField(at: i, volume: presetVolume)
-            }
-        }
-        
-        provideLightHapticFeedback()
-        print("⚡ 빠른 볼륨 조정: \(presetVolume)%")
-    }
+        view.addSubview(scrollView)
+        scrollView.addSubview(containerView)
+        containerView.addSubview(stackView)
 
+        let controlsStack = UIStackView(axis: .horizontal, spacing: 12)
+        audioModeButton = UIButton.systemButton(image: UIImage(systemName: "speaker.wave.3"), target: self, action: #selector(audioModeButtonTapped))
+        let playAll = UIButton.systemButton(image: UIImage(systemName: "play.fill"), target: self, action: #selector(playAllTapped))
+        let pauseAll = UIButton.systemButton(image: UIImage(systemName: "pause.fill"), target: self, action: #selector(pauseAllTapped))
+        controlsStack.addArrangedSubviews([audioModeButton, playAll, pauseAll])
+        containerView.addSubview(controlsStack)
 
-    
-    /// 랜덤 프리셋 생성
-    @objc func generateRandomPreset() {
-        var randomVolumes: [Float] = []
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            containerView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            containerView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            containerView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            controlsStack.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
+            controlsStack.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            stackView.topAnchor.constraint(equalTo: controlsStack.bottomAnchor, constant: 20),
+            stackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            stackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20)
+        ])
+
+        setupMasterVolumeSlider(stackView: stackView)
+
+        sliders.removeAll()
+        volumeFields.removeAll()
+        playButtons.removeAll()
         
-        for _ in 0..<SoundPresetCatalog.categoryCount {
-            let randomVolume = Float.random(in: 0...100)
-            randomVolumes.append(randomVolume)
-        }
-        
-        // 랜덤 프리셋은 모든 카테고리의 기본 버전을 사용
-        applyPreset(volumes: randomVolumes, versions: SoundPresetCatalog.defaultVersions, name: "🎲 랜덤 프리셋")
-        print("✅ 랜덤 프리셋 생성")
-    }
-    
-    // MARK: - 볼륨 컨트롤 단축키들 (기존 기능)
-    
-    /// 전체 볼륨 업
-    @objc func volumeUpAll() {
-        adjustAllVolumes(by: 1.1)  // 10% 증가
-        provideLightHapticFeedback()
-    }
-    
-    /// 전체 볼륨 다운
-    @objc func volumeDownAll() {
-        adjustAllVolumes(by: 0.9)  // 10% 감소
-        provideLightHapticFeedback()
-    }
-    
-    /// 전체 볼륨 뮤트/언뮤트
-    @objc func muteToggleAll() {
-        let hasAnyVolume = sliders.contains { $0.value > 0 }
-        
-        if hasAnyVolume {
-            // 뮤트: 현재 볼륨들을 저장하고 0으로 설정
-            let currentVolumes = getCurrentVolumes()
-            UserDefaults.standard.set(currentVolumes, forKey: "lastVolumesBeforeMute")
+        for i in 0..<SoundPresetCatalog.categoryCount {
+            let rowStack = UIStackView(axis: .horizontal, spacing: 12)
+            let categoryButton = UIButton.systemButton(target: self, action: #selector(categoryButtonTapped(_:)))
+            updateCategoryButtonTitle(categoryButton, for: i)
+            categoryButton.contentHorizontalAlignment = .left
+            categoryButton.tag = i
+            categoryButton.widthAnchor.constraint(equalToConstant: 90).isActive = true
             
-            for i in 0..<sliders.count {
-                updateSliderAndTextField(at: i, volume: 0)
-            }
-            print("🔇 전체 뮤트")
-        } else {
-            // 언뮤트: 저장된 볼륨 복원
-            if let savedVolumes = UserDefaults.standard.array(forKey: "lastVolumesBeforeMute") as? [Float] {
-                let targetCount = min(savedVolumes.count, sliders.count)
-                for i in 0..<targetCount {
-                    updateSliderAndTextField(at: i, volume: savedVolumes[i])
-                }
-            } else {
-                // 저장된 볼륨이 없으면 기본값 적용
-                let defaultVolumes: [Float] = Array(repeating: 50, count: SoundPresetCatalog.categoryCount)
-                updateAllSlidersAndFields(volumes: defaultVolumes)
-            }
-            print("🔊 전체 언뮤트")
+            let slider = UISlider()
+            slider.minimumValue = 0
+            slider.maximumValue = 100
+            slider.value = 0
+            slider.tag = i
+            slider.addTarget(self, action: #selector(sliderChanged(_:)), for: .valueChanged)
+            sliders.append(slider)
+
+            let volumeField = UITextField()
+            volumeField.text = "0"
+            volumeField.borderStyle = .roundedRect
+            volumeField.keyboardType = .numberPad
+            volumeField.tag = i
+            volumeField.delegate = self
+            volumeField.widthAnchor.constraint(equalToConstant: 50).isActive = true
+            volumeField.addTarget(self, action: #selector(textFieldChanged(_:)), for: .editingChanged)
+            volumeField.addTarget(self, action: #selector(textFieldEditingEnded(_:)), for: .editingDidEnd)
+            volumeFields.append(volumeField)
+
+            let playButton = UIButton.systemButton(image: UIImage(systemName: "play.fill"), target: self, action: #selector(toggleTrack(_:)))
+            playButton.tag = i
+            playButton.widthAnchor.constraint(equalToConstant: 30).isActive = true
+            playButton.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            playButtons.append(playButton)
+
+            rowStack.addArrangedSubviews([categoryButton, slider, volumeField, playButton])
+            stackView.addArrangedSubview(rowStack)
         }
-        
+    }
+    
+    // MARK: - Playback Controls
+
+    @objc func toggleTrack(_ sender: UIButton) {
+        let index = sender.tag
+        if SoundManager.shared.isPlaying(at: index) {
+            SoundManager.shared.pause(at: index)
+        } else {
+            SoundManager.shared.play(at: index)
+        }
+        updatePlayButtonStates()
+    }
+    
+    @objc func playAllTapped() {
+        SoundManager.shared.playAll()
+        SoundManager.shared.updateNowPlayingInfo(presetName: "DeepSleep 믹스", isPlayingOverride: true)
+        updatePlayButtonStates()
+        provideMediumHapticFeedback()
+    }
+
+    @objc func pauseAllTapped() {
+        SoundManager.shared.pauseAll()
+        SoundManager.shared.updateNowPlayingInfo(presetName: SoundManager.shared.currentPresetName, isPlayingOverride: false)
+        updatePlayButtonStates()
         provideMediumHapticFeedback()
     }
     
-    // MARK: - 접근성 지원 (기존 기능 확장)
-    
-    override func accessibilityPerformEscape() -> Bool {
-        // 접근성: Escape 제스처로 모든 사운드 정지
-        SoundManager.shared.pauseAll()
-        updatePlayButtonStates()
-        return true
+    func startPlaybackStateMonitoring() {
+        stopPlaybackStateMonitoring()
+        playbackMonitorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.updatePlayButtonStates()
+        }
     }
     
-    /// VoiceOver 지원을 위한 슬라이더 설명
-    func setupAccessibilityLabels() {
+    func stopPlaybackStateMonitoring() {
+        playbackMonitorTimer?.invalidate()
+        playbackMonitorTimer = nil
+    }
+    
+    func updatePlayButtonStates() {
+        DispatchQueue.main.async {
+            for (index, button) in self.playButtons.enumerated() {
+                let isPlaying = SoundManager.shared.isPlaying(at: index)
+                button.setImage(UIImage(systemName: isPlaying ? "pause.fill" : "play.fill"), for: .normal)
+            }
+        }
+    }
+    
+    // MARK: - Slider & Volume Controls
+
+    private func setupMasterVolumeSlider(stackView: UIStackView) {
+        let masterRowStack = UIStackView(axis: .horizontal, spacing: 12)
+        let spacerView = UIView()
+        spacerView.widthAnchor.constraint(equalToConstant: 90).isActive = true
+        
+        overallVolumeSlider = UISlider()
+        overallVolumeSlider.minimumValue = 0
+        overallVolumeSlider.maximumValue = 200
+        overallVolumeSlider.value = 100
+        overallVolumeSlider.addTarget(self, action: #selector(overallVolumeChanged(_:)), for: .valueChanged)
+        
+        overallVolumeField = UITextField()
+        overallVolumeField.text = "100"
+        overallVolumeField.borderStyle = .roundedRect
+        overallVolumeField.keyboardType = .numberPad
+        overallVolumeField.delegate = self
+        overallVolumeField.widthAnchor.constraint(equalToConstant: 50).isActive = true
+        overallVolumeField.addTarget(self, action: #selector(overallVolumeFieldChanged(_:)), for: .editingChanged)
+        overallVolumeField.addTarget(self, action: #selector(overallVolumeFieldEditingEnded(_:)), for: .editingDidEnd)
+        
+        let endSpacerView = UIView()
+        endSpacerView.widthAnchor.constraint(equalToConstant: 42).isActive = true
+        
+        masterRowStack.addArrangedSubviews([spacerView, overallVolumeSlider, overallVolumeField, endSpacerView])
+        
+        let separator = UIView()
+        separator.backgroundColor = .separator
+        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        
+        stackView.addArrangedSubview(masterRowStack)
+        stackView.addArrangedSubview(separator)
+        stackView.setCustomSpacing(16, after: separator)
+    }
+    
+    @objc private func overallVolumeChanged(_ sender: UISlider) {
+        let volumeInt = Int(sender.value)
+        if volumeInt > volumeThreshold && !hasMasterOverride {
+            showAlertForHighVolume()
+            return
+        }
+        if volumeInt <= volumeThreshold { hasMasterOverride = false }
+        overallVolumeLevel = sender.value
+        overallVolumeField.text = "\(Int(overallVolumeLevel))"
+        applyMasterVolumeToSoundManager()
+        provideLightHapticFeedback()
+    }
+    
+    @objc internal func overallVolumeFieldChanged(_ sender: UITextField) {
+        sender.text = sanitizeVolumeInput(sender.text ?? "")
+    }
+    
+    @objc private func overallVolumeFieldEditingEnded(_ sender: UITextField) {
+        let volume = validateAndClampMasterVolume(sender.text ?? "")
+        if volume > volumeThreshold && !hasMasterOverride {
+            showAlertForHighVolume()
+            return
+        }
+        if volume <= volumeThreshold { hasMasterOverride = false }
+        sender.text = "\(volume)"
+        overallVolumeSlider.value = Float(volume)
+        overallVolumeLevel = Float(volume)
+        applyMasterVolumeToSoundManager()
+        provideMediumHapticFeedback()
+    }
+    
+    private func applyMasterVolumeToSoundManager() {
+        let masterMultiplier = overallVolumeLevel / 100.0
         for (index, slider) in sliders.enumerated() {
-            let categoryInfo = SoundPresetCatalog.getCategoryInfo(at: index)
-            slider.accessibilityLabel = "\(categoryInfo?.emoji ?? "") \(categoryInfo?.name ?? "") 볼륨"
-            slider.accessibilityHint = "위아래로 드래그하여 볼륨을 조절하세요"
+            let actualVolume = (slider.value / 100.0) * masterMultiplier
+            SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        }
+    }
+    
+    @objc private func categoryButtonTapped(_ sender: UIButton) {
+        let categoryIndex = sender.tag
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
+        guard versionCount > 1 else { return }
+        let nextVersion = (SoundManager.shared.getCurrentVersions()[categoryIndex] + 1) % versionCount
+        selectVersion(categoryIndex: categoryIndex, versionIndex: nextVersion)
+    }
+
+    private func selectVersion(categoryIndex: Int, versionIndex: Int) {
+        SoundManager.shared.selectVersion(categoryIndex: categoryIndex, versionIndex: versionIndex)
+        if let button = view.viewWithTag(categoryIndex) as? UIButton {
+            updateCategoryButtonTitle(button, for: categoryIndex)
+        }
+        provideMediumHapticFeedback()
+    }
+    
+    internal func updateCategoryButtonTitle(_ button: UIButton, for categoryIndex: Int) {
+        let categoryDisplay = SoundPresetCatalog.getCategoryInfo(at: categoryIndex)?.name ?? ""
+        let versionCount = SoundPresetCatalog.getVersionCount(for: categoryIndex)
+        let title = versionCount > 1 ? "\(categoryDisplay) (v\(SoundManager.shared.getCurrentVersions()[categoryIndex] + 1))" : categoryDisplay
+        button.setTitle(title, for: .normal)
+    }
+    
+    internal func updateAllCategoryButtonTitles() {
+        for i in 0..<SoundPresetCatalog.categoryCount {
+            if let button = view.viewWithTag(i) as? UIButton {
+                updateCategoryButtonTitle(button, for: i)
+            }
+        }
+    }
+    
+    @objc func sliderChanged(_ sender: UISlider) {
+        let index = sender.tag
+        let volume = Int(sender.value)
+        if volume > volumeThreshold && !hasVolumeOverride[index] {
+            showAlertForHighVolume()
+            return
+        }
+        if volume <= volumeThreshold { hasVolumeOverride[index] = false }
+        volumeFields[index].text = "\(volume)"
+        let actualVolume = (Float(volume) / 100.0) * (overallVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        provideLightHapticFeedback()
+    }
+
+    @objc func textFieldChanged(_ sender: UITextField) {
+        sender.text = sanitizeVolumeInput(sender.text ?? "")
+    }
+    
+    @objc func textFieldEditingEnded(_ sender: UITextField) {
+        let index = sender.tag
+        let volume = validateAndClampVolume(sender.text ?? "")
+        sender.text = "\(volume)"
+        sliders[index].value = Float(volume)
+        let actualVolume = (Float(volume) / 100.0) * (overallVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        provideMediumHapticFeedback()
+    }
+    
+    func updateSliderAndTextField(at index: Int, volume: Float) {
+        guard index >= 0, index < sliders.count else { return }
+        let clampedVolume = max(0, min(100, volume))
+        sliders[index].value = clampedVolume
+        volumeFields[index].text = "\(Int(clampedVolume))"
+        let actualVolume = (clampedVolume / 100.0) * (overallVolumeLevel / 100.0)
+        SoundManager.shared.setVolume(at: index, volume: actualVolume)
+    }
+    
+    func updateAllSlidersAndFields(volumes: [Float], versions: [Int]? = nil) {
+        if let versions = versions {
+            for (i, v) in versions.enumerated() {
+                selectVersion(categoryIndex: i, versionIndex: v)
+            }
+        }
+        for i in 0..<min(volumes.count, sliders.count) {
+            updateSliderAndTextField(at: i, volume: volumes[i])
+        }
+        updateAllCategoryButtonTitles()
+    }
+    
+    func sanitizeVolumeInput(_ input: String) -> String {
+        return String(input.filter { $0.isNumber }.prefix(3))
+    }
+    
+    func validateAndClampVolume(_ input: String) -> Int {
+        return min(100, max(0, Int(input) ?? 0))
+    }
+    
+    func validateAndClampMasterVolume(_ input: String) -> Int {
+        return min(200, max(0, Int(input) ?? 0))
+    }
+    
+    // MARK: - Preset Blocks
+    
+    func setupPresetBlocks() {
+        presetStackView = UIStackView(axis: .vertical, spacing: 20)
+        presetStackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let recentSection = createPresetSection(title: "🕰️ 최근 사용한 프리셋", buttonCount: 4, isRecent: true)
+        recentPresetButtons = recentSection.buttons
+        
+        let favoriteSection = createPresetSection(title: "⭐️ 즐겨찾기 프리셋", buttonCount: 4, isRecent: false)
+        favoritePresetButtons = favoriteSection.buttons
+        
+        presetStackView.addArrangedSubviews([recentSection.container, favoriteSection.container])
+        
+        if let scrollView = view.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
+           let containerView = scrollView.subviews.first,
+           let sliderStackView = containerView.subviews.first(where: { $0 is UIStackView }) {
+            containerView.addSubview(presetStackView)
+            NSLayoutConstraint.activate([
+                presetStackView.topAnchor.constraint(equalTo: sliderStackView.bottomAnchor, constant: 30),
+                presetStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+                presetStackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+                presetStackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -30)
+            ])
+        }
+    }
+    
+    func createPresetSection(title: String, buttonCount: Int, isRecent: Bool) -> (container: UIView, buttons: [UIButton]) {
+        let container = UIView()
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        
+        let buttons = (0..<buttonCount).map { createPresetButton(index: $0, isRecent: isRecent) }
+        let buttonStack = UIStackView(axis: .horizontal, spacing: 8, distribution: .fillEqually)
+        buttons.forEach(buttonStack.addArrangedSubview)
+        buttonStack.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        
+        let sectionStack = UIStackView(axis: .vertical, spacing: 8)
+        sectionStack.addArrangedSubviews([titleLabel, buttonStack])
+        container.addSubview(sectionStack)
+        
+        sectionStack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            sectionStack.topAnchor.constraint(equalTo: container.topAnchor),
+            sectionStack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            sectionStack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            sectionStack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        return (container, buttons)
+    }
+    
+    func createPresetButton(index: Int, isRecent: Bool) -> UIButton {
+        let button = UIButton.systemButton(title: "빈 슬롯", target: self, action: #selector(presetButtonTapped(_:)))
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.systemGray4.cgColor
+        button.backgroundColor = .systemGray6
+        button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+        button.titleLabel?.numberOfLines = 2
+        button.titleLabel?.textAlignment = .center
+        button.setTitleColor(.systemGray2, for: .normal)
+        button.tag = (isRecent ? 100 : 200) + index
+        return button
+    }
+    
+    func updatePresetBlocks() {
+        updateTimer?.invalidate()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+            self?.performPresetBlocksUpdate()
+        }
+    }
+    
+    private func performPresetBlocksUpdate() {
+        let recentPresets = getRecentPresets()
+        let favoritePresets = getFavoritePresets()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.configureButtonSet(self.recentPresetButtons, with: recentPresets)
+            self.configureButtonSet(self.favoritePresetButtons, with: favoritePresets)
+        }
+    }
+
+    private func configureButtonSet(_ buttons: [UIButton], with presets: [SoundPreset]) {
+        for (index, button) in buttons.enumerated() {
+            if index < presets.count {
+                configurePresetButton(button, with: presets[index])
+            } else {
+                configureEmptyPresetButton(button)
+            }
+        }
+    }
+    
+    func configurePresetButton(_ button: UIButton, with preset: SoundPreset) {
+        let displayText = preset.emotion.map { "\($0)\n\(preset.name)" } ?? preset.name
+        button.setTitle(displayText, for: .normal)
+        button.setTitleColor(.label, for: .normal)
+        button.backgroundColor = .systemBlue.withAlphaComponent(0.1)
+        button.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
+    }
+    
+    func configureEmptyPresetButton(_ button: UIButton) {
+        button.setTitle("+ 빈 슬롯", for: .normal)
+        button.setTitleColor(.systemGray2, for: .normal)
+        button.backgroundColor = .systemGray6
+        button.layer.borderColor = UIColor.systemGray4.cgColor
+    }
+    
+    func getRecentPresets() -> [SoundPreset] {
+        return SettingsManager.shared.loadSoundPresets().filter { $0.lastUsed != nil }.sorted { $0.lastUsed! > $1.lastUsed! }.prefix(4).map { $0 }
+    }
+    
+    func getFavoritePresets() -> [SoundPreset] {
+        let favoriteIds = Set(UserDefaults.standard.stringArray(forKey: "FavoritePresetIds")?.compactMap { UUID(uuidString: $0) } ?? [])
+        return SettingsManager.shared.loadSoundPresets().filter { favoriteIds.contains($0.id) }
+    }
+    
+    @objc func presetButtonTapped(_ sender: UIButton) {
+        let isRecent = sender.tag < 200
+        let index = sender.tag % 100
+        let presets = isRecent ? getRecentPresets() : getFavoritePresets()
+        
+        guard index < presets.count else {
+            showPresetList()
+            return
         }
         
-        for (index, button) in playButtons.enumerated() {
-            let categoryInfo = SoundPresetCatalog.getCategoryInfo(at: index)
-            button.accessibilityLabel = "\(categoryInfo?.emoji ?? "") \(categoryInfo?.name ?? "") 재생"
-            button.accessibilityHint = "탭하여 재생 또는 정지"
-        }
+        let preset = presets[index]
+        applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, presetId: preset.id)
+        provideMediumHapticFeedback()
     }
     
-    // MARK: - 상태 저장/복원 (앱 종료 시 현재 상태 유지)
+    // MARK: - State & Preset Management
     
     func saveCurrentState() {
-        let currentVolumes = getCurrentVolumes()
-        let currentVersions = getCurrentVersions()
-        let isPlaying = SoundManager.shared.isPlaying
-        
-        UserDefaults.standard.set(currentVolumes, forKey: "lastSessionVolumes")
-        UserDefaults.standard.set(currentVersions, forKey: "lastSessionVersions")
-        UserDefaults.standard.set(isPlaying, forKey: "lastSessionPlaying")
-        
-        print("💾 현재 상태 저장 완료")
+        UserDefaults.standard.set(sliders.map { $0.value }, forKey: "lastSessionVolumes")
+        UserDefaults.standard.set(SoundManager.shared.getCurrentVersions(), forKey: "lastSessionVersions")
+        UserDefaults.standard.set(SoundManager.shared.isPlaying, forKey: "lastSessionPlaying")
     }
     
     func restoreLastState() {
-        guard let savedVolumes = UserDefaults.standard.array(forKey: "lastSessionVolumes") as? [Float],
-              let savedVersions = UserDefaults.standard.array(forKey: "lastSessionVersions") as? [Int] else {
-            print("ℹ️ 복원할 세션 상태 없음")
-            return
-        }
+        guard let volumes = UserDefaults.standard.array(forKey: "lastSessionVolumes") as? [Float],
+              let versions = UserDefaults.standard.array(forKey: "lastSessionVersions") as? [Int] else { return }
         
-        let wasPlaying = UserDefaults.standard.bool(forKey: "lastSessionPlaying")
+        updateAllSlidersAndFields(volumes: volumes, versions: versions)
         
-        // 상태 복원
-        updateAllSlidersAndFields(volumes: savedVolumes, versions: savedVersions)
-        
-        if wasPlaying {
-            // 0.5초 후 재생 시작 (초기화 완료 후)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                SoundManager.shared.playAll()
-                self.updatePlayButtonStates()
-            }
-        }
-        
-        print("🔄 세션 상태 복원 완료")
-    }
-    
-    // MARK: - 앱 생명주기 연동
-    
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        stopPlaybackStateMonitoring()
-        saveCurrentState()  // 앱이 백그라운드로 가거나 종료될 때 상태 저장
-    }
-    
-    private func isFirstLaunch() -> Bool {
-        let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
-        if !hasLaunchedBefore {
-            UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
-            return true
-        }
-        return false
-    }
-    
-    // MARK: - 오류 처리 및 복구
-    
-    func handleSoundManagerError() {
-        // SoundManager 오류 시 복구 로직
-        print("⚠️ SoundManager 오류 감지, 복구 시도...")
-        
-        // 모든 플레이어 정지
-        SoundManager.shared.stopAll()
-        
-        // UI 상태 초기화
-        for i in 0..<sliders.count {
-            sliders[i].value = 0
-            volumeFields[i].text = "0"
-        }
-        updatePlayButtonStates()
-        
-        // 사용자에게 알림
-        let alert = UIAlertController(title: "오디오 오류", message: "오디오 시스템을 다시 시작합니다.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
-    
-    #if DEBUG
-    override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
-        if motion == .motionShake {
-            // 디버그 메뉴 표시
-            showDebugMenu()
-        }
-    }
-    
-    private func showDebugMenu() {
-        let alert = UIAlertController(title: "🐛 디버그 메뉴", message: "개발용 기능", preferredStyle: .actionSheet)
-        
-        alert.addAction(UIAlertAction(title: "📊 카테고리 정보 출력", style: .default) { _ in
-            print("✅ 모든 샘플 프리셋: \(SoundPresetCatalog.samplePresets.keys.joined(separator: ", "))")
-        })
-        
-        alert.addAction(UIAlertAction(title: "🔄 샘플 프리셋 적용", style: .default) { [weak self] _ in
-            self?.applySamplePreset()
-        })
-        
-        alert.addAction(UIAlertAction(title: "🎵 모든 사운드 테스트", style: .default) { [weak self] _ in
-            self?.testAllSounds()
-        })
-        
-        alert.addAction(UIAlertAction(title: "💾 상태 저장 테스트", style: .default) { [weak self] _ in
-            self?.saveCurrentState()
-        })
-        
-        alert.addAction(UIAlertAction(title: "🔄 상태 복원 테스트", style: .default) { [weak self] _ in
-            self?.restoreLastState()
-        })
-        
-        alert.addAction(UIAlertAction(title: "🎲 랜덤 프리셋", style: .default) { [weak self] _ in
-            self?.generateRandomPreset()
-        })
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        present(alert, animated: true)
-    }
-    
-    private func applySamplePreset() {
-        let samplePresets = SoundPresetCatalog.samplePresets
-        guard let randomPreset = samplePresets.randomElement() else { return }
-        // 샘플 프리셋의 경우, SoundPresetCatalog에 버전 정보가 있다면 가져오고, 없다면 기본값 사용
-        // 현재 SoundPresetCatalog.samplePresets는 볼륨 정보만 있으므로 기본 버전 사용
-        applyPreset(volumes: randomPreset.value, versions: SoundPresetCatalog.defaultVersions, name: randomPreset.key)
-        print("🎲 랜덤 샘플 프리셋 적용: \(randomPreset.key)")
-    }
-    
-    private func testAllSounds() {
-        let testVolumes: [Float] = Array(repeating: 30, count: SoundPresetCatalog.categoryCount)
-        // 모든 사운드 테스트는 기본 버전을 사용
-        applyPreset(volumes: testVolumes, versions: SoundPresetCatalog.defaultVersions, name: "🧪 테스트 모드")
-        print("🧪 모든 사운드 30% 볼륨으로 테스트")
-    }
-    #endif
-    
-    // "일기" 버튼 클릭 시 EmotionDiaryViewController (또는 메인 일기 화면 컨트롤러)를 표시하도록 수정
-    @objc func showDiary() {
-        // EmotionDiaryViewController의 실제 클래스 이름으로 변경해야 할 수 있습니다.
-        let diaryVC = EmotionDiaryViewController() 
-        // diaryVC.title = "감정 일기" // 필요에 따라 타이틀 설정
-        navigationController?.pushViewController(diaryVC, animated: true)
-        provideLightHapticFeedback()
-    }
-
-    // 🏆 Apple Watch 건강 분석 버튼 액션
-    @objc func showAppleWatchHealthAnalysis() {
-        provideMediumHapticFeedback()
-        
-        // HealthKitManager를 통해 즉시 분석 수행
-        HealthKitManager.shared.analyzeAndCoachWithAI { [weak self] wellness in
-            guard let self = self, let wellness = wellness else { return }
-            
-            DispatchQueue.main.async {
-                self.showHealthAnalysisResults(wellness: wellness)
+        if UserDefaults.standard.bool(forKey: "lastSessionPlaying") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.playAllTapped()
             }
         }
     }
     
-    /// 🏥 건강 분석 결과를 표시하는 알림 창
-    private func showHealthAnalysisResults(wellness: HealthKitManager.DailyWellness) {
-        let healthSummary = """
-        🏥 건강 상태 분석 결과 (AI 신뢰도: \(Int(wellness.processingMetadata.aiConfidence * 100))%)
-        
-        📊 현재 상태:
-        • 스트레스: \(wellness.stressLevel.emoji) \(wellness.stressLevel.rawValue)
-        • 수면: \(wellness.sleepQuality.rawValue)
-        • 활동: \(wellness.activityLevel.rawValue)
-        • 심박변이도: \(wellness.heartRateVariability.rawValue)
-        • 환경: \(wellness.environmentalFactor.rawValue)
-        
-        🎵 추천 프리셋: \(wellness.recommendedPreset)
-        💡 분석 근거: \(wellness.explanation)
-        """
-        
-        let alertController = UIAlertController(
-            title: "🏆 Apple Watch 건강 분석",
-            message: healthSummary,
-            preferredStyle: .alert
-        )
-        
-        // AI 인사이트가 있는 경우 상세 보기 버튼 추가
-        if !wellness.aiInsights.isEmpty {
-            alertController.addAction(UIAlertAction(title: "🧠 AI 인사이트 보기", style: .default) { _ in
-                self.showAIInsights(wellness.aiInsights)
-            })
-        }
-        
-        // 코칭 조언이 있는 경우 코칭 보기 버튼 추가
-        if !wellness.coachingAdvice.isEmpty {
-            alertController.addAction(UIAlertAction(title: "🎯 코칭 조언 보기", style: .default) { _ in
-                self.showCoachingAdvice(wellness.coachingAdvice)
-            })
-        }
-        
-        // 추천 프리셋 적용 버튼
-        alertController.addAction(UIAlertAction(title: "🎵 추천 프리셋 적용", style: .default) { _ in
-            self.applyRecommendedPreset(wellness.recommendedPreset)
-        })
-        
-        // 건강 모니터링 활성화 버튼
-        alertController.addAction(UIAlertAction(title: "📱 지속 모니터링 시작", style: .default) { _ in
-            self.startContinuousHealthMonitoring()
-        })
-        
-        alertController.addAction(UIAlertAction(title: "확인", style: .cancel))
-        
-        present(alertController, animated: true)
-    }
-    
-    /// 🧠 AI 인사이트를 표시하는 상세 알림
-    private func showAIInsights(_ insights: [String]) {
-        let insightsText = insights.enumerated().map { index, insight in
-            "\(index + 1). \(insight)"
-        }.joined(separator: "\n\n")
-        
-        let alertController = UIAlertController(
-            title: "🧠 AI 건강 인사이트",
-            message: insightsText,
-            preferredStyle: .alert
-        )
-        
-        alertController.addAction(UIAlertAction(title: "확인", style: .default))
-        
-        present(alertController, animated: true)
-    }
-    
-    /// 🎯 코칭 조언을 표시하는 상세 알림
-    private func showCoachingAdvice(_ advice: [String]) {
-        let adviceText = advice.enumerated().map { index, item in
-            "\(index + 1). \(item)"
-        }.joined(separator: "\n\n")
-        
-        let alertController = UIAlertController(
-            title: "🎯 개인화된 건강 코칭",
-            message: adviceText,
-            preferredStyle: .alert
-        )
-        
-        alertController.addAction(UIAlertAction(title: "확인", style: .default))
-        
-        present(alertController, animated: true)
-    }
-    
-    /// 🎵 추천 프리셋을 실제로 적용하는 메소드
-    private func applyRecommendedPreset(_ presetName: String) {
-        // 프리셋 이름을 기반으로 적절한 사운드 조합 찾기
-        let presetVolumes: [Float]
-        let presetVersions: [Int]
-        
-        switch presetName {
-        case let name where name.contains("긴급") || name.contains("스트레스"):
-            // 스트레스 완화 프리셋 (자연 소리 중심)
-            presetVolumes = [0.3, 0.7, 0.5, 0.2, 0.6, 0.4, 0.8, 0.3, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            presetVersions = [1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1]
-            
-        case let name where name.contains("수면") || name.contains("깊은"):
-            // 깊은 수면 프리셋 (저주파 소리 중심)
-            presetVolumes = [0.2, 0.4, 0.8, 0.6, 0.3, 0.7, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            presetVersions = [1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            
-        case let name where name.contains("집중") || name.contains("활동"):
-            // 집중력 향상 프리셋 (화이트 노이즈 중심)
-            presetVolumes = [0.1, 0.2, 0.1, 0.1, 0.3, 0.2, 0.1, 0.9, 0.8, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0]
-            presetVersions = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1]
-            
-        case let name where name.contains("평화"):
-            // 평화로운 일상 프리셋
-            presetVolumes = [0.4, 0.5, 0.3, 0.4, 0.2, 0.6, 0.3, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            presetVersions = [1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-            
-        default:
-            // 기본 균형 프리셋
-            presetVolumes = [0.3, 0.4, 0.3, 0.3, 0.3, 0.4, 0.3, 0.3, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            presetVersions = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        }
-        
-        // 프리셋 적용
-        applyPreset(volumes: presetVolumes, versions: presetVersions, name: presetName)
-        
-        // 토스트 메시지 표시
-        showToast(message: "🎵 '\(presetName)' 프리셋이 적용되었습니다")
-        
-        provideLightHapticFeedback()
-    }
-    
-    /// 📱 지속적인 건강 모니터링 시작
-    private func startContinuousHealthMonitoring() {
-        let alertController = UIAlertController(
-            title: "📱 지속 건강 모니터링",
-            message: "Apple Watch 건강 데이터를 30분마다 자동으로 분석하여 개인화된 추천을 제공합니다. 배터리 사용량이 약간 증가할 수 있습니다.",
-            preferredStyle: .alert
-        )
-        
-        alertController.addAction(UIAlertAction(title: "✅ 시작", style: .default) { _ in
-            // 실제 환경에서는 AppleWatchHealthIntegrator 사용
-            // 현재는 HealthKitManager를 통한 시뮬레이션
-            
-            // 주기적 모니터링 시뮬레이션 (실제로는 Timer 사용)
-            self.showToast(message: "🏆 건강 모니터링이 시작되었습니다")
-            
-            // 사용자에게 모니터링 활성화 피드백
-            let confirmAlert = UIAlertController(
-                title: "✅ 모니터링 시작됨",
-                message: "Apple Watch 건강 모니터링이 활성화되었습니다.\n\n• 30분마다 자동 분석\n• 개인화된 추천 제공\n• 스트레스/수면 패턴 추적\n• 실시간 건강 코칭",
-                preferredStyle: .alert
-            )
-            
-            confirmAlert.addAction(UIAlertAction(title: "확인", style: .default))
-            self.present(confirmAlert, animated: true)
-        })
-        
-        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        present(alertController, animated: true)
-    }
+    @objc func savePresetTapped() { /* TODO */ }
+    @objc func loadPresetTapped() { showPresetList() }
+    @objc func showTimer() { /* TODO */ }
+    @objc func dismissKeyboard() { view.endEditing(true) }
 
-    // MARK: - Notification Handlers
     @objc private func handleApplyPresetFromChat(_ notification: Notification) {
-        print("🎵 ViewController [\(self.instanceUUID)] received ApplyPresetFromChat notification.")
-
-        guard let userInfo = notification.userInfo else {
-            print("⚠️ [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 오류: userInfo 없음")
-            return
-        }
-        
-        // 모든 key 조합 허용 (이전/신규 모두)
-        let volumes = userInfo["volumes"] as? [Float]
-        let presetName = userInfo["presetName"] as? String ?? userInfo["name"] as? String
-        let selectedVersions = userInfo["selectedVersions"] as? [Int] ?? userInfo["versions"] as? [Int]
-
-        guard let volumes = volumes, let presetName = presetName, let selectedVersions = selectedVersions else {
-            print("⚠️ [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 오류: userInfo 파싱 실패. Info: \(String(describing: notification.userInfo))")
-            DispatchQueue.main.async {
-                print("Error: Toast - Preset application failed due to userInfo parsing. (Instance: \(self.instanceUUID))")
-            }
-            return
-        }
-
-        print("🎵 [ViewController [\(self.instanceUUID)]] ApplyPresetFromChat 알림 수신 성공: \(presetName)")
-        let threadInfo = Thread.isMainThread ? "Main Thread" : "Background Thread"
-        print("  - Instance: \(self.instanceUUID)")
-        print("  - 알림 수신 스레드: \(threadInfo)")
-        print("  - Volumes: \(volumes)")
-        print("  - Selected Versions: \(selectedVersions)")
-
-        DispatchQueue.main.async { [weak self] in 
-            guard let strongSelf = self else {
-                print("  [ViewController] self is nil before calling applyPreset on main thread. Aborting for preset: \(presetName).")
-                return
-            }
-            print("  [ViewController [\(strongSelf.instanceUUID)]] 메인 스레드에서 applyPreset 호출 예정: \(presetName)")
-            strongSelf.applyPreset(volumes: volumes, versions: selectedVersions, name: presetName)
-            strongSelf.switchToMainSoundTab()
-        }
+        guard let info = notification.userInfo,
+              let volumes = info["volumes"] as? [Float],
+              let versions = info["versions"] as? [Int],
+              let name = info["name"] as? String else { return }
+        applyPreset(volumes: volumes, versions: versions, name: name)
     }
 
-    private func switchToMainSoundTab(attempt: Int = 0) {
-        print("👍 [ViewController] switchToMainSoundTab - tabBarController: \(String(describing: self.tabBarController)), navigationController: \(String(describing: self.navigationController)), parent: \(String(describing: self.parent)), presentingViewController: \(String(describing: self.presentingViewController))")
-        let currentInstanceUUID = self.instanceUUID // 현재 함수의 UUID도 로깅
-        if let tabBarController = self.tabBarController {
-            if tabBarController.selectedIndex != 0 {
-                print("  [ViewController [\(currentInstanceUUID)]] 메인 사운드 탭(0번)으로 전환합니다.")
-                tabBarController.selectedIndex = 0
-            } else {
-                print("  [ViewController [\(currentInstanceUUID)]] 이미 메인 사운드 탭(0번)입니다.")
-            }
-        } else {
-            if attempt < 5 { // 최대 5번 (0.5초) 시도
-                print("  [ViewController [\(currentInstanceUUID)]] TabBarController를 찾을 수 없습니다. (시도: \(attempt + 1)) 0.1초 후 재시도합니다.")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                    self?.switchToMainSoundTab(attempt: attempt + 1)
-                }
-            } else {
-                print("  [ViewController [\(currentInstanceUUID)]] TabBarController를 여러 번 시도했지만 찾을 수 없었습니다.")
-            }
+    func applyPreset(volumes: [Float], versions: [Int]? = nil, name: String, presetId: UUID? = nil) {
+        updateAllSlidersAndFields(volumes: volumes, versions: versions)
+        SoundManager.shared.updateNowPlayingInfo(presetName: name)
+        if let id = presetId {
+            SettingsManager.shared.updatePresetTimestamp(id: id)
         }
-    }
-
-    // MARK: - 오디오 모드 관리
-    
-    /// 오디오 모드 버튼 제목 업데이트
-    func updateAudioModeButtonTitle() {
-        let currentMode = SoundManager.shared.audioPlaybackMode
-        audioModeButton.setTitle(currentMode.displayName, for: .normal)
-        audioModeButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-    }
-    
-    /// 오디오 모드 선택 버튼 액션
-    @objc func audioModeButtonTapped() {
-        showAudioModeSelectionAlert()
-    }
-    
-    /// 오디오 모드 선택 액션 시트 표시
-    func showAudioModeSelectionAlert() {
-        let alertController = UIAlertController(
-            title: "🔊 오디오 재생 모드 선택",
-            message: "원하는 재생 방식을 선택해주세요",
-            preferredStyle: .actionSheet
-        )
-        
-        // 각 모드별 액션 추가
-        for mode in AudioPlaybackMode.allCases {
-            let action = UIAlertAction(title: mode.displayName, style: .default) { [weak self] _ in
-                self?.selectAudioMode(mode)
-            }
-            
-            // 현재 선택된 모드 표시
-            if mode == SoundManager.shared.audioPlaybackMode {
-                action.setValue(UIImage(systemName: "checkmark"), forKey: "image")
-            }
-            
-            alertController.addAction(action)
-        }
-        
-        // 취소 버튼
-        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        // iPad 지원
-        if let popover = alertController.popoverPresentationController {
-            popover.sourceView = audioModeButton
-            popover.sourceRect = audioModeButton.bounds
-        }
-        
-        present(alertController, animated: true)
-    }
-    
-    /// 선택된 오디오 모드로 변경
-    func selectAudioMode(_ mode: AudioPlaybackMode) {
-        // 모드 상세 설명 표시
-        showModeDescriptionAlert(mode: mode) { [weak self] in
-            // 사용자가 확인을 누르면 모드 변경
-            SoundManager.shared.setAudioPlaybackMode(mode)
-            self?.updateAudioModeButtonTitle()
-            self?.provideMediumHapticFeedback()
-            
-            let feedbackMessage = "\(mode.displayName) 모드가 적용되었습니다"
-            if let sliderExt = self as? MainViewController {
-                sliderExt.showToast(message: feedbackMessage)
-            }
-        }
-    }
-    
-    /// 모드 상세 설명 알림 표시
-    func showModeDescriptionAlert(mode: AudioPlaybackMode, completion: @escaping () -> Void) {
-        let alertController = UIAlertController(
-            title: "🎵 \(mode.displayName)",
-            message: mode.description,
-            preferredStyle: .alert
-        )
-        
-        alertController.addAction(UIAlertAction(title: "적용", style: .default) { _ in
-            completion()
-        })
-        
-        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        present(alertController, animated: true)
-    }
-
-    // 🆕 사운드 볼륨 업데이트 핸들러
-    @objc private func handleSoundVolumesUpdated(_ notification: Notification) {
-        guard let volumes = notification.userInfo?["volumes"] as? [Float] else { return }
-        
-        applyPreset(volumes: volumes, name: "실시간 조절")
-    }
-    
-    // 🆕 ChatViewController fallback 프리셋 적용 핸들러
-    @objc private func handlePresetAppliedFromChat(_ notification: Notification) {
-        print("🎵 ViewController [\(self.instanceUUID)] received PresetAppliedFromChat notification (fallback)")
-        
-        guard let userInfo = notification.userInfo,
-              let volumes = userInfo["volumes"] as? [Float],
-              let versions = userInfo["versions"] as? [Int],
-              let name = userInfo["name"] as? String else {
-            print("⚠️ [ViewController [\(self.instanceUUID)]] PresetAppliedFromChat 알림 수신 오류: userInfo 파싱 실패")
-            return
-        }
-        
-        print("🎵 [ViewController [\(self.instanceUUID)]] PresetAppliedFromChat 알림 수신 성공: \(name)")
-        print("  - 볼륨: \(volumes)")
-        print("  - 버전: \(versions)")
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            // 직접 UI 업데이트 (이미 SoundManager에 적용되어 있음)
-            self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
-            self.updatePlayButtonStates()
-            self.updatePresetBlocks() // 최근 프리셋 UI 갱신
-            
-            // 메인 탭으로 이동
-            if let tabBarController = self.tabBarController {
-                tabBarController.selectedIndex = 0
-            }
-            
-            print("🔄 [ViewController [\(self.instanceUUID)]] Fallback UI 업데이트 완료: \(name)")
-        }
-    }
-    
-    // 🆕 로컬 추천 프리셋 적용 알림 처리
-    @objc private func handleLocalPresetApplied(_ notification: Notification) {
-        print("🏠 ViewController [\(self.instanceUUID)] received LocalPresetApplied notification")
-        
-        guard let userInfo = notification.userInfo,
-              let volumes = userInfo["volumes"] as? [Float],
-              let versions = userInfo["versions"] as? [Int],
-              let name = userInfo["name"] as? String else {
-            print("⚠️ [ViewController [\(self.instanceUUID)]] LocalPresetApplied 알림 수신 오류: userInfo 파싱 실패")
-            return
-        }
-        
-        print("🏠 [ViewController [\(self.instanceUUID)]] LocalPresetApplied 알림 수신 성공: \(name)")
-        print("  - 볼륨: \(volumes)")
-        print("  - 버전: \(versions)")
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            // ✅ 프리셋 이름으로 실제 프리셋을 찾아서 ID 가져오기
-            let allPresets = SettingsManager.shared.loadSoundPresets()
-            if let foundPreset = allPresets.first(where: { $0.name == name }) {
-                SettingsManager.shared.updatePresetTimestamp(id: foundPreset.id)
-                print("  - 프리셋 ID \(foundPreset.id.uuidString)의 사용 시간 갱신 완료")
-            } else {
-                print("  - 프리셋 '\(name)'을 찾을 수 없어 사용 시간 갱신 생략")
-            }
-            
-            applyPreset(
-                volumes: volumes,
-                versions: versions,
-                name: name
-            )
-            
-            // UI 업데이트 (이미 SoundManager에 적용되어 있음)
-            self.updateAllSlidersAndFields(volumes: volumes, versions: versions)
-            self.updatePlayButtonStates()
-            self.updateAllCategoryButtonTitles() // 버전 정보 반영
-            self.updatePresetBlocks() // 최근 프리셋 UI 갱신
-            
-            // 메인 탭으로 이동
-            if let tabBarController = self.tabBarController {
-                tabBarController.selectedIndex = 0
-                print("🏠 메인 탭으로 이동 완료")
-            }
-            
-            // 피드백
-            self.showToast(message: "  앱 분석 추천 '\(name)' 적용됨. ")
-            self.provideMediumHapticFeedback()
-            
-            print("🔄 [ViewController [\(self.instanceUUID)]] 로컬 추천 UI 업데이트 완료: \(name)")
-        }
-    }
-    
-    // 🆕 SoundManager의 현재 볼륨 및 버전으로 UI 업데이트
-    private func refreshSlidersFromSoundManager() {
-        for i in 0..<sliders.count {
-            let currentVolume = SoundManager.shared.getVolume(for: i) // 0.0~1.0 범위
-            let volumeAsPercent = currentVolume * 100  // 0~100 범위로 변환
-            
-            // 🔧 슬라이더와 텍스트필드 모두 업데이트
-            sliders[i].value = volumeAsPercent
-            volumeFields[i].text = String(Int(volumeAsPercent))
-        }
-        
-        // 🔧 버전 버튼도 함께 업데이트
-        updateAllVersionButtons()
-        
-        print("🔄 메인 화면 슬라이더 및 버전 버튼 업데이트 완료")
-    }
-    
-    // 🆕 모든 버전 버튼 업데이트 (기존 updateAllCategoryButtonTitles 방식 사용)
-    private func updateAllVersionButtons() {
-        // 기존 ViewController+SliderControls.swift의 updateAllCategoryButtonTitles() 호출
-        updateAllCategoryButtonTitles()
-        print("🔄 [updateAllVersionButtons] 모든 버전 버튼 업데이트 완료")
-    }
-
-    @objc private func handleFavoritesUpdated(_ notification: Notification) {
-        print("📢 [ViewController] 즐겨찾기 업데이트 알림 수신")
         updatePresetBlocks()
     }
 
-    @objc private func handlePresetBlocksUpdate() {
-        print("📢 [ViewController] 프리셋 블록 업데이트 알림 수신")
-        updatePresetBlocks()
+    func showPresetList() {
+        let vc = PresetListViewController()
+        vc.onPresetSelected = { [weak self] preset in
+            self?.applyPreset(volumes: preset.compatibleVolumes, versions: preset.compatibleVersions, name: preset.name, presetId: preset.id)
+        }
+        navigationController?.pushViewController(vc, animated: true)
     }
-
-    // MARK: - Phase 4: 온디바이스 학습 자동 트리거
-
-    /// 온디바이스 학습 조건 검사 및 자동 트리거
+    
+    // MARK: - On-Device Learning & Misc
+    
     @MainActor
     private func checkAndTriggerOnDeviceLearning() async {
-        print("🤖 [Auto Learning] 온디바이스 학습 조건 검사 시작...")
-        
-        // 🔥 NEW: 피드백 통합 매니저를 통한 실시간 학습 (현재 주석 처리)
-        // if #available(iOS 17.0, *) {
-        //     await FeedbackIntegrationManager.shared.triggerImmediateLearning()
-        // }
-        
-        // 백그라운드에서 학습 조건 검사
-        Task.detached(priority: .background) {
-            let shouldUpdate = await ComprehensiveRecommendationEngine.shared.triggerModelUpdate()
-            
-            if shouldUpdate {
-                // 학습 완료 후 모델 적용
-                await MainActor.run {
-                    ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
-                    print("🎉 [Auto Learning] 자동 학습 및 모델 업데이트 완료!")
-                }
-            } else {
-                print("📊 [Auto Learning] 현재 학습 조건 미충족 - 기존 모델 유지")
-            }
+        if await ComprehensiveRecommendationEngine.shared.triggerModelUpdate() {
+            ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
         }
     }
 
-    // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 처리
     @objc private func handleModelUpdated() {
-        print("🎉 [Auto Learning] 온디바이스 학습 모델 업데이트 완료")
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            let currentVolumes = self.getCurrentVolumes()
-            let currentVersions = self.getCurrentVersions()
-            
-            self.updateAllSlidersAndFields(volumes: currentVolumes, versions: currentVersions)
-            self.updatePlayButtonStates()
-            self.updatePresetBlocks()
-            self.updateAllCategoryButtonTitles()
-            self.updateAllVersionButtons()
-            
-            // 메인 탭으로 이동
-            if let tabBarController = self.tabBarController {
-                tabBarController.selectedIndex = 0
-                print("🏠 메인 탭으로 이동 완료")
-            }
-            
-            // 피드백
-            self.provideMediumHapticFeedback()
-            
-            print("🔄 [ViewController [\(self.instanceUUID)] 로컬 추천 UI 업데이트 완료")
-        }
-    }
-    
-    // MARK: - 🎨 피드백 시각화
-    
-    /// 피드백 시각화 화면 표시 (현재 주석 처리)
-    @available(iOS 17.0, *)
-    @objc private func showFeedbackVisualization() {
-        print("🎨 [ViewController] 피드백 시각화 화면 열기")
-        
-        // 임시로 주석 처리 - 프로젝트에 파일 추가 후 활성화 예정
-        // let visualizationVC = FeedbackVisualizationViewController()
-        // let navController = UINavigationController(rootViewController: visualizationVC)
-        // 
-        // // 전체 화면으로 표시
-        // navController.modalPresentationStyle = .fullScreen
-        // 
-        // present(navController, animated: true) {
-        //     print("✅ [ViewController] 피드백 시각화 화면 표시 완료")
-        // }
-        
-        // 임시 알림 표시
-        let alert = UIAlertController(title: "피드백 시각화", message: "곧 제공될 예정입니다", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
-
-    /// 최근 프리셋 업데이트 알림 처리
-    @objc func handleRecentPresetsUpdated(_ notification: Notification) {
         updatePresetBlocks()
     }
-
-    private func setupAI() {
-        // aiOrchestrator = EnhancedUnifiedAIOrchestrator(viewController: self)
-        // aiOrchestrator.setupAI()
+    
+    @objc private func handleRecentPresetsUpdated() {
+        updatePresetBlocks()
+    }
+    
+    @objc private func handleFavoritesUpdated(_ notification: Notification) {
+        updatePresetBlocks()
+    }
+    
+    func provideLightHapticFeedback() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+    
+    func provideMediumHapticFeedback() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    private func someOtherFunction() {
-        // let shouldUpdate = await ComprehensiveRecommendationEngine.shared.triggerModelUpdate()
-        // if shouldUpdate {
-        //     ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
-        // }
+    private func showAlertForHighVolume() {
+        let alert = UIAlertController(
+            title: "🔊 볼륨 주의",
+            message: "현재 볼륨이 높게 설정되어 있습니다. 청력 보호를 위해 볼륨을 낮추는 것을 권장합니다.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "볼륨 조절", style: .default) { _ in
+            // 볼륨을 안전한 수준으로 자동 조절
+            self.adjustVolumeToSafeLevel()
+        })
+        
+        alert.addAction(UIAlertAction(title: "현재 유지", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func adjustVolumeToSafeLevel() {
+        // 모든 슬라이더를 안전한 수준 (50%)으로 조절
+        for (index, slider) in sliders.enumerated() {
+            slider.value = 0.5
+            SettingsManager.shared.updateSelectedVersion(for: index, to: Int(slider.value * Float(3 - 1))) // 기본 버전 수 3 사용
+        }
+        updateTotalVolume()
+    }
+    
+    private func updateTotalVolume() {
+        // 전체 볼륨 업데이트 로직
+        let totalVolume = sliders.reduce(0) { $0 + $1.value }
+        let averageVolume = totalVolume / Float(sliders.count)
+        
+        // 마스터 볼륨 슬라이더가 있다면 업데이트
+        if let masterSlider = view.subviews.compactMap({ $0 as? UISlider }).first(where: { $0.tag == 999 }) {
+            masterSlider.value = averageVolume
+        }
+        
+        // 볼륨 라벨 업데이트
+        if let volumeLabel = view.subviews.compactMap({ $0 as? UILabel }).first(where: { $0.tag == 998 }) {
+            volumeLabel.text = "전체 볼륨: \(Int(averageVolume * 100))%"
+        }
+    }
+}
+
+extension MainViewController: UITextFieldDelegate {
+    
+    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        let currentText = textField.text ?? ""
+        guard let textRange = Range(range, in: currentText) else { return false }
+        let updatedText = currentText.replacingCharacters(in: textRange, with: string)
+        
+        if updatedText.isEmpty { return true }
+        if updatedText.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) != nil { return false }
+        if updatedText.count > 3 { return false }
+        
+        let maxValue = (textField == overallVolumeField) ? 200 : 100
+        if let value = Int(updatedText), value > maxValue { return false }
+        
+        return true
+    }
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
+    }
+    
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        textField.selectAll(nil)
+    }
+}
+
+extension UIStackView {
+    
+    convenience init(axis: NSLayoutConstraint.Axis, spacing: CGFloat, distribution: UIStackView.Distribution = .fill) {
+        self.init(frame: .zero)
+        self.axis = axis
+        self.spacing = spacing
+        self.distribution = distribution
+    }
+    
+    func addArrangedSubviews(_ views: [UIView]) {
+        views.forEach(addArrangedSubview)
+    }
+}
+
+extension UIButton {
+    
+    static func systemButton(title: String = "", image: UIImage? = nil, target: Any?, action: Selector) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.setImage(image, for: .normal)
+        button.addTarget(target, action: action, for: .touchUpInside)
+        return button
+    }
+}
+
+// MARK: - Audio Mode Methods (실제 구현 필요)
+extension MainViewController {
+    
+    @objc func audioModeButtonTapped() {
+        // TODO: 실제 오디오 모드 변경 구현 필요
+    }
+    
+    func updateAudioModeButtonTitle() {
+        // TODO: 실제 오디오 모드 타이틀 업데이트 구현 필요
     }
 }

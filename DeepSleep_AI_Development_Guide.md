@@ -156,7 +156,6 @@ graph TD
 | **Claude 3.5 Haiku** | **감성 대화의 핵<br>(The Core Empath)** | **"감동을 주는 말과 글"**을 책임진다. 동급 최강의 감성적, 창의적 표현 능력으로 사용자와의 정서적 교감을 형성하는 데 가장 중요한 역할을 수행. | 입력: **$0.25**<br>출력: **$1.25** | [Anthropic Pricing](https://www.anthropic.com/pricing) |
 | **GPT-4o mini** | **지능형 조율자<br>(The Intelligent Orchestrator)** | **"사용자의 요청을 명확하게 이해"**하는 역할을 담당. 복잡한 지시를 해석하고, 다른 모델을 호출하거나 필요한 기능을 실행하는 두뇌 역할. | 입력: **$0.15**<br>출력: **$0.60** | [OpenAI Pricing](https://openai.com/api/pricing/) |
 | **Gemini 2.0 Flash-Lite** | **효율적인 일꾼<br>(The Efficient Worker)** | **"빠르고 저렴한 작업 처리"**에 특화. 정보 검색, 텍스트 요약 등 비용에 민감하고 신속한 처리가 필요한 모든 잡무를 담당하는 워크호스. | 입력: **~$0.10**<br>출력: **~$0.20** | [Vertex AI Pricing](https://cloud.google.com/vertex-ai/generative-ai/pricing) |
-| **HyperCLOVA X (SEED)** | **진정한 한국 친구<br>(The True Korean Friend)** | **"과거를 잘 기억해주는"** 한국어 네이티브 모델. 한국어 고유의 뉘앙스, 문화적 맥락 이해도가 가장 높아, '장기 기억'과 결합 시 최고의 시너지를 발휘. | 별도 문의 필요 | [Naver Cloud](https://www.ncloud.com/product/aiService/hyperclovaX) |
 | **HCX-DASH-002** | **진정한 한국 친구<br>(The True Korean Friend)** | **"과거를 잘 기억해주는"** 한국어 네이티브 모델. 한국어 고유의 뉘앙스, 문화적 맥락 이해도가 가장 높아, '장기 기억'과 결합 시 최고의 시너지를 발휘. | 입력: **0.25원** (~$0.18)<br>출력: **1.00원** (~$0.72) | [CLOVA Studio Pricing](https://www.ncloud.com/product/aiService/clovaStudio) |
 
 > 💡 **참고**: Gemini 2.0 Flash-Lite의 가격은 추정치이며, 실제 사용량과 계약 조건에 따라 변동될 수 있습니다.

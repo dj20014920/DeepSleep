@@ -60,6 +60,16 @@ public class LLMServiceFactory {
             }
         }
     
+    /// getService 메서드 (createService와 동일한 기능 제공)
+    /// 기존 코드와의 호환성을 위해 제공
+    ///
+    /// - Parameter type: 생성할 서비스의 타입 (`LLMServiceType`).
+    /// - Returns: `LLMServiceProtocol`을 준수하는 서비스 인스턴스.
+    /// - Throws: `FactoryError` - 서비스 생성 실패 시.
+    public func getService(for type: LLMServiceType) throws -> any LLMServiceProtocol {
+        return try createService(for: type)
+    }
+    
     // MARK: - Cache Management (2025 최적화)
     
     /// 특정 서비스의 캐시를 제거합니다 (메모리 최적화)

@@ -83,6 +83,20 @@ class PersonalizedHarmonyLearner: ObservableObject {
         }
     }
     
+    // MARK: - Data Structures for Learning
+    // `large_tuple` 대체를 위한 구조체 정의
+
+    struct UserFeedbackInput {
+        let feedback: PresetFeedback
+        let userVector: UserProfileVector
+        let context: FeedbackContext
+    }
+
+    struct ModelUpdateParameters {
+        let learningRate: Double
+        let featureWeights: [String: Double]
+    }
+    
     // MARK: - Initialization
     
     private init() {
@@ -518,6 +532,16 @@ class PersonalizedHarmonyLearner: ObservableObject {
         }
         
         return input
+    }
+    
+    func updateUserModel(with input: UserFeedbackInput) {
+        // todo: 실제 모델 업데이트 로직 구현 필요
+        print("Updating model with feedback for preset: \(input.feedback.presetId)")
+    }
+    
+    func getRecommendedModelParameters() -> ModelUpdateParameters {
+        // todo: 실제 파라미터 추천 로직 구현 필요
+        return ModelUpdateParameters(learningRate: 0.01, featureWeights: ["pitch": 0.7, "volume": 0.3])
     }
 }
 

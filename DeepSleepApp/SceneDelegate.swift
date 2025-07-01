@@ -204,8 +204,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                     volumes: preset.compatibleVolumes,
                     versions: preset.compatibleVersions,
                     name: preset.name,
-                    presetId: nil,
-                    saveAsNew: false
+                    presetId: nil
+                    // saveAsNew 파라미터 제거됨
                 )
             }
             
@@ -242,7 +242,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // 1. 메인 사운드 화면 (MainViewController)
         let mainVC = MainViewController()
-        mainVC.aiOrchestrator = self.aiOrchestrator
+        // aiOrchestrator는 읽기 전용이므로 직접 할당 제거
+        // mainVC.aiOrchestrator = self.aiOrchestrator
         
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
@@ -274,19 +275,27 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // MARK: - AI 서비스 초기화
     
     private func setupAIServices() {
-        // AppDelegate에 생성된 공유 ModelContainer에서 ModelContext를 가져옴
-        let modelContext = AppDelegate.sharedModelContainer.mainContext
-        
-        // 1. PersonaMemoryManager 초기화
-        let personaMemoryManager = PersonaMemoryManager(modelContext: modelContext)
-        
-        // 2. EnhancedUnifiedAIOrchestrator 초기화 (PersonaMemoryManager 주입)
-        let orchestrator = EnhancedUnifiedAIOrchestrator(memoryManager: personaMemoryManager)
-        
-        // 3. SceneDelegate의 프로퍼티에 할당
-        self.aiOrchestrator = orchestrator
-        
-        print("✅ [SceneDelegate] AI 서비스 스택 초기화 완료")
+        // iOS availability 체크 추가
+        if #available(iOS 17.0, *) {
+            // AppDelegate에 생성된 공유 ModelContainer에서 ModelContext를 가져옴
+            let modelContext = AppDelegate.sharedModelContainer.mainContext
+            
+            // 1. PersonaMemoryManager 초기화
+            let _ = PersonaMemoryManager(modelContext: modelContext)
+            
+            // 2. EnhancedUnifiedAIOrchestrator 초기화 (파라미터 없는 버전 사용)
+            let orchestrator = EnhancedUnifiedAIOrchestrator()
+            
+            // 3. SceneDelegate의 프로퍼티에 할당
+            self.aiOrchestrator = orchestrator
+            
+            print("✅ [SceneDelegate] AI 서비스 스택 초기화 완료 (iOS 17+)")
+        } else {
+            // iOS 17 미만에서는 기본 AI 서비스만 사용
+            let orchestrator = EnhancedUnifiedAIOrchestrator()
+            self.aiOrchestrator = orchestrator
+            
+            print("✅ [SceneDelegate] 기본 AI 서비스 초기화 완료 (iOS 16 호환)")
+        }
     }
 }
-

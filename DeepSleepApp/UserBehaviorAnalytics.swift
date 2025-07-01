@@ -518,5 +518,25 @@ extension UserBehaviorAnalytics {
         """
     }
     
+    // MARK: - Data Structures for Analytics
+    // `large_tuple` 대체를 위한 구조체 정의
 
+    struct UserSessionMetrics {
+        let totalSessions: Int
+        let averageDuration: TimeInterval
+        let totalDuration: TimeInterval
+    }
+
+    func getSessionMetrics() -> UserSessionMetrics {
+        // todo: 실제 세션 데이터 분석 로직 구현 필요
+        let totalSessions = 100
+        let totalDuration: TimeInterval = 36000
+        let averageDuration = totalDuration / Double(totalSessions)
+        
+        return UserSessionMetrics(
+            totalSessions: totalSessions,
+            averageDuration: averageDuration,
+            totalDuration: totalDuration
+        )
+    }
 }

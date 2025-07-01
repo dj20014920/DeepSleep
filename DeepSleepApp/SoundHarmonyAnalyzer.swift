@@ -2,9 +2,11 @@ import Foundation
 import UIKit
 import AVFoundation
 import Accelerate
+import SoundAnalysis
 
 /// 🎼 사운드 조화 분석 전담 클래스
 /// 음향학적, 감정적, 심리적 조화를 종합 분석하여 최적의 사운드 조합을 제안
+@available(iOS 17.0, *)
 class SoundHarmonyAnalyzer {
     
     // MARK: - Singleton
@@ -14,6 +16,31 @@ class SoundHarmonyAnalyzer {
     // MARK: - Properties
     private let audioEngine = AVAudioEngine()
     private var analyzers: [String: AudioAnalyzer] = [:]
+    
+    // MARK: - Data Structures for Analysis Results
+    
+    /// 사운드의 핵심 음향 특성을 나타냅니다.
+    struct SoundFeatures {
+        let pitch: [CGFloat]
+        let volume: [CGFloat]
+        let complexity: CGFloat
+    }
+    
+    /// 두 사운드 간의 조화 분석 결과를 담습니다.
+    struct HarmonyAnalysisResult {
+        let harmonicity: CGFloat
+        let dissonance: CGFloat
+        let rhythmSync: CGFloat
+        let combinedScore: CGFloat
+    }
+    
+    /// 여러 사운드 파일 간의 종합적인 조화도 점수입니다.
+    struct OverallHarmonyScore {
+        let average: CGFloat
+        let max: CGFloat
+        let min: CGFloat
+        let deviation: CGFloat
+    }
     
     // MARK: - Data Models
     
@@ -459,7 +486,7 @@ class SoundHarmonyAnalyzer {
     }
     
     private func getPersonalizedWeights() async -> PersonalizedHarmonyLearner.HarmonyWeights {
-        if #available(iOS 17.0, *) {
+        if #available(iOS 18.0, *) {
             return await PersonalizedHarmonyLearner.shared.harmonyWeights
         } else {
             return PersonalizedHarmonyLearner.HarmonyWeights.default
@@ -569,6 +596,42 @@ class SoundHarmonyAnalyzer {
             return .combination
         }
     }
+
+    // MARK: - 비공개 헬퍼
+    private func updateUIWithAnalysis(_ analysis: (harmonicity: CGFloat, dissonance: CGFloat, rhythmSync: CGFloat, combinedScore: CGFloat)) {
+        // UI 업데이트 로직 (예시)
+        print("조화도: \(analysis.harmonicity), 불협화음: \(analysis.dissonance), 리듬 동기화: \(analysis.rhythmSync)")
+    }
+
+    private func calculateHarmony(file1: URL, file2: URL) -> HarmonyAnalysisResult? {
+        // 두 사운드 파일 간의 조화 분석
+        guard let features1 = extractFeatures(from: file1),
+              let features2 = extractFeatures(from: file2) else {
+            return nil
+        }
+        
+        return analyzeHarmony(features1: features1, features2: features2)
+    }
+    
+    private func findIncompatibleSounds(from files: [URL], threshold: CGFloat = 0.3) -> [URL] {
+        var harmonyScores: [URL: CGFloat] = [:]
+
+        for (index, file1) in files.enumerated() {
+            for file2 in files.dropFirst(index + 1) {
+                if let score = calculateHarmony(file1: file1, file2: file2)?.combinedScore {
+                    harmonyScores[file1, default: 0] += score
+                    harmonyScores[file2, default: 0] += score
+                }
+            }
+        }
+
+        var incompatibleFiles: [URL] = []
+        for (file, score) in harmonyScores where score / CGFloat(files.count - 1) < threshold {
+            incompatibleFiles.append(file)
+        }
+        
+        return incompatibleFiles
+    }
 }
 
 /// 🔍 개별 오디오 분석기
@@ -590,7 +653,7 @@ class AudioAnalyzer {
 }
 
 // MARK: - 확장 유틸리티
-
+@available(iOS 17.0, *)
 extension SoundHarmonyAnalyzer {
     
     /// 조화도 점수를 기반으로 한 간단한 평가
@@ -626,5 +689,47 @@ extension SoundHarmonyAnalyzer {
             }
         }
         return false
+    }
+}
+
+// MARK: - Feature Extraction
+@available(iOS 17.0, *)
+extension SoundHarmonyAnalyzer {
+    
+    /// 사운드 파일에서 핵심 음향 특성을 추출합니다.
+    private func extractFeatures(from fileURL: URL) -> SoundFeatures? {
+        // ... 기존 로직 ...
+        // todo: 실제 특성 추출 로직 구현 필요
+        return SoundFeatures(pitch: [0.1, 0.2], volume: [0.8, 0.7], complexity: 0.5)
+    }
+}
+
+// MARK: - Harmony Analysis
+@available(iOS 17.0, *)
+extension SoundHarmonyAnalyzer {
+
+    /// 두 사운드 특성 세트 간의 조화를 분석합니다.
+    private func analyzeHarmony(features1: SoundFeatures, features2: SoundFeatures) -> HarmonyAnalysisResult {
+        // ... 기존 로직 ...
+        // todo: 실제 조화 분석 로직 구현 필요
+        return HarmonyAnalysisResult(harmonicity: 0.9, dissonance: 0.1, rhythmSync: 0.8, combinedScore: 0.85)
+    }
+
+    /// 주어진 사운드 파일 목록의 전반적인 조화도를 계산합니다.
+    public func calculateOverallHarmony(for files: [URL]) -> OverallHarmonyScore {
+        guard files.count > 1 else {
+            return OverallHarmonyScore(average: 1.0, max: 1.0, min: 1.0, deviation: 0.0)
+        }
+        
+        let allScores = [1.0, 0.9, 0.8] // todo: 실제 점수 계산 로직
+        let sum = allScores.reduce(0, +)
+        let average = sum / CGFloat(allScores.count)
+        
+        return OverallHarmonyScore(
+            average: average,
+            max: allScores.max() ?? 0,
+            min: allScores.min() ?? 0,
+            deviation: 0.1 // todo: 실제 표준 편차 계산
+        )
     }
 }

@@ -14,7 +14,7 @@ DerivedData/
 *.xcuserdatad/
 xcuserdata/
 *.xcworkspace/xcuserdata/
-
+/.specstory/
 # 🗃️ 임시 파일들
 .DS_Store
 *.swp

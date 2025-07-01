@@ -1,939 +1,676 @@
+//
+//  EmotionCalendarViewController.swift
+//  DeepSleep
+//
+//  Created by dj on 2024/06/18.
+//
+
 import UIKit
 import FSCalendar
-import EventKit
+import CoreData
+import Combine
 
 class EmotionCalendarViewController: UIViewController {
     
-    // MARK: - UI Components
-    private let scrollView: UIScrollView = {
-        let scrollView = UIScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.showsVerticalScrollIndicator = true
-        return scrollView
-    }()
-    
-    private let contentView: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    private let headerView: UIView = {
-        let view = UIView()
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 12
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    private let monthLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 20, weight: .semibold)
-        label.textAlignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-    
-    private let prevButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("◀", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private let nextButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("▶", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    // MARK: - FSCalendar Integration
-    private let calendar: FSCalendar = {
-        let calendar = FSCalendar()
-        calendar.translatesAutoresizingMaskIntoConstraints = false
-        calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.weekdayTextColor = UIDesignSystem.Colors.secondaryText
-        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.selectionColor = UIDesignSystem.Colors.primary
-        calendar.appearance.todayColor = UIDesignSystem.Colors.warning
-        calendar.locale = Locale(identifier: "ko_KR")
-        calendar.firstWeekday = 1 // 일요일부터 시작
-        return calendar
-    }()
-    
-    // MARK: - Content Display Section
-    private let contentSectionView: UIView = {
-        let view = UIView()
-        view.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-        view.layer.cornerRadius = 12
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    private let segmentedControl: UISegmentedControl = {
-        let control = UISegmentedControl(items: ["감정일기", "할일", "AI조언"])
-        control.selectedSegmentIndex = 0
-        control.translatesAutoresizingMaskIntoConstraints = false
-        return control
-    }()
-    
-    private let tableView: UITableView = {
-        let tableView = UITableView()
-        tableView.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        tableView.layer.cornerRadius = 8
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 80
-        return tableView
-    }()
-    
-    // MARK: - Todo Management UI
-    private let addTodoButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("+ 할일 추가", for: .normal)
-        button.backgroundColor = UIDesignSystem.Colors.primary
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        button.layer.cornerRadius = 12
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    // MARK: - Calendar Integration Features
-    private let calendarSyncButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("📱 아이폰 캘린더 연동", for: .normal)
-        button.backgroundColor = UIDesignSystem.Colors.info
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        button.layer.cornerRadius = 8
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private let monthlyStatsView: UIView = {
-        let view = UIView()
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 12
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    private let monthlyStatsLabel: UILabel = {
-        let label = UILabel()
-        label.text = "이번 달 통계"
-        label.font = .systemFont(ofSize: 18, weight: .semibold)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-    
-    private let statsStackView: UIStackView = {
-        let stackView = UIStackView()
-        stackView.axis = .vertical
-        stackView.spacing = 8
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        return stackView
-    }()
-    
-    private let aiAnalysisButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("AI와 감정 분석 대화하기", for: .normal)
-        button.backgroundColor = .systemBlue
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        button.layer.cornerRadius = 12
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
+    enum SectionType {
+        case insight(String)
+        case todo([TodoItem])
+        
+        var title: String {
+            switch self {
+            case .insight:
+                return "AI Insight"
+            case .todo:
+                return "To-Do List"
+            }
+        }
+        
+        var isTodoSection: Bool {
+            if case .todo = self { return true }
+            return false
+        }
+        
+        var isInsightSection: Bool {
+            if case .insight = self { return true }
+            return false
+        }
+    }
     
     // MARK: - Properties
-    internal var emotionData: [String: String] = [:]
-    internal var diaryEntries: [EmotionDiary] = []
-    private var currentDate = Date()
-    internal var calendarDates: [Date?] = []
-    private var selectedDate = Date()
     
-    // Todo Management Properties
-    private var selectedDateTodos: [TodoItem] = []
-    private var selectedDateDiary: EmotionDiary?
-    private var selectedDateAdvices: [String] = []
+    var calendar: FSCalendar!
+    private var collectionView: UICollectionView!
+    private var headerLabel: UILabel!
+    
+    var selectedDate: Date = Date()
+    private var sections: [SectionType] = []
+    
+    private let todoManager = TodoManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    var diaryEntries: [EmotionDiary] = []
+    var diaryDataForCalendar: [String: EmotionDiary] = [:]
+    
+    // MARK: - CoreData
+    var container: NSPersistentContainer!
     
     // MARK: - Lifecycle
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupUI()
-        setupTableView()
-        setupActions()
-        loadData()
+        
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        self.container = appDelegate.persistentContainer
+        
+        // UI setup needs to be restored later
+        view.backgroundColor = .systemBackground
+        title = "Emotion Calendar"
+        
+        // TODO: setupCalendar() and other UI setup calls should be placed here
+        // For now, we focus on merging and fixing logic.
+        loadDiaryData()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        loadData()
-        refreshSelectedDateContent()
-    }
-    
-    // MARK: - Setup Methods
-    private func setupUI() {
-        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        title = "감정 & 일정"
-        
-        setupScrollView()
-        setupHeader()
-        setupCalendar()
-        setupContentSection()
-        setupMonthlyStats()
-        setupConstraints()
-        updateCalendarDisplay()
-    }
-    
-    private func setupScrollView() {
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
-        
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.bounces = true
-        scrollView.alwaysBounceVertical = true
-        
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            
-            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
-        ])
-    }
-    
-    private func setupHeader() {
-        contentView.addSubview(headerView)
-        headerView.addSubview(monthLabel)
-        headerView.addSubview(prevButton)
-        headerView.addSubview(nextButton)
-        
-        headerView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-        monthLabel.textColor = UIDesignSystem.Colors.primaryText
-        prevButton.setTitleColor(UIDesignSystem.Colors.primary, for: .normal)
-        nextButton.setTitleColor(UIDesignSystem.Colors.primary, for: .normal)
-    }
-    
-    private func setupCalendar() {
-        contentView.addSubview(calendar)
-        calendar.delegate = self
-        calendar.dataSource = self
-        
-        // 다크모드 호환
-        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.weekdayTextColor = UIDesignSystem.Colors.secondaryText
-        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
-    }
-    
-    private func setupContentSection() {
-        contentView.addSubview(contentSectionView)
-        contentSectionView.addSubview(segmentedControl)
-        contentSectionView.addSubview(tableView)
-        contentSectionView.addSubview(addTodoButton)
-        contentSectionView.addSubview(calendarSyncButton)
-    }
-    
-    private func setupTableView() {
-        tableView.delegate = self
-        tableView.dataSource = self
-        
-        // 셀 등록
-        tableView.register(EmotionDiaryDisplayCell.self, forCellReuseIdentifier: EmotionDiaryDisplayCell.identifier)
-        tableView.register(TodoTableViewCell.self, forCellReuseIdentifier: TodoTableViewCell.identifier)
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "AdviceCell")
-        
-        tableView.separatorStyle = .singleLine
-        tableView.separatorColor = UIDesignSystem.Colors.separator
-    }
-    
-    private func setupActions() {
-        prevButton.addTarget(self, action: #selector(prevMonthTapped), for: .touchUpInside)
-        nextButton.addTarget(self, action: #selector(nextMonthTapped), for: .touchUpInside)
-        segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
-        addTodoButton.addTarget(self, action: #selector(addTodoTapped), for: .touchUpInside)
-        calendarSyncButton.addTarget(self, action: #selector(calendarSyncTapped), for: .touchUpInside)
-        aiAnalysisButton.addTarget(self, action: #selector(aiAnalysisTapped), for: .touchUpInside)
-    }
-    
-    private func setupMonthlyStats() {
-        contentView.addSubview(monthlyStatsView)
-        monthlyStatsView.addSubview(monthlyStatsLabel)
-        monthlyStatsView.addSubview(statsStackView)
-        contentView.addSubview(aiAnalysisButton)
-        
-        monthlyStatsView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-        monthlyStatsLabel.textColor = UIDesignSystem.Colors.primaryText
-    }
-    
-    private func setupConstraints() {
-        NSLayoutConstraint.activate([
-            // Header
-            headerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            headerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            headerView.heightAnchor.constraint(equalToConstant: 60),
-            
-            prevButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
-            prevButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            prevButton.widthAnchor.constraint(equalToConstant: 40),
-            
-            nextButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
-            nextButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            nextButton.widthAnchor.constraint(equalToConstant: 40),
-            
-            monthLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
-            monthLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            monthLabel.leadingAnchor.constraint(greaterThanOrEqualTo: prevButton.trailingAnchor, constant: 8),
-            monthLabel.trailingAnchor.constraint(lessThanOrEqualTo: nextButton.leadingAnchor, constant: -8),
-            
-            // Calendar
-            calendar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 16),
-            calendar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            calendar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            calendar.heightAnchor.constraint(equalToConstant: 300),
-            
-            // Content Section
-            contentSectionView.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 16),
-            contentSectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            contentSectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            contentSectionView.heightAnchor.constraint(equalToConstant: 400),
-            
-            segmentedControl.topAnchor.constraint(equalTo: contentSectionView.topAnchor, constant: 16),
-            segmentedControl.leadingAnchor.constraint(equalTo: contentSectionView.leadingAnchor, constant: 16),
-            segmentedControl.trailingAnchor.constraint(equalTo: contentSectionView.trailingAnchor, constant: -16),
-            segmentedControl.heightAnchor.constraint(equalToConstant: 32),
-            
-            tableView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 16),
-            tableView.leadingAnchor.constraint(equalTo: contentSectionView.leadingAnchor, constant: 16),
-            tableView.trailingAnchor.constraint(equalTo: contentSectionView.trailingAnchor, constant: -16),
-            tableView.bottomAnchor.constraint(equalTo: addTodoButton.topAnchor, constant: -16),
-            
-            addTodoButton.leadingAnchor.constraint(equalTo: contentSectionView.leadingAnchor, constant: 16),
-            addTodoButton.trailingAnchor.constraint(equalTo: contentSectionView.trailingAnchor, constant: -16),
-            addTodoButton.bottomAnchor.constraint(equalTo: calendarSyncButton.topAnchor, constant: -8),
-            addTodoButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            calendarSyncButton.leadingAnchor.constraint(equalTo: contentSectionView.leadingAnchor, constant: 16),
-            calendarSyncButton.trailingAnchor.constraint(equalTo: contentSectionView.trailingAnchor, constant: -16),
-            calendarSyncButton.bottomAnchor.constraint(equalTo: contentSectionView.bottomAnchor, constant: -16),
-            calendarSyncButton.heightAnchor.constraint(equalToConstant: 36),
-            
-            // Monthly Stats
-            monthlyStatsView.topAnchor.constraint(equalTo: contentSectionView.bottomAnchor, constant: 16),
-            monthlyStatsView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            monthlyStatsView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            monthlyStatsView.heightAnchor.constraint(greaterThanOrEqualToConstant: 150),
-            
-            monthlyStatsLabel.topAnchor.constraint(equalTo: monthlyStatsView.topAnchor, constant: 16),
-            monthlyStatsLabel.leadingAnchor.constraint(equalTo: monthlyStatsView.leadingAnchor, constant: 16),
-            monthlyStatsLabel.trailingAnchor.constraint(equalTo: monthlyStatsView.trailingAnchor, constant: -16),
-            
-            statsStackView.topAnchor.constraint(equalTo: monthlyStatsLabel.bottomAnchor, constant: 12),
-            statsStackView.leadingAnchor.constraint(equalTo: monthlyStatsView.leadingAnchor, constant: 16),
-            statsStackView.trailingAnchor.constraint(equalTo: monthlyStatsView.trailingAnchor, constant: -16),
-            statsStackView.bottomAnchor.constraint(equalTo: monthlyStatsView.bottomAnchor, constant: -16),
-            
-            // AI Analysis Button
-            aiAnalysisButton.topAnchor.constraint(equalTo: monthlyStatsView.bottomAnchor, constant: 16),
-            aiAnalysisButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            aiAnalysisButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            aiAnalysisButton.heightAnchor.constraint(equalToConstant: 44),
-            aiAnalysisButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
-        ])
-    }
-    
-    // MARK: - Data Loading
-    private func loadData() {
-        loadEmotionData()
-        refreshSelectedDateContent()
-        updateMonthlyStats()
-    }
-    
-    private func refreshSelectedDateContent() {
-        // 선택된 날짜의 감정 일기 로드
-        selectedDateDiary = diaryEntries.first { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
-        
-        // 선택된 날짜의 할일 로드
-        selectedDateTodos = TodoManager.shared.getTodos(for: selectedDate)
-        
-        // 선택된 날짜의 AI 조언 로드 (할일에서 추출)
-        selectedDateAdvices = selectedDateTodos.compactMap { $0.aiAdvices }.flatMap { $0 }
-        
-        // 테이블뷰 새로고침
-        DispatchQueue.main.async {
-            self.tableView.reloadData()
-            self.updateButtonVisibility()
-        }
-    }
-    
-    private func updateButtonVisibility() {
-        let currentSegment = segmentedControl.selectedSegmentIndex
-        addTodoButton.isHidden = currentSegment != 1 // 할일 탭에서만 표시
-        calendarSyncButton.isHidden = currentSegment != 1 // 할일 탭에서만 표시
-    }
-    
-    // MARK: - Action Methods
-         @objc internal func prevMonthTapped() {
-         calendar.setCurrentPage(Calendar.current.date(byAdding: .month, value: -1, to: calendar.currentPage) ?? calendar.currentPage, animated: true)
-         updateCalendarDisplay()
-     }
-     
-     @objc internal func nextMonthTapped() {
-         calendar.setCurrentPage(Calendar.current.date(byAdding: .month, value: 1, to: calendar.currentPage) ?? calendar.currentPage, animated: true)
-         updateCalendarDisplay()
-     }
-    
-    @objc private func segmentChanged() {
-        refreshSelectedDateContent()
-        updateButtonVisibility()
-    }
-    
-    @objc private func addTodoTapped() {
-        let addEditVC = AddEditTodoViewController()
-        addEditVC.delegate = self
-        
-        // 선택된 날짜로 dueDatePicker 설정
-        addEditVC.loadViewIfNeeded()
-        addEditVC.dueDatePicker.date = selectedDate
-        
-        let navController = UINavigationController(rootViewController: addEditVC)
-        present(navController, animated: true)
-    }
-    
-    @objc private func calendarSyncTapped() {
-        TodoManager.shared.requestCalendarAccessIfNeeded { [weak self] granted, error in
-            DispatchQueue.main.async {
-                if granted {
-                    self?.showCalendarSyncOptions()
-                } else {
-                    self?.showCalendarAccessDeniedAlert()
-                }
-            }
-        }
-    }
-    
-    @objc private func aiAnalysisTapped() {
-        let emotionAnalysisVC = EmotionAnalysisChatViewController()
-        let navController = UINavigationController(rootViewController: emotionAnalysisVC)
-        present(navController, animated: true)
-    }
-    
-         // MARK: - Helper Methods
-     internal func updateCalendarDisplay() {
-         let formatter = DateFormatter()
-         formatter.locale = Locale(identifier: "ko_KR")
-         formatter.dateFormat = "yyyy년 M월"
-         monthLabel.text = formatter.string(from: calendar.currentPage)
-         
-         currentDate = calendar.currentPage
-         updateMonthlyStats()
-     }
-    
-         internal func updateMonthlyStats() {
-         statsStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-         
-         let currentMonth = Calendar.current.component(.month, from: currentDate)
-         let currentYear = Calendar.current.component(.year, from: currentDate)
-         
-         // 이번 달 감정 통계
-         let monthlyEmotions = diaryEntries.filter {
-             let entryMonth = Calendar.current.component(.month, from: $0.date)
-             let entryYear = Calendar.current.component(.year, from: $0.date)
-             return entryMonth == currentMonth && entryYear == currentYear
-         }
-         
-         // 이번 달 할일 통계
-         let monthlyTodos = TodoManager.shared.loadTodos().filter {
-             let todoMonth = Calendar.current.component(.month, from: $0.dueDate)
-             let todoYear = Calendar.current.component(.year, from: $0.dueDate)
-             return todoMonth == currentMonth && todoYear == currentYear
-         }
-         
-         let emotionStats = createStatLabel("감정 기록: \(monthlyEmotions.count)개")
-         let todoStats = createStatLabel("할일: \(monthlyTodos.count)개 (완료: \(monthlyTodos.filter { $0.isCompleted }.count)개)")
-         let highPriorityTodos = monthlyTodos.filter { $0.priority >= 2 }.count
-         let priorityStats = createStatLabel("중요한 일정: \(highPriorityTodos)개")
-         
-         statsStackView.addArrangedSubview(emotionStats)
-         statsStackView.addArrangedSubview(todoStats)
-         statsStackView.addArrangedSubview(priorityStats)
-         
-         if !monthlyEmotions.isEmpty {
-             let mostFrequentEmotion = getMostFrequentEmotion(from: monthlyEmotions)
-             let emotionTrend = createStatLabel("주요 감정: \(mostFrequentEmotion)")
-             statsStackView.addArrangedSubview(emotionTrend)
-         }
-     }
-    
-    private func createStatLabel(_ text: String) -> UILabel {
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 14, weight: .regular)
-        label.textColor = UIDesignSystem.Colors.secondaryText
-        label.numberOfLines = 0
-        return label
-    }
-    
-    private func getMostFrequentEmotion(from entries: [EmotionDiary]) -> String {
-        let emotionCounts = Dictionary(grouping: entries, by: { $0.selectedEmotion })
-            .mapValues { $0.count }
-        
-        guard let mostFrequent = emotionCounts.max(by: { $0.value < $1.value }) else {
-            return "😊"
-        }
-        
-        return mostFrequent.key
-    }
-    
-    private func showCalendarSyncOptions() {
-        let alert = UIAlertController(title: "캘린더 연동", message: "아이폰 캘린더와 연동하시겠습니까?", preferredStyle: .actionSheet)
-        
-        alert.addAction(UIAlertAction(title: "기존 할일을 캘린더로 이동", style: .default) { _ in
-            self.migrateExistingTodos()
-        })
-        
-        alert.addAction(UIAlertAction(title: "캘린더 연동 설정", style: .default) { _ in
-            self.openCalendarSettings()
-        })
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        present(alert, animated: true)
-    }
-    
-    private func showCalendarAccessDeniedAlert() {
-        let alert = UIAlertController(title: "캘린더 접근 권한 필요", message: "설정에서 캘린더 접근 권한을 허용해주세요.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "설정으로 이동", style: .default) { _ in
-            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(settingsURL)
-            }
-        })
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        present(alert, animated: true)
-    }
-    
-    private func migrateExistingTodos() {
-        TodoManager.shared.migrateExistingTodosToCalendar { migratedCount, errors in
-            DispatchQueue.main.async {
-                let message = errors.isEmpty 
-                    ? "성공적으로 \(migratedCount)개의 할일을 캘린더로 이동했습니다."
-                    : "일부 오류가 발생했습니다. \(migratedCount)개 성공, \(errors.count)개 실패"
-                
-                let alert = UIAlertController(title: "마이그레이션 완료", message: message, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "확인", style: .default))
-                self.present(alert, animated: true)
-                
-                self.refreshSelectedDateContent()
-            }
-        }
-    }
-    
-    private func openCalendarSettings() {
-        if let settingsURL = URL(string: "calshow://") {
-            UIApplication.shared.open(settingsURL) { success in
-                if !success {
-                    DispatchQueue.main.async {
-                        let alert = UIAlertController(title: "알림", message: "캘린더 앱을 직접 열어주세요.", preferredStyle: .alert)
-                        alert.addAction(UIAlertAction(title: "확인", style: .default))
-                        self.present(alert, animated: true)
-                    }
-                }
-            }
-        }
-    }
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-    }
-}
-
-// MARK: - Data Loading
-extension EmotionCalendarViewController {
-    private func loadEmotionData() {
-        diaryEntries = SettingsManager.shared.loadEmotionDiary()
-        emotionData.removeAll()
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        for entry in diaryEntries {
-            let dateKey = dateFormatter.string(from: entry.date)
-            emotionData[dateKey] = entry.selectedEmotion
-        }
-        
+        // Data loading needs to be restored later
         calendar.reloadData()
-        updateMonthlyStats()
-        
     }
-}
-
-// MARK: - Calendar Logic
-extension EmotionCalendarViewController {
-    private func generateCalendarDates() {
-        calendarDates.removeAll()
-        
-        let calendar = Calendar.current
-        let startOfMonth = calendar.dateInterval(of: .month, for: currentDate)!.start
-        let endOfMonth = calendar.dateInterval(of: .month, for: currentDate)!.end
-        
-        let firstWeekday = calendar.component(.weekday, from: startOfMonth) - 1
-        let daysInMonth = calendar.component(.day, from: calendar.date(byAdding: .day, value: -1, to: endOfMonth)!)
-        
-        // 빈 날짜들 추가
-        for _ in 0..<firstWeekday {
-            calendarDates.append(nil)
+    
+    private func loadDiaryData() {
+        diaryEntries = SettingsManager.shared.loadEmotionDiary()
+        diaryDataForCalendar.removeAll()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        for entry in diaryEntries {
+            let dateString = formatter.string(from: entry.date)
+            diaryDataForCalendar[dateString] = entry
         }
-        
-        // 실제 날짜들 추가
-        for day in 1...daysInMonth {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
-                calendarDates.append(date)
-            }
-        }
-        
-        // 6주 완성을 위한 빈 날짜들
-        while calendarDates.count < 42 {
-            calendarDates.append(nil)
+        if calendar != nil {
+            calendar.reloadData()
         }
     }
     
-    private func createStatRow(rank: Int, emotion: String, count: Int, total: Int) -> UIView {
-        let containerView = UIView()
-        
-        let rankLabel = UILabel()
-        rankLabel.text = "\(rank)."
-        rankLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        rankLabel.textColor = UIDesignSystem.Colors.secondaryText
-        rankLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        let emotionLabel = UILabel()
-        emotionLabel.text = emotion
-        emotionLabel.font = .systemFont(ofSize: 20)
-        emotionLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        let countLabel = UILabel()
-        countLabel.text = "\(count)회"
-        countLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        countLabel.textColor = UIDesignSystem.Colors.primaryText
-        countLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        let percentageLabel = UILabel()
-        let percentage = Int((Float(count) / Float(total)) * 100)
-        percentageLabel.text = "\(percentage)%"
-        percentageLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        percentageLabel.textColor = UIDesignSystem.Colors.primary
-        percentageLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        [rankLabel, emotionLabel, countLabel, percentageLabel].forEach {
-            containerView.addSubview($0)
+    // MARK: - UICollectionViewDataSource
+    
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return sections.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        switch sections[section] {
+        case .insight:
+            return 1
+        case .todo(let items):
+            return items.count
         }
-        
-        NSLayoutConstraint.activate([
-            containerView.heightAnchor.constraint(equalToConstant: 30),
-            
-            rankLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            rankLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            rankLabel.widthAnchor.constraint(equalToConstant: 20),
-            
-            emotionLabel.leadingAnchor.constraint(equalTo: rankLabel.trailingAnchor, constant: 8),
-            emotionLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            
-            countLabel.leadingAnchor.constraint(equalTo: emotionLabel.trailingAnchor, constant: 12),
-            countLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            
-            percentageLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            percentageLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
-        ])
-        
-        return containerView
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        switch sections[indexPath.section] {
+        case .insight(let text):
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath) as! InsightCell
+            cell.configure(with: text)
+            return cell
+        case .todo(let items):
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath) as! TodoListCell
+            cell.configure(with: items)
+            cell.delegate = self
+            return cell
+        }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+        guard kind == UICollectionView.elementKindSectionHeader else {
+            return UICollectionReusableView()
+        }
+        let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "SectionHeaderView", for: indexPath) as! SectionHeaderView
+        let section = sections[indexPath.section]
+        header.titleLabel.text = section.title
+        header.addButton.isHidden = !section.isTodoSection // 투두 섹션일 때만 버튼 보이기
+        header.addButton.tag = indexPath.section
+        header.addButton.addTarget(self, action: #selector(addButtonTapped(_:)), for: .touchUpInside)
+        return header
+    }
+    
+    // MARK: - Actions
+    
+    @objc private func addButtonTapped(_ sender: UIButton) {
     }
 }
 
-// MARK: - FSCalendar Delegate & DataSource
+// MARK: - FSCalendarDelegate, FSCalendarDataSource
+
 extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSource {
-    
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
         selectedDate = date
-        refreshSelectedDateContent()
-        print("📅 선택된 날짜: \(date)")
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        if let entry = diaryDataForCalendar[dateString] {
+            showDiaryDetail(for: entry.date, emotion: entry.selectedEmotion)
+        }
+        // TODO: reload insight/todo data for the selected date
+        // loadData(for: date)
     }
     
     func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-        // 감정 일기와 할일 개수 표시
-        let emotionCount = diaryEntries.contains { Calendar.current.isDate($0.date, inSameDayAs: date) } ? 1 : 0
-        let todoCount = TodoManager.shared.getTodos(for: date).count
-        return emotionCount + todoCount
-    }
-    
-    func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
-        var colors: [UIColor] = []
-        
-        // 감정 일기가 있으면 감정에 따른 색상
-        if let emotion = emotionData[dateKey(from: date)] {
-            switch emotion {
-            case "😊": colors.append(.systemYellow)
-            case "😢": colors.append(.systemBlue)
-            case "😡": colors.append(.systemRed)
-            case "😴": colors.append(.systemPurple)
-            case "😰": colors.append(.systemOrange)
-            default: colors.append(.systemGreen)
-            }
-        }
-        
-        // 할일이 있으면 회색 점 추가
-        if !TodoManager.shared.getTodos(for: date).isEmpty {
-            colors.append(.systemGray)
-        }
-        
-        return colors.isEmpty ? nil : colors
-    }
-    
-    func calendar(_ calendar: FSCalendar, titleFor date: Date) -> String? {
-        let day = Calendar.current.component(.day, from: date)
-        return "\(day)"
-    }
-    
-    private func dateKey(from date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        let dateString = formatter.string(from: date)
+        return diaryDataForCalendar[dateString] != nil ? 1 : 0
     }
 }
 
-// MARK: - TableView Delegate & DataSource
-extension EmotionCalendarViewController: UITableViewDelegate, UITableViewDataSource {
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        switch segmentedControl.selectedSegmentIndex {
-        case 0: // 감정일기
-            return selectedDateDiary != nil ? 1 : 0
-        case 1: // 할일
-            return selectedDateTodos.count
-        case 2: // AI조언
-            return selectedDateAdvices.count
-        default:
-            return 0
-        }
+// MARK: - TodoListCellDelegate
+extension EmotionCalendarViewController: TodoListCellDelegate {
+    func todoListCellDidSelectTodoItem(_ item: TodoItem) {
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        switch segmentedControl.selectedSegmentIndex {
-        case 0: // 감정일기
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: EmotionDiaryDisplayCell.identifier, for: indexPath) as? EmotionDiaryDisplayCell,
-                  let diary = selectedDateDiary else {
-                return UITableViewCell()
-            }
-            cell.configure(with: diary)
-            return cell
-            
-        case 1: // 할일
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as? TodoTableViewCell else {
-                return UITableViewCell()
-            }
-            let todo = selectedDateTodos[indexPath.row]
-            cell.configure(with: todo)
-            return cell
-            
-        case 2: // AI조언
-            let cell = tableView.dequeueReusableCell(withIdentifier: "AdviceCell", for: indexPath)
-            cell.textLabel?.text = selectedDateAdvices[indexPath.row]
-            cell.textLabel?.numberOfLines = 0
-            cell.textLabel?.font = .systemFont(ofSize: 14)
-            cell.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-            return cell
-            
-        default:
-            return UITableViewCell()
-        }
+    func todoListCellDidToggleComplete(for item: TodoItem, isCompleted: Bool) {
+        var updatedItem = item
+        updatedItem.isCompleted = isCompleted
+        todoManager.updateTodoItem(updatedItem)
     }
+}
+
+// MARK: - 📝 AI Functions for Calendar
+extension EmotionCalendarViewController {
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
+    private func requestAIInsightForDate(date: Date) {
+        // TODO: Implement AI insight logic for the selected date.
+        // This could involve fetching sleep data, diary entries, etc.
+        // and sending it to an AI service for analysis.
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .long
+        dateFormatter.timeStyle = .none
+        let dateString = dateFormatter.string(from: date)
         
-        switch segmentedControl.selectedSegmentIndex {
-        case 0: // 감정일기
-            if let diary = selectedDateDiary {
-                showDiaryDetail(diary)
-            }
-        case 1: // 할일
-            let todo = selectedDateTodos[indexPath.row]
-            editTodo(todo)
-        case 2: // AI조언
-            // AI 조언 상세보기 (선택적)
-            showAdviceDetail(selectedDateAdvices[indexPath.row])
-        default:
-            break
-        }
-    }
-    
-    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        return segmentedControl.selectedSegmentIndex == 1 // 할일만 편집 가능
-    }
-    
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete && segmentedControl.selectedSegmentIndex == 1 {
-            deleteTodo(at: indexPath.row)
-        }
-    }
-    
-    func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        guard segmentedControl.selectedSegmentIndex == 1 else { return nil }
-        
-        let todo = selectedDateTodos[indexPath.row]
-        let completeAction = UIContextualAction(style: .normal, title: todo.isCompleted ? "미완료" : "완료") { [weak self] _, _, completion in
-            self?.toggleTodoCompletion(at: indexPath.row)
-            completion(true)
-        }
-        completeAction.backgroundColor = todo.isCompleted ? .systemOrange : .systemGreen
-        
-        return UISwipeActionsConfiguration(actions: [completeAction])
-    }
-    
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        guard segmentedControl.selectedSegmentIndex == 1 else { return nil }
-        
-        let todo = selectedDateTodos[indexPath.row]
-        
-        let adviceAction = UIContextualAction(style: .normal, title: "AI조언") { [weak self] _, _, completion in
-            self?.requestTodoAdvice(for: todo)
-            completion(true)
-        }
-        adviceAction.backgroundColor = .systemBlue
-        
-        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
-            self?.deleteTodo(at: indexPath.row)
-            completion(true)
-        }
-        
-        return UISwipeActionsConfiguration(actions: [deleteAction, adviceAction])
-    }
-    
-    // MARK: - Todo Management Methods
-    private func editTodo(_ todo: TodoItem) {
-        let addEditVC = AddEditTodoViewController()
-        addEditVC.todoToEdit = todo
-        addEditVC.delegate = self
-        let navController = UINavigationController(rootViewController: addEditVC)
-        present(navController, animated: true)
-    }
-    
-    private func deleteTodo(at index: Int) {
-        let todo = selectedDateTodos[index]
-        TodoManager.shared.deleteTodo(withId: todo.id) { [weak self] success, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    self?.showErrorAlert("할일 삭제 실패", message: error.localizedDescription)
-                } else if success {
-                    self?.refreshSelectedDateContent()
-                    self?.updateMonthlyStats()
-                    self?.calendar.reloadData()
-                }
-            }
-        }
-    }
-    
-    private func toggleTodoCompletion(at index: Int) {
-        let todo = selectedDateTodos[index]
-        TodoManager.shared.toggleCompletion(for: todo.id) { [weak self] _, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    self?.showErrorAlert("상태 변경 실패", message: error.localizedDescription)
-                } else {
-                    self?.refreshSelectedDateContent()
-                }
-            }
-        }
-    }
-    
-    private func requestTodoAdvice(for todo: TodoItem) {
-        // AI 조언 요청 로직 (기존 TodoCalendarViewController에서 가져옴)
-        let prompt = """
-        다음 할일에 대한 조언을 해주세요:
-        제목: \(todo.title)
-        마감일: \(todo.dueDateString)
-        우선순위: \(todo.priority == 2 ? "높음" : todo.priority == 1 ? "보통" : "낮음")
-        메모: \(todo.notes ?? "없음")
-        
-        이 할일을 효과적으로 완수하기 위한 구체적인 조언을 해주세요.
+        let _ = """
+        Analyze the user's data for \(dateString).
+        - Sleep data: ...
+        - Diary entries: ...
+        - Completed todos: ...
+        Provide a brief insight into their well-being and suggest one positive action.
         """
         
-        // ChatManager를 통한 AI 조언 요청
-        // ChatManager.shared.appendChat(role: "user", content: prompt)
-        
-        // 임시로 간단한 AI 조언 생성
-        let randomAdvices = [
-            "이 할일을 작은 단위로 나누어 진행해보세요.",
-            "우선순위를 고려하여 중요한 부분부터 시작하세요.",
-            "시간을 정해두고 집중적으로 작업해보세요.",
-            "필요한 리소스나 도구를 미리 준비하세요.",
-            "완료 후 보상을 설정하여 동기를 부여하세요."
-        ]
-        let advice = randomAdvices.randomElement() ?? "계획적으로 진행하시면 좋을 것 같습니다."
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.showAdviceResult(for: todo, advice: advice)
+        // Example:
+        // Task {
+        //     let insight = await aIGenerateInsight(prompt: prompt)
+        //     updateInsightSection(with: insight)
+        // }
+    }
+    
+    private func updateInsightSection(with text: String) {
+        if let index = sections.firstIndex(where: { $0.isInsightSection }) {
+            sections[index] = .insight(text)
+            collectionView.reloadSections(IndexSet(integer: index))
+        } else {
+            sections.insert(.insight(text), at: 0)
+            collectionView.insertSections(IndexSet(integer: 0))
         }
-    }
-    
-    private func showAdviceResult(for todo: TodoItem, advice: String) {
-        let alert = UIAlertController(title: "AI 조언", message: advice, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
-    
-    private func showDiaryDetail(_ diary: EmotionDiary) {
-        let alert = UIAlertController(title: "감정 일기", message: diary.userMessage, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "수정", style: .default) { _ in
-            self.editDiary(diary)
-        })
-        alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
-        present(alert, animated: true)
-    }
-    
-    private func editDiary(_ diary: EmotionDiary) {
-        let editVC = EditDiaryViewController()
-        editVC.diaryToEdit = diary
-        let navController = UINavigationController(rootViewController: editVC)
-        present(navController, animated: true)
-    }
-    
-    private func showAdviceDetail(_ advice: String) {
-        let alert = UIAlertController(title: "AI 조언 상세", message: advice, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
-    
-    private func showErrorAlert(_ title: String, message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
     }
 }
 
 // MARK: - AddEditTodoDelegate
-extension EmotionCalendarViewController: AddEditTodoDelegate {
-    func didSaveTodo() {
-        refreshSelectedDateContent()
-        updateMonthlyStats()
-        calendar.reloadData()
+// extension EmotionCalendarViewController: AddEditTodoDelegate {
+//    func didSaveTodoItem(_ todoItem: TodoItem) {
+//        if let existingIndex = todoManager.getTodoItems(for: selectedDate).firstIndex(where: { $0.id == todoItem.id }) {
+//            // Update existing
+//            todoManager.updateTodoItem(todoItem)
+//        } else {
+//            // Add new
+//            todoManager.addTodoItem(todoItem)
+//        }
+//        loadData(for: selectedDate) // Reload data to show changes
+//    }
+// }
+
+// =====================================================================
+// MARK: - Merged content from EmotionCalendarViewController+AI.swift
+// =====================================================================
+
+// MARK: - EmotionCalendarViewController AI Extension
+extension EmotionCalendarViewController {
+    
+    // MARK: - AI Analysis Implementation
+    func showAIAnalysisAlert() {
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .patternAnalysis)
+        let totalLimit = 3 // AIUsageManager에서 설정된 patternAnalysis 일일 제한
+            
+        guard remainingCount > 0 else {
+            let limitAlert = UIAlertController(
+                title: "📊 일일 감정 패턴 분석 완료",
+                message: """
+                오늘 감정 패턴 분석을 모두 사용하셨습니다.
+                
+                깊이 있는 감정 패턴 분석을 위해 하루 \(totalLimit)회로 제한하고 있어요.
+                대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
+                
+                내일 다시 이용해보세요! 😊
+                
+                💡 일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?
+                """,
+                preferredStyle: .alert
+            )
+            
+            limitAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(limitAlert, animated: true)
+            return
+        }
+        
+        let alert = UIAlertController(
+            title: "🔒 개인정보 보호 안내",
+            message: """
+            AI 감정 패턴 분석 대화를 시작합니다:
+            📊 오늘 남은 분석 횟수: \(remainingCount)/\(totalLimit)회
+            
+            • 최근 30일간의 감정 패턴 분석
+            • 감정 통계 및 트렌드 파악
+            • 개인 맞춤 감정 관리 조언
+            • 충분한 시간 동안 깊이 있는 대화 가능
+            • 일기 내용은 포함되지 않습니다
+            
+            개인 식별이 가능한 정보는 전송되지 않으며, 
+            대화 종료 후 데이터는 즉시 삭제됩니다.
+            
+            계속하시겠습니까?
+            """,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        alert.addAction(UIAlertAction(title: "AI 패턴 분석 시작", style: .default) { [weak self] _ in
+            self?.startAIAnalysisChat()
+        })
+        
+        present(alert, animated: true)
     }
     
-    func didDeleteTodo() {
-        refreshSelectedDateContent()
-        updateMonthlyStats()
-        calendar.reloadData()
+    func startAIAnalysisChat() {
+        let anonymizedData = generateAnonymizedEmotionData()
+        // ✅ 사용 횟수 기록 (실제 분석 시작 시점에)
+        AIUsageManager.shared.recordUsage(for: .patternAnalysis)
+        
+        let chatVC = ChatViewController()
+        // ✅ 타이틀 제거 - ChatViewController에서 통일된 타이틀 설정
+        
+        chatVC.emotionPatternData = anonymizedData
+        chatVC.initialUserText = "감정_패턴_분석_모드"
+        
+        // ✅ 네비게이션 컨트롤러 설정 개선
+        let navController = UINavigationController(rootViewController: chatVC)
+        
+        // 네비게이션 바 스타일 설정
+        navController.navigationBar.prefersLargeTitles = false
+        navController.navigationBar.tintColor = .systemBlue
+        navController.navigationBar.backgroundColor = .systemBackground
+        
+        // 모달 표시 스타일 설정
+        navController.modalPresentationStyle = .fullScreen
+        navController.modalTransitionStyle = .coverVertical
+        
+        // ✅ 네비게이션 바가 확실히 보이도록 설정
+        navController.setNavigationBarHidden(false, animated: false)
+        
+        // ✅ swipe back 제스처 활성화
+        navController.interactivePopGestureRecognizer?.isEnabled = true
+        navController.interactivePopGestureRecognizer?.delegate = nil
+        
+        present(navController, animated: true) {
+            // 표시 완료 후 추가 설정
+            navController.setNavigationBarHidden(false, animated: false)
+        }
+    }
+    
+    func generateAnonymizedEmotionData() -> String {
+        let calendar = Calendar.current
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
+        
+        let recentEntries = diaryEntries.filter { $0.date >= thirtyDaysAgo }
+        
+        guard !recentEntries.isEmpty else {
+            return "최근 30일간 감정 기록이 없습니다."
+        }
+        
+        let emotionCounts = Dictionary(grouping: recentEntries, by: { $0.selectedEmotion })
+            .mapValues { $0.count }
+            .sorted { $0.value > $1.value }
+        
+        var analysisText = "최근 30일 감정 패턴 분석:\n"
+        analysisText += "총 \(recentEntries.count)개의 감정 기록\n\n"
+        
+        for (emotion, count) in emotionCounts {
+            let percentage = Int((Float(count) / Float(recentEntries.count)) * 100)
+            analysisText += "• \(emotion): \(count)회 (\(percentage)%)\n"
+        }
+        
+        let weeklyPattern = analyzeWeeklyPattern(entries: recentEntries)
+        if !weeklyPattern.isEmpty {
+            analysisText += "\n주간 패턴:\n\(weeklyPattern)"
+        }
+        
+        // ✅ 추가 분석 정보 제공
+        let timePattern = analyzeTimePattern(entries: recentEntries)
+        if !timePattern.isEmpty {
+            analysisText += "\n시간대별 패턴:\n\(timePattern)"
+        }
+        
+        let emotionTrend = analyzeEmotionTrend(entries: recentEntries)
+        if !emotionTrend.isEmpty {
+            analysisText += "\n감정 변화 트렌드:\n\(emotionTrend)"
+        }
+        
+        return analysisText
+    }
+    
+    func analyzeWeeklyPattern(entries: [EmotionDiary]) -> String {
+        let calendar = Calendar.current
+        let weekdayNames = ["일", "월", "화", "수", "목", "금", "토"]
+        
+        let weekdayGroups = Dictionary(grouping: entries) { entry in
+            calendar.component(.weekday, from: entry.date) - 1
+        }
+        
+        var pattern = ""
+        for weekday in 0..<7 {
+            if let dayEntries = weekdayGroups[weekday], !dayEntries.isEmpty {
+                let mostCommonEmotion = Dictionary(grouping: dayEntries, by: { $0.selectedEmotion })
+                    .max(by: { $0.value.count < $1.value.count })?.key ?? ""
+                pattern += "• \(weekdayNames[weekday])요일: \(mostCommonEmotion) (\(dayEntries.count)회)\n"
+            }
+        }
+        
+        return pattern
+    }
+    
+    // ✅ 새로운 분석 메소드들 추가
+    func analyzeTimePattern(entries: [EmotionDiary]) -> String {
+        let calendar = Calendar.current
+        let hourGroups = Dictionary(grouping: entries) { entry in
+            calendar.component(.hour, from: entry.date)
+        }
+        
+        var pattern = ""
+        let timeRanges = [
+            (0...5, "새벽"),
+            (6...11, "오전"),
+            (12...17, "오후"),
+            (18...23, "저녁")
+        ]
+        
+        for (range, label) in timeRanges {
+            let rangeEntries = hourGroups.filter { range.contains($0.key) }.values.flatMap { $0 }
+            if !rangeEntries.isEmpty {
+                let mostCommonEmotion = Dictionary(grouping: rangeEntries, by: { $0.selectedEmotion })
+                    .max(by: { $0.value.count < $1.value.count })?.key ?? ""
+                pattern += "• \(label): \(mostCommonEmotion) (\(rangeEntries.count)회)\n"
+            }
+        }
+        
+        return pattern
+    }
+    
+    func analyzeEmotionTrend(entries: [EmotionDiary]) -> String {
+        guard entries.count >= 7 else { return "" }
+        
+        let sortedEntries = entries.sorted { $0.date < $1.date }
+        let midPoint = sortedEntries.count / 2
+        
+        let firstHalf = Array(sortedEntries.prefix(midPoint))
+        let secondHalf = Array(sortedEntries.suffix(midPoint))
+        
+        let positiveEmotions = ["😊", "😄", "🥰", "🙂"]
+        
+        let firstPositiveCount = firstHalf.filter { positiveEmotions.contains($0.selectedEmotion) }.count
+        let secondPositiveCount = secondHalf.filter { positiveEmotions.contains($0.selectedEmotion) }.count
+        
+        let firstPositiveRatio = Double(firstPositiveCount) / Double(firstHalf.count)
+        let secondPositiveRatio = Double(secondPositiveCount) / Double(secondHalf.count)
+        
+        let trend: String
+        let difference = secondPositiveRatio - firstPositiveRatio
+        
+        switch difference {
+        case 0.1...:
+            trend = "긍정적으로 개선되고 있습니다 ↗️"
+        case ..<(-0.1):
+            trend = "다소 하락하는 경향이 있습니다 ↘️"
+        default:
+            trend = "안정적인 상태를 유지하고 있습니다 ➡️"
+        }
+        
+        return "• 전체적인 감정 상태: \(trend)\n• 전반기 긍정 감정 비율: \(String(format: "%.1f", firstPositiveRatio * 100))%\n• 후반기 긍정 감정 비율: \(String(format: "%.1f", secondPositiveRatio * 100))%"
     }
 }
 
+// =====================================================================
+// MARK: - Merged content from EmotionCalendarViewcontroller+Diary.swift
+// =====================================================================
+
+// MARK: - EmotionCalendarViewController Diary Extension
+extension EmotionCalendarViewController {
+    
+    // MARK: - ✅ 일기 상세보기 - 남은 횟수 표시 추가
+    func showDiaryDetail(for date: Date, emotion: String) {
+        let calendar = Calendar.current
+        let targetEntries = diaryEntries.filter {
+            calendar.isDate($0.date, inSameDayAs: date)
+        }
+        
+        guard let entry = targetEntries.first else { return }
+        
+        let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
+        
+        let alert = UIAlertController(
+            title: "\(emotion) \(dateString)",
+            message: entry.userMessage,
+            preferredStyle: .alert
+        )
+        
+        // AI 응답 보기 버튼
+        alert.addAction(UIAlertAction(title: "AI 응답 보기", style: .default) { _ in
+            let responseAlert = UIAlertController(
+                title: "AI 응답",
+                message: entry.aiResponse,
+                preferredStyle: .alert
+            )
+            responseAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self.present(responseAlert, animated: true)
+        })
+        
+        // ✅ 일기 분석 대화 버튼 - 남은 횟수 표시
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let diaryAnalysisTitle = remainingCount > 0 ?
+            "💬 이 일기를 AI와 깊이 분석 (남은 횟수: \(remainingCount))" :
+            "💬 일기 분석 대화 (오늘 사용 완료)"
+        
+        alert.addAction(UIAlertAction(title: diaryAnalysisTitle, style: .default) { _ in
+            self.startDiaryConversation(with: entry)
+        })
+        
+        // 일기 전체 내용 보기 버튼 (긴 일기인 경우)
+        if entry.userMessage.count > 100 {
+            alert.addAction(UIAlertAction(title: "📖 전체 내용 보기", style: .default) { _ in
+                self.showFullDiaryContent(entry: entry)
+            })
+        }
+        
+        alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    // MARK: - ✅ 일기 대화 시작 - 하루 1회 제한 추가 & 안전한 데이터 전달
+    func startDiaryConversation(with entry: EmotionDiary) {
+        // ✅ 하루 1회 제한 체크
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        
+        guard remainingCount > 0 else {
+            let limitAlert = UIAlertController(
+                title: "📝 일일 일기 분석 완료",
+                message: """
+                오늘 일기 분석 대화를 이미 사용하셨습니다.
+                
+                깊이 있는 일기 분석을 위해 하루 1회로 제한하고 있어요.
+                대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
+                
+                내일 다시 이용해보세요! 😊
+                
+                💡 일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?
+                """,
+                preferredStyle: .alert
+            )
+            
+            limitAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(limitAlert, animated: true)
+            return
+        }
+        
+        // 🛡️ 안전한 데이터 검증 및 준비
+        guard !entry.userMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let errorAlert = UIAlertController(
+                title: "오류",
+                message: "일기 내용이 비어있어 AI와 대화할 수 없습니다.",
+                preferredStyle: .alert
+            )
+            errorAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(errorAlert, animated: true)
+            return
+        }
+        
+        // 🛡️ 필수 데이터 확인
+        let verifiedEmotion = entry.selectedEmotion.isEmpty ? "😐" : entry.selectedEmotion
+        let verifiedMessage = entry.userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let verifiedAIResponse = entry.aiResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        print("🔍 [일기 대화 시작] 데이터 검증:")
+        print("  - 감정: \(verifiedEmotion)")
+        print("  - 일기 길이: \(verifiedMessage.count)자")
+        print("  - AI 응답 길이: \(verifiedAIResponse.count)자")
+        print("  - 날짜: \(entry.date)")
+        
+        // ✅ 사용 횟수 증가 (실제 대화 시작 직전에)
+        AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
+        
+        // 🛡️ ChatViewController 생성 및 안전한 데이터 설정
+        let chatVC = ChatRouter.chatViewController()
+        
+        // 🛡️ 확실한 일기 컨텍스트 생성
+        let safeEntry = EmotionDiary(
+            selectedEmotion: verifiedEmotion,
+            userMessage: verifiedMessage,
+            aiResponse: verifiedAIResponse,
+            date: entry.date
+        )
+        
+        // 🛡️ 여러 방법으로 데이터 전달 (안전성 보장)
+        let diaryContext = DiaryContext(from: safeEntry)
+        chatVC.diaryContext = diaryContext
+        
+        // 🛡️ 초기 사용자 텍스트 설정
+        chatVC.initialUserText = "일기_분석_모드_확인"
+        
+        // 🛡️ 타이틀 통일
+        // chatVC.title = "#Todays_Mood"
+        
+        // 🛡️ 프리셋 적용 콜백 설정
+        chatVC.onPresetApply = { [weak self] recommendation in
+            self?.applyPresetFromCalendar(recommendation)
+        }
+        
+        // 🛡️ 네비게이션 설정 및 표시
+        let navController = UINavigationController(rootViewController: chatVC)
+        navController.navigationBar.prefersLargeTitles = false
+        navController.navigationBar.tintColor = .systemBlue
+        navController.modalPresentationStyle = .fullScreen
+        navController.modalTransitionStyle = .coverVertical
+        
+        present(navController, animated: true) {
+            // 🛡️ 표시 완료 후 데이터 전달 재확인
+            print("✅ [일기 대화] ChatViewController 표시 완료")
+            print("  - diaryContext 설정됨: \(chatVC.diaryContext != nil)")
+            print("  - initialUserText: \(chatVC.initialUserText ?? "없음")")
+        }
+    }
+    private func applyPresetFromCalendar(_ recommendation: RecommendationResponse) {
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ApplyPresetFromChat"),
+            object: nil,
+            userInfo: [
+                "volumes": recommendation.volumes,
+                "presetName": recommendation.presetName
+            ]
+        )
+    }
+    func showFullDiaryContent(entry: EmotionDiary) {
+        let detailVC = UIViewController()
+        detailVC.title = "일기 상세"
+        detailVC.view.backgroundColor = .systemBackground
+        
+        let scrollView = UIScrollView()
+        let textView = UITextView()
+        
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        
+        textView.text = """
+        날짜: \(DateFormatter.localizedString(from: entry.date, dateStyle: .full, timeStyle: .short))
+        감정: \(entry.selectedEmotion)
+        
+        일기 내용:
+        \(entry.userMessage)
+        
+        AI 응답:
+        \(entry.aiResponse)
+        """
+        
+        textView.font = .systemFont(ofSize: 16)
+        textView.isEditable = false
+        textView.backgroundColor = .systemBackground
+        
+        detailVC.view.addSubview(scrollView)
+        scrollView.addSubview(textView)
+        
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: detailVC.view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: detailVC.view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: detailVC.view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: detailVC.view.safeAreaLayoutGuide.bottomAnchor),
+            
+            textView.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 16),
+            textView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 16),
+            textView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -16),
+            textView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -16),
+            textView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32)
+        ])
+        
+        let closeButton = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeDiaryDetail))
+        
+        // ✅ AI 대화 버튼도 제한 체크
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let chatButtonTitle = remainingCount > 0 ? "💬 AI 분석" : "💬 분석 완료"
+        let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
+        
+        detailVC.navigationItem.leftBarButtonItem = closeButton
+        detailVC.navigationItem.rightBarButtonItem = chatButton
+        
+        objc_setAssociatedObject(detailVC, "diaryEntry", entry, .OBJC_ASSOCIATION_RETAIN)
+        
+        let navController = UINavigationController(rootViewController: detailVC)
+        present(navController, animated: true)
+    }
+    
+    @objc func closeDiaryDetail() {
+        dismiss(animated: true)
+    }
+    
+    @objc func startChatFromDetail() {
+        guard let presentedNav = presentedViewController as? UINavigationController,
+              let detailVC = presentedNav.topViewController,
+              let entry = objc_getAssociatedObject(detailVC, "diaryEntry") as? EmotionDiary else { return }
+        
+        presentedNav.dismiss(animated: true) { [weak self] in
+            self?.startDiaryConversation(with: entry)
+        }
+    }
+}

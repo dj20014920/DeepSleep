@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import Core
 
 class SettingsManager {
     static let shared = SettingsManager()
@@ -26,11 +27,13 @@ class SettingsManager {
     /// 사용 가능한 모든 LLM 모델의 목록입니다.
     /// 향후 OS 버전에 따라 동적으로 온디바이스 모델을 포함하거나 제외할 수 있습니다.
     var availableLLMs: [LLMServiceType] {
-        var models = LLMServiceType.allCases.filter { $0 != .onDevice }
+        // onDevice는 아직 정의되지 않았으므로 기본 모델들만 반환
+        let models = LLMServiceType.allCases
         
-        if #available(iOS 18.0, *) {
-            models.append(.onDevice)
-        }
+        // iOS 18.0 이상에서 향후 온디바이스 모델 지원 예정
+        // if #available(iOS 18.0, *) {
+        //     models.append(.onDevice)  // 아직 미구현
+        // }
         return models
     }
     
@@ -55,11 +58,10 @@ class SettingsManager {
     /// 이 설정은 `selectedLLM` 보다 우선 순위를 가질 수 있습니다.
     var useOnDeviceModelIfNeeded: Bool {
         get {
-            // TODO: - 별도의 UserDefaults 키를 사용하여 값 관리 필요
-            return true // 우선 true로 고정
+            return userDefaults.bool(forKey: "useOnDeviceModel")
         }
         set {
-            // TODO: - UserDefaults에 값 저장 로직 구현
+            userDefaults.set(newValue, forKey: "useOnDeviceModel")
         }
     }
     
@@ -262,7 +264,7 @@ class SettingsManager {
     // MARK: - Usage Limits
     func canUseChatToday() -> Bool {
         let todayStats = getTodayStats()
-        return todayStats.chatCount < settings.dailyChatLimit
+        return todayStats.chatCount < settings.dailyEmotionLimit
     }
     
     func canUsePresetRecommendationToday() -> Bool {
@@ -296,53 +298,55 @@ class SettingsManager {
     
     // MARK: - Storage Management
     /// 📊 앱 전체 저장소 사용량 정보
-    @MainActor
-    func getStorageInfo() -> StorageInfo {
-        let feedbackStats = FeedbackManager.shared.getStorageStatistics()
+    func getStorageInfo() -> String {
         let diaryCount = loadEmotionDiary().count
         let presetCount = loadSoundPresets().count
         let statsCount = getAllStats().count
         
-        // 각 데이터 타입별 예상 용량 (KB)
-        let feedbackSizeKB = feedbackStats.estimatedSizeKB
-        let diarySizeKB = diaryCount * 1 // 일기당 약 1KB
-        let presetSizeKB = presetCount * 2 // 프리셋당 약 2KB
-        let statsSizeKB = statsCount * 1 // 통계당 약 1KB
+        let feedbackStats: String
+        if #available(iOS 17.0, *) {
+            feedbackStats = "피드백 통계 (iOS 17+)"
+        } else {
+            feedbackStats = "호환되지 않음 (iOS 17+ 필요)"
+        }
         
-        let totalSizeKB = feedbackSizeKB + diarySizeKB + presetSizeKB + statsSizeKB
+        return """
+        📊 저장된 데이터 현황
         
-        return StorageInfo(
-            totalSizeKB: totalSizeKB,
-            feedbackCount: feedbackStats.feedbackCount,
-            feedbackSizeKB: feedbackSizeKB,
-            diaryCount: diaryCount,
-            diarySizeKB: diarySizeKB,
-            presetCount: presetCount,
-            presetSizeKB: presetSizeKB,
-            retentionDays: feedbackStats.retentionDays
-        )
+        🎵 프리셋: \(presetCount)개
+        📔 감정 일기: \(diaryCount)개
+        📈 사용 통계: \(statsCount)일
+        💬 피드백: \(feedbackStats)
+        
+        🕐 마지막 정리: \(getLastCleanupDate())
+        """
+    }
+    
+    private func getLastCleanupDate() -> String {
+        if let date = userDefaults.object(forKey: "lastCleanupDate") as? Date {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        return "없음"
     }
     
     /// 🧹 수동 데이터 정리 (사용자 요청 시)
-    @MainActor
-    func performManualCleanup() async -> CleanupResult {
-        let beforeInfo = await getStorageInfo()
+    func performStorageCleanup() async {
+        let beforeInfo = getStorageInfo()
+        print("🧹 저장소 정리 시작:\n\(beforeInfo)")
         
-        // 1. 피드백 데이터 정리
-        await FeedbackManager.shared.performStartupCleanup()
+        if #available(iOS 17.0, *) {
+            await FeedbackManager.shared.performStartupCleanup()
+        } else {
+            print("⚠️ FeedbackManager는 iOS 17.0 이상에서만 사용 가능합니다.")
+        }
         
-        // 2. 오래된 통계 데이터 정리 (이미 saveAllStats에서 30일 제한)
-        let _ = getAllStats() // 내부적으로 30일 이상 데이터 제거
+        userDefaults.set(Date(), forKey: "lastCleanupDate")
         
-        let afterInfo = await getStorageInfo()
-        let freedSpaceKB = beforeInfo.totalSizeKB - afterInfo.totalSizeKB
-        
-        return CleanupResult(
-            beforeSizeKB: beforeInfo.totalSizeKB,
-            afterSizeKB: afterInfo.totalSizeKB,
-            freedSpaceKB: freedSpaceKB,
-            deletedFeedbackCount: beforeInfo.feedbackCount - afterInfo.feedbackCount
-        )
+        let afterInfo = getStorageInfo()
+        print("✅ 저장소 정리 완료:\n\(afterInfo)")
     }
     
     // MARK: - Onboarding & First Launch
@@ -379,7 +383,7 @@ class SettingsManager {
     func getAverageSessionTime(days: Int = 7) -> TimeInterval {
         let allStats = getAllStats()
         let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .day, value: -days, to: Date())!
+        let _ = calendar.date(byAdding: .day, value: -days, to: Date())!
         
         var totalTime: TimeInterval = 0
         var validDays = 0

@@ -28,15 +28,6 @@ struct AdvancedExpertConfig {
     let attentionHeads: Int
     let specialization: [String: Float]
     let gatingThreshold: Float
-    
-    init(expertise: String, modelDepth: Int, attentionHeads: Int, 
-         specialization: [String: Float], gatingThreshold: Float) {
-        self.expertise = expertise
-        self.modelDepth = modelDepth
-        self.attentionHeads = attentionHeads
-        self.specialization = specialization
-        self.gatingThreshold = gatingThreshold
-    }
 }
 
 /// Quantization 설정 구조체

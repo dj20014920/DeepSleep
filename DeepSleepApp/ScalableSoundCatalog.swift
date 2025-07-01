@@ -450,7 +450,7 @@ class ScalableSoundCatalog {
                 // 실험적 카테고리만 자동 비활성화
                 if let category = categoryRegistry[categoryId],
                    category.creationDate.timeIntervalSinceNow > -30*24*3600 { // 30일 이내 신규
-                    toggleCategoryActive(categoryId: categoryId, isActive: false)
+                    let _ = toggleCategoryActive(categoryId: categoryId, isActive: false)
                     print("🔄 Experimental category '\(categoryId)' auto-deactivated")
                 }
             }

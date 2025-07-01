@@ -14,7 +14,7 @@ import CoreData
 /// 🔗 피드백 데이터와 AI 학습 시스템 간 연결고리 통합 매니저
 /// 사용자 피드백이 실제 추천 시스템에 반영되도록 하는 핵심 브리지 역할
 @available(iOS 17.0, *)
-final class FeedbackIntegrationManager: ObservableObject {
+class FeedbackIntegrationManager: ObservableObject {
     static let shared = FeedbackIntegrationManager()
     
     private let feedbackManager: FeedbackManager
@@ -127,13 +127,13 @@ final class FeedbackIntegrationManager: ObservableObject {
         for fb in feedback {
             // 각 피드백을 행동 분석 시스템에 세션으로 기록
             behaviorAnalytics.recordSession(
-                presetName: fb.presetName,
-                volumes: fb.finalVolumes,
-                versions: fb.recommendedVersions,
-                emotion: fb.contextEmotion,
+                presetName: fb.presetName ?? "-",
+                volumes: fb.finalVolumes ?? [],
+                versions: fb.recommendedVersions ?? [],
+                emotion: fb.contextEmotion ?? "-",
                 startTime: fb.timestamp,
-                endTime: fb.timestamp.addingTimeInterval(fb.listeningDuration),
-                completionRate: min(1.0, Float(fb.listeningDuration / 60.0)), // 1분 기준
+                endTime: fb.timestamp.addingTimeInterval(fb.listeningDuration ?? 0),
+                completionRate: min(1.0, Float((fb.listeningDuration ?? 0) / 60.0)),
                 interactionEvents: generateInteractionEvents(from: fb)
             )
         }
@@ -148,20 +148,20 @@ final class FeedbackIntegrationManager: ObservableObject {
         return feedback.map { fb in
             // 입력 특성: 감정, 시간, 컨텍스트를 벡터로 변환
             let inputFeatures = generateInputFeatures(
-                emotion: fb.contextEmotion,
-                timeOfDay: fb.contextTime,
+                emotion: fb.contextEmotion ?? "-",
+                timeOfDay: fb.contextTime ?? 0,
                 userProfile: userProfile
             )
             
             // 기대 출력: 최종 볼륨 설정을 정규화
-            let expectedOutput = fb.finalVolumes.map { min(max($0 / 100.0, 0.0), 1.0) }
+            let expectedOutput = (fb.finalVolumes ?? []).map { min(max($0 / 100.0, 0.0), 1.0) }
             
             return LearningDataPoint(
                 inputFeatures: inputFeatures,
                 expectedOutput: expectedOutput,
                 satisfactionScore: fb.satisfactionScore,
-                sessionDuration: Float(fb.listeningDuration),
-                wasSkipped: fb.wasSkipped
+                sessionDuration: Float(fb.listeningDuration ?? 0),
+                wasSkipped: fb.wasSkipped ?? false
             )
         }
     }
@@ -190,15 +190,15 @@ final class FeedbackIntegrationManager: ObservableObject {
         var events: [InteractionEvent] = []
         
         // 볼륨 조정 이벤트 추가
-        for (index, volume) in feedback.finalVolumes.enumerated() {
-            if volume != feedback.recommendedVolumes[index] {
+        for (index, volume) in (feedback.finalVolumes ?? []).enumerated() {
+            if let recVers = feedback.recommendedVersions, index < recVers.count, volume != Float(recVers[index]) {
                 events.append(InteractionEvent(
                     type: .volumeAdjustment,
-                    timestamp: feedback.timestamp.addingTimeInterval(Double.random(in: 0...feedback.listeningDuration)),
+                    timestamp: feedback.timestamp.addingTimeInterval(Double.random(in: 0...(feedback.listeningDuration ?? 0))),
                     value: nil,
                     metadata: [
                         "soundIndex": "\(index)",
-                        "originalVolume": "\(feedback.recommendedVolumes[index])",
+                        "originalVolume": "\(recVers[index])",
                         "finalVolume": "\(volume)"
                     ]
                 ))
@@ -206,12 +206,12 @@ final class FeedbackIntegrationManager: ObservableObject {
         }
         
         // 만족도 이벤트 추가
-        if feedback.userSatisfaction > 0 {
+        if let us = feedback.userSatisfaction, us > 0 {
             events.append(InteractionEvent(
                 type: .satisfactionRating,
-                timestamp: feedback.timestamp.addingTimeInterval(feedback.listeningDuration),
-                value: Float(feedback.userSatisfaction),
-                metadata: ["rating": "\(feedback.userSatisfaction)"]
+                timestamp: feedback.timestamp.addingTimeInterval(feedback.listeningDuration ?? 0),
+                value: Float(us),
+                metadata: ["rating": "\(us)"]
             ))
         }
         
@@ -293,7 +293,9 @@ final class FeedbackIntegrationManager: ObservableObject {
         var hourlyUsage: [Int: Float] = [:]
         
         for fb in feedback {
-            hourlyUsage[fb.contextTime, default: 0] += fb.satisfactionScore
+            if let contextTime = fb.contextTime {
+                hourlyUsage[contextTime, default: 0] += fb.satisfactionScore
+            }
         }
         
         return (0..<24).map { hour in
@@ -348,10 +350,12 @@ final class FeedbackIntegrationManager: ObservableObject {
         var soundUsage: [String: Float] = [:]
         
         for fb in feedback.filter({ $0.satisfactionScore > 0.6 }) {
-            for (index, volume) in fb.finalVolumes.enumerated() {
+            if let finalVolumes = fb.finalVolumes {
+                for (index, volume) in finalVolumes.enumerated() {
                 if volume > 0.3 && index < SoundPresetCatalog.categoryNames.count {
                     let soundName = SoundPresetCatalog.categoryNames[index]
                     soundUsage[soundName, default: 0] += volume * fb.satisfactionScore
+                    }
                 }
             }
         }

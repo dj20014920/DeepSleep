@@ -1,27 +1,43 @@
 import Foundation
 
-// MARK: - 마스터 추천 시스템 결과 구조체
-struct ComprehensiveMasterRecommendation {
-    let primaryRecommendation: RecommendationResult
-    let alternativeRecommendations: [RecommendationResult]
-    let overallConfidence: Float
-    let learningRecommendations: [String]
-    let processingMetadata: ProcessingMetadata
-    let adaptationLevel: String
-    let comprehensivenessScore: Float
-    let contextualInsights: [String]
+// todo: 이 모델은 확장이 필요하며, 실제 데이터 요구사항에 맞춰 필드가 추가/수정되어야 합니다.
+// 특히, 각 추천 결과에 대한 상세 정보(예: 음원 파일 경로, 태그 등)가 포함되어야 합니다.
+
+/// 여러 AI 모델과 사용자 분석 데이터를 종합하여 생성된 최상위 추천 결과입니다.
+///
+/// 이 구조체는 가장 신뢰도 높은 주 추천(Primary Recommendation)과 함께
+/// 대안 추천, 신뢰도 점수, 개인화 설명 등 다양한 컨텍스트 정보를 포함합니다.
+public struct ComprehensiveRecommendation: Codable, Equatable {
     
-    struct RecommendationResult {
-        let optimizedVolumes: [Float]
-        let optimizedVersions: [Int]
-        let confidence: Float
-        let reasoning: String
-        let adaptationLevel: String
-        let presetName: String
-        let expectedSatisfaction: Float
-        let estimatedDuration: TimeInterval
-        let personalizedExplanation: String
+    /// 추천 결과의 핵심 정보를 담는 구조체입니다.
+    public struct RecommendationResult: Codable, Equatable {
+        /// 추천된 사운드의 고유 ID
+        public let soundId: String
+        /// 이 사운드를 추천하는 이유 (일반 설명)
+        public let reasoning: String
+        /// 추천의 신뢰도 점수 (0.0 ~ 1.0)
+        public let confidence: Double
+        /// 사용자의 컨텍스트를 반영한 개인화된 추천 설명
+        public let personalizedExplanation: String?
+        
+        /// 추가적인 상세 정보 (예: 음원 메타데이터)
+        public let details: SoundMetadata? // `SoundMetadata`는 별도 정의 필요
+        
+        public struct SoundMetadata: Codable, Equatable {
+            let duration: TimeInterval
+            let format: String
+            let artist: String?
+        }
     }
+    
+    public let primaryRecommendation: RecommendationResult
+    public let alternativeRecommendations: [RecommendationResult]
+    public let overallConfidence: Float
+    public let learningRecommendations: [String]
+    public let processingMetadata: ProcessingMetadata
+    public let adaptationLevel: String
+    public let comprehensivenessScore: Float
+    public let contextualInsights: [String]
 }
 
 // ProcessingMetadata는 SoundPresetCatalog.swift에 이미 정의되어 있으므로 중복 제거

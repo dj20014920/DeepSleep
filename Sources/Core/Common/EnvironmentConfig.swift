@@ -154,9 +154,9 @@ extension EnvironmentConfig {
             (.naver, "Naver_Cloud_API_Key", nil)
         ]
         
-        for (keyType, plistKey, prefix) in keysToLoad {
-            if let apiKey = Bundle.main.object(forInfoDictionaryKey: plistKey) as? String {
-                SecureEnclaveKeyStore.shared.saveAPIKey(key: keyType, apiKey: apiKey)
+        for (keyType, plistKey, _) in keysToLoad {
+            if let apiKey = Bundle.main.object(forInfoDictionaryKey: plistKey) as? String, !apiKey.isEmpty, apiKey != "$(\(plistKey))" {
+                _ = SecureEnclaveKeyStore.shared.saveAPIKey(apiKey, for: keyType.rawValue)
             }
         }
     }

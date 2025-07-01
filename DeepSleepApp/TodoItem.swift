@@ -4,18 +4,18 @@ struct TodoItem: Codable, Identifiable, Hashable {
     var id = UUID()
     var title: String
     var dueDate: Date
-    var endDate: Date? = nil   // 종료일 (여러 날 일정용, 선택사항)
+    var endDate: Date?   // 종료일 (여러 날 일정용, 선택사항)
     var isCompleted: Bool = false
-    var notes: String? = nil
+    var notes: String?
     var priority: Int = 0 // 0: 낮음, 1: 보통, 2: 높음
-    var calendarEventIdentifier: String? = nil // EventKit 연동용
+    var calendarEventIdentifier: String? // EventKit 연동용
     
     // 🛡️ AI 조언 관련 통합 관리
     var adviceRequestCount: Int = 0 // 총 조언 요청 횟수 (스와이프 + 직접 입장 통합)
     var maxAdviceCount: Int = 3 // 할 일당 최대 조언 횟수
     var hasReceivedAIAdvice: Bool = false // AI 조언 수신 여부 (개별 조언 1회 제한용) - 하위 호환성 유지
-    var aiAdvices: [String]? = nil // AI가 생성한 조언들 저장 (여러 개 누적 가능)
-    var aiAdvicesGeneratedAt: Date? = nil // AI 조언이 생성된 시간 (3개월 후 자동 삭제용)
+    var aiAdvices: [String]? // AI가 생성한 조언들 저장 (여러 개 누적 가능)
+    var aiAdvicesGeneratedAt: Date? // AI 조언이 생성된 시간 (3개월 후 자동 삭제용)
     
     var createdDate: Date = Date() // 생성일(기본값: 현재)
     

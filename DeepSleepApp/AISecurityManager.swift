@@ -524,7 +524,7 @@ enum SecurityValidationResult {
             return input
         case .flagged(_, let cleanInput):
             return cleanInput
-        case .rejected(_):
+        case .rejected:
             return ""
         }
     }

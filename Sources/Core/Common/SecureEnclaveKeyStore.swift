@@ -6,6 +6,12 @@ final class SecureEnclaveKeyStore {
     static let shared = SecureEnclaveKeyStore()
     private let service = "com.deepsleep.api"
     
+    enum KeyType: String {
+        case gemini
+        case claude
+        case naver
+    }
+    
     private init() {}
     
     /// API 키 저장 (업데이트)

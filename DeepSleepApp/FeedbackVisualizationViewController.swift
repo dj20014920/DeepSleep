@@ -383,12 +383,12 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func extractEmotionInsights() -> [String] {
-        let emotionGroups = Dictionary(grouping: feedbackData) { $0.contextEmotion }
+        let emotionGroups = Dictionary(grouping: feedbackData) { $0.contextEmotion ?? "편안함" }
         
         return emotionGroups.compactMap { emotion, feedbacks in
             let avgSatisfaction = feedbacks.map { $0.satisfactionScore }.reduce(0, +) / Float(feedbacks.count)
             if avgSatisfaction > 0.7 {
-                return "\(emotion) 상황에서 높은 만족도"
+                return "\(String(describing: emotion)) 상황에서 높은 만족도"
             }
             return nil
         }
@@ -442,7 +442,7 @@ class FeedbackVisualizationViewController: UIViewController {
         
         return recentFeedback.map { feedback in
             RecommendationReason(
-                presetName: feedback.presetName,
+                presetName: feedback.presetName ?? "알 수 없는 프리셋",
                 reason: generateDetailedReason(for: feedback),
                 satisfaction: feedback.satisfactionScore,
                 timestamp: feedback.timestamp
@@ -451,8 +451,8 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func generateDetailedReason(for feedback: PresetFeedback) -> String {
-        let timeString = getTimeDescription(for: feedback.contextTime)
-        let emotionString = getEmotionDescription(for: feedback.contextEmotion)
+        let timeString = getTimeDescription(for: feedback.contextTime ?? 20)
+        let emotionString = getEmotionDescription(for: feedback.contextEmotion ?? "편안함")
         
         return "🕐 \(timeString) 시간대에 \(emotionString) 감정을 고려하여 추천했습니다. 선택된 음원들의 주파수 조화와 당신의 과거 선호 패턴을 분석한 결과입니다."
     }

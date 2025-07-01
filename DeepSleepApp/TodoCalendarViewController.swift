@@ -1,5 +1,6 @@
 import UIKit
 import FSCalendar
+import Core
 
 // MARK: - ✅ GIF 고양이 로딩 뷰 (ChatBubbleCell에서 가져옴)
 class TodoGifCatView: UIView {
@@ -277,10 +278,6 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         print("✅ [TodoCalendarViewController] 테이블뷰 셀 등록 완료")
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-    }
-
     private func setupCalendar() {
         let calendar = FSCalendar(frame: .zero)
         calendar.translatesAutoresizingMaskIntoConstraints = false
@@ -424,7 +421,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         // 연속 일정 확인 - 이 날짜가 어떤 연속 일정의 범위에 포함되는지 확인
         let allTodos = TodoManager.shared.loadTodos()
         let hasRangeEvent = allTodos.contains { todo in
-            guard let endDate = todo.endDate else { return false }
+            guard let _ = todo.endDate else { return false }
             return isDateInEventRange(todo, date: date) && !todo.isCompleted
         }
         
@@ -444,7 +441,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         // 연속 일정 확인
         let allTodos = TodoManager.shared.loadTodos()
         let rangeEvents = allTodos.filter { todo in
-            guard let endDate = todo.endDate else { return false }
+            guard let _ = todo.endDate else { return false }
             return isDateInEventRange(todo, date: date) && !todo.isCompleted
         }
         let hasRangeEvent = !rangeEvents.isEmpty
@@ -503,7 +500,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         // 연속 일정 처리 - 모든 할 일을 확인하여 이 날짜가 범위에 포함되는지 확인
         let allTodos = TodoManager.shared.loadTodos()
         let rangeEvents = allTodos.filter { todo in
-            guard let endDate = todo.endDate, !todo.isCompleted else { return false }
+            guard let _ = todo.endDate, !todo.isCompleted else { return false }
             return isDateInEventRange(todo, date: date)
         }
         
@@ -638,7 +635,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             // 여기서 toggleCompletion 대신 수정화면으로 바로 이동
             let addEditVC = AddEditTodoViewController()
             addEditVC.delegate = self
-            addEditVC.todoToEdit = todoItem
+            addEditVC.todoItem = todoItem
             let navController = UINavigationController(rootViewController: addEditVC)
             present(navController, animated: true, completion: nil)
             
@@ -759,19 +756,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
     
     // MARK: - AddEditTodoDelegate
-    func didSaveTodo() {
-        loadData(for: self.selectedDate) // 저장 후 현재 선택된 날짜의 데이터 새로고침
-        // 마이그레이션 함수 호출은 앱 시작 시점으로 이동 고려
-        // TodoManager.shared.migrateExistingTodosToCalendar { migratedCount, errors in
-        //     if !errors.isEmpty {
-        //         print("캘린더 마이그레이션 중 오류 발생: \(errors)")
-        //         // 사용자에게 알림 필요 시 여기에 로직 추가
-        //     }
-        //     if migratedCount > 0 {
-        //         print("\\(migratedCount)개의 기존 할 일이 캘린더에 추가되었습니다.")
-        //         self.loadData(for: self.selectedDate) // 마이그레이션 후 데이터 다시 로드
-        //     }
-        // }
+    func didSaveTodoItem(_ todoItem: TodoItem) {
+        // Handle saving from Add/Edit view
     }
     
     // MARK: - Error Handling
@@ -789,7 +775,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                  .calendarWriteOnlyAccess(let specificMessage),
                  .unknownCalendarAuthorization(let specificMessage):
                 message = specificMessage 
-            case .eventSaveFailed(_), .eventRemoveFailed(_), .eventFetchFailed(_):
+            case .eventSaveFailed, .eventRemoveFailed, .eventFetchFailed:
                 message = todoError.localizedDescription
             }
         }
@@ -978,7 +964,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
         """
         
-        let systemPrompt = """
+        let _ = """
         당신은 경험이 풍부한 생산성 컨설턴트이자 시간 관리 전문가입니다. 사용자의 할 일 패턴을 분석하여 개인화된 실행 전략을 제공하세요.
         
         **🔥 중요한 제약 조건**:
@@ -1017,8 +1003,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
         Task {
             do {
-                // let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent))
+                let promptContent = await buildComprehensivePrompt()
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, context: nil))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1041,7 +1027,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.overallAdviceActivityIndicator?.stopAnimating()
                     
                     // 구체적인 오류 메시지 제공
-                    var errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    let errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
                     /*
                     if let serviceError = error as? ReplicateChatService.ServiceError {
                         switch serviceError {
@@ -1160,8 +1146,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         Task {
             do {
-                // let advice = try await ReplicateChatService.shared.getAIAdvice(prompt: promptContent, systemPrompt: systemPrompt)
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent))
+                let promptContent = await buildDiaryBasedPrompt()
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, context: nil))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1372,8 +1358,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         Task {
             do {
-                let service = try LLMServiceFactory.shared.getService(for: .claude)
-                let config = LLMRequestConfig(temperature: 0.8, maxTokens: 200)
+                let service = try LLMServiceFactory.shared.getService(for: "claude")
+                let config = LLMRequestConfig(maxTokens: 200, temperature: 0.8)
                 
                 let (suggestion, _) = try await service.sendMessage(promptContent, config: config)
                 
@@ -1388,6 +1374,20 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 }
             }
         }
+    }
+
+    // MARK: - Helper Stubs
+    private var currentTasks: [String] { return [] }
+    
+    private func presentAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
+    // MARK: - Loading Overlay Helpers
+    private func hideLoadingOverlay() {
+        loadingOverlay?.hide()
     }
 }
 

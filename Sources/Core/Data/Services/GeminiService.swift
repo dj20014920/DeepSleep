@@ -54,7 +54,7 @@ public final class GeminiService: LLMServiceProtocol {
             throw LLMError.unauthorized
         }
         
-        let requestConfig = config ?? .defaultConfig
+        let _ = config ?? .defaultConfig
         let startTime = Date()
         
         do {

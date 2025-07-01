@@ -5,10 +5,9 @@ import SwiftUI
 @MainActor
 public class AIModelSettingsViewModel: ObservableObject {
     
-    @Published public var availableModels: [LLMServiceType] = LLMServiceType.allCases.filter { $0 != .onDevice }
+    @Published public var availableModels: [LLMServiceType] = []
     @Published public var selectedModel: LLMServiceType = .claude {
         didSet {
-            // UserDefaults에 직접 저장 (임시 해결책)
             UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedLLM")
         }
     }
@@ -22,6 +21,7 @@ public class AIModelSettingsViewModel: ObservableObject {
            let model = LLMServiceType(rawValue: savedModel) {
             self.selectedModel = model
         }
+        
         loadAvailableModels()
     }
     

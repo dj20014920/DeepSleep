@@ -267,3 +267,27 @@ class SoundFilterManager {
         return count > 0 ? totalSimilarity / Double(count) : 0.0
     }
 } 
+
+// MARK: - Data Structures for Filtering
+// `large_tuple` 대체를 위한 구조체 정의
+
+struct FilteredSoundResult {
+    let presets: [SoundPreset]
+    let filteredCount: Int
+    let totalCount: Int
+}
+
+extension SoundFilterManager {
+    
+    func filterSounds(by keyword: String, in category: String?) -> FilteredSoundResult {
+        // todo: 실제 필터링 로직 구현 필요
+        let allPresets = SoundPresetCatalog.shared.presets
+        let filtered = allPresets.filter { $0.name.contains(keyword) }
+        
+        return FilteredSoundResult(
+            presets: filtered,
+            filteredCount: filtered.count,
+            totalCount: allPresets.count
+        )
+    }
+} 

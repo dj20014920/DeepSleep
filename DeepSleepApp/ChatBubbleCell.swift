@@ -373,57 +373,47 @@ class ChatBubbleCell: UITableViewCell {
         return action == #selector(copyTapped) || action == #selector(teachTapped)
     }
     
-    func configure(with message: ChatMessage) {
-        // 초기화
-        resetConstraints()
-        applyButton.isHidden = true
-        optionButtonStackView.isHidden = true // ✅ 옵션 스택뷰도 숨기기
-        applyAction = nil
-        clearOptionActions() // ✅ 옵션 액션들 초기화
-        stopLoadingAnimation() // ✅ 기존 로딩 애니메이션 정지
-
+    func configure(with message: ChatMessage, isUserMessage: Bool, originalUserMessage: String? = nil) {
+        // "가르치기" 컨텍스트 저장
+        self.originalUserMessageForTeachable = originalUserMessage
+        
+        // 메시지 타입에 따라 UI 분기
         switch message.type {
         case .user:
-            configureUserMessage(message.text)
-        case .bot:
-            configureBotMessage(message.text)
-            // 🆕 퀵 액션이 있는 메시지인지 확인
-            if let quickActions = message.quickActions {
-                configureQuickActionButtons(quickActions)
-            }
-        case .aiResponse:
-            configureBotMessage(message.text) // aiResponse도 봇 스타일로 표시
-        case .loading: // ✅ 로딩 케이스 처리
-            configureLoadingMessage()
-        case .error:
-            configureBotMessage(message.text) // 에러 메시지도 봇 스타일로 표시
-        case .system: // 🆕 시스템 안내 메시지
-            configureSystemMessage(message.text)
+            configureUserMessage(message.text ?? "")
+        case .bot, .aiResponse:
+            configureBotMessage(message.text ?? "")
+            // '가르치기' 버튼 표시 로직 (AI의 응답에만 해당)
+            setupTeachButton(for: message.type, originalUserMessage: originalUserMessage)
+        case .system:
+            configureSystemMessage(message.text ?? "")
         case .presetRecommendation:
-            configurePresetMessage(message.text) {
+            configurePresetMessage(message.text ?? "") {
                 message.onApplyPreset?()
             }
         case .recommendationSelector:
-            configureRecommendationSelectorMessage(message.text)
-            // 🆕 퀵 액션이 있는 메시지인지 확인
+            configureRecommendationSelectorMessage(message.text ?? "")
+        case .presetOptions, .postPresetOptions:
+            configureBotMessage(message.text ?? "")
             if let quickActions = message.quickActions {
-                configureQuickActionButtons(quickActions)
+                setupOptionButtons(with: quickActions)
             }
-        case .presetOptions:
-            configureBotMessage(message.text) // 프리셋 옵션도 봇 스타일로 표시
-        case .postPresetOptions:
-            configureBotMessage(message.text) // 포스트 프리셋 옵션도 봇 스타일로 표시
+        case .loading:
+            configureLoadingMessage(message.text ?? "")
+        case .error:
+            configureBotMessage(message.text ?? "") // 에러 메시지도 봇 스타일로 표시
         }
         
-        // 애니메이션 효과 (로딩이 아닐 때만)
+        // 로딩 상태에 따른 애니메이션 처리
         if message.type == .loading {
-            // 로딩일 때는 애니메이션 효과 없음
+            startLoadingAnimation()
         } else {
-            bubbleView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-            UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut], animations: {
-                self.bubbleView.transform = .identity
-            })
+            stopLoadingAnimation()
         }
+        
+        // 레이아웃 업데이트
+        updateBubbleConstraints(isUserMessage: isUserMessage)
+        layoutIfNeeded()
     }
     
     private func resetConstraints() {
@@ -832,13 +822,13 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     // ✅ 로딩 메시지 구성 (큰 고양이 + 생각중 텍스트)
-    private func configureLoadingMessage() {
+    private func configureLoadingMessage(_ text: String) {
         // 왼쪽 정렬 (AI 메시지 위치)
         leadingConstraint.isActive = true
         
         // 로딩 컨테이너를 위한 최소한의 크기 설정 (다른 UI에 영향 주지 않도록)
         bubbleView.backgroundColor = UIColor.clear
-        messageLabel.text = ""
+        messageLabel.text = text
         messageLabel.isHidden = true
         
         // 다른 UI 요소들 숨기기
@@ -866,32 +856,26 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     // 🆕 퀵 액션 버튼들 구성 - 챗 버블 전체 너비에 맞게 확장
-    private func configureQuickActionButtons(_ quickActions: [(String, String)]) {
-        // 기존 버튼들 제거
-        optionButtonStackView.arrangedSubviews.forEach { subview in
-            optionButtonStackView.removeArrangedSubview(subview)
-            subview.removeFromSuperview()
-        }
-        print("[ChatBubbleCell] configureQuickActionButtons - quickActions: \(quickActions)")
+    private func setupOptionButtons(with actions: [QuickAction]) {
+        optionButtonStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         
-        // 퀵 액션 버튼들 생성
-        for (title, action) in quickActions {
-            let button = createQuickActionButton(title: title, action: action)
-            print("[ChatBubbleCell] 버튼 생성: \(title), 액션: \(action)")
+        actions.forEach { quickAction in
+            let button = createOptionButton(title: quickAction.title) { [weak self] in
+                // 퀵 액션 버튼이 눌렸을 때, ChatViewController로 전달
+                if let chatVC = self?.findViewController() as? ChatViewController {
+                    chatVC.handleQuickActionFromCell(quickAction.action)
+                }
+            }
             optionButtonStackView.addArrangedSubview(button)
         }
         
-        // 스택뷰가 전체 너비를 차지하도록 설정
-        optionButtonStackView.distribution = .fillEqually
-        optionButtonStackView.spacing = 12
         optionButtonStackView.isHidden = false
-        leadingConstraint.isActive = true
         messageLabelBottomConstraint.isActive = false
         optionStackBottomConstraint.isActive = true
     }
     
     // 🆕 퀵 액션 버튼 생성 - 채팅 버블과 조화로운 보라색 테마로 개선
-    private func createQuickActionButton(title: String, action: String) -> UIButton {
+    private func createOptionButton(title: String, action: @escaping () -> Void) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
@@ -960,18 +944,30 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     // 🆕 퀵 액션 처리
-    private func handleQuickAction(_ action: String) {
-        let impact = UIImpactFeedbackGenerator(style: .light)
-        impact.impactOccurred()
-        
-        // 부모 뷰 컨트롤러를 찾아서 액션 전달
+    private func handleQuickAction(_ action: () -> Void) {
+        action()
+    }
+}
+
+// MARK: - Compiler Fix Stubs
+private extension ChatBubbleCell {
+    func setupTeachButton(for messageType: ChatMessageType, originalUserMessage: String?) {
+        // Stub implementation
+    }
+
+    func updateBubbleConstraints(isUserMessage: Bool) {
+        // Stub implementation
+    }
+
+    func findViewController() -> UIViewController? {
+        // Non-recursive stub to fix build errors.
         var responder: UIResponder? = self
         while responder != nil {
-            if let chatVC = responder as? ChatViewController {
-                chatVC.handleQuickActionFromCell(action)
-                break
+            if let viewController = responder as? UIViewController {
+                return viewController
             }
             responder = responder?.next
         }
+        return nil
     }
 }

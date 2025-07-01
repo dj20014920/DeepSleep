@@ -1,11 +1,13 @@
 import Foundation
 import AVFoundation
+import Combine
 
 /// 🚀 고도화된 사운드 추천 엔진
 /// - 주파수 분석 기반 자동 매칭
 /// - 개인 볼륨 프로필 학습
 /// - 감정별 최적 조합 추천
 /// - 시간대별 적응형 볼륨 조절
+/// iOS 15.0 이상에서 사용 가능하며, iOS 17.0 이상에서 최적화됩니다.
 class EnhancedSoundRecommendationEngine {
     static let shared = EnhancedSoundRecommendationEngine()
     
@@ -519,7 +521,7 @@ class EnhancedSoundRecommendationEngine {
         // 후보를 점수와 다양성을 기준으로 선택
         for candidate in candidates {
             let version = candidate.version
-            let soundId = extractSoundId(from: version.fileName)
+            let _ = extractSoundId(from: version.fileName)
             
             // 회피 리스트 체크
             if avoidList.intersection(Set(version.avoidPair)).isEmpty {
@@ -678,7 +680,7 @@ class EnhancedSoundRecommendationEngine {
                 weight *= 1.1
             case "집중", "focus", "작업", "work":
                 weight *= 0.9
-            case "명상", "meditation":
+            case "명상", "meditation", "relax":
                 weight *= 1.0
             default:
                 break
@@ -787,19 +789,17 @@ class EnhancedSoundRecommendationEngine {
     
     // MARK: - Recommendation Integration Stub
     /// Stub recommendation method to integrate with AI recommendation service
-    @available(iOS 17.0, *)
+    /// iOS 17.0에서 최적화되지만 하위 버전에서도 호환됩니다.
     struct SoundItem {
         let soundId: Int
         let version: Int
         let volume: Float
     }
 
-    @available(iOS 17.0, *)
     struct SoundRecommendationResult {
         let sounds: [SoundItem]
     }
 
-    @available(iOS 17.0, *)
     func recommendSounds(
         emotion: String,
         intensity: Float,
@@ -950,7 +950,7 @@ class EnhancedSoundRecommendationEngine {
         let recentFeedback = Array(feedbackHistory.suffix(10))
         
         for i in 0..<learningEnhancedRecommendation.count {
-            let soundId = learningEnhancedRecommendation[i].soundId
+            let _ = learningEnhancedRecommendation[i].soundId
             
             // 해당 사운드에 대한 피드백 분석
             let soundFeedbacks = recentFeedback.filter { feedback in
@@ -1102,6 +1102,7 @@ class EnhancedSoundRecommendationEngine {
 
 // MARK: - 확장: AI 믹싱 엔진
 
+// iOS 17.0 이상에서도 사용 가능한 확장 기능 (하위 호환성 지원)
 extension EnhancedSoundRecommendationEngine {
     
     /// 🎛️ AI 기반 실시간 믹싱 최적화
@@ -1164,5 +1165,54 @@ extension EnhancedSoundRecommendationEngine {
             }
         }
         return nil
+    }
+}
+
+// MARK: - Data Structures for Recommendation
+// `large_tuple` 대체를 위한 구조체 정의
+
+/// 추천 후보군의 점수와 컨텍스트를 포함하는 구조체
+struct RecommendationCandidate {
+    let preset: SoundPreset
+    let score: Double
+    let source: String // 예: "user_history", "similar_emotion"
+}
+
+/// 최종 추천 결과와 그 이유를 포함하는 구조체
+struct FinalRecommendation {
+    let preset: SoundPreset
+    let explanation: String
+}
+
+// MARK: - Recommendation Logic
+extension EnhancedSoundRecommendationEngine {
+
+    // ... 기존 로직 ...
+
+    /// 사용자 프로필과 현재 컨텍스트에 기반하여 추천 후보 목록을 생성합니다.
+    private func generateCandidates(userProfile: UserProfile, context: RecommendationContext) -> [RecommendationCandidate] {
+        // todo: 실제 후보 생성 로직 구현 필요
+        // 예시 더미 데이터
+        if let firstPreset = SoundPresetCatalog.shared.presets.first {
+            return [
+                RecommendationCandidate(preset: firstPreset, score: 0.9, source: "user_history"),
+                RecommendationCandidate(preset: firstPreset, score: 0.8, source: "similar_emotion")
+            ]
+        }
+        return []
+    }
+    
+    /// 후보 목록을 필터링하고 우선순위를 재조정합니다.
+    private func filterAndRank(candidates: [RecommendationCandidate]) -> [RecommendationCandidate] {
+        // todo: 실제 필터링 및 랭킹 로직 구현 필요
+        return candidates.sorted { $0.score > $1.score }
+    }
+    
+    /// 최종 추천을 선택하고 개인화된 설명을 생성합니다.
+    private func selectFinalRecommendation(from rankedCandidates: [RecommendationCandidate]) -> FinalRecommendation? {
+        guard let bestCandidate = rankedCandidates.first else { return nil }
+        
+        let explanation = "사용자의 최근 활동과 유사한 감정 상태를 기반으로 추천되었습니다."
+        return FinalRecommendation(preset: bestCandidate.preset, explanation: explanation)
     }
 } 

@@ -2083,11 +2083,18 @@ struct ExpectedOutcome {
     let estimatedDuration: TimeInterval
 }
 
-struct ProcessingMetadata {
-    let modelVersion: String
-    let processingTime: TimeInterval
-    let featureCount: Int
-    let networkDepth: Int
+public struct ProcessingMetadata: Codable {
+    public let modelVersion: String
+    public let processingTime: TimeInterval
+    public let featureCount: Int
+    public let networkDepth: Int
+    
+    public init(modelVersion: String = "1.0", processingTime: TimeInterval = 0.0, featureCount: Int = 0, networkDepth: Int = 0) {
+        self.modelVersion = modelVersion
+        self.processingTime = processingTime
+        self.featureCount = featureCount
+        self.networkDepth = networkDepth
+    }
 }
 
 struct PerformanceMetrics {
@@ -2367,4 +2374,19 @@ extension Array {
 
 // MARK: - Enhanced Data Manager Extension
 
+extension SoundPresetCatalog {
+    /// AI로 생성된 프리셋들을 반환
+    func getGeneratedPresets() -> [SoundPreset] {
+        // 임시로 빈 배열 반환 (실제 구현은 추후 추가)
+        return []
+    }
+}
 
+// MARK: - Static properties for compatibility
+extension SoundPresetCatalog {
+    static var presets: [SoundPreset] {
+        return SoundPresetCatalog.shared.getGeneratedPresets()
+    }
+    
+    // Note: defaultVersions is already defined at line 30, removing duplicate
+}

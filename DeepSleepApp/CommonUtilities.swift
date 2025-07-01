@@ -8,6 +8,22 @@ import UIKit
 /// 🔧 공통 유틸리티 클래스 - 중복 함수들을 통합하여 일관성 보장
 class CommonUtilities {
     
+    // MARK: - Nested Data Structures
+    
+    /// 활성화된 사운드의 상세 정보를 나타내는 구조체
+    struct ActiveSound {
+        let index: Int
+        let name: String
+        let volume: Float
+    }
+
+    /// 사운드의 구성 요소를 나타내는 표준 구조체
+    struct SoundComponent {
+        let soundId: String
+        let version: String
+        let volume: Float
+    }
+    
     // MARK: - Singleton
     static let shared = CommonUtilities()
     private init() {}
@@ -79,15 +95,15 @@ class CommonUtilities {
         case poetic      // 시적인 설명
     }
     
-    private func getActiveSounds(from volumes: [Float]) -> [(index: Int, name: String, volume: Float)] {
+    private func getActiveSounds(from volumes: [Float]) -> [ActiveSound] {
         let soundNames = SoundManager.shared.standardSoundNames
         return volumes.enumerated().compactMap { index, volume in
             guard volume > 0.05, index < soundNames.count else { return nil }
-            return (index: index, name: soundNames[index], volume: volume)
+            return ActiveSound(index: index, name: soundNames[index], volume: volume)
         }
     }
     
-    private func generateSimpleDescription(activeSounds: [(index: Int, name: String, volume: Float)], emotion: String) -> String {
+    private func generateSimpleDescription(activeSounds: [ActiveSound], emotion: String) -> String {
         if activeSounds.isEmpty {
             return "조용한 상태입니다."
         }
@@ -97,7 +113,7 @@ class CommonUtilities {
     }
     
     private func generateDetailedDescription(
-        activeSounds: [(index: Int, name: String, volume: Float)], 
+        activeSounds: [ActiveSound], 
         emotion: String, 
         timeOfDay: String,
         includeVolumes: Bool
@@ -133,7 +149,7 @@ class CommonUtilities {
     }
     
     private func generatePoeticDescription(
-        activeSounds: [(index: Int, name: String, volume: Float)], 
+        activeSounds: [ActiveSound], 
         emotion: String, 
         timeOfDay: String
     ) -> String {
@@ -155,7 +171,7 @@ class CommonUtilities {
         return "\(timePoetry)의 고요한 침묵 속에서 \(emotionAdjective) 마음이 스스로를 찾아가는 순수한 명상의 시간입니다."
     }
     
-    private func generateSoundMetaphors(activeSounds: [(index: Int, name: String, volume: Float)]) -> String {
+    private func generateSoundMetaphors(activeSounds: [ActiveSound]) -> String {
         let metaphorMap: [String: String] = [
             "🐱 고양이": "부드러운 위로",
             "🌪 바람": "자유로운 숨결",
@@ -210,7 +226,7 @@ class CommonUtilities {
     // MARK: - 🔄 볼륨 변환 통합 함수
     
     /// 사운드 배열을 볼륨 배열로 변환 (통합)
-    func convertSoundsToVolumes(sounds: [(soundId: String, version: String, volume: Float)]) -> [Float] {
+    func convertSoundsToVolumes(sounds: [SoundComponent]) -> [Float] {
         let soundManager = SoundManager.shared
         var volumes = Array(repeating: Float(0.0), count: soundManager.standardSoundNames.count)
         
@@ -224,7 +240,7 @@ class CommonUtilities {
     }
     
     /// 사운드 배열을 버전 배열로 변환 (통합)
-    func convertSoundsToVersions(sounds: [(soundId: String, version: String, volume: Float)]) -> [Int] {
+    func convertSoundsToVersions(sounds: [SoundComponent]) -> [Int] {
         let soundManager = SoundManager.shared
         var versions = Array(repeating: 1, count: soundManager.standardSoundNames.count)
         
@@ -238,24 +254,24 @@ class CommonUtilities {
     }
     
     /// 볼륨 배열을 사운드 배열로 역변환
-    func convertVolumesToSounds(volumes: [Float], versions: [Int]? = nil) -> [(soundId: String, version: String, volume: Float)] {
+    func convertVolumesToSounds(volumes: [Float], versions: [Int]? = nil) -> [SoundComponent] {
         let soundManager = SoundManager.shared
         let soundNames = soundManager.standardSoundNames
         let defaultVersions = versions ?? Array(repeating: 1, count: volumes.count)
         
-        return volumes.enumerated().compactMap { index, volume in
+        return volumes.enumerated().compactMap { index, volume -> SoundComponent? in
             guard volume > 0.05, index < soundNames.count else { return nil }
             
             let soundId = extractSoundId(from: soundNames[index])
             let version = index < defaultVersions.count ? "\(defaultVersions[index]).0" : "1.0"
             
-            return (soundId: soundId, version: version, volume: volume)
+            return SoundComponent(soundId: soundId, version: version, volume: volume)
         }
     }
     
-    private func extractSoundId(from displayName: String) -> String {
+    private func extractSoundId(from fullName: String) -> String {
         // 이모지와 공백 제거하여 사운드 ID 추출
-        let cleanName = displayName.replacingOccurrences(of: "🎵 ", with: "")
+        let cleanName = fullName.replacingOccurrences(of: "🎵 ", with: "")
                                   .replacingOccurrences(of: " ", with: "_")
                                   .lowercased()
         

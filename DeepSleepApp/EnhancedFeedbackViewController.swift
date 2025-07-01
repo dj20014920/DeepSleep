@@ -55,6 +55,11 @@ class EnhancedFeedbackViewController: UIViewController {
     private let feedbackTags = ["너무시끄러움", "완벽함", "졸림", "집중도움", "스트레스완화", 
                                 "효과없음", "너무조용함", "좋은조합", "산만함", "평온함"]
     
+    // MARK: - Data Storage
+    
+    private var deviceContext: PresetFeedback.DeviceContext?
+    private var environmentContext: PresetFeedback.EnvironmentContext?
+    
     // MARK: - Initialization
     
     init(presetId: UUID, sessionId: UUID, startTime: Date, currentEmotion: EnhancedEmotion?) {
@@ -299,22 +304,16 @@ class EnhancedFeedbackViewController: UIViewController {
     }
     
     private func collectDeviceContext() {
-        feedbackData.deviceContext = PresetFeedback.DeviceContext(
-            volume: Float(AVAudioSession.sharedInstance().outputVolume),
-            brightness: Float(UIScreen.main.brightness),
-            batteryLevel: UIDevice.current.batteryLevel,
-            deviceOrientation: UIDevice.current.orientation.rawValue.description,
-            headphonesConnected: AVAudioSession.sharedInstance().currentRoute.outputs.contains { 
-                $0.portType == .headphones || $0.portType == .bluetoothA2DP 
-            }
+        // Collect device context based on battery status
+        self.deviceContext = PresetFeedback.DeviceContext(
+            isCharging: UIDevice.current.batteryState == .charging,
+            batteryLevel: UIDevice.current.batteryLevel
         )
-        
-        feedbackData.environmentContext = PresetFeedback.EnvironmentContext(
-            lightLevel: UIScreen.main.brightness > 0.7 ? "밝음" : (UIScreen.main.brightness < 0.3 ? "어두움" : "보통"),
-            noiseLevel: 0.5, // 실제로는 마이크를 통해 측정
-            weatherCondition: nil,
-            location: "앱사용",
-            timeOfUse: getCurrentTimeOfUse()
+
+        // Collect environment context based on time of day and default noise level
+        self.environmentContext = PresetFeedback.EnvironmentContext(
+            timeOfDay: getCurrentTimeOfUse(),
+            noiseLevel: 0.5
         )
     }
     
@@ -343,7 +342,7 @@ class EnhancedFeedbackViewController: UIViewController {
                 self.collectFinalFeedbackData()
                 
                 // 피드백 객체 생성 및 저장 (FeedbackManager 사용)
-                let feedback = self.createFeedbackObject()
+                let _ = self.createFeedbackObject()
                 // 추후 FeedbackManager에 저장 로직 추가 가능
                 
                 print("📝 [EnhancedFeedback] 피드백 데이터 저장 완료")
@@ -424,14 +423,46 @@ class EnhancedFeedbackViewController: UIViewController {
         }
     }
     
-    private func createFeedbackObject() -> PresetFeedback {
-        return PresetFeedback(
-            presetName: "Enhanced Preset",
-            contextEmotion: "평온",
-            contextTime: Calendar.current.component(.hour, from: Date()),
-            recommendedVolumes: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-            recommendedVersions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        )
+    private func createFeedbackObject() -> PresetFeedback? {
+        #if swift(>=5.9)
+        if #available(iOS 17.0, *) {
+            let qualitativeFeedback = PresetFeedback.QualitativeFeedback(
+                freeText: adjustmentTextView.text,
+                moodAfter: moodAfterSegmentedControl.titleForSegment(at: moodAfterSegmentedControl.selectedSegmentIndex) ?? "",
+                tags: [] // 태그 수집 UI 추가 필요
+            )
+            
+            let context = PresetFeedback.Context(
+                usageDuration: Date().timeIntervalSince(startTime),
+                intentionalStop: intentionalStopSwitch.isOn,
+                repeatUsageIntent: repeatUsageSwitch.isOn,
+                recommendationIntent: recommendSwitch.isOn
+            )
+            
+            let finalDeviceContext = self.deviceContext
+            let finalEnvironmentContext = self.environmentContext
+            
+            return PresetFeedback(
+                presetId: self.presetId?.uuidString ?? "",
+                sessionId: self.sessionId?.uuidString ?? "",
+                timestamp: Date(),
+                quantitative: feedbackData.quantitative,
+                qualitative: qualitativeFeedback,
+                context: context,
+                            deviceContext: finalDeviceContext,
+            environmentContext: finalEnvironmentContext,
+                userEmotion: self.currentEmotion
+            )
+        } else {
+            // iOS 17 미만 버전에서는 알림만 표시
+            let alert = UIAlertController(title: "알림", message: "이 기능은 iOS 17 이상에서 사용할 수 있습니다.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default, handler: { _ in
+                self.dismiss(animated: true, completion: nil)
+            }))
+            present(alert, animated: true, completion: nil)
+        }
+        #endif
+        return nil // iOS 17 미만에서는 nil 반환
     }
     
     private func animateEntry() {
@@ -484,12 +515,22 @@ private struct FeedbackData {
     var repeatUsage: Bool = false
     var wouldRecommend: Bool = false
     
-    var deviceContext: PresetFeedback.DeviceContext?
+                var deviceContext: PresetFeedback.DeviceContext?
     var environmentContext: PresetFeedback.EnvironmentContext?
     
     var tags: [String] = []
     var preferredAdjustments: [String] = []
     var moodAfter: String = "😐 비슷함"
+    
+    // Provide quantitative snapshot for feedback
+    var quantitative: [String: Any] { return [
+        "effectiveness": effectiveness,
+        "relaxation": relaxation,
+        "focus": focus,
+        "sleepQuality": sleepQuality,
+        "overallSatisfaction": overallSatisfaction,
+        "emotionIntensity": emotionIntensity
+    ] }
 }
 
 // MARK: - TextView Delegate
@@ -601,5 +642,13 @@ class CustomFeedbackSlider: UIView {
     private func updateValueLabel() {
         let percentage = Int(slider.value * 100)
         valueLabel.text = "\(percentage)%"
+    }
+}
+
+@available(iOS 17.0, *)
+extension EnhancedFeedbackViewController {
+    private func createVibrationFeedback() -> CHHapticPattern? {
+        // ... existing code ...
+        return nil
     }
 } 

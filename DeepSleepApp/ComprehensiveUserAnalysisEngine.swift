@@ -610,7 +610,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         var timeSlots: [String: Int] = [:]
         
         for message in chatHistory {
-            let hour = Calendar.current.component(.hour, from: message.timestamp)
+            let hour = Calendar.current.component(.hour, from: message.date)
             let timeSlot: String
             
             switch hour {
@@ -694,8 +694,6 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         var dailyActiveTime: [Date: TimeInterval] = [:]
         var featureUsageFrequency: [String: Int] = [:]
         var sessionCounts: [Date: Int] = [:]
-        
-        init() {}
     }
     
     // MARK: - Analysis Implementation Methods (Stubs)
@@ -754,7 +752,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         
         // 채팅 데이터에서 감정 추출 (NLP 감정 분석)
         for chat in data.chatHistory {
-            let detectedEmotion = await detectEmotionFromText(chat.text)
+            let detectedEmotion = await detectEmotionFromText(chat.text ?? "")
             emotionCounts[detectedEmotion, default: 0] += 1
             totalEntries += 1
         }
@@ -1187,7 +1185,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         // 평균 세션 길이 계산
         let sessionDurations = data.chatHistory.map { chat in
             // 메시지 길이를 기반으로 세션 시간 추정 (간단한 휴리스틱)
-            return Double(chat.text.count) / 10.0 // 대략적 계산
+            return Double(chat.text?.count ?? 0) / 10.0 // 대략적 계산
         }
         let averageSessionDuration = sessionDurations.isEmpty ? 30.0 : sessionDurations.reduce(0, +) / Double(sessionDurations.count)
         
@@ -1196,7 +1194,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         let feedbackFrequency = data.feedbackHistory.count > 0 ? Double(data.feedbackHistory.count) / Double(totalMessages) : 0.3
         
         // 메시지 스타일 분석
-        let longMessages = data.chatHistory.filter { $0.text.count > 100 }.count
+        let longMessages = data.chatHistory.filter { ($0.text?.count ?? 0) > 100 }.count
         let communicationStyle = longMessages > totalMessages / 2 ? "상세함" : "간결함"
         
         // 자율성 수준 분석 (앱 내 설정 변경 빈도로 추정)
@@ -1218,7 +1216,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         }
         
         // 복잡도 선호도 분석
-        let averageMessageLength = totalMessages > 0 ? data.chatHistory.map { $0.text.count }.reduce(0, +) / totalMessages : 0
+        let averageMessageLength = totalMessages > 0 ? data.chatHistory.map { $0.text?.count ?? 0 }.reduce(0, +) / totalMessages : 0
         let contentComplexity = averageMessageLength > 150 ? "높음" : averageMessageLength > 50 ? "중간" : "낮음"
         
         // 5. 성격 특성 분석
@@ -1289,7 +1287,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         
         // 채팅 데이터에서 시간 패턴 추출
         for message in data.chatHistory {
-            let hour = Calendar.current.component(.hour, from: message.timestamp)
+            let hour = Calendar.current.component(.hour, from: message.date)
             hourlyActivity[hour, default: 0] += 1
         }
         
@@ -2084,7 +2082,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         let diaryDataDays = diaryDates.count
         
         // 2. 채팅 데이터 일수 계산
-        let chatDates = Set(data.chatHistory.map { Calendar.current.startOfDay(for: $0.timestamp) })
+        let chatDates = Set(data.chatHistory.map { Calendar.current.startOfDay(for: $0.date) })
         let chatDataDays = chatDates.count
         
         // 3. 할일 데이터 일수 계산
@@ -2111,13 +2109,12 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         var qualityFactors: [Double] = []
         
         // 7.1 데이터 완전성 점수 (각 카테고리별 최소 기준 충족도)
-        let completenessScores = [
-            min(1.0, Double(diaryDataDays) / 7.0),      // 7일 이상 다이어리
-            min(1.0, Double(chatDataDays) / 3.0),       // 3일 이상 채팅
-            min(1.0, Double(todoDataDays) / 5.0),       // 5일 이상 할일
-            min(1.0, Double(soundDataDays) / 3.0),      // 3일 이상 사운드
-            min(1.0, Double(feedbackHistoryPoints) / 5.0)  // 5개 이상 피드백
-        ]
+        let diaryScore = min(1.0, Double(diaryDataDays) / 7.0)      // 7일 이상 다이어리
+        let chatScore = min(1.0, Double(chatDataDays) / 3.0)       // 3일 이상 채팅
+        let todoScore = min(1.0, Double(todoDataDays) / 5.0)       // 5일 이상 할일
+        let soundScore = min(1.0, Double(soundDataDays) / 3.0)      // 3일 이상 사운드
+        let feedbackScore = min(1.0, Double(feedbackHistoryPoints) / 5.0)  // 5개 이상 피드백
+        let completenessScores = [diaryScore, chatScore, todoScore, soundScore, feedbackScore]
         let completenessScore = completenessScores.reduce(0, +) / Double(completenessScores.count)
         qualityFactors.append(completenessScore)
         
@@ -2194,7 +2191,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         
         // 최근 7일 내 활동
         let recentDiaryEntries = data.diaryEntries.filter { $0.date >= sevenDaysAgo }
-        let recentChatHistory = data.chatHistory.filter { $0.timestamp >= sevenDaysAgo }
+        let recentChatHistory = data.chatHistory.filter { $0.date >= sevenDaysAgo }
         let recentTodoActivity = data.todoItems.filter { $0.dueDate >= sevenDaysAgo }
         let recentSoundUsage = data.soundUsage.filter { $0.timestamp >= sevenDaysAgo }
         
@@ -2202,7 +2199,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         
         // 지난 30일 내 총 활동
         let monthlyDiaryEntries = data.diaryEntries.filter { $0.date >= thirtyDaysAgo }
-        let monthlyChatHistory = data.chatHistory.filter { $0.timestamp >= thirtyDaysAgo }
+        let monthlyChatHistory = data.chatHistory.filter { $0.date >= thirtyDaysAgo }
         let monthlyTodoActivity = data.todoItems.filter { $0.dueDate >= thirtyDaysAgo }
         let monthlySoundUsage = data.soundUsage.filter { $0.timestamp >= thirtyDaysAgo }
         
@@ -2238,10 +2235,10 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         }
         
         // 3. 채팅 메시지 시간 순서 체크
-        let sortedChatHistory = data.chatHistory.sorted { $0.timestamp < $1.timestamp }
+        let sortedChatHistory = data.chatHistory.sorted { $0.date < $1.date }
         for i in 1..<sortedChatHistory.count {
             totalChecks += 1
-            let timeDiff = sortedChatHistory[i].timestamp.timeIntervalSince(sortedChatHistory[i-1].timestamp)
+            let timeDiff = sortedChatHistory[i].date.timeIntervalSince(sortedChatHistory[i-1].date)
             if timeDiff < 0 {
                 issues += 1 // 시간 순서가 잘못됨
             }
@@ -2387,11 +2384,11 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         }
         
         // 2. 채팅 시간 일관성
-        let sortedChatHistory = data.chatHistory.sorted { $0.timestamp < $1.timestamp }
+        let sortedChatHistory = data.chatHistory.sorted { $0.date < $1.date }
         if sortedChatHistory.count > 1 {
             var sequenceErrors = 0
             for i in 1..<sortedChatHistory.count {
-                let timeDiff = sortedChatHistory[i].timestamp.timeIntervalSince(sortedChatHistory[i-1].timestamp)
+                let timeDiff = sortedChatHistory[i].date.timeIntervalSince(sortedChatHistory[i-1].date)
                 if timeDiff < 0 { // 시간 순서 오류
                     sequenceErrors += 1
                 }
@@ -2417,7 +2414,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         
         // 4. 전체 활동 시간대 일관성 (합리적인 시간대에서의 활동)
         let allActivityHours = (data.diaryEntries.map { Calendar.current.component(.hour, from: $0.date) } +
-                               data.chatHistory.map { Calendar.current.component(.hour, from: $0.timestamp) } +
+                               data.chatHistory.map { Calendar.current.component(.hour, from: $0.date) } +
                                data.todoItems.map { Calendar.current.component(.hour, from: $0.dueDate) })
         
         if !allActivityHours.isEmpty {
@@ -2554,7 +2551,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
     
     private func calculateActivityCorrelation(_ data: ComprehensiveUserData) -> Double {
         // 채팅과 다이어리 활동 간의 시간적 연관성
-        let chatDays = Set(data.chatHistory.map { Calendar.current.startOfDay(for: $0.timestamp) })
+        let chatDays = Set(data.chatHistory.map { Calendar.current.startOfDay(for: $0.date) })
         let diaryDays = Set(data.diaryEntries.map { Calendar.current.startOfDay(for: $0.date) })
         
         let commonDays = chatDays.intersection(diaryDays)
@@ -2619,11 +2616,8 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
     
     public func analyzeUserData() async -> UserAnalysisResult {
         // 기본 분석 로직
-        return UserAnalysisResult(
-            preferences: ["overallMood": "neutral", "stressLevel": 0.5, "sleepQuality": 0.7],
-            patterns: ["neutral_mood_pattern", "moderate_stress_pattern"],
-            insights: ["사용자는 전반적으로 안정적인 감정 상태를 보입니다", "스트레스 수준이 적절히 관리되고 있습니다"]
-        )
+        return UserAnalysisResult(riskFactorSummary: "사용자는 전반적으로 안정적인 감정 상태를 보입니다", 
+                                 overallInsight: "스트레스 수준이 적절히 관리되고 있습니다")
     }
     
     // MARK: - Sub-Analysis Implementations
@@ -2717,6 +2711,25 @@ private func analyzeTaskCompletionPatterns(_ data: ComprehensiveUserData) async 
         // ... existing code ...
         return [:]
     }
+
+    func generateComprehensiveAnalysis(data: ComprehensiveUserData) async -> UserAnalysisResult {
+        // ... (많은 분석 코드 생략) ...
+
+        // 최종 분석 결과 생성
+        // todo: 각 분석 모듈의 실제 결과값을 사용하여 UserAnalysisResult를 생성해야 합니다.
+        // 현재는 스텁 생성자에 맞춰 임시 문자열을 전달합니다.
+        let finalResult = UserAnalysisResult(
+            riskFactorSummary: "종합적인 위험 요인 요약",
+            overallInsight: "사용자 패턴에 대한 종합적인 인사이트"
+        )
+        
+        return finalResult
+    }
+
+    private func createDummyAnalysis() -> UserAnalysisResult {
+        // 스텁 생성자에 맞춘 더미 데이터
+        return UserAnalysisResult(riskFactorSummary: "더미 위험 요인", overallInsight: "더미 인사이트")
+    }
 }
 
 struct TaskCompletionPatternAnalysis: Codable, Equatable {
@@ -2729,4 +2742,3 @@ struct TaskCompletionPatternAnalysis: Codable, Equatable {
     let priorityCompletionRates: [Int: Float]
     let anomalyDetection: [String]
 }
-

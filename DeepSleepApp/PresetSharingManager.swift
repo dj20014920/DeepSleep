@@ -430,7 +430,7 @@ class PresetSharingManager {
         }
         
         // 만료 시간 검증 (현재 시간 기준으로 계산)
-        let currentTime = Date()
+        let _ = Date()
         let expirationMinutes = 24 * 60 // 24시간 = 1440분
         
         if minutesUntilExpiry > expirationMinutes || minutesUntilExpiry <= 0 {

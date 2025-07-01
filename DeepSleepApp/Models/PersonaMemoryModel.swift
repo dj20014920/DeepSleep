@@ -229,17 +229,17 @@ final class ContextualMemory {
 @available(iOS 17.0, *)
 @Model
 public final class ConversationTurn {
-    // ... existing code ...
+    public init() {}
 }
 
 @available(iOS 17.0, *)
 @Model
 public final class FeedbackLog {
-    // ... existing code ...
+    public init() {}
 }
 
 @available(iOS 17.0, *)
 @Model
 public final class UserContext {
-    // ... existing code ...
+    public init() {}
 } 

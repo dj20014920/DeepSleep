@@ -102,7 +102,7 @@ class SoundCatalogManager {
             return false
         }
         
-        var category = currentCatalog[categoryIndex]
+        let category = currentCatalog[categoryIndex]
         
         // 중복 버전 체크
         if category.versions.contains(where: { $0.version == version }) {
@@ -166,7 +166,7 @@ class SoundCatalogManager {
             return false
         }
         
-        var category = currentCatalog[categoryIndex]
+        let category = currentCatalog[categoryIndex]
         
         // 모든 버전을 false로 설정 후 지정된 버전만 true로
         let updatedVersions = category.versions.map { v in
@@ -205,7 +205,7 @@ class SoundCatalogManager {
             return false
         }
         
-        var category = currentCatalog[categoryIndex]
+        let category = currentCatalog[categoryIndex]
         
         // 최소 1개 버전은 유지해야 함
         if category.versions.count <= 1 {

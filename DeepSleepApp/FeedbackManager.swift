@@ -3,6 +3,8 @@ import Foundation
 import SwiftData
 #endif
 import CoreData
+import SwiftUI
+import Combine
 
 // MARK: - Core Data Entity for Preset Feedback
 @objc(PresetFeedbackCoreData)
@@ -35,10 +37,8 @@ final class FeedbackManager: ObservableObject {
     public static let shared = FeedbackManager()
     
     // MARK: - SwiftData (iOS 17+)
-    private var modelContainer: ModelContainer?
-    private var modelContext: ModelContext? {
-        modelContainer?.mainContext
-    }
+    // private var modelContainer: ModelContainer?
+    // private var modelContext: ModelContext?
     
     // MARK: - CoreData (iOS 16 이하)
     private var persistentContainer: NSPersistentContainer?
@@ -47,12 +47,33 @@ final class FeedbackManager: ObservableObject {
     }
     
     // MARK: - 현재 세션 추적
-    private var currentSession: PresetFeedback?
+    @Published var currentSession: PresetFeedback?
     private var sessionStartTime: Date?
+    
+    // MARK: - 데이터 저장 (임시 UserDefaults 구현)
+    private let userDefaults = UserDefaults.standard
+    private var feedbackData: [PresetFeedback] = []
     
     private init() {
         // SwiftData initialization for iOS 17+
-        modelContainer = try? ModelContainer(for: PresetFeedback.self)
+        // modelContainer = try? ModelContainer(for: PresetFeedback.self)
+        loadFeedbackData()
+    }
+    
+    private func loadFeedbackData() {
+        // UserDefaults에서 피드백 데이터 로드 (임시)
+        if let data = userDefaults.data(forKey: "feedback_data"),
+           let decoded = try? JSONDecoder().decode([PresetFeedbackWrapper].self, from: data) {
+            self.feedbackData = decoded.map { $0.feedback }
+        }
+    }
+    
+    private func saveFeedbackData() {
+        // UserDefaults에 피드백 데이터 저장 (임시)
+        let wrappers = feedbackData.map { PresetFeedbackWrapper(feedback: $0) }
+        if let encoded = try? JSONEncoder().encode(wrappers) {
+            userDefaults.set(encoded, forKey: "feedback_data")
+        }
     }
     
     // MARK: - 세션 관리
@@ -66,9 +87,9 @@ final class FeedbackManager: ObservableObject {
     ) {
         // 기존 세션이 있으면 강제 종료
         if let existingSession = currentSession {
-            print("⚠️ [FeedbackManager] 기존 세션 강제 종료: \(existingSession.presetName)")
+            print("⚠️ [FeedbackManager] 기존 세션 강제 종료: \(existingSession.presetName ?? "-")")
             endCurrentSession(
-                finalVolumes: existingSession.recommendedVolumes,
+                finalVolumes: existingSession.finalVolumes ?? [],
                 listeningDuration: Date().timeIntervalSince(sessionStartTime ?? Date()),
                 wasSaved: false,
                 satisfaction: 0
@@ -94,13 +115,39 @@ final class FeedbackManager: ObservableObject {
             print("⚠️ [FeedbackManager] 추천 데이터 파싱 실패, 기본값 사용")
         }
         
-        // 새로운 세션 생성
+        // 새로운 세션 생성 - UserDefaults 기반 임시 구현
+        let sessionId = UUID().uuidString
+        let quantitativeData: [String: Any] = [
+            "presetName": presetName,
+            "contextEmotion": contextEmotion,
+            "contextTime": currentHour,
+            "recommendedVolumes": volumes,
+            "recommendedVersions": versions
+        ]
+        
+        let qualitative = PresetFeedback.QualitativeFeedback(
+            freeText: "", 
+            moodAfter: "알 수 없음", 
+            tags: []
+        )
+        
+        let context = PresetFeedback.Context(
+            usageDuration: 0,
+            intentionalStop: false,
+            repeatUsageIntent: false,
+            recommendationIntent: true
+        )
+        
         currentSession = PresetFeedback(
-            presetName: presetName,
-            contextEmotion: contextEmotion,
-            contextTime: currentHour,
-            recommendedVolumes: volumes,
-            recommendedVersions: versions
+            presetId: presetName,
+            sessionId: sessionId,
+            timestamp: Date(),
+            quantitative: quantitativeData,
+            qualitative: qualitative,
+            context: context,
+            deviceContext: nil,
+            environmentContext: nil,
+            userEmotion: nil
         )
         
         sessionStartTime = Date()
@@ -120,28 +167,41 @@ final class FeedbackManager: ObservableObject {
             return
         }
         
-        // 세션 정보 업데이트
-        session.finalVolumes = finalVolumes
-        session.listeningDuration = listeningDuration
-        session.wasSaved = wasSaved
-        session.userSatisfaction = satisfaction
+        // 세션 정보 업데이트 - quantitative 데이터에 추가
+        var updatedQuantitative = session.quantitative
+        updatedQuantitative["finalVolumes"] = finalVolumes
+        updatedQuantitative["listeningDuration"] = listeningDuration
+        updatedQuantitative["wasSaved"] = wasSaved
+        updatedQuantitative["userSatisfaction"] = satisfaction
+        updatedQuantitative["wasSkipped"] = listeningDuration < 30
         
-        // 30초 이내 종료 시 스킵으로 간주
-        session.wasSkipped = listeningDuration < 30
+        let updatedContext = PresetFeedback.Context(
+            usageDuration: listeningDuration,
+            intentionalStop: true,
+            repeatUsageIntent: wasSaved,
+            recommendationIntent: session.context.recommendationIntent
+        )
         
-        // SwiftData에 저장
-        do {
-            modelContext?.insert(session)
-            try modelContext?.save()
+        // 업데이트된 세션 생성
+        currentSession = PresetFeedback(
+            presetId: session.presetId,
+            sessionId: session.sessionId,
+            timestamp: session.timestamp,
+            quantitative: updatedQuantitative,
+            qualitative: session.qualitative,
+            context: updatedContext,
+            deviceContext: session.deviceContext,
+            environmentContext: session.environmentContext,
+            userEmotion: session.userEmotion
+        )
+        
+        // UserDefaults에 저장
+        feedbackData.append(currentSession!)
+        saveFeedbackData()
             
-            print("✅ [FeedbackManager] 세션 저장 완료: \(session.presetName)")
-            print("  - 청취 시간: \(String(format: "%.1f", listeningDuration))초")
-            print("  - 만족도 점수: \(String(format: "%.2f", session.satisfactionScore))")
-            print("  - 저장 여부: \(wasSaved)")
-            
-        } catch {
-            print("❌ [FeedbackManager] 세션 저장 실패: \(error)")
-        }
+        print("✅ [FeedbackManager] 세션 저장 완료: \(currentSession!.presetName ?? "-")")
+        print("  - 청취 시간: \(String(format: "%.1f", currentSession!.listeningDuration ?? 0))초")
+        print("  - 저장 여부: \(currentSession!.wasSaved?.description ?? "-")")
         
         // 세션 초기화
         currentSession = nil
@@ -153,7 +213,20 @@ final class FeedbackManager: ObservableObject {
         guard let session = currentSession else { return }
         
         // 실시간으로 최종 볼륨 업데이트 (사용자가 슬라이더 조정 시)
-        session.finalVolumes = volumes
+        var updatedQuantitative = session.quantitative
+        updatedQuantitative["finalVolumes"] = volumes
+        
+        currentSession = PresetFeedback(
+            presetId: session.presetId,
+            sessionId: session.sessionId,
+            timestamp: session.timestamp,
+            quantitative: updatedQuantitative,
+            qualitative: session.qualitative,
+            context: session.context,
+            deviceContext: session.deviceContext,
+            environmentContext: session.environmentContext,
+            userEmotion: session.userEmotion
+        )
         
         print("🔄 [FeedbackManager] 현재 세션 볼륨 업데이트")
     }
@@ -165,76 +238,57 @@ final class FeedbackManager: ObservableObject {
             return
         }
         
-        session.userSatisfaction = satisfaction
+        var updatedQuantitative = session.quantitative
+        updatedQuantitative["userSatisfaction"] = satisfaction
         
-        // 즉시 저장 (명시적 피드백은 중요하므로)
-        do {
-            try modelContext?.save()
+        currentSession = PresetFeedback(
+            presetId: session.presetId,
+            sessionId: session.sessionId,
+            timestamp: session.timestamp,
+            quantitative: updatedQuantitative,
+            qualitative: session.qualitative,
+            context: session.context,
+            deviceContext: session.deviceContext,
+            environmentContext: session.environmentContext,
+            userEmotion: session.userEmotion
+        )
+        
+        // 즉시 저장 (명시적 피드백은 중요하므로) - UserDefaults 임시 구현
+        saveFeedbackData()
             print("✅ [FeedbackManager] 명시적 피드백 저장: \(satisfaction == 1 ? "👎 싫어요" : satisfaction == 2 ? "👍 좋아요" : "😐 보통")")
-        } catch {
-            print("❌ [FeedbackManager] 피드백 저장 실패: \(error)")
-        }
     }
     
     // MARK: - 데이터 조회
     
-    /// 최근 N개의 피드백 데이터 조회
+    /// 최근 N개의 피드백 데이터 조회 - UserDefaults 기반 임시 구현
     func getRecentFeedback(limit: Int = 20) -> [PresetFeedback] {
         #if DEBUG
         print("📋 [FeedbackManager] 최근 \(limit)개 피드백 조회 시작...")
         #endif
         
-        let descriptor = FetchDescriptor<PresetFeedback>(
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
-        )
-        
-        do {
-            let allFeedback = try modelContext?.fetch(descriptor) ?? []
-            let result = Array(allFeedback.prefix(limit))
+        // UserDefaults에서 저장된 피드백 데이터 로드
+        let result = Array(feedbackData.prefix(limit))
             
             #if DEBUG
             print("✅ [FeedbackManager] 피드백 조회 완료: \(result.count)개")
             #endif
             
             return result
-        } catch {
-            print("❌ [FeedbackManager] 피드백 조회 실패: \(error)")
-            return []
-        }
     }
     
-    /// 특정 감정에 대한 피드백 데이터 조회
+    /// 특정 감정에 대한 피드백 데이터 조회 - UserDefaults 기반 임시 구현
     func getFeedbackByEmotion(_ emotion: String, limit: Int = 10) -> [PresetFeedback] {
-        let descriptor = FetchDescriptor<PresetFeedback>(
-            predicate: #Predicate { $0.contextEmotion == emotion },
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
-        )
-        
-        do {
-            let feedbacks = try modelContext?.fetch(descriptor) ?? []
-            return Array(feedbacks.prefix(limit))
-        } catch {
-            print("❌ [FeedbackManager] 감정별 피드백 조회 실패: \(error)")
-            return []
-        }
+        let filtered = feedbackData.filter { $0.contextEmotion == emotion }
+        return Array(filtered.prefix(limit))
     }
     
-    /// 특정 시간대의 피드백 데이터 조회
+    /// 특정 시간대의 피드백 데이터 조회 - UserDefaults 기반 임시 구현
     func getFeedbackByTimeRange(startHour: Int, endHour: Int, limit: Int = 10) -> [PresetFeedback] {
-        let descriptor = FetchDescriptor<PresetFeedback>(
-            predicate: #Predicate { feedback in
-                feedback.contextTime >= startHour && feedback.contextTime <= endHour
-            },
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
-        )
-        
-        do {
-            let feedbacks = try modelContext?.fetch(descriptor) ?? []
-            return Array(feedbacks.prefix(limit))
-        } catch {
-            print("❌ [FeedbackManager] 시간대별 피드백 조회 실패: \(error)")
-            return []
+        let filtered = feedbackData.filter { feedback in
+            guard let contextTime = feedback.contextTime else { return false }
+            return contextTime >= startHour && contextTime <= endHour
         }
+        return Array(filtered.prefix(limit))
     }
     
     /// 사용자 프로필 벡터 생성
@@ -243,16 +297,9 @@ final class FeedbackManager: ObservableObject {
         return UserProfileVector(feedbackData: recentFeedback)
     }
     
-    /// 전체 피드백 데이터 개수
+    /// 전체 피드백 데이터 개수 - UserDefaults 기반 임시 구현
     func getTotalFeedbackCount() -> Int {
-        let descriptor = FetchDescriptor<PresetFeedback>()
-        
-        do {
-            return try modelContext?.fetchCount(descriptor) ?? 0
-        } catch {
-            print("❌ [FeedbackManager] 피드백 개수 조회 실패: \(error)")
-            return 0
-        }
+        return feedbackData.count
     }
     
     /// 평균 만족도 계산
@@ -266,29 +313,20 @@ final class FeedbackManager: ObservableObject {
     
     // MARK: - 데이터 관리
     
-    /// 🧹 오래된 피드백 데이터 자동 정리 (30일 이상 된 데이터)
+    /// 🧹 오래된 피드백 데이터 자동 정리 (30일 이상 된 데이터) - UserDefaults 기반 임시 구현
     func cleanupOldFeedback() {
         let retentionDays = 30 // 30일간 보관 (AI 학습에 충분한 기간)
         let cutoffDate = Date().addingTimeInterval(-Double(retentionDays) * 24 * 60 * 60)
-        let descriptor = FetchDescriptor<PresetFeedback>(
-            predicate: #Predicate { $0.timestamp < cutoffDate }
-        )
         
-        do {
-            let oldFeedbacks = try modelContext?.fetch(descriptor) ?? []
-            let deletedCount = oldFeedbacks.count
-            
-            // 삭제 전 용량 계산
-            let beforeCount = getTotalFeedbackCount()
+        let beforeCount = feedbackData.count
+        feedbackData = feedbackData.filter { $0.timestamp >= cutoffDate }
+        let afterCount = feedbackData.count
+        let deletedCount = beforeCount - afterCount
+        
+        // UserDefaults에 저장
+        saveFeedbackData()
+        
             let beforeSizeKB = beforeCount * 3 // 피드백당 약 3KB (볼륨 배열 + 메타데이터)
-            
-            for feedback in oldFeedbacks {
-                modelContext?.delete(feedback)
-            }
-            try modelContext?.save()
-            
-            // 삭제 후 통계
-            let afterCount = getTotalFeedbackCount()
             let afterSizeKB = afterCount * 3
             let freedSpaceKB = beforeSizeKB - afterSizeKB
             
@@ -299,10 +337,6 @@ final class FeedbackManager: ObservableObject {
             • 절약된 용량: ~\(freedSpaceKB)KB (~\(freedSpaceKB/1024)MB)
             • 현재 예상 용량: ~\(afterSizeKB)KB (~\(afterSizeKB/1024)MB)
             """)
-            
-        } catch {
-            print("❌ [FeedbackManager] 오래된 데이터 정리 실패: \(error)")
-        }
     }
     
     /// 🔧 앱 시작 시 자동 정리 (백그라운드에서 실행)
@@ -329,15 +363,10 @@ final class FeedbackManager: ObservableObject {
         return (feedbackCount: count, estimatedSizeKB: sizeKB, retentionDays: 30)
     }
     
-    /// 🗂️ 데이터베이스 최적화
+    /// 🗂️ 데이터베이스 최적화 - UserDefaults 기반 임시 구현
     private func optimizeDatabase() {
-        do {
-            // SwiftData에서는 명시적 VACUUM이 없으므로 컨텍스트 저장으로 최적화
-            try modelContext?.save()
+        saveFeedbackData()
             print("💾 [FeedbackManager] 데이터베이스 최적화 완료")
-        } catch {
-            print("❌ [FeedbackManager] 데이터베이스 최적화 실패: \(error)")
-        }
     }
     
     /// 📈 저장소 통계 로깅
@@ -352,21 +381,11 @@ final class FeedbackManager: ObservableObject {
         """)
     }
     
-    /// 모든 피드백 데이터 삭제 (개발/테스트 용도)
+    /// 모든 피드백 데이터 삭제 (개발/테스트 용도) - UserDefaults 기반 임시 구현
     func deleteAllFeedback() {
-        let descriptor = FetchDescriptor<PresetFeedback>()
-        
-        do {
-            let allFeedbacks = try modelContext?.fetch(descriptor) ?? []
-            for feedback in allFeedbacks {
-                modelContext?.delete(feedback)
-            }
-            try modelContext?.save()
-            
+        feedbackData.removeAll()
+        saveFeedbackData()
             print("🗑️ [FeedbackManager] 모든 피드백 데이터 삭제 완료")
-        } catch {
-            print("❌ [FeedbackManager] 데이터 삭제 실패: \(error)")
-        }
     }
     
     // MARK: - ✅ 테스트 피드백 데이터 생성
@@ -400,30 +419,49 @@ final class FeedbackManager: ObservableObject {
                 return baseVolume * timeDecay
             }
             
-            let feedback = PresetFeedback(
-                presetName: preset,
-                contextEmotion: emotion,
-                contextTime: hour,
-                recommendedVolumes: volumeData,
-                recommendedVersions: Array(0..<volumeData.count).map { _ in Int.random(in: 1...3) }
+            let quantitativeData: [String: Any] = [
+                "presetName": preset,
+                "contextEmotion": emotion,
+                "contextTime": hour,
+                "recommendedVolumes": volumeData,
+                "recommendedVersions": Array(0..<volumeData.count).map { _ in Int.random(in: 1...3) },
+                "listeningDuration": TimeInterval(duration),
+                "userSatisfaction": satisfaction >= 0.8 ? 2 : (satisfaction >= 0.5 ? 1 : 0)
+            ]
+            
+            let qualitative = PresetFeedback.QualitativeFeedback(
+                freeText: "테스트 데이터", 
+                moodAfter: "좋음", 
+                tags: []
             )
             
-            // 추가 데이터 설정
-            feedback.listeningDuration = TimeInterval(duration)
-            feedback.userSatisfaction = satisfaction >= 0.8 ? 2 : (satisfaction >= 0.5 ? 1 : 0)
+            let context = PresetFeedback.Context(
+                usageDuration: TimeInterval(duration),
+                intentionalStop: true,
+                repeatUsageIntent: satisfaction >= 0.8,
+                recommendationIntent: true
+            )
             
-            modelContext?.insert(feedback)
+            let feedback = PresetFeedback(
+                presetId: preset,
+                sessionId: UUID().uuidString,
+                timestamp: timestamp,
+                quantitative: quantitativeData,
+                qualitative: qualitative,
+                context: context,
+                deviceContext: nil,
+                environmentContext: nil,
+                userEmotion: nil
+            )
+            
+            feedbackData.append(feedback)
         }
         
-        do {
-            try modelContext?.save()
+        saveFeedbackData()
             #if DEBUG
             print("✅ [FeedbackManager] 테스트 데이터 생성 완료: \(testFeedbacks.count)개")
             print("📊 총 피드백 데이터: \(getTotalFeedbackCount())개")
             #endif
-        } catch {
-            print("❌ [FeedbackManager] 테스트 데이터 저장 실패: \(error)")
-        }
     }
     
     // MARK: - ✅ 피드백 상태 출력
@@ -466,44 +504,21 @@ final class FeedbackManager: ObservableObject {
         #endif
     }
     
-    /// PresetFeedback 업데이트
+    /// PresetFeedback 업데이트 - UserDefaults 기반 임시 구현
     func updateFeedback(id: UUID, updateBlock: (Any) -> Void) {
-        if #available(iOS 17, *) {
-            // SwiftData 업데이트
-            let fetchDescriptor = FetchDescriptor<PresetFeedback>(predicate: #Predicate { $0.id == id })
-            guard let feedback = (try? modelContext?.fetch(fetchDescriptor))?.first else { return }
-            updateBlock(feedback)
-            try? modelContext?.save()
-        } else {
-            // CoreData 업데이트
-            guard let ctx = coreDataContext else { return }
-            let request = PresetFeedbackCoreData.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            guard let feedback = (try? ctx.fetch(request))?.first else { return }
-            updateBlock(feedback)
-            do { try ctx.save() } catch { print("[CoreData] Update error: \(error)") }
-        }
+        // 임시로 주석 처리 - 복잡한 업데이트 로직은 나중에 구현
+        print("⚠️ [FeedbackManager] updateFeedback - 임시 구현 필요")
     }
 
-    /// PresetFeedback 삭제
+    /// PresetFeedback 삭제 - UserDefaults 기반 임시 구현
     func deleteFeedback(id: UUID) {
-        if #available(iOS 17, *) {
-            let fetchDescriptor = FetchDescriptor<PresetFeedback>(predicate: #Predicate { $0.id == id })
-            guard let feedback = (try? modelContext?.fetch(fetchDescriptor))?.first else { return }
-            modelContext?.delete(feedback)
-            try? modelContext?.save()
-        } else {
-            guard let ctx = coreDataContext else { return }
-            let request = PresetFeedbackCoreData.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            guard let feedback = (try? ctx.fetch(request))?.first else { return }
-            ctx.delete(feedback)
-            do { try ctx.save() } catch { print("[CoreData] Delete error: \(error)") }
-        }
+        // 임시로 주석 처리 - ID 기반 삭제는 나중에 구현
+        print("⚠️ [FeedbackManager] deleteFeedback - 임시 구현 필요")
     }
 }
 
 // MARK: - 편의 메서드들
+@available(iOS 17.0, *)
 extension FeedbackManager {
     /// 현재 세션이 활성화되어 있는지 확인
     var hasActiveSession: Bool {
@@ -531,7 +546,7 @@ extension FeedbackManager {
         let totalCount = getTotalFeedbackCount()
         let avgSatisfaction = getAverageSatisfaction()
         let recentFeedback = getRecentFeedback(limit: 10)
-        let avgListeningTime = recentFeedback.isEmpty ? 0 : recentFeedback.map { $0.listeningDuration }.reduce(0, +) / Double(recentFeedback.count)
+        let avgListeningTime = recentFeedback.isEmpty ? 0 : recentFeedback.compactMap { $0.listeningDuration }.reduce(0, +) / Double(recentFeedback.count)
         
         return """
         📊 피드백 통계:
@@ -544,6 +559,7 @@ extension FeedbackManager {
 }
 
 // MARK: - CRUD (공통 인터페이스)
+@available(iOS 17.0, *)
 extension FeedbackManager {
     /// PresetFeedback 저장
     func saveFeedback(
@@ -558,59 +574,152 @@ extension FeedbackManager {
         wasSaved: Bool,
         userSatisfaction: Int
     ) {
-        if #available(iOS 17, *) {
-            // SwiftData 저장
+        // UserDefaults 기반 임시 구현
+        let quantitativeData: [String: Any] = [
+            "presetName": presetName,
+            "contextEmotion": contextEmotion,
+            "contextTime": contextTime,
+            "recommendedVolumes": recommendedVolumes,
+            "recommendedVersions": recommendedVersions,
+            "finalVolumes": finalVolumes,
+            "listeningDuration": listeningDuration,
+            "wasSkipped": wasSkipped,
+            "wasSaved": wasSaved,
+            "userSatisfaction": userSatisfaction
+        ]
+        
+        let qualitative = PresetFeedback.QualitativeFeedback(
+            freeText: "", 
+            moodAfter: "알 수 없음", 
+            tags: []
+        )
+        
+        let context = PresetFeedback.Context(
+            usageDuration: listeningDuration,
+            intentionalStop: !wasSkipped,
+            repeatUsageIntent: wasSaved,
+            recommendationIntent: true
+        )
+        
             let feedback = PresetFeedback(
-                presetName: presetName,
-                contextEmotion: contextEmotion,
-                contextTime: contextTime,
-                recommendedVolumes: recommendedVolumes,
-                recommendedVersions: recommendedVersions
-            )
-            feedback.finalVolumes = finalVolumes
-            feedback.listeningDuration = listeningDuration
-            feedback.wasSkipped = wasSkipped
-            feedback.wasSaved = wasSaved
-            feedback.userSatisfaction = userSatisfaction
-            modelContext?.insert(feedback)
-            try? modelContext?.save()
+            presetId: presetName,
+            sessionId: UUID().uuidString,
+            timestamp: Date(),
+            quantitative: quantitativeData,
+            qualitative: qualitative,
+            context: context,
+            deviceContext: nil,
+            environmentContext: nil,
+            userEmotion: nil
+        )
+        
+        feedbackData.append(feedback)
+        saveFeedbackData()
+    }
+    
+    /// PresetFeedback 전체 조회 - UserDefaults 기반 임시 구현
+    func fetchAllFeedback() -> [Any] {
+        return feedbackData
+    }
+    // (필요시 update/delete 등 추가)
+}
+
+// MARK: - Wrapper for JSON encoding/decoding
+private struct PresetFeedbackWrapper: Codable {
+    let feedback: PresetFeedback
+    
+    init(feedback: PresetFeedback) {
+        self.feedback = feedback
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case presetId, sessionId, timestamp, quantitative, qualitative, context
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let presetId = try container.decode(String.self, forKey: .presetId)
+        let sessionId = try container.decode(String.self, forKey: .sessionId)
+        let timestamp = try container.decode(Date.self, forKey: .timestamp)
+        let quantitative = try container.decode([String: AnyCodableValue].self, forKey: .quantitative)
+        
+        // 간단한 더미 값들로 초기화
+        let qualitative = PresetFeedback.QualitativeFeedback(freeText: "", moodAfter: "", tags: [])
+        let context = PresetFeedback.Context(usageDuration: 0, intentionalStop: false, repeatUsageIntent: false, recommendationIntent: false)
+        
+        // quantitative 데이터를 [String: Any]로 변환
+        let quantitativeDict = quantitative.mapValues { $0.value }
+        
+        self.feedback = PresetFeedback(
+            presetId: presetId,
+            sessionId: sessionId,
+            timestamp: timestamp,
+            quantitative: quantitativeDict,
+            qualitative: qualitative,
+            context: context,
+            deviceContext: nil,
+            environmentContext: nil,
+            userEmotion: nil
+        )
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(feedback.presetId, forKey: .presetId)
+        try container.encode(feedback.sessionId, forKey: .sessionId)
+        try container.encode(feedback.timestamp, forKey: .timestamp)
+        
+        // quantitative 데이터를 Codable로 변환
+        let codableQuantitative = feedback.quantitative.compactMapValues { AnyCodableValue($0) }
+        try container.encode(codableQuantitative, forKey: .quantitative)
+    }
+}
+
+// MARK: - Helper for Any value encoding
+private struct AnyCodableValue: Codable {
+    let value: Any
+    
+    init(_ value: Any) {
+        self.value = value
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let intValue = try? container.decode(Int.self) {
+            value = intValue
+        } else if let doubleValue = try? container.decode(Double.self) {
+            value = doubleValue
+        } else if let stringValue = try? container.decode(String.self) {
+            value = stringValue
+        } else if let boolValue = try? container.decode(Bool.self) {
+            value = boolValue
+        } else if let arrayValue = try? container.decode([AnyCodableValue].self) {
+            value = arrayValue.map { $0.value }
         } else {
-            // CoreData 저장
-            guard let ctx = coreDataContext else { return }
-            let entity = NSEntityDescription.entity(forEntityName: "PresetFeedbackCoreData", in: ctx)!
-            let feedback = PresetFeedbackCoreData(entity: entity, insertInto: ctx)
-            feedback.id = UUID()
-            feedback.timestamp = Date()
-            feedback.presetName = presetName
-            feedback.contextEmotion = contextEmotion
-            feedback.contextTime = Int16(contextTime)
-            feedback.recommendedVolumes = recommendedVolumes
-            feedback.recommendedVersions = recommendedVersions
-            feedback.finalVolumes = finalVolumes
-            feedback.listeningDuration = listeningDuration
-            feedback.wasSkipped = wasSkipped
-            feedback.wasSaved = wasSaved
-            feedback.userSatisfaction = Int16(userSatisfaction)
-            do {
-                try ctx.save()
-            } catch {
-                print("[CoreData] Save error: \(error)")
-            }
+            value = ""
         }
     }
     
-    /// PresetFeedback 전체 조회
-    func fetchAllFeedback() -> [Any] {
-        if #available(iOS 17, *) {
-            // SwiftData 조회
-            let fetchDescriptor = FetchDescriptor<PresetFeedback>()
-            return (try? modelContext?.fetch(fetchDescriptor)) ?? []
-        } else {
-            // CoreData 조회
-            guard let ctx = coreDataContext else { return [] }
-            let request = PresetFeedbackCoreData.fetchRequest()
-            return (try? ctx.fetch(request)) ?? []
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch value {
+        case let intValue as Int:
+            try container.encode(intValue)
+        case let doubleValue as Double:
+            try container.encode(doubleValue)
+        case let floatValue as Float:
+            try container.encode(floatValue)
+        case let stringValue as String:
+            try container.encode(stringValue)
+        case let boolValue as Bool:
+            try container.encode(boolValue)
+        case let arrayValue as [Any]:
+            let codableArray = arrayValue.compactMap { AnyCodableValue($0) }
+            try container.encode(codableArray)
+        default:
+            try container.encode(String(describing: value))
         }
     }
-    // (필요시 update/delete 등 추가)
 } 

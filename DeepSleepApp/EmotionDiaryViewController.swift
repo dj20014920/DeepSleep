@@ -68,7 +68,7 @@ class EmotionDiaryViewController: UIViewController {
     // MARK: - Properties
     internal var diaryEntries: [EmotionDiary] = []
     private var currentView: Int = 0
-    private var selectedDiaryForAnalysis: EmotionDiary? = nil // 선택된 일기 저장
+    private var selectedDiaryForAnalysis: EmotionDiary? // 선택된 일기 저장
     
     // MARK: - Lifecycle
     override func viewDidLoad() {

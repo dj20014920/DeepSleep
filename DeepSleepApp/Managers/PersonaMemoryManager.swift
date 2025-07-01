@@ -9,6 +9,7 @@ import os.log
 // Based on latest research: Echo LLM, Cognitive Weave, Infinite Memory AI
 
 /// 2025년 최신 Neural Memory Networks 기반 개인화 메모리 시스템
+@available(iOS 17.0, *)
 @MainActor
 class PersonaMemoryManager: ObservableObject {
     
@@ -631,6 +632,7 @@ class PersonaMemoryManager: ObservableObject {
 // MARK: - Supporting Types and Classes
 
 /// 2025년 고도화된 사용자 페르소나
+@available(iOS 17.0, *)
 @Model
 class AdvancedUserPersona {
     @Attribute(.unique) var id: UUID
@@ -695,6 +697,7 @@ class AdvancedUserPersona {
 }
 
 /// 시간적 에피소드 메모리 엔트리
+@available(iOS 17.0, *)
 @Model
 class EpisodicMemoryEntry {
     @Attribute(.unique) var id: UUID
@@ -755,6 +758,7 @@ class EpisodicMemoryEntry {
 }
 
 /// 의미적 지식 엔트리
+@available(iOS 17.0, *)
 @Model
 class SemanticKnowledgeEntry {
     @Attribute(.unique) var id: UUID
@@ -805,6 +809,7 @@ class SemanticKnowledgeEntry {
 }
 
 /// 절차적 메모리 엔트리
+@available(iOS 17.0, *)
 @Model
 class ProceduralMemoryEntry {
     @Attribute(.unique) var id: UUID
@@ -862,7 +867,7 @@ class ProceduralMemoryEntry {
 }
 
 // MARK: - Neural Memory Engine
-
+@available(iOS 17.0, *)
 class NeuralMemoryEngine: @unchecked Sendable {
     private let embeddingDimension = 1536
     private var averageRetrievalLatency: Double = 0.0
@@ -1001,7 +1006,7 @@ struct InfiniteContextResult {
 }
 
 // MARK: - Placeholder Classes (실제 구현에서는 완전한 기능 제공)
-
+@available(iOS 17.0, *)
 class TemporalEpisodicProcessor: @unchecked Sendable {
     func initialize() async {}
     func processEpisode(_ entry: EpisodicMemoryEntry) async -> EpisodicMemoryEntry { return entry }
@@ -1010,13 +1015,13 @@ class TemporalEpisodicProcessor: @unchecked Sendable {
     }
     func calculateGlobalCoherence() async -> Double { return Double.random(in: 0.7...0.95) }
 }
-
+@available(iOS 17.0, *)
 class SemanticKnowledgeGraph: @unchecked Sendable {
     func initialize() async {}
     func processKnowledge(_ entry: SemanticKnowledgeEntry) async -> SemanticKnowledgeEntry { return entry }
     func performMultiHopReasoning(queryEmbedding: [Float], domain: String?, maxDepth: Int) async -> [SemanticKnowledgeEntry] { return [] }
 }
-
+@available(iOS 17.0, *)
 class CognitiveWeaveOrchestrator: @unchecked Sendable {
     func weaveEpisodicMemory(_ entry: EpisodicMemoryEntry) async {}
     func weaveSemanticKnowledge(_ entry: SemanticKnowledgeEntry) async {}
@@ -1025,14 +1030,14 @@ class CognitiveWeaveOrchestrator: @unchecked Sendable {
     func synthesizeInfiniteContext(episodic: [EpisodicMemoryEntry], semantic: [SemanticKnowledgeEntry], procedural: [ProceduralMemoryEntry], query: [Float]) async -> InfiniteContextResult { return .empty }
     func optimizeMemoryConnections() async {}
 }
-
+@available(iOS 17.0, *)
 class MemoryConsolidationEngine: @unchecked Sendable {
     func transferEpisodicToSemantic(episodicMemories: [EpisodicMemoryEntry]) async {}
     func strengthenImportantMemories() async {}
     func performAdaptiveForgetting() async {}
     func getEfficiencyScore() async -> Double { return Double.random(in: 0.8...0.95) }
 }
-
+@available(iOS 17.0, *)
 class InfiniteAttentionManager: @unchecked Sendable {
     func updateEpisodicContext(_ entry: EpisodicMemoryEntry) async {}
     func updateSemanticContext(_ entry: SemanticKnowledgeEntry) async {}
