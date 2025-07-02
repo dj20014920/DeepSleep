@@ -770,9 +770,10 @@ extension PresetSharingManager {
         }
         
         targetVC?.applyPreset(
-            volumes: preset.compatibleVolumes,
-            versions: preset.compatibleVersions,
-            name: preset.name
+            presetId: preset.id.uuidString,
+            presetName: preset.name,
+            soundIds: nil,
+            volumes: preset.compatibleVolumes
         )
         
         // 성공 메시지

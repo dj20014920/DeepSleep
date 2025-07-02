@@ -201,11 +201,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             presetListVC.onPresetSelected = { [weak mainVC] preset in
                 // URL로 가져온 프리셋은 적용만 하고, 로컬에 저장하거나 갱신하지 않음
                 mainVC?.applyPreset(
-                    volumes: preset.compatibleVolumes,
-                    versions: preset.compatibleVersions,
-                    name: preset.name,
-                    presetId: nil
-                    // saveAsNew 파라미터 제거됨
+                    presetId: preset.id.uuidString,
+                    presetName: preset.name,
+                    soundIds: nil,
+                    volumes: preset.compatibleVolumes
                 )
             }
             

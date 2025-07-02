@@ -1,4 +1,5 @@
 import Foundation
+import Core
 import CoreData
 import SwiftUI
 
@@ -28,80 +29,8 @@ public enum ModelsMessageType: String, Codable {
     case postPresetOptions = "postPresetOptions"
 }
 
-// QuickAction and ChatMessageType need to be defined at this level to be accessible.
-public struct QuickAction: Codable, Hashable {
-    public let title: String
-    public let action: String // An identifier for the action
-}
-
-public enum ChatMessageType: String, Codable, Equatable {
-    case user
-    case bot
-    case aiResponse
-    case presetRecommendation
-    case recommendationSelector
-    case loading
-    case error
-    case system
-    case presetOptions
-    case postPresetOptions
-}
-
-// MARK: - Chat Message Models
-public struct ChatMessage: Codable, Identifiable, Hashable {
-    public let id: UUID
-    public var text: String?
-    public let date: Date
-    public var sender: MessageSender
-    public var isPending: Bool?
-    public var aithoughts: String?
-    public var metadata: ChatMetadata?
-
-    // Properties needed by ChatBubbleCell
-    public var type: ChatMessageType = .bot // Default to .bot
-    public var quickActions: [QuickAction]? = nil
-    
-    // Closures can't be Codable, so they are marked as non-codable.
-    // We will handle them manually if needed for persistence.
-    public var onApplyPreset: (() -> Void)? {
-        get { return nil }
-        set { }
-    }
-    public var onSelectRecommendation: ((String) -> Void)? {
-        get { return nil }
-        set { }
-    }
-
-    // CodingKeys to exclude non-codable properties
-    enum CodingKeys: String, CodingKey {
-        case id, text, date, sender, isPending, aithoughts, metadata, type, quickActions
-    }
-
-    // 기존 'text'와의 호환성을 위한 typealias 및 computed property
-    public var content: String? {
-        get { text }
-        set { text = newValue }
-    }
-    
-    public init(id: UUID = UUID(), text: String?, date: Date = Date(), sender: MessageSender, type: ChatMessageType, quickActions: [QuickAction]? = nil, isPending: Bool? = false, aithoughts: String? = nil, metadata: ChatMetadata? = nil) {
-        self.id = id
-        self.text = text
-        self.date = date
-        self.sender = sender
-        self.type = type
-        self.quickActions = quickActions
-        self.isPending = isPending
-        self.aithoughts = aithoughts
-        self.metadata = metadata
-    }
-}
-
-// MARK: - App-wide Enums (중앙 관리)
-public enum MessageSender: String, Codable, Hashable {
-    case user
-    case ai
-    case system
-}
+// QuickAction, ChatMessageType, ChatMessage, MessageSender, ChatMetadata 등은
+// Core/Common/SharedModels.swift 로 이동되었으므로 여기서 삭제합니다.
 
 // 이 부분의 LLMServiceType 정의는 Sources/Core/Domain/Entities/LLMEntity.swift 로 이전되었으므로 삭제합니다.
 
@@ -487,6 +416,56 @@ extension PresetFeedback {
     var contextTime: Int? { quantitative["contextTime"] as? Int }
     var listeningDuration: TimeInterval? { quantitative["listeningDuration"] as? TimeInterval }
     var userSatisfaction: Int? { quantitative["userSatisfaction"] as? Int }
+    var satisfactionScore: Float {
+        return Float(userSatisfaction ?? 5) / 10.0  // Convert 1-10 scale to 0.0-1.0
+    }
     var wasSaved: Bool? { quantitative["wasSaved"] as? Bool }
     var wasSkipped: Bool? { quantitative["wasSkipped"] as? Bool }
+}
+
+// MARK: - Recommendation Models
+public struct RecommendationData: Codable {
+    public let title: String
+    public let description: String
+    public let soundIds: [String]
+    public let presetId: String
+    public let versions: [String]
+    public let timestamp: Date
+    
+    public init(title: String, description: String, soundIds: [String], presetId: String, versions: [String], timestamp: Date) {
+        self.title = title
+        self.description = description
+        self.soundIds = soundIds
+        self.presetId = presetId
+        self.versions = versions
+        self.timestamp = timestamp
+    }
+}
+
+public struct RecommendationResponse: Codable {
+    public let title: String
+    public let description: String
+    public let soundIds: [String]
+    public let presetId: String
+    
+    public init(title: String, description: String, soundIds: [String], presetId: String) {
+        self.title = title
+        self.description = description
+        self.soundIds = soundIds
+        self.presetId = presetId
+    }
+}
+
+struct DiaryContext {
+    let content: String
+    let emotion: String?
+}
+
+struct UserProfile: Codable {
+    var userId: String
+}
+
+// MARK: - Chat & AI Interaction
+public extension ChatMessage {
+    // ... 기존 ChatMessage 관련 extension 내용
 }

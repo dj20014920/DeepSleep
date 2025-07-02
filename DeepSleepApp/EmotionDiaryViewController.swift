@@ -69,6 +69,7 @@ class EmotionDiaryViewController: UIViewController {
     internal var diaryEntries: [EmotionDiary] = []
     private var currentView: Int = 0
     private var selectedDiaryForAnalysis: EmotionDiary? // 선택된 일기 저장
+    private var recommendationHistory: [RecommendationData] = []
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -202,15 +203,42 @@ class EmotionDiaryViewController: UIViewController {
     }
     
     private func showCurrentView() {
-        tableView.isHidden = currentView != 0
-        calendarViewController.view.isHidden = currentView != 1
-        insightStackView.isHidden = currentView != 2
+        // 모든 뷰 숨기기
+        tableView.isHidden = true
+        calendarViewController.view.isHidden = true
+        insightStackView.isHidden = true
         
-        if currentView == 2 {
-            updateInsightView()
-            // 인사이트 뷰가 표시될 때 선택된 일기 분석 버튼 상태 업데이트
-            aiAnalyzeSelectedDiaryButton.isEnabled = selectedDiaryForAnalysis != nil
+        // 선택된 뷰만 보이기
+        switch currentView {
+        case 0: // 일기
+            tableView.isHidden = false
+        case 1: // 캘린더
+            calendarViewController.view.isHidden = false
+        case 2: // 인사이트
+            insightStackView.isHidden = false
+        default:
+            break
         }
+        
+        updateScrollViewContentSize()
+    }
+    
+    func updateScrollViewContentSize() {
+        // 현재 보이는 뷰의 크기에 맞춰 스크롤 뷰 컨텐츠 크기 업데이트
+        var contentHeight: CGFloat = 0
+        
+        switch currentView {
+        case 0: // 일기
+            contentHeight = max(tableView.contentSize.height, scrollView.bounds.height)
+        case 1: // 캘린더
+            contentHeight = max(calendarViewController.view.frame.height, scrollView.bounds.height)
+        case 2: // 인사이트
+            contentHeight = max(insightStackView.frame.height, scrollView.bounds.height)
+        default:
+            contentHeight = scrollView.bounds.height
+        }
+        
+        scrollView.contentSize = CGSize(width: scrollView.bounds.width, height: contentHeight)
     }
     
     // MARK: - Actions
@@ -249,27 +277,25 @@ class EmotionDiaryViewController: UIViewController {
         present(alert, animated: true)
     }
     
-    // 스크롤 뷰 콘텐츠 사이즈 업데이트 메서드 추가
-    internal func updateScrollViewContentSize() {
-        scrollView.layoutIfNeeded()
-    }
-    
     // MARK: - AI 분석 액션
 
     @objc private func analyzeSelectedDiaryTapped() {
         guard let diary = selectedDiaryForAnalysis else {
-            // 사용자에게 알림 (예: 토스트 메시지)
-            showSimpleToast(message: "분석할 일기를 먼저 선택해주세요.")
+            // 사용자에게 알림 (예: print)
+            print("분석할 일기를 먼저 선택해주세요.")
             return
         }
 
         let chatVC = ChatViewController()
-        // EmotionDiary 객체에서 DiaryContext를 생성하는 편의 생성자 사용
         let diaryContext = DiaryContext(from: diary) // 'diary'는 EmotionDiary 타입이어야 함
         chatVC.diaryContext = diaryContext
         chatVC.initialUserText = "선택된 일기 심층 분석"
+        
+        // 프리셋 적용 콜백 설정
+        chatVC.onPresetApply = { [weak self] preset in
+            self?.applyRecommendationAndReturn(preset)
+        }
 
-        configureChatVCPresetCallback(for: chatVC)
         navigationController?.pushViewController(chatVC, animated: true)
     }
 
@@ -277,13 +303,13 @@ class EmotionDiaryViewController: UIViewController {
         let allEntries = SettingsManager.shared.loadEmotionDiary()
         let calendar = Calendar.current
         guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date()) else {
-            showSimpleToast(message: "날짜 계산 오류")
+            print("날짜 계산 오류")
             return
         }
 
         let recentEntries = allEntries.filter { $0.date >= thirtyDaysAgo }
         if recentEntries.isEmpty {
-            showSimpleToast(message: "최근 30일간의 일기 데이터가 없습니다.")
+            print("최근 30일간의 일기 데이터가 없습니다.")
             return
         }
 
@@ -296,61 +322,65 @@ class EmotionDiaryViewController: UIViewController {
         chatVC.emotionPatternData = patternData
         chatVC.initialUserText = "최근 30일 감정 패턴 분석"
         
-        configureChatVCPresetCallback(for: chatVC)
+        // 프리셋 적용 콜백 설정
+        chatVC.onPresetApply = { [weak self] preset in
+            self?.applyRecommendationAndReturn(preset)
+        }
+        
         navigationController?.pushViewController(chatVC, animated: true)
     }
 
-    private func configureChatVCPresetCallback(for chatVC: ChatViewController) {
-        // 네비게이션 스택에서 ViewController (메인 화면) 인스턴스를 찾습니다.
-        guard let navigationController = self.navigationController else {
-            print("⚠️ NavigationController가 없습니다.")
-            return
-        }
+    private func applyRecommendationAndReturn(_ preset: SoundPreset) {
+        print("✅ 프리셋 적용 콜백 수신:", preset.presetName)
+        
+        // ChatVC를 pop하여 이전 화면으로 돌아감
+        navigationController?.popViewController(animated: true)
+        
+        // 전역 함수를 호출하여 메인 VC에 프리셋 적용
+        forceSyncMainViewControllerPreset(
+            volumes: preset.volumes,
+            versions: preset.compatibleVersions,
+            name: preset.presetName
+        )
+    }
 
-        // 네비게이션 스택의 모든 뷰 컨트롤러를 확인
-        print("📱 현재 네비게이션 스택:")
-        navigationController.viewControllers.forEach { print("- \(type(of: $0))") }
-
-        // 메인 ViewController 찾기 (스택의 맨 아래에서부터 찾기)
-        if let mainVC = navigationController.viewControllers.first(where: { $0 is MainViewController }) as? MainViewController {
-            print("✅ Main ViewController 찾음")
-            
-            // 약한 참조로 클로저 캡처
-            chatVC.onPresetApply = { [weak mainVC, weak navigationController] recommendation in
-                guard let mainVC = mainVC else {
-                    print("⚠️ Main ViewController가 해제되었습니다.")
-                    return
-                }
-                
-                print("🎵 프리셋 적용 시작: \(recommendation.presetName)")
-                print("볼륨: \(recommendation.volumes)")
-                print("버전: \(recommendation.selectedVersions ?? [])")
-                
-                mainVC.applyPreset(
-                    volumes: recommendation.volumes,
-                    versions: recommendation.selectedVersions,
-                    name: recommendation.presetName
-                )
-                
-                // 메인 화면으로 돌아가기 전에 잠시 대기
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    navigationController?.popToViewController(mainVC, animated: true)
-                }
-                
-                print("✅ 프리셋 적용 완료")
-            }
-        } else {
-            print("⚠️ Main ViewController를 찾을 수 없습니다.")
+    private func handleRecommendation(_ recommendation: RecommendationResponse) {
+        // 추천 응답 처리
+        let recommendationData = RecommendationData(
+            title: recommendation.title,
+            description: recommendation.description,
+            soundIds: recommendation.soundIds,
+            presetId: recommendation.presetId,
+            versions: [], // versions 속성 제거
+            timestamp: Date()
+        )
+        
+        // 추천 데이터 저장
+        recommendationHistory.append(recommendationData)
+        saveRecommendationHistory()
+        
+        // UI 업데이트
+        updateRecommendationUI(with: recommendationData)
+    }
+    
+    // MARK: - Recommendation Methods
+    private func saveRecommendationHistory() {
+        if let encoded = try? JSONEncoder().encode(recommendationHistory) {
+            UserDefaults.standard.set(encoded, forKey: "recommendationHistory")
         }
     }
     
-    // 간단한 토스트 메시지 (ViewController의 showToast 활용)
-    private func showSimpleToast(message: String) {
-        if let mainVC = navigationController?.viewControllers.first(where: { $0 is MainViewController }) as? MainViewController {
-            mainVC.showToast(message: message)
-        } else {
-            // ViewController를 찾지 못한 경우의 대체 처리 (예: print 또는 자체 간단 토스트)
-            print("Toast: \(message) (MainVC not found)")
+    private func loadRecommendationHistory() {
+        if let data = UserDefaults.standard.data(forKey: "recommendationHistory"),
+           let decoded = try? JSONDecoder().decode([RecommendationData].self, from: data) {
+            recommendationHistory = decoded
+        }
+    }
+    
+    private func updateRecommendationUI(with recommendation: RecommendationData) {
+        // UI 업데이트 로직
+        DispatchQueue.main.async {
+            // 여기에 UI 업데이트 코드 추가
         }
     }
 }

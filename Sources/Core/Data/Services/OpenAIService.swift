@@ -1,151 +1,128 @@
 import Foundation
 
-/// OpenAI GPT-4o-mini API 서비스
-/// 2025년 기준 최적화된 구현 - 메모리 효율성, 배터리 최적화 적용
 public final class OpenAIService: LLMServiceProtocol {
     
-    // MARK: - Properties
-    
     private let apiKey: String
-    private let baseURL = "https://api.openai.com/v1/chat/completions"
     private let session: URLSession
     
-    // MARK: - 2025 최적화: Lazy initialization으로 메모리 효율성 향상
+    private let apiURL = URL(string: "https://api.openai.com/v1/chat/completions")!
+    
+    // MARK: - Singleton
     public static let shared: OpenAIService = {
         return OpenAIService()
     }()
-    
-    // MARK: - Initialization
-    
+
     private init() {
         self.apiKey = EnvironmentConfig.shared.openAIApiKey
         
-        // 2025 최적화: URLSession 설정 최적화 (배터리 효율성)
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         config.waitsForConnectivity = true
-        config.allowsCellularAccess = true
-        config.networkServiceType = .responsiveData // 배터리 최적화
-        
         self.session = URLSession(configuration: config)
     }
     
-    deinit {
-        session.invalidateAndCancel()
-    }
-    
-    // MARK: - LLMServiceProtocol Implementation
-    
-    public func generateResponse(
-        prompt: String,
-        systemPrompt: String?,
-        config: LLMRequestConfig?
-    ) async throws -> LLMResponse {
-        
-        guard !apiKey.isEmpty else {
-            throw LLMError.unauthorized
-        }
-        
-        let requestConfig = config ?? .defaultConfig
-        
-        // OpenAI API 요청 구조
-        let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                [
-                    "role": "system",
-                    "content": systemPrompt ?? "You are a helpful assistant."
-                ],
-                [
-                    "role": "user",
-                    "content": prompt
-                ]
-            ],
-            "max_tokens": requestConfig.maxTokens,
-            "temperature": requestConfig.temperature,
-            "top_p": requestConfig.topP,
-            "frequency_penalty": requestConfig.frequencyPenalty,
-            "presence_penalty": requestConfig.presencePenalty
-        ]
-        
-        var request = URLRequest(url: URL(string: baseURL)!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            throw LLMError.invalidResponse
-        }
-        
-        let startTime = Date()
-        
-        do {
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw LLMError.networkError
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                if httpResponse.statusCode == 401 {
-                    throw LLMError.unauthorized
-                } else if httpResponse.statusCode == 429 {
-                    throw LLMError.quotaExceeded
-                } else if httpResponse.statusCode == 400 {
-                    throw LLMError.tokenLimitExceeded
-                } else {
-                    throw LLMError.apiError("HTTP \(httpResponse.statusCode)")
-                }
-            }
-            
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let choices = json["choices"] as? [[String: Any]],
-                  let firstChoice = choices.first,
-                  let message = firstChoice["message"] as? [String: Any],
-                  let content = message["content"] as? String else {
-                throw LLMError.invalidResponse
-            }
-            
-            let processingTime = Date().timeIntervalSince(startTime)
-            
-            // 토큰 사용량 추출
-            let usage = json["usage"] as? [String: Any]
-            let totalTokens = (usage?["total_tokens"] as? Int) ?? (prompt.count + content.count) / 4
-            
-            let metadata = LLMResponseMetadata(
-                modelUsed: .openAI,
-                tokensUsed: totalTokens,
-                processingTime: processingTime,
-                cached: false
-            )
-            
-            return LLMResponse(
-                content: content,
-                metadata: metadata
-            )
-            
-        } catch {
-            if error is LLMError {
-                throw error
-            } else {
-                throw LLMError.networkError
-            }
-        }
+    public init(apiKey: String, session: URLSession = .shared) {
+        self.apiKey = apiKey
+        self.session = session
     }
     
     public func isAvailable() async -> Bool {
         return !apiKey.isEmpty
     }
+    
+    public func send(task: AITask) async throws -> LLMResponse {
+        let requestBody = createRequestBody(from: task)
+        
+        var request = URLRequest(url: apiURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(requestBody)
+        } catch {
+            throw LLMError.apiError("Failed to encode request body: \(error.localizedDescription)")
+        }
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            // TODO: API 에러 응답 파싱
+            throw LLMError.apiError("Invalid response from OpenAI API. Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        }
+        
+        do {
+            let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+            let content = openAIResponse.choices.first?.message.content ?? ""
+            let tokensUsed = openAIResponse.usage.totalTokens
+            
+            let metadata = LLMResponseMetadata(
+                modelUsed: .openAI,
+                tokensUsed: tokensUsed,
+                processingTime: 0 // TODO: 정확한 처리 시간 측정
+            )
+            
+            return LLMResponse(content: content, metadata: metadata)
+        } catch {
+            throw LLMError.invalidResponse
+        }
+    }
+    
+    private func createRequestBody(from task: AITask) -> OpenAIRequest {
+        let userMessage = OpenAIRequest.Message(role: "user", content: task.userPrompt)
+        let systemMessage = OpenAIRequest.Message(role: "system", content: task.systemPrompt)
+        
+        let config = task.requestConfig
+        
+        return OpenAIRequest(
+            model: "gpt-4o-mini", // 가이드에 명시된 모델
+            messages: [systemMessage, userMessage],
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+            topP: config.topP
+        )
+    }
 }
 
-// MARK: - 2025 최적화: Memory Management
-extension OpenAIService {
+// MARK: - OpenAI API Data Structures
+
+struct OpenAIRequest: Codable {
+    let model: String
+    let messages: [Message]
+    let maxTokens: Int
+    let temperature: Double
+    let topP: Double
     
-    /// 메모리 정리 (필요시 호출)
-    public func cleanup() {
-        // 필요한 경우 캐시 정리 등 수행
+    struct Message: Codable {
+        let role: String
+        let content: String?
     }
-} 
+    
+    enum CodingKeys: String, CodingKey {
+        case model, messages, temperature
+        case maxTokens = "max_tokens"
+        case topP = "top_p"
+    }
+}
+
+struct OpenAIResponse: Codable {
+    let choices: [Choice]
+    let usage: Usage
+    
+    struct Choice: Codable {
+        let message: OpenAIRequest.Message
+    }
+    
+    struct Usage: Codable {
+        let promptTokens: Int
+        let completionTokens: Int
+        let totalTokens: Int
+        
+        enum CodingKeys: String, CodingKey {
+            case promptTokens = "prompt_tokens"
+            case completionTokens = "completion_tokens"
+            case totalTokens = "total_tokens"
+        }
+    }
+}

@@ -1,289 +1,215 @@
 import Foundation
-import os.log
 
-/// LLM 모니터링 구현체
-public final class LLMMonitor: LLMMonitoringProtocol {
-    // MARK: - Constants
-    
-    private enum Constants {
-        static let metricsFileName = "llm_metrics.json"
-        static let errorLogFileName = "llm_errors.log"
-        static let maxErrorLogSize = 10 * 1024 * 1024 // 10MB
-        static let maxMetricsAge: TimeInterval = 30 * 24 * 60 * 60 // 30일
-    }
-    
-    // MARK: - Types
-    
-    private struct MetricsEntry: Codable {
-        let timestamp: Date
-        let service: LLMServiceType
-        let metrics: [String: Double]
-    }
-    
-    private struct ErrorEntry: Codable {
-        let timestamp: Date
-        let service: LLMServiceType
-        let error: String
-        let context: [String: String]
-    }
-    
+/// LLM 서비스의 성능 메트릭을 추적하는 모니터링 시스템
+public final class LLMMonitor {
     // MARK: - Properties
+    public static let shared = LLMMonitor()
     
-    private let fileManager: FileManager
-    private let metricsURL: URL
-    private let errorLogURL: URL
-    private let logger: Logger
-    private let queue = DispatchQueue(label: "com.deepsleep.llmmonitor")
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    private let queue = DispatchQueue(label: "com.deepsleep.llm.monitor", attributes: .concurrent)
+    private var metrics: [LLMServiceType: LLMMetrics] = [:]
+    private var warnings: [String] = []
     
-    private var metrics: [MetricsEntry] = []
-    private var errors: [ErrorEntry] = []
-    private var alertThresholds: [LLMServiceType: [String: Any]] = [:]
+    // 메트릭 보관 기간
+    private let metricsRetentionPeriod: TimeInterval = 3600 // 1시간
     
     // MARK: - Initialization
-    
-    public init(fileManager: FileManager = .default) throws {
-        self.fileManager = fileManager
-        self.logger = Logger(subsystem: "com.deepsleep", category: "LLMMonitor")
-        
-        // 모니터링 디렉토리 설정
-        let monitorDirectory = try fileManager.url(
-            for: .documentDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        ).appendingPathComponent("Monitoring", isDirectory: true)
-        
-        if !fileManager.fileExists(atPath: monitorDirectory.path) {
-            try fileManager.createDirectory(
-                at: monitorDirectory,
-                withIntermediateDirectories: true
-            )
-        }
-        
-        self.metricsURL = monitorDirectory.appendingPathComponent(Constants.metricsFileName)
-        self.errorLogURL = monitorDirectory.appendingPathComponent(Constants.errorLogFileName)
-        
-        // 데이터 로드
-        loadMetrics()
-        loadErrors()
-        
-        // 오래된 데이터 정리
-        cleanupOldData()
+    private init() {
+        setupPeriodicCleanup()
     }
     
-    // MARK: - LLMMonitoringProtocol Implementation
+    // MARK: - Public Methods
+    /// 성공적인 작업 처리를 기록
+    /// - Parameters:
+    ///   - taskType: 작업 유형
+    ///   - duration: 처리 소요 시간
+    public func recordSuccess(taskType: AITaskType, duration: TimeInterval) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            let serviceType = self.getServiceType(for: taskType)
+            var metrics = self.metrics[serviceType] ?? LLMMetrics()
+            
+            metrics.successCount += 1
+            metrics.totalLatency += duration
+            metrics.lastUpdated = Date()
+            
+            // 토큰 비용 추정
+            let estimatedTokens = self.estimateTokens(for: taskType)
+            metrics.totalTokens += estimatedTokens
+            metrics.totalCost += self.calculateCost(tokens: estimatedTokens, serviceType: serviceType)
+            
+            self.metrics[serviceType] = metrics
+        }
+    }
     
-    public func recordMetrics(
-        _ metrics: [String: Any],
-        for service: LLMServiceType
-    ) {
-        queue.async {
-            // 메트릭 변환
-            let doubleMetrics = metrics.compactMapValues { value -> Double? in
-                switch value {
-                case let number as Double:
-                    return number
-                case let number as Int:
-                    return Double(number)
-                case let number as Float:
-                    return Double(number)
-                default:
-                    return nil
-                }
+    /// 에러 발생을 기록
+    /// - Parameters:
+    ///   - taskType: 작업 유형
+    ///   - error: 발생한 에러
+    public func recordError(taskType: AITaskType, error: Error) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            let serviceType = self.getServiceType(for: taskType)
+            var metrics = self.metrics[serviceType] ?? LLMMetrics()
+            
+            metrics.errorCount += 1
+            metrics.lastError = error
+            metrics.lastUpdated = Date()
+            
+            if let llmError = error as? LLMError {
+                metrics.lastLLMError = llmError
             }
             
-            // 메트릭 저장
-            let entry = MetricsEntry(
-                timestamp: Date(),
-                service: service,
-                metrics: doubleMetrics
-            )
-            self.metrics.append(entry)
-            
-            // 임계값 확인
-            self.checkThresholds(doubleMetrics, for: service)
-            
-            // 디스크에 저장
-            self.saveMetrics()
+            self.metrics[serviceType] = metrics
         }
     }
     
-    public func recordError(
-        _ error: Error,
-        context: [String: Any]?,
-        for service: LLMServiceType
-    ) {
-        queue.async {
-            // 컨텍스트 변환
-            let stringContext = (context ?? [:]).compactMapValues { "\($0)" }
+    /// 폴백 서비스 사용을 기록
+    /// - Parameters:
+    ///   - taskType: 작업 유형
+    ///   - originalError: 원인이 된 에러
+    public func recordFallback(taskType: AITaskType, originalError: Error) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            let serviceType = self.getServiceType(for: taskType)
+            var metrics = self.metrics[serviceType] ?? LLMMetrics()
             
-            // 에러 저장
-            let entry = ErrorEntry(
-                timestamp: Date(),
-                service: service,
-                error: error.localizedDescription,
-                context: stringContext
-            )
-            self.errors.append(entry)
+            metrics.fallbackCount += 1
+            metrics.lastFallbackError = originalError
+            metrics.lastUpdated = Date()
             
-            // 로그 기록
-            self.logger.error("""
-                LLM Error (\(service.rawValue)):
-                Error: \(error.localizedDescription)
-                Context: \(stringContext)
-                """)
-            
-            // 디스크에 저장
-            self.saveErrors()
+            self.metrics[serviceType] = metrics
         }
     }
     
-    public func generateReport(
-        for service: LLMServiceType
-    ) -> [String: Any] {
+    /// 경고 메시지를 기록
+    /// - Parameter message: 경고 메시지
+    public func recordWarning(message: String) {
+        queue.async(flags: .barrier) { [weak self] in
+            self?.warnings.append(message)
+        }
+    }
+    
+    /// 현재 메트릭 상태를 반환
+    /// - Returns: 서비스별 메트릭 정보
+    public func getCurrentMetrics() -> [LLMServiceType: LLMMetrics] {
+        var result: [LLMServiceType: LLMMetrics] = [:]
         queue.sync {
-            let serviceMetrics = self.metrics.filter { $0.service == service }
-            let serviceErrors = self.errors.filter { $0.service == service }
-            
-            // 기본 통계 계산
-            var totalRequests = 0
-            var totalTokens = 0
-            var totalLatency = 0.0
-            let errorCount = serviceErrors.count
-            
-            for entry in serviceMetrics {
-                if let requests = entry.metrics["requests"] {
-                    totalRequests += Int(requests)
-                }
-                if let tokens = entry.metrics["tokens"] {
-                    totalTokens += Int(tokens)
-                }
-                if let latency = entry.metrics["latency"] {
-                    totalLatency += latency
-                }
+            result = metrics
+        }
+        return result
+    }
+    
+    /// 경고 메시지 목록을 반환
+    /// - Returns: 기록된 경고 메시지들
+    public func getWarnings() -> [String] {
+        var result: [String] = []
+        queue.sync {
+            result = warnings
+        }
+        return result
+    }
+    
+    // MARK: - Private Methods
+    private func setupPeriodicCleanup() {
+        Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            self?.cleanupOldMetrics()
+        }
+    }
+    
+    private func cleanupOldMetrics() {
+        let now = Date()
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            self.metrics = self.metrics.filter { _, metrics in
+                guard let lastUpdated = metrics.lastUpdated else { return false }
+                return now.timeIntervalSince(lastUpdated) < self.metricsRetentionPeriod
             }
             
-            let averageLatency = serviceMetrics.isEmpty ? 0 : totalLatency / Double(serviceMetrics.count)
-            
-            let successRate: Double
-            if totalRequests > 0 {
-                successRate = (1.0 - Double(errorCount) / Double(totalRequests)) * 100.0
-            } else {
-                successRate = 100.0
+            // 경고 메시지도 정리
+            if self.warnings.count > 1000 {
+                self.warnings = Array(self.warnings.suffix(1000))
             }
-            
-            // 보고서 생성
-            return [
-                "total_requests": totalRequests,
-                "total_tokens": totalTokens,
-                "average_latency": averageLatency,
-                "error_count": errorCount,
-                "success_rate": successRate,
-                "last_24h_metrics": serviceMetrics.filter {
-                    $0.timestamp.timeIntervalSinceNow > -24 * 60 * 60
-                }.map { [
-                    "timestamp": $0.timestamp,
-                    "metrics": $0.metrics
-                ] },
-                "recent_errors": serviceErrors.suffix(5).map { [
-                    "timestamp": $0.timestamp,
-                    "error": $0.error,
-                    "context": $0.context
-                ] }
-            ]
         }
     }
     
-    public func setAlertThresholds(
-        _ thresholds: [String: Any],
-        for service: LLMServiceType
-    ) {
-        queue.async {
-            self.alertThresholds[service] = thresholds
+    private func getServiceType(for taskType: AITaskType) -> LLMServiceType {
+        switch taskType {
+        case .generalChat, .analyzeEmotionDiary, .analyzeEmotion, .summarizeDiary:
+            return .claude
+        case .recommendTodo:
+            return .openAI
+        case .recommendSound, .recommendPreset:
+            return .gemini
+        case .generateFortune:
+            return .naver
         }
     }
     
-    // MARK: - Private Helpers
-    
-    private func loadMetrics() {
-        guard fileManager.fileExists(atPath: metricsURL.path),
-              let data = try? Data(contentsOf: metricsURL) else {
-            return
-        }
-        
-        metrics = (try? decoder.decode([MetricsEntry].self, from: data)) ?? []
-    }
-    
-    private func loadErrors() {
-        guard fileManager.fileExists(atPath: errorLogURL.path),
-              let data = try? Data(contentsOf: errorLogURL) else {
-            return
-        }
-        
-        errors = (try? decoder.decode([ErrorEntry].self, from: data)) ?? []
-    }
-    
-    private func saveMetrics() {
-        do {
-            let data = try encoder.encode(metrics)
-            try data.write(to: metricsURL, options: .atomic)
-        } catch {
-            logger.error("Failed to save metrics: \(error.localizedDescription)")
+    private func estimateTokens(for taskType: AITaskType) -> Int {
+        switch taskType {
+        case .generalChat:
+            return 500
+        case .analyzeEmotionDiary:
+            return 1000
+        case .analyzeEmotion:
+            return 300
+        case .summarizeDiary:
+            return 800
+        case .recommendTodo:
+            return 400
+        case .recommendSound:
+            return 200
+        case .recommendPreset:
+            return 300
+        case .generateFortune:
+            return 150
         }
     }
     
-    private func saveErrors() {
-        do {
-            let data = try encoder.encode(errors)
-            try data.write(to: errorLogURL, options: .atomic)
-            
-            // 로그 크기 제한 확인
-            let attributes = try fileManager.attributesOfItem(atPath: errorLogURL.path)
-            if let fileSize = attributes[.size] as? Int64,
-               fileSize > Constants.maxErrorLogSize {
-                // 가장 오래된 에러 로그 절반 제거
-                errors.removeFirst(errors.count / 2)
-                try encoder.encode(errors).write(to: errorLogURL, options: .atomic)
-            }
-        } catch {
-            logger.error("Failed to save errors: \(error.localizedDescription)")
+    private func calculateCost(tokens: Int, serviceType: LLMServiceType) -> Double {
+        let ratePerToken: Double
+        switch serviceType {
+        case .claude:
+            ratePerToken = 0.00001 // $0.01 per 1K tokens
+        case .openAI:
+            ratePerToken = 0.00003 // $0.03 per 1K tokens
+        case .gemini:
+            ratePerToken = 0.000005 // $0.005 per 1K tokens
+        case .naver:
+            ratePerToken = 0.000008 // $0.008 per 1K tokens
+        case .onDevice:
+            ratePerToken = 0 // 무료
         }
+        return Double(tokens) * ratePerToken
     }
-    
-    private func cleanupOldData() {
-        let cutoffDate = Date().addingTimeInterval(-Constants.maxMetricsAge)
-        
-        metrics.removeAll { $0.timestamp < cutoffDate }
-        errors.removeAll { $0.timestamp < cutoffDate }
-        
-        saveMetrics()
-        saveErrors()
-    }
-    
-    private func checkThresholds(_ newMetrics: [String: Double], for service: LLMServiceType) {
-        guard let thresholds = alertThresholds[service] else { return }
-        
-        // 예시: Latency 임계값 확인
-        if let maxLatency = thresholds["maxLatency"] as? Double,
-           let currentLatency = newMetrics["latency"],
-           currentLatency > maxLatency {
-            logger.warning("[\(service.displayName)] High latency detected: \(currentLatency)s")
-            // 여기에 실제 알림 로직 (Push, Email 등) 추가 가능
-        }
+}
 
-        // 예시: 에러율 임계값 확인
-        if let maxErrorRate = thresholds["maxErrorRate"] as? Double {
-            let serviceErrors = self.errors.filter { $0.service == service }
-            let serviceRequests = self.metrics.filter { $0.service == service }
-            
-            if !serviceRequests.isEmpty {
-                let errorRate = Double(serviceErrors.count) / Double(serviceRequests.count)
-                if errorRate > maxErrorRate {
-                    logger.warning("[\(service.displayName)] High error rate detected: \(errorRate * 100)%")
-                }
-            }
-        }
+// MARK: - Supporting Types
+public struct LLMMetrics {
+    var successCount: Int = 0
+    var errorCount: Int = 0
+    var fallbackCount: Int = 0
+    var totalLatency: TimeInterval = 0
+    var totalTokens: Int = 0
+    var totalCost: Double = 0
+    var lastError: Error?
+    var lastLLMError: LLMError?
+    var lastFallbackError: Error?
+    var lastUpdated: Date?
+    
+    var averageLatency: TimeInterval {
+        guard successCount > 0 else { return 0 }
+        return totalLatency / Double(successCount)
+    }
+    
+    var errorRate: Double {
+        let total = successCount + errorCount
+        guard total > 0 else { return 0 }
+        return Double(errorCount) / Double(total)
+    }
+    
+    var averageCostPerRequest: Double {
+        guard successCount > 0 else { return 0 }
+        return totalCost / Double(successCount)
     }
 } 

@@ -15,7 +15,7 @@ struct AIResponseData: Codable {
     let presetName: String?
     let description: String?
     let volumes: [Float]?
-    let reasoning: String?
+    let reason: String? // Corrected from 'reasoning'
     let confidence: Double?
     let personalizedExplanation: String?
     let adaptation: String?
@@ -67,7 +67,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     var initialUserText: String?
     var diaryContext: DiaryContext?
     var emotionPatternData: String?
-    var onPresetApply: ((RecommendationResponse) -> Void)?
+    var onPresetApply: ((SoundPreset) -> Void)?
     private var sessionStartTime: Date?
     private var messageCount = 0
     private let maxMessages = 75
@@ -87,6 +87,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     // 🔒 중복 요청 방지 플래그
     private var isProcessingRecommendation = false
+    
+    // 🎵 활성 추천 프리셋 임시 저장소
+    private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
     
     // MARK: - UI Components
     private let tableView: UITableView = {
@@ -280,7 +283,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.removeLastLoadingMessage()
-                    self.appendChat(ChatMessage(text: responseText, sender: .ai, type: .bot))
+                    self.appendChat(ChatMessage(text: responseText.content, sender: .ai, type: .bot))
                     
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -356,8 +359,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         Task {
             do {
                 // LLMRouter를 통해 일반 채팅(generalChat) 작업을 요청합니다.
-                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: message, context: nil))
-                handleAIResponse(responseText)
+                let response = try await LLMRouter.shared.send(task: .generalChat(message: message, history: []))
+                handleAIResponse(response.content)
             } catch {
                 handleAIError(error)
             }
@@ -414,34 +417,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        setupNavigationBar()
         setupUI()
-        setupConstraints()
         setupTableView()
-        setupTargets()
-        setupNotifications()
-        setupEnhancedGestureRecognizers()
-        initializeTLBCacheSystem()
-        TokenTracker.shared.resetIfNewDay()
-        loadChatManagerMessages()
+        setupInputView()
+        loadInitialMessages()
+        setupKeyboardHandling()
+        sessionStartTime = Date()
         
-        // 기존 채팅 기록이 없는 경우에만 초기 메시지 설정
-        if messages.isEmpty {
-            setupInitialMessages()
-        }
-        
-        #if DEBUG
-        setupDebugGestures()
-        #endif
-        tableView.contentInset.bottom = 18
-
-        // 🔧 모드에 따른 초기 진입 처리 (리팩토링 완료)
-        if initialUserText == "감정_패턴_분석_모드" {
-            startEmotionPatternAnalysis()
-        } else if initialUserText == "일기_분석_모드" {
-            startDiaryAnalysis()
-        }
+        // 백그라운드에서 포그라운드로 돌아올 때 호출될 옵저버 추가
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -695,7 +679,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     }
     
     private func processUserMessageWithEnhancedAI(_ userMessage: String) {
-        // 🧠 Enhanced: 고도화된 감정 분석
+        // �� Enhanced: 고도화된 감정 분석
         let enhancedEmotion = analyzeEnhancedEmotion(from: userMessage)
         currentEmotion = enhancedEmotion
         
@@ -929,7 +913,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         )
     }
     
-    private func generateEnterpriseRecommendation() -> RecommendationResponse {
+    private func generateEnterpriseRecommendation() -> PresetRecommendationResponse {
         // 🧠 감정 기반 기본 추천 시스템
         let emotionData = getEmotionData()
         let emotionText = emotionData["emotion"] as? String ?? "알 수 없음"
@@ -951,18 +935,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 추천 시간 기록
         lastRecommendationTime = Date()
         
-        return RecommendationResponse(
+        return PresetRecommendationResponse(
             volumes: finalVolumes,
             presetName: "🧠 AI 감정 추천",
             selectedVersions: SoundPresetCatalog.defaultVersions
         )
     }
     
-    private func getBasicRecommendation() -> RecommendationResponse {
+    private func getBasicRecommendation() -> PresetRecommendationResponse {
         // 기존 방식으로 폴백
         let emotion = getEmotionData()["emotion"] as? String ?? "평온"
         let volumes = SoundPresetCatalog.getRecommendedPreset(for: emotion)
-        return RecommendationResponse(volumes: volumes, presetName: "기본 추천")
+        return PresetRecommendationResponse(volumes: volumes, presetName: "기본 추천")
     }
     
     // MARK: - Helper Methods for AI Context
@@ -1155,7 +1139,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func displayAIRecommendation(_ recommendation: EnhancedRecommendationResponse) {
         let message = """
         **[\(recommendation.presetName)]**
-        \(recommendation.reasoning ?? "AI가 분석한 추천 프리셋입니다.")
+        \(recommendation.reason ?? "AI가 분석한 추천 프리셋입니다.")
         
         신뢰도: \(String(format: "%.0f", (recommendation.confidence ?? 0.7) * 100))%
         """
@@ -1168,6 +1152,124 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 메모리 해제 시 간단한 정리만 수행
         messages.removeAll()
         print("🗑️ ChatViewController 메모리 해제")
+    }
+
+    private func createPreset(from aiResponse: AIResponseData) -> SoundPreset? {
+        guard let volumes = aiResponse.volumes else {
+            return nil
+        }
+        
+        let presetName = aiResponse.presetName ?? "AI 추천"
+        let description = aiResponse.reason ?? "AI가 사용자의 현재 상태에 맞춰 추천하는 사운드 프리셋입니다."
+
+        // SoundPreset을 생성합니다.
+        return SoundPreset(
+            name: presetName,
+            volumes: volumes,
+            emotion: aiResponse.emotion,
+            isAIGenerated: true,
+            description: description
+        )
+    }
+
+    private func showPresetOptions(for preset: SoundPreset) {
+        let message = ChatMessage(
+            text: "AI가 다음 프리셋을 추천했습니다: **\(preset.name)**\n*\(preset.description ?? "")*\n\n이 프리셋을 적용하시겠습니까?",
+            sender: .ai,
+            type: .presetRecommendation,
+            quickActions: [
+                QuickAction(title: "✅ 적용하기", action: "applyPreset"),
+                QuickAction(title: "🔄 다른 추천 받기", action: "requestDifferentPreset"),
+                QuickAction(title: "📝 피드백 주기", action: "giveFeedback")
+            ],
+            metadata: ChatMetadata(sessionId: currentSessionId.uuidString)
+        )
+        
+        // 생성된 프리셋을 메시지 ID와 함께 저장
+        activeRecommendationPresets[message.id] = preset
+        
+        appendChat(message)
+    }
+
+    // MARK: - AI 응답 처리 및 프리셋 추천
+
+    private func parseAIResponse(jsonString: String) {
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            showError("AI 응답을 처리하는 중 오류가 발생했습니다: Invalid data format")
+            return
+        }
+        
+        do {
+            let aiResponse = try JSONDecoder().decode(AIResponseData.self, from: jsonData)
+            
+            if let preset = createPreset(from: aiResponse) {
+                showPresetOptions(for: preset)
+            } else {
+                let textResponse = aiResponse.description ?? "어떻게 도와드릴까요?"
+                appendChat(ChatMessage(text: textResponse, sender: .ai, type: .bot))
+            }
+        } catch {
+            showError("AI 응답 파싱 오류: \(error.localizedDescription)")
+            // 단순 텍스트로 처리 시도
+            appendChat(ChatMessage(text: jsonString, sender: .ai, type: .bot))
+        }
+    }
+
+    private func handlePresetAction(action: String, messageId: UUID) {
+        switch action {
+        case "applyPreset":
+            print("✅ '적용하기' 선택됨")
+            if let presetToApply = activeRecommendationPresets[messageId] {
+                onPresetApply?(presetToApply)
+                appendChat(ChatMessage(text: "'\(presetToApply.name)' 프리셋을 적용했습니다.", sender: .system, type: .system))
+                activeRecommendationPresets.removeValue(forKey: messageId) // 적용 후 제거
+            } else {
+                appendChat(ChatMessage(text: "이전 추천 정보를 찾을 수 없어 프리셋을 적용할 수 없습니다.", sender: .ai, type: .error))
+            }
+            
+        case "requestDifferentPreset":
+            print("🔄 '다른 추천 받기' 선택됨")
+            // 현재 대화의 마지막 사용자 메시지를 기반으로 다시 요청
+            if let lastUserMessage = messages.last(where: { $0.sender == .user })?.text {
+                sendMessage(text: lastUserMessage)
+            } else {
+                sendMessage(text: "다른 사운드 추천해줘")
+            }
+            
+        case "giveFeedback":
+            print("📝 '피드백 주기' 선택됨")
+            // 피드백 UI 표시 (구현 필요)
+            let feedbackMessage = "피드백 기능은 현재 개발 중입니다. 소중한 의견 감사합니다!"
+            appendChat(ChatMessage(text: feedbackMessage, sender: .system, type: .system))
+            
+        default:
+            break
+        }
+        
+        // 버튼 비활성화
+        disableQuickActions(for: messageId)
+    }
+
+    private func getLastRecommendation(for sessionId: String) -> PresetRecommendationResponse? {
+        // 메시지 목록을 역순으로 탐색하여 해당 세션 ID를 가진 마지막 추천을 찾습니다.
+        for message in messages.reversed() {
+            if message.type == .presetRecommendation,
+               let metadata = message.metadata,
+               metadata.sessionId == sessionId {
+                // 이 메시지와 관련된 RecommendationResponse를 찾아야 함
+                // 현재 구조에서는 ChatMessage에 직접 RecommendationResponse를 저장하지 않으므로,
+                // 다른 방식으로 추천 정보를 찾아야 합니다.
+                // 임시로 마지막 추천을 반환하도록 처리
+                 if let lastApplied = self.lastAppliedPreset {
+                     // 더 이상 RecommendationResponse를 직접 생성하지 않음.
+                     // 이 로직은 새로운 activeRecommendationPresets 시스템으로 대체되어야 함.
+                     // 따라서 nil을 반환하거나, 혹은 title/description만으로 임시 객체를 만들어야 하지만,
+                     // 현재 구조에서는 getLastRecommendation 함수 자체가 거의 불필요해짐.
+                     return nil
+                 }
+            }
+        }
+        return nil
     }
 }
 
@@ -1593,7 +1695,7 @@ extension ChatViewController {
             do {
                 // TODO: - AITask에 .analyzeEmotionPattern(data: String) 케이스 추가하고 아래 로직 변경 필요
                 let prompt = "다음은 나의 최근 30일간의 감정 데이터야. 이걸 보고 나의 감정 패턴을 분석하고 조언해줘.\n\n\(emotionData)"
-                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: prompt, context: nil))
+                let responseText = try await LLMRouter.shared.send(task: .generalChat(message: prompt, history: []))
                 handleAIResponse(responseText)
                 addQuickEmotionButtons()
             } catch {
@@ -1614,7 +1716,9 @@ extension ChatViewController {
         
         Task {
             do {
-                let responseText = try await LLMRouter.shared.send(task: .analyzeEmotionDiary(diaryContent: diaryData.content))
+                let diary = DiaryEntry(id: UUID(), date: Date(), content: diaryData.text, emotions: [])
+                
+                let responseText = try await LLMRouter.shared.send(task: .analyzeEmotionDiary(diaryContent: diary.text))
                 handleAIResponse(responseText)
             } catch {
                 handleAIError(error)
@@ -1849,7 +1953,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             // AI 메시지일 경우, 바로 이전의 사용자 메시지를 '가르치기'를 위한 원본으로 간주합니다.
             let previousMessage = messages[indexPath.row - 1]
             if previousMessage.sender == .user {
-                originalUserInput = previousMessage.content
+                originalUserInput = previousMessage.text
             }
         }
         
@@ -2137,7 +2241,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             presetName: "🧠 " + presetName,
             volumes: filteredVolumes,
             versions: versions,
-            reasoning: aiResponse.reasoning,
+            reasoning: aiResponse.reason,
             confidence: Float(aiResponse.confidence ?? 0.7)
         )
     }
@@ -2341,7 +2445,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     volumes: preset.volumes,
             emotion: nil,
             isAIGenerated: true,
-            description: preset.reasoning ?? "AI 추천 프리셋"
+            description: preset.reason ?? "AI 추천 프리셋"
         )
         
         if let last = lastAppliedPreset, last.isEqual(to: newPreset) {
@@ -2430,6 +2534,8 @@ extension String {
 
 // MARK: - EnhancedRecommendationResponse to RecommendationResponse Conversion
 extension ChatViewController {
+    // 이 함수는 더 이상 필요하지 않으므로 제거하거나 주석 처리합니다.
+    /*
     func convertToRecommendationResponse(_ enhanced: EnhancedRecommendationResponse) -> RecommendationResponse {
         return RecommendationResponse(
             volumes: enhanced.volumes,
@@ -2438,10 +2544,80 @@ extension ChatViewController {
             reasoning: enhanced.reasoning
         )
     }
+    */
 }
 
 // MARK: - AITeachingDelegate Implementation
 extension ChatViewController {
     // AITeachingDelegate는 이미 ChatViewController 클래스에서 구현됨
     // 중복 정의 방지를 위해 이 extension은 제거됨
+}
+
+// MARK: - Helper Functions (Stub Implementations)
+
+private func showError(_ message: String) {
+    // TODO: Implement proper error handling UI
+    print("🚨 ERROR: \(message)")
+    let alert = UIAlertController(title: "오류", message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "확인", style: .default))
+    present(alert, animated: true)
+}
+
+private func sendMessage(text: String) {
+    // TODO: Connect this to the actual message sending logic
+    handleUserMessage(text)
+}
+
+private func disableQuickActions(for messageId: UUID) {
+    if let index = messages.firstIndex(where: { $0.id == messageId }) {
+        messages[index].quickActions = nil
+        tableView.reloadRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
+    }
+}
+
+// MARK: - Message & Recommendation Logic
+
+private func setupInitialMessage() {
+    // ... existing code ...
+}
+
+// MARK: - Missing Methods Implementation
+
+private func setupKeyboardHandling() {
+    NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(keyboardWillShow(_:)),
+        name: UIResponder.keyboardWillShowNotification,
+        object: nil
+    )
+    
+    NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(keyboardWillHide(_:)),
+        name: UIResponder.keyboardWillHideNotification,
+        object: nil
+    )
+}
+
+@objc private func handleAppWillEnterForeground() {
+    // Refresh UI when app comes to foreground
+    DispatchQueue.main.async {
+        self.refreshCacheStatus()
+        self.tableView.reloadData()
+    }
+}
+
+@objc private func keyboardWillShow(_ notification: Notification) {
+    guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+    let keyboardHeight = keyboardFrame.cgRectValue.height
+    
+    UIView.animate(withDuration: 0.3) {
+        self.view.transform = CGAffineTransform(translationX: 0, y: -keyboardHeight + self.view.safeAreaInsets.bottom)
+    }
+}
+
+@objc private func keyboardWillHide(_ notification: Notification) {
+    UIView.animate(withDuration: 0.3) {
+        self.view.transform = .identity
+    }
 }

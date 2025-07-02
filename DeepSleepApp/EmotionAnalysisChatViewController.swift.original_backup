@@ -147,9 +147,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     // MARK: - Initial Message
     private func addInitialMessage() {
         let welcomeMessage = Core.ChatMessage(
-            text: "안녕하세요! 지금 기분이 어떠신가요? 감정을 자유롭게 표현해보세요. 😊",
-            sender: .ai,
-            type: .bot
+            content: "안녕하세요! 지금 기분이 어떠신가요? 감정을 자유롭게 표현해보세요. 😊",
+            role: .assistant,
+            timestamp: Date()
         )
         chatMessages.append(welcomeMessage)
         tableView.reloadData()
@@ -163,9 +163,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         
         // 사용자 메시지 추가
         let userMessage = Core.ChatMessage(
-            text: text,
-            sender: .user,
-            type: .user
+            content: text,
+            role: .user,
+            timestamp: Date()
         )
         chatMessages.append(userMessage)
         
@@ -193,9 +193,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
                 setLoading(false)
                 
                 let aiMessage = Core.ChatMessage(
-                    text: formatEmotionResponse(response),
-                    sender: .ai,
-                    type: .bot,
+                    content: formatEmotionResponse(response),
+                    role: .assistant,
+                    timestamp: Date(),
                     quickActions: createQuickActions(for: response)
                 )
                 
@@ -231,25 +231,31 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     private func createQuickActions(for response: EmotionAnalysisModels.EmotionAnalysisResponse) -> [Core.QuickAction] {
         return [
             Core.QuickAction(
+                id: UUID().uuidString,
                 title: "더 자세히",
-                action: "detail_analysis"
+                action: "detail_analysis",
+                data: ["emotion": response.primaryEmotion]
             ),
             Core.QuickAction(
+                id: UUID().uuidString,
                 title: "음악 추천",
-                action: "music_recommendation"
+                action: "music_recommendation",
+                data: ["emotion": response.primaryEmotion]
             ),
             Core.QuickAction(
+                id: UUID().uuidString,
                 title: "조언 받기",
-                action: "get_advice"
+                action: "get_advice",
+                data: ["emotion": response.primaryEmotion]
             )
         ]
     }
     
     private func addErrorMessage(_ error: String) {
         let errorMessage = Core.ChatMessage(
-            text: "❌ \(error)",
-            sender: .ai,
-            type: .error
+            content: "❌ \(error)",
+            role: .assistant,
+            timestamp: Date()
         )
         chatMessages.append(errorMessage)
         tableView.reloadData()
@@ -261,14 +267,14 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         
         if loading {
             let loadingMessage = Core.ChatMessage(
-                text: "분석 중...",
-                sender: .ai,
-                type: .loading
+                content: "분석 중...",
+                role: .assistant,
+                timestamp: Date()
             )
             chatMessages.append(loadingMessage)
         } else {
             // 로딩 메시지 제거
-            if let lastMessage = chatMessages.last, lastMessage.text == "분석 중..." {
+            if let lastMessage = chatMessages.last, lastMessage.content == "분석 중..." {
                 chatMessages.removeLast()
             }
         }
@@ -328,7 +334,7 @@ extension EmotionAnalysisChatViewController: UITableViewDataSource, UITableViewD
         let cell = tableView.dequeueReusableCell(withIdentifier: "ChatBubbleCell", for: indexPath) as! ChatBubbleCell
         
         let message = chatMessages[indexPath.row]
-        let isUserMessage = message.sender == .user
+        let isUserMessage = message.role == .user
         
         // ChatBubbleCell의 configure 메서드 사용
         cell.configure(with: message, isUserMessage: isUserMessage)

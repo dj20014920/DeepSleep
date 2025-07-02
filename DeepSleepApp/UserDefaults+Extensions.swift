@@ -1,4 +1,5 @@
 import Foundation
+import Core
 
 // MARK: - UserDefaults 안전한 저장/로드 확장
 extension UserDefaults {

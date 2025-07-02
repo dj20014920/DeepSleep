@@ -26,6 +26,15 @@ public enum SubscriptionTier: String, Codable {
     case free = "free"
     case premium = "premium"
     
+    var servicePriority: [LLMServiceType] {
+        switch self {
+        case .free:
+            return [.onDevice, .gemini, .claude]
+        case .premium:
+            return [.claude, .openAI, .gemini, .naver]
+        }
+    }
+    
     var dailyLimits: [LLMServiceType: Int] {
         switch self {
         case .free:
@@ -189,7 +198,23 @@ public enum LLMError: Error {
     case serviceUnavailable
     case unauthorized
     case usageLimitExceeded
+    case unsupportedTask
     case unknown
+    case unexpectedError(Error)
+    case maxRetriesExceeded
+    case serviceInitializationError(LLMServiceType, Error)
+    
+    /// 에러가 재시도 가능한지 여부
+    public var isRetryable: Bool {
+        switch self {
+        case .networkError, .serviceUnavailable, .apiError:
+            return true
+        case .quotaExceeded, .tokenLimitExceeded, .unauthorized, .usageLimitExceeded, .invalidResponse, .unsupportedTask, .unexpectedError, .maxRetriesExceeded, .serviceInitializationError:
+            return false
+        case .unknown:
+            return true // 알 수 없는 오류는 재시도 가능
+        }
+    }
     
     public var localizedDescription: String {
         switch self {
@@ -209,8 +234,16 @@ public enum LLMError: Error {
             return "인증 오류"
         case .usageLimitExceeded:
             return "사용량 제한 초과"
+        case .unsupportedTask:
+            return "현재 서비스에서 지원하지 않는 작업입니다."
         case .unknown:
             return "알 수 없는 오류"
+        case .unexpectedError(let error):
+            return "예기치 않은 오류: \(error.localizedDescription)"
+        case .maxRetriesExceeded:
+            return "최대 재시도 횟수 초과"
+        case .serviceInitializationError(let serviceType, let error):
+            return "서비스 초기화 오류: \(serviceType.displayName), \(error.localizedDescription)"
         }
     }
 }

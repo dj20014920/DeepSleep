@@ -47,6 +47,26 @@ public final class ClaudeService: LLMServiceProtocol {
     
     // MARK: - LLMServiceProtocol Implementation
     
+    public func send(task: AITask) async throws -> LLMResponse {
+        let (prompt, systemPrompt, config) = try prepareClaudeRequest(for: task)
+        return try await generateResponse(prompt: prompt, systemPrompt: systemPrompt, config: config)
+    }
+
+    private func prepareClaudeRequest(for task: AITask) throws -> (prompt: String, systemPrompt: String?, config: LLMRequestConfig) {
+        switch task {
+        case .generalChat, .analyzeEmotionDiary, .summarizeDiary, .analyzeEmotion:
+            return (task.userPrompt, task.systemPrompt, task.requestConfig)
+        default:
+            // 이 서비스가 처리하도록 의도되지 않은 다른 모든 작업들
+            throw LLMError.unsupportedTask
+        }
+    }
+    
+    public func isAvailable() async -> Bool {
+        let status = await checkStatus()
+        return status.isAvailable
+    }
+    
     public func sendMessage(
         _ message: String,
         config: LLMRequestConfig
@@ -319,8 +339,46 @@ public final class ClaudeService: LLMServiceProtocol {
             }
         }
     }
+}
+
+// MARK: - Claude API Data Structures
+// (실제로는 별도 파일로 분리하는 것이 좋습니다)
+
+struct ClaudeRequest: Codable {
+    let model: String
+    let system: String?
+    let messages: [Message]
+    let maxTokens: Int
+    let temperature: Double
+    let topP: Double
     
-    public func isAvailable() async -> Bool {
-        return !apiKey.isEmpty
+    enum CodingKeys: String, CodingKey {
+        case model, system, messages
+        case maxTokens = "max_tokens"
+        case temperature
+        case topP = "top_p"
     }
+    
+    struct Message: Codable {
+        let role: String
+        let content: String
+    }
+}
+
+struct ClaudeResponse: Codable {
+    struct Content: Codable {
+        let text: String
+    }
+    struct Usage: Codable {
+        let inputTokens: Int
+        let outputTokens: Int
+        
+        enum CodingKeys: String, CodingKey {
+            case inputTokens = "input_tokens"
+            case outputTokens = "output_tokens"
+        }
+    }
+    
+    let content: [Content]
+    let usage: Usage
 } 

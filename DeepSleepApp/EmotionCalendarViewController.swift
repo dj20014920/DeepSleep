@@ -574,8 +574,8 @@ extension EmotionCalendarViewController {
         // chatVC.title = "#Todays_Mood"
         
         // 🛡️ 프리셋 적용 콜백 설정
-        chatVC.onPresetApply = { [weak self] recommendation in
-            self?.applyPresetFromCalendar(recommendation)
+        chatVC.onPresetApply = { [weak self] preset in
+            self?.applyPresetFromCalendar(preset)
         }
         
         // 🛡️ 네비게이션 설정 및 표시
@@ -592,13 +592,14 @@ extension EmotionCalendarViewController {
             print("  - initialUserText: \(chatVC.initialUserText ?? "없음")")
         }
     }
-    private func applyPresetFromCalendar(_ recommendation: RecommendationResponse) {
+    private func applyPresetFromCalendar(_ preset: SoundPreset) {
         NotificationCenter.default.post(
             name: NSNotification.Name("ApplyPresetFromChat"),
             object: nil,
             userInfo: [
-                "volumes": recommendation.volumes,
-                "presetName": recommendation.presetName
+                "volumes": preset.volumes,
+                "presetName": preset.name,
+                "versions": preset.compatibleVersions
             ]
         )
     }

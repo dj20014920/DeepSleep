@@ -63,19 +63,6 @@ public extension LLMRepository {
     }
 }
 
-/// LLM 서비스 프로토콜
-public protocol LLMServiceProtocol {
-    /// 응답 생성 (가이드 기준 메서드명)
-    func generateResponse(
-        prompt: String,
-        systemPrompt: String?,
-        config: LLMRequestConfig?
-    ) async throws -> LLMResponse
-    
-    /// 서비스 사용 가능 여부 확인
-    func isAvailable() async -> Bool
-}
-
 /// LLM 캐시 프로토콜
 public protocol LLMCacheProtocol {
     /// 응답 조회

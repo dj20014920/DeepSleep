@@ -1,4 +1,5 @@
 import Foundation
+import Core
 import SwiftData
 import CoreML
 import Accelerate

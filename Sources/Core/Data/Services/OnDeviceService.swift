@@ -46,14 +46,16 @@ public final class OnDeviceService: LLMServiceProtocol {
     
     // MARK: - LLMServiceProtocol Implementation
     
-    public func generateResponse(
-        prompt: String,
-        systemPrompt: String?,
-        config: LLMRequestConfig?
-    ) async throws -> LLMResponse {
+    public func send(task: AITask) async throws -> LLMResponse {
         // TODO: On-device 추론 로직 구현 필요
         // 현재는 서비스 사용 불가 오류를 반환합니다.
-        throw LLMError.serviceUnavailable
+        guard status.isAvailable else {
+            throw LLMError.serviceUnavailable
+        }
+        
+        // 여기에 실제 CoreML 추론 로직이 들어가야 합니다.
+        // 지금은 임시로 에러를 던집니다.
+        throw LLMError.apiError("On-device inference not yet implemented.")
     }
     
     public func isAvailable() async -> Bool {

@@ -1,5 +1,6 @@
 import UIKit
 import Foundation
+import Core
 
 // MARK: - ChatBubbleCell Implementation
 
@@ -388,9 +389,7 @@ class ChatBubbleCell: UITableViewCell {
         case .system:
             configureSystemMessage(message.text ?? "")
         case .presetRecommendation:
-            configurePresetMessage(message.text ?? "") {
-                message.onApplyPreset?()
-            }
+            configurePresetMessage(message.text ?? "")
         case .recommendationSelector:
             configureRecommendationSelectorMessage(message.text ?? "")
         case .presetOptions, .postPresetOptions:
@@ -595,7 +594,7 @@ class ChatBubbleCell: UITableViewCell {
         messageLabelBottomConstraint.isActive = true
     }
     
-    private func configurePresetMessage(_ text: String, applyAction: @escaping () -> Void) {
+    private func configurePresetMessage(_ text: String) {
         messageLabel.text = text
         messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
@@ -614,7 +613,6 @@ class ChatBubbleCell: UITableViewCell {
         applyButton.isHidden = false
         self.applyAction = {
             print("[ChatBubbleCell] 프리셋 적용 버튼 클릭됨")
-            applyAction()
         }
         // 버튼 제약조건 활성화
         messageLabelBottomConstraint.isActive = false
@@ -969,5 +967,48 @@ private extension ChatBubbleCell {
             responder = responder?.next
         }
         return nil
+    }
+}
+
+// MARK: - Accessibility Support
+extension ChatBubbleCell {
+    override var accessibilityLabel: String? {
+        get {
+            guard !(messageLabel.text?.isEmpty ?? true) else {
+                return nil
+            }
+            
+            let messageText = messageLabel.text ?? ""
+            let isUserMessage = leadingConstraint.isActive == false && trailingConstraint.isActive == true
+            let sender = isUserMessage ? "나" : "AI"
+            
+            return "\(sender)의 메시지: \(messageText)"
+        }
+        set { }
+    }
+    
+    override var accessibilityTraits: UIAccessibilityTraits {
+        get { .staticText }
+        set { }
+    }
+    
+    override var accessibilityHint: String? {
+        get {
+            if !applyButton.isHidden {
+                return "바로 적용하기 버튼을 사용할 수 있습니다"
+            } else if !optionButtonStackView.isHidden {
+                return "추가 옵션 버튼들을 사용할 수 있습니다"
+            }
+            return nil
+        }
+        set { }
+    }
+    
+    override func accessibilityActivate() -> Bool {
+        if !applyButton.isHidden {
+            applyButton.sendActions(for: .touchUpInside)
+            return true
+        }
+        return false
     }
 }

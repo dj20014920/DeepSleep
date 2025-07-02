@@ -1,3 +1,10 @@
+//
+//  NaverService.swift
+//  DeepSleep
+//
+//  Created by AI on 2025/06/28.
+//
+
 import Foundation
 
 /// Naver HyperCLOVA X API 서비스
@@ -6,9 +13,12 @@ public final class NaverService: LLMServiceProtocol {
     
     // MARK: - Properties
     
-    private let apiKey: String
-    private let baseURL = "https://clovastudio.stream.ntruss.com/testapp/v1/chat-completions/HCX-DASH-002"  // 가이드 기준 모델
+    private let clientId: String
+    private let clientSecret: String
     private let session: URLSession
+    
+    // HCX-DASH-002 모델 사용
+    private let apiURL = URL(string: "https://clovastudio.stream.ntruss.com/testapp/v1/chat-completions/HCX-DASH-002")!
     
     // MARK: - 2025 최적화: Lazy initialization으로 메모리 효율성 향상
     public static let shared: NaverService = {
@@ -18,7 +28,8 @@ public final class NaverService: LLMServiceProtocol {
     // MARK: - Initialization
     
     private init() {
-        self.apiKey = EnvironmentConfig.shared.naverCloudApiKey
+        self.clientId = EnvironmentConfig.shared.naverCloudApiKey
+        self.clientSecret = EnvironmentConfig.shared.naverCloudApiSecret
         
         // 2025 최적화: URLSession 설정 최적화 (배터리 효율성)
         let config = URLSessionConfiguration.default
@@ -35,108 +46,63 @@ public final class NaverService: LLMServiceProtocol {
         session.invalidateAndCancel()
     }
     
-    // MARK: - LLMServiceProtocol Implementation
+    // MARK: - LLMService Implementation
     
-    public func generateResponse(
-        prompt: String,
-        systemPrompt: String?,
-        config: LLMRequestConfig?
-    ) async throws -> LLMResponse {
+    public func send(task: AITask) async throws -> LLMResponse {
+        let requestBody = createRequestBody(from: task)
         
-        guard !apiKey.isEmpty else {
-            throw LLMError.unauthorized
-        }
-        
-        let requestConfig = config ?? .defaultConfig
-        
-        // HyperCLOVA X API 요청 구조
-        let requestBody: [String: Any] = [
-            "messages": [
-                [
-                    "role": "system",
-                    "content": systemPrompt ?? "You are a helpful assistant."
-                ],
-                [
-                    "role": "user", 
-                    "content": prompt
-                ]
-            ],
-            "topP": requestConfig.topP,
-            "topK": 0,
-            "maxTokens": requestConfig.maxTokens,
-            "temperature": requestConfig.temperature,
-            "repeatPenalty": 1.2,
-            "stopBefore": [],
-            "includeAiFilters": true
-        ]
-        
-        var request = URLRequest(url: URL(string: baseURL)!)
+        var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(clientId, forHTTPHeaderField: "X-NCP-CLOVASTUDIO-API-KEY")
+        request.setValue(clientSecret, forHTTPHeaderField: "X-NCP-APIGW-API-KEY")
         
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            request.httpBody = try JSONEncoder().encode(requestBody)
         } catch {
-            throw LLMError.invalidResponse
+            throw LLMError.apiError("Failed to encode request body: \(error.localizedDescription)")
         }
         
-        let startTime = Date()
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            // TODO: API 에러 응답 파싱
+            throw LLMError.apiError("Invalid response from Naver API. Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        }
         
         do {
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw LLMError.networkError
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                if httpResponse.statusCode == 401 {
-                    throw LLMError.unauthorized
-                } else if httpResponse.statusCode == 429 {
-                    throw LLMError.quotaExceeded
-                } else {
-                    throw LLMError.apiError("HTTP \(httpResponse.statusCode)")
-                }
-            }
-            
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let result = json["result"] as? [String: Any],
-                  let message = result["message"] as? [String: Any],
-                  let content = message["content"] as? String else {
-                throw LLMError.invalidResponse
-            }
-            
-            let processingTime = Date().timeIntervalSince(startTime)
-            
-            // 토큰 사용량 추출 (HyperCLOVA X 응답 구조에 따라)
-            let inputLength = (result["inputLength"] as? Int) ?? prompt.count / 4
-            let outputLength = (result["outputLength"] as? Int) ?? content.count / 4
+            let naverResponse = try JSONDecoder().decode(NaverResponse.self, from: data)
+            let content = naverResponse.result.message.content ?? ""
+            let tokensUsed = naverResponse.result.outputTokens
             
             let metadata = LLMResponseMetadata(
                 modelUsed: .naver,
-                tokensUsed: inputLength + outputLength,
-                processingTime: processingTime,
-                cached: false
+                tokensUsed: tokensUsed,
+                processingTime: 0 // TODO: 정확한 처리 시간 측정
             )
             
-            return LLMResponse(
-                content: content,
-                metadata: metadata
-            )
-            
+            return LLMResponse(content: content, metadata: metadata)
         } catch {
-            if error is LLMError {
-                throw error
-            } else {
-                throw LLMError.networkError
-            }
+            throw LLMError.invalidResponse
         }
     }
     
+    private func createRequestBody(from task: AITask) -> NaverRequest {
+        let userMessage = NaverRequest.Message(role: "user", content: task.userPrompt)
+        let systemMessage = NaverRequest.Message(role: "system", content: task.systemPrompt)
+        
+        let config = task.requestConfig
+        
+        return NaverRequest(
+            messages: [systemMessage, userMessage],
+            temperature: config.temperature,
+            topP: config.topP,
+            maxTokens: config.maxTokens
+        )
+    }
+    
     public func isAvailable() async -> Bool {
-        return !apiKey.isEmpty
+        return !clientId.isEmpty && !clientSecret.isEmpty
     }
 }
 
@@ -146,5 +112,35 @@ extension NaverService {
     /// 메모리 정리 (필요시 호출)
     public func cleanup() {
         // 필요한 경우 캐시 정리 등 수행
+    }
+}
+
+// MARK: - Naver API Data Structures
+
+struct NaverRequest: Codable {
+    let messages: [Message]
+    let temperature: Double
+    let topP: Double
+    let maxTokens: Int
+    
+    struct Message: Codable {
+        let role: String
+        let content: String?
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case messages, temperature
+        case topP = "topP"
+        case maxTokens
+    }
+}
+
+struct NaverResponse: Codable {
+    let result: Result
+    
+    struct Result: Codable {
+        let message: NaverRequest.Message
+        let inputTokens: Int
+        let outputTokens: Int
     }
 } 

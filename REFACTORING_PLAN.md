@@ -45,4 +45,95 @@
 -   [x] **`SoundManager.swift` 리팩토링**: 기존 사운드 추천 로직을 `LLMRouter.send(task: .recommendSound(...))`로 교체.
 -   [x] **`EnhancedAIRecommendationService.swift` 리팩토링**: 서비스 자체가 불필요해져 과감히 삭제 완료.
 -   [x] **`LegacyStubs.swift` 에서 `ReplicateChatService` 관련 코드 최종 삭제**: 더 이상 사용하지 않는 레거시 코드를 완전히 제거.
--   [x] **프로젝트 전체 정리**: 프로젝트 전체에서 "Replicate", "ClaudeService", "GeminiService" 등 구형 서비스 이름을 직접 호출하는 코드가 남아있지 않은지 검색 후, 전부 `LLMRouter` 사용으로 수정 완료. 
+-   [x] **프로젝트 전체 정리**: 프로젝트 전체에서 "Replicate", "ClaudeService", "GeminiService" 등 구형 서비스 이름을 직접 호출하는 코드가 남아있지 않은지 검색 후, 전부 `LLMRouter` 사용으로 수정 완료.
+
+# EmotionAnalysisChatViewController 리팩토링 계획
+
+## 1. 파일 분리 계획
+
+### 1.1 MVVM 구조로 분리
+- `EmotionAnalysisChatViewController.swift` - UI 로직만 담당
+- `EmotionAnalysisChatViewModel.swift` - 비즈니스 로직
+- `EmotionAnalysisModels.swift` - 데이터 모델
+
+### 1.2 프로토콜 정의
+- `EmotionAnalysisViewModelProtocol.swift` - ViewModel 인터페이스
+- `EmotionAnalysisServiceProtocol.swift` - 서비스 레이어 인터페이스
+
+### 1.3 UI 컴포넌트 분리
+- `EmotionAnalysisChatBubbleView.swift` - 채팅 버블 UI
+- `EmotionAnalysisQuickActionView.swift` - 빠른 액션 버튼
+- `EmotionAnalysisInputView.swift` - 메시지 입력 UI
+
+## 2. 구조 개선 사항
+
+### 2.1 비동기 처리 통합
+- `async/await` 기반으로 통일
+- DispatchQueue 사용 제거
+- 비동기 작업 취소 처리 추가
+
+### 2.2 메모리 관리 개선
+- weak self 일관성 확보
+- 메모리 누수 방지를 위한 Cancellable 패턴 적용
+- 리소스 해제 명확화
+
+### 2.3 에러 핸들링
+- 도메인별 Error 타입 정의
+- 일관된 에러 처리 플로우 구현
+- 사용자 친화적 에러 메시지 표시
+
+## 3. 성능 최적화
+
+### 3.1 UI 성능
+- 셀 재사용 메커니즘 도입
+- 이미지 캐싱 최적화
+- 레이아웃 계산 최적화
+
+### 3.2 메모리 사용
+- 대화 히스토리 페이징 처리
+- 이미지 리사이징 최적화
+- 불필요한 객체 보유 최소화
+
+## 4. 테스트 계획
+
+### 4.1 단위 테스트
+- ViewModel 테스트
+- 서비스 레이어 테스트
+- 모델 변환 테스트
+
+### 4.2 UI 테스트
+- 주요 사용자 시나리오 테스트
+- 접근성 테스트
+- 성능 테스트
+
+## 5. 구현 순서
+
+1. 프로토콜 정의
+2. 모델 분리
+3. ViewModel 구현
+4. UI 컴포넌트 분리
+5. ViewController 리팩토링
+6. 테스트 작성
+7. 성능 최적화
+
+## 6. 예상 소요 시간
+
+- 프로토콜 및 모델 설계: 2시간
+- ViewModel 구현: 4시간
+- UI 컴포넌트 분리: 3시간
+- 테스트 작성: 3시간
+- 성능 최적화: 2시간
+- 총 예상 시간: 14시간
+
+## 7. 위험 요소
+
+- 기존 기능 호환성 유지
+- 메모리 사용량 증가 가능성
+- 테스트 커버리지 확보의 어려움
+
+## 8. 모니터링 계획
+
+- 메모리 사용량 모니터링
+- 응답 시간 측정
+- 크래시 리포트 분석
+- 사용자 피드백 수집 

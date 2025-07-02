@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+import Core
 
 /// 오디오 재생 모드
 enum AudioPlaybackMode: Int, CaseIterable {
@@ -971,55 +972,47 @@ final class SoundManager {
     }
 
     /// 프리셋 적용 (볼륨 설정 + 재생 시작)
-    func applyPreset(volumes: [Float]) {
-        print("🎵 applyPreset 시작: \(volumes)")
-
-        // 🚨 중복 적용 방지 체크
-        if isApplyingPreset {
-            print("⚠️ [applyPreset] 이미 적용 중 - 중복 호출 차단")
+    func applyPreset(presetId: String, volumes: [Float], completion: @escaping (Bool) -> Void) {
+        guard let preset = PresetManager.shared.getPreset(id: presetId) else {
+            completion(false)
             return
         }
-
-        isApplyingPreset = true
-        defer { isApplyingPreset = false }
-
-        // 1. 각 플레이어에 대해 볼륨 설정과 재생 상태를 동시에 처리
+        
+        // 프리셋의 볼륨 값을 적용
         for (index, volume) in volumes.enumerated() {
-            guard index < players.count else { continue }
-
-            let player = players[index]
-            // 🔧 볼륨 범위 정규화 (0-100 → 0-1)
-            let normalizedVolume = min(1.0, max(0.0, volume / 100.0))
-
-            // 🔄 이전 볼륨과 동일한 경우 스킵 (불필요한 변동 방지)
-            if abs(player.volume - normalizedVolume) < 0.01 {
-                print("  ⏭️ 사운드 \(index) 볼륨 변화 없음 (현재: \(String(format: "%.2f", player.volume)))")
-                continue
-            }
-
-            // 볼륨 설정 (부드럽게 변경)
-            player.setVolume(normalizedVolume, fadeDuration: 0.2)
-
-            // 재생 상태 제어
-            if volume > 0 {
-                if !player.isPlaying {
-                    player.play()
-                    print("  ✅ 사운드 \(index) 재생 시작 (볼륨: \(String(format: "%.1f", volume)) → \(String(format: "%.2f", normalizedVolume)))")
-                } else {
-                    print("  🔄 사운드 \(index) 볼륨 업데이트 (볼륨: \(String(format: "%.1f", volume)) → \(String(format: "%.2f", normalizedVolume)))")
-                }
-            } else {
-                if player.isPlaying {
-                    player.pause()
-                    print("  ⏸️ 사운드 \(index) 정지")
-                } else {
-                    print("  💤 사운드 \(index) 이미 정지 상태")
-                }
+            if index < players.count {
+                players[index].volume = volume
             }
         }
-
-        updateNowPlayingPlaybackStatus()
-        print("🎵 프리셋 적용 완료")
+        
+        // 프리셋 이름 업데이트
+        currentPresetName = preset.name
+        
+        // Now Playing 정보 업데이트
+        updateNowPlayingInfo(presetName: currentPresetName)
+        
+        completion(true)
+    }
+    
+    func applySounds(soundIds: [String], volumes: [Float], completion: @escaping (Bool) -> Void) {
+        // 모든 플레이어의 볼륨을 0으로 설정
+        for player in players {
+            player.volume = 0
+        }
+        
+        // 지정된 사운드의 볼륨 설정
+        for (index, soundId) in soundIds.enumerated() {
+            if let catalogIndex = soundCatalog.firstIndex(where: { $0.id == soundId }),
+               catalogIndex < players.count,
+               index < volumes.count {
+                players[catalogIndex].volume = volumes[index]
+            }
+        }
+        
+        // Now Playing 정보 업데이트
+        updateNowPlayingInfo(presetName: currentPresetName)
+        
+        completion(true)
     }
 
     // MARK: - 확장된 프리셋 적용 (버전 정보 포함)
@@ -1036,7 +1029,7 @@ final class SoundManager {
         }
 
         // 2. 볼륨 적용
-        applyPreset(volumes: volumes)
+        setVolumes(volumes)
     }
 
     // MARK: - 페이드아웃 (기존 API 유지)
@@ -1455,7 +1448,7 @@ final class SoundManager {
         Task {
             do {
                 let context = SoundRecommendationContext(userEmotion: emotion, timeOfDay: contextPrompt)
-                let _ = try await LLMRouter.shared.send(task: .recommendSound(context: context))
+                let _ = try await LLMRouter.shared.send(task: .recommendSound(emotion: emotion, situation: situation))
                 // TODO: - LLM의 텍스트 응답을 SoundPreset 객체로 파싱하는 로직 구현 필요
                 // let preset = parsePreset(from: responseText)
                 let preset: SoundPreset? = nil // 임시

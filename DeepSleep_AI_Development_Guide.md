@@ -1,5 +1,5 @@
-# DeepSleep 앱 AI 시스템 개발 종합 지침서 v9.1
-> **업데이트**: 2025년 7월 1일 - **v9.1: HyperCLOVA X 공식 가격 반영 및 모델명 확정**
+# DeepSleep 앱 AI 시스템 개발 종합 지침서 v9.2
+> **업데이트**: 2025년 1월 19일 - **v9.2: 핵심 컴파일 오류 해결 및 아키텍처 안정화 완료**
 > **목표**: 합리적인 비용 구조 내에서 '진정한 감성 지능'을 구현하기 위한 최종 전략. **모든 사용자는 동일한 모델 풀을 공유**하되, **유료 사용자에게는 '장기 기억'과 같은 압도적인 핵심 기능을 제공**하여 가치를 차별화한다.
 > **역할**: 당신은 아키택처마스터, 대형 대기업 중요 프로젝트 총괄 책임자가 되었다고 생각하며 모든 부분에서(보안, 확장 용이성, 사용자편의성, UI, UX, 메모리 누수, 배터리 효율 등등을 모두 고려하여) 진중하고 무게 있고 확실하고 천천히 깊게 생각하며 완벽하게 진행해주세요.
 
@@ -18,30 +18,40 @@
 
 ## 1. 현재 상태 및 리팩터링 요약
 
-> **투명성 원칙**: 2025년 6월 28일, 대규모 리팩터링을 통해 레거시 코드를 제거하고 Core 모듈 중심의 아키텍처로 전환을 완료했다.
+> **투명성 원칙**: 2025년 1월 19일, 핵심 컴파일 오류들을 해결하고 안정적인 빌드 기반을 마련했다.
 
 ### 1.1. 시스템 상태 요약
 
--   **빌드 상태**: ✅ **성공 (경고 존재)**
-    -   `Core` 모듈 및 메인 `DeepSleepApp` 타겟 모두 컴파일 성공.
-    -   Swift 6 관련 동시성 경고 등 일부 경고가 남아있으나, 치명적인 오류는 모두 해결됨.
--   **리팩터링 핵심**:
-    -   **레거시 AI 클래스 제거**: `EnhancedUnifiedAIOrchestrator`, `ComprehensiveRecommendationEngine`, `ChainOfThoughtProcessor` 등 과거 아키텍처의 잔재를 모두 삭제.
-    -   **Core 모듈화**: 모든 AI 관련 로직(서비스, 라우터, 엔티티)을 `Sources/Core` 하위로 통합하여 모듈 의존성을 명확히 함.
-    -   **단일 진입점 확립**: 이제 모든 AI 기능 요청은 `LLMRouter.swift`를 통해 이루어짐.
+-   **빌드 상태**: 🔧 **진행 중 (주요 오류 해결 완료)**
+    -   `Core` 모듈의 중복 타입 정의 문제 해결 완료
+    -   LLM 관련 타입 변환 문제 해결 완료
+    -   UI 컨트롤러들의 기본 구조적 문제들 해결 완료
+    -   일부 파일 구조 정리 작업 진행 중
+-   **핵심 해결 사항**:
+    -   **SubscriptionTier enum 중복 해결**: `LLMRepositoryImpl.swift`와 `LLMEntity.swift`의 중복 정의 문제 해결
+    -   **LLMResponse 타입 통합**: Core 모듈과 메인 앱 간의 타입 불일치 문제 해결
+    -   **PresetManager 구현**: 누락된 `getPreset()` 메서드 구현 완료
+    -   **UI 컨트롤러 안정화**: `EmotionAnalysisChatViewController` 등 주요 UI 컨트롤러의 기본 구조 정리
 
-### 1.2. 긴급 최우선 과제 (Post-Refactoring)
+### 1.2. 현재 우선순위 과제
 
-1.  **경고 해결** ⚠️ **진행 필요**
-    - [ ] `LLMSettingsViewModel.swift`의 동시성 경고 해결
-    - [ ] `LLMRepositoryImpl.swift`의 `let`/`var` 경고 해결
+1.  **파일 구조 마무리** ⚠️ **진행 중**
+    - [ ] `EmotionAnalysisChatViewController.swift`의 남은 컴파일 오류 완전 해결
+    - [ ] 클래스 스코프 및 메서드 선언 정리
 
-2.  **삭제된 기능 재구현** 📋 **설계 필요**
+2.  **LLMRouter 기반 재구현** 📋 **대기 중**
     -   AI 기반 투두 추천(`AddEditTodoViewController`), AI 티칭(`AITeachingViewController`), 채팅 관리(`ChatManager`) 등 삭제된 UI/기능을 새로운 `LLMRouter` 기반으로 재설계 및 구현해야 함.
 
 3.  **통합 테스트 재개** 📋 **대기 중**
     - [ ] 데이터셋 → `LLMRouter` → 각 LLM 서비스로 이어지는 전체 파이프라인 검증.
     - [ ] **(강화)** 성능 벤치마크 및 메모리/배터리 효율성 재검증: **구체적인 테스트 시나리오(예: 장시간 대화, 다양한 모델 전환) 기반으로 진행.**
+
+### 1.3. 해결 완료된 주요 문제들
+
+- ✅ **Core 모듈 타입 중복 문제**: `SubscriptionTier`, `LLMResponse` 등의 중복 정의 문제 해결
+- ✅ **import 구조 정리**: Core 모듈과 메인 앱 간의 import 의존성 정리
+- ✅ **기본 UI 구조 안정화**: 주요 뷰 컨트롤러들의 기본 구조적 문제 해결
+- ✅ **PresetManager 기능 구현**: 누락된 프리셋 관련 기능들 구현 완료
 
 ---
 
@@ -199,22 +209,6 @@ graph TD
 
 ---
 
-## 6. 부록: 추가 정보
-
-### 6.1. AI Hub 데이터셋 처리 가이드 (`aihubshell`)
-
-`aihubshell`은 AI Hub의 대용량 데이터셋을 CLI 환경에서 효율적으로 다운로드하고 관리하기 위한 공식 도구입니다.
-
-- **설치**: `curl -o "./scripts/aihubshell" https://api.aihub.or.kr/api/aihubshell.do && chmod +x ./scripts/aihubshell`
-- **사용법**:
-    1.  AI Hub 웹사이트에서 데이터셋 **사용 승인**을 먼저 받아야 합니다.
-    2.  `./scripts/aihubshell -mode d -datasetkey [키] -filekey [파일키] -aihubapikey '[API키]'` 명령어로 다운로드합니다.
-- **파일 병합**: 분할 압축 파일(`.zip.part*`)은 `cat` 명령어를 사용하여 단일 `.zip` 파일로 병합해야 합니다.
-    ```bash
-    # 예시:
-    find "다운로드폴더" -name "파일명.zip.part*" -print0 | sort -zt'.' -k2V | xargs -0 cat > "파일명.zip"
-    ```
-
 ### 6.2. 주요 의사결정 기록
 
 | 날짜 | 결정 사항 | 대안 | 선택 이유 |
@@ -230,5 +224,56 @@ graph TD
 ---
 
 *Last Updated: 2025-07-01*
-*Version: 9.1*
+*Version: 9.2*
 *Status: Finalized. Ready for implementation.*
+
+## 진행 상황 업데이트 (2024.03)
+
+### 1. 완료된 작업
+- Clean Architecture 기반 프로젝트 구조 재편성
+- Core 모듈 중심의 모듈화 진행
+- SubscriptionTier enum 중복 정의 문제 해결
+- LLMRouter를 통한 AI 시스템 중앙 집중화 기초 작업
+
+### 2. 현재 진행 중인 작업
+- EmotionAnalysisChatViewController 구조 개선
+- LLMRouter 로직 수정 및 4대 핵심 모델(Claude, GPT, Gemini, Naver) API 연동
+- 장기 기억 시스템 설계 준비
+
+### 3. 발견된 주요 문제점 및 해결 방안
+#### 3.1 빌드 오류
+- SoundManager.swift
+  - PresetManager.getPreset 메서드 누락 → Factory 패턴 적용하여 해결
+  - updateNowPlayingInfo/applyPreset 파라미터 문제 → 인터페이스 통일
+  - LLMRouter 연동 오류 → 의존성 주입 방식 개선
+- SoundPresetCatalog.swift
+  - PresetFeedback 모델 불일치 → 모델 스키마 통합
+  - Duration 타입 변환 → 타입 안전성 보장 로직 추가
+- TodoCalendarViewController
+  - LLMResponse 타입 변환 → 공통 변환 유틸리티 구현
+
+### 4. 다음 단계 계획
+#### 4.1 즉시 진행
+- EmotionAnalysisChatViewController 구조 완전 개선
+  - MVVM 패턴 적용
+  - 비동기 처리 최적화
+  - 메모리 관리 개선
+  - 에러 핸들링 강화
+
+#### 4.2 Phase 1: LLM 통합
+- 4대 핵심 모델 API 연동 완료
+- 모델 전환 로직 구현
+- 에러 처리 및 재시도 메커니즘
+- 응답 캐싱 시스템
+
+#### 4.3 Phase 2: 장기 기억 시스템
+- 영구 저장소 설계
+- 메모리 인덱싱 시스템
+- 컨텍스트 관리 메커니즘
+- 메모리 최적화 전략
+
+### 5. 품질 관리 계획
+- 단위 테스트 커버리지 80% 이상 유지
+- UI 테스트 자동화
+- 성능 모니터링 시스템 구축
+- 코드 품질 메트릭스 도입

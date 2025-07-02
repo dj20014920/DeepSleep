@@ -6,6 +6,7 @@ import Foundation
 import UIKit
 import SwiftUI
 import SwiftData
+import Core
 
 // MARK: - Settings Model
 
@@ -42,17 +43,7 @@ struct UsageStats: Codable {
 }
 
 // MARK: - Core Data Types
-
-public struct ChatContext {
-    public var messages: [ChatMessage] = []
-    public var sessionId: String = UUID().uuidString
-    public var userEmotion: String?
-    
-    public init(messages: [ChatMessage] = [], userEmotion: String? = nil) {
-        self.messages = messages
-        self.userEmotion = userEmotion
-    }
-}
+// ChatContext와 UserInfo는 Core/Common/SharedModels.swift로 이동되었으므로 여기서 삭제합니다.
 
 public struct SoundRecommendationContext {
     public let userEmotion: String
@@ -65,32 +56,6 @@ public struct SoundRecommendationContext {
         self.timeOfDay = timeOfDay
         self.batteryLevel = batteryLevel
         self.isHeadphonesConnected = isHeadphonesConnected
-    }
-}
-
-public struct UserInfo {
-    public let userId: String
-    public let preferences: [String: Any]
-    public let emotionalState: String
-    
-    public init(userId: String = "default", preferences: [String: Any] = [:], emotionalState: String = "평온") {
-        self.userId = userId
-        self.preferences = preferences
-        self.emotionalState = emotionalState
-    }
-}
-
-public struct ChatMetadata: Codable, Hashable {
-    public let responseTime: TimeInterval?
-    public let modelUsed: String?
-    public let tokenCount: Int?
-    public let sessionId: String?
-    
-    public init(responseTime: TimeInterval? = nil, modelUsed: String? = nil, tokenCount: Int? = nil, sessionId: String? = nil) {
-        self.responseTime = responseTime
-        self.modelUsed = modelUsed
-        self.tokenCount = tokenCount
-        self.sessionId = sessionId
     }
 }
 
@@ -248,64 +213,7 @@ struct EnhancedRecommendationResponse {
     let presetName: String
     let volumes: [Float]
     let versions: [Int]
-    let reasoning: String?
-    let confidence: Float?
-    let scientificBasis: String?
-    let estimatedEffectiveness: String?
-    let additionalNotes: String?
-
-    init(
-        presetName: String,
-        volumes: [Float],
-        versions: [Int],
-        reasoning: String? = nil,
-        confidence: Float? = nil,
-        scientificBasis: String? = nil,
-        estimatedEffectiveness: String? = nil,
-        additionalNotes: String? = nil
-    ) {
-        self.presetName = presetName
-        self.volumes = volumes
-        self.versions = versions
-        self.reasoning = reasoning
-        self.confidence = confidence
-        self.scientificBasis = scientificBasis
-        self.estimatedEffectiveness = estimatedEffectiveness
-        self.additionalNotes = additionalNotes
-    }
-}
-
-struct RecommendationResponse {
-    var volumes: [Float]
-    var presetName: String
-    var selectedVersions: [Int]
-    var reasoning: String?
-    
-    init(volumes: [Float], presetName: String = "AI 추천 프리셋", selectedVersions: [Int]? = nil, reasoning: String? = nil) {
-        self.volumes = volumes
-        self.presetName = presetName
-        self.selectedVersions = selectedVersions ?? SoundPresetCatalog.defaultVersions
-        self.reasoning = reasoning
-    }
-}
-
-struct DiaryContext {
-    let content: String
-    let emotion: String?
-}
-
-// Note: PresetFeedback is already defined in Models.swift
-extension PresetFeedback {
-    var satisfactionScore: Float {
-        // 기본 만족도 점수 (0.0 ~ 1.0)
-        if context.usageDuration > 120 {
-            return context.repeatUsageIntent ? 0.8 : 0.6
-        } else if context.usageDuration > 60 {
-            return 0.5
-        } else {
-            return 0.3
-        }
-    }
+    let reason: String
 }
 
 // MARK: - UI Protocol & Missing Types
@@ -337,7 +245,7 @@ import AVFoundation
 typealias CHHapticPattern = AVFoundation.AVAsset
 
 // EnhancedSoundRecommendationEngine compatibility types
-typealias UserProfile = String
+// typealias UserProfile = String
 typealias RecommendationContext = String
 
 func isHeadphonesConnected() -> Bool {
@@ -387,8 +295,14 @@ class AITeachingViewController: UIViewController {
 final class PresetManager {
     static let shared = PresetManager()
     private init() {}
+    
     func migrateLegacyPresetsIfNeeded() {
         LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
+    }
+    
+    func getPreset(id: String) -> SoundPreset? {
+        // TODO: 실제 구현 필요
+        return SoundPreset.createDefault()
     }
 }
 
@@ -630,7 +544,7 @@ extension EnhancedRecommendationResponse {
             volumes: self.volumes,
             presetName: self.presetName,
             selectedVersions: self.versions,
-            reasoning: self.reasoning
+            reasoning: self.reason
         )
     }
 }
@@ -752,6 +666,16 @@ extension ChatViewController {
     func presentAITeachingView(with message: String) {
         print("AI 티칭 뷰 표시: \(message)")
     }
+    
+    func setupInputView() {
+        // Stub implementation for missing setupInputView method
+        print("setupInputView called - stub implementation")
+    }
+    
+    func loadInitialMessages() {
+        // Stub implementation for missing loadInitialMessages method
+        print("loadInitialMessages called - stub implementation")
+    }
 }
 
 // MARK: - Utility Functions
@@ -797,5 +721,20 @@ func isAvailableForModernAI() -> Bool {
         return true
     }
     return false
+}
+
+// MARK: - Preset Recommendation Response (ChatViewController에서 사용)
+public struct PresetRecommendationResponse {
+    public let volumes: [Float]
+    public let presetName: String
+    public let selectedVersions: [Int]?
+    public let reasoning: String?
+    
+    public init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, reasoning: String? = nil) {
+        self.volumes = volumes
+        self.presetName = presetName
+        self.selectedVersions = selectedVersions
+        self.reasoning = reasoning
+    }
 }
 

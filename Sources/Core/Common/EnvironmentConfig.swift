@@ -40,6 +40,16 @@ public class EnvironmentConfig {
         )
     }
     
+    /// 🔑 Naver Cloud Platform API Secret
+    public var naverCloudApiSecret: String {
+        return getKey(
+            envVar: "NAVER_CLOUD_API_SECRET",
+            plistKey: "NAVER_CLOUD_API_SECRET",
+            keychainKey: "naverCloudAPISecret",
+            prefix: nil // 네이버 시크릿은 특별한 접두사가 없을 수 있음
+        )
+    }
+    
     /// 🔑 OpenAI API 키
     public var openAIApiKey: String {
         return getKey(

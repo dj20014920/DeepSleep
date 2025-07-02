@@ -1004,7 +1004,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         Task {
             do {
                 let promptContent = await buildComprehensivePrompt()
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, context: nil))
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1013,7 +1013,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay = nil
                     
                     self.overallAdviceActivityIndicator?.stopAnimating()
-                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice)
+                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice.content)
                     AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
                     self.updateOverallAdviceButtonUI() // 성공 후 버튼 UI 업데이트
                 }
@@ -1147,7 +1147,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         Task {
             do {
                 let promptContent = await buildDiaryBasedPrompt()
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, context: nil))
+                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
                 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1177,7 +1177,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     }
                     
                     // 조언 표시
-                    self.showAdvice(title: "💡 \(todo.title) 조언 (\(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount))", advice: advice)
+                    self.showAdvice(title: "💡 \(todo.title) 조언 (\(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount))", advice: advice.content)
                     
                     // 전체 일일 제한 횟수도 기록
                     AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
@@ -1335,7 +1335,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.hideLoadingOverlay()
-                    self.presentAlert(title: "💡 AI 조언", message: advice)
+                    self.presentAlert(title: "💡 AI 조언", message: advice.content)
                 }
             } catch {
                 // 메인 스레드에서 에러 처리
