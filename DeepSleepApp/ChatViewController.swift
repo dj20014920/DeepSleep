@@ -1195,7 +1195,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
 
     private func parseAIResponse(jsonString: String) {
         guard let jsonData = jsonString.data(using: .utf8) else {
-            showError("AI 응답을 처리하는 중 오류가 발생했습니다: Invalid data format")
+            handleAIError(NSError(domain: "AIResponseError", code: 1, userInfo: [NSLocalizedDescriptionKey: "AI 응답을 처리하는 중 오류가 발생했습니다: Invalid data format"]))
             return
         }
         
@@ -1209,7 +1209,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 appendChat(ChatMessage(text: textResponse, sender: .ai, type: .bot))
             }
         } catch {
-            showError("AI 응답 파싱 오류: \(error.localizedDescription)")
+            handleAIError(error)
             // 단순 텍스트로 처리 시도
             appendChat(ChatMessage(text: jsonString, sender: .ai, type: .bot))
         }
@@ -1231,9 +1231,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             print("🔄 '다른 추천 받기' 선택됨")
             // 현재 대화의 마지막 사용자 메시지를 기반으로 다시 요청
             if let lastUserMessage = messages.last(where: { $0.sender == .user })?.text {
-                sendMessage(text: lastUserMessage)
+                processUserMessageInternal(lastUserMessage)
             } else {
-                sendMessage(text: "다른 사운드 추천해줘")
+                processUserMessageInternal("다른 사운드 추천해줘")
             }
             
         case "giveFeedback":
@@ -1246,8 +1246,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             break
         }
         
-        // 버튼 비활성화
-        disableQuickActions(for: messageId)
+        // 버튼 비활성화 (TODO: 구현 필요)
+        // disableQuickActions(for: messageId)
     }
 
     private func getLastRecommendation(for sessionId: String) -> PresetRecommendationResponse? {
