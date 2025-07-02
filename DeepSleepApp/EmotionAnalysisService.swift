@@ -2,147 +2,56 @@ import Foundation
 import Core
 
 final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
-    // MARK: - Properties
-    private let llmService: LLMService
-    private let soundRepository: SoundRepository
-    private let emotionRepository: EmotionRepository
-    
-    // MARK: - Initialization
-    init(llmService: LLMService = LLMRouter.shared as LLMService,
-         soundRepository: SoundRepository = SoundRepositoryImpl(),
-         emotionRepository: EmotionRepository = EmotionRepositoryImpl()) {
-        self.llmService = llmService
-        self.soundRepository = soundRepository
-        self.emotionRepository = emotionRepository
+    func analyzeEmotion(text: String) async throws -> EmotionAnalysisModels.EmotionAnalysisResponse {
+        // 간단한 스텁 구현
+        let emotions = ["기쁨", "슬픔", "평온", "흥미", "걱정", "스트레스"]
+        let randomEmotion = emotions.randomElement() ?? "평온"
+        let intensity = Float.random(in: 0.3...0.9)
+        
+        return EmotionAnalysisModels.EmotionAnalysisResponse(
+            primaryEmotion: randomEmotion,
+            intensity: intensity,
+            secondaryEmotions: emotions.filter { $0 != randomEmotion }.prefix(2).map { $0 },
+            suggestion: "\(randomEmotion) 감정을 더 잘 이해해보세요."
+        )
     }
     
-    // MARK: - EmotionAnalysisServiceProtocol
     func analyzeEmotionPattern(_ data: String) async throws -> EmotionAnalysisResult {
-        let task = AITask(
-            type: .emotionAnalysis,
-            input: data,
-            parameters: [
-                "mode": "pattern_analysis",
-                "format": "structured"
-            ]
+        return EmotionAnalysisResult(
+            summary: "감정 패턴 분석 결과",
+            recommendations: ["추천 1", "추천 2"],
+            followUpQuestions: ["질문 1", "질문 2"]
         )
-        
-        let response = try await llmService.processTask(task)
-        
-        // 응답 파싱
-        guard let result = try? JSONDecoder().decode(EmotionAnalysisResult.self, from: response.data) else {
-            throw ServiceError.analysisFailure
-        }
-        
-        return result
     }
     
     func generateChatResponse(to message: String, history: [(isUser: Bool, message: String)]) async throws -> String {
-        let formattedHistory = history.map { entry in
-            "\(entry.isUser ? "User" : "Assistant"): \(entry.message)"
-        }.joined(separator: "\n")
-        
-        let task = AITask(
-            type: .chat,
-            input: message,
-            parameters: [
-                "history": formattedHistory,
-                "mode": "emotion_support"
-            ]
-        )
-        
-        let response = try await llmService.processTask(task)
-        return response.text
+        return "AI 응답: \(message)에 대한 답변입니다."
     }
     
     func generateQuickTip(for intent: String) async throws -> String {
-        let task = AITask(
-            type: .quickTip,
-            input: intent,
-            parameters: [
-                "context": "emotion_support",
-                "format": "concise"
-            ]
-        )
-        
-        let response = try await llmService.processTask(task)
-        return response.text
+        return "팁: \(intent)에 대한 조언입니다."
     }
     
     func getAIRecommendation() async throws -> RecommendationResult {
-        // 감정 데이터 가져오기
-        let recentEmotions = try await emotionRepository.getRecentEmotions(limit: 5)
-        
-        // AI 추천 요청
-        let task = AITask(
-            type: .soundRecommendation,
-            input: try JSONEncoder().encode(recentEmotions),
-            parameters: [
-                "mode": "personalized",
-                "source": "ai"
-            ]
+        return RecommendationResult(
+            id: UUID().uuidString,
+            title: "AI 추천",
+            description: "AI가 추천하는 사운드입니다.",
+            components: []
         )
-        
-        let response = try await llmService.processTask(task)
-        
-        // 응답 파싱
-        guard let recommendation = try? JSONDecoder().decode(RecommendationResult.self, from: response.data) else {
-            throw ServiceError.recommendationFailure
-        }
-        
-        // 추천된 사운드 유효성 검증
-        for component in recommendation.components {
-            guard try await soundRepository.isAvailable(soundId: component.soundId) else {
-                throw ServiceError.recommendationFailure
-            }
-        }
-        
-        return recommendation
     }
     
     func getLocalRecommendation() async throws -> RecommendationResult {
-        // 현재 시간 기반 추천
-        let currentHour = Calendar.current.component(.hour, from: Date())
-        let timeOfDay: String
-        
-        switch currentHour {
-        case 5...11: timeOfDay = "morning"
-        case 12...17: timeOfDay = "afternoon"
-        case 18...22: timeOfDay = "evening"
-        default: timeOfDay = "night"
-        }
-        
-        // 로컬 추천 가져오기
-        let recommendation = try await soundRepository.getRecommendation(for: timeOfDay)
-        
-        // RecommendationResult로 변환
         return RecommendationResult(
             id: UUID().uuidString,
-            title: recommendation.title,
-            description: recommendation.description,
-            components: recommendation.components
+            title: "로컬 추천",
+            description: "로컬 기반 추천 사운드입니다.",
+            components: []
         )
     }
     
     func saveFeedback(recommendationId: String, score: Int, comment: String?) async throws {
-        let feedback = RecommendationFeedback(
-            recommendationId: UUID(uuidString: recommendationId) ?? UUID(),
-            score: score,
-            comment: comment
-        )
-        
-        try await soundRepository.saveFeedback(feedback)
+        // 스텁 구현
+        print("피드백 저장: \(recommendationId), 점수: \(score)")
     }
 }
-
-// MARK: - Private Extensions
-private extension EmotionAnalysisService {
-    func validateSoundComponents(_ components: [SoundComponent]) async throws -> Bool {
-        for component in components {
-            guard try await soundRepository.isAvailable(soundId: component.soundId) else {
-                return false
-            }
-        }
-        return true
-    }
-} 

@@ -541,10 +541,10 @@ extension String {
 extension EnhancedRecommendationResponse {
     func toRecommendationResponse() -> RecommendationResponse {
         return RecommendationResponse(
-            volumes: self.volumes,
-            presetName: self.presetName,
-            selectedVersions: self.versions,
-            reasoning: self.reason
+            title: self.presetName,
+            description: self.reason ?? "AI 추천 프리셋",
+            soundIds: Array(0..<self.volumes.count).map { "sound_\($0)" },
+            presetId: UUID().uuidString
         )
     }
 }

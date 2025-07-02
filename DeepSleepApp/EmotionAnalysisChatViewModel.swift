@@ -20,7 +20,7 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
     
     // 내부 상태
     private var currentRecommendationId: String?
-    private var lastRecommendedSounds: [EmotionAnalysisServiceProtocol.SoundComponent] = []
+    private var lastRecommendedSounds: [EmotionAnalysisServiceSoundComponent] = []
     
     // MARK: - Initialization
     init(service: EmotionAnalysisServiceProtocol) {

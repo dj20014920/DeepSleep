@@ -42,62 +42,49 @@ protocol EmotionAnalysisViewModelProtocol: AnyObject {
 }
 
 // MARK: - Error Types
-extension EmotionAnalysisViewModelProtocol {
-    enum EmotionAnalysisError: LocalizedError {
-        case invalidEmotionData
-        case aiServiceUnavailable
-        case networkError(Error)
-        case recommendationFailed
-        case feedbackSubmissionFailed
-        
-        var errorDescription: String? {
-            switch self {
-            case .invalidEmotionData:
-                return "감정 데이터가 올바르지 않습니다."
-            case .aiServiceUnavailable:
-                return "AI 서비스를 일시적으로 사용할 수 없습니다."
-            case .networkError(let error):
-                return "네트워크 오류가 발생했습니다: \(error.localizedDescription)"
-            case .recommendationFailed:
-                return "추천을 생성하는 중 오류가 발생했습니다."
-            case .feedbackSubmissionFailed:
-                return "피드백을 제출하는 중 오류가 발생했습니다."
-            }
+public enum EmotionAnalysisViewModelError: LocalizedError {
+    case invalidEmotionData
+    case aiServiceUnavailable
+    case networkError(Error)
+    case recommendationFailed
+    case feedbackSubmissionFailed
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidEmotionData:
+            return "감정 데이터가 올바르지 않습니다."
+        case .aiServiceUnavailable:
+            return "AI 서비스를 일시적으로 사용할 수 없습니다."
+        case .networkError(let error):
+            return "네트워크 오류가 발생했습니다: \(error.localizedDescription)"
+        case .recommendationFailed:
+            return "추천을 생성하는 중 오류가 발생했습니다."
+        case .feedbackSubmissionFailed:
+            return "피드백을 제출하는 중 오류가 발생했습니다."
         }
     }
 }
 
 // MARK: - Constants
-extension EmotionAnalysisViewModelProtocol {
-    enum Constants {
-        static let maxRetryAttempts = 3
-        static let retryDelay: TimeInterval = 1.0
-        static let maxMessageLength = 1000
-        static let maxHistoryItems = 50
-    }
+public struct EmotionAnalysisViewModelConstants {
+    public static let maxRetryAttempts = 3
+    public static let retryDelay: TimeInterval = 1.0
+    public static let maxMessageLength = 1000
+    public static let maxHistoryItems = 50
 }
 
 // MARK: - Helper Types
-extension EmotionAnalysisViewModelProtocol {
-    /// 감정 분석 결과 모델
-    struct EmotionAnalysisResult {
-        let summary: String
-        let recommendations: [String]
-        let followUpQuestions: [String]
-    }
+/// 사운드 컴포넌트 모델
+public struct EmotionAnalysisViewModelSoundComponent {
+    public let soundId: String
+    public let version: Int
+    public let volume: Float
     
-    /// 추천 결과 모델
-    struct RecommendationResult {
-        let id: String
-        let title: String
-        let description: String
-        let components: [SoundComponent]
+    public init(soundId: String, version: Int, volume: Float) {
+        self.soundId = soundId
+        self.version = version
+        self.volume = volume
     }
-    
-    /// 사운드 컴포넌트 모델
-    struct SoundComponent {
-        let soundId: String
-        let version: Int
-        let volume: Float
-    }
-} 
+}
+
+ 

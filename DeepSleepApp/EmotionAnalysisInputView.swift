@@ -120,7 +120,7 @@ final class EmotionAnalysisInputView: UIView {
             return
         }
         
-        let transform = CGAffineTransform(translationY: -keyboardFrame.height)
+        let transform = CGAffineTransform(translationX: 0, y: -keyboardFrame.height)
         
         UIView.animate(withDuration: duration) {
             self.transform = transform
@@ -168,15 +168,13 @@ extension EmotionAnalysisInputView: UITextFieldDelegate {
 
 // MARK: - Accessibility
 extension EmotionAnalysisInputView {
-    override func accessibilityElements() -> [Any]? {
-        [textField, sendButton]
-    }
-    
     private func setupAccessibility() {
         textField.accessibilityLabel = "메시지 입력"
         textField.accessibilityHint = "메시지를 입력하려면 두 번 탭하세요"
         
         sendButton.accessibilityLabel = "메시지 전송"
         sendButton.accessibilityHint = "입력한 메시지를 전송하려면 두 번 탭하세요"
+        
+        accessibilityElements = [textField, sendButton]
     }
 } 

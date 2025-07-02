@@ -44,65 +44,82 @@ protocol EmotionAnalysisServiceProtocol {
 }
 
 // MARK: - Helper Types
-extension EmotionAnalysisServiceProtocol {
-    /// 감정 분석 결과
-    struct EmotionAnalysisResult {
-        let summary: String
-        let recommendations: [String]
-        let followUpQuestions: [String]
-    }
+/// 감정 분석 결과
+public struct EmotionAnalysisResult {
+    public let summary: String
+    public let recommendations: [String]
+    public let followUpQuestions: [String]
     
-    /// 추천 결과
-    struct RecommendationResult {
-        let id: String
-        let title: String
-        let description: String
-        let components: [SoundComponent]
-    }
-    
-    /// 사운드 컴포넌트
-    struct SoundComponent {
-        let soundId: String
-        let version: Int
-        let volume: Float
+    public init(summary: String, recommendations: [String], followUpQuestions: [String]) {
+        self.summary = summary
+        self.recommendations = recommendations
+        self.followUpQuestions = followUpQuestions
     }
 }
 
-// MARK: - Error Types
+/// 추천 결과
+public struct RecommendationResult {
+    public let id: String
+    public let title: String
+    public let description: String
+    public let components: [EmotionAnalysisServiceSoundComponent]
+    
+    public init(id: String, title: String, description: String, components: [EmotionAnalysisServiceSoundComponent] = []) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.components = components
+    }
+}
+
+/// 사운드 컴포넌트
+public struct EmotionAnalysisServiceSoundComponent {
+    public let soundId: String
+    public let version: Int
+    public let volume: Float
+    
+    public init(soundId: String, version: Int, volume: Float) {
+        self.soundId = soundId
+        self.version = version
+        self.volume = volume
+    }
+}
+
 extension EmotionAnalysisServiceProtocol {
-    enum ServiceError: LocalizedError {
-        case invalidInput
-        case analysisFailure
-        case recommendationFailure
-        case networkError(Error)
-        case aiUnavailable
-        case databaseError
-        
-        var errorDescription: String? {
-            switch self {
-            case .invalidInput:
-                return "입력값이 올바르지 않습니다."
-            case .analysisFailure:
-                return "감정 분석을 수행할 수 없습니다."
-            case .recommendationFailure:
-                return "추천을 생성할 수 없습니다."
-            case .networkError(let error):
-                return "네트워크 오류: \(error.localizedDescription)"
-            case .aiUnavailable:
-                return "AI 서비스를 사용할 수 없습니다."
-            case .databaseError:
-                return "데이터베이스 오류가 발생했습니다."
-            }
+    typealias SoundComponent = EmotionAnalysisServiceSoundComponent
+}
+
+// MARK: - Error Types
+public enum EmotionAnalysisServiceError: LocalizedError {
+    case invalidInput
+    case analysisFailure
+    case recommendationFailure
+    case networkError(Error)
+    case aiUnavailable
+    case databaseError
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidInput:
+            return "입력값이 올바르지 않습니다."
+        case .analysisFailure:
+            return "감정 분석을 수행할 수 없습니다."
+        case .recommendationFailure:
+            return "추천을 생성할 수 없습니다."
+        case .networkError(let error):
+            return "네트워크 오류: \(error.localizedDescription)"
+        case .aiUnavailable:
+            return "AI 서비스를 사용할 수 없습니다."
+        case .databaseError:
+            return "데이터베이스 오류가 발생했습니다."
         }
     }
 }
 
 // MARK: - Constants
-extension EmotionAnalysisServiceProtocol {
-    enum Constants {
-        static let maxRetryAttempts = 3
-        static let retryDelay: TimeInterval = 1.0
-        static let maxTokens = 1000
-        static let temperature = 0.7
-    }
+public struct EmotionAnalysisServiceConstants {
+    public static let maxRetryAttempts = 3
+    public static let retryDelay: TimeInterval = 1.0
+    public static let maxTokens = 1000
+    public static let temperature = 0.7
 } 
