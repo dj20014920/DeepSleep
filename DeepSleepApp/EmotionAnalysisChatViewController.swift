@@ -88,7 +88,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         sendButton.translatesAutoresizingMaskIntoConstraints = false
         sendButton.setTitle("전송", for: .normal)
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
-        
+    
         inputContainerView.addSubview(inputTextField)
         inputContainerView.addSubview(sendButton)
         view.addSubview(inputContainerView)
@@ -188,8 +188,8 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     private func analyzeEmotion(_ text: String) async {
         do {
             let response = try await emotionService.analyzeEmotion(text: text)
-            
-            await MainActor.run {
+                
+                await MainActor.run {
                 setLoading(false)
                 
                 let aiMessage = Core.ChatMessage(
@@ -201,8 +201,8 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
                 
                 chatMessages.append(aiMessage)
                 tableView.reloadData()
-                scrollToBottom()
-            }
+        scrollToBottom()
+    }
         } catch {
             await MainActor.run {
                 setLoading(false)
@@ -282,7 +282,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         let indexPath = IndexPath(row: chatMessages.count - 1, section: 0)
         tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
     }
-    
+
     // MARK: - Actions
     @objc private func closeTapped() {
         dismiss(animated: true, completion: nil)

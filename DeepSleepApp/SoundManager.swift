@@ -121,7 +121,7 @@ final class SoundManager {
     private func loadSoundCatalog() {
         guard let url = Bundle.main.url(forResource: "sound_catalog", withExtension: "json"),
               let data = try? Data(contentsOf: url) else {
-            print("⚠️ sound_catalog.json 파일을 찾을 수 없습니다. 기본 설정을 사용합니다.")
+            DebugManager.shared.warning("sound_catalog.json 파일을 찾을 수 없습니다. 기본 설정을 사용합니다.")
             loadFallbackCatalog()
             return
         }
@@ -130,12 +130,12 @@ final class SoundManager {
             soundCatalog = try JSONDecoder().decode([SoundCatalog].self, from: data)
             // 카테고리 인덱스 순으로 정렬
             soundCatalog.sort { $0.categoryIndex < $1.categoryIndex }
-            print("✅ 사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리")
+            DebugManager.shared.logAudio("사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리")
 
             // 로드된 카탈로그 검증
             validateSoundCatalog()
         } catch {
-            print("⚠️ sound_catalog.json 파싱 실패: \(error). 기본 설정을 사용합니다.")
+            DebugManager.shared.warning("sound_catalog.json 파싱 실패: \(error). 기본 설정을 사용합니다.")
             loadFallbackCatalog()
         }
     }
@@ -145,7 +145,7 @@ final class SoundManager {
         for catalog in soundCatalog {
             for version in catalog.versions {
                 guard Bundle.main.url(forResource: version.fileName, withExtension: nil) != nil else {
-                    print("⚠️ 음원 파일 누락: \(version.fileName)")
+                    DebugManager.shared.warning("음원 파일 누락: \(version.fileName)")
                     continue
                 }
             }
@@ -191,7 +191,7 @@ final class SoundManager {
             )
         }
 
-        print("✅ 폴백 사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리")
+        DebugManager.shared.logAudio("폴백 사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리")
     }
 
     // MARK: - 🆕 동적 카테고리 정보 접근
@@ -241,7 +241,7 @@ final class SoundManager {
             }
         }
 
-        print("🔄 저장된 버전 정보 복원 완료: \(selectedVersions)")
+        DebugManager.shared.logAudio("저장된 버전 정보 복원 완료: \(selectedVersions)")
     }
 
     /// AVAudioSession 설정
@@ -252,10 +252,10 @@ final class SoundManager {
             switch currentAudioMode {
             case .exclusive:
                 options = []
-                print("🔊 [AudioSession] 독점 재생 모드 설정")
+                DebugManager.shared.logAudio("AudioSession: 독점 재생 모드 설정")
             case .mixWithOthers:
                 options = [.mixWithOthers]
-                print("🔊 [AudioSession] 혼합 재생 모드 설정")
+                DebugManager.shared.logAudio("AudioSession: 혼합 재생 모드 설정")
             }
 
             try session.setCategory(.playback, mode: .default, options: options)

@@ -151,6 +151,7 @@
 		E80E7D04FE67A710835F95E1 /* UsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1621EB79C194BD9382B0009E /* UsageManager.swift */; };
 		E8A2CDC9814F8722401DFD8D /* PersonaMemoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1F55C87D4D62C27EAE42F /* PersonaMemoryModel.swift */; };
 		EA65D3A3D12E8F7534A95405 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF57F47DA67FE453EE30973E /* GeminiService.swift */; };
+		EA9DFCB369E00EE9ECF58ABE /* DebugManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7DEDBCDB3E537052EB66CE /* DebugManager.swift */; };
 		EBD1B1210ED2621780E8D34A /* LLMEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D798478D5C763ACEA906279E /* LLMEntity.swift */; };
 		ECBCEA65A6B4BCA6B056C3BB /* HarmonyVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34A4A463AA653E7CEBE50C1 /* HarmonyVisualizationViewController.swift */; };
 		ED9B0FE75C7556D33BEB41E1 /* 발걸음-눈2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EFCF5ED310AC5D3A3B92344C /* 발걸음-눈2.mp3 */; };
@@ -338,6 +339,7 @@
 		B5F3BAB0482DCD69F1DF5302 /* EmotionDiaryViewController+Insights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmotionDiaryViewController+Insights.swift"; sourceTree = "<group>"; };
 		BD018193765568548DD1942B /* AIUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageManager.swift; sourceTree = "<group>"; };
 		BD2552FF2959A49C879EF0B1 /* Core.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Core.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		BD7DEDBCDB3E537052EB66CE /* DebugManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugManager.swift; sourceTree = "<group>"; };
 		BE07FD2AC561F93CD57910CB /* 키보드1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "키보드1.mp3"; sourceTree = "<group>"; };
 		C1BBBF17D57C311E6FF78CCE /* EmotionAnalysisChatViewController.swift.original_backup */ = {isa = PBXFileReference; path = EmotionAnalysisChatViewController.swift.original_backup; sourceTree = "<group>"; };
 		C1FABC2D17D787BA81F366D6 /* UserRulesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRulesManager.swift; sourceTree = "<group>"; };
@@ -573,6 +575,7 @@
 				5707172052678BE50B13AECB /* ComprehensiveRecommendationModels.swift */,
 				40ACC8DECA21F22F55F626EA /* ComprehensiveUserAnalysisEngine.swift */,
 				4CB425BBD9557DB0725F4585 /* CoreDataModels.swift */,
+				BD7DEDBCDB3E537052EB66CE /* DebugManager.swift */,
 				AA611853D142174D282A3364 /* DeepSleep.entitlements */,
 				AB8E50A56891D24BF1305E31 /* DiaryWriteViewController.swift */,
 				132E5E8AFEBC602D592C8226 /* EditDiaryViewController.swift */,
@@ -961,6 +964,7 @@
 				485515FE86584B94A6EBF04F /* ConversationPipelineProtocols.swift in Sources */,
 				E2949C4459D330F64658EE59 /* ConversationProcessor.swift in Sources */,
 				6C3574E186C72A2D42EC6302 /* CoreDataModels.swift in Sources */,
+				EA9DFCB369E00EE9ECF58ABE /* DebugManager.swift in Sources */,
 				FAE0429C944AC9D3EBEA9F54 /* DiaryWriteViewController.swift in Sources */,
 				9E41E0629F1C64EB77AEC0DD /* EditDiaryViewController.swift in Sources */,
 				240C54B112E13A023AED1675 /* EmotionAnalysisChatViewController.swift in Sources */,

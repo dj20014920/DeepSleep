@@ -232,7 +232,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 await MainActor.run {
                     self.showLoading(false)
                     self.addMessageToChat(message: responseText, fromUser: false)
-                    print("Claude API response metadata: \(metadata)")
+                    DebugManager.shared.logAI("Claude API response metadata: \(metadata)")
                 }
             } catch {
                 // 메인 스레드에서 에러 처리 및 UI 업데이트
@@ -392,7 +392,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     /// 채팅 기록 저장
     private func saveChatHistory() {
         // ChatManager가 자동으로 처리하므로 별도 작업 불필요
-        print("💾 채팅 기록 자동 저장 (ChatManager 관리)")
+        DebugManager.shared.logCache("채팅 기록 자동 저장 (ChatManager 관리)")
     }
     
     /// ChatManager 메시지 로드
@@ -407,7 +407,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             self.scrollToBottom()
         }
         
-        print("📱 ChatManager에서 \(messages.count)개 메시지 로드 완료")
+        DebugManager.shared.logChat("ChatManager에서 \(messages.count)개 메시지 로드 완료")
     }
     
     // MARK: - 🎯 유틸리티 함수들 (통합)
@@ -473,7 +473,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             recordSessionMetrics()
             
             #if DEBUG
-            print("⏱️ 세션 시간 기록: \(Int(sessionDuration))초")
+            DebugManager.shared.logTimer("세션 시간 기록: \(Int(sessionDuration))초")
             #endif
         }
         
@@ -649,7 +649,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         currentEmotion = enhancedEmotion
         
         // 🧠 Enhanced: 감정 로깅
-        print("🧠 [ChatViewController] 감정 분석 완료: \(enhancedEmotion.primaryEmotion) (강도: \(enhancedEmotion.intensity))")
+        DebugManager.shared.logEmotion("감정 분석 완료: \(enhancedEmotion.primaryEmotion) (강도: \(enhancedEmotion.intensity))")
         
         // 메시지를 채팅 기록에 추가
         let userChatMessage = ChatMessage(text: userMessage, sender: .user, type: .user)
@@ -684,7 +684,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         currentEmotion = enhancedEmotion
         
         // 감정 분석 완료 로그
-        print("🧠 [ChatViewController] 감정 분석 완료: \(enhancedEmotion.primaryEmotion) (강도: \(enhancedEmotion.intensity))")
+        DebugManager.shared.logEmotion("감정 분석 완료: \(enhancedEmotion.primaryEmotion) (강도: \(enhancedEmotion.intensity))")
         
         // 기존 처리 로직 호출
         processUserMessageInternal(userMessage)
@@ -1085,7 +1085,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         // 만족도 정보는 이미 초기화에서 설정됨 (read-only 프로퍼티)
         
-        print("📝 [ChatViewController] 빠른 피드백 저장: \(presetName) (만족도: \(satisfaction))")
+        DebugManager.shared.logFeedback("빠른 피드백 저장: \(presetName) (만족도: \(satisfaction))")
         
         // 성공 메시지
         showQuickFeedbackThankYou()
@@ -1151,7 +1151,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     deinit {
         // 메모리 해제 시 간단한 정리만 수행
         messages.removeAll()
-        print("🗑️ ChatViewController 메모리 해제")
+        DebugManager.shared.logMemory("ChatViewController 메모리 해제")
     }
 
     private func createPreset(from aiResponse: AIResponseData) -> SoundPreset? {
@@ -1218,7 +1218,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func handlePresetAction(action: String, messageId: UUID) {
         switch action {
         case "applyPreset":
-            print("✅ '적용하기' 선택됨")
+            DebugManager.shared.logUI("'적용하기' 선택됨")
             if let presetToApply = activeRecommendationPresets[messageId] {
                 onPresetApply?(presetToApply)
                 appendChat(ChatMessage(text: "'\(presetToApply.name)' 프리셋을 적용했습니다.", sender: .system, type: .system))
@@ -1228,7 +1228,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             }
             
         case "requestDifferentPreset":
-            print("🔄 '다른 추천 받기' 선택됨")
+            DebugManager.shared.logUI("'다른 추천 받기' 선택됨")
             // 현재 대화의 마지막 사용자 메시지를 기반으로 다시 요청
             if let lastUserMessage = messages.last(where: { $0.sender == .user })?.text {
                 processUserMessageInternal(lastUserMessage)
@@ -1237,7 +1237,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             }
             
         case "giveFeedback":
-            print("📝 '피드백 주기' 선택됨")
+            DebugManager.shared.logFeedback("'피드백 주기' 선택됨")
             // 피드백 UI 표시 (구현 필요)
             let feedbackMessage = "피드백 기능은 현재 개발 중입니다. 소중한 의견 감사합니다!"
             appendChat(ChatMessage(text: feedbackMessage, sender: .system, type: .system))
@@ -1280,7 +1280,7 @@ extension ChatViewController {
         
         // ChatManager에서 메시지 로드 - 간소화
         let loadedSessions = ChatManager.shared.getSessions()
-        print("📋 [loadChatHistory] \(loadedSessions.count)개 세션 발견")
+        DebugManager.shared.logCache("loadChatHistory: \(loadedSessions.count)개 세션 발견")
         
         DispatchQueue.main.async {
             self.tableView.reloadData()
@@ -1290,7 +1290,7 @@ extension ChatViewController {
     
     /// 기존 UserDefaults 채팅 기록을 ChatManager로 마이그레이션
     private func migrateOldChatHistory() {
-        print("🔄 [ChatViewController] 기존 채팅 기록 마이그레이션 시작")
+        DebugManager.shared.logCache("기존 채팅 기록 마이그레이션 시작")
         
         // 새 세션 생성
         let migrationSessionId = UUID()
@@ -1311,15 +1311,15 @@ extension ChatViewController {
         // 마이그레이션 완료 확인
         let migratedSessions = ChatManager.shared.getSessions()
         if !migratedSessions.isEmpty {
-            print("✅ [ChatViewController] 마이그레이션 완료: \(migratedSessions.count)개 세션")
+            DebugManager.shared.logCache("마이그레이션 완료: \(migratedSessions.count)개 세션")
         }
         
-        print("✅ [ChatViewController] 기존 채팅 기록 마이그레이션 완료")
+        DebugManager.shared.logCache("기존 채팅 기록 마이그레이션 완료")
     }
     
     /// 복원된 프리셋 추천 메시지 처리
     private func handleRestoredPresetRecommendation(text: String) {
-        print("🔧 [handleRestoredPresetRecommendation] 복원된 프리셋 처리 시작")
+        DebugManager.shared.logPreset("복원된 프리셋 처리 시작")
         
         // 메시지에서 프리셋 이름 추출 시도
         if let presetName = extractPresetNameFromText(text) {
@@ -1335,12 +1335,12 @@ extension ChatViewController {
                 versions: versions
             )
             
-            print("🔄 [handleRestoredPresetRecommendation] 복원된 프리셋 적용: \(presetName)")
+            DebugManager.shared.logPreset("복원된 프리셋 적용: \(presetName)")
             // 프리셋 적용 로직 (간소화)
             SoundManager.shared.applyPresetWithVersions(volumes: restoredPreset.volumes, versions: restoredPreset.versions)
             showPresetAppliedMessage(restoredPreset.name)
         } else {
-            print("⚠️ [handleRestoredPresetRecommendation] 프리셋 이름 추출 실패, 기본 프리셋 사용")
+            DebugManager.shared.logPreset("프리셋 이름 추출 실패, 기본 프리셋 사용")
             // 기본 프리셋 적용
             let currentEmotion = getEmotionData()["emotion"] as? String ?? "neutral"
             let baseVolumes = SoundPresetCatalog.getRecommendedPreset(for: currentEmotion)
@@ -1441,9 +1441,9 @@ extension ChatViewController {
         UserDefaults.standard.cleanOldData(olderThanDays: CacheConst.keepDays)
         
         #if DEBUG
-        print("🗄️ TLB식 캐시 시스템 초기화 완료 (14일 보존, 3일 raw)")
+        DebugManager.shared.logCache("TLB식 캐시 시스템 초기화 완료 (14일 보존, 3일 raw)")
         let debugInfo = CachedConversationManager.shared.getDebugInfo()
-        print(debugInfo)
+        DebugManager.shared.logCache(debugInfo)
         #endif
     }
     
@@ -1488,7 +1488,7 @@ extension ChatViewController {
             }
             
             #if DEBUG
-            print("🔄 TLB 로드 완료 - 최근: \(recentMessages.count)개, 이전: \(olderMessageCount)개")
+            DebugManager.shared.logCache("TLB 로드 완료 - 최근: \(recentMessages.count)개, 이전: \(olderMessageCount)개")
             #endif
         }
     }
@@ -1534,12 +1534,12 @@ extension ChatViewController {
     
     @objc private func presetButtonTapped() {
         // 프리셋 버튼 기본 동작
-        print("🎵 프리셋 버튼 탭됨")
+        DebugManager.shared.logUI("프리셋 버튼 탭됨")
     }
     
     private func requestPatternAnalysisWithTracking(patternData: String) {
         // 패턴 분석 요청
-        print("📊 패턴 분석 요청: \(patternData)")
+        DebugManager.shared.logEmotion("패턴 분석 요청: \(patternData)")
         
         let analysisResponse = """
         📈 최근 30일간의 감정 패턴 분석 결과입니다:
@@ -1664,7 +1664,7 @@ extension ChatViewController {
         let weeklyMemory = CachedConversationManager.shared.loadWeeklyMemory()
         
         #if DEBUG
-        print("🔄 캐시 상태 새로고침: 주간 메모리 로드 완료")
+        DebugManager.shared.logCache("캐시 상태 새로고침: 주간 메모리 로드 완료")
         #endif
         
         // 주간 메모리 백그라운드 업데이트
@@ -1862,7 +1862,7 @@ extension ChatViewController {
     }
     
     private func debugCheckCacheStatus() {
-        CachedConversationManager.shared.printCacheStatus()
+        DebugManager.shared.logCache("캐시 상태: \(CachedConversationManager.shared.getDebugInfo())")
         
         let debugInfo = CachedConversationManager.shared.getDebugInfo()
         let alert = UIAlertController(title: "💾 캐시 상태", message: debugInfo, preferredStyle: .alert)
@@ -1977,7 +1977,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         case "ai_recommendation":
             handleAIRecommendation()
         default:
-            print("알 수 없는 퀵 액션: \(action)")
+            DebugManager.shared.warning("알 수 없는 퀵 액션: \(action)")
         }
     }
     
@@ -1985,7 +1985,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     private func handleLocalRecommendation() {
         // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
-            print("⚠️ 추천 요청이 이미 진행 중입니다.")
+            DebugManager.shared.warning("추천 요청이 이미 진행 중입니다.")
             return
         }
         
@@ -2075,12 +2075,12 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             return
         }
         
-        // 🔒 중복 요청 방지
+                // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
-            print("⚠️ 추천 요청이 이미 진행 중입니다.")
+            DebugManager.shared.warning("추천 요청이 이미 진행 중입니다.")
             return
         }
-        
+
         isProcessingRecommendation = true
         
         let userMessage = ChatMessage(text: "AI 분석 추천받기", sender: .user, type: .user)
@@ -2143,33 +2143,33 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     // MARK: - Phase 1: JSON 기반 AI 응답 파싱 (통합된 새로운 방식)
     func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
-        print("🎵 [JSON Parser] 프리셋 파싱 시작: \\(response.prefix(100))...")
+        DebugManager.shared.logAI("프리셋 파싱 시작: \(response.prefix(100))...")
         
         // 1. JSON 기반 파싱 시도 (최우선)
         do {
             let result = try decodeAIResponse(from: response)
-            print("✅ [JSON Parser] JSON 형식 파싱 성공")
+            DebugManager.shared.logAI("JSON 형식 파싱 성공")
             return result
         } catch let error as JSONParsingError {
-            print("⚠️ [JSON Parser] JSON 파싱 실패: \\(error.localizedDescription)")
+            DebugManager.shared.warning("JSON 파싱 실패: \(error.localizedDescription)")
         } catch {
-            print("⚠️ [JSON Parser] 예상치 못한 오류: \\(error.localizedDescription)")
+            DebugManager.shared.warning("JSON 파서 예상치 못한 오류: \(error.localizedDescription)")
         }
         
         // 2. 레거시 정규식 파싱 시도 (호환성 유지)
         if let result = parseNewFormat(from: response) {
-            print("✅ [Legacy Parser] 새로운 11개 형식 파싱 성공")
+            DebugManager.shared.logAI("레거시 파서: 새로운 11개 형식 파싱 성공")
             return result
         }
         
         if let result = parseLegacyFormat(from: response) {
-            print("✅ [Legacy Parser] 기존 12개 형식 파싱 성공")
+            DebugManager.shared.logAI("레거시 파서: 기존 12개 형식 파싱 성공")
             return result
         }
         
         // 3. 감정 기반 기본 프리셋 반환 (최후 수단)
         let fallbackResult = parseBasicFormat(from: response)
-        print("⚠️ [Fallback Parser] 모든 파싱 실패, 기본 프리셋 사용")
+        DebugManager.shared.warning("모든 파싱 실패, 기본 프리셋 사용")
         return fallbackResult
     }
     
@@ -2462,7 +2462,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     func showFeedbackUI(for presetName: String, volumes: [Float]) {
         // 이 부분은 피드백 UI를 표시하는 로직
         // 예: 새로운 ViewController를 push하거나, alert를 띄움
-        print("피드백 UI 요청: \(presetName)")
+        DebugManager.shared.logFeedback("피드백 UI 요청: \(presetName)")
         let message = "적용된 프리셋 '\(presetName)'이 마음에 드시나요?"
         let alert = UIAlertController(title: "피드백", message: message, preferredStyle: .actionSheet)
         
@@ -2481,7 +2481,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     private func sendFeedback(isPositive: Bool, presetName: String, volumes: [Float]) {
         // 피드백 전송 로직
-        print("피드백 전송: \(isPositive ? "긍정" : "부정") - \(presetName)")
+        DebugManager.shared.logFeedback("피드백 전송: \(isPositive ? "긍정" : "부정") - \(presetName)")
         showToast(message: "소중한 피드백 감사합니다! 🥰")
     }
     
@@ -2494,7 +2494,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     @objc func volumeChanged(_ slider: UISlider) {
         if let index = categorySliders.firstIndex(of: slider) {
-            print("슬라이더 \(index) 값 변경: \(slider.value)")
+            DebugManager.shared.logUI("슬라이더 \(index) 값 변경: \(slider.value)")
             // 즉각적인 사운드 변경을 위해 MainViewController에 알림
             // onVolumeChange?(index, slider.value)
         }
