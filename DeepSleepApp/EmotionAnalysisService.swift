@@ -54,4 +54,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         // 스텁 구현
         print("피드백 저장: \(recommendationId), 점수: \(score)")
     }
+    
+    // MARK: - Message Loading
+    func loadMessages(page: Int, pageSize: Int) async throws -> [(isUser: Bool, content: String)] {
+        do {
+            // 메시지 저장소에서 메시지 로드
+            let messages = try await MessageStore.shared.loadMessages(page: page, pageSize: pageSize)
+            return messages.map { (isUser: $0.isUser, content: $0.content) }
+        } catch {
+            throw EmotionAnalysisServiceError.databaseError
+        }
+    }
 }

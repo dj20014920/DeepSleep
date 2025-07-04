@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Core
 
 // MARK: - EmotionAnalysisModels Namespace
@@ -26,13 +27,75 @@ struct ChatMessage: Codable, Equatable {
     let content: String
     let isUser: Bool
     let timestamp: Date
+    let type: ChatMessageType
+    var text: String? { content }
+    var quickActions: [QuickAction]?
+    var sender: MessageSender { isUser ? .user : .ai }
     
-    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date()) {
+    // Non-Codable properties
+    var image: UIImage?
+    
+    // Codable conformance
+    enum CodingKeys: String, CodingKey {
+        case id, content, isUser, timestamp, type, quickActions
+    }
+    
+    // Equatable conformance
+    static func == (lhs: ChatMessage, rhs: ChatMessage) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.content == rhs.content &&
+               lhs.isUser == rhs.isUser &&
+               lhs.timestamp == rhs.timestamp &&
+               lhs.type == rhs.type &&
+               lhs.quickActions == rhs.quickActions
+    }
+    
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date = Date(), type: ChatMessageType = .bot) {
         self.id = id
         self.content = content
         self.isUser = isUser
         self.timestamp = timestamp
+        self.type = type
     }
+    
+    init(id: String, text: String?, isUser: Bool, timestamp: Date, type: ChatMessageType) {
+        self.id = UUID(uuidString: id) ?? UUID()
+        self.content = text ?? ""
+        self.isUser = isUser
+        self.timestamp = timestamp
+        self.type = type
+    }
+    
+    init(text: String, sender: MessageSender, type: ChatMessageType) {
+        self.id = UUID()
+        self.content = text
+        self.isUser = sender == .user
+        self.timestamp = Date()
+        self.type = type
+    }
+}
+
+enum ChatMessageType: String, Codable {
+    case user
+    case bot
+    case aiResponse
+    case system
+    case presetRecommendation
+    case recommendationSelector
+    case presetOptions
+    case postPresetOptions
+    case loading
+    case error
+}
+
+enum MessageSender {
+    case user
+    case ai
+}
+
+struct QuickAction: Codable, Equatable {
+    let title: String
+    let action: String
 }
 
 // MARK: - Analysis Models

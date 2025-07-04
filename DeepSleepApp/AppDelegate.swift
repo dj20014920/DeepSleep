@@ -12,7 +12,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var window: UIWindow?
 
     static var shared: AppDelegate {
-        return UIApplication.shared.delegate as! AppDelegate
+        guard let delegate = UIApplication.shared.delegate as? AppDelegate else {
+            fatalError("AppDelegate is not of expected type")
+        }
+        return delegate
     }
 
     @available(iOS 17.0, *)

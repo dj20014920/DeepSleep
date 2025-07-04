@@ -733,7 +733,7 @@ extension PresetSharingManager {
             SettingsManager.shared.saveSoundPreset(preset)
             
             // 메인 뷰컨트롤러에서 프리셋 적용
-            self.applyPresetInMainViewController(preset)
+            self.applyPresetInViewController(preset)
         })
         
         rootVC.present(alert, animated: true)
@@ -754,31 +754,32 @@ extension PresetSharingManager {
         rootVC.present(alert, animated: true)
     }
     
-    private func applyPresetInMainViewController(_ preset: SoundPreset) {
+    private func applyPresetInViewController(_ preset: SoundPreset) {
         // 메인 ViewController 찾기 및 프리셋 적용
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first,
               let rootVC = window.rootViewController else { return }
         
-        // MainViewController 인스턴스 획득
-        var targetVC: MainViewController?
+        // ViewController 인스턴스 획득
+        var targetVC: ViewController?
         
         if let navController = rootVC as? UINavigationController {
-            targetVC = navController.viewControllers.first as? MainViewController
-        } else if let mainVC = rootVC as? MainViewController {
+            targetVC = navController.viewControllers.first as? ViewController
+        } else if let mainVC = rootVC as? ViewController {
             targetVC = mainVC
         }
         
         targetVC?.applyPreset(
-            presetId: preset.id.uuidString,
-            presetName: preset.name,
-            soundIds: nil,
-            volumes: preset.compatibleVolumes
+            volumes: preset.compatibleVolumes,
+            versions: preset.selectedVersions,
+            name: preset.name,
+            presetId: preset.id,
+            saveAsNew: false
         )
         
         // 성공 메시지
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
             targetVC?.showToast(message: "공유받은 프리셋이 적용되었습니다!")
-        }
+        })
     }
 } 

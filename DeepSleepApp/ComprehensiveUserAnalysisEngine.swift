@@ -2222,7 +2222,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         // 1. 할일 완료 날짜 일관성 체크
         for todo in data.todoItems {
             totalChecks += 1
-            if todo.dueDate < todo.createdDate {
+            if todo.dueDate < todo.createdAt {
                 issues += 1 // 마감일이 생성일보다 빠름
             }
         }
@@ -2404,7 +2404,7 @@ class ComprehensiveUserAnalysisEngine: ObservableObject {
         if !completedTodos.isEmpty {
             var timeLogicErrors = 0
             for todo in completedTodos {
-                if todo.dueDate < todo.createdDate { // 마감일이 생성일보다 빠른 경우
+                if todo.dueDate < todo.createdAt { // 마감일이 생성일보다 빠른 경우
                     timeLogicErrors += 1
                 }
             }

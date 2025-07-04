@@ -1,19 +1,28 @@
 import UIKit
 import Core
+import Combine
 
 class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDelegate, UITextFieldDelegate {
     
     // MARK: - Properties
+    private var viewModel: EmotionAnalysisViewModelProtocol!
+    private var cancellables = Set<AnyCancellable>()
+    
     private var tableView: UITableView!
     private var inputTextField: UITextField!
     private var sendButton: UIButton!
     private var inputContainerView: UIView!
     private var quickActionView: EmotionAnalysisQuickActionView!
     
-    private var chatMessages: [Core.ChatMessage] = []
-    private var isLoading = false
+    // MARK: - Initialization
+    init(viewModel: EmotionAnalysisViewModelProtocol) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
     
-    private let emotionService: EmotionAnalysisServiceProtocol = EmotionAnalysisService()
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -24,14 +33,35 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         setupQuickActions()
         setupNavigationBar()
         setupKeyboardHandling()
+        setupBindings()
         
-        // 초기 메시지 추가
-        addInitialMessage()
+        // 초기 분석 수행
+        Task {
+            await viewModel.performInitialAnalysis()
+        }
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         inputTextField.becomeFirstResponder()
+    }
+    
+    // MARK: - Bindings
+    private func setupBindings() {
+        // 로딩 상태 바인딩
+        viewModel.onLoadingStateChanged = { [weak self] isLoading in
+            self?.setLoading(isLoading)
+        }
+        
+        // 새 메시지 바인딩
+        viewModel.onNewMessageAdded = { [weak self] isUser, message in
+            self?.addMessage(isUser: isUser, content: message)
+        }
+        
+        // 에러 바인딩
+        viewModel.onError = { [weak self] error in
+            self?.handleError(error)
+        }
     }
     
     // MARK: - UI Setup
@@ -144,152 +174,36 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         )
     }
     
-    // MARK: - Initial Message
-    private func addInitialMessage() {
-        let welcomeMessage = Core.ChatMessage(
-            text: "안녕하세요! 지금 기분이 어떠신가요? 감정을 자유롭게 표현해보세요. 😊",
-            sender: .ai,
-            type: .bot
-        )
-        chatMessages.append(welcomeMessage)
-        tableView.reloadData()
+    // MARK: - Message Handling
+    private func addMessage(isUser: Bool, content: String) {
+        let indexPath = IndexPath(row: viewModel.chatHistory.count - 1, section: 0)
+        tableView.insertRows(at: [indexPath], with: .automatic)
+        scrollToBottom()
     }
     
-    // MARK: - Message Handling
-    private func sendMessage() {
-        guard let text = inputTextField.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return
-        }
+    private func setLoading(_ isLoading: Bool) {
+        sendButton.isEnabled = !isLoading
+        inputTextField.isEnabled = !isLoading
+    }
+    
+    private func handleError(_ error: Error) {
+        UserFriendlyErrorHandler.shared.showError(error, in: self)
+    }
+    
+    // MARK: - Actions
+    @objc private func sendTapped() {
+        guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else { return }
         
-        // 사용자 메시지 추가
-        let userMessage = Core.ChatMessage(
-            text: text,
-            sender: .user,
-            type: .user
-        )
-        chatMessages.append(userMessage)
-        
-        // 입력 필드 클리어
         inputTextField.text = ""
         
-        // UI 업데이트
-        tableView.reloadData()
-        scrollToBottom()
-        
-        // 로딩 표시
-        setLoading(true)
-        
-        // 감정 분석 요청
         Task {
-            await analyzeEmotion(text)
-        }
+            await viewModel.sendUserMessage(text)
+    }
     }
     
-    private func analyzeEmotion(_ text: String) async {
-        do {
-            let response = try await emotionService.analyzeEmotion(text: text)
-                
-                await MainActor.run {
-                setLoading(false)
-                
-                let aiMessage = Core.ChatMessage(
-                    text: formatEmotionResponse(response),
-                    sender: .ai,
-                    type: .bot,
-                    quickActions: createQuickActions(for: response)
-                )
-                
-                chatMessages.append(aiMessage)
-                tableView.reloadData()
-        scrollToBottom()
-    }
-        } catch {
-            await MainActor.run {
-                setLoading(false)
-                addErrorMessage("감정 분석 중 오류가 발생했습니다: \(error.localizedDescription)")
-            }
-        }
-    }
-    
-    private func formatEmotionResponse(_ response: EmotionAnalysisModels.EmotionAnalysisResponse) -> String {
-        var result = "🎭 감정 분석 결과\n\n"
-        
-        result += "**주요 감정**: \(response.primaryEmotion)\n"
-        result += "**강도**: \(String(format: "%.1f", response.intensity * 100))%\n"
-        
-        if !response.secondaryEmotions.isEmpty {
-            result += "**기타 감정**: \(response.secondaryEmotions.joined(separator: ", "))\n"
-        }
-        
-        if let suggestion = response.suggestion {
-            result += "\n💡 **제안**: \(suggestion)"
-        }
-        
-        return result
-    }
-    
-    private func createQuickActions(for response: EmotionAnalysisModels.EmotionAnalysisResponse) -> [Core.QuickAction] {
-        return [
-            Core.QuickAction(
-                title: "더 자세히",
-                action: "detail_analysis"
-            ),
-            Core.QuickAction(
-                title: "음악 추천",
-                action: "music_recommendation"
-            ),
-            Core.QuickAction(
-                title: "조언 받기",
-                action: "get_advice"
-            )
-        ]
-    }
-    
-    private func addErrorMessage(_ error: String) {
-        let errorMessage = Core.ChatMessage(
-            text: "❌ \(error)",
-            sender: .ai,
-            type: .error
-        )
-        chatMessages.append(errorMessage)
-        tableView.reloadData()
-        scrollToBottom()
-    }
-    
-    private func setLoading(_ loading: Bool) {
-        isLoading = loading
-        
-        if loading {
-            let loadingMessage = Core.ChatMessage(
-                text: "분석 중...",
-                sender: .ai,
-                type: .loading
-            )
-            chatMessages.append(loadingMessage)
-        } else {
-            // 로딩 메시지 제거
-            if let lastMessage = chatMessages.last, lastMessage.text == "분석 중..." {
-                chatMessages.removeLast()
-            }
-        }
-        
-        tableView.reloadData()
-        scrollToBottom()
-    }
-    
-    private func scrollToBottom() {
-        guard !chatMessages.isEmpty else { return }
-        let indexPath = IndexPath(row: chatMessages.count - 1, section: 0)
-        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
-    }
-
-    // MARK: - Actions
     @objc private func closeTapped() {
-        dismiss(animated: true, completion: nil)
-    }
-    
-    @objc private func sendTapped() {
-        sendMessage()
+        dismiss(animated: true)
     }
     
     @objc private func keyboardWillShow(_ notification: Notification) {
@@ -307,9 +221,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         }
     }
     
-    // MARK: - TextField Delegate
+    // MARK: - UITextFieldDelegate
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        sendMessage()
+        sendTapped()
         return true
     }
     
@@ -318,37 +232,42 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     }
 }
 
-// MARK: - UITableViewDataSource & UITableViewDelegate
-extension EmotionAnalysisChatViewController: UITableViewDataSource, UITableViewDelegate {
+// MARK: - UITableViewDataSource
+extension EmotionAnalysisChatViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return chatMessages.count
+        return viewModel.chatHistory.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ChatBubbleCell", for: indexPath) as! ChatBubbleCell
+        let message = viewModel.chatHistory[indexPath.row]
         
-        let message = chatMessages[indexPath.row]
-        let isUserMessage = message.sender == .user
+        // ChatMessage 객체 생성
+        let chatMessage = ChatMessage(
+            text: message.message,
+            sender: message.isUser ? .user : .ai,
+            type: message.isUser ? .user : .bot
+        )
         
-        // ChatBubbleCell의 configure 메서드 사용
-        cell.configure(with: message, isUserMessage: isUserMessage)
-        
+        cell.configure(with: chatMessage, isUserMessage: message.isUser)
         return cell
     }
-    
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return UITableView.automaticDimension
-    }
-    
-    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 80
+}
+
+// MARK: - UITableViewDelegate
+extension EmotionAnalysisChatViewController: UITableViewDelegate {
+    private func scrollToBottom() {
+        guard viewModel.chatHistory.count > 0 else { return }
+        let indexPath = IndexPath(row: viewModel.chatHistory.count - 1, section: 0)
+        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
     }
 }
 
 // MARK: - EmotionAnalysisQuickActionViewDelegate
 extension EmotionAnalysisChatViewController: EmotionAnalysisQuickActionViewDelegate {
     func quickActionView(_ view: EmotionAnalysisQuickActionView, didSelectEmotion emotion: String) {
-        inputTextField.text = emotion
-        sendMessage()
+        Task {
+            await viewModel.handleQuickAction(title: emotion, intent: emotion)
+        }
     }
 }

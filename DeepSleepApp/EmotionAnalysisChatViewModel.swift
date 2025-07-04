@@ -3,6 +3,12 @@ import Core
 import Combine
 
 final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
+    // MARK: - Constants
+    private enum ViewConstants {
+        static let pageSize = 20
+        static let maxCachedMessages = 100
+    }
+    
     // MARK: - Properties
     private let service: EmotionAnalysisServiceProtocol
     private var cancellables = Set<AnyCancellable>()
@@ -12,6 +18,18 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
     @Published private(set) var emotionPatternData: String = ""
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var error: Error?
+    
+    // 페이징 관련 프로퍼티
+    private var currentPage = 0
+    private var hasMoreMessages = true
+    private var isLoadingPage = false
+    
+    // 메시지 캐시
+    private var messageCache: NSCache<NSNumber, NSArray> = {
+        let cache = NSCache<NSNumber, NSArray>()
+        cache.countLimit = ViewConstants.maxCachedMessages
+        return cache
+    }()
     
     // 콜백
     var onLoadingStateChanged: ((Bool) -> Void)?
@@ -26,6 +44,11 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
     init(service: EmotionAnalysisServiceProtocol) {
         self.service = service
         setupBindings()
+    }
+    
+    deinit {
+        cancellables.removeAll()
+        messageCache.removeAllObjects()
     }
     
     // MARK: - Private Methods
@@ -58,10 +81,61 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
     private func addMessage(isUser: Bool, content: String) {
         let message = (isUser: isUser, message: content)
         chatHistory.append(message)
+        
+        // 메시지 저장
+        Task {
+            do {
+                try await MessageStore.shared.saveMessage(content: content, isUser: isUser)
+            } catch {
+                handleError(error)
+            }
+        }
+        
+        // 메시지 캐시 업데이트
+        let pageNumber = chatHistory.count / ViewConstants.pageSize
+        let pageMessages = Array(chatHistory.suffix(ViewConstants.pageSize))
+        messageCache.setObject(pageMessages as NSArray, forKey: NSNumber(value: pageNumber))
+        
+        // 오래된 메시지 제거
+        if chatHistory.count > ViewConstants.maxCachedMessages {
+            chatHistory.removeFirst(chatHistory.count - ViewConstants.maxCachedMessages)
+        }
+        
         onNewMessageAdded?(isUser, content)
     }
     
     // MARK: - Public Methods
+    
+    /// 이전 메시지 로드
+    func loadPreviousMessages() async {
+        guard !isLoadingPage && hasMoreMessages else { return }
+        
+        isLoadingPage = true
+        currentPage += 1
+        
+        do {
+            let messages = try await service.loadMessages(page: currentPage, pageSize: ViewConstants.pageSize)
+            await MainActor.run {
+                if messages.isEmpty {
+                    hasMoreMessages = false
+                } else {
+                    chatHistory.insert(contentsOf: messages.map { (isUser: $0.isUser, message: $0.content) }, at: 0)
+                }
+                isLoadingPage = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingPage = false
+                handleError(error)
+            }
+        }
+    }
+    
+    /// 메시지 캐시 정리
+    func clearMessageCache() {
+        messageCache.removeAllObjects()
+    }
+    
     func performInitialAnalysis() async {
         guard !emotionPatternData.isEmpty else {
             addMessage(isUser: false, content: "아직 감정 기록이 충분하지 않네요. 일기를 더 작성해주시면 더 정확한 분석을 도와드릴 수 있어요! 😊")

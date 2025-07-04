@@ -1,8 +1,8 @@
 import UIKit
 
-/// MainViewController에 프리셋을 강제로 동기화하고 UI를 업데이트합니다.
+/// ViewController에 프리셋을 강제로 동기화하고 UI를 업데이트합니다.
 /// - Note: 이 함수는 UI 계층 구조를 순회하므로 메인 스레드에서만 호출해야 합니다.
-func forceSyncMainViewControllerPreset(volumes: [Float], versions: [Int], name: String) {
+func forceSyncViewControllerPreset(volumes: [Float], versions: [Int], name: String) {
     // 1. SoundManager를 통해 실제 사운드 프리셋을 적용합니다.
     SoundManager.shared.applyPresetWithVersions(volumes: volumes, versions: versions)
     
@@ -11,7 +11,7 @@ func forceSyncMainViewControllerPreset(volumes: [Float], versions: [Int], name: 
     let userInfo = ["presetName": name]
     NotificationCenter.default.post(name: .PresetChanged, object: nil, userInfo: userInfo)
     
-    print("✅ [forceSyncMainViewControllerPreset] SoundManager에 프리셋 적용 및 Notification 전송 완료: \(name)")
+    print("✅ [forceSyncViewControllerPreset] SoundManager에 프리셋 적용 및 Notification 전송 완료: \(name)")
 }
 
 extension Notification.Name {

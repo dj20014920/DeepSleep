@@ -419,7 +419,7 @@ class EditDiaryViewController: UIViewController {
                 userInfo: [
                     "volumes": recommendation.volumes,
                     "presetName": recommendation.presetName,
-                    "selectedVersions": recommendation.selectedVersions
+                    "selectedVersions": recommendation.selectedVersions as Any
                 ]
             )
             // dismiss 중첩/race condition 방지

@@ -41,6 +41,13 @@ protocol EmotionAnalysisServiceProtocol {
     ///   - score: 만족도 점수
     ///   - comment: 선택적 코멘트
     func saveFeedback(recommendationId: String, score: Int, comment: String?) async throws
+    
+    /// 이전 메시지 로드
+    /// - Parameters:
+    ///   - page: 페이지 번호
+    ///   - pageSize: 페이지당 메시지 수
+    /// - Returns: 메시지 배열
+    func loadMessages(page: Int, pageSize: Int) async throws -> [(isUser: Bool, content: String)]
 }
 
 // MARK: - Helper Types

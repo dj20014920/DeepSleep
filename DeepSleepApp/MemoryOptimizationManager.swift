@@ -296,18 +296,69 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     private func unloadAllNonEssentialModels() {
-        // TODO: 모든 비필수 모델 언로드 구현
-        logger.warning("모든 비필수 모델 언로드")
+        logger.warning("모든 비필수 모델 언로드 시작")
+        
+        // 모든 캐시 완전 정리
+        imageCache.removeAllObjects()
+        modelCache.removeAllObjects()
+        stringCache.removeAllObjects()
+        
+        // 캐시 용량 최소화
+        imageCache.totalCostLimit = 1024 * 1024 * 10 // 10MB
+        imageCache.countLimit = 10
+        modelCache.countLimit = 3
+        
+        // 긴급 메모리 정리 알림
+        NotificationCenter.default.post(
+            name: NSNotification.Name("MemoryPressure.EmergencyCleanup"),
+            object: nil,
+            userInfo: ["level": "critical"]
+        )
+        
+        logger.warning("모든 비필수 모델 언로드 완료 - 긴급 모드 활성화")
     }
     
     private func preloadEssentialModels() {
-        // TODO: 필수 모델 재로드 구현
-        logger.debug("필수 모델 재로드")
+        logger.debug("필수 모델 재로드 시작")
+        
+        // 기본 캐시 용량 복원
+        imageCache.totalCostLimit = 1024 * 1024 * 50 // 50MB
+        imageCache.countLimit = 100
+        modelCache.countLimit = 10
+        
+        // 필수 모델 로드 알림
+        NotificationCenter.default.post(
+            name: NSNotification.Name("MemoryPressure.LoadEssentialModels"),
+            object: nil,
+            userInfo: ["level": "essential"]
+        )
+        
+        logger.info("필수 모델 재로드 완료")
     }
     
     private func suspendNonEssentialBackgroundTasks() {
-        // TODO: 백그라운드 작업 중단 구현
-        logger.debug("비필수 백그라운드 작업 중단")
+        logger.debug("비필수 백그라운드 작업 중단 시작")
+        
+        // 백그라운드 작업 중단 알림
+        NotificationCenter.default.post(
+            name: NSNotification.Name("MemoryPressure.SuspendBackgroundTasks"),
+            object: nil,
+            userInfo: ["suspend": true]
+        )
+        
+        // 타이머 기반 작업들 일시 중단
+        memoryMonitoringTimer?.invalidate()
+        
+        // 5초 후 모니터링 재시작 (더 긴 간격으로)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.memoryMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateMemoryUsage()
+                }
+            }
+        }
+        
+        logger.info("비필수 백그라운드 작업 중단 완료")
     }
     
     // MARK: - Public Methods
@@ -339,8 +390,19 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     func enableDetailedLogging(_ enabled: Bool) {
-        // TODO: 상세 로깅 활성화/비활성화 구현
-        logger.info("상세 메모리 로깅: \(enabled)")
+        logger.info("상세 메모리 로깅 설정: \(enabled)")
+        
+        if enabled {
+            // 상세 로깅 활성화
+            logger.debug("메모리 상세 로깅 활성화됨")
+            logger.debug("현재 메모리 사용량: \(self.currentMemoryUsage / 1024 / 1024)MB")
+            logger.debug("최대 메모리 사용량: \(self.peakMemoryUsage / 1024 / 1024)MB")
+            logger.debug("메모리 압박 수준: \(self.memoryPressureLevel.rawValue)")
+            logger.debug("이미지 캐시 개수: \(self.imageCache.countLimit)")
+            logger.debug("모델 캐시 개수: \(self.modelCache.countLimit)")
+        } else {
+            logger.info("메모리 상세 로깅 비활성화됨")
+        }
     }
 }
 

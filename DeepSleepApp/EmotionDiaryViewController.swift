@@ -337,7 +337,7 @@ class EmotionDiaryViewController: UIViewController {
         navigationController?.popViewController(animated: true)
         
         // 전역 함수를 호출하여 메인 VC에 프리셋 적용
-        forceSyncMainViewControllerPreset(
+        forceSyncViewControllerPreset(
             volumes: preset.volumes,
             versions: preset.compatibleVersions,
             name: preset.presetName

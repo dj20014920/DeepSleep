@@ -194,8 +194,8 @@ class LaunchViewController: UIViewController {
         
         let tabBarController = UITabBarController()
         
-        // 1. 메인 사운드 화면 (MainViewController)
-        let mainVC = MainViewController()
+        // 1. 메인 사운드 화면 (ViewController)
+        let mainVC = ViewController()
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
         mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)

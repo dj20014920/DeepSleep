@@ -19,14 +19,14 @@ public actor LLMServiceFactory {
     /// - Returns: `LLMServiceProtocol`을 준수하는 서비스 인스턴스.
     /// - Throws: `FactoryError` - 서비스 생성에 실패한 경우.
     public func getService(for type: LLMServiceType) async throws -> any LLMServiceProtocol {
-        if let cachedService = serviceCache[type] {
-            return cachedService
-        }
-
+            if let cachedService = serviceCache[type] {
+                return cachedService
+            }
+            
         let newService: any LLMServiceProtocol
-        
-        switch type {
-        case .claude:
+            
+            switch type {
+            case .claude:
             let service = ClaudeService.shared
             guard await service.isAvailable() else { throw FactoryError.serviceUnavailable }
             newService = service
@@ -34,27 +34,27 @@ public actor LLMServiceFactory {
             let service = GeminiService.shared
             guard await service.isAvailable() else { throw FactoryError.serviceUnavailable }
             newService = service
-        case .naver:
+            case .naver:
             let service = NaverService.shared
             guard await service.isAvailable() else { throw FactoryError.serviceUnavailable }
             newService = service
-        case .openAI:
+            case .openAI:
             let service = OpenAIService.shared
             guard await service.isAvailable() else { throw FactoryError.serviceUnavailable }
             newService = service
-        case .onDevice:
+            case .onDevice:
             if #available(iOS 18.0, *) {
                 let service = OnDeviceService.shared
                 guard await service.isAvailable() else { throw FactoryError.serviceUnavailable }
                 newService = service
             } else {
                 throw FactoryError.serviceNotAvailableOnThisOS
+                }
             }
-        }
-        
+            
         serviceCache[type] = newService
         return newService
-    }
+        }
     
     /// 모든 서비스의 상태를 확인합니다. (네트워크 연결, API 키 유효성 등)
     public func checkAllServicesStatus() async -> [LLMServiceType: LLMServiceStatus] {

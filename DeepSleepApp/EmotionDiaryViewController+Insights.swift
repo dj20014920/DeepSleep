@@ -210,9 +210,12 @@ extension EmotionDiaryViewController {
         guard let containerView = gesture.view,
               let dropdownType = InsightDropdownType(rawValue: containerView.tag) else { return }
         
-        let dropdownContentView = containerView.viewWithTag(888)!
-        let dropdownArrow = containerView.viewWithTag(999) as! UILabel
-        let dropdownLabel = containerView.viewWithTag(777) as! UILabel
+        guard let dropdownContentView = containerView.viewWithTag(888),
+              let dropdownArrow = containerView.viewWithTag(999) as? UILabel,
+              let dropdownLabel = containerView.viewWithTag(777) as? UILabel else {
+            print("❌ 드롭다운 UI 요소를 찾을 수 없습니다")
+            return
+        }
         
         let isExpanded = !dropdownContentView.isHidden
         

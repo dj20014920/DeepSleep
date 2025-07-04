@@ -91,6 +91,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
     
+    // MARK: - Paging Properties
+    private let pageSize = 20
+    private var currentPage = 0
+    private var isLoadingMessages = false
+    private var hasMoreMessages = true
+    private var displayMessages: [ChatMessage] = []
+    
     // MARK: - UI Components
     private let tableView: UITableView = {
         let tv = UITableView()
@@ -382,7 +389,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func handleAIError(_ error: Error) {
         Task { @MainActor in
             self.showLoading(false)
-            let errorMessage = "AI 응답을 가져오는 데 실패했습니다. 잠시 후 다시 시도해주세요."
+            let errorMessage = UserFriendlyErrorHandler.shared.getUserFriendlyMessage(for: error)
             self.addMessageToChat(message: errorMessage, fromUser: false)
         }
     }
@@ -418,14 +425,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupTableView()
-        setupInputView()
-        loadInitialMessages()
-        // setupKeyboardHandling() // 스텁 제거됨
-        sessionStartTime = Date()
+        setupPaging()
+        loadCachedMessages()
         
-        // 백그라운드에서 포그라운드로 돌아올 때 호출될 옵저버 추가
-        // NotificationCenter.default.addObserver(self, selector: #selector(handleAppWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil) // 스텁 제거됨
+        // 메모리 압박 상황 모니터링
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -1149,9 +1158,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     }
     
     deinit {
-        // 메모리 해제 시 간단한 정리만 수행
-        messages.removeAll()
-        DebugManager.shared.logMemory("ChatViewController 메모리 해제")
+        NotificationCenter.default.removeObserver(self)
+        cleanup()
     }
 
     private func createPreset(from aiResponse: AIResponseData) -> SoundPreset? {
@@ -2075,12 +2083,12 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             return
         }
         
-                // 🔒 중복 요청 방지
+        // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
             DebugManager.shared.warning("추천 요청이 이미 진행 중입니다.")
             return
         }
-
+        
         isProcessingRecommendation = true
         
         let userMessage = ChatMessage(text: "AI 분석 추천받기", sender: .user, type: .user)
@@ -2445,7 +2453,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         lastAppliedPreset = newPreset
         updateCategorySliders(with: preset.volumes)
-        // onPresetApply?(preset) // MainViewController에 알림 - 타입 불일치로 임시 주석
+        // onPresetApply?(preset) // ViewController에 알림 - 타입 불일치로 임시 주석
         
         showToast(message: "🎵 프리셋 '\(preset.presetName)'이 적용되었습니다.")
     }
@@ -2495,7 +2503,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     @objc func volumeChanged(_ slider: UISlider) {
         if let index = categorySliders.firstIndex(of: slider) {
             DebugManager.shared.logUI("슬라이더 \(index) 값 변경: \(slider.value)")
-            // 즉각적인 사운드 변경을 위해 MainViewController에 알림
+            // 즉각적인 사운드 변경을 위해 ViewController에 알림
             // onVolumeChange?(index, slider.value)
         }
     }
@@ -2546,3 +2554,156 @@ extension ChatViewController {
 // MARK: - Helper Functions (Removed - were outside class scope)
 
 // MARK: - Missing Methods Implementation (Moved to ChatViewController class)
+
+// MARK: - Paging Methods
+extension ChatViewController {
+    private func loadMoreMessages() {
+        guard !isLoadingMessages, hasMoreMessages else { return }
+        isLoadingMessages = true
+        
+        let startIndex = currentPage * pageSize
+        let endIndex = min(startIndex + pageSize, messages.count)
+        
+        guard startIndex < messages.count else {
+            hasMoreMessages = false
+            isLoadingMessages = false
+            return
+        }
+        
+        let messagesForPage = Array(messages[startIndex..<endIndex])
+        
+        PerformanceOptimizer.shared.batchOperation(identifier: "loadMessages") {
+            self.displayMessages.append(contentsOf: messagesForPage)
+            self.currentPage += 1
+            self.isLoadingMessages = false
+            self.tableView.reloadData()
+        }
+    }
+    
+    private func setupPaging() {
+        tableView.prefetchDataSource = self
+    }
+}
+
+// MARK: - UITableViewDataSourcePrefetching
+extension ChatViewController: UITableViewDataSourcePrefetching {
+    func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+        let threshold = displayMessages.count - 5
+        if indexPaths.contains(where: { $0.row > threshold }) {
+            loadMoreMessages()
+        }
+    }
+}
+
+// MARK: - Message Caching
+extension ChatViewController {
+    private func cacheMessage(_ message: ChatMessage) {
+        let cacheKey = "message_\(message.id.uuidString)"
+        PerformanceOptimizer.shared.cacheData(message, forKey: cacheKey)
+    }
+    
+    private func getCachedMessage(id: String) -> ChatMessage? {
+        let cacheKey = "message_\(id)"
+        return PerformanceOptimizer.shared.getCachedData(forKey: cacheKey, type: ChatMessage.self)
+    }
+    
+    private func cacheMessages(_ messages: [ChatMessage]) {
+        PerformanceOptimizer.shared.batchOperation(identifier: "cacheMessages") {
+            messages.forEach { self.cacheMessage($0) }
+        }
+    }
+    
+    private func loadCachedMessages() {
+        // 캐시된 메시지 로드 시도
+        let cachedMessages = messages.compactMap { message -> ChatMessage? in
+            if let cached = getCachedMessage(id: message.id.uuidString) {
+                return cached
+            }
+            return message
+        }
+        
+        messages = cachedMessages
+        displayMessages = Array(cachedMessages.prefix(pageSize))
+        currentPage = 1
+    }
+}
+
+// MARK: - Memory Management
+extension ChatViewController {
+    private func cleanupOldMessages() {
+        guard messages.count > 100 else { return }
+        
+        // 가장 오래된 메시지부터 50개 제거
+        let messagesToRemove = messages.prefix(50)
+        messagesToRemove.forEach { message in
+            let cacheKey = "message_\(message.id.uuidString)"
+            // 캐시에서도 제거 - smartCache를 직접 사용하지 않고 메서드 사용
+            PerformanceOptimizer.shared.removeFromCache(key: cacheKey)
+        }
+        
+        messages = Array(messages.dropFirst(50))
+        
+        // 현재 페이지 조정
+        currentPage = max(0, currentPage - 3)
+        loadMoreMessages()
+    }
+    
+    @objc private func handleMemoryWarning() {
+        cleanupOldMessages()
+    }
+    
+    private func cleanup() {
+        // 캐시된 메시지 정리
+        messages.forEach { message in
+            let cacheKey = "message_\(message.id.uuidString)"
+            PerformanceOptimizer.shared.removeFromCache(key: cacheKey)
+        }
+        
+        // 기타 리소스 정리
+        displayMessages.removeAll()
+        messages.removeAll()
+    }
+}
+
+// MARK: - Image Optimization
+extension ChatViewController {
+    private func optimizeImage(_ image: UIImage) -> UIImage {
+        let maxSize = CGSize(width: 800, height: 800)
+        let aspectRatio = image.size.width / image.size.height
+        
+        var targetSize = maxSize
+        if aspectRatio > 1 {
+            targetSize.height = maxSize.width / aspectRatio
+        } else {
+            targetSize.width = maxSize.height * aspectRatio
+        }
+        
+        return PerformanceOptimizer.shared.resizeImageEfficiently(image, to: targetSize) ?? image
+    }
+    
+    private func cacheOptimizedImage(_ image: UIImage, forKey key: String) {
+        let optimized = optimizeImage(image)
+        if let data = PerformanceOptimizer.shared.compressImage(optimized) {
+            PerformanceOptimizer.shared.cacheData(data, forKey: "image_\(key)")
+        }
+    }
+    
+    private func getCachedImage(forKey key: String) -> UIImage? {
+        if let data = PerformanceOptimizer.shared.getCachedData(forKey: "image_\(key)", type: Data.self) {
+            return UIImage(data: data)
+        }
+        return nil
+    }
+}
+
+// MARK: - TableView Cell Configuration
+extension ChatViewController {
+    private func configureCell(_ cell: ChatBubbleCell, at indexPath: IndexPath) {
+        let message = displayMessages[indexPath.row]
+        
+        // ChatBubbleCell의 configure 메서드 호출
+        cell.configure(with: message, isUserMessage: message.sender == .user)
+        
+        // 기존 셀 구성 코드...
+    }
+}

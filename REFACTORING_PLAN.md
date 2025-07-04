@@ -45,7 +45,7 @@
 -   [x] **`SoundManager.swift` 리팩토링**: 기존 사운드 추천 로직을 `LLMRouter.send(task: .recommendSound(...))`로 교체.
 -   [x] **`EnhancedAIRecommendationService.swift` 리팩토링**: 서비스 자체가 불필요해져 과감히 삭제 완료.
 -   [x] **`LegacyStubs.swift` 에서 `ReplicateChatService` 관련 코드 최종 삭제**: 더 이상 사용하지 않는 레거시 코드를 완전히 제거.
--   [x] **프로젝트 전체 정리**: 프로젝트 전체에서 "Replicate", "ClaudeService", "GeminiService" 등 구형 서비스 이름을 직접 호출하는 코드가 남아있지 않은지 검색 후, 전부 `LLMRouter` 사용으로 수정 완료.
+-   [x] **프로젝트 전체 정리**: 프로젝트 전체에서 "Replicate", "ClaudeService", "GeminiService" 등 구형 서비스 이름을 직접 호출하는 코드가 남아있지 않은지 검색 후, 전부 `LLMRouter` 사용으로 수정 완료. 
 
 # EmotionAnalysisChatViewController 리팩토링 계획
 

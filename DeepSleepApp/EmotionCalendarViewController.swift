@@ -74,7 +74,9 @@ class EmotionCalendarViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Data loading needs to be restored later
+        if calendar != nil {
         calendar.reloadData()
+        }
     }
     
     private func loadDiaryData() {
@@ -164,13 +166,65 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
 
 // MARK: - TodoListCellDelegate
 extension EmotionCalendarViewController: TodoListCellDelegate {
-    func todoListCellDidSelectTodoItem(_ item: TodoItem) {
+    func todoListCell(_ cell: TodoListCell, didToggleItem item: TodoItem, at index: Int) {
+        var updatedItem = item
+        updatedItem.isCompleted.toggle()
+        todoManager.updateTodoItem(updatedItem)
+        
+        // 데이터 새로고침
+        collectionView.reloadData()
+        DebugManager.shared.logTodo("Todo item toggled: \(item.title)")
     }
     
-    func todoListCellDidToggleComplete(for item: TodoItem, isCompleted: Bool) {
-        var updatedItem = item
-        updatedItem.isCompleted = isCompleted
-        todoManager.updateTodoItem(updatedItem)
+    func todoListCell(_ cell: TodoListCell, didDeleteItem item: TodoItem, at index: Int) {
+        todoManager.deleteTodo(withId: item.id) { [weak self] success, error in
+            DispatchQueue.main.async {
+                if success {
+                    self?.collectionView.reloadData()
+                    DebugManager.shared.logTodo("Todo item deleted: \(item.title)")
+                } else if let error = error {
+                    DebugManager.shared.error("Failed to delete todo: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    func todoListCellDidRequestAddItem(_ cell: TodoListCell) {
+        // TODO: 할 일 추가 UI 구현
+        DebugManager.shared.logTodo("Add todo item requested")
+        
+        // 임시로 간단한 알럿으로 구현
+        let alert = UIAlertController(title: "할 일 추가", message: "할 일을 입력하세요", preferredStyle: .alert)
+        alert.addTextField { textField in
+            textField.placeholder = "할 일 제목"
+        }
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        alert.addAction(UIAlertAction(title: "추가", style: .default) { [weak self] _ in
+            guard let self = self,
+                  let title = alert.textFields?.first?.text,
+                  !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            
+            let newTodo = TodoItem(
+                title: title,
+                dueDate: self.selectedDate,
+                priority: 1, // medium
+                category: .sleep
+            )
+            
+            self.todoManager.addTodo(title: newTodo.title, dueDate: newTodo.dueDate, priority: newTodo.priority) { [weak self] _, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        DebugManager.shared.error("Failed to add todo: \(error.localizedDescription)")
+                    } else {
+                        self?.collectionView.reloadData()
+                        DebugManager.shared.logTodo("Todo added successfully")
+                    }
+                }
+            }
+        })
+        
+        present(alert, animated: true)
     }
 }
 

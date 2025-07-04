@@ -96,7 +96,7 @@ class TodoManager {
             guard let self = self else { return }
             
             var currentTodos = self.loadTodos()
-            var newTodo = TodoItem(title: title, dueDate: dueDate, endDate: endTime, notes: notes, priority: priority)
+            var newTodo = TodoItem(title: title, dueDate: dueDate, endDate: endTime, priority: priority, notes: notes)
 
             if granted {
                 self.addEventToCalendar(todo: newTodo) { eventIdentifier, eventError in
@@ -130,7 +130,7 @@ class TodoManager {
             let todos = try JSONDecoder().decode([TodoItem].self, from: data)
             return todos.sorted(by: { $0.dueDate < $1.dueDate })
         } catch {
-            print("Error decoding todos: \(error)")
+            DebugManager.shared.logTodo("Error decoding todos: \(error)")
             return []
         }
     }
@@ -261,7 +261,7 @@ class TodoManager {
             let data = try JSONEncoder().encode(todos)
             UserDefaults.standard.set(data, forKey: todosKey)
         } catch {
-            print("Error encoding todos: \(error)")
+            DebugManager.shared.logTodo("Error encoding todos: \(error)")
         }
     }
     
@@ -314,7 +314,10 @@ class TodoManager {
         
         if let endDate = todo.endDate {
             // 여러 날 일정인 경우
-            content.body = "'\(todo.title)' 시작 1시간 전입니다! (\(todo.dateRangeString))"
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .short
+            let endDateString = dateFormatter.string(from: endDate)
+            content.body = "'\(todo.title)' 시작 1시간 전입니다! (~\(endDateString))"
         } else {
             // 하루 일정인 경우
             content.body = "'\(todo.title)' 마감 1시간 전입니다!"

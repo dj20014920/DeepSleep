@@ -217,22 +217,11 @@ struct EnhancedRecommendationResponse {
 }
 
 // MARK: - UI Protocol & Missing Types
+// Note: TodoListCellDelegate is now implemented in DeepSleepApp/UI/TodoListCell.swift
 
-protocol TodoListCellDelegate: AnyObject {
-    func todoListCellDidSelectTodoItem(_ item: TodoItem)
-    func todoListCellDidToggleComplete(for item: TodoItem, isCompleted: Bool)
-}
-
-class InsightCell: UICollectionViewCell {
-    static let reuseIdentifier = "InsightCell"
-    func configure(with text: String) {}
-}
-
-class TodoListCell: UICollectionViewCell {
-    static let reuseIdentifier = "TodoListCell"
-    weak var delegate: TodoListCellDelegate?
-    func configure(with items: [TodoItem]) {}
-}
+// Note: InsightCell and TodoListCell are now implemented in separate files:
+// - DeepSleepApp/UI/InsightCell.swift
+// - DeepSleepApp/UI/TodoListCell.swift
 
 class SectionHeaderView: UICollectionReusableView {
     static let reuseIdentifier = "SectionHeaderView"
@@ -240,25 +229,13 @@ class SectionHeaderView: UICollectionReusableView {
     let addButton = UIButton()
 }
 
-// System type stubs
-import AVFoundation
-typealias CHHapticPattern = AVFoundation.AVAsset
+// Note: CHHapticPattern and haptic feedback system are now implemented in DeepSleepApp/System/HapticManager.swift
 
 // EnhancedSoundRecommendationEngine compatibility types
 // typealias UserProfile = String
 typealias RecommendationContext = String
 
-func isHeadphonesConnected() -> Bool {
-    let route = AVAudioSession.sharedInstance().currentRoute
-    for description in route.outputs {
-        if description.portType == .headphones ||
-           description.portType == .bluetoothA2DP ||
-           description.portType == .bluetoothLE {
-            return true
-        }
-    }
-    return false
-}
+// Note: isHeadphonesConnected is now implemented in DeepSleepApp/System/SystemDetectionManager.swift
 
 func buildComprehensivePrompt() async -> String {
     return "종합적인 프롬프트를 생성하는 기능입니다."
@@ -462,7 +439,7 @@ extension SoundPreset {
     }
 }
 
-extension MainViewController {
+extension ViewController {
     func updateTitle(_ title: String) {
         DispatchQueue.main.async {
             self.title = title
@@ -477,9 +454,7 @@ extension MainViewController {
         // TODO: 모델 업데이트 적용 로직
     }
     
-    func showToast(message: String) {
-        print("Toast: \(message)")
-    }
+    // Note: showToast is now implemented in DeepSleepApp/UI/ToastManager.swift
     
     var aiOrchestrator: Any? {
         return nil

@@ -187,34 +187,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
               let window = windowScene.windows.first else { return }
         
         // LaunchViewController에서 메인 화면으로 전환
-        let mainVC = MainViewController()
+        let mainVC = ViewController()
         let navController = UINavigationController(rootViewController: mainVC)
         
         window.rootViewController = navController
         window.makeKeyAndVisible()
         
         // 프리셋 목록 화면 열기
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
             let presetListVC = PresetListViewController()
             
             // 프리셋 선택 시 메인 화면에 적용하는 콜백 설정 (버전 정보 포함)
             presetListVC.onPresetSelected = { [weak mainVC] preset in
                 // URL로 가져온 프리셋은 적용만 하고, 로컬에 저장하거나 갱신하지 않음
                 mainVC?.applyPreset(
-                    presetId: preset.id.uuidString,
-                    presetName: preset.name,
-                    soundIds: nil,
-                    volumes: preset.compatibleVolumes
+                    volumes: preset.compatibleVolumes,
+                    versions: preset.selectedVersions,
+                    name: preset.name,
+                    presetId: preset.id,
+                    saveAsNew: false
                 )
             }
             
             navController.pushViewController(presetListVC, animated: true)
             
             // URL에서 받은 공유 코드 자동 입력
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
                 presetListVC.handleIncomingShareCode(shareCode)
-            }
-        }
+            })
+        })
     }
     
     private func showURLError(message: String) {
@@ -239,8 +240,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // TabBarController 생성
         let tabBarController = UITabBarController()
 
-        // 1. 메인 사운드 화면 (MainViewController)
-        let mainVC = MainViewController()
+        // 1. 메인 사운드 화면 (ViewController)
+        let mainVC = ViewController()
         // aiOrchestrator는 읽기 전용이므로 직접 할당 제거
         // mainVC.aiOrchestrator = self.aiOrchestrator
         
