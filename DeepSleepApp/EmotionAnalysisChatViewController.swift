@@ -176,9 +176,21 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     
     // MARK: - Message Handling
     private func addMessage(isUser: Bool, content: String) {
-        let indexPath = IndexPath(row: viewModel.chatHistory.count - 1, section: 0)
-        tableView.insertRows(at: [indexPath], with: .automatic)
-        scrollToBottom()
+        // 메인 스레드에서 UI 업데이트 보장
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 데이터 개수 확인
+            let messageCount = self.viewModel.chatHistory.count
+            guard messageCount > 0 else { return }
+            
+            // 새로운 메시지의 인덱스 계산
+            let indexPath = IndexPath(row: messageCount - 1, section: 0)
+            
+            // 테이블뷰 업데이트
+            self.tableView.insertRows(at: [indexPath], with: .automatic)
+            self.scrollToBottom()
+        }
     }
     
     private func setLoading(_ isLoading: Bool) {
@@ -257,9 +269,12 @@ extension EmotionAnalysisChatViewController: UITableViewDataSource {
 // MARK: - UITableViewDelegate
 extension EmotionAnalysisChatViewController: UITableViewDelegate {
     private func scrollToBottom() {
-        guard viewModel.chatHistory.count > 0 else { return }
-        let indexPath = IndexPath(row: viewModel.chatHistory.count - 1, section: 0)
-        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            guard self.viewModel.chatHistory.count > 0 else { return }
+            let indexPath = IndexPath(row: self.viewModel.chatHistory.count - 1, section: 0)
+            self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        }
     }
 }
 

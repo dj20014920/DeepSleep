@@ -100,8 +100,41 @@ public final class LLMRouter: LLMServiceProtocol {
     
     /// 관련 메모리를 검색하는 메서드
     private func fetchRelevantMemory(for task: AITask) async throws -> String {
-        // TODO: Pinecone 벡터 DB 연동
-        return ""
+        // 장기 기억 기능을 위한 Vector DB 연동
+        // 현재는 로컬 저장소에서 검색 (추후 Pinecone 또는 로컬 벡터 DB로 전환)
+        
+        // 사용자 구독 상태 확인
+        let isSubscribed = await checkUserSubscription()
+        guard isSubscribed else {
+            // 무료 사용자는 현재 대화만 기억
+            return ""
+        }
+        
+        // 과거 대화 검색 시스템 (Vector DB 준비 전까지 임시 구현)
+        let memoryManager = LongTermMemoryManager.shared
+        let relevantMemories = try await memoryManager.searchRelevantMemories(
+            query: task.userPrompt,
+            limit: 5
+        )
+        
+        // 검색된 메모리를 컨텍스트로 변환
+        if relevantMemories.isEmpty {
+            return ""
+        }
+        
+        var memoryContext = "\n\n[이전 대화 기억]\n"
+        for memory in relevantMemories {
+            memoryContext += "- \(memory.date.formatted()): \(memory.summary)\n"
+        }
+        
+        return memoryContext
+    }
+    
+    /// 사용자 구독 상태 확인
+    private func checkUserSubscription() async -> Bool {
+        // TODO: 실제 구독 상태 확인 로직 구현
+        // 현재는 UserDefaults에서 확인
+        return UserDefaults.standard.bool(forKey: "isSubscribedUser")
     }
     
     /// 폴백 처리를 수행하는 메서드

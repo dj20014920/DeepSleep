@@ -13,7 +13,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
     // MARK: - AI Services
-    var aiOrchestrator: EnhancedUnifiedAIOrchestrator?
+    // var aiOrchestrator: EnhancedUnifiedAIOrchestrator? // TODO: Implement this type or remove
 
     func scene(_ scene: UIScene,
                    willConnectTo session: UISceneSession,
@@ -32,7 +32,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         #endif
         
         // 🚀 AI 서비스 스택 초기화
-        setupAIServices()
+        // setupAIServices() // TODO: Uncomment when EnhancedUnifiedAIOrchestrator is implemented
         
         let window = UIWindow(windowScene: windowScene)
 
@@ -284,16 +284,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let _ = PersonaMemoryManager(modelContext: modelContext)
             
             // 2. EnhancedUnifiedAIOrchestrator 초기화 (파라미터 없는 버전 사용)
-            let orchestrator = EnhancedUnifiedAIOrchestrator()
+            // TODO: Implement EnhancedUnifiedAIOrchestrator
+            // let orchestrator = EnhancedUnifiedAIOrchestrator()
             
             // 3. SceneDelegate의 프로퍼티에 할당
-            self.aiOrchestrator = orchestrator
+            // self.aiOrchestrator = orchestrator
             
             print("✅ [SceneDelegate] AI 서비스 스택 초기화 완료 (iOS 17+)")
         } else {
             // iOS 17 미만에서는 기본 AI 서비스만 사용
-            let orchestrator = EnhancedUnifiedAIOrchestrator()
-            self.aiOrchestrator = orchestrator
+            // TODO: Implement EnhancedUnifiedAIOrchestrator
+            // let orchestrator = EnhancedUnifiedAIOrchestrator()
+            // self.aiOrchestrator = orchestrator
             
             print("✅ [SceneDelegate] 기본 AI 서비스 초기화 완료 (iOS 16 호환)")
         }

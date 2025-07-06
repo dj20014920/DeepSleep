@@ -63,11 +63,18 @@ public final class NaverService: LLMServiceProtocol {
             throw LLMError.apiError("Failed to encode request body: \(error.localizedDescription)")
         }
         
+        let startTime = Date()
         let (data, response) = try await session.data(for: request)
+        let processingTime = Date().timeIntervalSince(startTime)
         
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            // TODO: API 에러 응답 파싱
-            throw LLMError.apiError("Invalid response from Naver API. Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.apiError("Invalid response type from Naver API")
+        }
+        
+        // API 에러 응답 파싱
+        if httpResponse.statusCode != 200 {
+            let errorMessage = parseNaverError(from: data, statusCode: httpResponse.statusCode)
+            throw LLMError.apiError(errorMessage)
         }
         
         do {
@@ -78,7 +85,7 @@ public final class NaverService: LLMServiceProtocol {
             let metadata = LLMResponseMetadata(
                 modelUsed: .naver,
                 tokensUsed: tokensUsed,
-                processingTime: 0 // TODO: 정확한 처리 시간 측정
+                processingTime: processingTime
             )
             
             return LLMResponse(content: content, metadata: metadata)
@@ -103,6 +110,34 @@ public final class NaverService: LLMServiceProtocol {
     
     public func isAvailable() async -> Bool {
         return !clientId.isEmpty && !clientSecret.isEmpty
+    }
+    
+    // MARK: - Error Parsing
+    
+    private func parseNaverError(from data: Data?, statusCode: Int) -> String {
+        guard let data = data else {
+            return "Naver API error with status code: \(statusCode)"
+        }
+        
+        do {
+            if let errorResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                // Naver CLOVA Studio API의 에러 형식에 맞게 파싱
+                if let error = errorResponse["error"] as? [String: Any],
+                   let message = error["message"] as? String {
+                    let code = error["code"] as? String ?? "unknown"
+                    return "Naver API error (\(code)): \(message) (Status: \(statusCode))"
+                } else if let message = errorResponse["message"] as? String {
+                    return "Naver API error: \(message) (Status: \(statusCode))"
+                }
+            }
+        } catch {
+            // JSON 파싱 실패 시 원본 데이터 확인
+            if let errorString = String(data: data, encoding: .utf8) {
+                return "Naver API error: \(errorString) (Status: \(statusCode))"
+            }
+        }
+        
+        return "Naver API error with status code: \(statusCode)"
     }
 }
 

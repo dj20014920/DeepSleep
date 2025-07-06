@@ -5,6 +5,14 @@ extension EmotionDiaryViewController {
     
     // MARK: - Insight Generation
     func updateInsightView() {
+        // 🔧 메인 스레드에서 UI 업데이트 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateInsightView()
+            }
+            return
+        }
+        
         // 기존 뷰들 제거
         insightStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         
@@ -91,6 +99,7 @@ extension EmotionDiaryViewController {
         containerView.backgroundColor = color
         containerView.layer.cornerRadius = 12
         containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.clipsToBounds = true
         
         // 메인 컨텐츠 뷰
         let mainContentView = UIView()
@@ -219,14 +228,25 @@ extension EmotionDiaryViewController {
         
         let isExpanded = !dropdownContentView.isHidden
         
+        // 드롭다운 컨텐츠 설정
+        if !isExpanded {
+            dropdownLabel.text = self.getDropdownContent(for: dropdownType)
+        }
+        
         // 애니메이션으로 드롭다운 토글
-        UIView.animate(withDuration: 0.3) {
+        UIView.animate(withDuration: 0.3, animations: {
             dropdownContentView.isHidden = isExpanded
             dropdownArrow.text = isExpanded ? "▼" : "▲"
+            dropdownContentView.alpha = isExpanded ? 0 : 1
+        }) { _ in
+            // 애니메이션 완료 후 레이아웃 업데이트
+            self.insightStackView.setNeedsLayout()
+            self.insightStackView.layoutIfNeeded()
             
-            if !isExpanded {
-                // 드롭다운 컨텐츠 설정
-                dropdownLabel.text = self.getDropdownContent(for: dropdownType)
+            // 스크롤뷰 컨텐츠 크기 조정
+            if let scrollView = self.insightStackView.superview as? UIScrollView {
+                let contentHeight = self.insightStackView.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).height
+                scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight + 100) // 여유 공간 추가
             }
         }
     }

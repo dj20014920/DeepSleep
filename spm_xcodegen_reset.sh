@@ -1,40 +1,38 @@
-#!/usr/bin/env bash
-set -euxo pipefail
+#!/bin/bash
+# -------------------------------------------------------------
+# spm_xcodegen_reset.sh
+# Resets SPM caches and regenerates the Xcode project via XcodeGen
+# Usage: sh spm_xcodegen_reset.sh
+# -------------------------------------------------------------
+set -euo pipefail
 
-# ----------------------------------------
-# 사용자 Apple Developer Team ID 설정
-# ----------------------------------------
+PROJECT_NAME="DeepSleep"
 
-echo "⏳ Clearing DerivedData..."
-rm -rf ~/Library/Developer/Xcode/DerivedData
+function info() {
+  echo "[INFO] $1"
+}
 
-echo "⏳ Clearing .build..."
-rm -rf .build
-if [ -f Package.swift ]; then
-  echo "⏳ Clearing SwiftPM caches..."
-  swift package clean
-  swift package reset
-  swift package resolve
-else
-  echo "ℹ️ No Package.swift found; skipping SwiftPM cache cleanup"
+info "Removing DerivedData for $PROJECT_NAME"
+rm -rf ~/Library/Developer/Xcode/DerivedData/${PROJECT_NAME}-*
+
+info "Removing local build caches (.build, .swiftpm, xcuserdata, WorkspaceSettings)"
+rm -rf .build .swiftpm
+rm -rf ${PROJECT_NAME}.xcodeproj/project.xcworkspace/xcshareddata/SwiftPM
+rm -rf ${PROJECT_NAME}.xcodeproj/xcuserdata
+rm -rf ${PROJECT_NAME}.xcodeproj/xcshareddata/WorkspaceSettings.xcsettings || true
+
+info "Re-generating Xcode project with XcodeGen"
+if ! command -v xcodegen >/dev/null 2>&1; then
+  echo "[ERROR] XcodeGen is not installed. Install via 'brew install xcodegen' and re-run." >&2
+  exit 1
 fi
-
-echo "⏳ Cleaning XcodeGen user data and SwiftPM cache inside the workspace..."
-rm -rf DeepSleep.xcodeproj/xcuserdata
-rm -rf DeepSleep.xcodeproj/project.xcworkspace/xcuserdata
-rm -rf DeepSleep.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
-
-echo "⏳ Regenerating Xcode project via XcodeGen..."
 xcodegen generate
 
-# ----------------------------------------
-# Xcode 프로젝트에 Development Team 자동 설정
-# ----------------------------------------
-# DEVELOPMENT_TEAM을 지정된 TEAM_ID로 업데이트
+info "Resetting and resolving Swift Package caches"
+# Reset package caches & resolve package versions
+xcodebuild -resolvePackageDependencies -project ${PROJECT_NAME}.xcodeproj -scheme ${PROJECT_NAME}
 
-echo "✅ Reset complete. Next steps to finalize FSCalendar sync fix:"
-echo "   1. Open DeepSleep.xcodeproj in Xcode"
-echo "   2. File > Packages > Reset Package Caches"
-echo "   3. File > Packages > Resolve Package Versions"
-echo "   4. Product > Clean Build Folder (⇧⌘K)"
-echo "   5. Build and run (⌘B) to confirm no FSCalendar errors" 
+info "Cleaning build folder"
+xcodebuild clean -project ${PROJECT_NAME}.xcodeproj -scheme ${PROJECT_NAME} -configuration Debug
+
+info "SPM/XcodeGen reset complete. Open ${PROJECT_NAME}.xcodeproj and build again." 

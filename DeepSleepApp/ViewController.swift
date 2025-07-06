@@ -964,20 +964,9 @@ class ViewController: UIViewController {
     private func checkAndTriggerOnDeviceLearning() async {
         print("🤖 [Auto Learning] 온디바이스 학습 조건 검사 시작...")
         
-        // 백그라운드에서 학습 조건 검사
-        Task.detached(priority: .background) {
-            let shouldUpdate = await ComprehensiveRecommendationEngine.shared.triggerModelUpdate()
-            
-            if shouldUpdate {
-                // 학습 완료 후 모델 적용
-                await MainActor.run {
-                    ComprehensiveRecommendationEngine.shared.applyUpdatedModel()
-                    print("🎉 [Auto Learning] 자동 학습 및 모델 업데이트 완료!")
-                }
-            } else {
-                print("📊 [Auto Learning] 현재 학습 조건 미충족 - 기존 모델 유지")
-            }
-        }
+        // TODO: 온디바이스 학습 기능 구현 필요
+        // 현재는 기본 추천 엔진만 사용
+        print("📊 [Auto Learning] 온디바이스 학습 기능은 추후 구현 예정")
     }
 
     // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 처리

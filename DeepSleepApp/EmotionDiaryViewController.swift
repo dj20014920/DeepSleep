@@ -191,18 +191,42 @@ class EmotionDiaryViewController: UIViewController {
     
     // MARK: - Data Loading
     internal func loadDiaryData() {
-        diaryEntries = SettingsManager.shared.loadEmotionDiary()
-        tableView.reloadData()
-        updateInsightView()
+        // 🔧 메인 스레드에서 실행 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.loadDiaryData()
+            }
+            return
+        }
+        
+        self.diaryEntries = SettingsManager.shared.loadEmotionDiary()
+        self.tableView.reloadData()
+        self.updateInsightView()
     }
     
     // MARK: - View Switching
     @objc private func segmentChanged() {
         currentView = segmentedControl.selectedSegmentIndex
+        // 🔧 메인 스레드에서 실행 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.segmentChanged()
+            }
+            return
+        }
+        
         showCurrentView()
     }
     
     private func showCurrentView() {
+        // 🔧 UI 업데이트를 메인 스레드에서 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.showCurrentView()
+            }
+            return
+        }
+        
         // 모든 뷰 숨기기
         tableView.isHidden = true
         calendarViewController.view.isHidden = true
@@ -224,6 +248,14 @@ class EmotionDiaryViewController: UIViewController {
     }
     
     func updateScrollViewContentSize() {
+        // 🔧 UI 업데이트를 메인 스레드에서 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateScrollViewContentSize()
+            }
+            return
+        }
+        
         // 현재 보이는 뷰의 크기에 맞춰 스크롤 뷰 컨텐츠 크기 업데이트
         var contentHeight: CGFloat = 0
         

@@ -64,11 +64,18 @@ public final class GeminiService: LLMServiceProtocol {
             throw LLMError.apiError("Failed to encode request body: \(error.localizedDescription)")
         }
         
+        let startTime = Date()
         let (data, response) = try await session.data(for: request)
+        let processingTime = Date().timeIntervalSince(startTime)
         
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            // TODO: API 에러 응답 파싱
-            throw LLMError.apiError("Invalid response from Gemini API. Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.apiError("Invalid response type from Gemini API")
+        }
+        
+        // API 에러 응답 파싱
+        if httpResponse.statusCode != 200 {
+            let errorMessage = parseGeminiError(from: data, statusCode: httpResponse.statusCode)
+            throw LLMError.apiError(errorMessage)
         }
         
         do {
@@ -79,7 +86,7 @@ public final class GeminiService: LLMServiceProtocol {
             let metadata = LLMResponseMetadata(
                 modelUsed: .gemini,
                 tokensUsed: tokensUsed,
-                processingTime: 0 // TODO: 정확한 처리 시간 측정
+                processingTime: processingTime
             )
             
             return LLMResponse(content: content, metadata: metadata)
@@ -105,6 +112,29 @@ public final class GeminiService: LLMServiceProtocol {
     
     public func isAvailable() async -> Bool {
         return !apiKey.isEmpty
+    }
+    
+    // MARK: - Error Parsing
+    
+    private func parseGeminiError(from data: Data?, statusCode: Int) -> String {
+        guard let data = data else {
+            return "Gemini API error with status code: \(statusCode)"
+        }
+        
+        do {
+            if let errorResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = errorResponse["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                return "Gemini API error: \(message) (Status: \(statusCode))"
+            }
+        } catch {
+            // JSON 파싱 실패 시 원본 데이터 확인
+            if let errorString = String(data: data, encoding: .utf8) {
+                return "Gemini API error: \(errorString) (Status: \(statusCode))"
+            }
+        }
+        
+        return "Gemini API error with status code: \(statusCode)"
     }
 }
 

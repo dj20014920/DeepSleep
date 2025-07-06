@@ -1003,7 +1003,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
         Task {
             do {
-                let promptContent = await buildComprehensivePrompt()
+                let promptContent = await self.buildComprehensivePrompt()
                 let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
                 
                 DispatchQueue.main.async { [weak self] in
@@ -1046,10 +1046,180 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     */
                     
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
-                    self.updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트 (다시 활성화 등)
+            updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트 (다시 활성화 등)
                 }
             }
         }
+    }
+    
+    // MARK: - 종합 프롬프트 생성
+    private func buildComprehensivePrompt() async -> String {
+        // 🆕 향상된 분석을 위한 할 일 분류 및 컨텍스트 수집
+        let allTodos = selectedDateTodos
+        let completedTodos = allTodos.filter { $0.isCompleted }
+        let pendingTodos = allTodos.filter { !$0.isCompleted }
+        
+        // 🆕 연속 일정 분석 (장기 여행 등의 정보 수집)
+        let continuousEvents = getContinuousEventContext()
+        
+        // 현재 시간 및 날짜 정보
+        let currentTime = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
+        let currentTimeString = timeFormatter.string(from: currentTime)
+        
+        let selectedDateFormatter = DateFormatter()
+        selectedDateFormatter.dateFormat = "MM월 dd일 (E)"
+        selectedDateFormatter.locale = Locale(identifier: "ko_KR")
+        let selectedDateString = selectedDateFormatter.string(from: selectedDate)
+        
+        // 할 일 우선순위별 분류
+        let highPriorityTodos = allTodos.filter { $0.priority == 2 }
+        let mediumPriorityTodos = allTodos.filter { $0.priority == 1 }
+        let lowPriorityTodos = allTodos.filter { $0.priority == 0 }
+        
+        // 긴급성 분석 (마감일 기준)
+        let urgentTodos = pendingTodos.filter {
+            $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 // 24시간 이내
+        }
+        
+        // 주간 컨텍스트
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        
+        var promptContent = """
+        📅 날짜: \(selectedDateString)
+        🕒 현재 시간: \(currentTimeString)
+        
+        📊 할 일 현황:
+        • 전체 할 일: \(allTodos.count)개
+        • 완료된 할 일: \(completedTodos.count)개
+        • 남은 할 일: \(pendingTodos.count)개
+        • 긴급한 할 일: \(urgentTodos.count)개 (24시간 이내)
+        
+        🎯 우선순위별 분류:
+        • 높음: \(highPriorityTodos.count)개
+        • 보통: \(mediumPriorityTodos.count)개  
+        • 낮음: \(lowPriorityTodos.count)개
+        
+        📋 상세 할 일 목록:
+        """
+        
+        // 우선순위 높은 순으로 정렬하여 표시
+        let sortedTodos = allTodos.sorted { $0.priority > $1.priority }
+        for (index, todo) in sortedTodos.enumerated() {
+            let priorityEmoji = ["📌", "📝", "📄"][todo.priority]
+            let statusEmoji = todo.isCompleted ? "✅" : "⏳"
+            let urgentMark = urgentTodos.contains(where: { $0.id == todo.id }) ? " 🔥" : ""
+            
+            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(todo.title) (\(todo.dueDateString))\(urgentMark)"
+            if let notes = todo.notes, !notes.isEmpty {
+                promptContent += " - 메모: \(notes)"
+            }
+        }
+        
+        // 🆕 연속 일정 정보 추가
+        if !continuousEvents.isEmpty {
+            promptContent += "\n\n🗓️ 연속 일정 정보:"
+            for eventInfo in continuousEvents {
+                promptContent += "\n\(eventInfo)"
+            }
+        }
+        
+        promptContent += """
+        
+        📈 요청사항:
+        위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 **200자 이내**로 간결하게 해주세요:
+        1. 우선순위 조정 및 시간 배분 전략
+        2. 효율적인 업무 순서 및 실행 방법
+        3. 스트레스 관리 및 동기부여 방안
+        
+        **중요**: 응답을 200자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
+        단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
+        """
+        
+        return promptContent
+    }
+    
+    // MARK: - 개별 할 일 프롬프트 생성
+    private func buildIndividualTodoPrompt(for todo: TodoItem) async -> String {
+        // 할 일 상세 정보 분석
+        let currentTime = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
+        let currentTimeString = timeFormatter.string(from: currentTime)
+        
+        let priorityText = ["낮음", "보통", "높음"][todo.priority]
+        let statusText = todo.isCompleted ? "완료됨" : "미완료"
+        let timeUntilDue = todo.dueDate.timeIntervalSince(currentTime)
+        let daysUntilDue = Int(timeUntilDue / (24 * 3600))
+        
+        var urgencyText = ""
+        if timeUntilDue < 0 {
+            urgencyText = "마감일이 \(abs(daysUntilDue))일 지났음 (지연됨)"
+        } else if timeUntilDue < 24 * 3600 {
+            urgencyText = "오늘 마감 (긴급)"
+        } else if timeUntilDue < 3 * 24 * 3600 {
+            urgencyText = "\(daysUntilDue)일 후 마감 (급함)"
+        } else {
+            urgencyText = "\(daysUntilDue)일 후 마감"
+        }
+        
+        // 주간 컨텍스트
+        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        
+        var promptContent = """
+        🎯 할 일 상세 분석:
+        • 제목: \(todo.title)
+        • 상태: \(statusText)
+        • 우선순위: \(priorityText)
+        • 마감일: \(todo.dueDateString)
+        • 긴급도: \(urgencyText)
+        • 현재 시간: \(currentTimeString)
+        • 조언 횟수: \(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount) (이번이 \(todo.adviceRequestCount + 1)번째)
+        """
+        
+        if let notes = todo.notes, !notes.isEmpty {
+            promptContent += "\n• 메모: \(notes)"
+        }
+        
+        promptContent += """
+        
+        📝 요청사항:
+        위 할 일에 대해 다음 관점에서 개인화된 조언을 **150자 이내**로 간결하게 해주세요:
+        1. 실행 전략 및 구체적인 첫 번째 액션
+        2. 시간 관리 및 효율적인 접근법
+        3. 동기부여 및 완료 팁
+        
+        **중요**: 응답을 150자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
+        추상적인 격려보다는 실제로 실행할 수 있는 구체적인 방법을 제시해주세요.
+        """
+        
+        return promptContent
+    }
+    
+    // MARK: - 연속 일정 컨텍스트 가져오기
+    private func getContinuousEventContext() -> [String] {
+        var continuousEvents: [String] = []
+        
+        let allTodos = TodoManager.shared.loadTodos()
+        let rangeEvents = allTodos.filter { todo in
+            guard let endDate = todo.endDate, !todo.isCompleted else { return false }
+            // 선택된 날짜가 연속 일정 범위에 포함되는지 확인
+            return isDateInEventRange(todo, date: selectedDate)
+        }
+        
+        for event in rangeEvents {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd"
+            let startStr = formatter.string(from: event.dueDate)
+            let endStr = event.endDate != nil ? formatter.string(from: event.endDate!) : ""
+            
+            let priorityText = ["📌 낮음", "📝 보통", "🔥 높음"][event.priority]
+            let eventInfo = "• \(event.title) (\(startStr)~\(endStr)) - \(priorityText)"
+            continuousEvents.append(eventInfo)
+        }
+        
+        return continuousEvents
     }
     
     // MARK: - 🆕 할 일 개별 조언 기능 - 통합 횟수 관리
@@ -1146,7 +1316,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         Task {
             do {
-                let promptContent = await buildDiaryBasedPrompt()
+                let promptContent = await self.buildIndividualTodoPrompt(for: todo)
                 let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
                 
                 DispatchQueue.main.async { [weak self] in
@@ -1167,20 +1337,18 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                                 if let error = error {
                                     print("⚠️ 할 일 조언 횟수 업데이트 실패: \(error.localizedDescription)")
                                 } else {
-                                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
+                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
                                 }
                             }
                             
-                            // UI 새로고침
+                            // 테이블 뷰 업데이트
                             self.tableView.reloadData()
                         }
+                        
+                        AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                     }
                     
-                    // 조언 표시
-                    self.showAdvice(title: "💡 \(todo.title) 조언 (\(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount))", advice: advice.content)
-                    
-                    // 전체 일일 제한 횟수도 기록
-                    AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
+                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice.content)
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in
@@ -1189,30 +1357,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    // 구체적인 오류 메시지 제공
-                    var errorMessage = "할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
-                    /*
-                    if let serviceError = error as? ReplicateChatService.ServiceError {
-                        switch serviceError {
-                        case .invalidAPIKey:
-                            errorMessage = "API 키 설정에 문제가 있습니다. 개발자에게 문의하세요."
-                        case .predictionTimeout:
-                            errorMessage = "응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
-                        case .replicateAPIError(let detail):
-                            errorMessage = "API 오류: \(detail)"
-                        default:
-                            errorMessage = serviceError.localizedDescription
-                        }
-                    } else {
-                        errorMessage += " (\(error.localizedDescription))"
-                    }
-                    */
-                    
+                    let errorMessage = "개별 할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
                 }
             }
         }
     }
+    
+    // MARK: - UI Helper Methods
+    // These methods are already defined earlier in the file
     
     // MARK: - 🔧 삭제 기능 분리
     private func deleteTodo(at indexPath: IndexPath) {
@@ -1256,62 +1409,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     // MARK: - 🆕 연속 일정 컨텍스트 분석
-    private func getContinuousEventContext() -> [String] {
-        var eventContext: [String] = []
-        let todoManager = TodoManager.shared
-        let calendar = Calendar.current
-        
-        // 선택된 날짜 기준으로 연속 일정 찾기
-        for todo in selectedDateTodos {
-            if let endDate = todo.endDate {
-                // 연속 일정인 경우
-                let daysDiff = calendar.dateComponents([.day], from: todo.dueDate, to: endDate).day ?? 0
-                
-                if daysDiff > 0 {
-                    let startDay = calendar.startOfDay(for: todo.dueDate)
-                    let selectedDay = calendar.startOfDay(for: selectedDate)
-                    let dayFromStart = calendar.dateComponents([.day], from: startDay, to: selectedDay).day ?? 0
-                    
-                    let totalDays = daysDiff + 1
-                    let currentDayNum = dayFromStart + 1
-                    
-                    // 연속 일정의 각 날짜별 정보 수집
-                    var dayInfos: [String] = []
-                    
-                    for dayOffset in 0..<totalDays {
-                        let currentDate = calendar.date(byAdding: .day, value: dayOffset, to: startDay)!
-                        let dayNum = dayOffset + 1
-                        
-                        let formatter = DateFormatter()
-                        formatter.dateFormat = "MM/dd"
-                        let dateString = formatter.string(from: currentDate)
-                        
-                        // 해당 날짜의 다른 할 일들도 확인
-                        let todosForDay = todoManager.getTodos(for: currentDate)
-                        let otherTodos = todosForDay.filter { $0.id != todo.id }
-                        
-                        var dayInfo = "\(dayNum)일차(\(dateString))"
-                        
-                        if dayNum == currentDayNum {
-                            dayInfo += " ⭐️현재"
-                        }
-                        
-                        if !otherTodos.isEmpty {
-                            let otherTodoTitles = otherTodos.prefix(2).map { $0.title }.joined(separator: ", ")
-                            dayInfo += " - 추가일정: \(otherTodoTitles)"
-                        }
-                        
-                        dayInfos.append(dayInfo)
-                    }
-                    
-                    let eventInfo = "📅 \(todo.title) (\(totalDays)일간): " + dayInfos.joined(separator: " | ")
-                    eventContext.append(eventInfo)
-                }
-            }
-        }
-        
-        return eventContext
-    }
+    // This method is already defined earlier in the file
  
     // MARK: - 🧠 AI 조언 기능 (리팩토링 완료)
  

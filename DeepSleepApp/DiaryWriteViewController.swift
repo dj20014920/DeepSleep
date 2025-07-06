@@ -397,18 +397,21 @@ class DiaryWriteViewController: UIViewController {
     
     private func startAIChat() {
         guard let diaryEntry = savedDiaryEntry else { return }
-        let chatVC = ChatViewController()
+        
+        // ChatRouter를 사용하여 ChatViewController 생성
+        let chatVC = ChatRouter.chatViewController()
+        
         // 필수 데이터 검증
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기를 분석해줘"
-        chatVC.onPresetApply = { [weak self] recommendation in
+        chatVC.onPresetApply = { [weak self] preset in
             NotificationCenter.default.post(
                 name: NSNotification.Name("ApplyPresetFromChat"),
                 object: nil,
                 userInfo: [
-                    "volumes": recommendation.volumes,
-                    "presetName": recommendation.presetName,
-                    "selectedVersions": recommendation.selectedVersions as Any
+                    "volumes": preset.volumes,
+                    "presetName": preset.name,
+                    "selectedVersions": preset.selectedVersions as Any
                 ]
             )
             // dismiss 중첩/race condition 방지

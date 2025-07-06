@@ -23,13 +23,19 @@
 import Foundation
 import OSLog
 import HealthKit
+import Core
 
-/// 🏆 Enhanced Apple Watch Health Data AI Analysis System
+/// 🏆 Multi-Threaded Enhanced Apple Watch Health Data AI Analysis System
 /// 애플워치 건강 데이터를 기반으로 한 고도화된 AI 분석 및 추천 시스템
-/// 다차원 벡터 분석과 신경망 연결 완전 구현
+/// 중요한 데이터와 AI 코칭을 통합하여 안정적인 사용자 경험 제공
 @MainActor
 class HealthKitManager: NSObject, ObservableObject {
     static let shared = HealthKitManager()
+    
+    private let computationQueue = DispatchQueue(label: "com.deepsleep.healthkit", qos: .userInitiated, attributes: .concurrent)
+    private let mergeQueue = DispatchQueue(label: "com.deepsleep.healthkit.merge", qos: .utility)
+    
+    private let neuralNetworkProcessor = NeuralNetworkProcessor.shared
     
     // MARK: - Published Properties for SwiftUI
     @Published var isAuthorized = false

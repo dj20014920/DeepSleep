@@ -10,7 +10,7 @@ import FSCalendar
 import CoreData
 import Combine
 
-class EmotionCalendarViewController: UIViewController {
+class EmotionCalendarViewController: UIViewController, UICollectionViewDataSource {
     
     enum SectionType {
         case insight(String)
@@ -62,13 +62,18 @@ class EmotionCalendarViewController: UIViewController {
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
         self.container = appDelegate.persistentContainer
         
-        // UI setup needs to be restored later
+        // UI setup
         view.backgroundColor = .systemBackground
-        title = "Emotion Calendar"
+        title = "감정 캘린더"
         
-        // TODO: setupCalendar() and other UI setup calls should be placed here
-        // For now, we focus on merging and fixing logic.
+        // UI 구성
+        setupCalendar()
+        setupHeaderLabel()
+        setupCollectionView()
+        
+        // 데이터 로드
         loadDiaryData()
+        loadData(for: selectedDate)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -93,13 +98,108 @@ class EmotionCalendarViewController: UIViewController {
         }
     }
     
+    // MARK: - UI Setup Methods
+    
+    private func setupCalendar() {
+        calendar = FSCalendar()
+        calendar.delegate = self
+        calendar.dataSource = self
+        calendar.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 캘린더 스타일 설정
+        calendar.backgroundColor = .systemBackground
+        calendar.appearance.headerTitleColor = .label
+        calendar.appearance.weekdayTextColor = .label
+        calendar.appearance.titleDefaultColor = .label
+        calendar.appearance.titleTodayColor = .white
+        calendar.appearance.todayColor = .systemBlue
+        calendar.appearance.selectionColor = .systemPurple
+        calendar.appearance.eventDefaultColor = .systemGreen
+        calendar.appearance.headerDateFormat = "yyyy년 MM월"
+        
+        view.addSubview(calendar)
+        
+        NSLayoutConstraint.activate([
+            calendar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            calendar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            calendar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            calendar.heightAnchor.constraint(equalToConstant: 300)
+        ])
+    }
+    
+    private func setupHeaderLabel() {
+        headerLabel = UILabel()
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        headerLabel.font = .systemFont(ofSize: 18, weight: .semibold)
+        headerLabel.textColor = .label
+        headerLabel.text = "오늘의 감정"
+        
+        view.addSubview(headerLabel)
+        
+        NSLayoutConstraint.activate([
+            headerLabel.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 16),
+            headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            headerLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
+        ])
+    }
+    
+    private func setupCollectionView() {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 16
+        layout.minimumInteritemSpacing = 16
+        layout.sectionInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .systemBackground
+        collectionView.dataSource = self
+        collectionView.delegate = self
+        
+        // 셀 등록
+        collectionView.register(InsightCell.self, forCellWithReuseIdentifier: InsightCell.reuseIdentifier)
+        collectionView.register(TodoListCell.self, forCellWithReuseIdentifier: TodoListCell.reuseIdentifier)
+        collectionView.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "SectionHeaderView")
+        
+        view.addSubview(collectionView)
+        
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 16),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+    }
+    
+    private func loadData(for date: Date) {
+        sections.removeAll()
+        
+        // AI Insight 섹션 추가
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M월 d일"
+        let dateString = formatter.string(from: date)
+        
+        let insightText = "📊 \(dateString)의 감정 분석\n\n구체적인 일기를 작성하면 AI가 분석해드립니다."
+        sections.append(.insight(insightText))
+        
+        // Todo 섹션 추가
+        let todos = todoManager.getTodos(for: date)
+        if !todos.isEmpty {
+            sections.append(.todo(todos))
+        }
+        
+        collectionView.reloadData()
+    }
+    
+    // Removed duplicate method - see extension at line 639
+    
     // MARK: - UICollectionViewDataSource
     
     func numberOfSections(in collectionView: UICollectionView) -> Int {
         return sections.count
     }
     
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    @objc func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         switch sections[section] {
         case .insight:
             return 1
@@ -108,7 +208,7 @@ class EmotionCalendarViewController: UIViewController {
         }
     }
     
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    @objc func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         switch sections[indexPath.section] {
         case .insight(let text):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath) as! InsightCell
@@ -161,6 +261,23 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
         return diaryDataForCalendar[dateString] != nil ? 1 : 0
+    }
+}
+
+// MARK: - UICollectionViewDelegateFlowLayout
+extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let width = collectionView.frame.width - 32 // 양쪽 패딩
+        switch sections[indexPath.section] {
+        case .insight:
+            return CGSize(width: width, height: 120)
+        case .todo:
+            return CGSize(width: width, height: 80)
+        }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
+        return CGSize(width: collectionView.frame.width, height: 50)
     }
 }
 

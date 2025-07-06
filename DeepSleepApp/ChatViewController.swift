@@ -348,12 +348,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     // MARK: - 💬 메시지 전송 처리 (리팩토링 완료)
     
     @objc func sendButtonTapped() {
-        guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return }
+        print("🔵 [ChatViewController] sendButtonTapped() 호출됨")
+        guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { 
+            print("🔴 [ChatViewController] 입력 텍스트가 비어있음")
+            return 
+        }
         
+        print("🔵 [ChatViewController] 입력 텍스트: '\(text)'")
         inputTextField.text = ""
         
         // 🚀 새로운 AI 응답 처리 함수 호출
         fetchAIResponse(for: text)
+        print("🔵 [ChatViewController] fetchAIResponse 호출 완료")
     }
     
     // MARK: - 🚀 AI 응답 처리 (신규 아키텍처)
@@ -394,6 +400,161 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         }
     }
     
+    // MARK: - 📱 Message Management Methods
+    
+    /// 채팅 메시지를 추가하고 UI를 업데이트합니다
+    private func addMessageToChat(message: String, fromUser: Bool) {
+        print("🟡 [ChatViewController] addMessageToChat 호출됨 - 메시지: '\(message)', fromUser: \(fromUser)")
+        let messageType: ChatMessageType = fromUser ? .user : .bot
+        let sender: MessageSender = fromUser ? .user : .ai
+        let chatMessage = ChatMessage(
+            text: message,
+            date: Date(),
+            sender: sender,
+            type: messageType
+        )
+        print("🟡 [ChatViewController] ChatMessage 생성됨 - ID: \(chatMessage.id)")
+        appendChat(chatMessage)
+    }
+    
+    /// ChatMessage 객체를 채팅에 추가하고 UI를 업데이트합니다
+    private func appendChat(_ message: ChatMessage) {
+        print("🟢 [ChatViewController] appendChat 호출됨 - 메시지 ID: \(message.id), 현재 메시지 수: \(messages.count)")
+        DispatchQueue.main.async {
+            print("🟢 [ChatViewController] 메인 스레드에서 UI 업데이트 시작")
+            self.messages.append(message)
+            print("🟢 [ChatViewController] 메시지 배열에 추가됨 - 새로운 메시지 수: \(self.messages.count)")
+            
+            if let chatManager = self.chatManager {
+                chatManager.append(message)
+                print("🟢 [ChatViewController] ChatManager에 메시지 추가됨")
+            } else {
+                print("🔴 [ChatViewController] ChatManager가 nil임!")
+            }
+            
+            print("🟢 [ChatViewController] tableView.reloadData() 호출")
+            self.tableView.reloadData()
+            self.scrollToBottom()
+            print("🟢 [ChatViewController] UI 업데이트 완료")
+        }
+    }
+    
+    /// 로딩 상태를 표시하거나 숨깁니다
+    private func showLoading(_ show: Bool) {
+        print("⏳ [ChatViewController] showLoading 호출됨 - show: \(show)")
+        DispatchQueue.main.async {
+            if show {
+                print("⏳ [ChatViewController] 로딩 메시지 추가")
+                let loadingMessage = ChatMessage(
+                    text: "생각하고 있어요...",
+                    date: Date(),
+                    sender: .ai,
+                    type: .loading
+                )
+                self.messages.append(loadingMessage)
+                print("⏳ [ChatViewController] 로딩 메시지 추가됨 - 메시지 수: \(self.messages.count)")
+            } else {
+                print("⏳ [ChatViewController] 로딩 메시지 제거 시도")
+                if let lastMessage = self.messages.last, lastMessage.type == .loading {
+                    self.messages.removeLast()
+                    print("⏳ [ChatViewController] 로딩 메시지 제거됨 - 메시지 수: \(self.messages.count)")
+                } else {
+                    print("🔴 [ChatViewController] 제거할 로딩 메시지가 없음")
+                }
+            }
+            print("⏳ [ChatViewController] tableView.reloadData() 호출")
+            self.tableView.reloadData()
+            self.scrollToBottom()
+            print("⏳ [ChatViewController] showLoading 완료")
+        }
+    }
+    
+    /// 테이블뷰를 맨 아래로 스크롤합니다
+    private func scrollToBottom() {
+        DispatchQueue.main.async {
+            print("🔄 [ChatViewController] scrollToBottom 호출됨 - 메시지 수: \(self.messages.count)")
+            guard !self.messages.isEmpty else { 
+                print("🔴 [ChatViewController] 메시지가 없어서 스크롤하지 않음")
+                return 
+            }
+            let indexPath = IndexPath(row: self.messages.count - 1, section: 0)
+            print("🔄 [ChatViewController] 스크롤 대상 IndexPath: \(indexPath)")
+            self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+            print("🔄 [ChatViewController] 스크롤 완료")
+        }
+    }
+    
+    // MARK: - 🔧 Additional Helper Methods
+    
+    /// 마지막 로딩 메시지를 제거합니다
+    private func removeLastLoadingMessage() {
+        DispatchQueue.main.async {
+            if let lastMessage = self.messages.last, lastMessage.type == .loading {
+                self.messages.removeLast()
+                self.tableView.reloadData()
+            }
+        }
+    }
+    
+    /// 현재 감정 데이터를 반환합니다
+    private func getEmotionData() -> [String: Any] {
+        return [
+            "primaryEmotion": "평온",
+            "emotion": "평온",
+            "intensity": 0.5,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+    }
+    
+    /// AI 티칭 뷰를 표시합니다
+    private func presentAITeachingView(with message: String) {
+        print("AI 티칭 뷰 표시: \(message)")
+        // TODO: 실제 AI 티칭 뷰 구현
+    }
+    
+    // MARK: - 🐛 Debug Methods
+    
+    private func debugCheckFeedbackStatus() {
+        if #available(iOS 17.0, *) {
+            let totalCount = FeedbackManager.shared.getTotalFeedbackCount()
+            let recentCount = FeedbackManager.shared.getRecentFeedback(limit: 20).count
+            let avgSatisfaction = FeedbackManager.shared.getAverageSatisfaction()
+            print("Feedback - Total: \(totalCount), Recent: \(recentCount), Avg: \(avgSatisfaction)")
+        } else {
+            print("Feedback system requires iOS 17.0+")
+        }
+    }
+    
+    private func debugCreateTestData() {
+        if #available(iOS 17.0, *) {
+            FeedbackManager.shared.createTestFeedbackData()
+            print("Test feedback data created")
+        } else {
+            print("Test data creation requires iOS 17.0+")
+        }
+    }
+    
+    private func debugTestLearningSystem() {
+        if #available(iOS 17.0, *) {
+            let feedbackCount = FeedbackManager.shared.getTotalFeedbackCount()
+            print("Learning system test - Feedback count: \(feedbackCount)")
+        } else {
+            print("Learning system requires iOS 17.0+")
+        }
+    }
+    
+    // MARK: - 🤖 AITeachingDelegate Implementation
+    
+    func didCreateNewRule(userInput: String, correctedMeaning: String) {
+        print("새 규칙 생성: \(userInput) -> \(correctedMeaning)")
+        // TODO: 실제 규칙 생성 로직 구현
+    }
+    
+    func didSaveTeaching(text: String, for persona: String) {
+        print("티칭 저장: \(text) for \(persona)")
+        // TODO: 실제 티칭 저장 로직 구현
+    }
+    
     // MARK: - 💾 채팅 기록 저장/불러오기 (통합)
     
     /// 채팅 기록 저장
@@ -424,7 +585,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // UI 설정
         setupUI()
+        setupConstraints()
+        setupTableView()
+        setupTargets()
+        setupNotifications()
+        setupInitialMessages()
+        
+        // 페이징 및 캐시
         setupPaging()
         loadCachedMessages()
         
@@ -435,6 +605,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             name: UIApplication.didReceiveMemoryWarningNotification,
             object: nil
         )
+        
+        // 배경색 설정
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
+        title = "AI 대화"
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -1585,7 +1759,36 @@ extension ChatViewController {
     }
     
     private func setupUI() {
+        // inputContainerView 설정
         inputContainerView.translatesAutoresizingMaskIntoConstraints = false
+        inputContainerView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+        inputContainerView.layer.shadowColor = UIColor.black.cgColor
+        inputContainerView.layer.shadowOffset = CGSize(width: 0, height: -1)
+        inputContainerView.layer.shadowOpacity = 0.1
+        inputContainerView.layer.shadowRadius = 4
+        
+        // inputTextField 스타일 개선
+        inputTextField.font = .systemFont(ofSize: 16)
+        inputTextField.layer.cornerRadius = 20
+        inputTextField.layer.borderWidth = 1
+        inputTextField.layer.borderColor = UIColor.systemGray4.cgColor
+        
+        // sendButton 스타일 개선
+        sendButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        sendButton.backgroundColor = UIDesignSystem.Colors.primary
+        sendButton.setTitleColor(.white, for: .normal)
+        sendButton.layer.cornerRadius = 8
+        
+        // tableView 설정
+        tableView.backgroundColor = .clear
+        tableView.contentInset = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        
+        // presetButton 스타일 개선
+        presetButton.layer.shadowColor = UIColor.black.cgColor
+        presetButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        presetButton.layer.shadowOpacity = 0.1
+        presetButton.layer.shadowRadius = 4
+        
         inputContainerView.addSubview(inputTextField)
         inputContainerView.addSubview(sendButton)
 
@@ -1945,16 +2148,21 @@ extension ChatViewController {
 // MARK: - UITableViewDataSource, UITableViewDelegate
 extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return messages.count
+        let count = messages.count
+        print("📋 [ChatViewController] numberOfRowsInSection 호출됨 - 반환값: \(count)")
+        return count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        print("📋 [ChatViewController] cellForRowAt 호출됨 - indexPath: \(indexPath), 메시지 수: \(messages.count)")
         guard let cell = tableView.dequeueReusableCell(withIdentifier: ChatBubbleCell.identifier, for: indexPath) as? ChatBubbleCell else {
+            print("🔴 [ChatViewController] ChatBubbleCell dequeue 실패")
             return UITableViewCell()
         }
         
         let message = messages[indexPath.row]
         let isUserMessage = (message.sender == .user)
+        print("📋 [ChatViewController] 메시지 구성 - 텍스트: '\(message.text)', 사용자 메시지: \(isUserMessage)")
         
         var originalUserInput: String?
         if !isUserMessage && indexPath.row > 0 {
@@ -2028,7 +2236,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let recentPresets = getRecentPresets()
         
         // 로컬 컨텍스트 구성 (로컬 분석 모델을 통한 다양한 정보 종합)
-        let masterRecommendation = ComprehensiveRecommendationEngine.shared.generateRecommendation(for: recommendedEmotion, timeOfDay: currentTimeOfDay, intensity: 1.0)
+        // TODO: ComprehensiveRecommendationEngine의 recommendSound 메서드 사용
+        let masterRecommendation = (volumes: Array(repeating: 50.0, count: 10), compatibleVersions: Array(repeating: 1, count: 10))
         
         // 🎭 로컬 알고리즘이 생성한 시적 이름
         let poeticName = generatePoeticPresetName(for: recommendedEmotion)

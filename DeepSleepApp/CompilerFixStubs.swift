@@ -227,6 +227,40 @@ class SectionHeaderView: UICollectionReusableView {
     static let reuseIdentifier = "SectionHeaderView"
     let titleLabel = UILabel()
     let addButton = UIButton()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupViews()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupViews()
+    }
+    
+    private func setupViews() {
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        titleLabel.textColor = .label
+        
+        addButton.translatesAutoresizingMaskIntoConstraints = false
+        addButton.setTitle("+", for: .normal)
+        addButton.setTitleColor(.systemBlue, for: .normal)
+        addButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
+        
+        addSubview(titleLabel)
+        addSubview(addButton)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            
+            addButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            addButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            addButton.widthAnchor.constraint(equalToConstant: 30),
+            addButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
+    }
 }
 
 // Note: CHHapticPattern and haptic feedback system are now implemented in DeepSleepApp/System/HapticManager.swift
@@ -328,34 +362,7 @@ class EnhancedAIRecommendationService {
     }
 }
 
-class ComprehensiveRecommendationEngine {
-    static let shared = ComprehensiveRecommendationEngine()
-    
-    func generateRecommendation(for emotion: String, timeOfDay: String, intensity: Double) -> String {
-        return "추천 결과 예시"
-    }
-    
-    func generatePrimaryRecommendation() -> ComprehensiveRecommendation {
-        let dummyResult = ComprehensiveRecommendation.RecommendationResult(
-            soundId: "AI Placeholder",
-            reasoning: "임시 추천 결과",
-                confidence: 0.5,
-            personalizedExplanation: "실제 설명 구현 필요"
-        )
-        return ComprehensiveRecommendation(
-            primaryRecommendation: dummyResult,
-            alternatives: []
-        )
-    }
-    
-    func triggerModelUpdate() async -> Bool {
-        return false
-    }
-    
-    func applyUpdatedModel() {
-        // 임시로 아무 동작 없음
-    }
-}
+// ComprehensiveRecommendationEngine is already defined in ComprehensiveRecommendationEngine.swift
 
 // MARK: - ProcessingMetadata (Codable support in SoundPresetCatalog.swift)
 
@@ -524,134 +531,8 @@ extension EnhancedRecommendationResponse {
     }
 }
 
-// MARK: - ChatViewController Extensions
-
-extension ChatViewController {
-    func removeLastLoadingMessage() {
-        DispatchQueue.main.async {
-            if let lastMessage = self.messages.last, lastMessage.type == .loading {
-                self.messages.removeLast()
-                // self.tableView.reloadData() // tableView 없음
-            }
-        }
-    }
-    
-    func appendChat(_ message: ChatMessage) {
-        DispatchQueue.main.async {
-            self.messages.append(message)
-            
-            if let chatManager = self.chatManager {
-                chatManager.append(message)
-            }
-            
-            // self.tableView.reloadData() // tableView 없음
-            self.scrollToBottom()
-        }
-    }
-    
-    func addMessageToChat(message: String, fromUser: Bool) {
-        let messageType: ChatMessageType = fromUser ? .user : .bot
-        let sender: MessageSender = fromUser ? .user : .ai
-        let chatMessage = ChatMessage(
-            text: message,
-            date: Date(),
-            sender: sender,
-            type: messageType
-        )
-        appendChat(chatMessage)
-    }
-    
-    func showLoading(_ show: Bool) {
-        DispatchQueue.main.async {
-            if show {
-                let loadingMessage = ChatMessage(
-                    text: "생각하고 있어요...",
-                    date: Date(),
-                    sender: .ai,
-                    type: .loading
-                )
-                self.messages.append(loadingMessage)
-            } else {
-                if let lastMessage = self.messages.last, lastMessage.type == .loading {
-                    self.messages.removeLast()
-                }
-            }
-            // self.tableView.reloadData() // tableView 없음
-            self.scrollToBottom()
-        }
-    }
-    
-    func scrollToBottom() {
-        DispatchQueue.main.async {
-            guard !self.messages.isEmpty else { return }
-            let indexPath = IndexPath(row: self.messages.count - 1, section: 0)
-            // self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true) // tableView 없음
-        }
-    }
-    
-    func didCreateNewRule(userInput: String, correctedMeaning: String) {
-        print("새 규칙 생성: \(userInput) -> \(correctedMeaning)")
-    }
-    
-    func didSaveTeaching(text: String, for persona: String) {
-        print("티칭 저장: \(text) for \(persona)")
-    }
-    
-    func debugCheckFeedbackStatus() {
-        if #available(iOS 17.0, *) {
-            let totalCount = FeedbackManager.shared.getTotalFeedbackCount()
-            let recentCount = FeedbackManager.shared.getRecentFeedback(limit: 20).count
-            let avgSatisfaction = FeedbackManager.shared.getAverageSatisfaction()
-            print("Feedback - Total: \(totalCount), Recent: \(recentCount), Avg: \(avgSatisfaction)")
-        } else {
-            print("Feedback system requires iOS 17.0+")
-        }
-    }
-    
-    func debugCreateTestData() {
-        if #available(iOS 17.0, *) {
-            FeedbackManager.shared.createTestFeedbackData()
-            print("Test feedback data created")
-        } else {
-            print("Test data creation requires iOS 17.0+")
-        }
-    }
-    
-    func debugTestLearningSystem() {
-        if #available(iOS 17.0, *) {
-            let feedbackCount = FeedbackManager.shared.getTotalFeedbackCount()
-            print("Learning system test - Feedback count: \(feedbackCount)")
-        } else {
-            print("Learning system requires iOS 17.0+")
-        }
-    }
-    
-    func getEmotionData() -> [String: Any] {
-        return [
-            "primaryEmotion": "평온",
-            "intensity": 0.5,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-    }
-    
-    func applyLocalPreset(_ preset: [String: Any]) {
-        print("로컬 프리셋 적용: \(preset)")
-    }
-    
-    func presentAITeachingView(with message: String) {
-        print("AI 티칭 뷰 표시: \(message)")
-    }
-    
-    func setupInputView() {
-        // Stub implementation for missing setupInputView method
-        print("setupInputView called - stub implementation")
-    }
-    
-    func loadInitialMessages() {
-        // Stub implementation for missing loadInitialMessages method
-        print("loadInitialMessages called - stub implementation")
-    }
-}
+// MARK: - ChatViewController Extensions removed to avoid conflicts
+// Methods are now implemented directly in ChatViewController
 
 // MARK: - Utility Functions
 

@@ -80,16 +80,24 @@ extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate
         
         saveDiaryList(allDiaries)
         
+        // 🔧 메인 스레드에서 UI 업데이트 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.performDelete(diary: diary, at: indexPath)
+            }
+            return
+        }
+        
         // 테이블 뷰 업데이트 - ✅ 타입 명시로 수정
-        diaryEntries.remove(at: indexPath.row)
+        self.diaryEntries.remove(at: indexPath.row)
         self.tableView.deleteRows(at: [indexPath], with: .fade)
         
         // 성공 알림
-        showAlert(title: "✅", message: "일기가 삭제되었습니다.")
+        self.showAlert(title: "✅", message: "일기가 삭제되었습니다.")
         
         // 인사이트 뷰 업데이트
-        updateInsightView()
-        updateScrollViewContentSize()
+        self.updateInsightView()
+        self.updateScrollViewContentSize()
     }
     
     // ✅ editDiary 구현 (메인 클래스에서 제거됨)
@@ -97,6 +105,15 @@ extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate
         let editVC = EditDiaryViewController()
         editVC.diaryToEdit = diary
         editVC.onDiaryUpdated = { [weak self] updatedDiary in
+            // 🔧 메인 스레드에서 UI 업데이트 보장
+            guard Thread.isMainThread else {
+                DispatchQueue.main.async {
+                    self?.updateDiaryEntry(original: diary, updated: updatedDiary)
+                    self?.loadDiaryData()
+                }
+                return
+            }
+            
             self?.updateDiaryEntry(original: diary, updated: updatedDiary)
             self?.loadDiaryData()
         }
