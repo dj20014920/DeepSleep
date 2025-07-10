@@ -98,6 +98,64 @@ class EnhancedSoundRecommendationEngine {
         }
     }
     
+    // MARK: - 🎯 개인화 시스템 (PersonalizedSoundRecommendationEngine 통합)
+    
+    struct UserSoundPreferences: Codable {
+        var ratings: [String: Float] = [:]           // 사용자 별점 (1-5)
+        var playCount: [String: Int] = [:]           // 재생 횟수
+        var totalPlayTime: [String: TimeInterval] = [:] // 총 재생 시간
+        var skipCount: [String: Int] = [:]           // 스킵 횟수
+        var lastPlayed: [String: Date] = [:]         // 마지막 재생 시간
+        var contextualPrefs: [String: [String: Float]] = [:] // 상황별 선호도
+        
+        // 선호도 점수 계산 (0-1)
+        func getPreferenceScore(for sound: String) -> Float {
+            let rating = ratings[sound] ?? 3.0 // 기본 중간값
+            let playCount = Float(self.playCount[sound] ?? 0)
+            let totalTime = Float(totalPlayTime[sound] ?? 0)
+            let skipCount = Float(self.skipCount[sound] ?? 0)
+            
+            // 가중치 계산
+            let ratingScore = (rating - 1) / 4.0 // 1-5 → 0-1
+            let playScore = min(playCount / 10.0, 1.0) // 10회 이상은 만점
+            let timeScore = min(totalTime / 3600.0, 1.0) // 1시간 이상은 만점
+            let skipPenalty = min(skipCount / max(playCount, 1), 0.5) // 스킵 비율 패널티
+            
+            // 최종 점수 (0-1)
+            let finalScore = (ratingScore * 0.4 + playScore * 0.3 + timeScore * 0.3) * (1.0 - skipPenalty)
+            return max(0, min(1, finalScore))
+        }
+        
+        // 평균 재생 시간 (선호도 지표)
+        func getAveragePlayTime(for sound: String) -> TimeInterval {
+            let totalTime = totalPlayTime[sound] ?? 0
+            let count = playCount[sound] ?? 0
+            return count > 0 ? totalTime / TimeInterval(count) : 0
+        }
+        
+        // 스킵 비율 (비선호도 지표)
+        func getSkipRatio(for sound: String) -> Float {
+            let skips = Float(skipCount[sound] ?? 0)
+            let plays = Float(playCount[sound] ?? 0)
+            return plays > 0 ? skips / plays : 0
+        }
+    }
+    
+    private var userSoundPreferences: UserSoundPreferences {
+        get {
+            guard let data = userDefaults.data(forKey: "UserSoundPreferences"),
+                  let prefs = try? JSONDecoder().decode(UserSoundPreferences.self, from: data) else {
+                return UserSoundPreferences()
+            }
+            return prefs
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                userDefaults.set(data, forKey: "UserSoundPreferences")
+            }
+        }
+    }
+    
     // MARK: - 프로퍼티
     
     private var enhancedCatalog: [EnhancedSoundMetadata] = []
@@ -1214,5 +1272,225 @@ extension EnhancedSoundRecommendationEngine {
         
         let explanation = "사용자의 최근 활동과 유사한 감정 상태를 기반으로 추천되었습니다."
         return FinalRecommendation(preset: bestCandidate.preset, explanation: explanation)
+    }
+}
+
+// MARK: - 🎯 개인화 추천 엔진 메서드들
+
+extension EnhancedSoundRecommendationEngine {
+    
+    /// 기존 하드코딩 추천에 개인화 적용
+    func personalizeRecommendations(
+        baseRecommendations: [String],
+        emotion: String? = nil,
+        timeOfDay: String? = nil
+    ) -> [String] {
+        let prefs = userSoundPreferences
+        
+        // 각 사운드에 개인화 점수 적용
+        let scoredSounds = baseRecommendations.map { sound -> (sound: String, score: Float) in
+            var score = prefs.getPreferenceScore(for: sound)
+            
+            // 상황별 보너스 점수
+            if let emotion = emotion {
+                score += getContextualBonus(sound: sound, context: "emotion_\(emotion)", prefs: prefs)
+            }
+            
+            if let timeOfDay = timeOfDay {
+                score += getContextualBonus(sound: sound, context: "time_\(timeOfDay)", prefs: prefs)
+            }
+            
+            // 최근성 보너스 (최근에 들은 것은 약간 감점)
+            if let lastPlayed = prefs.lastPlayed[sound] {
+                let daysSince = Date().timeIntervalSince(lastPlayed) / (24 * 3600)
+                if daysSince < 1.0 {
+                    score *= 0.8 // 하루 이내는 80% 점수
+                }
+            }
+            
+            return (sound: sound, score: score)
+        }
+        
+        // 점수순으로 정렬하되, 기존 순서도 어느 정도 유지
+        return scoredSounds
+            .sorted { sound1, sound2 in
+                // 점수 차이가 클 때는 점수 우선, 비슷하면 원래 순서 유지
+                let scoreDiff = sound1.score - sound2.score
+                if abs(scoreDiff) > 0.2 {
+                    return sound1.score > sound2.score
+                } else {
+                    // 원래 순서 유지 (기존 전문가 추천 존중)
+                    let index1 = baseRecommendations.firstIndex(of: sound1.sound) ?? 0
+                    let index2 = baseRecommendations.firstIndex(of: sound2.sound) ?? 0
+                    return index1 < index2
+                }
+            }
+            .map { $0.sound }
+    }
+    
+    /// 상황별 보너스 점수 계산
+    private func getContextualBonus(sound: String, context: String, prefs: UserSoundPreferences) -> Float {
+        guard let contextPrefs = prefs.contextualPrefs[context],
+              let bonus = contextPrefs[sound] else {
+            return 0
+        }
+        return bonus * 0.2 // 최대 20% 보너스
+    }
+    
+    // MARK: - 🎓 사용자 행동 학습
+    
+    /// 사운드 재생 시작 기록
+    func recordPlayStart(sound: String, emotion: String? = nil, timeOfDay: String? = nil) {
+        var prefs = userSoundPreferences
+        
+        // 재생 횟수 증가
+        prefs.playCount[sound, default: 0] += 1
+        prefs.lastPlayed[sound] = Date()
+        
+        // 상황별 선호도 기록
+        if let emotion = emotion {
+            let context = "emotion_\(emotion)"
+            prefs.contextualPrefs[context, default: [:]][sound, default: 0] += 0.1
+        }
+        
+        if let timeOfDay = timeOfDay {
+            let context = "time_\(timeOfDay)"
+            prefs.contextualPrefs[context, default: [:]][sound, default: 0] += 0.1
+        }
+        
+        userSoundPreferences = prefs
+    }
+    
+    /// 사운드 재생 완료/중단 기록
+    func recordPlayEnd(sound: String, playTime: TimeInterval, wasSkipped: Bool = false) {
+        var prefs = userSoundPreferences
+        
+        // 총 재생 시간 추가
+        prefs.totalPlayTime[sound, default: 0] += playTime
+        
+        // 스킵 기록
+        if wasSkipped {
+            prefs.skipCount[sound, default: 0] += 1
+        }
+        
+        userSoundPreferences = prefs
+        
+        // 자동 별점 추정 (재생 시간 기반)
+        updateImplicitRating(sound: sound, playTime: playTime, wasSkipped: wasSkipped)
+    }
+    
+    /// 사용자 명시적 별점 기록
+    func recordRating(sound: String, rating: Float) {
+        var prefs = userSoundPreferences
+        prefs.ratings[sound] = max(1, min(5, rating))
+        userSoundPreferences = prefs
+    }
+    
+    /// 재생 시간 기반 암시적 별점 업데이트
+    private func updateImplicitRating(sound: String, playTime: TimeInterval, wasSkipped: Bool) {
+        var prefs = userSoundPreferences
+        
+        // 기존 명시적 별점이 있으면 건드리지 않음
+        guard prefs.ratings[sound] == nil else { return }
+        
+        let avgPlayTime = prefs.getAveragePlayTime(for: sound)
+        let skipRatio = prefs.getSkipRatio(for: sound)
+        
+        var implicitRating: Float = 3.0 // 기본값
+        
+        // 재생 시간 기반 점수
+        if avgPlayTime > 1800 { // 30분 이상
+            implicitRating += 1.0
+        } else if avgPlayTime > 900 { // 15분 이상
+            implicitRating += 0.5
+        } else if avgPlayTime < 60 { // 1분 미만
+            implicitRating -= 1.0
+        }
+        
+        // 스킵 비율 기반 점수
+        if skipRatio > 0.7 { // 70% 이상 스킵
+            implicitRating -= 1.5
+        } else if skipRatio > 0.3 { // 30% 이상 스킵
+            implicitRating -= 0.5
+        }
+        
+        // 현재 세션 평가
+        if wasSkipped && playTime < 30 {
+            implicitRating -= 0.3 // 빠른 스킵 패널티
+        } else if playTime > 600 { // 10분 이상 들음
+            implicitRating += 0.3
+        }
+        
+        prefs.ratings[sound] = max(1, min(5, implicitRating))
+        userSoundPreferences = prefs
+    }
+    
+    // MARK: - 📊 분석 및 인사이트
+    
+    /// 사용자 선호도 분석 결과
+    struct UserInsights {
+        let topFavoriteSounds: [String]
+        let leastFavoriteSounds: [String]
+        let preferredEmotions: [String]
+        let preferredTimes: [String]
+        let totalListeningTime: TimeInterval
+        let averageSessionTime: TimeInterval
+    }
+    
+    /// 사용자 선호도 인사이트 생성
+    func generateUserInsights() -> UserInsights {
+        let prefs = userSoundPreferences
+        
+        // 선호 사운드 (별점 4 이상)
+        let topFavorites = prefs.ratings
+            .filter { $0.value >= 4.0 }
+            .sorted { $0.value > $1.value }
+            .prefix(5)
+            .map { $0.key }
+        
+        // 비선호 사운드 (별점 2 이하)
+        let leastFavorites = prefs.ratings
+            .filter { $0.value <= 2.0 }
+            .sorted { $0.value < $1.value }
+            .prefix(3)
+            .map { $0.key }
+        
+        // 총 청취 시간
+        let totalTime = prefs.totalPlayTime.values.reduce(0, +)
+        
+        // 평균 세션 시간
+        let totalSessions = prefs.playCount.values.reduce(0, +)
+        let avgSession = totalSessions > 0 ? totalTime / TimeInterval(totalSessions) : 0
+        
+        return UserInsights(
+            topFavoriteSounds: Array(topFavorites),
+            leastFavoriteSounds: Array(leastFavorites),
+            preferredEmotions: [], // TODO: 상황별 분석
+            preferredTimes: [],    // TODO: 시간대별 분석
+            totalListeningTime: totalTime,
+            averageSessionTime: avgSession
+        )
+    }
+    
+    /// 사용자 데이터 초기화
+    func resetUserData() {
+        userDefaults.removeObject(forKey: "UserSoundPreferences")
+    }
+    
+    /// 데이터 내보내기 (백업/분석용)
+    func exportUserData() -> String? {
+        guard let data = try? JSONEncoder().encode(userSoundPreferences) else { return nil }
+        return data.base64EncodedString()
+    }
+    
+    /// 데이터 가져오기 (복원용)
+    func importUserData(from base64String: String) -> Bool {
+        guard let data = Data(base64Encoded: base64String),
+              let prefs = try? JSONDecoder().decode(UserSoundPreferences.self, from: data) else {
+            return false
+        }
+        
+        userSoundPreferences = prefs
+        return true
     }
 } 

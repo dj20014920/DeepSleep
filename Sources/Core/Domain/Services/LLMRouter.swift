@@ -42,6 +42,15 @@ public final class LLMRouter: LLMServiceProtocol {
                     duration: Date().timeIntervalSince(startTime)
                 )
                 
+                // TODO: 대화를 캐시에 저장 (백그라운드에서) - 구현 예정
+                // Task {
+                //     do {
+                //         await saveToCacheIfNeeded(task: task, response: response)
+                //     } catch {
+                //         monitor.recordWarning(message: "Failed to cache conversation: \(error.localizedDescription)")
+                //     }
+                // }
+                
                 return response
             } catch let error as LLMError {
                 lastError = error
@@ -100,8 +109,8 @@ public final class LLMRouter: LLMServiceProtocol {
     
     /// 관련 메모리를 검색하는 메서드
     private func fetchRelevantMemory(for task: AITask) async throws -> String {
-        // 장기 기억 기능을 위한 Vector DB 연동
-        // 현재는 로컬 저장소에서 검색 (추후 Pinecone 또는 로컬 벡터 DB로 전환)
+        // TODO: 새로운 대화 캐시 시스템 구현 예정
+        // 현재는 기존 방식 사용
         
         // 사용자 구독 상태 확인
         let isSubscribed = await checkUserSubscription()
@@ -129,6 +138,12 @@ public final class LLMRouter: LLMServiceProtocol {
         
         return memoryContext
     }
+    
+    // TODO: 새로운 캐시 시스템 구현 예정
+    // /// 대화를 캐시에 저장 (필요한 경우에만)
+    // private func saveToCacheIfNeeded(task: AITask, response: LLMResponse) async {
+    //     // 구현 예정
+    // }
     
     /// 사용자 구독 상태 확인
     private func checkUserSubscription() async -> Bool {

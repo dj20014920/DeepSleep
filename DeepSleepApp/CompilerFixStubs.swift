@@ -322,9 +322,45 @@ final class PresetManager {
 final class ChatManager {
     static let shared = ChatManager()
     var messages: [ChatMessage] = []
-    func append(_ message: ChatMessage) { messages.append(message) }
-    func addMessage(to sessionId: String, message: ChatMessage) {}
-    func getSessions() -> [String] { return [] }
+    
+    func append(_ message: ChatMessage) { 
+        messages.append(message) 
+    }
+    
+    func addMessage(to sessionId: String, message: ChatMessage) {
+        messages.append(message)
+    }
+    
+    func getSessions() -> [String] { 
+        return ["default_session"] 
+    }
+    
+    // MARK: - Mock AI Response Generation
+    func generateMockAIResponse(for userMessage: String) -> String {
+        let mockResponses = [
+            "흥미로운 말씀이네요! 🤔 더 자세히 알려주실 수 있나요?",
+            "감정을 이해했어요. 도움이 되는 음악을 추천해드릴게요 🎵",
+            "오늘 하루는 어떠셨나요? 이야기를 들어볼게요 💙",
+            "잠시 깊게 숨을 쉬어보세요. 마음이 편안해질 거예요 🌱",
+            "수면에 도움이 되는 자연 소리를 준비했어요 🌙",
+            "감정을 표현해주셔서 감사해요. 함께 해결방법을 찾아봐요 ✨"
+        ]
+        
+        // 키워드 기반 응답
+        let lowerMessage = userMessage.lowercased()
+        
+        if lowerMessage.contains("슬프") || lowerMessage.contains("우울") {
+            return "마음이 힘드시는군요. 따뜻한 음악으로 위로를 받아보세요 🎶"
+        } else if lowerMessage.contains("행복") || lowerMessage.contains("기쁘") {
+            return "기분이 좋으시네요! 이 좋은 기분이 계속 이어지길 바라요 😊"
+        } else if lowerMessage.contains("스트레스") || lowerMessage.contains("피곤") {
+            return "휴식이 필요한 시간이에요. 편안한 수면음악을 들어보세요 💤"
+        } else if lowerMessage.contains("잠") || lowerMessage.contains("수면") {
+            return "좋은 수면을 위한 맞춤 사운드를 추천해드릴게요 🌙"
+        }
+        
+        return mockResponses.randomElement() ?? "함께 이야기해봐요 💫"
+    }
 }
 
 // Note: FeedbackManager is defined in FeedbackManager.swift

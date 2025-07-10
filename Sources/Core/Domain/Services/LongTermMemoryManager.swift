@@ -427,32 +427,6 @@ public final class LongTermMemoryManager {
     }
 }
 
-// MARK: - Vector Database Protocol (추후 구현)
-
-protocol VectorDatabase {
-    func search(query: [Float], topK: Int) async throws -> [(id: String, score: Float)]
-    func insert(id: String, vector: [Float]) async throws
-    func delete(id: String) async throws
-    func update(id: String, vector: [Float]) async throws
-}
-
-// MARK: - Local Vector Database Implementation (추후 구현)
-
-class LocalVectorDatabase: VectorDatabase {
-    func search(query: [Float], topK: Int) async throws -> [(id: String, score: Float)] {
-        // TODO: 코사인 유사도 기반 검색 구현
-        return []
-    }
-    
-    func insert(id: String, vector: [Float]) async throws {
-        // TODO: 벡터 저장 구현
-    }
-    
-    func delete(id: String) async throws {
-        // TODO: 벡터 삭제 구현
-    }
-    
-    func update(id: String, vector: [Float]) async throws {
-        // TODO: 벡터 업데이트 구현
-    }
-}
+// MARK: - 벡터 DB 기능 제거됨
+// 기존 벡터 검색 대신 간단한 대화 캐시 시스템 사용
+// 프리셋 추천은 기존 하드코딩 시스템이 더 우수함

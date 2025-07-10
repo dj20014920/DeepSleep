@@ -35,8 +35,8 @@ class SoundPresetCatalog {
         }
     }
     
-    /// 🎲 지능적 버전 추천 시스템 - 다양성과 적합성을 고려
-    static func getIntelligentVersions(emotion: String, timeOfDay: String, randomSeed: Int = Int(Date().timeIntervalSince1970)) -> [Int] {
+    /// 🎯 개인화된 지능적 버전 추천 시스템 - 사용자 학습 + 전문가 지식
+    static func getPersonalizedIntelligentVersions(emotion: String, timeOfDay: String, randomSeed: Int = Int(Date().timeIntervalSince1970)) -> [Int] {
         // 감정별 선호 버전 패턴
         let emotionVersionPreferences: [String: [Int]] = [
             "평온": [0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
@@ -88,6 +88,53 @@ class SoundPresetCatalog {
         }
         
         return finalVersions
+    }
+    
+    /// 🆕 개인화된 사운드 추천 (기존 전문가 추천 + 사용자 학습)
+    static func getPersonalizedRecommendations(emotion: String, timeOfDay: String) -> [String] {
+        // 1. 기존 전문가 하드코딩 추천 가져오기
+        var baseRecommendations: [String] = []
+        
+        if let emotionalState = EmotionalState.allCases.first(where: { $0.rawValue.contains(emotion) || emotion.contains($0.rawValue.components(separatedBy: "/")[0]) }) {
+            baseRecommendations = emotionalState.recommendedSounds
+        } else if let timeOfDayEnum = TimeOfDay.allCases.first(where: { $0.rawValue == timeOfDay }) {
+            baseRecommendations = timeOfDayEnum.recommendedSounds
+        } else {
+            // 기본 추천 (평온 상태)
+            baseRecommendations = EmotionalState.peaceful.recommendedSounds
+        }
+        
+        // 2. 개인화 엔진으로 재정렬
+        let personalizedEngine = EnhancedSoundRecommendationEngine.shared
+        return personalizedEngine.personalizeRecommendations(
+            baseRecommendations: baseRecommendations,
+            emotion: emotion,
+            timeOfDay: timeOfDay
+        )
+    }
+    
+    /// 🆕 사용자 행동 기록 헬퍼 메서드들
+    static func recordSoundPlay(sound: String, emotion: String? = nil, timeOfDay: String? = nil) {
+        EnhancedSoundRecommendationEngine.shared.recordPlayStart(
+            sound: sound,
+            emotion: emotion,
+            timeOfDay: timeOfDay
+        )
+    }
+    
+    static func recordSoundEnd(sound: String, playTime: TimeInterval, wasSkipped: Bool = false) {
+        EnhancedSoundRecommendationEngine.shared.recordPlayEnd(
+            sound: sound,
+            playTime: playTime,
+            wasSkipped: wasSkipped
+        )
+    }
+    
+    static func recordSoundRating(sound: String, rating: Float) {
+        EnhancedSoundRecommendationEngine.shared.recordRating(
+            sound: sound,
+            rating: rating
+        )
     }
     
     // 🆕 동적 카테고리 이름들

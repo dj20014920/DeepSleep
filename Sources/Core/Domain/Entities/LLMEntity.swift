@@ -203,13 +203,16 @@ public enum LLMError: Error {
     case unexpectedError(Error)
     case maxRetriesExceeded
     case serviceInitializationError(LLMServiceType, Error)
+    case notImplemented(String)
+    case configurationError(String)
+    case invalidInput(String)
     
     /// 에러가 재시도 가능한지 여부
     public var isRetryable: Bool {
         switch self {
         case .networkError, .serviceUnavailable, .apiError:
             return true
-        case .quotaExceeded, .tokenLimitExceeded, .unauthorized, .usageLimitExceeded, .invalidResponse, .unsupportedTask, .unexpectedError, .maxRetriesExceeded, .serviceInitializationError:
+        case .quotaExceeded, .tokenLimitExceeded, .unauthorized, .usageLimitExceeded, .invalidResponse, .unsupportedTask, .unexpectedError, .maxRetriesExceeded, .serviceInitializationError, .notImplemented, .configurationError, .invalidInput:
             return false
         case .unknown:
             return true // 알 수 없는 오류는 재시도 가능
@@ -244,6 +247,12 @@ public enum LLMError: Error {
             return "최대 재시도 횟수 초과"
         case .serviceInitializationError(let serviceType, let error):
             return "서비스 초기화 오류: \(serviceType.displayName), \(error.localizedDescription)"
+        case .notImplemented(let message):
+            return "구현되지 않은 기능: \(message)"
+        case .configurationError(let message):
+            return "설정 오류: \(message)"
+        case .invalidInput(let message):
+            return "잘못된 입력: \(message)"
         }
     }
 }
