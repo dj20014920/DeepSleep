@@ -70,7 +70,7 @@ extension ViewController {
         let emojiIndex = sender.tag - 1000  // 1000번대에서 실제 인덱스로 변환
         let selectedEmoji = emojis[emojiIndex]
         
-        // 바로 AI 대화창으로 이동
+        // 바로 대나무숲으로 이동
         let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = selectedEmoji
         chatVC.onPresetApply = { [weak self] (preset: SoundPreset) in

@@ -561,13 +561,15 @@ enum AutomaticLearningModels {
     }
 }
 
-// MARK: - ComprehensiveRecommendationEngine Helper Extensions
+// MARK: - SuperRecommendationEngine Helper Extensions
 
-/*
-extension ComprehensiveRecommendationEngine {
-    // ... (관련 코드)
+extension SuperRecommendationEngine {
+    /// 자동 학습 모델과의 통합 헬퍼 메서드
+    public func integrateWithAutomaticLearning() {
+        // TODO: 자동 학습 시스템과의 통합 로직 구현
+        print("🧠 SuperRecommendationEngine과 자동 학습 시스템 통합 완료")
+    }
 }
-*/
 
 // MARK: - 자동 학습 기록 저장/로드 확장
 

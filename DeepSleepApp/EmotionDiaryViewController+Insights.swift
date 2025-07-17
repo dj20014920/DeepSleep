@@ -81,16 +81,17 @@ extension EmotionDiaryViewController {
         )
         insightStackView.addArrangedSubview(scheduleCard)
         
-        // 6. 🎯 중요한 일정 (NEW - 드롭다운)
-        let importantSchedules = getImportantScheduleData()
-        let importantCard = createInsightCard(
-            title: "🎯 중요한 일정",
-            content: "우선순위 높음 \(importantSchedules.count)개",
-            color: .systemRed.withAlphaComponent(0.1),
-            isDropdownEnabled: true,
-            dropdownType: .importantSchedules
-        )
-        insightStackView.addArrangedSubview(importantCard)
+        // 🔧 스페이서 추가: 남은 공간을 채워서 카드들이 늘어나지 않도록 함
+        let spacerView = UIView()
+        spacerView.translatesAutoresizingMaskIntoConstraints = false
+        spacerView.setContentHuggingPriority(.init(1), for: .vertical) // 가장 낮은 우선순위
+        spacerView.setContentCompressionResistancePriority(.init(1), for: .vertical) // 가장 낮은 우선순위
+        spacerView.backgroundColor = .clear
+        insightStackView.addArrangedSubview(spacerView)
+        
+        // 🔧 인사이트 뷰 업데이트 후 스크롤 크기 즉시 조정
+        updateInsightScrollViewContentSize()
+        
     }
     
     // MARK: - Enhanced Card Creation with Dropdown
@@ -151,11 +152,14 @@ extension EmotionDiaryViewController {
         
         // 제약조건 설정
         var constraints = [
+            // 🔧 컨테이너는 최소 높이만 지정, 최대는 제한 없음
             containerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 80),
             
             mainContentView.topAnchor.constraint(equalTo: containerView.topAnchor),
             mainContentView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             mainContentView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            // 🔧 mainContentView 고정 높이 설정 (압축 방지)
+            mainContentView.heightAnchor.constraint(equalToConstant: 80),
             
             titleLabel.topAnchor.constraint(equalTo: mainContentView.topAnchor, constant: 12),
             titleLabel.leadingAnchor.constraint(equalTo: mainContentView.leadingAnchor, constant: 16),
@@ -163,12 +167,11 @@ extension EmotionDiaryViewController {
             contentLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
             contentLabel.leadingAnchor.constraint(equalTo: mainContentView.leadingAnchor, constant: 16),
             contentLabel.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor, constant: -16),
-            contentLabel.bottomAnchor.constraint(equalTo: mainContentView.bottomAnchor, constant: -12),
+            contentLabel.bottomAnchor.constraint(lessThanOrEqualTo: mainContentView.bottomAnchor, constant: -12), // 🔧 lessThanOrEqualTo로 변경
             
             dropdownContentView.topAnchor.constraint(equalTo: mainContentView.bottomAnchor),
             dropdownContentView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
             dropdownContentView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
-            dropdownContentView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
             
             dropdownLabel.topAnchor.constraint(equalTo: dropdownContentView.topAnchor, constant: 12),
             dropdownLabel.leadingAnchor.constraint(equalTo: dropdownContentView.leadingAnchor, constant: 12),
@@ -176,14 +179,26 @@ extension EmotionDiaryViewController {
             dropdownLabel.bottomAnchor.constraint(equalTo: dropdownContentView.bottomAnchor, constant: -12)
         ]
         
+        // PERF-WARNING: 동적 제약조건 관리 - 메모리 누수 방지를 위해 height constraint 사용
+        var dropdownHeightConstraint: NSLayoutConstraint?
+        
         if isDropdownEnabled {
+            // 드롭다운이 활성화된 경우 높이 제약조건 설정
+            dropdownHeightConstraint = dropdownContentView.heightAnchor.constraint(equalToConstant: 0)
+            dropdownHeightConstraint?.isActive = true
+            
             constraints.append(contentsOf: [
+                dropdownContentView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
                 dropdownArrow.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
                 dropdownArrow.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor, constant: -16),
                 titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: dropdownArrow.leadingAnchor, constant: -8)
             ])
         } else {
-            constraints.append(titleLabel.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor, constant: -16))
+            // 드롭다운이 없는 경우 기본 제약조건
+            constraints.append(contentsOf: [
+                titleLabel.trailingAnchor.constraint(equalTo: mainContentView.trailingAnchor, constant: -16),
+                mainContentView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            ])
         }
         
         NSLayoutConstraint.activate(constraints)
@@ -199,7 +214,24 @@ extension EmotionDiaryViewController {
             dropdownArrow.tag = 999 // 화살표 식별용
             dropdownContentView.tag = 888 // 드롭다운 컨텐츠 식별용
             dropdownLabel.tag = 777 // 드롭다운 라벨 식별용
+            
+            // 높이 제약조건 저장 (뷰에 연결)
+            if let constraint = dropdownHeightConstraint {
+                containerView.addConstraint(constraint)
+            }
         }
+        
+        // 🔧 카드가 필요 이상으로 늘어나지 않도록 설정 (더 강한 우선순위)
+        containerView.setContentHuggingPriority(.init(999), for: .vertical)  // 매우 높은 우선순위
+        containerView.setContentCompressionResistancePriority(.init(1000), for: .vertical)  // 최고 우선순위
+        
+        // 🔧 mainContentView는 절대 압축되지 않도록 설정
+        mainContentView.setContentHuggingPriority(.init(999), for: .vertical)  // 매우 높은 우선순위
+        mainContentView.setContentCompressionResistancePriority(.init(1000), for: .vertical)  // 최고 우선순위
+        
+        // 🔧 제목과 내용 라벨도 압축 방지
+        titleLabel.setContentCompressionResistancePriority(.init(1000), for: .vertical)
+        contentLabel.setContentCompressionResistancePriority(.init(1000), for: .vertical)
         
         return containerView
     }
@@ -226,6 +258,11 @@ extension EmotionDiaryViewController {
             return
         }
         
+        // 높이 제약조건 찾기 (firstAnchor가 dropdownContentView인 height constraint)
+        let dropdownHeightConstraint = containerView.constraints.first { constraint in
+            constraint.firstAnchor == dropdownContentView.heightAnchor
+        }
+        
         let isExpanded = !dropdownContentView.isHidden
         
         // 드롭다운 컨텐츠 설정
@@ -233,22 +270,153 @@ extension EmotionDiaryViewController {
             dropdownLabel.text = self.getDropdownContent(for: dropdownType)
         }
         
-        // 애니메이션으로 드롭다운 토글
-        UIView.animate(withDuration: 0.3, animations: {
-            dropdownContentView.isHidden = isExpanded
-            dropdownArrow.text = isExpanded ? "▼" : "▲"
-            dropdownContentView.alpha = isExpanded ? 0 : 1
-        }) { _ in
-            // 애니메이션 완료 후 레이아웃 업데이트
-            self.insightStackView.setNeedsLayout()
-            self.insightStackView.layoutIfNeeded()
+        // 🎨 부드러운 애니메이션을 위한 스크롤 비활성화
+        let scrollView = self.insightStackView.superview as? UIScrollView
+        scrollView?.isScrollEnabled = false
+        
+        // 제약조건 전환 및 애니메이션
+        if isExpanded {
+            // 축소: 드롭다운 컨텐츠 숨기기
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: [.curveEaseInOut, .allowUserInteraction], animations: {
+                dropdownHeightConstraint?.constant = 0
+                dropdownArrow.text = "▼"
+                
+                // 스크롤뷰의 contentOffset 고정
+                let currentOffset = scrollView?.contentOffset ?? .zero
+                
+                // 레이아웃 업데이트
+                self.view.layoutIfNeeded()
+                
+                // contentOffset 복원 (스크롤 위치 유지)
+                scrollView?.contentOffset = currentOffset
+                
+            }) { _ in
+                dropdownContentView.isHidden = true
+                
+                // 🔧 즉시 스크롤뷰 업데이트 - 비동기 제거
+                self.updateInsightScrollViewContentSize()
+                scrollView?.isScrollEnabled = true
+            }
+        } else {
+            // 확장: 드롭다운 컨텐츠 표시
+            dropdownContentView.isHidden = false
             
-            // 스크롤뷰 컨텐츠 크기 조정
-            if let scrollView = self.insightStackView.superview as? UIScrollView {
-                let contentHeight = self.insightStackView.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).height
-                scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight + 100) // 여유 공간 추가
+            // 먼저 적절한 높이 계산
+            let tempLabel = UILabel()
+            tempLabel.text = dropdownLabel.text
+            tempLabel.font = dropdownLabel.font
+            tempLabel.numberOfLines = 0
+            let maxSize = CGSize(width: max(300, dropdownContentView.frame.width - 24), height: CGFloat.greatestFiniteMagnitude)
+            let neededHeight = tempLabel.sizeThatFits(maxSize).height + 24 // 패딩 추가
+            
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: [.curveEaseInOut, .allowUserInteraction], animations: {
+                dropdownHeightConstraint?.constant = neededHeight
+                dropdownArrow.text = "▲"
+                
+                // 스크롤뷰의 contentOffset 고정
+                let currentOffset = scrollView?.contentOffset ?? .zero
+                
+                // 레이아웃 업데이트
+                self.view.layoutIfNeeded()
+                
+                // contentOffset 복원 (스크롤 위치 유지)
+                scrollView?.contentOffset = currentOffset
+                
+            }) { _ in
+                // 🔧 즉시 스크롤뷰 업데이트 - 비동기 제거
+                self.updateInsightScrollViewContentSize()
+                scrollView?.isScrollEnabled = true
+                
+                // 🎯 드롭다운이 화면에서 벗어나면 자동 스크롤
+                if let scrollView = scrollView {
+                    let containerFrame = containerView.convert(containerView.bounds, to: scrollView)
+                    let dropdownBottom = containerFrame.maxY
+                    let scrollViewVisibleHeight = scrollView.frame.height
+                    let currentOffset = scrollView.contentOffset.y
+                    
+                    if dropdownBottom > currentOffset + scrollViewVisibleHeight {
+                        let targetOffset = dropdownBottom - scrollViewVisibleHeight + 30
+                        let maxOffset = max(0, scrollView.contentSize.height - scrollViewVisibleHeight)
+                        let finalOffset = min(targetOffset, maxOffset)
+                        
+                        print("🔍 [자동스크롤] dropdownBottom: \(dropdownBottom), finalOffset: \(finalOffset)")
+                        
+                        scrollView.setContentOffset(CGPoint(x: 0, y: finalOffset), animated: true)
+                    }
+                }
             }
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    internal func updateInsightScrollViewContentSize() {
+        guard let scrollView = self.insightStackView.superview as? UIScrollView,
+              let contentView = scrollView.subviews.first,
+              self.currentView == 2 else { return }
+        
+        // 🔧 즉시 동기화 처리 - 비동기 제거
+        self.insightStackView.setNeedsLayout()
+        self.insightStackView.layoutIfNeeded()
+        
+        // 🔧 실제 프레임 기반 높이 계산
+        let actualHeight = self.calculateRealContentHeight()
+        
+        print("🔍 [인사이트 스크롤] 실제 계산된 높이: \(actualHeight)")
+        
+        // 🔧 동적 제약조건 업데이트
+        self.dynamicHeightConstraint?.constant = actualHeight
+        
+        // 🔧 즉시 레이아웃 업데이트
+        contentView.setNeedsLayout()
+        contentView.layoutIfNeeded()
+        
+        // 🔧 스크롤뷰 contentSize 즉시 업데이트
+        scrollView.contentSize = CGSize(width: scrollView.bounds.width, height: actualHeight)
+        
+        print("🔍 [인사이트 스크롤] 최종 contentSize: \(scrollView.contentSize)")
+    }
+    
+    // 🔧 NEW: 실제 프레임 기반 높이 계산 메서드
+    private func calculateRealContentHeight() -> CGFloat {
+        var totalHeight: CGFloat = 40 // 상하 여백 20씩
+        
+        // 각 카드의 실제 높이 계산
+        for (index, arrangedSubview) in insightStackView.arrangedSubviews.enumerated() {
+            var cardHeight: CGFloat = 80 // 기본 카드 높이
+            
+            // 드롭다운이 펼쳐진 경우 추가 높이 계산
+            if let dropdownView = arrangedSubview.viewWithTag(888), !dropdownView.isHidden {
+                // 드롭다운 높이 제약조건에서 실제 값 가져오기
+                let dropdownConstraints = arrangedSubview.constraints.filter { 
+                    $0.firstAnchor == dropdownView.heightAnchor 
+                }
+                
+                if let heightConstraint = dropdownConstraints.first {
+                    let dropdownHeight = heightConstraint.constant
+                    cardHeight += dropdownHeight + 16 // 드롭다운 높이 + 여백
+                    print("🔍 [높이 계산] 카드 \(index) 드롭다운 높이: \(dropdownHeight)")
+                } else {
+                    // 제약조건을 찾을 수 없는 경우 실제 프레임 높이 사용
+                    let dropdownHeight = dropdownView.frame.height
+                    cardHeight += dropdownHeight + 16
+                    print("🔍 [높이 계산] 카드 \(index) 프레임 높이: \(dropdownHeight)")
+                }
+            }
+            
+            totalHeight += cardHeight + 16 // 카드 높이 + 스택 간격
+            print("🔍 [높이 계산] 카드 \(index) 총 높이: \(cardHeight)")
+        }
+        
+        // AI 분석 버튼 높이 추가 (대략 100pt)
+        totalHeight += 100
+        
+        // 최소 스크롤뷰 높이 보장하되, 무제한 확장 허용
+        let minHeight = (insightStackView.superview as? UIScrollView)?.bounds.height ?? 600
+        let finalHeight = max(totalHeight, minHeight)
+        
+        print("🔍 [높이 계산] 총 높이: \(totalHeight), 최종: \(finalHeight)")
+        return finalHeight
     }
     
     // MARK: - Dropdown Content Generation

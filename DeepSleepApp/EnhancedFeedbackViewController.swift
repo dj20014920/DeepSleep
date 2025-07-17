@@ -1,5 +1,6 @@
 import UIKit
 import AVFoundation
+import Core
 
 // MARK: - 🎯 Enterprise-Grade Feedback Collection System
 
@@ -11,7 +12,7 @@ class EnhancedFeedbackViewController: UIViewController {
     private var presetId: UUID!
     private var sessionId: UUID!
     private var startTime: Date!
-    private var currentEmotion: EnhancedEmotion?
+    private var currentEmotion: EmotionType?
     
     // MARK: - UI Components
     
@@ -62,7 +63,7 @@ class EnhancedFeedbackViewController: UIViewController {
     
     // MARK: - Initialization
     
-    init(presetId: UUID, sessionId: UUID, startTime: Date, currentEmotion: EnhancedEmotion?) {
+    init(presetId: UUID, sessionId: UUID, startTime: Date, currentEmotion: EmotionType?) {
         super.init(nibName: nil, bundle: nil)
         
         self.presetId = presetId

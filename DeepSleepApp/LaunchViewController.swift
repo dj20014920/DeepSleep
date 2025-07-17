@@ -160,8 +160,8 @@ class LaunchViewController: UIViewController {
             // 설정 매니저 초기화
             _ = SettingsManager.shared
             
-            // 온디바이스 학습 모델 사전 로드
-            _ = ComprehensiveRecommendationEngine.shared
+            // 온디바이스 학습 모델 사전 로드 (통합 추천 엔진)
+            _ = SuperRecommendationEngine.shared
             
             // 🧹 피드백 데이터 자동 정리 (백그라운드에서 실행)
             if #available(iOS 17.0, *) {

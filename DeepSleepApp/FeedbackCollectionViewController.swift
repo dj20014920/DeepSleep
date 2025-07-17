@@ -134,7 +134,7 @@ class FeedbackCollectionViewController: UIViewController {
         contentView.addSubview(harmonyScoreView)
         
         let harmonyTitleLabel = UILabel()
-        harmonyTitleLabel.text = "🌈 AI 조화도 분석"
+        harmonyTitleLabel.text = "🌈 대나무숲 조화도 분석"
         harmonyTitleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         harmonyTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         harmonyScoreView.addSubview(harmonyTitleLabel)

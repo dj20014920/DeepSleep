@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import Core
 import Foundation
+import AVFoundation
 
 // MARK: - Missing Types
 enum JSONParsingError: Error {
@@ -77,6 +78,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     // 🧠 추가된 프로퍼티 for Preset extension
     var lastAppliedPreset: SoundPreset?
     var categorySliders: [UISlider] = []
+    
+    // MARK: - 🔄 통합 채팅 컨텍스트 프로퍼티
+    var chatContext: String = "일반대화"
+    var initialDiaryData: EmotionDiary?
+    var initialEmotion: String?
+    var initialPatternData: String?
+    var initialSystemMessage: String?
     
     // 🧠 Enhanced AI Properties
     private var currentSessionId = UUID()
@@ -337,7 +345,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         var aiMessage = ChatMessage(text: detectionMessage, sender: .ai, type: .bot)
         aiMessage.quickActions = [
-            QuickAction(title: "🧠 AI 분석 추천", action: "ai_recommendation"),
+            QuickAction(title: "🧠 대나무숲 분석 추천", action: "ai_recommendation"),
             QuickAction(title: "⚡ 빠른 로컬 추천", action: "local_recommendation"),
             QuickAction(title: "🎵 하단 버튼으로 이동", action: "scroll_to_preset_button")
         ]
@@ -592,6 +600,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         setupTableView()
         setupTargets()
         setupNotifications()
+        
+        // 🔄 컨텍스트 기반 초기화
+        setupChatContext()
+        
+        // 기본 초기화
         setupInitialMessages()
         
         // 페이징 및 캐시
@@ -608,7 +621,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         // 배경색 설정
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        title = "AI 대화"
+        title = "대나무숲"
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -1188,7 +1201,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func showFeedbackPrompt(presetName: String) {
         let alert = UIAlertController(
-            title: "🧠 AI 학습 도움", 
+            title: "🧠 대나무숲 학습 도움", 
             message: "방금 추천받은 '\(presetName)'는 어떠셨나요? 피드백을 주시면 AI가 더 정확해집니다!", 
             preferredStyle: .alert
         )
@@ -1715,8 +1728,284 @@ extension ChatViewController {
     // MARK: - 누락된 함수들 추가
     
     @objc private func presetButtonTapped() {
-        // 프리셋 버튼 기본 동작
-        DebugManager.shared.logUI("프리셋 버튼 탭됨")
+        DebugManager.shared.logUI("프리셋 버튼 탭됨 - 기분 기반 사운드 추천 시작")
+        
+        // 1. 현재 감정 상태 분석
+        let currentEmotion = analyzeCurrentEmotionFromChat()
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDayString(from: currentHour)
+        
+        // 2. 로딩 메시지 표시
+        let loadingMessage = ChatMessage(
+            text: "🎵 당신의 마음에 딱 맞는 사운드를 찾고 있어요... ✨",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(loadingMessage)
+        
+        // 3. 사운드 추천 엔진 호출 (비동기)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            let recommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
+                emotion: currentEmotion,
+                timeOfDay: timeOfDay,
+                intensity: 1.0,
+                context: "quickaction_request"
+            )
+            
+            DispatchQueue.main.async {
+                self.displayBasicRecommendationInChat(recommendation, emotion: currentEmotion, timeOfDay: timeOfDay)
+            }
+        }
+    }
+    
+    /// 채팅 내용에서 현재 감정 상태 분석
+    private func analyzeCurrentEmotionFromChat() -> String {
+        // 최근 5개 메시지에서 감정 키워드 추출
+        let recentMessages = messages.suffix(5)
+        let userMessages = recentMessages.filter { $0.sender == .user }.compactMap { $0.text }
+        
+        // 감정 키워드 매칭
+        let emotionKeywords = [
+            "행복": ["기쁘다", "좋다", "즐겁다", "신나다", "행복하다", "만족", "기분좋다"],
+            "슬픔": ["슬프다", "우울하다", "속상하다", "눈물", "힘들다", "외롭다"],
+            "스트레스": ["스트레스", "피곤하다", "지쳤다", "힘들다", "바쁘다", "부담"],
+            "불안": ["불안하다", "걱정", "초조하다", "긴장", "두렵다", "떨린다"],
+            "화남": ["화나다", "짜증", "분노", "열받다", "답답하다"]
+        ]
+        
+        for message in userMessages.reversed() {
+            for (emotion, keywords) in emotionKeywords {
+                for keyword in keywords {
+                    if message.contains(keyword) {
+                        return emotion
+                    }
+                }
+            }
+        }
+        
+        // 기본값은 "편안함"
+        return "편안함"
+    }
+    
+    /// 시간대 문자열 반환
+    private func getTimeOfDayString(from hour: Int) -> String {
+        switch hour {
+        case 5..<9: return "아침"
+        case 9..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<22: return "저녁"
+        case 22...23, 0..<5: return "밤"
+        default: return "하루종일"
+        }
+    }
+    
+    /// 기본 추천 결과를 채팅에 표시
+    private func displayBasicRecommendationInChat(_ recommendation: (sounds: [(soundId: String, version: String, volume: Float)], explanation: String), emotion: String, timeOfDay: String) {
+        let responseText = """
+        🎯 **\(emotion)** 감정과 **\(timeOfDay)** 시간대에 맞는 사운드를 추천드려요!
+        
+        🎵 **맞춤 사운드 조합**
+        \(recommendation.explanation)
+        
+        📚 **추천 이유**: 현재 상황과 감정에 최적화된 조합입니다.
+        
+        지금 바로 적용해보시겠어요? 🎼
+        """
+        
+        let recommendationMessage = ChatMessage(
+            text: responseText,
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(recommendationMessage)
+        
+        // 프리셋 적용 버튼 메시지 추가
+        let applyButtonMessage = ChatMessage(
+            text: "🎼 이 사운드로 바로 시작하기",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(applyButtonMessage)
+        
+        // 추가 옵션 메시지
+        let moreOptionsMessage = ChatMessage(
+            text: "💡 다른 사운드도 궁금하시다면 \"다른 추천\"이라고 말씀해주세요!",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(moreOptionsMessage)
+    }
+    
+    /// 고급 추천 결과를 채팅에 표시
+    private func displayRecommendationInChat(_ recommendation: AdvancedRecommendationResult, emotion: String, timeOfDay: String) {
+        let responseText = """
+        🎯 **\(emotion)** 감정과 **\(timeOfDay)** 시간대에 맞는 사운드를 추천드려요!
+        
+        🎵 **\(recommendation.presetName)**
+        \(recommendation.explanation)
+        
+        📚 **과학적 근거**: \(recommendation.scientificBasis)
+        
+        ⏰ **권장 재생시간**: \(recommendation.duration)
+        🎨 **색채 치료**: \(recommendation.colorTherapy)
+        
+        지금 바로 적용해보시겠어요? 아래 버튼을 눌러주세요! 👇
+        """
+        
+        let recommendationMessage = ChatMessage(
+            text: responseText,
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(recommendationMessage)
+        
+        // 프리셋 적용 버튼 메시지 추가
+        let applyButtonMessage = ChatMessage(
+            text: "🎼 이 사운드로 바로 시작하기",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(applyButtonMessage)
+        
+        // 추가 옵션 메시지
+        let moreOptionsMessage = ChatMessage(
+            text: "💡 다른 사운드도 궁금하시다면 \"다른 추천\"이라고 말씀해주세요!",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(moreOptionsMessage)
+    }
+    
+    // MARK: - 🔄 컨텍스트 기반 채팅 설정
+    
+    /// 채팅 컨텍스트에 따른 초기 설정
+    private func setupChatContext() {
+        DebugManager.shared.logUI("채팅 컨텍스트 설정: \(chatContext)")
+        
+        switch chatContext {
+        case "일기분석":
+            setupDiaryAnalysisContext()
+        case "감정분석":
+            setupEmotionAnalysisContext()
+        case "월간패턴분석":
+            setupMonthlyPatternContext()
+        case "피드백분석":
+            setupFeedbackAnalysisContext()
+        default:
+            setupGeneralContext()
+        }
+    }
+    
+    /// 일기 분석 컨텍스트 설정
+    private func setupDiaryAnalysisContext() {
+        if let diary = initialDiaryData {
+            title = "대나무숲 - 일기 분석"
+            
+            let welcomeMessage = ChatMessage(
+                text: "📔 오늘의 일기를 함께 살펴보며 마음을 들여다보아요 ✨",
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(welcomeMessage)
+            
+            let diaryContent = "📝 **오늘의 일기**\n\n\(diary.userMessage)"
+            let diaryMessage = ChatMessage(
+                text: diaryContent,
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(diaryMessage)
+            
+            let analysisPrompt = ChatMessage(
+                text: "이 일기에 대해 어떤 감정을 느끼셨나요? 편안하게 이야기해주세요 💝",
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(analysisPrompt)
+        }
+    }
+    
+    /// 감정 분석 컨텍스트 설정
+    private func setupEmotionAnalysisContext() {
+        if let emotion = initialEmotion {
+            title = "대나무숲 - 감정 분석"
+            
+            let welcomeMessage = ChatMessage(
+                text: "💝 지금 \(emotion) 감정을 느끼고 계시는군요. 함께 이야기 나누어봐요 🌸",
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(welcomeMessage)
+            
+            let promptMessage = ChatMessage(
+                text: "어떤 일이 있으셨나요? 마음 편히 들려주세요 😊",
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(promptMessage)
+        }
+    }
+    
+    /// 월간 패턴 분석 컨텍스트 설정
+    private func setupMonthlyPatternContext() {
+        title = "대나무숲 - 월간 감정 패턴"
+        
+        let welcomeMessage = ChatMessage(
+            text: "📊 최근 한 달간의 감정 패턴을 분석해드릴게요 ✨",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(welcomeMessage)
+        
+        if let patternData = initialPatternData {
+            let analysisMessage = ChatMessage(
+                text: patternData,
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(analysisMessage)
+        }
+        
+        let promptMessage = ChatMessage(
+            text: "이 패턴에 대해 궁금한 점이나 더 알고 싶은 부분이 있으시면 언제든 말씀해주세요! 💭",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(promptMessage)
+    }
+    
+    /// 피드백 분석 컨텍스트 설정
+    private func setupFeedbackAnalysisContext() {
+        title = "대나무숲 - 피드백 분석"
+        
+        let welcomeMessage = ChatMessage(
+            text: "🎨 사운드 경험에 대한 피드백을 분석하고 개선점을 찾아보아요 ✨",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(welcomeMessage)
+        
+        let promptMessage = ChatMessage(
+            text: "최근 사용하신 사운드는 어떠셨나요? 솔직한 의견을 들려주세요 😊",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(promptMessage)
+    }
+    
+    /// 일반 컨텍스트 설정
+    private func setupGeneralContext() {
+        if let systemMessage = initialSystemMessage {
+            let message = ChatMessage(
+                text: systemMessage,
+                sender: .ai,
+                type: .bot
+            )
+            appendChat(message)
+        }
     }
     
     private func requestPatternAnalysisWithTracking(patternData: String) {
@@ -1759,6 +2048,9 @@ extension ChatViewController {
     }
     
     private func setupUI() {
+        // 네비게이션 바 설정
+        setupNavigationBar()
+        
         // inputContainerView 설정
         inputContainerView.translatesAutoresizingMaskIntoConstraints = false
         inputContainerView.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
@@ -1798,7 +2090,6 @@ extension ChatViewController {
         
         // ✅ 화면 하단 로딩 시스템 제거됨
     }
-    
 
     
     private func setupConstraints() {
@@ -2189,7 +2480,9 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         switch action {
         case "local_recommendation":
-            handleLocalRecommendation()
+            Task {
+                await handleLocalRecommendation()
+            }
         case "ai_recommendation":
             handleAIRecommendation()
         default:
@@ -2198,7 +2491,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     // 🆕 로컬 추천 처리
-    private func handleLocalRecommendation() {
+    private func handleLocalRecommendation() async {
         // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
             DebugManager.shared.warning("추천 요청이 이미 진행 중입니다.")
@@ -2235,9 +2528,44 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         // 🧠 로컬 신경망 기반 추천 시스템 (혁신적 다층 추론)
         let recentPresets = getRecentPresets()
         
-        // 로컬 컨텍스트 구성 (로컬 분석 모델을 통한 다양한 정보 종합)
-        // TODO: ComprehensiveRecommendationEngine의 recommendSound 메서드 사용
-        let masterRecommendation = (volumes: Array(repeating: 50.0, count: 10), compatibleVersions: Array(repeating: 1, count: 10))
+        // 로컬 컨텍스트 구성 (통합 추천 엔진을 통한 다양한 정보 종합)
+        let masterRecommendation: (volumes: [Double], compatibleVersions: [Int])
+        
+        do {
+            // SuperRecommendationEngine를 통한 실제 추천 실행
+            let timeContext = TimeContext(
+                currentTime: Date(),
+                dayOfWeek: String(Calendar.current.component(.weekday, from: Date())),
+                isWeekend: Calendar.current.isDateInWeekend(Date()),
+                isHoliday: isHoliday(date: Date()), // 실제 공휴일 체크 로직 구현
+                season: getCurrentSeason()
+            )
+            
+            let userContext = RecommendationUserContext(
+                currentTime: Date(),
+                batteryLevel: UIDevice.current.batteryLevel > 0 ? UIDevice.current.batteryLevel : 1.0,
+                headphonesConnected: AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .headphones },
+                locationContext: getLocationContext() // 위치 기반 컨텍스트 구현
+            )
+            
+            let recommendation = try await SuperRecommendationEngine.shared.recommendSound(
+                emotion: recommendedEmotion,
+                timeContext: timeContext,
+                userContext: userContext
+            )
+            
+            // 추천 결과를 기존 형식으로 변환
+            let confidence = Float(recommendation.confidence)
+            let volumes = Array(repeating: Double(confidence * 100), count: 10)
+            let versions = Array(repeating: Int(confidence * 5), count: 10)
+            
+            masterRecommendation = (volumes: volumes, compatibleVersions: versions)
+            
+        } catch {
+            print("❌ SuperRecommendationEngine 오류: \(error)")
+            // 폴백: 기본값 사용
+            masterRecommendation = (volumes: Array(repeating: 50.0, count: 10), compatibleVersions: Array(repeating: 1, count: 10))
+        }
         
         // 🎭 로컬 알고리즘이 생성한 시적 이름
         let poeticName = generatePoeticPresetName(for: recommendedEmotion)
@@ -2287,7 +2615,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     private func handleAIRecommendation() {
         // AI 사용량 체크
         guard AIUsageManager.shared.canUse(feature: .presetRecommendation) else {
-            let errorMessage = ChatMessage(text: "⚠️ AI 분석 추천 사용량이 초과되었습니다. (일일 5회 제한)", sender: .ai, type: .bot)
+            let errorMessage = ChatMessage(text: "⚠️ 대나무숲 분석 추천 사용량이 초과되었습니다. (일일 5회 제한)", sender: .ai, type: .bot)
             appendChat(errorMessage)
             return
         }
@@ -2300,14 +2628,14 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         isProcessingRecommendation = true
         
-        let userMessage = ChatMessage(text: "AI 분석 추천받기", sender: .user, type: .user)
+        let userMessage = ChatMessage(text: "대나무숲 분석 추천받기", sender: .user, type: .user)
         appendChat(userMessage)
         
         // 이전 추천 메시지 제거
         removePreviousRecommendations()
         
         // 로딩 메시지 추가
-        appendChat(ChatMessage(text: "🧠 AI가 7일간의 대화와 감정 기록을 종합 분석 중...", sender: .ai, type: .loading))
+        appendChat(ChatMessage(text: "🧠 대나무숲에서 7일간의 대화와 감정 기록을 종합 분석 중...", sender: .ai, type: .loading))
         
         // 🚀 외부 Claude 3.5 API 호출 (간소화된 버전)
         performClaudeAnalysis()
@@ -2346,12 +2674,14 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 await MainActor.run { [weak self] in
                     self?.removeLastLoadingMessage()
                     let errorMessage = ChatMessage(
-                        text: "❌ 외부 AI 분석 중 오류가 발생했습니다. 로컬 분석을 대신 제공하겠습니다.",
+                        text: "❌ 외부 대나무숲 분석 중 오류가 발생했습니다. 로컬 분석을 대신 제공하겠습니다.",
                         sender: .ai, 
                         type: .bot
                     )
                     self?.appendChat(errorMessage)
-                    self?.handleLocalRecommendation() // 실패 시 로컬 분석으로 대체
+                    Task {
+                        await self?.handleLocalRecommendation() // 실패 시 로컬 분석으로 대체
+                    }
                 self?.isProcessingRecommendation = false
                 }
             }
@@ -2714,6 +3044,65 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             DebugManager.shared.logUI("슬라이더 \(index) 값 변경: \(slider.value)")
             // 즉각적인 사운드 변경을 위해 ViewController에 알림
             // onVolumeChange?(index, slider.value)
+        }
+    }
+    
+    // MARK: - SuperRecommendationEngine 헬퍼 메서드
+    
+    /// 현재 계절을 반환하는 헬퍼 메서드
+    private func getCurrentSeason() -> String {
+        let month = Calendar.current.component(.month, from: Date())
+        
+        switch month {
+        case 3...5:
+            return "spring"
+        case 6...8:
+            return "summer"
+        case 9...11:
+            return "autumn"
+        default:
+            return "winter"
+        }
+    }
+    
+    /// 한국 공휴일 체크 로직
+    private func isHoliday(date: Date) -> Bool {
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
+        
+        // 주요 한국 공휴일 체크
+        switch (month, day) {
+        case (1, 1): return true     // 신정
+        case (3, 1): return true     // 삼일절
+        case (5, 5): return true     // 어린이날
+        case (6, 6): return true     // 현충일
+        case (8, 15): return true    // 광복절
+        case (10, 3): return true    // 개천절
+        case (10, 9): return true    // 한글날
+        case (12, 25): return true   // 크리스마스
+        default: break
+        }
+        
+        // 추가적으로 음력 공휴일 체크 (간단한 버전)
+        // 실제 구현 시에는 음력 변환 라이브러리 사용 권장
+        return false
+    }
+    
+    /// 위치 기반 컨텍스트를 반환하는 헬퍼 메서드
+    private func getLocationContext() -> String? {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let isWeekend = Calendar.current.isDateInWeekend(Date())
+        
+        // 시간대와 요일 기반 추정 위치 컨텍스트
+        if hour >= 22 || hour <= 6 {
+            return "home_night" // 밤 시간대는 집에 있을 가능성이 높음
+        } else if hour >= 9 && hour <= 17 && !isWeekend {
+            return "work_office" // 평일 낮 시간대는 직장에 있을 가능성이 높음
+        } else if isWeekend {
+            return "home_weekend" // 주말은 집에 있을 가능성이 높음
+        } else {
+            return "transit" // 출퇴근 시간대는 이동 중일 가능성이 높음
         }
     }
 }

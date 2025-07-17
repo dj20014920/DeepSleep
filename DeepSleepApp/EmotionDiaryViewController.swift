@@ -11,17 +11,6 @@ class EmotionDiaryViewController: UIViewController {
         return control
     }()
     
-    private let scrollView: UIScrollView = {
-        let scrollView = UIScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        return scrollView
-    }()
-    
-    private let contentView: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
     
     // 일기 뷰
     internal let tableView: UITableView = {
@@ -45,14 +34,19 @@ class EmotionDiaryViewController: UIViewController {
         let stackView = UIStackView()
         stackView.axis = .vertical
         stackView.spacing = 16
+        stackView.distribution = .fill  // 각 요소가 자신의 크기 유지
+        stackView.alignment = .fill      // 가로 전체 채우기
         stackView.translatesAutoresizingMaskIntoConstraints = false
+        // 🔧 스택뷰 자체는 필요한 크기만 차지하도록 설정
+        stackView.setContentHuggingPriority(.init(1000), for: .vertical)
+        stackView.setContentCompressionResistancePriority(.init(1000), for: .vertical)
         return stackView
     }()
     
-    // AI 분석 버튼들
+    // 대나무숲 분석 버튼들
     private let aiAnalyzeSelectedDiaryButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("선택 일기 AI 분석", for: .normal)
+        button.setTitle("선택 일기 대나무숲 분석", for: .normal)
         button.isEnabled = false // 처음에는 비활성화
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -60,16 +54,34 @@ class EmotionDiaryViewController: UIViewController {
 
     private let aiAnalyzeMonthlyEmotionsButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("최근 30일 감정 AI 분석", for: .normal)
+        button.setTitle("최근 30일 감정 대나무숲 분석", for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
     
     // MARK: - Properties
     internal var diaryEntries: [EmotionDiary] = []
-    private var currentView: Int = 0
+    internal var currentView: Int = 0 // 익스텐션에서 접근 가능하도록 internal로 변경
     private var selectedDiaryForAnalysis: EmotionDiary? // 선택된 일기 저장
     private var recommendationHistory: [RecommendationData] = []
+    
+    // 🔧 단순화된 제약조건 시스템 - 하나의 동적 제약조건만 사용
+    internal var dynamicHeightConstraint: NSLayoutConstraint?
+    
+    // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
+    internal let scrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.contentInsetAdjustmentBehavior = .never // 자동 inset 조정 비활성화
+        scrollView.alwaysBounceVertical = false // 수직 바운스 비활성화
+        return scrollView
+    }()
+    
+    internal let contentView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -120,17 +132,25 @@ class EmotionDiaryViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
         
+        // 🔧 단순화된 제약조건 시스템 - 최소 높이만 보장
+        dynamicHeightConstraint = contentView.heightAnchor.constraint(
+            greaterThanOrEqualTo: scrollView.frameLayoutGuide.heightAnchor
+        )
+        dynamicHeightConstraint?.priority = .init(750) // 중간 우선순위
+        
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
             
             contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+            // 🔧 단일 동적 제약조건 활성화
+            dynamicHeightConstraint!
         ])
     }
     
@@ -181,11 +201,15 @@ class EmotionDiaryViewController: UIViewController {
         
         insightStackView.addArrangedSubview(aiButtonStackView) // 기존 인사이트 뷰 스택에 추가
         
+        // 🔧 insightStackView의 크기가 contentView를 결정하도록 우선순위 설정
+        let bottomConstraint = insightStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+        bottomConstraint.priority = .init(999) // 높은 우선순위로 설정
+        
         NSLayoutConstraint.activate([
             insightStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20), // 여백 추가
             insightStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            insightStackView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -16)
+            bottomConstraint
         ])
     }
     
@@ -232,6 +256,9 @@ class EmotionDiaryViewController: UIViewController {
         calendarViewController.view.isHidden = true
         insightStackView.isHidden = true
         
+        // 🔧 단순화된 탭 전환 처리 - 더 이상 복잡한 제약조건 전환 불필요
+        print("🔍 [탭 전환] 현재 탭: \(currentView)")
+        
         // 선택된 뷰만 보이기
         switch currentView {
         case 0: // 일기
@@ -256,7 +283,13 @@ class EmotionDiaryViewController: UIViewController {
             return
         }
         
-        // 현재 보이는 뷰의 크기에 맞춰 스크롤 뷰 컨텐츠 크기 업데이트
+        // 인사이트 탭에서는 Auto Layout이 자동으로 처리
+        if currentView == 2 {
+            updateInsightScrollViewContentSize()
+            return
+        }
+        
+        // 다른 탭에서는 기본 처리
         var contentHeight: CGFloat = 0
         
         switch currentView {
@@ -264,8 +297,6 @@ class EmotionDiaryViewController: UIViewController {
             contentHeight = max(tableView.contentSize.height, scrollView.bounds.height)
         case 1: // 캘린더
             contentHeight = max(calendarViewController.view.frame.height, scrollView.bounds.height)
-        case 2: // 인사이트
-            contentHeight = max(insightStackView.frame.height, scrollView.bounds.height)
         default:
             contentHeight = scrollView.bounds.height
         }

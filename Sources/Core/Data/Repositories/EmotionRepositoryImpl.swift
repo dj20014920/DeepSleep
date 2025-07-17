@@ -162,6 +162,15 @@ final class EmotionRepositoryImpl: EmotionRepository {
             return ["혼란", "헷갈", "모르겠", "막막", "애매", "복잡", "어려", "이해"]
         case .neutral:
             return ["그냥", "보통", "평범", "무난", "일반", "그저", "특별"]
+        // 통합된 EmotionType case들
+        case .peaceful:
+            return ["평화", "고요", "평온", "조용", "고즈넉", "정적", "안온", "평안"]
+        case .tense:
+            return ["긴장", "경직", "뻣뻣", "불편", "딱딱", "어색", "부자연", "어김"]
+        case .focused:
+            return ["집중", "몰입", "열중", "전념", "정신", "주의", "채중", "응시"]
+        case .energetic:
+            return ["활기", "에너지", "활력", "역동", "생동", "생기", "발랄", "활발"]
         }
     }
     

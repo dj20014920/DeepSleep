@@ -292,7 +292,7 @@ class SettingsManager {
     
     func addSessionTime(_ duration: TimeInterval) {
         updateTodayStats { stats in
-            stats.totalSessionTime += duration
+            stats.totalUsageTime += duration
         }
     }
     
@@ -391,8 +391,8 @@ class SettingsManager {
         for i in 0..<days {
             if let date = calendar.date(byAdding: .day, value: -i, to: Date()) {
                 let dateString = DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .none)
-                if let stats = allStats[dateString], stats.totalSessionTime > 0 {
-                    totalTime += stats.totalSessionTime
+                if let stats = allStats[dateString], stats.totalUsageTime > 0 {
+                    totalTime += stats.totalUsageTime
                     validDays += 1
                 }
             }

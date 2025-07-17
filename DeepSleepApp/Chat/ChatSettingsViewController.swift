@@ -7,6 +7,23 @@
 
 import UIKit
 
+// MARK: - ChatConfiguration
+struct ChatConfiguration {
+    let maxMessageLength: Int
+    let typingIndicatorEnabled: Bool
+    let autoScrollEnabled: Bool
+    let soundEnabled: Bool
+    let hapticFeedbackEnabled: Bool
+    
+    static let `default` = ChatConfiguration(
+        maxMessageLength: 4000,
+        typingIndicatorEnabled: true,
+        autoScrollEnabled: true,
+        soundEnabled: true,
+        hapticFeedbackEnabled: true
+    )
+}
+
 // MARK: - ChatSettingsDelegate
 protocol ChatSettingsDelegate: AnyObject {
     func didUpdateChatSettings(_ settings: ChatConfiguration)

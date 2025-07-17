@@ -25,22 +25,7 @@ struct UserSettings: Codable {
     init() {}
 }
 
-struct UsageStats: Codable {
-    let date: String
-    var chatCount: Int = 0
-    var presetRecommendationCount: Int = 0
-    var timerUsageCount: Int = 0
-    var totalSessionTime: TimeInterval = 0
-    var patternAnalysisCount: Int = 0
-    
-    init(date: String) {
-        self.date = date
-    }
-    
-    init() {
-        self.date = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
-    }
-}
+// UsageStats는 Models/Analytics/UsageStats.swift에서 정의됨
 
 // MARK: - Core Data Types
 // ChatContext와 UserInfo는 Core/Common/SharedModels.swift로 이동되었으므로 여기서 삭제합니다.
@@ -200,12 +185,8 @@ enum Models {}
 
 // Note: PresetFeedback is defined in Models.swift
 
-enum EmotionType: String, CaseIterable {
-    case happy = "😊"
-    case sad = "😢"
-    case angry = "😠"
-    case neutral = "😐"
-}
+// EmotionType은 Core/Domain/Entities/EmotionEntity.swift에서 통합 관리됩니다.
+// 이 파일에서는 EmotionType을 import하여 사용하세요.
 
 // Note: EnhancedEmotion is defined in Models.swift
 
@@ -266,8 +247,7 @@ class SectionHeaderView: UICollectionReusableView {
 // Note: CHHapticPattern and haptic feedback system are now implemented in DeepSleepApp/System/HapticManager.swift
 
 // EnhancedSoundRecommendationEngine compatibility types
-// typealias UserProfile = String
-typealias RecommendationContext = String
+// typealias RecommendationContext = String  // ⚠️ DEPRECATED: SuperRecommendationEngine에서 통합 관리
 
 // Note: isHeadphonesConnected is now implemented in DeepSleepApp/System/SystemDetectionManager.swift
 
@@ -435,7 +415,7 @@ extension ComprehensiveRecommendation {
 
 extension DiaryContext {
     init(from diary: EmotionDiary) {
-        self.content = diary.userMessage ?? ""
+        self.content = diary.userMessage  // ✅ 수정: Optional 처리 제거
         self.emotion = diary.selectedEmotion
     }
 }

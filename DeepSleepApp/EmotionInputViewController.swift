@@ -1,4 +1,5 @@
 import UIKit
+import Core
 
 // ❶ 감정 분석 결과를 받는 클로저 타입
 typealias EmotionInputHandler = (_ emotion: EmotionType, _ rawText: String) -> Void

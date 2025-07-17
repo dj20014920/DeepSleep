@@ -74,7 +74,7 @@ class DiaryWriteViewController: UIViewController {
     
     private let aiChatButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("AI와 이 일기에 대해 대화하기", for: .normal)
+        button.setTitle("대나무숲에서 이 일기 이야기하기", for: .normal)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
@@ -252,7 +252,7 @@ class DiaryWriteViewController: UIViewController {
             saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             saveButton.heightAnchor.constraint(equalToConstant: 50),
             
-            // AI 대화 버튼
+            // 대나무숲 버튼
             aiChatButton.topAnchor.constraint(equalTo: saveButton.bottomAnchor, constant: 12),
             aiChatButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             aiChatButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
@@ -289,6 +289,9 @@ class DiaryWriteViewController: UIViewController {
         sender.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         
         selectedEmotion = emotions[sender.tag]
+        // 🔍 디버깅용 로그 추가
+        print("🔍 [emotionSelected] 선택된 감정: '\(selectedEmotion)', 버튼 태그: \(sender.tag)")
+        
         updateSelectedEmotionButtonUI(selectedEmoji: selectedEmotion) // UI 업데이트 분리
         
         // 햅틱 피드백
@@ -329,6 +332,12 @@ class DiaryWriteViewController: UIViewController {
             )
         }
         
+        // 🔍 디버깅용 로그 추가
+        print("🔍 [saveDiary] 일기 저장 시도:")
+        print("  - 선택된 감정: '\(selectedEmotion)'")
+        print("  - 일기 내용: '\(diaryMessage.prefix(50))'")
+        print("  - 저장 날짜: \(currentDiaryEntry.date)")
+        
         SettingsManager.shared.saveEmotionDiary(currentDiaryEntry) // 저장 (ID가 같으면 덮어쓰기 가정)
         savedDiaryEntry = currentDiaryEntry
         isDiarySaved = true
@@ -361,7 +370,7 @@ class DiaryWriteViewController: UIViewController {
         
         showAlert(
             title: diaryToEdit == nil ? "📝 일기가 저장되었습니다" : "📝 일기가 수정되었습니다",
-            message: "AI와 대화하기 버튼을 눌러 감정 분석을 받아보세요!"
+            message: "대나무숲에서 이야기하기 버튼을 눌러 감정 분석을 받아보세요!"
         )
     }
     
@@ -371,7 +380,7 @@ class DiaryWriteViewController: UIViewController {
         let alert = UIAlertController(
             title: "🔒 개인정보 보호 안내",
             message: """
-            AI와 대화하기 위해 다음 정보가 전송됩니다:
+            대나무숲에서 이야기하기 위해 다음 정보가 전송됩니다:
             
             • 선택한 감정: \(diaryEntry.selectedEmotion)
             • 작성한 일기 내용
@@ -388,7 +397,7 @@ class DiaryWriteViewController: UIViewController {
         )
         
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "AI와 대화하기", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "대나무숲에서 이야기하기", style: .default) { [weak self] _ in
             self?.startAIChat()
         })
         

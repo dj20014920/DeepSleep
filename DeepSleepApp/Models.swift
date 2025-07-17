@@ -193,11 +193,9 @@ struct Emotion {
 }
 
 // MARK: - Enhanced Emotion Types
-public enum EnhancedEmotion: String, CaseIterable {
-    case peaceful, tense, focused, tired, happy, sad, energetic
-    
-    public var intensity: Float { return 0.5 }
-}
+// EnhancedEmotion은 Core/Domain/Entities/EmotionEntity.swift의 EmotionType으로 통합되었습니다.
+// EmotionType을 import하여 사용하세요. intensity 프로퍼티도 EmotionType에 통합되었습니다.
+import Core
 
 // MARK: - 감정 일기 모델
 struct EmotionDiary: Codable, Identifiable {
@@ -381,9 +379,9 @@ public struct PresetFeedback {
     public let context: Context
     public let deviceContext: DeviceContext?
     public let environmentContext: EnvironmentContext?
-    public let userEmotion: EnhancedEmotion?
+    public let userEmotion: EmotionType?
     
-    public init(presetId: String, sessionId: String, timestamp: Date, quantitative: [String: Any], qualitative: QualitativeFeedback, context: Context, deviceContext: DeviceContext?, environmentContext: EnvironmentContext?, userEmotion: EnhancedEmotion?) {
+    public init(presetId: String, sessionId: String, timestamp: Date, quantitative: [String: Any], qualitative: QualitativeFeedback, context: Context, deviceContext: DeviceContext?, environmentContext: EnvironmentContext?, userEmotion: EmotionType?) {
         self.presetId = presetId
         self.sessionId = sessionId
         self.timestamp = timestamp
@@ -461,8 +459,12 @@ struct DiaryContext {
     let emotion: String?
 }
 
-struct UserProfile: Codable {
-    var userId: String
+public struct UserProfile: Codable {
+    public var userId: String
+    
+    public init(userId: String) {
+        self.userId = userId
+    }
 }
 
 // MARK: - Chat & AI Interaction

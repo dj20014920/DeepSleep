@@ -409,7 +409,7 @@ public struct AIContext: Codable {
 }
 
 // MARK: - 💬 대화 메시지
-public struct ConversationMessage: Codable {
+public struct AIConversationMessage: Codable {
     public let role: MessageRole
     public let content: String
     public let timestamp: Date
@@ -430,7 +430,7 @@ public struct EmotionState: Codable {
 }
 
 // MARK: - 👤 사용자 프로필
-public struct UserProfile: Codable {
+public struct AIUserProfile: Codable {
     public let age: Int?
     public let gender: String?
     public let preferences: [String: Any]?
@@ -467,9 +467,42 @@ public struct SleepGoals: Codable {
 public struct TimeContext: Codable {
     public let currentTime: Date
     public let dayOfWeek: String
+    public let dayOfWeekInt: Int        // 0-6 (일요일=0) - RecommendationTimeContext 호환성
     public let isWeekend: Bool
     public let isHoliday: Bool
     public let season: String
+    
+    public init(currentTime: Date = Date(), dayOfWeek: String? = nil, dayOfWeekInt: Int? = nil, isWeekend: Bool? = nil, isHoliday: Bool = false, season: String? = nil) {
+        self.currentTime = currentTime
+        
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.weekday, .month], from: currentTime)
+        
+        // dayOfWeekInt 계산 (0=일요일, 1=월요일, ..., 6=토요일)
+        self.dayOfWeekInt = dayOfWeekInt ?? ((components.weekday ?? 1) - 1)
+        
+        // dayOfWeek String 계산
+        let weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]
+        self.dayOfWeek = dayOfWeek ?? weekdays[self.dayOfWeekInt]
+        
+        // isWeekend 계산
+        self.isWeekend = isWeekend ?? (self.dayOfWeekInt == 0 || self.dayOfWeekInt == 6)
+        
+        self.isHoliday = isHoliday
+        
+        // season 계산
+        if let customSeason = season {
+            self.season = customSeason
+        } else {
+            let month = components.month ?? 1
+            switch month {
+            case 3...5: self.season = "봄"
+            case 6...8: self.season = "여름"
+            case 9...11: self.season = "가을"
+            default: self.season = "겨울"
+            }
+        }
+    }
 }
 
 // MARK: - 📤 AI 응답

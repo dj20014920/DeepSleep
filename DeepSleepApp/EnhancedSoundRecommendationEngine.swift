@@ -1230,7 +1230,7 @@ extension EnhancedSoundRecommendationEngine {
 // `large_tuple` 대체를 위한 구조체 정의
 
 /// 추천 후보군의 점수와 컨텍스트를 포함하는 구조체
-struct RecommendationCandidate {
+struct EnhancedRecommendationCandidate {
     let preset: SoundPreset
     let score: Double
     let source: String // 예: "user_history", "similar_emotion"
@@ -1245,29 +1245,124 @@ struct FinalRecommendation {
 // MARK: - Recommendation Logic
 extension EnhancedSoundRecommendationEngine {
 
-    // ... 기존 로직 ...
-
     /// 사용자 프로필과 현재 컨텍스트에 기반하여 추천 후보 목록을 생성합니다.
-    private func generateCandidates(userProfile: UserProfile, context: RecommendationContext) -> [RecommendationCandidate] {
-        // todo: 실제 후보 생성 로직 구현 필요
-        // 예시 더미 데이터
-        if let firstPreset = SoundPresetCatalog.shared.presets.first {
-            return [
-                RecommendationCandidate(preset: firstPreset, score: 0.9, source: "user_history"),
-                RecommendationCandidate(preset: firstPreset, score: 0.8, source: "similar_emotion")
-            ]
+    private func generateCandidates(userProfile: UserProfileVector, context: RecommendationContext) -> [EnhancedRecommendationCandidate] {
+        var candidates: [EnhancedRecommendationCandidate] = []
+        let allPresets = SoundPresetCatalog.shared.presets
+        
+        // 1. 감정 기반 후보 생성
+        let emotionCandidates = generateEmotionBasedCandidates(context: context, presets: allPresets)
+        candidates.append(contentsOf: emotionCandidates)
+        
+        // 2. 사용 이력 기반 후보 생성
+        let historyCandidates = generateHistoryBasedCandidates(userProfile: userProfile, presets: allPresets)
+        candidates.append(contentsOf: historyCandidates)
+        
+        // 3. 시간대 기반 후보 생성
+        let timeCandidates = generateTimeBasedCandidates(context: context, presets: allPresets)
+        candidates.append(contentsOf: timeCandidates)
+        
+        // 4. 선호도 기반 후보 생성
+        let preferenceCandidates = generatePreferenceBasedCandidates(userProfile: userProfile, presets: allPresets)
+        candidates.append(contentsOf: preferenceCandidates)
+        
+        return candidates
+    }
+    
+    /// 감정 기반 후보 생성
+    private func generateEmotionBasedCandidates(context: RecommendationContext, presets: [SoundPreset]) -> [EnhancedRecommendationCandidate] {
+        let emotionKeyword = extractEmotionKeyword(from: context)
+        
+        return presets.compactMap { preset in
+            let emotionScore = calculateEmotionMatchScore(preset: preset, emotion: emotionKeyword)
+            guard emotionScore > 0.3 else { return nil }
+            
+            return EnhancedRecommendationCandidate(
+                preset: preset,
+                score: emotionScore,
+                source: "emotion_match"
+            )
         }
-        return []
+    }
+    
+    /// 사용 이력 기반 후보 생성
+    private func generateHistoryBasedCandidates(userProfile: UserProfileVector, presets: [SoundPreset]) -> [EnhancedRecommendationCandidate] {
+        return presets.enumerated().compactMap { index, preset in
+            guard index < userProfile.soundPreferences.count else { return nil }
+            let preferenceScore = userProfile.soundPreferences[index]
+            guard preferenceScore > 0.4 else { return nil }
+            
+            return EnhancedRecommendationCandidate(
+                preset: preset,
+                score: Double(preferenceScore),
+                source: "user_history"
+            )
+        }
+    }
+    
+    /// 시간대 기반 후보 생성
+    private func generateTimeBasedCandidates(context: RecommendationContext, presets: [SoundPreset]) -> [EnhancedRecommendationCandidate] {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        
+        return presets.compactMap { preset in
+            let timeScore = calculateTimeContextScore(preset: preset, hour: currentHour)
+            guard timeScore > 0.3 else { return nil }
+            
+            return EnhancedRecommendationCandidate(
+                preset: preset,
+                score: timeScore,
+                source: "time_context"
+            )
+        }
+    }
+    
+    /// 선호도 기반 후보 생성
+    private func generatePreferenceBasedCandidates(userProfile: UserProfileVector, presets: [SoundPreset]) -> [EnhancedRecommendationCandidate] {
+        return presets.compactMap { preset in
+            let preferenceScore = calculatePreferenceScore(preset: preset, userProfile: userProfile)
+            guard preferenceScore > 0.4 else { return nil }
+            
+            return EnhancedRecommendationCandidate(
+                preset: preset,
+                score: preferenceScore,
+                source: "user_preference"
+            )
+        }
     }
     
     /// 후보 목록을 필터링하고 우선순위를 재조정합니다.
-    private func filterAndRank(candidates: [RecommendationCandidate]) -> [RecommendationCandidate] {
-        // todo: 실제 필터링 및 랭킹 로직 구현 필요
-        return candidates.sorted { $0.score > $1.score }
+    private func filterAndRank(candidates: [EnhancedRecommendationCandidate]) -> [EnhancedRecommendationCandidate] {
+        // 1. 중복 제거 (같은 프리셋의 여러 후보 중 최고 점수만 유지)
+        var bestCandidates: [String: EnhancedRecommendationCandidate] = [:]
+        
+        for candidate in candidates {
+            let presetId = candidate.preset.presetName
+            if let existing = bestCandidates[presetId] {
+                if candidate.score > existing.score {
+                    bestCandidates[presetId] = candidate
+                }
+            } else {
+                bestCandidates[presetId] = candidate
+            }
+        }
+        
+        // 2. 점수순 정렬
+        let uniqueCandidates = Array(bestCandidates.values)
+        
+        // 3. 다양성 보장 (같은 소스에서 너무 많이 나오지 않도록)
+        var sourceCounts: [String: Int] = [:]
+        let diversifiedCandidates = uniqueCandidates.sorted { $0.score > $1.score }.filter { candidate in
+            let currentCount = sourceCounts[candidate.source, default: 0]
+            guard currentCount < 3 else { return false } // 같은 소스에서 최대 3개까지
+            sourceCounts[candidate.source] = currentCount + 1
+            return true
+        }
+        
+        return Array(diversifiedCandidates.prefix(10)) // 최대 10개까지
     }
     
     /// 최종 추천을 선택하고 개인화된 설명을 생성합니다.
-    private func selectFinalRecommendation(from rankedCandidates: [RecommendationCandidate]) -> FinalRecommendation? {
+    private func selectFinalRecommendation(from rankedCandidates: [EnhancedRecommendationCandidate]) -> FinalRecommendation? {
         guard let bestCandidate = rankedCandidates.first else { return nil }
         
         let explanation = "사용자의 최근 활동과 유사한 감정 상태를 기반으로 추천되었습니다."
@@ -1278,6 +1373,107 @@ extension EnhancedSoundRecommendationEngine {
 // MARK: - 🎯 개인화 추천 엔진 메서드들
 
 extension EnhancedSoundRecommendationEngine {
+    
+    // MARK: - Helper Methods for Recommendation Logic
+    
+    /// 컨텍스트에서 감정 키워드 추출
+    private func extractEmotionKeyword(from context: RecommendationContext) -> String {
+        let contextLower = context.emotion.lowercased()
+        
+        // 감정 키워드 매핑
+        let emotionMappings = [
+            "행복": ["기쁘", "행복", "즐거", "신나", "좋"],
+            "평온": ["평온", "차분", "고요", "편안", "휴식"],
+            "슬픔": ["슬프", "우울", "힘들", "아프", "눈물"],
+            "스트레스": ["스트레스", "피곤", "지침", "힘듦", "압박"],
+            "집중": ["집중", "공부", "업무", "일", "몰입"],
+            "수면": ["잠", "수면", "잠들", "밤", "졸림"]
+        ]
+        
+        for (emotion, keywords) in emotionMappings {
+            if keywords.contains(where: { contextLower.contains($0) }) {
+                return emotion
+            }
+        }
+        
+        return "평온" // 기본값
+    }
+    
+    /// 감정과 프리셋 간의 매칭 점수 계산
+    private func calculateEmotionMatchScore(preset: SoundPreset, emotion: String) -> Double {
+        // PERF-WARNING: 옵셔널 언래핑을 통한 안전한 접근으로 크래시 방지
+        guard let presetEmotionValue = preset.emotion else {
+            return 0.0 // 감정 정보가 없으면 매칭 점수 0
+        }
+        let presetEmotion = presetEmotionValue.lowercased()
+        let targetEmotion = emotion.lowercased()
+        
+        // 직접 매칭
+        if presetEmotion.contains(targetEmotion) || targetEmotion.contains(presetEmotion) {
+            return 0.9
+        }
+        
+        // 유사 감정 매칭
+        let emotionSimilarity: [String: [String]] = [
+            "평온": ["휴식", "안정", "차분", "고요"],
+            "행복": ["기쁨", "즐거움", "활기", "밝음"],
+            "집중": ["몰입", "업무", "공부", "학습"],
+            "수면": ["잠", "밤", "휴식", "이완"]
+        ]
+        
+        if let similarEmotions = emotionSimilarity[targetEmotion] {
+            for similar in similarEmotions {
+                if presetEmotion.contains(similar) {
+                    return 0.7
+                }
+            }
+        }
+        
+        return 0.2 // 기본 점수
+    }
+    
+    /// 시간 컨텍스트 점수 계산
+    private func calculateTimeContextScore(preset: SoundPreset, hour: Int) -> Double {
+        let presetName = preset.presetName.lowercased()
+        
+        switch hour {
+        case 6..<12: // 아침
+            if presetName.contains("아침") || presetName.contains("활기") || presetName.contains("집중") {
+                return 0.8
+            }
+        case 12..<18: // 오후
+            if presetName.contains("오후") || presetName.contains("업무") || presetName.contains("집중") {
+                return 0.8
+            }
+        case 18..<22: // 저녁
+            if presetName.contains("저녁") || presetName.contains("휴식") || presetName.contains("이완") {
+                return 0.8
+            }
+        case 22...23, 0..<6: // 밤
+            if presetName.contains("밤") || presetName.contains("수면") || presetName.contains("잠") {
+                return 0.9
+            }
+        default:
+            break
+        }
+        
+        return 0.4 // 기본 점수
+    }
+    
+    /// 사용자 선호도 점수 계산
+    private func calculatePreferenceScore(preset: SoundPreset, userProfile: UserProfileVector) -> Double {
+        // 사용자의 평균 만족도를 기반으로 점수 계산
+        let baseSatisfaction = Double(userProfile.averageSatisfaction)
+        
+        // 감정 선호도 반영
+        // PERF-WARNING: 옵셔널 체이닝으로 안전한 딕셔너리 접근
+        if let emotion = preset.emotion,
+           let emotionPreference = userProfile.emotionPreferences[emotion] {
+            return Double(emotionPreference) * 0.7 + baseSatisfaction * 0.3
+        }
+        
+        return baseSatisfaction * 0.5
+    }
     
     /// 기존 하드코딩 추천에 개인화 적용
     func personalizeRecommendations(

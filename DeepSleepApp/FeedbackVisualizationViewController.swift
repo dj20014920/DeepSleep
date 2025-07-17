@@ -49,7 +49,7 @@ class FeedbackVisualizationViewController: UIViewController {
     
     // MARK: - Setup Methods
     private func setupUI() {
-        title = "🎨 AI 학습 & 피드백 분석"
+        title = "🎨 대나무숲 학습 & 피드백 분석"
         view.backgroundColor = UIColor.systemBackground
         
         // Navigation bar setup

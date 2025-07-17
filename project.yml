@@ -66,9 +66,12 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - path: Tests
-        excludes: [Info.plist]
-    info:
-      path: Tests/Tests-Info.plist
+        excludes: [Tests-Info.plist]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        ENABLE_TESTING_SEARCH_PATHS: YES
     dependencies:
       - target: DeepSleep
       - target: Core

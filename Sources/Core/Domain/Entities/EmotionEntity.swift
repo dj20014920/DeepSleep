@@ -17,6 +17,7 @@ public enum EmotionCategory: String, CaseIterable, Codable {
 
 // MARK: - Legacy EmotionType for Compatibility
 public enum EmotionType: String, CaseIterable, Codable, Hashable {
+    // 기본 감정들
     case happy = "happy"
     case sad = "sad"
     case anxious = "anxious"
@@ -29,6 +30,12 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
     case grateful = "grateful"
     case confused = "confused"
     case neutral = "neutral"
+    
+    // EnhancedEmotion에서 통합된 케이스들
+    case peaceful = "peaceful"
+    case tense = "tense"
+    case focused = "focused"
+    case energetic = "energetic"
     
     public var emojiSymbol: String {
         switch self {
@@ -44,6 +51,23 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
         case .grateful: return "🙏"
         case .confused: return "😕"
         case .neutral: return "😐"
+        // 통합된 케이스들
+        case .peaceful: return "☮️"
+        case .tense: return "😬"
+        case .focused: return "🧘"
+        case .energetic: return "⚡"
+        }
+    }
+    
+    // PERF-WARNING: 감정 강도를 계산하는 메서드 - EnhancedEmotion의 intensity 기능 통합
+    public var intensity: Float {
+        switch self {
+        case .excited, .angry, .energetic: return 0.8
+        case .anxious, .stressed, .tense: return 0.7
+        case .happy, .grateful, .focused: return 0.6
+        case .sad, .nostalgic, .tired: return 0.4
+        case .confused: return 0.3
+        case .calm, .peaceful, .neutral: return 0.2
         }
     }
     
@@ -61,6 +85,11 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
         case .grateful: return "감사"
         case .confused: return "혼란"
         case .neutral: return "무덤덤"
+        // 통합된 케이스들
+        case .peaceful: return "평화로움"
+        case .tense: return "긴장"
+        case .focused: return "집중"
+        case .energetic: return "활력"
         }
     }
     
@@ -70,31 +99,16 @@ public enum EmotionType: String, CaseIterable, Codable, Hashable {
             return .happy
         case .sad, .nostalgic:
             return .sad
-        case .anxious, .stressed, .confused:
+        case .anxious, .stressed, .confused, .tense:
             return .anxious
         case .tired:
             return .tired
         case .angry:
             return .angry
-        case .calm, .neutral:
+        case .calm, .neutral, .peaceful:
             return .neutral
-        }
-    }
-    
-    public var intensity: Float {
-        switch self {
-        case .happy: return 0.7
-        case .sad: return 0.6
-        case .anxious: return 0.8
-        case .stressed: return 0.9
-        case .excited: return 0.9
-        case .tired: return 0.7
-        case .angry: return 0.8
-        case .calm: return 0.3
-        case .nostalgic: return 0.5
-        case .grateful: return 0.6
-        case .confused: return 0.6
-        case .neutral: return 0.2
+        case .focused, .energetic:
+            return .happy  // 집중과 활력은 긍정적 감정으로 분류
         }
     }
     

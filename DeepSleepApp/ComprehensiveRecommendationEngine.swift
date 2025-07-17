@@ -2,7 +2,9 @@
 //  ComprehensiveRecommendationEngine.swift
 //  DeepSleep
 //
+//  ⚠️ DEPRECATED: 이 파일은 SuperRecommendationEngine.swift로 통합되었습니다.
 //  Created by AI on 2025/07/04.
+//  Deprecated on 2025/07/17 - Use SuperRecommendationEngine instead
 //
 
 import Foundation
@@ -389,8 +391,8 @@ public final class ComprehensiveRecommendationEngine {
         return totalScore / Double(sleepData.count)
     }
     
-    private func analyzeSleepPatterns(sleepData: [SleepData]) -> [SleepPattern] {
-        var patterns: [SleepPattern] = []
+    private func analyzeSleepPatterns(sleepData: [SleepData]) -> [RecommendationSleepPattern] {
+        var patterns: [RecommendationSleepPattern] = []
         
         // 평균 취침 시간 계산
         let avgBedtime = sleepData.map { $0.bedtime }.reduce(0, +) / Double(sleepData.count)
@@ -399,7 +401,7 @@ public final class ComprehensiveRecommendationEngine {
         let bedtimeVariance = sleepData.map { pow($0.bedtime - avgBedtime, 2) }.reduce(0, +) / Double(sleepData.count)
         let consistency = 1.0 - min(sqrt(bedtimeVariance) / 2.0, 1.0)
         
-        patterns.append(SleepPattern(
+        patterns.append(RecommendationSleepPattern(
             type: .consistency,
             value: consistency,
             description: consistency > 0.7 ? "일정한 수면 패턴" : "불규칙한 수면 패턴"
@@ -411,13 +413,13 @@ public final class ComprehensiveRecommendationEngine {
             let overallAvg = sleepData.map { $0.duration }.reduce(0, +) / Double(sleepData.count)
             
             if recentAvg > overallAvg + 0.5 {
-                patterns.append(SleepPattern(
+                patterns.append(RecommendationSleepPattern(
                     type: .trend,
                     value: 1.0,
                     description: "수면 시간 증가 추세"
                 ))
             } else if recentAvg < overallAvg - 0.5 {
-                patterns.append(SleepPattern(
+                patterns.append(RecommendationSleepPattern(
                     type: .trend,
                     value: -1.0,
                     description: "수면 시간 감소 추세"
@@ -431,7 +433,7 @@ public final class ComprehensiveRecommendationEngine {
     private func generateSleepAdvice(
         avgDuration: Double,
         qualityScore: Double,
-        patterns: [SleepPattern],
+        patterns: [RecommendationSleepPattern],
         emotion: String?
     ) async throws -> String {
         
@@ -462,7 +464,7 @@ public final class ComprehensiveRecommendationEngine {
         return response.content
     }
     
-    private func recommendSleepSounds(patterns: [SleepPattern]) async -> [String] {
+    private func recommendSleepSounds(patterns: [RecommendationSleepPattern]) async -> [String] {
         var recommendations: [String] = []
         
         // 패턴에 따른 추천
@@ -517,7 +519,7 @@ public struct EmotionAdvice {
 public struct SleepAnalysis {
     public let averageDuration: Double
     public let qualityScore: Double
-    public let patterns: [SleepPattern]
+    public let patterns: [RecommendationSleepPattern]
     public let advice: String
     public let recommendedSounds: [String]
 }
@@ -530,7 +532,7 @@ public struct SleepData {
     public let deepSleepRatio: Double // 0-1
 }
 
-public struct SleepPattern {
+public struct RecommendationSleepPattern {
     public let type: PatternType
     public let value: Double
     public let description: String
@@ -544,12 +546,6 @@ public struct SleepPattern {
 }
 
 // UserProfile is defined in Models.swift
-
-public struct TimeContext {
-    public let currentTime: Date
-    public let dayOfWeek: Int
-    public let isHoliday: Bool
-}
 
 public struct TimePreference {
     public let category: TimeCategory

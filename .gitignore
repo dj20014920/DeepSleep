@@ -278,6 +278,37 @@ vendor/bundle/
 *.orig
 *.rej
 *.tmp
+*.kiro
+
+# ===== Development Guide Files =====
+# Guide and documentation files (개발 가이드 파일들)
+*GUIDE*.md
+*_GUIDE.md
+*guide*.md
+*ANALYSIS*.md
+*REPORT*.md
+*PLAN*.md
+*TODO*.md
+*TRACKER*.md
+*SUMMARY*.md
+*COMPLETION*.md
+
+# ===== Project-specific temporary files =====
+# SuperClaude folder (development tools)
+SuperClaude/
+# Scripts and temporary analysis files
+analysis/
+*-analysis.md
+*-analysis.todo.md
+*.todo.md
+build_*.log
+test_*.log
+*_output*.log
+*_status*.log
+
+# ===== Xcode Project backup folders =====
+*.xcodeproj.bak/
+*.xcworkspace.bak/
 
 # Compressed files
 *.zip

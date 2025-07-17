@@ -80,7 +80,7 @@ class EditDiaryViewController: UIViewController {
     
     private let aiChatButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("AI와 이 일기에 대해 대화하기", for: .normal)
+        button.setTitle("대나무숲에서 이 일기 이야기하기", for: .normal)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
@@ -256,7 +256,7 @@ class EditDiaryViewController: UIViewController {
             saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             saveButton.heightAnchor.constraint(equalToConstant: 50),
             
-            // AI 대화 버튼
+            // 대나무숲 버튼
             aiChatButton.topAnchor.constraint(equalTo: saveButton.bottomAnchor, constant: 12),
             aiChatButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             aiChatButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
@@ -382,7 +382,7 @@ class EditDiaryViewController: UIViewController {
         let alert = UIAlertController(
             title: "🔒 개인정보 보호 안내",
             message: """
-            AI와 대화하기 위해 다음 정보가 전송됩니다:
+            대나무숲에서 이야기하기 위해 다음 정보가 전송됩니다:
             
             • 선택한 감정: \(diaryEntry.selectedEmotion)
             • 작성한 일기 내용
@@ -399,7 +399,7 @@ class EditDiaryViewController: UIViewController {
         )
         
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "AI와 대화하기", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "대나무숲에서 이야기하기", style: .default) { [weak self] _ in
             self?.startAIChat()
         })
         

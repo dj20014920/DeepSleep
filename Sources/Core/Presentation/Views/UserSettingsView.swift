@@ -94,9 +94,9 @@ public struct UserSettingsView: View {
                 // TODO: 드래그 앤 드롭으로 순서 변경 가능하도록 개선
                 ForEach(settingsManager.settings.modelPriority, id: \.self) { model in
                     HStack {
-                        Text("\\(settingsManager.settings.modelPriority.firstIndex(of: model)! + 1). \\(model.displayName)")
+                        Text("\(settingsManager.settings.modelPriority.firstIndex(of: model)! + 1). \(model.displayName)")
                         Spacer()
-                        Text("\\(model.rawValue)")
+                        Text("\(model.rawValue)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -188,7 +188,7 @@ public struct UserSettingsView: View {
                         in: 6...10,
                         step: 0.5
                     )
-                    Text("\\(settingsManager.settings.targetSleepHours, specifier: "%.1f")시간")
+                    Text("\(settingsManager.settings.targetSleepHours, specifier: "%.1f")시간")
                         .frame(width: 60)
                 }
             }
@@ -254,11 +254,11 @@ public struct UserSettingsView: View {
                         in: 1...14,
                         step: 1
                     )
-                    Text("\\(settingsManager.settings.memoryDays)일")
+                    Text("\(settingsManager.settings.memoryDays)일")
                         .frame(width: 40)
                 }
                 
-                Text("최근 \\(settingsManager.settings.memoryDays)일간의 대화를 기억합니다")
+                Text("최근 \(settingsManager.settings.memoryDays)일간의 대화를 기억합니다")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

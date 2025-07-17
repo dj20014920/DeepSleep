@@ -78,9 +78,13 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Data loading needs to be restored later
+        // 일기 데이터 새로고침
+        loadDiaryData()
+        // 현재 선택된 날짜 데이터 새로고침
+        loadData(for: selectedDate)
+        // 캘린더 새로고침
         if calendar != nil {
-        calendar.reloadData()
+            calendar.reloadData()
         }
     }
     
@@ -89,10 +93,23 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         diaryDataForCalendar.removeAll()
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        
+        // 🔍 디버깅용 로그 추가
+        print("🔍 [loadDiaryData] 로드된 일기 항목 수: \(diaryEntries.count)")
+        
         for entry in diaryEntries {
             let dateString = formatter.string(from: entry.date)
             diaryDataForCalendar[dateString] = entry
+            
+            // 🔍 특정 날짜(7월 4일) 데이터 로깅
+            if dateString.contains("2025-07-04") {
+                print("🔍 [loadDiaryData] 7월 4일 데이터 발견:")
+                print("  - 날짜: \(dateString)")
+                print("  - 감정: '\(entry.selectedEmotion)'")
+                print("  - 메시지: '\(entry.userMessage.prefix(50))'")
+            }
         }
+        
         if calendar != nil {
             calendar.reloadData()
         }
@@ -179,7 +196,26 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         formatter.dateFormat = "M월 d일"
         let dateString = formatter.string(from: date)
         
-        let insightText = "📊 \(dateString)의 감정 분석\n\n구체적인 일기를 작성하면 AI가 분석해드립니다."
+        // 해당 날짜의 일기 데이터 확인
+        let dateKeyFormatter = DateFormatter()
+        dateKeyFormatter.dateFormat = "yyyy-MM-dd"
+        let dateKey = dateKeyFormatter.string(from: date)
+        
+        let insightText: String
+        if let diary = diaryDataForCalendar[dateKey] {
+            // 일기가 있는 경우 감정 분석 표시
+            let emotionEmoji = getEmotionEmoji(for: diary.selectedEmotion)
+            insightText = "📊 \(dateString)의 감정 분석\n\n오늘의 감정: \(emotionEmoji) \(diary.selectedEmotion)\n\"\(diary.userMessage.prefix(50))\(diary.userMessage.count > 50 ? "..." : "")\""
+        } else {
+            // 일기가 없는 경우
+            let isToday = Calendar.current.isDate(date, inSameDayAs: Date())
+            if isToday {
+                insightText = "📝 오늘의 감정을 아직 기록하지 않았어요\n\n감정 일기를 작성하면 AI 분석을 받을 수 있습니다."
+            } else {
+                insightText = "📊 \(dateString)의 감정 기록이 없습니다\n\n이 날에는 감정 일기를 작성하지 않으셨네요."
+            }
+        }
+        
         sections.append(.insight(insightText))
         
         // Todo 섹션 추가
@@ -261,6 +297,94 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
         return diaryDataForCalendar[dateString] != nil ? 1 : 0
+    }
+    
+    // 날짜별 감정 이모지 표시
+    func calendar(_ calendar: FSCalendar, titleFor date: Date) -> String? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        
+        // 🔍 특정 날짜(7월 4일) 데이터 로깅
+        if dateString.contains("2025-07-04") {
+            print("🔍 [calendar titleFor] 7월 4일 캘린더 표시 요청:")
+            print("  - 날짜 문자열: \(dateString)")
+            print("  - 일기 데이터 존재: \(diaryDataForCalendar[dateString] != nil)")
+            if let diary = diaryDataForCalendar[dateString] {
+                print("  - 저장된 감정: '\(diary.selectedEmotion)'")
+                let emoji = getEmotionEmoji(for: diary.selectedEmotion)
+                print("  - 변환된 이모지: '\(emoji)'")
+                return emoji
+            }
+        }
+        
+        if let diary = diaryDataForCalendar[dateString] {
+            return getEmotionEmoji(for: diary.selectedEmotion)
+        }
+        
+        return nil // 기본 날짜 숫자 표시
+    }
+    
+    // 감정을 이모지로 변환하는 헬퍼 함수
+    private func getEmotionEmoji(for emotion: String) -> String {
+        // 🔍 디버깅용 로그 추가
+        print("🔍 [getEmotionEmoji] 입력된 감정: '\(emotion)'")
+        print("🔍 [getEmotionEmoji] 소문자 변환: '\(emotion.lowercased())'")
+        
+        let emoji: String
+        
+        // ✅ 먼저 이모지 자체인지 확인 (DiaryWriteViewController에서 이모지를 직접 저장하는 경우)
+        switch emotion {
+        case "😊":
+            emoji = "😊"
+        case "😢":
+            emoji = "😢"
+        case "😠":
+            emoji = "😠"  // 화남 이모지
+        case "😰":
+            emoji = "😰"
+        case "😴":
+            emoji = "😴"
+        case "🥰":
+            emoji = "🥰"
+        case "😔":
+            emoji = "😔"
+        case "😤":
+            emoji = "😤"
+        case "😌":
+            emoji = "😌"
+        case "🤔":
+            emoji = "🤔"
+        default:
+            // 텍스트 감정명인 경우 기존 로직 사용
+            switch emotion.lowercased() {
+            case "기쁨", "행복", "즐거움":
+                emoji = "😊"
+            case "슬픔", "우울", "속상함":
+                emoji = "😢"
+            case "화남", "짜증", "분노":
+                emoji = "😡"
+            case "불안", "걱정", "스트레스":
+                emoji = "😰"
+            case "피곤", "지침":
+                emoji = "😴"
+            case "평온", "차분":
+                emoji = "😌"
+            case "활력", "에너지":
+                emoji = "⚡"
+            case "사랑", "애정":
+                emoji = "🥰"
+            case "놀람", "깜짝":
+                emoji = "😲"
+            case "혼란", "당황":
+                emoji = "😕"
+            default:
+                emoji = "🙂" // 기본 이모지
+            }
+        }
+        
+        print("🔍 [getEmotionEmoji] 결과 이모지: '\(emoji)'")
+        return emoji
     }
 }
 
@@ -451,7 +575,7 @@ extension EmotionCalendarViewController {
         )
         
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "AI 패턴 분석 시작", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "대나무숲 패턴 분석 시작", style: .default) { [weak self] _ in
             self?.startAIAnalysisChat()
         })
         
@@ -701,7 +825,7 @@ extension EmotionCalendarViewController {
         guard !entry.userMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             let errorAlert = UIAlertController(
                 title: "오류",
-                message: "일기 내용이 비어있어 AI와 대화할 수 없습니다.",
+                message: "일기 내용이 비어있어 대나무숲에서 이야기할 수 없습니다.",
                 preferredStyle: .alert
             )
             errorAlert.addAction(UIAlertAction(title: "확인", style: .default))
@@ -818,9 +942,9 @@ extension EmotionCalendarViewController {
         
         let closeButton = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeDiaryDetail))
         
-        // ✅ AI 대화 버튼도 제한 체크
+        // ✅ 대나무숲 버튼도 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let chatButtonTitle = remainingCount > 0 ? "💬 AI 분석" : "💬 분석 완료"
+        let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석" : "💬 분석 완료"
         let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
         
         detailVC.navigationItem.leftBarButtonItem = closeButton
