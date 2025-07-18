@@ -1728,36 +1728,22 @@ extension ChatViewController {
     // MARK: - 누락된 함수들 추가
     
     @objc private func presetButtonTapped() {
-        DebugManager.shared.logUI("프리셋 버튼 탭됨 - 기분 기반 사운드 추천 시작")
+        DebugManager.shared.logUI("프리셋 버튼 탭됨 - 퀵액션 생성")
         
-        // 1. 현재 감정 상태 분석
-        let currentEmotion = analyzeCurrentEmotionFromChat()
-        let currentHour = Calendar.current.component(.hour, from: Date())
-        let timeOfDay = getTimeOfDayString(from: currentHour)
+        // 퀵액션을 보여주는 메시지 생성
+        let quickActions = [
+            QuickAction(title: "앱 분석 추천받기", action: "local_recommendation"),
+            QuickAction(title: "AI 분석 추천받기 (5/5)", action: "ai_recommendation")
+        ]
         
-        // 2. 로딩 메시지 표시
-        let loadingMessage = ChatMessage(
-            text: "🎵 당신의 마음에 딱 맞는 사운드를 찾고 있어요... ✨",
+        let selectorMessage = ChatMessage(
+            text: "맞춤 사운드 추천 방식을 선택해주세요\n\n당신의 현재 상황에 가장 적합한\n사운드 조합을 찾아드릴게요!\n어떤 방식으로 추천받고 싶으신가요?",
             sender: .ai,
-            type: .bot
+            type: .recommendationSelector,
+            quickActions: quickActions
         )
-        appendChat(loadingMessage)
         
-        // 3. 사운드 추천 엔진 호출 (비동기)
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            let recommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
-                emotion: currentEmotion,
-                timeOfDay: timeOfDay,
-                intensity: 1.0,
-                context: "quickaction_request"
-            )
-            
-            DispatchQueue.main.async {
-                self.displayBasicRecommendationInChat(recommendation, emotion: currentEmotion, timeOfDay: timeOfDay)
-            }
-        }
+        appendChat(selectorMessage)
     }
     
     /// 채팅 내용에서 현재 감정 상태 분석
@@ -2453,7 +2439,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         let message = messages[indexPath.row]
         let isUserMessage = (message.sender == .user)
-        print("📋 [ChatViewController] 메시지 구성 - 텍스트: '\(message.text)', 사용자 메시지: \(isUserMessage)")
+        print("📋 [ChatViewController] 메시지 구성 - 텍스트: '\(message.text ?? "nil")', 사용자 메시지: \(isUserMessage)")
         
         var originalUserInput: String?
         if !isUserMessage && indexPath.row > 0 {
@@ -3291,6 +3277,123 @@ extension ChatViewController {
             return UIImage(data: data)
         }
         return nil
+    }
+}
+
+// MARK: - Preset Application
+extension ChatViewController {
+    /// 프리셋 추천 메시지에서 "바로 적용하기" 버튼을 눌렀을 때 호출
+    func applyRecommendedPreset(messageId: UUID) {
+        DebugManager.shared.logUI("프리셋 적용 요청 - messageId: \(messageId)")
+        
+        // 해당 메시지 찾기 (displayMessages와 messages 모두에서 검색)
+        var message: ChatMessage?
+        
+        // 먼저 displayMessages에서 찾기
+        message = displayMessages.first(where: { $0.id == messageId })
+        
+        // 없으면 전체 messages에서 찾기
+        if message == nil {
+            message = messages.first(where: { $0.id == messageId })
+        }
+        
+        guard let foundMessage = message,
+              let messageText = foundMessage.text else {
+            DebugManager.shared.error("메시지를 찾을 수 없음 - messageId: \(messageId)")
+            DebugManager.shared.error("displayMessages 개수: \(displayMessages.count), messages 개수: \(messages.count)")
+            return
+        }
+        
+        DebugManager.shared.logUI("메시지 발견 - 타입: \(foundMessage.type), 텍스트 일부: \(String(messageText.prefix(50)))")
+        
+        // 메시지에서 프리셋 이름 추출 (간단한 파싱)
+        let presetName = extractPresetName(from: messageText)
+        
+        // ViewController+Utilities의 기존 applyRecommendedPreset 메서드 활용
+        if let mainVC = navigationController?.viewControllers.first as? ViewController {
+            // 프리셋 적용 시도
+            if let volumes = SoundPresetCatalog.samplePresets[presetName] {
+                mainVC.applyPreset(volumes: volumes, versions: SoundPresetCatalog.defaultVersions, name: presetName)
+                DebugManager.shared.logUI("프리셋 적용 완료: \(presetName)")
+                
+                // 적용 완료 피드백 메시지
+                let feedbackMessage = ChatMessage(
+                    text: "🎵 '\(presetName)' 프리셋이 적용되었습니다!\n\n사운드 설정이 업데이트되었어요.",
+                    sender: .ai,
+                    type: .bot
+                )
+                appendChat(feedbackMessage)
+            } else {
+                DebugManager.shared.error("프리셋을 찾을 수 없음: \(presetName)")
+                
+                // 오류 피드백 메시지
+                let errorMessage = ChatMessage(
+                    text: "⚠️ 죄송합니다. 해당 프리셋을 찾을 수 없습니다.\n다른 추천을 받아보시겠어요?",
+                    sender: .ai,
+                    type: .bot
+                )
+                appendChat(errorMessage)
+            }
+        }
+    }
+    
+    /// 메시지 텍스트에서 프리셋 이름 추출
+    private func extractPresetName(from messageText: String) -> String {
+        DebugManager.shared.logUI("프리셋 이름 추출 시도 - 원본 텍스트: \(messageText)")
+        
+        // **[프리셋 이름]** 형태 추출 (최우선)
+        if let match = messageText.range(of: #"\*\*\[(.+?)\]\*\*"#, options: .regularExpression) {
+            let matchedText = String(messageText[match])
+            if let innerMatch = matchedText.range(of: #"\[(.+?)\]"#, options: .regularExpression) {
+                let presetName = String(matchedText[innerMatch])
+                    .replacingOccurrences(of: "[", with: "")
+                    .replacingOccurrences(of: "]", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                
+                if !presetName.isEmpty {
+                    DebugManager.shared.logUI("**[이름]** 패턴에서 프리셋 이름 추출 성공: \(presetName)")
+                    return presetName
+                }
+            }
+        }
+        
+        // 다양한 접두사 패턴으로 프리셋 이름 추출 시도
+        let patterns = [
+            "추천 프리셋: ",
+            "프리셋: ",
+            "적용할 프리셋: ",
+            "프리셋 이름: "
+        ]
+        
+        for pattern in patterns {
+            if let range = messageText.range(of: pattern) {
+                let afterPrefix = String(messageText[range.upperBound...])
+                let presetName: String
+                
+                if let newlineRange = afterPrefix.range(of: "\n") {
+                    presetName = String(afterPrefix[..<newlineRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+                } else {
+                    presetName = afterPrefix.trimmingCharacters(in: .whitespaces)
+                }
+                
+                if !presetName.isEmpty {
+                    DebugManager.shared.logUI("패턴 '\(pattern)'에서 프리셋 이름 추출 성공: \(presetName)")
+                    return presetName
+                }
+            }
+        }
+        
+        // SoundPresetCatalog의 프리셋 이름 중에서 매치되는 것 찾기
+        for presetName in SoundPresetCatalog.samplePresets.keys {
+            if messageText.contains(presetName) {
+                DebugManager.shared.logUI("카탈로그에서 프리셋 이름 발견: \(presetName)")
+                return presetName
+            }
+        }
+        
+        // 기본값으로 "깊은 휴식" 반환
+        DebugManager.shared.logUI("프리셋 이름 추출 실패 - 기본값 사용: 깊은 휴식")
+        return "깊은 휴식"
     }
 }
 
