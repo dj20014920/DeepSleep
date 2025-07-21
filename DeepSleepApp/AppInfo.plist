@@ -23,8 +23,18 @@
 		<string>kakaokompassauth</string>
 		<string>kakaolink</string>
 	</array>
+	<key>CLAUDE_API_KEY</key>
+	<string>$(CLAUDE_API_KEY)</string>
+	<key>OPEN_AI_4oMINI_API_KEY</key>
+	<string>$(OPEN_AI_4oMINI_API_KEY)</string>
+	<key>GEMINI_API_KEY</key>
+	<string>$(GEMINI_API_KEY)</string>
+	<key>NAVER_CLOUD_API_KEY</key>
+	<string>$(NAVER_CLOUD_API_KEY)</string>
 	<key>REPLICATE_API_TOKEN</key>
 	<string>$(REPLICATE_API_TOKEN)</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>안전한 개인정보 보호를 위해 Face ID 인증이 필요합니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -121,23 +121,23 @@ class LaunchViewController: UIViewController {
             await performBackgroundInitialization()
         }
         
-        // 1.3초 로딩 시간에 맞춘 부드러운 애니메이션
-        // 아이콘이 먼저 천천히 나타나고 (0.5초 후, 1초간)
-        UIView.animate(withDuration: 1.0, delay: 0.5, options: .curveEaseOut) {
+        // 🎯 1.3초 로딩 시간에 최적화된 부드러운 애니메이션
+        // 아이콘이 먼저 빠르게 나타나고 (0.2초 후, 0.4초간)
+        UIView.animate(withDuration: 0.4, delay: 0.2, options: .curveEaseOut) {
             self.iconImageView.alpha = 1.0
         }
         
-        // 타이틀이 자연스럽게 이어서 나타남 (1.2초 후, 0.8초간)
-        UIView.animate(withDuration: 0.8, delay: 1.2, options: .curveEaseOut) {
+        // 타이틀이 자연스럽게 이어서 나타남 (0.5초 후, 0.4초간)
+        UIView.animate(withDuration: 0.4, delay: 0.5, options: .curveEaseOut) {
             self.titleLabel.alpha = 1.0
         }
         
-        // 서브타이틀이 마지막에 부드럽게 나타남 (1.8초 후, 0.6초간)
-        UIView.animate(withDuration: 0.6, delay: 1.8, options: .curveEaseOut) {
+        // 서브타이틀이 마지막에 부드럽게 나타남 (0.8초 후, 0.4초간)
+        UIView.animate(withDuration: 0.4, delay: 0.8, options: .curveEaseOut) {
             self.subtitleLabel.alpha = 1.0
         }
         
-        // 1.3초 후 메인 화면으로 이동 (사용자 경험 개선)
+        // 1.3초 후 메인 화면으로 이동 (모든 애니메이션 완료 후)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             self.transitionToMainInterface()
         }
@@ -212,9 +212,18 @@ class LaunchViewController: UIViewController {
         fortuneNav.navigationBar.prefersLargeTitles = true
         fortuneNav.tabBarItem = UITabBarItem(title: "오늘의 운세", image: UIImage(systemName: "sparkles"), tag: 2)
         
+        // 4. 설정 화면 (SettingsViewController)
+        let settingsVC = SettingsViewController()
+        let settingsNav = UINavigationController(rootViewController: settingsVC)
+        settingsNav.navigationBar.prefersLargeTitles = true
+        settingsNav.tabBarItem = UITabBarItem(title: "설정", image: UIImage(systemName: "gearshape.fill"), tag: 3)
+        
         // TabBarController에 모든 뷰 컨트롤러들 설정
-        tabBarController.viewControllers = [mainNav, diaryNav, fortuneNav]
+        tabBarController.viewControllers = [mainNav, diaryNav, fortuneNav, settingsNav]
         tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
+        
+        // 스와이프 제스처로 탭 전환 설정
+        setupTabBarSwipeGestures(for: tabBarController)
         
         UIView.transition(
             with: window,
@@ -224,5 +233,47 @@ class LaunchViewController: UIViewController {
                 window.rootViewController = tabBarController
             }
         )
+    }
+    
+    // MARK: - TabBar Swipe Gestures
+    
+    private func setupTabBarSwipeGestures(for tabBarController: UITabBarController) {
+        // 왼쪽 스와이프 - 다음 탭으로
+        let leftSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleTabSwipe(_:)))
+        leftSwipeGesture.direction = .left
+        tabBarController.view.addGestureRecognizer(leftSwipeGesture)
+        
+        // 오른쪽 스와이프 - 이전 탭으로
+        let rightSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleTabSwipe(_:)))
+        rightSwipeGesture.direction = .right
+        tabBarController.view.addGestureRecognizer(rightSwipeGesture)
+    }
+    
+    @objc private func handleTabSwipe(_ gesture: UISwipeGestureRecognizer) {
+        guard let window = view.window,
+              let tabBarController = window.rootViewController as? UITabBarController else { return }
+        
+        let currentIndex = tabBarController.selectedIndex
+        let totalTabs = tabBarController.viewControllers?.count ?? 0
+        
+        var newIndex: Int
+        
+        switch gesture.direction {
+        case .left:
+            // 왼쪽 스와이프 - 다음 탭으로
+            newIndex = (currentIndex + 1) % totalTabs
+        case .right:
+            // 오른쪽 스와이프 - 이전 탭으로
+            newIndex = (currentIndex - 1 + totalTabs) % totalTabs
+        default:
+            return
+        }
+        
+        // 햅틱 피드백
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // 탭 전환
+        tabBarController.selectedIndex = newIndex
     }
 }

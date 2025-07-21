@@ -18,7 +18,7 @@ class TodaysFortuneViewController: UIViewController {
     
     private let headerView: UIView = {
         let view = UIView()
-        view.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        view.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
         view.layer.cornerRadius = 16
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
@@ -40,7 +40,7 @@ class TodaysFortuneViewController: UIViewController {
         formatter.dateFormat = "yyyy년 M월 d일 EEEE"
         label.text = formatter.string(from: Date())
         label.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        label.textColor = .systemGray
+        label.textColor = UIDesignSystem.Colors.secondaryText
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -49,7 +49,7 @@ class TodaysFortuneViewController: UIViewController {
     // 사용자 정보 입력
     private let userInfoCardView: UIView = {
         let view = UIView()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.cardBackground
         view.layer.cornerRadius = 12
         view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowOffset = CGSize(width: 0, height: 2)
@@ -62,7 +62,7 @@ class TodaysFortuneViewController: UIViewController {
     private let ageInfoLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .systemBlue
+        label.textColor = UIDesignSystem.Colors.primary
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -100,7 +100,7 @@ class TodaysFortuneViewController: UIViewController {
     // 운세 결과 표시
     private let fortuneResultView: UIView = {
         let view = UIView()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIDesignSystem.Colors.cardBackground
         view.layer.cornerRadius = 16
         view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowOffset = CGSize(width: 0, height: 4)
@@ -156,7 +156,7 @@ class TodaysFortuneViewController: UIViewController {
     
     // MARK: - Setup
     private func setupUI() {
-        view.backgroundColor = UIColor.systemGroupedBackground
+        view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         navigationItem.title = "오늘의 운세"
         
         view.addSubview(scrollView)
@@ -404,7 +404,7 @@ class TodaysFortuneViewController: UIViewController {
         // 별자리별 특성 정보
         let traitInfo = "✨ \(fortune.zodiacSign) 특성: 오늘은 특별한 에너지가 흐르는 날입니다."
         let traitCard = createEnhancedFortuneCard(title: "🔮 별자리 특성", content: traitInfo)
-        traitCard.backgroundColor = UIColor.systemIndigo.withAlphaComponent(0.1)
+        traitCard.backgroundColor = UIDesignSystem.Colors.accent.withAlphaComponent(0.1)
         fortuneStackView.addArrangedSubview(traitCard)
         
         // 행운 정보 (개선된 버전)
@@ -415,24 +415,24 @@ class TodaysFortuneViewController: UIViewController {
         ⭐ 행운 지수: \(generateLuckyScore())%
         """
         let luckyCard = createEnhancedFortuneCard(title: "🍀 오늘의 행운 정보", content: luckyInfo)
-        luckyCard.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
+        luckyCard.backgroundColor = UIDesignSystem.Colors.success.withAlphaComponent(0.1)
         fortuneStackView.addArrangedSubview(luckyCard)
         
         // 나이별 맞춤 조언
         let adviceContent = generateAdviceForAge(ageGroup: ageGroup)
         let adviceCard = createEnhancedFortuneCard(title: "💡 \(ageGroup)을 위한 조언", content: adviceContent)
-        adviceCard.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.1)
+        adviceCard.backgroundColor = UIDesignSystem.Colors.warning.withAlphaComponent(0.1)
         fortuneStackView.addArrangedSubview(adviceCard)
         
         // 개인 맞춤 메시지
         let messageContent = generatePositiveMessage()
         let messageCard = createEnhancedFortuneCard(title: "💝 당신에게 전하는 메시지", content: messageContent)
-        messageCard.backgroundColor = UIColor.systemPink.withAlphaComponent(0.1)
+        messageCard.backgroundColor = UIDesignSystem.Colors.info.withAlphaComponent(0.1)
         fortuneStackView.addArrangedSubview(messageCard)
         
         // 오늘의 추천 활동
         let activityCard = createEnhancedFortuneCard(title: "🎯 오늘의 추천 활동", content: generateTodaysActivity(ageGroup: ageGroup))
-        activityCard.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.1)
+        activityCard.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.08)
         fortuneStackView.addArrangedSubview(activityCard)
     }
     
@@ -456,7 +456,7 @@ class TodaysFortuneViewController: UIViewController {
     
     private func createFortuneCard(title: String, content: String) -> UIView {
         let cardView = UIView()
-        cardView.backgroundColor = .secondarySystemBackground
+        cardView.backgroundColor = UIDesignSystem.Colors.cardBackground
         cardView.layer.cornerRadius = 12
         cardView.layer.shadowColor = UIColor.black.cgColor
         cardView.layer.shadowOffset = CGSize(width: 0, height: 2)
@@ -468,7 +468,7 @@ class TodaysFortuneViewController: UIViewController {
         
         let contentLabel = createLabel(text: content, font: .systemFont(ofSize: 14))
         contentLabel.numberOfLines = 0
-        contentLabel.textColor = .label
+        contentLabel.textColor = UIDesignSystem.Colors.primaryText
         
         cardView.addSubview(titleLabel)
         cardView.addSubview(contentLabel)
@@ -489,7 +489,7 @@ class TodaysFortuneViewController: UIViewController {
     
     private func createEnhancedFortuneCard(title: String, content: String) -> UIView {
         let cardView = UIView()
-        cardView.backgroundColor = .systemBackground
+        cardView.backgroundColor = UIDesignSystem.Colors.cardBackground
         cardView.layer.cornerRadius = 16
         cardView.layer.shadowColor = UIColor.black.cgColor
         cardView.layer.shadowOffset = CGSize(width: 0, height: 4)
@@ -498,7 +498,7 @@ class TodaysFortuneViewController: UIViewController {
         
         // 제목 부분
         let titleContainer = UIView()
-        titleContainer.backgroundColor = UIColor.systemGray6
+        titleContainer.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
         titleContainer.layer.cornerRadius = 12
         titleContainer.translatesAutoresizingMaskIntoConstraints = false
         
@@ -511,12 +511,12 @@ class TodaysFortuneViewController: UIViewController {
         // 내용 부분
         let contentLabel = createLabel(text: content, font: .systemFont(ofSize: 15, weight: .medium))
         contentLabel.numberOfLines = 0
-        contentLabel.textColor = .label
+        contentLabel.textColor = UIDesignSystem.Colors.primaryText
         contentLabel.lineBreakMode = .byWordWrapping
         
         // 장식용 분리선
         let separatorView = UIView()
-        separatorView.backgroundColor = UIColor.systemGray4
+        separatorView.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.2)
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
         cardView.addSubview(titleContainer)

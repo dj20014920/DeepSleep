@@ -49,6 +49,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 🔐 API 키 보안 검증 실행
         EnvironmentConfig.shared.performSecurityCheck()
         
+        // 💯 완전 토큰 소모 제로 API 체크
+        performZeroTokenAPICheck()
+        
         // SoundManager 초기화 (내부에서 오디오 세션 설정)
         _ = SoundManager.shared // SoundManager.shared를 호출하여 초기화 유도
         RemoteLogger.shared.info("SoundManager 초기화 완료", category: "AppLifecycle")
@@ -66,11 +69,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         TodoManager.shared.rescheduleAllNotifications()
         
         // MARK: - Fallback UI Setup
-        // If SceneDelegate is not invoked, ensure LaunchViewController appears
-        let fallbackWindow = UIWindow(frame: UIScreen.main.bounds)
-        fallbackWindow.rootViewController = LaunchViewController()
-        fallbackWindow.makeKeyAndVisible()
-        self.window = fallbackWindow
+        // SceneDelegate가 iOS 13+에서 메인 UI를 처리하므로 여기서는 설정하지 않음
+        // 필요시에만 fallback window 생성
+        if #available(iOS 13.0, *) {
+            // SceneDelegate가 처리하므로 여기서는 window 설정하지 않음
+            print("📱 iOS 13+ SceneDelegate 모드 - UI 설정 스킵")
+        } else {
+            // iOS 12 이하에서만 fallback UI 설정
+            let fallbackWindow = UIWindow(frame: UIScreen.main.bounds)
+            fallbackWindow.rootViewController = LaunchViewController()
+            fallbackWindow.makeKeyAndVisible()
+            self.window = fallbackWindow
+            print("📱 iOS 12 이하 - Fallback UI 설정")
+        }
         
         return true
     }
@@ -171,6 +182,78 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             try session.setActive(true)
         } catch {
             print("🔴 AVAudioSession setup failed:", error)
+        }
+    }
+    
+    // MARK: - API 초기화 및 연결 테스트
+    
+    /// 완전 토큰 소모 제로 API 상태 확인
+    private func performZeroTokenAPICheck() {
+        print("\n" + "💯" + String(repeating: " ", count: 3) + "완전 토큰 소모 제로 API 체크" + String(repeating: " ", count: 3) + "💯")
+        print(String(repeating: "=", count: 50))
+        print("🔍 방식: 로컬 검증 + 네트워크 상태 확인만 (API 호출 절대 없음)")
+        print(String(repeating: "=", count: 50))
+        
+        // 1단계: 즉시 빠른 체크
+        let (hasValidKeys, networkOK, recommendedAPI) = ZeroTokenAPIChecker.shared.quickZeroTokenCheck()
+        
+        if hasValidKeys {
+            print("✅ [즉시 결과] API 사용 준비 완료!")
+            if let recommended = recommendedAPI {
+                print("🏆 [권장 API] \(recommended)")
+            }
+            
+            // 2단계: 백그라운드에서 상세 분석 (메인 UI 방해 안함)
+            Task {
+                do {
+                    await ZeroTokenAPIChecker.shared.performZeroTokenCheck()
+                    print("🎉 [최종 완료] 모든 상태 확인 완료 (토큰 소모 0개)")
+                } catch {
+                    print("⚠️ [네트워크 체크] 일부 확인 실패하지만 API 키는 정상: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            print("⚠️ [즉시 결과] API 키 설정이 필요합니다")
+            showAPISetupGuidance()
+        }
+        
+        // UI 진행을 방해하지 않도록 즉시 리턴
+        print("📱 [메인 UI] 앱 메인 화면으로 진행...")
+    }
+    
+    /// API 설정 안내 표시
+    private func showAPISetupGuidance() {
+        print("\n" + "📘" + " API 설정 가이드:")
+        print("   1. Secrets.xcconfig 파일을 확인하세요")
+        print("   2. API 키가 올바른 형식인지 확인하세요")
+        print("   3. 네트워크 연결을 확인하세요")
+        print("   4. API 키 잔액을 확인하세요")
+        print("")
+        
+        // 사용자에게 설정 안내 알림 (선택적)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.scheduleAPISetupNotification()
+        }
+    }
+    
+    /// API 설정 안내 알림 스케줄링
+    private func scheduleAPISetupNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "DeepSleep API 설정 필요"
+        content.body = "AI 기능을 사용하기 위해 API 키 설정이 필요합니다."
+        content.sound = UNNotificationSound.default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "api-setup-guidance",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ API 설정 알림 스케줄 실패: \(error.localizedDescription)")
+            }
         }
     }
 }

@@ -15,10 +15,10 @@ import CryptoKit
 class AISecurityManager {
     static let shared = AISecurityManager()
     
-    // MARK: - 🔒 보안 설정 (사용자 친화적 조정)
-    private let maxPromptLength = 4000          // 2000 → 4000 (더 긴 메시지 허용)
-    private let maxDailyRequests = 500          // 100 → 500 (더 많은 사용 허용)
-    private let maxConversationTurns = 99999    // 200 → 99999 (사실상 무제한 대화)
+    // MARK: - 🔒 보안 설정 (프로덕션 보안 강화)
+    private let maxPromptLength = 2000          // 프롬프트 길이 제한 (보안 강화)
+    private let maxDailyRequests = 100          // 일일 요청 제한 (남용 방지)
+    private let maxConversationTurns = 200      // 대화 턴 제한 (리소스 보호)
     private let allowedLanguages: Set<String> = ["ko", "en"]
     
     // MARK: - 📊 보안 모니터링

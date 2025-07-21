@@ -106,6 +106,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private var hasMoreMessages = true
     private var displayMessages: [ChatMessage] = []
     
+    // MARK: - Model Switching Properties
+    // TODO: 임시 주석 처리 - 컴파일 오류 해결 후 활성화
+    // private let modelSwitchingManager = ModelSwitchingManager.shared
+    // private let unifiedContextManager = UnifiedContextManager.shared
+    private var modelSelectorButton: UIButton!
+    
     // MARK: - UI Components
     private let tableView: UITableView = {
         let tv = UITableView()
@@ -459,7 +465,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                     sender: .ai,
                     type: .loading
                 )
-                self.messages.append(loadingMessage)
+                self.appendChat(loadingMessage)
                 print("⏳ [ChatViewController] 로딩 메시지 추가됨 - 메시지 수: \(self.messages.count)")
             } else {
                 print("⏳ [ChatViewController] 로딩 메시지 제거 시도")
@@ -604,12 +610,21 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 🔄 컨텍스트 기반 초기화
         setupChatContext()
         
+        // 🤖 모델 전환 시스템 설정
+        // TODO: 임시 주석 처리 - 모델 전환 시스템
+        // setupModelSwitching()
+        
+        // TODO: 모델 전환 시스템 통합 예정
+        
         // 기본 초기화
         setupInitialMessages()
         
         // 페이징 및 캐시
         setupPaging()
         loadCachedMessages()
+        
+        // 🎯 채팅 히스토리 복원 (MessageStore와 ChatManager에서)
+        restoreChatHistoryFromStorage()
         
         // 메모리 압박 상황 모니터링
         NotificationCenter.default.addObserver(
@@ -849,7 +864,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         // 메시지를 채팅 기록에 추가
         let userChatMessage = ChatMessage(text: userMessage, sender: .user, type: .user)
-        messages.append(userChatMessage)
+        appendChat(userChatMessage)
         
         // 테이블 뷰 업데이트
         DispatchQueue.main.async {
@@ -866,7 +881,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         let response = "메시지를 받았습니다: \(userMessage)"
         
         let aiMessage = ChatMessage(text: response, sender: .ai, type: .bot)
-        messages.append(aiMessage)
+        appendChat(aiMessage)
         
         DispatchQueue.main.async {
             self.tableView.reloadData()
@@ -1321,7 +1336,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func showQuickFeedbackThankYou() {
         let message = ChatMessage(text: "🙏 피드백 감사합니다! AI가 조금 더 똑똑해졌어요. 계속 학습하여 더 나은 추천을 드리겠습니다!", sender: .ai, type: .bot)
-        messages.append(message)
+        appendChat(message)
         
         // 성능 메트릭 업데이트
         performanceMetrics.feedbackReceived += 1
@@ -1329,7 +1344,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func showPresetAppliedMessage(_ presetName: String) {
         let message = ChatMessage(text: "✅ '\(presetName)' 프리셋이 적용되었습니다! 🎵", sender: .ai, type: .bot)
-        messages.append(message)
+        appendChat(message)
     }
     
     private func displayAIRecommendation(_ recommendation: EnhancedRecommendationResponse) {
@@ -2628,12 +2643,15 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     private func performClaudeAnalysis() {
-        // 7일간 종합 기록 구성 
-        let weeklyHistory = CachedConversationManager.shared.getFormattedWeeklyHistory()
-        let currentContext = buildCurrentEmotionContext()
+        // ⚠️ 토큰 절약: 전체 히스토리 대신 최소한의 컨텍스트만 사용
+        // let weeklyHistory = CachedConversationManager.shared.getFormattedWeeklyHistory() // 차단!
+        // let currentContext = buildCurrentEmotionContext() // 차단!
         
-        // 외부 AI 분석 요청 구성
-        let analysisPrompt = buildClaudeAnalysisPrompt(context: "\(weeklyHistory)\n\(currentContext)")
+        // 🎯 토큰 절약형 컨텍스트 (최대 200 토큰 이내)
+        let minimalContext = buildMinimalContextForAI()
+        
+        // 외부 AI 분석 요청 구성 (토큰 절약)
+        let analysisPrompt = buildTokenEfficientPrompt(context: minimalContext)
         
         Task {
             do {
@@ -3395,6 +3413,182 @@ extension ChatViewController {
         DebugManager.shared.logUI("프리셋 이름 추출 실패 - 기본값 사용: 깊은 휴식")
         return "깊은 휴식"
     }
+    
+    // MARK: - 🔥 토큰 절약형 AI 컨텍스트
+    
+    /// 토큰을 절약하는 최소한의 컨텍스트 생성 (최대 200토큰)
+    private func buildMinimalContextForAI() -> String {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let timeContext = getTimeContext(hour: currentHour)
+        
+        // 최근 3개 메시지만 (사용자의 현재 요청 파악용)
+        let recentMessages = messages.suffix(3)
+        let recentContext = recentMessages.compactMap { message in
+            if message.sender == .user, let text = message.text {
+                return "사용자: \(text.prefix(50))" // 50자만
+            }
+            return nil
+        }.joined(separator: " / ")
+        
+        return """
+        시간: \(timeContext)
+        최근요청: \(recentContext.isEmpty ? "없음" : recentContext)
+        """
+    }
+    
+    /// 토큰 효율적인 프롬프트 생성 (기존 대비 90% 절약)
+    private func buildTokenEfficientPrompt(context: String) -> String {
+        return """
+        사용자 수면 사운드 추천:
+        \(context)
+        
+        다음 중 하나 추천:
+        바람결같은고요, 햇살가득한오후, 빗소리와함께하는위로, 마음을다독이는선율, 깊은휴식
+        
+        형식: **[프리셋명]** 간단한이유
+        """
+    }
+    
+    /// 시간대별 컨텍스트 (토큰 절약)
+    private func getTimeContext(hour: Int) -> String {
+        switch hour {
+        case 6..<12: return "아침"
+        case 12..<18: return "오후"
+        case 18..<22: return "저녁"
+        default: return "밤"
+        }
+    }
+}
+
+// MARK: - 🎯 채팅 히스토리 복원
+extension ChatViewController {
+    
+    /// MessageStore와 ChatManager에서 이전 채팅들을 복원합니다
+    private func restoreChatHistoryFromStorage() {
+        print("🔄 [ChatViewController] 채팅 히스토리 복원 시작")
+        
+        Task {
+            do {
+                // MessageStore에서 최근 메시지들 로드 (최대 50개)
+                let storedMessages = try await MessageStore.shared.loadMessages(page: 0, pageSize: 50)
+                
+                print("🔄 [ChatViewController] MessageStore에서 \(storedMessages.count)개 메시지 로드됨")
+                
+                DispatchQueue.main.async {
+                    // 저장된 메시지가 있으면 기존 초기 메시지들 제거
+                    if !storedMessages.isEmpty {
+                        self.messages.removeAll()
+                    }
+                    
+                    // 저장된 메시지들을 ChatMessage로 변환하고 추가
+                    for storedMessage in storedMessages {
+                        let chatMessage = ChatMessage(
+                            text: storedMessage.content,
+                            date: Date(), // 시간 순서는 MessageStore가 관리
+                            sender: storedMessage.isUser ? .user : .ai,
+                            type: self.getMessageType(from: storedMessage.isUser)
+                        )
+                        
+                        // appendChat 대신 직접 추가 (이미 저장된 메시지이므로 재저장 방지)
+                        self.messages.append(chatMessage)
+                    }
+                    
+                    print("🔄 [ChatViewController] \(self.messages.count)개 메시지 UI에 복원됨")
+                    
+                    // UI 업데이트
+                    self.tableView.reloadData()
+                    if !self.messages.isEmpty {
+                        self.scrollToBottom()
+                    }
+                }
+                
+            } catch {
+                print("❌ [ChatViewController] 채팅 히스토리 복원 실패: \(error)")
+                
+                // 실패 시 ChatManager에서 시도
+                self.restoreFromChatManager()
+            }
+        }
+    }
+    
+    /// ChatManager에서 채팅 히스토리 복원 (백업 방법)
+    private func restoreFromChatManager() {
+        print("🔄 [ChatViewController] ChatManager에서 히스토리 복원 시도")
+        
+        guard let chatManager = chatManager else {
+            print("❌ [ChatViewController] ChatManager가 없습니다")
+            return
+        }
+        
+        let sessions = chatManager.getSessions()
+        guard let latestSession = sessions.first else {
+            print("🔄 [ChatViewController] 저장된 세션이 없습니다")
+            return
+        }
+        
+        print("🔄 [ChatViewController] 최신 세션에서 \(latestSession.messages.count)개 메시지 발견")
+        
+        Task { @MainActor in
+            // 기존 메시지 제거
+            if !latestSession.messages.isEmpty {
+                self.messages.removeAll()
+            }
+            
+            // StoredChatMessage를 ChatMessage로 변환
+            for storedMessage in latestSession.messages {
+                let isUser = (storedMessage.type == .user)
+                let chatMessage = ChatMessage(
+                    text: storedMessage.text,
+                    date: storedMessage.timestamp,
+                    sender: isUser ? .user : .ai,
+                    type: isUser ? .user : .bot
+                )
+                
+                // 직접 추가 (재저장 방지)
+                self.messages.append(chatMessage)
+            }
+            
+            print("🔄 [ChatViewController] ChatManager에서 \(self.messages.count)개 메시지 복원됨")
+            
+            // UI 업데이트
+            self.tableView.reloadData()
+            if !self.messages.isEmpty {
+                self.scrollToBottom()
+            }
+        }
+    }
+    
+    /// 사용자 여부에 따라 메시지 타입 결정
+    private func getMessageType(from isUser: Bool) -> ChatMessageType {
+        return isUser ? .user : .bot
+    }
+    
+    /// 🔄 StoredMessageType을 ChatMessageType으로 변환
+    private func getMessageTypeFromStoredType(_ storedType: String) -> ChatMessageType {
+        switch storedType {
+        case "user": return .user
+        case "bot": return .bot
+        case "system": return .system
+        case "presetRecommendation": return .presetRecommendation
+        case "error": return .error
+        default: return .bot
+        }
+    }
+    
+    /// 문자열에서 ChatMessageType으로 변환
+    private func getMessageTypeFromString(_ typeString: String) -> ChatMessageType {
+        switch typeString {
+        case "user": return .user
+        case "bot": return .bot
+        case "system": return .system
+        case "preset": return .presetRecommendation
+        case "selector": return .recommendationSelector
+        case "options": return .presetOptions
+        case "loading": return .loading
+        case "error": return .error
+        default: return .bot
+        }
+    }
 }
 
 // MARK: - TableView Cell Configuration
@@ -3408,3 +3602,305 @@ extension ChatViewController {
         // 기존 셀 구성 코드...
     }
 }
+
+// MARK: - Model Switching Integration
+// TODO: 임시 주석 처리 - ModelSwitchingDelegate 확장
+/*
+extension ChatViewController: ModelSwitchingDelegate {
+    
+    /// 🤖 모델 전환 시스템 초기 설정
+    private func setupModelSwitching() {
+        setupModelSelectorButton()
+        // TODO: 임시 주석 처리
+        // modelSwitchingManager.delegate = self
+        
+        // 현재 메시지들을 UnifiedContextManager에 등록
+        registerCurrentMessagesWithContextManager()
+    }
+    
+    /// 🔘 모델 선택 버튼 설정
+    private func setupModelSelectorButton() {
+        modelSelectorButton = UIButton(type: .system)
+        modelSelectorButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 버튼 디자인
+        updateModelSelectorButton()
+        modelSelectorButton.addTarget(self, action: #selector(modelSelectorTapped), for: .touchUpInside)
+        
+        // 네비게이션 바에 추가
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: modelSelectorButton)
+    }
+    
+    /// 🔄 모델 선택 버튼 업데이트
+    private func updateModelSelectorButton() {
+        // TODO: 임시 주석 처리
+        let currentModel = AIModelType.claude35 // modelSwitchingManager.currentModel
+        
+        modelSelectorButton.setTitle("🤖 \(currentModel.displayName)", for: .normal)
+        modelSelectorButton.backgroundColor = .systemBlue.withAlphaComponent(0.1)
+        modelSelectorButton.layer.cornerRadius = 8
+        modelSelectorButton.layer.borderWidth = 1
+        modelSelectorButton.layer.borderColor = UIColor.systemBlue.cgColor
+        modelSelectorButton.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        
+        // 모델별 색상 차별화
+        switch currentModel {
+        case .claude35:
+            modelSelectorButton.setTitleColor(.systemOrange, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemOrange.cgColor
+        case .gpt4:
+            modelSelectorButton.setTitleColor(.systemGreen, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemGreen.cgColor
+        case .gemini:
+            modelSelectorButton.setTitleColor(.systemBlue, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemBlue.cgColor
+        case .onDevice:
+            modelSelectorButton.setTitleColor(.systemPurple, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemPurple.cgColor
+        }
+    }
+    
+    /// 📱 모델 선택 액션
+    @objc private func modelSelectorTapped() {
+        presentModelSelectionSheet()
+    }
+    
+    /// 📋 모델 선택 시트 표시
+    private func presentModelSelectionSheet() {
+        let alertController = UIAlertController(
+            title: "AI 모델 선택",
+            message: "대화에 사용할 AI 모델을 선택하세요",
+            preferredStyle: .actionSheet
+        )
+        
+        // 각 모델에 대한 액션 추가
+        for modelType in [AIModelType.claude35, .gpt4, .gemini, .onDevice] {
+            // TODO: 임시 주석 처리
+            // let characteristics = modelSwitchingManager.getModelCharacteristics(modelType)
+            let isCurrentModel = false // modelType == modelSwitchingManager.currentModel
+            
+            let action = UIAlertAction(
+                title: "\(characteristics.name)\(isCurrentModel ? " ✓" : "")",
+                style: isCurrentModel ? .cancel : .default
+            ) { _ in
+                Task {
+                    await self.switchToModel(modelType)
+                }
+            }
+            
+            // 모델별 설명 추가
+            let subtitle = characteristics.strengths.joined(separator: ", ")
+            action.setValue(subtitle, forKey: "subtitle")
+            
+            alertController.addAction(action)
+        }
+        
+        // 취소 액션
+        alertController.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        // iPad 지원
+        if let popover = alertController.popoverPresentationController {
+            popover.sourceView = modelSelectorButton
+            popover.sourceRect = modelSelectorButton.bounds
+        }
+        
+        present(alertController, animated: true)
+    }
+    
+    /// 🔄 모델 전환 실행
+    private func switchToModel(_ newModel: AIModelType) async {
+        do {
+            // 로딩 상태 표시
+            await MainActor.run {
+                showModelSwitchingIndicator()
+            }
+            
+            // 현재 대화를 컨텍스트에 저장
+            updateContextWithCurrentMessages()
+            
+            // 모델 전환 실행
+            // TODO: 임시 주석 처리
+            // try await modelSwitchingManager.switchToModel(newModel)
+            print("Model switch to \(newModel) requested but temporarily disabled")
+            
+        } catch {
+            await MainActor.run {
+                hideModelSwitchingIndicator()
+                showErrorAlert(title: "모델 전환 실패", message: error.localizedDescription)
+            }
+        }
+    }
+    
+    /// 📝 현재 메시지들을 컨텍스트 매니저에 등록
+    private func registerCurrentMessagesWithContextManager() {
+        for message in messages {
+            let contextMessage = ContextMessage(
+                content: message.text ?? "",
+                isFromUser: message.sender == .user,
+                type: mapToContextMessageType(message.type),
+                importance: calculateMessageImportance(message),
+                detectedEmotion: extractEmotionFromMessage(message),
+                modelUsed: .claude35 // modelSwitchingManager.currentModel
+            )
+            
+            // TODO: 임시 주석 처리
+            // unifiedContextManager.addMessage(contextMessage)
+        }
+    }
+    
+    /// 🔄 현재 대화를 컨텍스트에 업데이트
+    private func updateContextWithCurrentMessages() {
+        // 최근 메시지 몇 개만 업데이트
+        let recentMessages = Array(messages.suffix(5))
+        
+        for message in recentMessages {
+            let contextMessage = ContextMessage(
+                content: message.text ?? "",
+                isFromUser: message.sender == .user,
+                type: mapToContextMessageType(message.type),
+                importance: calculateMessageImportance(message),
+                detectedEmotion: extractEmotionFromMessage(message),
+                modelUsed: .claude35 // modelSwitchingManager.currentModel
+            )
+            
+            // TODO: 임시 주석 처리
+            // unifiedContextManager.addMessage(contextMessage)
+        }
+    }
+    
+    /// 💭 메시지 타입 매핑
+    private func mapToContextMessageType(_ chatType: ChatMessageType) -> ContextMessageType {
+        switch chatType {
+        case .user, .bot, .aiResponse: return .normal
+        case .system: return .system
+        case .presetRecommendation: return .feedback
+        case .error: return .system
+        default: return .normal
+        }
+    }
+    
+    /// 📊 메시지 중요도 계산
+    private func calculateMessageImportance(_ message: ChatMessage) -> Double {
+        var importance = 0.5 // 기본값
+        
+        // 메시지 길이 고려
+        let length = message.text?.count ?? 0
+        if length > 100 { importance += 0.2 }
+        if length > 300 { importance += 0.2 }
+        
+        // 감정 키워드 포함 시
+        let emotionKeywords = ["기분", "감정", "스트레스", "불안", "우울", "행복", "슬픔"]
+        if let text = message.text {
+            for keyword in emotionKeywords {
+                if text.contains(keyword) {
+                    importance += 0.3
+                    break
+                }
+            }
+        }
+        
+        return min(importance, 1.0)
+    }
+    
+    /// 🎭 메시지에서 감정 추출
+    private func extractEmotionFromMessage(_ message: ChatMessage) -> DetectedEmotion? {
+        guard let text = message.text else { return nil }
+        
+        // 간단한 감정 분석 (실제로는 더 정교한 분석 필요)
+        let emotions: [(String, [String])] = [
+            ("기쁨", ["기쁘", "행복", "좋아", "즐거", "신나"]),
+            ("슬픔", ["슬프", "우울", "힘들", "괴로", "눈물"]),
+            ("분노", ["화나", "짜증", "분노", "억울", "열받"]),
+            ("불안", ["불안", "걱정", "두려", "무서", "긴장"]),
+            ("스트레스", ["스트레스", "피곤", "지쳐", "힘들"])
+        ]
+        
+        for (emotion, keywords) in emotions {
+            for keyword in keywords {
+                if text.contains(keyword) {
+                    return DetectedEmotion(
+                        type: emotion,
+                        intensity: 0.7,
+                        confidence: 0.8
+                    )
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    /// 🔄 모델 전환 로딩 표시
+    private func showModelSwitchingIndicator() {
+        // 로딩 메시지 추가
+        let loadingMessage = ChatMessage(
+            text: "🔄 AI 모델을 전환하고 있습니다...",
+            date: Date(),
+            sender: .ai,
+            type: .loading
+        )
+        
+        messages.append(loadingMessage)
+        displayMessages.append(loadingMessage)
+        
+        tableView.insertRows(at: [IndexPath(row: displayMessages.count - 1, section: 0)], with: .fade)
+        scrollToBottom()
+    }
+    
+    /// ✅ 모델 전환 로딩 숨김
+    private func hideModelSwitchingIndicator() {
+        // 로딩 메시지 제거
+        if let lastMessage = displayMessages.last,
+           lastMessage.type == .loading {
+            displayMessages.removeLast()
+            messages.removeLast()
+            
+            let indexPath = IndexPath(row: displayMessages.count, section: 0)
+            tableView.deleteRows(at: [indexPath], with: .fade)
+        }
+    }
+    
+    // MARK: - ModelSwitchingDelegate Implementation
+    
+    func modelSwitchingWillBegin(from: AIModelType, to: AIModelType) {
+        print("🔄 [ChatViewController] 모델 전환 시작: \(from.displayName) → \(to.displayName)")
+    }
+    
+    func modelSwitchingDidComplete(from: AIModelType, to: AIModelType) {
+        DispatchQueue.main.async {
+            self.hideModelSwitchingIndicator()
+            self.updateModelSelectorButton()
+            
+            // 전환 완료 메시지 추가
+            let switchMessage = ChatMessage(
+                text: "✅ \(to.displayName)로 전환되었습니다. 이전 대화 맥락을 유지하며 계속 대화할 수 있습니다.",
+                date: Date(),
+                sender: .ai,
+                type: .system
+            )
+            
+            self.addMessage(switchMessage)
+        }
+        
+        print("✅ [ChatViewController] 모델 전환 완료: \(from.displayName) → \(to.displayName)")
+    }
+    
+    func modelSwitchingDidFail(error: Error) {
+        DispatchQueue.main.async {
+            self.hideModelSwitchingIndicator()
+            self.showErrorAlert(title: "모델 전환 실패", message: error.localizedDescription)
+        }
+        
+        print("❌ [ChatViewController] 모델 전환 실패: \(error)")
+    }
+    
+    /// 에러 알림 표시
+    private func showErrorAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+}
+*/
+
+// TODO: 모델 전환 시스템은 추후 통합 예정

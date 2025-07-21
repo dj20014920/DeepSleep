@@ -7,7 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0875F448AE094D64B96D782B /* ZeroTokenAPIChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A6C2287EF64451F951368F1 /* ZeroTokenAPIChecker.swift */; };
 		03AAF748F0257C6CAA553E4E /* AutomaticLearningModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B49324D3D01101F10330E /* AutomaticLearningModels.swift */; };
+		564099E3A175401E97EC4178 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2CBAB86967414EB31C3B1E /* SettingsViewController.swift */; };
+		51601C095199430D92F4FAE1 /* SettingsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A036BB1AA5C94D3F9F930215 /* SettingsSectionView.swift */; };
+		CAB9D95DFE4E46039AA7D6BE /* UserSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FDAB9290024C23877F274F /* UserSettingsModel.swift */; };
+		6A46FA44889047FE8B301B90 /* StubViewControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2014EF979A54C33BC9F2BD3 /* StubViewControllers.swift */; };
+		84C56CD031EE4E1F84CEC1D1 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C56CD031EE4E1F84CEC1D0 /* AppConfig.swift */; };
+		F6CBCFD2D9DB4B1CB5D6405F /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CBCFD2D9DB4B1CB5D6405E /* AIContextManager.swift */; };
+		A1B2C3D4E5F6789012345679 /* SecurityConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789012345678 /* SecurityConfig.swift */; };
+		BB1234567890ABCD12345678 /* UserBasicInfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1234567890ABCD12345678 /* UserBasicInfoViewController.swift */; };
+		DD1234567890ABCD12345678 /* UsageAnalyticsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE1234567890ABCD12345678 /* UsageAnalyticsViewController.swift */; };
 		04113A8049B4BCEA513A0858 /* EnhancedFeedbackViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A83E06CB6DD2AE77FEBF1FE2 /* EnhancedFeedbackViewController.swift */; };
 		04E6BCDA67D838593391D192 /* ChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1A7DBF49999F23ABDA6D71 /* ChatViewController.swift */; };
 		05A7492DDF9C48A2EC9283C9 /* EnhancedSoundRecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE88D825C361E5380524E0B8 /* EnhancedSoundRecommendationEngine.swift */; };
@@ -237,7 +247,17 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1A6C2287EF64451F951368F1 /* ZeroTokenAPIChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeroTokenAPIChecker.swift; sourceTree = "<group>"; };
 		040B831E097C340306A37BF2 /* LLMRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMRouterTests.swift; sourceTree = "<group>"; };
+		4D2CBAB86967414EB31C3B1E /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		A036BB1AA5C94D3F9F930215 /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
+		37FDAB9290024C23877F274F /* UserSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettingsModel.swift; sourceTree = "<group>"; };
+		B2014EF979A54C33BC9F2BD3 /* StubViewControllers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubViewControllers.swift; sourceTree = "<group>"; };
+		84C56CD031EE4E1F84CEC1D0 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		F6CBCFD2D9DB4B1CB5D6405E /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6789012345678 /* SecurityConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityConfig.swift; sourceTree = "<group>"; };
+		CC1234567890ABCD12345678 /* UserBasicInfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBasicInfoViewController.swift; sourceTree = "<group>"; };
+		EE1234567890ABCD12345678 /* UsageAnalyticsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAnalyticsViewController.swift; sourceTree = "<group>"; };
 		051A9C08F887E1342F322A35 /* RemoteLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLogger.swift; sourceTree = "<group>"; };
 		06BC2CE6CFCEF97C58ED7A4F /* ViewController+Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Utilities.swift"; sourceTree = "<group>"; };
 		06DD706B2167DBF9CCFB9031 /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
@@ -605,6 +625,7 @@
 				BD018193765568548DD1942B /* AIUsageManager.swift */,
 				5A25A8BE0EB1DB9BF2D37946 /* AnalysisInitExtensions.swift */,
 				631A0E573A01006D79D938C7 /* AppDelegate.swift */,
+				1A6C2287EF64451F951368F1 /* ZeroTokenAPIChecker.swift */,
 				A3416B54EF85C85669F47F1C /* AppInfo.plist */,
 				8123F5F7A855FCFED8EDAC4C /* Assets.xcassets */,
 				423B49324D3D01101F10330E /* AutomaticLearningModels.swift */,
@@ -674,6 +695,14 @@
 				46958ED21695D4CA9CEA27F7 /* SceneDelegate.swift */,
 				F091CCDC35F7F002F1BE342D /* Secrets.xcconfig */,
 				EF422926871C03A1B87AE8CF /* SettingsManager.swift */,
+				A036BB1AA5C94D3F9F930215 /* SettingsSectionView.swift */,
+				4D2CBAB86967414EB31C3B1E /* SettingsViewController.swift */,
+				B2014EF979A54C33BC9F2BD3 /* StubViewControllers.swift */,
+				84C56CD031EE4E1F84CEC1D0 /* AppConfig.swift */,
+				F6CBCFD2D9DB4B1CB5D6405E /* AIContextManager.swift */,
+				A1B2C3D4E5F6789012345678 /* SecurityConfig.swift */,
+				CC1234567890ABCD12345678 /* UserBasicInfoViewController.swift */,
+				EE1234567890ABCD12345678 /* UsageAnalyticsViewController.swift */,
 				49DE4E9BF0DBA5298060F880 /* SoundCatalogManager.swift */,
 				32860D51F4756EF02DB989E6 /* SoundFilterManager.swift */,
 				C65D8325E09283100491901D /* SoundHarmonyAnalyzer.swift */,
@@ -689,6 +718,7 @@
 				990AD15404FD99C83A5B4A6B /* UserBehaviorAnalytics.swift */,
 				DE87ED59329DD0F275A1AE50 /* UserDefaults+Extensions.swift */,
 				4632C1177BB7BB08E92E0584 /* UserFriendlyErrorHandler.swift */,
+				37FDAB9290024C23877F274F /* UserSettingsModel.swift */,
 				94EB98E15828ACC998EEA91F /* ViewController.swift */,
 				9CF704FBCA8B0258C129AE8F /* ViewController+EmotionSelector.swift */,
 				B7800630928644BFAAA2F0F3 /* ViewController+PlaybackControls.swift */,
@@ -1057,7 +1087,17 @@
 				55476C55B6AA71E778859DB7 /* AdvancedPresetCatalog.swift in Sources */,
 				DB8EB7BB14CA6ADC31B658C2 /* AnalysisInitExtensions.swift in Sources */,
 				CA00D9E971259549BD45CFEC /* AppDelegate.swift in Sources */,
+				0875F448AE094D64B96D782B /* ZeroTokenAPIChecker.swift in Sources */,
 				03AAF748F0257C6CAA553E4E /* AutomaticLearningModels.swift in Sources */,
+				564099E3A175401E97EC4178 /* SettingsViewController.swift in Sources */,
+				51601C095199430D92F4FAE1 /* SettingsSectionView.swift in Sources */,
+				CAB9D95DFE4E46039AA7D6BE /* UserSettingsModel.swift in Sources */,
+				6A46FA44889047FE8B301B90 /* StubViewControllers.swift in Sources */,
+				84C56CD031EE4E1F84CEC1D1 /* AppConfig.swift in Sources */,
+				F6CBCFD2D9DB4B1CB5D6405F /* AIContextManager.swift in Sources */,
+				A1B2C3D4E5F6789012345679 /* SecurityConfig.swift in Sources */,
+				BB1234567890ABCD12345678 /* UserBasicInfoViewController.swift in Sources */,
+				DD1234567890ABCD12345678 /* UsageAnalyticsViewController.swift in Sources */,
 				F8E9AABC0AFF0D67F887BC9E /* BatteryOptimizationManager.swift in Sources */,
 				56358947709FD5526297D107 /* CachedConversationManager.swift in Sources */,
 				F25C60691A72560851E9FE33 /* ChatBubbleCell.swift in Sources */,

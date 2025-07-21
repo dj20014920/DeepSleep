@@ -215,7 +215,7 @@ extension ViewController {
             nameLabel.adjustsFontSizeToFitWidth = true
             nameLabel.minimumScaleFactor = 0.7
             nameLabel.translatesAutoresizingMaskIntoConstraints = false
-            nameLabel.tag = 999999 // 고유 태그
+            nameLabel.tag = 1001 // 고유 태그
             nameLabel.backgroundColor = .clear // 배경 투명
             
             button.addSubview(nameLabel)
@@ -256,7 +256,7 @@ extension ViewController {
             nameLabel.textAlignment = .center
             nameLabel.numberOfLines = 1
             nameLabel.translatesAutoresizingMaskIntoConstraints = false
-            nameLabel.tag = 999998 // 고유 태그
+            nameLabel.tag = 1002 // 고유 태그
             nameLabel.backgroundColor = .clear // 배경 투명
             
             button.addSubview(nameLabel)
@@ -277,7 +277,7 @@ extension ViewController {
     // 🛡️ 버튼 초기화 함수 - 간소화된 안전 버전
     private func cleanButton(_ button: UIButton) {
         // 기존 라벨들만 제거 (제약조건은 건드리지 않음)
-        let problematicTags = [999999, 999998]
+        let problematicTags = [1001, 1002]
         for tag in problematicTags {
             if let taggedView = button.viewWithTag(tag) {
                 taggedView.removeFromSuperview()

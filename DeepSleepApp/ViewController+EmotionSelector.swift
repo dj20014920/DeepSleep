@@ -1,7 +1,58 @@
 import UIKit
 
-// MARK: - 감정 선택 UI 관련 Extension
+// MARK: - 해시태그 버튼 (AI 채팅 진입점)
 extension ViewController {
+    
+    /// AI 채팅 진입을 위한 해시태그 버튼만 설정
+    func setupHashtagButton() {
+        let hashtagButton = UIButton(type: .system)
+        let attributedTitle = NSAttributedString(
+            string: "#Todays_Mood",
+            attributes: [
+                .foregroundColor: UIDesignSystem.Colors.primaryText,
+                .underlineStyle: NSUnderlineStyle.single.rawValue,
+                .font: UIFont.italicSystemFont(ofSize: 20)
+            ]
+        )
+        hashtagButton.setAttributedTitle(attributedTitle, for: .normal)
+        hashtagButton.addTarget(self, action: #selector(hashtagTapped), for: .touchUpInside)
+        hashtagButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 접근성 및 사용자 가이던스 개선
+        hashtagButton.accessibilityLabel = "오늘의 기분"
+        hashtagButton.accessibilityHint = "AI와 대화하며 나의 감정을 표현해보세요"
+
+        view.addSubview(hashtagButton)
+
+        NSLayoutConstraint.activate([
+            hashtagButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            hashtagButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            hashtagButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            hashtagButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
+    }
+    
+    @objc func hashtagTapped() {
+        let chatVC = ChatRouter.chatViewController()
+        chatVC.initialUserText = nil
+        chatVC.onPresetApply = { [weak self] (preset: SoundPreset) in
+            // AI 추천 프리셋 적용
+            self?.applyPreset(
+                volumes: preset.volumes,
+                versions: preset.selectedVersions ?? SoundPresetCatalog.defaultVersions,
+                name: preset.name,
+                presetId: preset.id,
+                saveAsNew: preset.isAIGenerated
+            )
+        }
+        navigationController?.pushViewController(chatVC, animated: true)
+    }
+}
+
+// TODO: 감정 이모지 선택 기능은 제거됨 (감정 일기 탭에서 통합 관리)
+/*
+// MARK: - 감정 선택 UI 관련 Extension (DEPRECATED)
+extension ViewController_OLD {
     
     func setupEmojiSelector() {
         let hashtagButton = UIButton(type: .system)
@@ -87,3 +138,4 @@ extension ViewController {
     }
 
 }
+*/

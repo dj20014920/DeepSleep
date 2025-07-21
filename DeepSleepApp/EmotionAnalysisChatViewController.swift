@@ -33,6 +33,7 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         setupQuickActions()
         setupNavigationBar()
         setupKeyboardHandling()
+        setupSwipeGestures()
         setupBindings()
         
         // 초기 분석 수행
@@ -284,5 +285,104 @@ extension EmotionAnalysisChatViewController: EmotionAnalysisQuickActionViewDeleg
         Task {
             await viewModel.handleQuickAction(title: emotion, intent: emotion)
         }
+    }
+}
+
+// MARK: - Swipe Gestures
+extension EmotionAnalysisChatViewController {
+    
+    private func setupSwipeGestures() {
+        // 오른쪽으로 스와이프 - 채팅창 나가기
+        let rightSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeGesture(_:)))
+        rightSwipeGesture.direction = .right
+        rightSwipeGesture.delegate = self
+        view.addGestureRecognizer(rightSwipeGesture)
+        
+        // 왼쪽 가장자리에서 스와이프 - iOS 기본 뒤로가기와 유사
+        let edgeSwipeGesture = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgeSwipeGesture(_:)))
+        edgeSwipeGesture.edges = .left
+        edgeSwipeGesture.delegate = self
+        view.addGestureRecognizer(edgeSwipeGesture)
+    }
+    
+    @objc private func handleSwipeGesture(_ gesture: UISwipeGestureRecognizer) {
+        guard gesture.direction == .right else { return }
+        
+        // 햅틱 피드백
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        
+        // 애니메이션과 함께 채팅창 나가기
+        exitChatWithAnimation()
+    }
+    
+    @objc private func handleEdgeSwipeGesture(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        let translation = gesture.translation(in: view)
+        let velocity = gesture.velocity(in: view)
+        
+        switch gesture.state {
+        case .changed:
+            // 드래그 중일 때 뷰를 약간 이동시켜 피드백 제공
+            let progress = min(translation.x / view.bounds.width, 1.0)
+            if progress > 0 {
+                view.transform = CGAffineTransform(translationX: progress * 20, y: 0)
+            }
+            
+        case .ended, .cancelled:
+            // 충분히 스와이프했거나 빠르게 스와이프한 경우 나가기
+            let shouldDismiss = translation.x > 100 || velocity.x > 500
+            
+            if shouldDismiss {
+                // 햅틱 피드백
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+                
+                exitChatWithAnimation()
+            } else {
+                // 원래 위치로 되돌리기
+                UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0, options: .curveEaseOut) {
+                    self.view.transform = .identity
+                }
+            }
+            
+        default:
+            break
+        }
+    }
+    
+    private func exitChatWithAnimation() {
+        // 키보드 숨기기
+        inputTextField.resignFirstResponder()
+        
+        // 슬라이드 아웃 애니메이션
+        UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0.5, options: .curveEaseOut) {
+            self.view.transform = CGAffineTransform(translationX: self.view.bounds.width, y: 0)
+            self.view.alpha = 0.7
+        } completion: { _ in
+            // 메인 화면으로 돌아가기
+            if let navigationController = self.navigationController {
+                navigationController.popViewController(animated: false)
+            } else {
+                self.dismiss(animated: false)
+            }
+        }
+    }
+    
+    // MARK: - UIGestureRecognizerDelegate
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 텍스트 입력 중일 때는 스와이프 제스처 비활성화
+        if inputTextField.isFirstResponder && inputTextField.text?.isEmpty == false {
+            return false
+        }
+        return true
+    }
+    
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 테이블뷰 스크롤과 충돌 방지
+        if gestureRecognizer is UISwipeGestureRecognizer {
+            // 텍스트 입력 중이 아닐 때만 스와이프 허용
+            return !inputTextField.isFirstResponder || inputTextField.text?.isEmpty == true
+        }
+        return true
     }
 }

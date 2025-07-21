@@ -133,9 +133,10 @@ class ChatBubbleCell: UITableViewCell {
         label.lineBreakMode = .byWordWrapping
         label.translatesAutoresizingMaskIntoConstraints = false
         
-        label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        // 🎯 채팅 스타일: 텍스트 크기에 딱 맞게 조절
+        label.setContentHuggingPriority(.required, for: .horizontal) // 텍스트 크기에 꽉 맞게
         label.setContentHuggingPriority(.defaultLow, for: .vertical)
-        label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal) // 텍스트 잘리지 않게
         label.setContentCompressionResistancePriority(.required, for: .vertical)
         
         return label
@@ -219,9 +220,9 @@ class ChatBubbleCell: UITableViewCell {
         contentView.addSubview(bubbleView)
         bubbleView.addSubview(messageLabel)
         bubbleView.addSubview(applyButton)
-        bubbleView.addSubview(optionButtonStackView) // ✅ 새로운 스택뷰 추가
+        bubbleView.addSubview(optionButtonStackView)
         
-        // ✅ 로딩 컨테이너 설정
+        // 로딩 컨테이너 설정
         bubbleView.addSubview(loadingContainer)
         loadingContainer.addSubview(gifCatView)
         loadingContainer.addSubview(loadingTextLabel)
@@ -234,101 +235,93 @@ class ChatBubbleCell: UITableViewCell {
         applyButton.translatesAutoresizingMaskIntoConstraints = false
         optionButtonStackView.translatesAutoresizingMaskIntoConstraints = false
         
-        // ✅ 로딩 관련 컴포넌트들 설정
+        // 로딩 관련 컴포넌트들 설정
         loadingContainer.translatesAutoresizingMaskIntoConstraints = false
         gifCatView.translatesAutoresizingMaskIntoConstraints = false
         loadingTextLabel.translatesAutoresizingMaskIntoConstraints = false
         typingDotsLabel.translatesAutoresizingMaskIntoConstraints = false
         thinkingLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        // ✅ GIF 고양이 뷰 설정
+        // GIF 고양이 뷰 설정
         gifCatView.backgroundColor = .clear
         
-        // ✅ 로딩 텍스트 라벨 설정 (숨김)
+        // 로딩 텍스트 라벨 설정 (숨김)
         loadingTextLabel.isHidden = true
         
-        // ✅ 타이핑 텍스트 라벨 설정 (Claude 스타일)
+        // 타이핑 텍스트 라벨 설정 (Claude 스타일)
         typingDotsLabel.text = "생각 중▊"
         typingDotsLabel.font = .systemFont(ofSize: 11, weight: .regular)
         typingDotsLabel.textColor = .systemGray
         typingDotsLabel.textAlignment = .left
         
-        // ✅ 생각중 라벨 설정
+        // 생각중 라벨 설정
         thinkingLabel.text = "생각중..."
         thinkingLabel.font = .systemFont(ofSize: 14, weight: .medium)
         thinkingLabel.textColor = .systemGray
         thinkingLabel.textAlignment = .left
         thinkingLabel.alpha = 0 // 처음에는 숨김
         
-        // 제약 조건 설정
-        messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
-        applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 32)
-        messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
-        applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
-        
-        optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16)
-        
-        // 스택뷰와 메시지 라벨 사이 간격 제약조건
-        let stackTopConstraint = optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
-        
-        NSLayoutConstraint.activate([
-            messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
-            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
-            messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: bubbleView.trailingAnchor, constant: -12),
-            messageLabelBottomConstraint,
-            
-            applyButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
-            applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
-            applyButtonHeightConstraint,
-            
-            // ✅ 옵션 버튼 스택뷰 제약 조건 - 챗 버블 전체 너비에 맞게 확장
-            stackTopConstraint,
-            optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
-            optionButtonStackView.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16)
-        ])
-
-        // ✅ 로딩 컨테이너 제약조건 (2배 크게 + 생각중 텍스트) - bottomAnchor 제거로 다른 버블에 영향 안 줌
-        NSLayoutConstraint.activate([
-            loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 2),
-            loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 12),
-            loadingContainer.widthAnchor.constraint(equalToConstant: 200),
-            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
-            // ✅ bottomAnchor 제거 - 다른 버블에 영향주지 않도록
-            
-            gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
-            gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor, constant: 0),
-            gifCatView.widthAnchor.constraint(equalToConstant: 48),
-            gifCatView.heightAnchor.constraint(equalToConstant: 48),
-            
-            thinkingLabel.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
-            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 2),
-            thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
-        ])
-        thinkingLabel.numberOfLines = 1
-        thinkingLabel.lineBreakMode = .byTruncatingTail;
-        
-        // bubbleView 제약조건 복원 (우선순위 조정)
-        leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
-        trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
-        
-        let bubbleBottomConstraint = bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2)
-        
-        NSLayoutConstraint.activate([
-            bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 2),
-            bubbleBottomConstraint
-        ])
-        
-        // 버블 크기 동적 조정: 최대 너비만 제한하고 최소 너비는 컨텐츠에 맞게
-        let maxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.85)
-        let minWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 60) // 최소 너비
+        // 🎯 채팅 스타일 제약조건 - 처음부터 깔끔하게 재설계
+        setupChatStyleConstraints()
         
         // 초기 상태에서 로딩 컨테이너 숨김
         loadingContainer.isHidden = true
         
-        maxWidthConstraint.isActive = true
-        minWidthConstraint.isActive = true
-        
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
+    }
+    
+    // 🎯 채팅 스타일 제약조건 설정 (깔끔한 분리)
+    private func setupChatStyleConstraints() {
+        // 기본 제약조건들 저장
+        messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
+        applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 32)
+        messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
+        applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
+        optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16)
+        
+        // 버블뷰 기본 제약조건 (동적으로 변경될 예정)
+        leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+        trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+        
+        // 공통 제약조건들 활성화
+        NSLayoutConstraint.activate([
+            // BubbleView 기본 위치
+            bubbleView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            bubbleView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+            
+            // MessageLabel 기본 위치 (내부 여백)
+            messageLabel.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 12),
+            messageLabel.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
+            messageLabel.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
+            
+            // ApplyButton 기본 설정
+            applyButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
+            applyButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
+            applyButtonHeightConstraint,
+            
+            // OptionButtonStackView 기본 설정
+            optionButtonStackView.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12),
+            optionButtonStackView.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
+            optionButtonStackView.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -16),
+            
+            // 로딩 컨테이너 제약조건
+            loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
+            loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
+            loadingContainer.widthAnchor.constraint(equalToConstant: 200),
+            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+            
+            gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
+            gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor),
+            gifCatView.widthAnchor.constraint(equalToConstant: 48),
+            gifCatView.heightAnchor.constraint(equalToConstant: 48),
+            
+            thinkingLabel.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
+            thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
+            thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
+        ])
+        
+        thinkingLabel.numberOfLines = 1
+        thinkingLabel.lineBreakMode = .byTruncatingTail
     }
 
     private func setupGestureRecognizers() {
@@ -430,12 +423,14 @@ class ChatBubbleCell: UITableViewCell {
             stopLoadingAnimation()
         }
         
-        // 레이아웃 업데이트
-        updateBubbleConstraints(isUserMessage: isUserMessage)
+        // ⚠️ 중복 방지: configure 함수들에서 이미 applyChatStyleLayout() 호출됨
+        // updateBubbleConstraints() 호출 제거로 이중 실행 방지
         layoutIfNeeded()
     }
     
-    private func resetConstraints() {
+    // 🎯 채팅 스타일 레이아웃 적용 (prepareForReuse에서 정리됨)
+    private func applyChatStyleLayout(isUserMessage: Bool) {
+        // 기존 제약조건들 전부 비활성화
         leadingConstraint.isActive = false
         trailingConstraint.isActive = false
         messageLabelBottomConstraint.isActive = false
@@ -443,26 +438,49 @@ class ChatBubbleCell: UITableViewCell {
         applyButtonBottomConstraint.isActive = false
         optionStackBottomConstraint.isActive = false
         
-        leadingConstraint.priority = .required
-        trailingConstraint.priority = .required
-        leadingConstraint.constant = 16
-        trailingConstraint.constant = -16
+        // 💬 채팅 스타일: 텍스트 길이에 맞는 동적 크기 + 위치 조정
+        if isUserMessage {
+            // 🟦 사용자 메시지 (오른쪽 정렬, 텍스트 크기에 맞게)
+            leadingConstraint.constant = 16 // 최소 여백만 확보
+            leadingConstraint.priority = .init(250) // 낮은 우선순위 (늘어날 수 있음)
+            trailingConstraint.constant = -16
+            trailingConstraint.priority = .required // 높은 우선순위 (고정)
+            
+            leadingConstraint.isActive = true
+            trailingConstraint.isActive = true
+        } else {
+            // 🟩 AI 메시지 (왼쪽 정렬, 텍스트 크기에 맞게)
+            leadingConstraint.constant = 16
+            leadingConstraint.priority = .required // 높은 우선순위 (고정)
+            trailingConstraint.constant = -16 // 최소 여백만 확보
+            trailingConstraint.priority = .init(250) // 낮은 우선순위 (늘어날 수 있음)
+            
+            leadingConstraint.isActive = true
+            trailingConstraint.isActive = true
+        }
         
-        // 로딩 컨테이너 완전히 숨기기 및 상태 초기화
+        // 🎯 채팅 스타일: 최대 너비만 제한, 최소 너비는 텍스트에 맞게
+        let maxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.8)
+        let minWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 44) // 최소 크기만 (아이콘 크기)
+        
+        NSLayoutConstraint.activate([
+            maxWidthConstraint,
+            minWidthConstraint
+        ])
+        
+        // 기본 메시지 bottom 제약조건 활성화 (버튼이나 옵션이 없는 경우)
+        messageLabelBottomConstraint.isActive = true
+        
+        // 로딩 관련 초기화
         loadingContainer.isHidden = true
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
-        
-        // 로딩 애니메이션 정지
         stopLoadingAnimation()
         
         // 고양이 위치 및 상태 완전 초기화
         gifCatView.transform = .identity
         thinkingLabel.alpha = 0
         currentCatPosition = 0
-        
-        // 버블뷰 배경색 복원 (투명했을 수 있음)
-        bubbleView.backgroundColor = .systemGray6
     }
     
     // ✅ 옵션 액션들 초기화
@@ -480,10 +498,8 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configureUserMessage(_ text: String) {
-        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
-        loadingContainer.isHidden = true
-        loadingContainer.alpha = 0
-        messageLabel.isHidden = false
+        // 🎯 채팅 스타일 레이아웃 적용 (사용자 = 오른쪽)
+        applyChatStyleLayout(isUserMessage: true)
         
         // 사용자 메시지 스타일 - 다크모드에서 보라색 계열
         let userMessageColor = UIColor { traitCollection in
@@ -499,21 +515,7 @@ class ChatBubbleCell: UITableViewCell {
         messageLabel.textColor = .white
         messageLabel.text = text
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        
-        // 🔧 오른쪽 정렬 + 텍스트 크기에 맞는 버블
-        trailingConstraint.priority = .required
-        trailingConstraint.isActive = true
-        
-        // 짧은 텍스트일 때 leading constraint를 낮은 우선순위로 설정
-        let isShortText = text.count <= 10
-        if isShortText {
-            // 짧은 텍스트: 오른쪽에서만 고정, 왼쪽은 유동적
-            leadingConstraint.priority = .init(250) // 낮은 우선순위
-            leadingConstraint.constant = 100 // 더 많이 들여쓰기
-            leadingConstraint.isActive = true
-        }
-        
-        messageLabelBottomConstraint.isActive = true
+        messageLabel.textAlignment = .left
         
         // 그라데이션 효과 (다크모드에서 보라색)
         let gradientColor1 = UIColor { traitCollection in
@@ -541,34 +543,15 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configureBotMessage(_ text: String) {
-        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
-        loadingContainer.isHidden = true
-        loadingContainer.alpha = 0
-        messageLabel.isHidden = false
+        // 🎯 채팅 스타일 레이아웃 적용 (AI = 왼쪽)
+        applyChatStyleLayout(isUserMessage: false)
         
         // AI 메시지 스타일 - 다크모드 호환
         bubbleView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
         messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.text = text
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        
-        // 🔧 AI 메시지 왼쪽 정렬 확실히 하기
-        messageLabel.textAlignment = .left  // 명시적으로 왼쪽 정렬
-        
-        // 🔧 왼쪽 정렬 + 텍스트 크기에 맞는 버블
-        leadingConstraint.priority = .required
-        leadingConstraint.isActive = true
-        
-        // 짧은 텍스트일 때 trailing constraint를 낮은 우선순위로 설정
-        let isShortText = text.count <= 10
-        if isShortText {
-            // 짧은 텍스트: 왼쪽에서만 고정, 오른쪽은 유동적
-            trailingConstraint.priority = .init(250) // 낮은 우선순위
-            trailingConstraint.constant = -100 // 더 많이 들여쓰기
-            trailingConstraint.isActive = true
-        }
-        
-        messageLabelBottomConstraint.isActive = true
+        messageLabel.textAlignment = .left
         
         // 부드러운 그림자
         bubbleView.layer.shadowColor = UIColor.black.cgColor
@@ -578,10 +561,25 @@ class ChatBubbleCell: UITableViewCell {
     }
     
     private func configureSystemMessage(_ text: String) {
-        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
+        // 🎯 시스템 메시지는 중앙 정렬 (예외적으로 특별 처리)
+        // 기존 제약조건들 전부 비활성화
+        leadingConstraint.isActive = false
+        trailingConstraint.isActive = false
+        messageLabelBottomConstraint.isActive = false
+        messageLabelToButtonConstraint.isActive = false
+        applyButtonBottomConstraint.isActive = false
+        optionStackBottomConstraint.isActive = false
+        
+        // 로딩 관련 초기화
         loadingContainer.isHidden = true
         loadingContainer.alpha = 0
         messageLabel.isHidden = false
+        stopLoadingAnimation()
+        
+        // 고양이 위치 및 상태 완전 초기화
+        gifCatView.transform = .identity
+        thinkingLabel.alpha = 0
+        currentCatPosition = 0
         
         // 시스템 메시지 스타일 - 중앙 정렬, 연한 색상
         bubbleView.backgroundColor = UIColor { traitCollection in
@@ -605,18 +603,39 @@ class ChatBubbleCell: UITableViewCell {
         messageLabel.font = .systemFont(ofSize: 15, weight: .medium)
         messageLabel.textAlignment = .center
         
-        // 중앙 정렬을 위해 양쪽 여백을 동일하게
-        leadingConstraint.constant = 40
-        trailingConstraint.constant = -40
+        // 🎯 시스템 메시지: 텍스트 크기에 맞게 + 중앙 정렬
+        leadingConstraint.constant = 60 // 최소 여백
+        leadingConstraint.priority = .init(250) // 낮은 우선순위 (늘어날 수 있음)
+        trailingConstraint.constant = -60 // 최소 여백
+        trailingConstraint.priority = .init(250) // 낮은 우선순위 (늘어날 수 있음)
+        
         leadingConstraint.isActive = true
         trailingConstraint.isActive = true
         messageLabelBottomConstraint.isActive = true
+        
+        // 🎯 시스템 메시지: 중앙 정렬 제약조건 추가
+        let centerConstraint = bubbleView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor)
+        centerConstraint.priority = .init(999) // 중앙 정렬 우선순위 높음
+        
+        // 시스템 메시지 너비 제약조건
+        let systemMaxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.7)
+        let systemMinWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 80)
+        
+        NSLayoutConstraint.activate([
+            centerConstraint,
+            systemMaxWidthConstraint,
+            systemMinWidthConstraint
+        ])
     }
     
     private func configurePresetMessage(_ text: String, applyAction: @escaping () -> Void = {}) {
+        // 🎯 채팅 스타일 레이아웃 적용 (프리셋 = AI 왼쪽)
+        applyChatStyleLayout(isUserMessage: false)
+        
         messageLabel.text = text
         messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        messageLabel.textAlignment = .left
         
         // 프리셋 추천만의 특별한 색상 적용
         bubbleView.backgroundColor = UIColor { traitCollection in
@@ -631,26 +650,24 @@ class ChatBubbleCell: UITableViewCell {
         applyButton.setTitle("🎵 바로 적용하기", for: .normal)
         applyButton.isHidden = false
         
-        // 🔧 전달받은 applyAction을 저장
+        // 전달받은 applyAction을 저장
         self.applyAction = applyAction
         
-        // 버튼 제약조건 활성화
+        // 🎯 프리셋 메시지는 버튼이 있으므로 bottom 제약조건 변경
         messageLabelBottomConstraint.isActive = false
         messageLabelToButtonConstraint.isActive = true
         applyButtonBottomConstraint.isActive = true
-        leadingConstraint.isActive = true
     }
     
     // 🆕 추천 방식 선택창 스타일 (프리셋 추천과 똑같은 색상)
     private func configureRecommendationSelectorMessage(_ text: String) {
-        // 로딩 컨테이너 완전히 숨기고 일반 메시지 표시
-        loadingContainer.isHidden = true
-        loadingContainer.alpha = 0
-        messageLabel.isHidden = false
+        // 🎯 채팅 스타일 레이아웃 적용 (추천 선택 = AI 왼쪽)
+        applyChatStyleLayout(isUserMessage: false)
         
         messageLabel.text = text
         messageLabel.textColor = UIDesignSystem.Colors.primaryText
         messageLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        messageLabel.textAlignment = .left
         
         // 프리셋 추천과 똑같은 보라색 배경 적용
         bubbleView.backgroundColor = UIColor { traitCollection in
@@ -661,10 +678,6 @@ class ChatBubbleCell: UITableViewCell {
                 return UIColor.systemPurple.withAlphaComponent(0.1) // 라이트모드에서 연한 보라색
             }
         }
-        
-        // 왼쪽 정렬
-        leadingConstraint.isActive = true
-        messageLabelBottomConstraint.isActive = true
         
         // 부드러운 그림자
         bubbleView.layer.shadowColor = UIColor.systemPurple.cgColor
@@ -722,6 +735,28 @@ class ChatBubbleCell: UITableViewCell {
     
     override func prepareForReuse() {
         super.prepareForReuse()
+        
+        // 🛡️ 동적 제약조건 완전 정리 (중복 방지의 핵심)
+        bubbleView.constraints.forEach { constraint in
+            if constraint.firstAttribute == .width || constraint.firstAttribute == .centerX {
+                bubbleView.removeConstraint(constraint)
+            }
+        }
+        
+        // contentView의 중앙 정렬 제약조건도 정리
+        contentView.constraints.forEach { constraint in
+            if constraint.firstItem === bubbleView && constraint.firstAttribute == .centerX {
+                contentView.removeConstraint(constraint)
+            }
+        }
+        
+        // 기존 제약조건들 비활성화
+        leadingConstraint.isActive = false
+        trailingConstraint.isActive = false
+        messageLabelBottomConstraint.isActive = false
+        messageLabelToButtonConstraint.isActive = false
+        applyButtonBottomConstraint.isActive = false
+        optionStackBottomConstraint.isActive = false
         
         // 애니메이션 완전 정지
         stopLoadingAnimation()
@@ -841,8 +876,8 @@ class ChatBubbleCell: UITableViewCell {
     
     // ✅ 로딩 메시지 구성 (큰 고양이 + 생각중 텍스트)
     private func configureLoadingMessage(_ text: String) {
-        // 왼쪽 정렬 (AI 메시지 위치)
-        leadingConstraint.isActive = true
+        // 🎯 채팅 스타일 레이아웃 적용 (로딩 = AI 왼쪽)
+        applyChatStyleLayout(isUserMessage: false)
         
         // 로딩 컨테이너를 위한 최소한의 크기 설정 (다른 UI에 영향 주지 않도록)
         bubbleView.backgroundColor = UIColor.clear
@@ -873,9 +908,20 @@ class ChatBubbleCell: UITableViewCell {
         startLoadingAnimation()
     }
     
-    // 🆕 퀵 액션 버튼들 구성 - 챗 버블 전체 너비에 맞게 확장
+    // 🆕 퀵 액션 버튼들 구성 - 안정적이고 일관성 있게 재설계
     private func setupOptionButtons(with quickActions: [(String, String)]) {
-        // 기존 버튼들 제거
+        // 🛡️ 중복 호출 방지: 이미 같은 버튼들이 있으면 무시
+        let existingActions = optionButtonStackView.arrangedSubviews.compactMap { view in
+            (view as? UIButton)?.titleLabel?.text
+        }
+        let newActions = quickActions.map { $0.0 }
+        
+        if existingActions == newActions && !optionButtonStackView.isHidden {
+            print("[ChatBubbleCell] 동일한 퀵액션 이미 존재, 스킵")
+            return
+        }
+        
+        // 기존 버튼들 완전 제거
         optionButtonStackView.arrangedSubviews.forEach { subview in
             optionButtonStackView.removeArrangedSubview(subview)
             subview.removeFromSuperview()
@@ -889,13 +935,16 @@ class ChatBubbleCell: UITableViewCell {
             optionButtonStackView.addArrangedSubview(button)
         }
         
-        // 스택뷰가 전체 너비를 차지하도록 설정
-        optionButtonStackView.distribution = .fillEqually
-        optionButtonStackView.spacing = 12
-        optionButtonStackView.isHidden = false
-        leadingConstraint.isActive = true
-        messageLabelBottomConstraint.isActive = false
-        optionStackBottomConstraint.isActive = true
+        // 🎯 퀵액션이 있는 경우 bottom 제약조건 변경 (채팅 스타일 유지)
+        if !quickActions.isEmpty {
+            messageLabelBottomConstraint.isActive = false
+            optionStackBottomConstraint.isActive = true
+            
+            // 스택뷰 설정
+            optionButtonStackView.distribution = .fillEqually
+            optionButtonStackView.spacing = 12
+            optionButtonStackView.isHidden = false
+        }
     }
     
     // 🆕 퀵 액션 버튼 생성 - 채팅 버블과 조화로운 보라색 테마로 개선
@@ -991,7 +1040,8 @@ private extension ChatBubbleCell {
     }
 
     func updateBubbleConstraints(isUserMessage: Bool) {
-        // Stub implementation
+        // 🎯 이제 applyChatStyleLayout()으로 대체됨
+        applyChatStyleLayout(isUserMessage: isUserMessage)
     }
 
     func findViewController() -> UIViewController? {

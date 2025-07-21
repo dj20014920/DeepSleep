@@ -18,8 +18,8 @@ class ViewController: UIViewController {
     @available(*, deprecated, message: "Use categoryLabels instead")
     let sliderLabels = Array("ABCDEFGHIJKLM")  // 13개로 변경
     
-    /// 감정 이모지 (6개로 확장 - 기본 감정들)
-    let emojis = ["😴","😢","😠","😊","😔","😐"]
+    // TODO: 감정 이모지 제거됨 - 감정 일기 탭에서 통합 관리
+    // let emojis = ["😴","😢","😠","😊","😔","😐"]
     
     /// UI 요소들 (13개 카테고리)
     var sliders: [UISlider] = []
@@ -151,9 +151,9 @@ class ViewController: UIViewController {
         // 슬라이더만 기본값으로 빠르게 표시
         setupSliderUI()
         
-        // 이모지 셀렉터는 지연 로딩
+        // AI 채팅 진입을 위한 해시태그 버튼 (이모지는 제거)
         Task { @MainActor in
-            setupEmojiSelector()
+            setupHashtagButton()
         }
     }
     
@@ -232,7 +232,7 @@ class ViewController: UIViewController {
         configureNavBar()
         
         // ✅ 필수 UI 초기화 추가
-        setupEmojiSelector()
+        setupHashtagButton()  // AI 채팅 진입점
         setupSliderUI()
         setupPresetBlocks()
         setupNotifications()

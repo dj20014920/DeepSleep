@@ -22,10 +22,10 @@ public class ChatManager {
     
     // MARK: - Public Methods
     
-    /// 모든 채팅 세션 가져오기
+    /// 모든 채팅 세션 가져오기 (최근 활동 순으로 정렬)
     public func getSessions() -> [ChatSession] {
         return cacheQueue.sync {
-            Array(sessionCache.values).sorted { $0.createdAt > $1.createdAt }
+            Array(sessionCache.values).sorted { $0.lastActivityAt > $1.lastActivityAt }
         }
     }
     
@@ -64,6 +64,122 @@ public class ChatManager {
             
             self.sessionCache[sessionId] = session
             self.saveSessionToDisk(session)
+        }
+    }
+    
+    /// 🎯 ChatMessage를 현재 활성 세션에 추가 (ChatViewController에서 호출)
+    public func append(_ message: ChatMessage) {
+        print("🔵 [ChatManager] append 호출됨 - 메시지: \(message.text?.prefix(50) ?? "")")
+        
+        // 현재 활성 세션 가져오기 또는 새로 생성
+        let currentSession = getCurrentOrCreateSession()
+        
+        // ChatMessage를 StoredChatMessage로 변환
+        let storedMessage = StoredChatMessage(
+            id: message.id,
+            text: message.text ?? "",
+            type: getStoredMessageType(from: message.type, sender: message.sender),
+            timestamp: message.date,
+            metadata: createStringMetadata(from: message)
+        )
+        
+        // 세션에 메시지 추가
+        addMessage(to: currentSession.id, message: storedMessage)
+        
+        // 🎯 MessageStore에도 저장 (이중 저장으로 안정성 확보)
+        Task {
+            do {
+                try await MessageStore.shared.saveMessage(
+                    content: message.text ?? "",
+                    isUser: message.sender == .user,
+                    messageType: getMessageTypeString(from: message.type),
+                    isPersistent: shouldBePersistent(message.type)
+                )
+                print("🔵 [ChatManager] MessageStore에도 저장 완료")
+            } catch {
+                print("❌ [ChatManager] MessageStore 저장 실패: \(error)")
+            }
+        }
+        
+        print("🔵 [ChatManager] 메시지 저장 완료 - 세션 ID: \(currentSession.id)")
+    }
+    
+    /// 현재 활성 세션 가져오기 또는 새로 생성
+    private func getCurrentOrCreateSession() -> ChatSession {
+        // 가장 최근 세션 가져오기
+        let sessions = getSessions()
+        if let latestSession = sessions.first,
+           Calendar.current.isDate(latestSession.lastActivityAt, inSameDayAs: Date()) {
+            return latestSession
+        }
+        
+        // 새 세션 생성
+        return createSession()
+    }
+    
+    /// ChatMessageType을 StoredMessageType으로 변환
+    private func getStoredMessageType(from type: ChatMessageType, sender: ChatMessageSender) -> StoredMessageType {
+        switch type {
+        case .user: return .user
+        case .bot, .aiResponse: return .bot
+        case .system: return .system
+        case .presetRecommendation: return .presetRecommendation
+        case .error: return .error
+        default: 
+            // sender 기반으로 결정
+            return sender == .user ? .user : .bot
+        }
+    }
+    
+    /// ChatMessageType을 String으로 변환 (MessageStore 호환성용)
+    private func getMessageTypeString(from type: ChatMessageType) -> String {
+        switch type {
+        case .user: return "user"
+        case .bot, .aiResponse: return "bot"
+        case .system: return "system"
+        case .presetRecommendation: return "preset"
+        case .recommendationSelector: return "selector"
+        case .presetOptions, .postPresetOptions: return "options"
+        case .loading: return "loading"
+        case .error: return "error"
+        }
+    }
+    
+    /// 메시지 메타데이터 생성 (Any 타입)
+    private func createMetadata(from message: ChatMessage) -> [String: Any] {
+        var metadata: [String: Any] = [:]
+        
+        if let quickActions = message.quickActions {
+            metadata["quickActions"] = quickActions.map { ["title": $0.title, "action": $0.action] }
+        }
+        
+        metadata["messageId"] = message.id.uuidString
+        
+        return metadata
+    }
+    
+    /// 메시지 메타데이터 생성 (String 타입 - ChatManager 호환성용)
+    private func createStringMetadata(from message: ChatMessage) -> [String: String] {
+        var metadata: [String: String] = [:]
+        
+        if let quickActions = message.quickActions {
+            let actionsString = quickActions.map { "\($0.title):\($0.action)" }.joined(separator: ",")
+            metadata["quickActions"] = actionsString
+        }
+        
+        metadata["messageId"] = message.id.uuidString
+        metadata["messageType"] = getMessageTypeString(from: message.type)
+        
+        return metadata
+    }
+    
+    /// 메시지 타입에 따라 지속성 여부 결정
+    private func shouldBePersistent(_ type: ChatMessageType) -> Bool {
+        switch type {
+        case .system: return true
+        case .presetRecommendation: return true
+        case .error: return true
+        default: return false
         }
     }
     
@@ -113,12 +229,6 @@ public class ChatManager {
         userDefaults.set(data, forKey: chatHistoryKey)
     }
     
-    /// 모든 세션 목록 반환
-    public func getSessions() -> [ChatSession] {
-        return cacheQueue.sync {
-            return Array(sessionCache.values).sorted { $0.lastActivityAt > $1.lastActivityAt }
-        }
-    }
     
     /// 모든 메시지 가져오기 (ChatRouter 호환성용)
     public var messages: [StoredChatMessage] {

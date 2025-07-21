@@ -109,4 +109,100 @@ public struct UserInfo {
         self.preferences = preferences
         self.emotionalState = emotionalState
     }
+}
+
+// MARK: - AI Model Types
+
+/// 🤖 AI 모델 타입
+public enum AIModelType: String, CaseIterable, Sendable {
+    case claude35 = "claude-3.5-sonnet"
+    case gpt4 = "gpt-4"
+    case gemini = "gemini-pro"
+    case onDevice = "on-device"
+    
+    public var displayName: String {
+        switch self {
+        case .claude35: return "클로드"
+        case .gpt4: return "지피티"
+        case .gemini: return "잼미니"
+        case .onDevice: return "온디"
+        }
+    }
+}
+
+// MARK: - Model Context
+
+/// 🔄 모델별 컨텍스트
+public struct ModelContext {
+    public let messages: [(role: String, content: String)]
+    public var systemPrompt: String
+    public let conversationSummary: String
+    public let tokenCount: Int
+    public let metadata: [String: Any]
+    
+    public init(
+        messages: [(role: String, content: String)],
+        systemPrompt: String,
+        conversationSummary: String,
+        tokenCount: Int,
+        metadata: [String: Any]
+    ) {
+        self.messages = messages
+        self.systemPrompt = systemPrompt
+        self.conversationSummary = conversationSummary
+        self.tokenCount = tokenCount
+        self.metadata = metadata
+    }
+}
+
+// MARK: - Context Message Types
+
+/// 💬 컨텍스트 메시지
+public struct ContextMessage {
+    public let id: UUID = UUID()
+    public let content: String
+    public let isFromUser: Bool
+    public let timestamp: Date = Date()
+    public let type: ContextMessageType
+    public let importance: Double // 0.0 ~ 1.0
+    public let detectedEmotion: DetectedEmotion?
+    public let modelUsed: AIModelType?
+    
+    public init(
+        content: String,
+        isFromUser: Bool,
+        type: ContextMessageType,
+        importance: Double,
+        detectedEmotion: DetectedEmotion?,
+        modelUsed: AIModelType?
+    ) {
+        self.content = content
+        self.isFromUser = isFromUser
+        self.type = type
+        self.importance = importance
+        self.detectedEmotion = detectedEmotion
+        self.modelUsed = modelUsed
+    }
+}
+
+/// 🎭 감지된 감정
+public struct DetectedEmotion {
+    public let type: String
+    public let intensity: Double
+    public let confidence: Double
+    
+    public init(type: String, intensity: Double, confidence: Double) {
+        self.type = type
+        self.intensity = intensity
+        self.confidence = confidence
+    }
+}
+
+/// 💬 메시지 타입
+public enum ContextMessageType {
+    case normal
+    case emotional
+    case goal
+    case feedback
+    case system
 } 

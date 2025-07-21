@@ -1,7 +1,7 @@
 import UIKit
 
 // MARK: - 디자인 시스템
-struct UIDesignSystem {
+public struct UIDesignSystem {
     
     // MARK: - 색상 시스템 (다크모드: 블랙&화이트, 일반모드: 밝은 파스텔톤)
     struct Colors {
@@ -142,6 +142,44 @@ struct UIDesignSystem {
         static let warning = UIColor.systemOrange
         static let error = UIColor.systemRed
         static let info = UIColor.systemBlue
+        
+        // Accent Colors
+        static let accent = UIColor.systemPurple
+        static let secondary = UIColor.systemTeal
+        
+        // Settings UI Colors
+        static var cardBackground: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0) // 어두운 카드
+                default:
+                    return UIColor.systemBackground // 밝은 카드
+                }
+            }
+        }
+        
+        static var separatorColor: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor.darkGray
+                default:
+                    return UIColor.separator
+                }
+            }
+        }
+        
+        static var tagBackground: UIColor {
+            return UIColor { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .dark:
+                    return UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1.0)
+                default:
+                    return UIColor.systemGray6
+                }
+            }
+        }
         
         // Emotion Colors - 다크모드에서도 잘 보이는 색상들
         static var emotionHappy: UIColor {

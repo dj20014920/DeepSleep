@@ -18,6 +18,10 @@ public final class LLMRouter: LLMServiceProtocol {
     private let maxRetryAttempts = 3
     private let retryDelay: TimeInterval = 1.0
     
+    // 모델별 설정 저장
+    private var modelConfigurations: [AIModelType: ModelConfiguration] = [:]
+    private let configQueue = DispatchQueue(label: "com.deepsleep.llmrouter.config", attributes: .concurrent)
+    
     // MARK: - Initialization
     private init() {}
     
@@ -236,4 +240,56 @@ public final class LLMRouter: LLMServiceProtocol {
             return .gemini
         }
     }
+    
+    // MARK: - Model Switching Support
+    
+    /// 모델 설정 업데이트 (ModelSwitchingManager에서 호출)
+    public func updateConfiguration(
+        model: AIModelType,
+        apiKey: String?,
+        context: ModelContext
+    ) async {
+        let configuration = ModelConfiguration(
+            model: model,
+            apiKey: apiKey,
+            context: context,
+            lastUpdated: Date()
+        )
+        
+        configQueue.async(flags: .barrier) {
+            self.modelConfigurations[model] = configuration
+        }
+        
+        print("🔧 [LLMRouter] \(model.rawValue) 모델 설정 업데이트됨")
+    }
+    
+    /// 현재 모델 설정 가져오기
+    public func getCurrentConfiguration(for model: AIModelType) -> ModelConfiguration? {
+        return configQueue.sync {
+            modelConfigurations[model]
+        }
+    }
+    
+    /// 모델별 컨텍스트 주입을 위한 AITask 확장 (임시 비활성화)
+    private func enrichTaskWithContext(_ task: AITask, model: AIModelType) -> AITask {
+        // TODO: AITask에 systemPrompt와 conversationHistory 프로퍼티 추가 필요
+        // 현재는 원본 task 그대로 반환
+        return task
+    }
+}
+
+// MARK: - Supporting Types for Model Switching
+
+/// 모델 설정 구조체
+public struct ModelConfiguration {
+    let model: AIModelType
+    let apiKey: String?
+    let context: ModelContext
+    let lastUpdated: Date
+}
+
+/// 대화 턴 (기존 AITask와 호환)
+public struct ConversationTurn {
+    let role: String
+    let content: String
 } 
