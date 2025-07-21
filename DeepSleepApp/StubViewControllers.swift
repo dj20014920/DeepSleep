@@ -171,7 +171,7 @@ class ModelCharacteristicsViewController: UIViewController {
         let subtitleLabel = UILabel()
         subtitleLabel.text = model.subtitle
         subtitleLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        subtitleLabel.textColor = UIDesignSystem.Colors.accentColor
+        subtitleLabel.textColor = UIDesignSystem.Colors.accent
         
         // 성격
         let personalityLabel = createInfoLabel(title: "성격", content: model.personality)
@@ -220,12 +220,12 @@ class ModelCharacteristicsViewController: UIViewController {
         let contentLabel = UILabel()
         contentLabel.text = content
         contentLabel.font = UIFont.systemFont(ofSize: 13, weight: isQuote ? .medium : .regular)
-        contentLabel.textColor = isQuote ? UIDesignSystem.Colors.accentColor : UIDesignSystem.Colors.secondaryText
+        contentLabel.textColor = isQuote ? UIDesignSystem.Colors.accent : UIDesignSystem.Colors.secondaryText
         contentLabel.numberOfLines = 0
         
         if isQuote {
             contentLabel.layer.cornerRadius = 8
-            contentLabel.backgroundColor = UIDesignSystem.Colors.accentColor.withAlphaComponent(0.1)
+            contentLabel.backgroundColor = UIDesignSystem.Colors.accent.withAlphaComponent(0.1)
             contentLabel.layer.masksToBounds = true
         }
         
