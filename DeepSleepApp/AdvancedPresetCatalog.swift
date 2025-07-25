@@ -546,7 +546,7 @@ class AdvancedPresetCatalog {
     private func generateCircadianReasoning(
         preset: PsychoacousticPreset,
         currentTime: Date,
-        sleepPattern: SleepPattern
+        sleepPattern: UserSleepPattern
     ) -> String {
         
         let hour = Calendar.current.component(.hour, from: currentTime)
@@ -579,7 +579,7 @@ class AdvancedPresetCatalog {
     
     private func generatePreferenceReasoning(
         composition: PresetComposition,
-        userPreferences: UserPreferences
+        userPreferences: SoundUserPreferences
     ) -> String {
         
         var reasons: [String] = []
@@ -716,8 +716,8 @@ struct PresetUserContext {
     let currentEmotion: String
     let emotionHistory: [String]
     let currentTime: Date
-    let sleepPattern: SleepPattern
-    let preferences: UserPreferences
+    let sleepPattern: UserSleepPattern
+    let preferences: SoundUserPreferences
 }
 
 struct RecentBehavior {
@@ -727,16 +727,12 @@ struct RecentBehavior {
     let lateNightUsage: Float
 }
 
-struct SleepPattern {
+// SoundUserPreferences는 SoundPresetCatalog.swift에 정의됨
+
+// 사용자 수면 패턴 (AI용 SleepPattern과 구분)  
+struct UserSleepPattern {
     let averageBedtime: Date
     let averageWakeTime: Date
     let sleepQuality: Float
     let sleepDuration: TimeInterval
-}
-
-struct UserPreferences {
-    let favoritesList: [String]
-    let avoidList: [String]
-    let preferredVolumeRange: ClosedRange<Float>
-    let preferredSessionLength: TimeInterval
 }

@@ -1,0 +1,452 @@
+다음은 generateContent 메서드를 사용하여 Gemini 2.5 Flash 모델을 통해 Gemini API에 요청을 전송하는 예입니다.
+
+API 키를 환경 변수 GEMINI_API_KEY로 설정하면 Gemini API 라이브러리를 사용할 때 클라이언트에서 자동으로 선택합니다. 그렇지 않으면 클라이언트를 초기화할 때 API 키를 인수로 전달해야 합니다.
+
+Gemini API 문서의 모든 코드 샘플은 환경 변수 GEMINI_API_KEY를 설정했다고 가정합니다.
+
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+function main() {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: 'Explain how AI works in a few words' },
+        ],
+      },
+    ],
+  };
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: {
+      'x-goog-api-key': apiKey,
+    },
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+많은 코드 샘플에서 '생각'이 기본적으로 사용 설정되어 있습니다.
+
+이 사이트의 많은 코드 샘플은 대답 품질을 향상하기 위해 기본적으로 '사고' 기능이 사용 설정된 Gemini 2.5 Flash 모델을 사용합니다. 이렇게 하면 응답 시간과 토큰 사용량이 늘어날 수 있습니다. 속도를 우선시하거나 비용을 최소화하려면 아래 예와 같이 사고 예산을 0으로 설정하여 이 기능을 사용 중지하면 됩니다. 자세한 내용은 생각 가이드를 참고하세요.
+
+참고: 사고는 Gemini 2.5 시리즈 모델에서만 사용할 수 있으며 Gemini 2.5 Pro에서는 사용 중지할 수 없습니다.
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: 'Explain how AI works in a few words' },
+        ],
+      },
+    ],
+  };
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: {
+      'x-goog-api-key': apiKey,
+    },
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+
+==
+
+Gemini API는 Gemini 모델을 활용하여 텍스트, 이미지, 동영상, 오디오를 비롯한 다양한 입력에서 텍스트 출력을 생성할 수 있습니다.
+
+다음은 단일 텍스트 입력을 사용하는 기본 예입니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: 'How AI does work?' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+Gemini 2.5를 사용한 사고
+
+2.5 Flash 및 Pro 모델은 품질을 개선하기 위해 기본적으로 '사고'가 사용 설정되어 있으므로 실행하는 데 시간이 더 오래 걸리고 토큰 사용량이 늘어날 수 있습니다.
+
+2.5 Flash를 사용할 때 사고 예산을 0으로 설정하여 사고를 사용 중지할 수 있습니다.
+
+자세한 내용은 사고 가이드를 참고하세요.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: 'How AI does work?' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+시스템 안내 및 기타 구성
+
+시스템 안내를 사용하여 Gemini 모델의 동작을 안내할 수 있습니다. 이렇게 하려면 GenerateContentConfig 객체를 전달합니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const systemInstruction = {
+    parts: [{
+      text: 'You are a cat. Your name is Neko.'
+    }]
+  };
+
+  const payload = {
+    systemInstruction,
+    contents: [
+      {
+        parts: [
+          { text: 'Hello there' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+GenerateContentConfig 객체를 사용하면 온도와 같은 기본 생성 매개변수를 재정의할 수도 있습니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const generationConfig = {
+    temperature: 1,
+    topP: 0.95,
+    topK: 40,
+    responseMimeType: 'text/plain',
+  };
+
+  const payload = {
+    generationConfig,
+    contents: [
+      {
+        parts: [
+          { text: 'Explain how AI works in a few words' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+구성 가능한 매개변수와 설명의 전체 목록은 API 참조의 GenerateContentConfig를 참고하세요.
+
+멀티모달 입력
+
+Gemini API는 멀티모달 입력을 지원하므로 텍스트와 미디어 파일을 결합할 수 있습니다. 다음 예는 이미지를 제공하는 방법을 보여줍니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const imageUrl = 'http://image/url';
+  const image = getImageData(imageUrl);
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { image },
+          { text: 'Tell me about this instrument' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+
+function getImageData(url) {
+  const blob = UrlFetchApp.fetch(url).getBlob();
+
+  return {
+    mimeType: blob.getContentType(),
+    data: Utilities.base64Encode(blob.getBytes())
+  };
+}
+이미지를 제공하는 다른 방법과 고급 이미지 처리에 관한 자세한 내용은 이미지 이해 가이드를 참고하세요. 이 API는 문서, 동영상, 오디오 입력 및 이해도 지원합니다.
+
+스트리밍 응답
+
+기본적으로 모델은 전체 생성 프로세스가 완료된 후에만 응답을 반환합니다.
+
+더 원활한 상호작용을 위해 스트리밍을 사용하여 GenerateContentResponse 인스턴스가 생성될 때마다 점진적으로 수신합니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: 'Explain how AI works' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+멀티턴 대화 (채팅)
+
+Google의 SDK는 여러 번의 프롬프트와 응답을 채팅으로 수집하는 기능을 제공하므로 대화 기록을 쉽게 추적할 수 있습니다.
+
+참고: 채팅 기능은 SDK의 일부로만 구현됩니다. 백그라운드에서는 여전히 generateContent API를 사용합니다. 대화 차례가 여러 개인 경우 후속 차례마다 전체 대화 기록이 모델로 전송됩니다.
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: 'Hello' },
+        ],
+      },
+      {
+        role: 'model',
+        parts: [
+          { text: 'Great to meet you. What would you like to know?' },
+        ],
+      },
+      {
+        role: 'user',
+        parts: [
+          { text: 'I have two dogs in my house. How many paws are in my house?' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+스트리밍은 멀티턴 대화에도 사용할 수 있습니다.
+
+Python
+자바스크립트
+Go
+REST
+Apps Script
+
+// See https://developers.google.com/apps-script/guides/properties
+// for instructions on how to set the API key.
+const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+function main() {
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: 'Hello' },
+        ],
+      },
+      {
+        role: 'model',
+        parts: [
+          { text: 'Great to meet you. What would you like to know?' },
+        ],
+      },
+      {
+        role: 'user',
+        parts: [
+          { text: 'I have two dogs in my house. How many paws are in my house?' },
+        ],
+      },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}`;
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(response);
+  const content = data['candidates'][0]['content']['parts'][0]['text'];
+  console.log(content);
+}
+지원되는 모델
+
+Gemini 계열의 모든 모델은 텍스트 생성을 지원합니다. 모델 및 기능에 대해 자세히 알아보려면 모델 페이지를 참고하세요.
+
+권장사항
+
+프롬프트 팁
+
+기본 텍스트 생성의 경우 예시, 시스템 안내 또는 특정 형식이 필요하지 않은 제로샷 프롬프트로 충분합니다.
+
+맞춤형 출력을 위해 다음을 실행합니다.
+
+시스템 안내를 사용하여 모델을 안내합니다.
+모델을 안내할 입력 및 출력의 예를 몇 가지 제공합니다. 이를 퓨샷 프롬프트라고 합니다.
+자세한 내용은 프롬프트 엔지니어링 가이드를 참고하세요.
+
+구조화된 출력
+
+경우에 따라 JSON과 같은 구조화된 출력이 필요할 수 있습니다. 방법을 알아보려면 구조화된 출력 가이드를 참고하세요.
+
+

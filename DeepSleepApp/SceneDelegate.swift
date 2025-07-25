@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import SwiftData
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -336,11 +335,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func setupAIServices() {
         // iOS availability 체크 추가
         if #available(iOS 17.0, *) {
-            // AppDelegate에 생성된 공유 ModelContainer에서 ModelContext를 가져옴
-            let modelContext = AppDelegate.sharedModelContainer.mainContext
-            
-            // 1. PersonaMemoryManager 초기화
-            let _ = PersonaMemoryManager(modelContext: modelContext)
+            // ✅ ChatManager 기반 외부 AI 메모리 시스템 - 파라미터 없는 초기화
+            let _ = PersonaMemoryManager()
             
             // 2. EnhancedUnifiedAIOrchestrator 초기화 (파라미터 없는 버전 사용)
             // TODO: Implement EnhancedUnifiedAIOrchestrator

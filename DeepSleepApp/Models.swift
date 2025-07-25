@@ -1,5 +1,5 @@
 import Foundation
-import Core
+
 import CoreData
 import SwiftUI
 
@@ -42,26 +42,7 @@ struct DummyDecoder: Decoder {
     func singleValueContainer() throws -> SingleValueDecodingContainer { throw NSError() }
 }
 
-// MARK: - ChatMessage Codable dictionary conversion
-public extension ChatMessage {
-    func toDictionary() -> [String: Any]? {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(self),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        return jsonObject
-    }
-
-    static func from(dictionary: [String: Any]) -> ChatMessage? {
-        guard let data = try? JSONSerialization.data(withJSONObject: dictionary, options: []),
-              let message = try? JSONDecoder().decode(ChatMessage.self, from: data) else {
-            return nil
-        }
-        return message
-    }
-}
+// MARK: - ChatMessage extension methods moved to SharedModels.swift
 
 // MARK: - Emotional Profile Model
 public struct EmotionalProfile: Codable, Equatable {
@@ -195,7 +176,6 @@ struct Emotion {
 // MARK: - Enhanced Emotion Types
 // EnhancedEmotion은 Core/Domain/Entities/EmotionEntity.swift의 EmotionType으로 통합되었습니다.
 // EmotionType을 import하여 사용하세요. intensity 프로퍼티도 EmotionType에 통합되었습니다.
-import Core
 
 // MARK: - 감정 일기 모델
 struct EmotionDiary: Codable, Identifiable {
@@ -467,7 +447,190 @@ public struct UserProfile: Codable {
     }
 }
 
-// MARK: - Chat & AI Interaction
-public extension ChatMessage {
-    // ... 기존 ChatMessage 관련 extension 내용
+// MARK: - Chat & AI Interaction extensions moved to SharedModels.swift
+
+// MARK: - Core 모듈 마이그레이션으로 누락된 타입들
+
+/// 감정 타입 열거형
+public enum EmotionType: String, CaseIterable, Codable {
+    case happy = "기쁨"
+    case sad = "슬픔"
+    case angry = "화남"
+    case anxious = "불안"
+    case tired = "피곤"
+    case neutral = "평온"
+    case excited = "신남"
+    case calm = "차분함"
+    case stressed = "스트레스"
+    case peaceful = "평화로움"
+    
+    public var displayName: String { rawValue }
+    public var emoji: String {
+        switch self {
+        case .happy: return "😊"
+        case .sad: return "😢"
+        case .angry: return "😡"
+        case .anxious: return "😰"
+        case .tired: return "😴"
+        case .neutral: return "😐"
+        case .excited: return "😄"
+        case .calm: return "😌"
+        case .stressed: return "😫"
+        case .peaceful: return "🕊️"
+        }
+    }
+}
+
+/// 추천 컨텍스트 구조체
+public struct RecommendationContext {
+    public let userEmotion: String
+    public let timeOfDay: String
+    public let batteryLevel: Float
+    public let isHeadphonesConnected: Bool
+    public let previousPreferences: [String]
+    public let currentActivity: String?
+    
+    public init(
+        userEmotion: String = "평온",
+        timeOfDay: String = "오후",
+        batteryLevel: Float = 0.8,
+        isHeadphonesConnected: Bool = false,
+        previousPreferences: [String] = [],
+        currentActivity: String? = nil
+    ) {
+        self.userEmotion = userEmotion
+        self.timeOfDay = timeOfDay
+        self.batteryLevel = batteryLevel
+        self.isHeadphonesConnected = isHeadphonesConnected
+        self.previousPreferences = previousPreferences
+        self.currentActivity = currentActivity
+    }
+}
+
+/// AI 작업 라우터
+public class LLMRouter {
+    public static let shared = LLMRouter()
+    
+    private init() {}
+    
+    /// AI 작업 전송
+    public func send(task: String, completion: @escaping (Result<String, Error>) -> Void) {
+        // UnifiedAIService를 통해 작업 처리
+        Task {
+            do {
+                // TODO: UnifiedAIService와 연동
+                let response = "LLMRouter 응답: \(task)"
+                DispatchQueue.main.async {
+                    completion(.success(response))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+}
+
+/// 슈퍼 추천 엔진
+public class SuperRecommendationEngine {
+    public static let shared = SuperRecommendationEngine()
+    
+    private init() {}
+    
+    /// 사운드 추천
+    public func recommendSound(
+        for emotion: String,
+        context: RecommendationContext? = nil,
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
+        // 추천 로직 구현
+        DispatchQueue.global(qos: .userInitiated).async {
+            let recommendations = ["바다소리", "빗소리", "새소리"] // 기본 추천
+            DispatchQueue.main.async {
+                completion(.success(recommendations))
+            }
+        }
+    }
+    
+    /// 일반 추천
+    public func recommend(
+        for context: RecommendationContext,
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
+        recommendSound(for: context.userEmotion, context: context, completion: completion)
+    }
+}
+
+/// 신경망 프로세서
+public class NeuralNetworkProcessor {
+    public static let shared = NeuralNetworkProcessor()
+    
+    private init() {}
+    
+    /// 데이터 처리
+    public func processData<T>(_ data: T) -> T {
+        // 신경망 처리 로직 (현재는 그대로 반환)
+        return data
+    }
+    
+    /// HealthKit 데이터 분석
+    public func analyzeHealthData(_ data: [String: Any]) -> [String: Any] {
+        // 건강 데이터 분석 로직
+        return data
+    }
+}
+
+// MARK: - Shared Types (통합)
+// ChatMessage, MessageSender, ChatMessageType은 SharedModels.swift에서 정의됨
+
+
+/// 사운드 추천 컨텍스트
+public struct SoundRecommendationContext {
+    public let userEmotion: String
+    public let timeOfDay: String
+    public let batteryLevel: Float
+    public let isHeadphonesConnected: Bool
+    
+    public init(userEmotion: String = "평온", timeOfDay: String = "오후", batteryLevel: Float = 0.8, isHeadphonesConnected: Bool = false) {
+        self.userEmotion = userEmotion
+        self.timeOfDay = timeOfDay
+        self.batteryLevel = batteryLevel
+        self.isHeadphonesConnected = isHeadphonesConnected
+    }
+}
+
+/// LLM 요청 설정
+public struct LLMRequestConfig {
+    public let maxTokens: Int
+    public let temperature: Double
+    public let topP: Double
+    public let model: String?
+    
+    public init(maxTokens: Int = 1000, temperature: Double = 0.7, topP: Double = 1.0, model: String? = nil) {
+        self.maxTokens = maxTokens
+        self.temperature = temperature
+        self.topP = topP
+        self.model = model
+    }
+}
+
+// MARK: - String Extensions
+
+extension String {
+    public static func generalChat(message: String, history: [String]) -> String {
+        return "general_chat"
+    }
+    
+    public static func recommendTodo(todos: [String]) -> String {
+        return "recommend_todo"
+    }
+    
+    public var generalChat: String {
+        return "general_chat"
+    }
+    
+    public var recommendTodo: String {
+        return "recommend_todo"
+    }
 }

@@ -6,7 +6,6 @@ import Foundation
 import UIKit
 import SwiftUI
 import SwiftData
-import Core
 
 // MARK: - Settings Model
 
@@ -28,21 +27,7 @@ struct UserSettings: Codable {
 // UsageStats는 Models/Analytics/UsageStats.swift에서 정의됨
 
 // MARK: - Core Data Types
-// ChatContext와 UserInfo는 Core/Common/SharedModels.swift로 이동되었으므로 여기서 삭제합니다.
-
-public struct SoundRecommendationContext {
-    public let userEmotion: String
-    public let timeOfDay: String
-    public let batteryLevel: Float
-    public let isHeadphonesConnected: Bool
-    
-    public init(userEmotion: String = "평온", timeOfDay: String = "오후", batteryLevel: Float = 0.8, isHeadphonesConnected: Bool = false) {
-        self.userEmotion = userEmotion
-        self.timeOfDay = timeOfDay
-        self.batteryLevel = batteryLevel
-        self.isHeadphonesConnected = isHeadphonesConnected
-    }
-}
+// ChatContext, UserInfo, SoundRecommendationContext는 SharedModels.swift로 이동되었으므로 여기서 삭제합니다.
 
 public struct FeedbackContext: Codable, Hashable {
     public let timeOfDay: String
@@ -299,34 +284,8 @@ final class PresetManager {
 
 // Note: LegacyPresetManager is defined in LegacyPresetManager.swift
 
-// MARK: - ChatManager (임시 스텁)
-// Note: 실제 구현은 ChatManager.swift에 있음
-final class ChatManager {
-    static let shared = ChatManager()
-    var messages: [StoredChatMessage] = []
-    
-    struct ChatSession {
-        let id: String
-        let messages: [StoredChatMessage]
-        
-        init(id: String, messages: [StoredChatMessage] = []) {
-            self.id = id
-            self.messages = messages
-        }
-    }
-    
-    func getSessions() -> [ChatSession] {
-        return []
-    }
-    
-    func append(_ message: ChatMessage) {
-        // 임시 구현
-    }
-    
-    func addMessage(to sessionId: String, message: Any) {
-        // 임시 구현
-    }
-}
+// MARK: - ChatManager는 실제 구현 사용
+// Note: 실제 구현은 ChatManager.swift에 있으므로 스텁 제거됨
 
 // Note: FeedbackManager is defined in FeedbackManager.swift
 
@@ -363,7 +322,7 @@ class EnhancedAIRecommendationService {
     }
 }
 
-// ComprehensiveRecommendationEngine is already defined in ComprehensiveRecommendationEngine.swift
+// ✅ ComprehensiveRecommendationEngine 삭제됨 - EnhancedSoundRecommendationEngine 사용
 
 // MARK: - ProcessingMetadata (Codable support in SoundPresetCatalog.swift)
 
@@ -378,25 +337,7 @@ extension ProcessingMetadata: Equatable {
 
 // MARK: - Model Extensions
 
-extension ComprehensiveRecommendation.RecommendationResult {
-    init(soundId: String, reasoning: String, confidence: Double, personalizedExplanation: String) {
-        self.init(soundId: soundId, reasoning: reasoning, confidence: confidence, personalizedExplanation: personalizedExplanation, details: nil)
-    }
-}
-
-extension ComprehensiveRecommendation {
-    init(primaryRecommendation: ComprehensiveRecommendation.RecommendationResult,
-         alternatives: [ComprehensiveRecommendation.RecommendationResult]) {
-        self.init(primaryRecommendation: primaryRecommendation,
-                  alternativeRecommendations: alternatives,
-                  overallConfidence: 0.0,
-                  learningRecommendations: [],
-                  processingMetadata: ProcessingMetadata(),
-                  adaptationLevel: "basic",
-                  comprehensivenessScore: 0.0,
-                  contextualInsights: [])
-    }
-}
+// ✅ ComprehensiveRecommendation extensions 삭제됨 - EnhancedSoundRecommendationEngine 사용
 
 extension DiaryContext {
     init(from diary: EmotionDiary) {
@@ -411,13 +352,7 @@ extension DiaryContext {
 
 // LLMRequestConfig extensions removed - use the one from LLMEntity.swift
 
-extension LLMRouter {
-    func generatePrimaryRecommendation(for userProfile: UserProfileVector, completion: @escaping (Result<ComprehensiveRecommendation, Error>) -> Void) {
-        let dummyResult = ComprehensiveRecommendation.RecommendationResult(soundId: "dummy_sound", reasoning: "dummy_reason", confidence: 0.8, personalizedExplanation: "dummy_explanation")
-        let dummyRecommendation = ComprehensiveRecommendation(primaryRecommendation: dummyResult, alternatives: [])
-        completion(.success(dummyRecommendation))
-    }
-}
+// ✅ LLMRouter ComprehensiveRecommendation 관련 메서드 삭제됨 - EnhancedSoundRecommendationEngine 사용
 
 extension SoundPresetCatalog {
     static let shared = SoundPresetCatalog()
@@ -472,8 +407,16 @@ extension ViewController {
 @available(iOS 17.0, *)
 extension PersonaMemoryManager {
     convenience init(modelContainer: ModelContainer) {
-        // 임시로 기본 초기화 사용 (ModelContainer 의존성 제거)
-        self.init(modelContext: modelContainer.mainContext)
+        // SwiftData.ModelContainer를 커스텀 ModelContext로 변환
+        let customModelContext = ModelContext(
+            messages: [],
+            systemPrompt: "DeepSleep AI Assistant",
+            conversationSummary: "",
+            tokenCount: 0,
+            metadata: [:]
+        )
+        // ✅ ChatManager 기반으로 변경됨 - 파라미터 없는 초기화
+        self.init()
     }
 }
 
@@ -485,8 +428,15 @@ extension PersonaMemoryManager {
             let config = ModelConfiguration(isStoredInMemoryOnly: true)
             // UserPersona 및 기타 관련 모델을 사용합니다.
             let container = try ModelContainer(for: UserPersona.self, ConversationMemory.self, PreferenceMemory.self, ContextualMemory.self, configurations: config)
-            let context = ModelContext(container)
-            return PersonaMemoryManager(modelContext: context)
+            let customModelContext = ModelContext(
+                messages: [],
+                systemPrompt: "DeepSleep AI Assistant",
+                conversationSummary: "",
+                tokenCount: 0,
+                metadata: [:]
+            )
+            // ✅ ChatManager 기반으로 변경됨 - 파라미터 없는 초기화
+            return PersonaMemoryManager()
         } catch {
             fatalError("Failed to create in-memory model container for legacy instance: \(error)")
         }

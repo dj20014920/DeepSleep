@@ -1,5 +1,4 @@
 import Foundation
-import Core
 
 /// 감정 분석 채팅 화면의 ViewModel 프로토콜
 protocol EmotionAnalysisViewModelProtocol: AnyObject {

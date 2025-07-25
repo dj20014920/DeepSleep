@@ -8,10 +8,15 @@
 
 import Foundation
 
+// MARK: - 필수 타입 참조 (같은 모듈 내 파일들)
+// AIServiceTypes.swift에서 ConversationType 참조
+// UserSettingsModel.swift에서 UserSettingsModel 참조
+// SharedModels.swift에서 공통 타입들 참조
+
 /// 🤖 **AI 컨텍스트 관리자**
 /// 토큰 효율적인 시스템 프롬프트 및 사용자 정보 관리
-class AIContextManager {
-    static let shared = AIContextManager()
+public class AIContextManager {
+    public static let shared = AIContextManager()
     
     private init() {}
     
@@ -127,16 +132,12 @@ class AIContextManager {
         switch type {
         case .general:
             return "일상 대화로 편안하게 응답하세요."
-        case .sleepConsultation:
-            return "수면 개선에 집중한 조언을 제공하세요."
-        case .emotionAnalysis:
+        case .emotional:
             return "감정을 공감하고 위로의 말을 전하세요."
-        case .diaryAnalysis:
-            return "일기 내용을 분석하여 인사이트를 제공하세요."
-        case .presetRecommendation:
-            return "사용자 상황에 맞는 사운드 프리셋을 추천하세요."
-        case .monthlyReport:
-            return "월간 패턴을 분석하여 개선점을 제안하세요."
+        case .task:
+            return "생산성과 할 일 관리에 집중한 조언을 제공하세요."
+        case .analysis:
+            return "데이터를 분석하여 인사이트와 개선점을 제안하세요."
         }
     }
     
@@ -179,15 +180,7 @@ class AIContextManager {
 }
 
 // MARK: - 📝 대화 유형 정의
-
-enum ConversationType: String, CaseIterable {
-    case general = "general"                    // 일반 대화
-    case sleepConsultation = "sleep"           // 수면 상담
-    case emotionAnalysis = "emotion"           // 감정 분석
-    case diaryAnalysis = "diary"               // 일기 분석
-    case presetRecommendation = "preset"       // 프리셋 추천
-    case monthlyReport = "report"              // 월간 리포트
-}
+// ConversationType은 AIServiceTypes.swift에 정의됨
 
 // MARK: - 🎯 사용 예시 및 가이드
 

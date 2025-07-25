@@ -117,12 +117,12 @@ class AISecurityManager {
         
         // 1. 기본 검증
         guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return .rejected("빈 입력은 허용되지 않습니다.")
+            return .rejected(reason: "빈 입력은 허용되지 않습니다.")
         }
         
         // 2. 길이 제한
         guard input.count <= maxPromptLength else {
-            return .rejected("입력이 너무 깁니다. (\(input.count)/\(maxPromptLength)자)")
+            return .rejected(reason: "입력이 너무 깁니다. (\(input.count)/\(maxPromptLength)자)")
         }
         
         // 3. 일일 요청 제한 (사용자 친화적 안내)
@@ -137,20 +137,20 @@ class AISecurityManager {
             formatter.dateFormat = "M월 d일"
             let tomorrowString = formatter.string(from: tomorrow)
             
-            return .rejected("오늘 채팅 한도(\(maxDailyRequests)개)를 모두 사용했어요! 😊\n\(tomorrowString)에 다시 만나요! 내일도 좋은 하루 되세요! ✨")
+            return .rejected(reason: "오늘 채팅 한도(\(maxDailyRequests)개)를 모두 사용했어요! 😊\n\(tomorrowString)에 다시 만나요! 내일도 좋은 하루 되세요! ✨")
         }
         
         // 4. 악성 패턴 탐지 (임계값 완화: 0.7 → 0.9)
         let maliciousScore = detectMaliciousPatterns(in: input)
         if maliciousScore > 0.9 {
             logSecurityEvent("HIGH_RISK_PROMPT", details: input, userId: userId)
-            return .rejected("보안 위험이 감지되었습니다. 다른 방식으로 질문해 주세요.")
+            return .rejected(reason: "보안 위험이 감지되었습니다. 다른 방식으로 질문해 주세요.")
         }
         
         // 5. 언어 검증
         let detectedLanguage = detectLanguage(input)
         guard allowedLanguages.contains(detectedLanguage) else {
-            return .flagged("지원하지 않는 언어가 감지되었습니다.", cleanInput: input)
+            return .flagged(reason: "지원하지 않는 언어가 감지되었습니다.", cleanInput: input)
         }
         
         // 6. 입력 정화
@@ -160,7 +160,7 @@ class AISecurityManager {
         dailyRequestCounts[userKey] = currentCount + 1
         
         print("✅ [Security] 입력 검증 완료")
-        return .approved(sanitizedInput)
+        return .approved(cleanInput: sanitizedInput)
     }
     
     /// 🧠 **2. 악성 패턴 점수 계산 (ML 기반)**
@@ -270,29 +270,29 @@ class AISecurityManager {
         // 1. 시스템 프롬프트 노출 확인
         if containsSystemPromptLeakage(output) {
             logSecurityEvent("SYSTEM_PROMPT_LEAK", details: output, userId: "system")
-            return .blocked("안전하지 않은 응답이 감지되어 차단되었습니다.")
+            return .blocked(reason: "안전하지 않은 응답이 감지되어 차단되었습니다.")
         }
         
         // 2. 개인정보 노출 확인
         if containsPersonalInformation(output) {
             logSecurityEvent("PII_LEAK", details: output, userId: "system")
-            return .blocked("개인정보가 포함된 응답이 차단되었습니다.")
+            return .blocked(reason: "개인정보가 포함된 응답이 차단되었습니다.")
         }
         
         // 3. 유해 콘텐츠 확인
         if containsHarmfulContent(output) {
             logSecurityEvent("HARMFUL_CONTENT", details: output, userId: "system")
-            return .blocked("부적절한 내용이 포함된 응답이 차단되었습니다.")
+            return .blocked(reason: "부적절한 내용이 포함된 응답이 차단되었습니다.")
         }
         
         // 4. 코드 실행 시도 확인
         if containsCodeExecution(output) {
             logSecurityEvent("CODE_EXECUTION_ATTEMPT", details: output, userId: "system")
-            return .blocked("코드 실행 시도가 감지되어 차단되었습니다.")
+            return .blocked(reason: "코드 실행 시도가 감지되어 차단되었습니다.")
         }
         
         print("✅ [Security] 출력 검증 완료")
-        return .approved(output)
+        return .approved
     }
     
     // MARK: - 🔍 출력 검증 세부 메서드
@@ -512,28 +512,7 @@ class AISecurityManager {
 }
 
 // MARK: - 📋 보안 관련 데이터 구조
-
-enum SecurityValidationResult {
-    case approved(String)
-    case flagged(String, cleanInput: String)
-    case rejected(String)
-    
-    func getCleanInput() -> String {
-        switch self {
-        case .approved(let input):
-            return input
-        case .flagged(_, let cleanInput):
-            return cleanInput
-        case .rejected:
-            return ""
-        }
-    }
-}
-
-enum OutputValidationResult {
-    case approved(String)
-    case blocked(String)
-}
+// Note: SecurityValidationResult, OutputValidationResult는 AIServiceTypes.swift에 정의됨
 
 enum SessionValidationResult {
     case `continue`

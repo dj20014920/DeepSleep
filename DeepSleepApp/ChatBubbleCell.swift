@@ -1,6 +1,8 @@
 import UIKit
 import Foundation
-import Core
+
+// ChatMessage 타입 접근성 확보를 위한 참조
+fileprivate let _chatMessageRef: ChatMessage? = nil
 
 // MARK: - ChatBubbleCell Implementation
 

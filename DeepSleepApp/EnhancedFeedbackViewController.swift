@@ -1,6 +1,5 @@
 import UIKit
 import AVFoundation
-import Core
 
 // MARK: - 🎯 Enterprise-Grade Feedback Collection System
 
@@ -300,7 +299,23 @@ class EnhancedFeedbackViewController: UIViewController {
     
     private func populateInitialData() {
         if let emotion = currentEmotion {
-            emotionIntensitySlider.setValue(emotion.intensity)
+            emotionIntensitySlider.setValue(defaultIntensity(for: emotion))
+        }
+    }
+    
+    /// EmotionType에 따른 기본 감정 강도 반환
+    private func defaultIntensity(for emotion: EmotionType) -> Float {
+        switch emotion {
+        case .angry, .stressed:
+            return 0.8
+        case .excited, .happy:
+            return 0.7
+        case .anxious, .sad:
+            return 0.6
+        case .tired:
+            return 0.4
+        case .neutral, .calm, .peaceful:
+            return 0.3
         }
     }
     

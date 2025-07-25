@@ -1,7 +1,6 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
-import Core
 
 /// 오디오 재생 모드
 enum AudioPlaybackMode: Int, CaseIterable {
@@ -1434,7 +1433,7 @@ final class SoundManager {
 
     // MARK: - 🧠 AI 추천 시스템 (리팩토링 완료)
 
-    /// 하이브리드 추천 생성 (온디바이스 + 외부 AI)
+    /// 하이브리드 추천 생성 (ChatManager 통합 완료)
     func generateHybridRecommendation(emotion: String, situation: String, existingPresets: [SoundPreset], completion: @escaping (SoundPreset?) -> Void) {
 
         let contextPrompt = """
@@ -1443,32 +1442,138 @@ final class SoundManager {
         \(existingPresets.map { "- \($0.name)" }.joined(separator: "\n"))
 
         이 모든 정보를 종합하여, 사용자에게 가장 필요할 것 같은 새로운 사운드 조합을 추천해주세요.
+        
+        응답 형식 (JSON):
+        {
+            "name": "추천 프리셋 이름",
+            "description": "프리셋 설명",
+            "emotion": "감정 상태",
+            "volumes": {
+                "비": 0.6,
+                "백색소음": 0.4,
+                "새소리": 0.2
+            }
+        }
         """
 
         Task {
             do {
-                let context = SoundRecommendationContext(userEmotion: emotion, timeOfDay: contextPrompt)
-                let _ = try await LLMRouter.shared.send(task: .recommendSound(emotion: emotion, situation: situation))
-                // TODO: - LLM의 텍스트 응답을 SoundPreset 객체로 파싱하는 로직 구현 필요
-                // let preset = parsePreset(from: responseText)
-                let preset: SoundPreset? = nil // 임시
+                // 🤖 ChatManager.sendMessage로 프리셋 추천 호출 (통합 아키텍처)
+                let aiResponse = try await ChatManager.shared.sendMessage(
+                    userInput: contextPrompt,
+                    modeString: "preset_recommendation",
+                    modelString: "gemini"  // JSON 출력에 최적화된 모델
+                )
+                
+                // JSON 파싱하여 SoundPreset 객체 생성
+                let preset = try parsePresetFromJSON(aiResponse, emotion: emotion)
+                
                 await MainActor.run {
                     completion(preset)
                 }
+                
             } catch {
-                print("Error generating hybrid recommendation: \(error)")
+                print("❌ [SoundManager] 하이브리드 추천 생성 실패: \(error)")
+                
                 await MainActor.run {
-                    completion(nil)
+                    // AI 실패 시 로컬 추천으로 폴백
+                    let fallbackPreset = generateLocalPresetRecommendation(emotion: emotion, situation: situation)
+                    completion(fallbackPreset)
                 }
             }
         }
     }
 
+    /// AI JSON 응답을 SoundPreset 객체로 파싱
+    private func parsePresetFromJSON(_ jsonString: String, emotion: String) throws -> SoundPreset? {
+        guard let data = jsonString.data(using: .utf8) else {
+            throw NSError(domain: "SoundManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON data"])
+        }
+        
+        do {
+            let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            let name = jsonObject?["name"] as? String ?? "AI 추천 프리셋"
+            let description = jsonObject?["description"] as? String ?? "AI가 추천한 개인화된 사운드 조합입니다."
+            let presetEmotion = jsonObject?["emotion"] as? String ?? emotion
+            
+            // volumes 파싱
+            var volumes: [Float] = Array(repeating: 0.0, count: 8) // 기본 8개 사운드
+            if let volumesDict = jsonObject?["volumes"] as? [String: Any] {
+                // 사운드 이름을 인덱스로 매핑
+                let soundMapping: [String: Int] = [
+                    "비": 0, "빗소리": 0, "rain": 0,
+                    "백색소음": 1, "white": 1, "noise": 1,
+                    "새소리": 2, "birds": 2, "bird": 2,
+                    "파도": 3, "wave": 3, "ocean": 3,
+                    "바람": 4, "wind": 4,
+                    "벌레": 5, "insects": 5, "cricket": 5,
+                    "모닥불": 6, "fire": 6, "bonfire": 6,
+                    "천둥": 7, "thunder": 7
+                ]
+                
+                for (soundName, volumeValue) in volumesDict {
+                    if let index = soundMapping[soundName.lowercased()],
+                       let volume = volumeValue as? NSNumber {
+                        volumes[index] = min(max(volume.floatValue, 0.0), 1.0) // 0.0~1.0 범위로 제한
+                    }
+                }
+            }
+            
+            // 빈 볼륨이면 기본 조합 설정
+            if volumes.allSatisfy({ $0 == 0.0 }) {
+                volumes = generateDefaultVolumesForEmotion(emotion)
+            }
+            
+            return SoundPreset(
+                name: name,
+                volumes: volumes,
+                selectedVersions: Array(repeating: 0, count: 8), // 기본 버전 사용
+                emotion: presetEmotion,
+                isAIGenerated: true,
+                scientificBasis: description
+            )
+            
+        } catch {
+            print("⚠️ [SoundManager] JSON 파싱 실패, 기본 추천으로 대체: \(error)")
+            return generateDefaultPresetForEmotion(emotion)
+        }
+    }
+    
+    /// 감정에 따른 기본 볼륨 조합 생성
+    private func generateDefaultVolumesForEmotion(_ emotion: String) -> [Float] {
+        switch emotion.lowercased() {
+        case "스트레스", "불안", "긴장":
+            return [0.6, 0.3, 0.0, 0.5, 0.2, 0.0, 0.0, 0.0] // 비, 백색소음, 파도 중심
+        case "슬픔", "우울":
+            return [0.7, 0.2, 0.1, 0.4, 0.1, 0.0, 0.0, 0.0] // 비 중심의 차분한 조합
+        case "분노", "화남":
+            return [0.5, 0.4, 0.0, 0.6, 0.3, 0.0, 0.0, 0.1] // 파도와 바람 중심
+        case "기쁨", "행복":
+            return [0.3, 0.1, 0.6, 0.2, 0.2, 0.1, 0.0, 0.0] // 새소리 중심의 밝은 조합
+        case "피곤", "졸림":
+            return [0.4, 0.5, 0.0, 0.3, 0.1, 0.0, 0.0, 0.0] // 백색소음 중심
+        default: // 평온, 기본
+            return [0.5, 0.3, 0.2, 0.3, 0.1, 0.0, 0.0, 0.0] // 균형 잡힌 조합
+        }
+    }
+    
+    /// 감정에 따른 기본 프리셋 생성
+    private func generateDefaultPresetForEmotion(_ emotion: String) -> SoundPreset {
+        return SoundPreset(
+            name: "\(emotion) 맞춤 프리셋",
+            volumes: generateDefaultVolumesForEmotion(emotion),
+            selectedVersions: Array(repeating: 0, count: 8),
+            emotion: emotion,
+            isAIGenerated: true,
+            scientificBasis: "감정 상태에 최적화된 기본 사운드 조합입니다."
+        )
+    }
+
     /// 로컬 데이터 기반 프리셋 추천 (빠른 추천)
     func generateLocalPresetRecommendation(emotion: String, situation: String) -> SoundPreset? {
-        // TODO: - 로컬 추천 로직 구현. 현재는 nil 반환.
-        // 이 함수는 더 이상 AI를 호출하지 않으므로, ReplicateChatService 관련 코드를 제거합니다.
-        print("로컬 프리셋 추천 기능은 향후 구현될 예정입니다.")
-        return nil
+        print("🏠 [SoundManager] 로컬 프리셋 추천 실행: \(emotion), \(situation)")
+        // AI 실패 시 로컬 추천으로 사용
+        return generateDefaultPresetForEmotion(emotion)
     }
 }

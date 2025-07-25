@@ -1,5 +1,4 @@
 import UIKit
-import Core
 
 /// 💬 사용자 기본 정보 입력 화면 (ChatGPT 스타일 페르소나)
 /// AI가 사용자를 더 잘 이해할 수 있도록 돕는 개인화 정보 입력

@@ -317,7 +317,7 @@ class InputValidationManager {
             
         default:
             // 기본 안전화: 제어 문자 제거
-            sanitized = sanitized.filter { !$0.isNewline && !$0.isOther }
+            sanitized = sanitized.filter { !$0.isNewline && $0.isLetter || $0.isNumber || $0.isWhitespace || $0.isPunctuation }
         }
         
         return sanitized
@@ -411,15 +411,4 @@ extension InputValidationManager {
     }
 }
 
-// MARK: - 원격 로거 스텁 (실제 구현 필요)
-class RemoteLogger {
-    static let shared = RemoteLogger()
-    private init() {}
-    
-    func logSecurityIncident(issues: [InputValidationManager.ValidationResult.SecurityIssue], 
-                           context: String, 
-                           timestamp: Date) {
-        // 실제 구현시 원격 보안 모니터링 시스템으로 전송
-        print("📡 Remote Security Log: \(context) at \(timestamp)")
-    }
-}
+// RemoteLogger는 별도 파일 (RemoteLogger.swift)에 정의됨

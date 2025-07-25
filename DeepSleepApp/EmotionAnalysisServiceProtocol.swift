@@ -1,5 +1,4 @@
 import Foundation
-import Core
 
 /// 감정 분석 서비스 프로토콜
 protocol EmotionAnalysisServiceProtocol {

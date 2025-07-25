@@ -59,8 +59,19 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let appDelegate = UIApplication.shared.delegate as! AppDelegate
-        self.container = appDelegate.persistentContainer
+        // AppDelegate 타입 오류 해결을 위한 안전한 접근
+        if let appDelegate = UIApplication.shared.delegate as? NSObject,
+           let persistentContainer = appDelegate.value(forKey: "persistentContainer") as? NSPersistentContainer {
+            self.container = persistentContainer
+        } else {
+            // Fallback: 새로운 컨테이너 생성
+            container = NSPersistentContainer(name: "DeepSleep")
+            container.loadPersistentStores { _, error in
+                if let error = error {
+                    print("❌ Core Data 오류: \(error)")
+                }
+            }
+        }
         
         // UI setup
         view.backgroundColor = .systemBackground
@@ -530,8 +541,8 @@ extension EmotionCalendarViewController {
     
     // MARK: - AI Analysis Implementation
     func showAIAnalysisAlert() {
-        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .patternAnalysis)
-        let totalLimit = 3 // AIUsageManager에서 설정된 patternAnalysis 일일 제한
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .monthlyStatistics)
+        let totalLimit = 3 // AIUsageManager에서 설정된 monthlyStatistics 일일 제한
             
         guard remainingCount > 0 else {
             let limitAlert = UIAlertController(
@@ -585,7 +596,7 @@ extension EmotionCalendarViewController {
     func startAIAnalysisChat() {
         let anonymizedData = generateAnonymizedEmotionData()
         // ✅ 사용 횟수 기록 (실제 분석 시작 시점에)
-        AIUsageManager.shared.recordUsage(for: .patternAnalysis)
+        AIUsageManager.shared.recordUsage(for: .monthlyStatistics)
         
         let chatVC = ChatViewController()
         // ✅ 타이틀 제거 - ChatViewController에서 통일된 타이틀 설정

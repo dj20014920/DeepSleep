@@ -3,10 +3,10 @@ import Network
 
 /// 💯 완전 토큰 소모 제로 API 상태 확인 시스템
 /// 실제 API 호출 없이 로컬 검증과 DNS 조회만으로 상태 확인
-class ZeroTokenAPIChecker {
+public class ZeroTokenAPIChecker {
     
     // MARK: - 싱글톤 패턴
-    static let shared = ZeroTokenAPIChecker()
+    public static let shared = ZeroTokenAPIChecker()
     private init() {
         setupNetworkMonitoring()
     }

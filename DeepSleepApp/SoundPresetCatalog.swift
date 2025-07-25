@@ -2344,10 +2344,10 @@ class LocalAIRecommendationEngine {
         performanceMetrics.lastInferenceTime = Date()
     }
     
-    func getPerformanceReport() -> PerformanceReport {
+    func getPerformanceReport() -> SoundCatalogPerformanceReport {
         let accuracy: Float = 0.85 // 기본 정확도
         
-        return PerformanceReport(
+        return SoundCatalogPerformanceReport(
             totalInferences: performanceMetrics.totalInferences,
             averageProcessingTime: performanceMetrics.averageProcessingTime,
             accuracy: accuracy,
@@ -2454,7 +2454,8 @@ struct ModelWeights {
 
 
 
-struct PerformanceReport {
+// AICallLogger의 PerformanceReport와 중복을 피하기 위해 이름 변경
+struct SoundCatalogPerformanceReport {
     let totalInferences: Int
     let averageProcessingTime: Float
     let accuracy: Float

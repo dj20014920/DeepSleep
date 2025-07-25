@@ -1,5 +1,4 @@
 import UIKit
-import Core
 
 /// 📋 스텁 뷰컨트롤러들 (향후 구현 예정)
 /// 설정 화면에서 네비게이션하는 하위 뷰컨트롤러들의 임시 구현
@@ -418,6 +417,8 @@ class PrivacyPolicyViewController: UIViewController {
         ])
     }
 }
+// StorageManagementViewController는 별도 파일에 정의되어 있음
+/*
 /// 💾 저장소 관리 화면
 class StorageManagementViewController: UIViewController {
     override func viewDidLoad() {
@@ -441,4 +442,5 @@ class StorageManagementViewController: UIViewController {
             label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32)
         ])
     }
-}
+}}
+*/

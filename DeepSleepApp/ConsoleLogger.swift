@@ -343,7 +343,7 @@ class ConsoleLogger {
         do {
             return try String(contentsOf: logFileURL, encoding: .utf8)
         } catch {
-            error("로그 파일 읽기 실패: \(error.localizedDescription)")
+            log("로그 파일 읽기 실패: \(error.localizedDescription)", level: .error)
             return nil
         }
     }
@@ -353,9 +353,9 @@ class ConsoleLogger {
         
         do {
             try "".write(to: logFileURL, atomically: true, encoding: .utf8)
-            info("로그 파일 정리 완료")
+            log("로그 파일 정리 완료", level: .info)
         } catch {
-            error("로그 파일 정리 실패: \(error.localizedDescription)")
+            log("로그 파일 정리 실패: \(error.localizedDescription)", level: .error)
         }
     }
     
@@ -363,7 +363,7 @@ class ConsoleLogger {
     
     func setLoggingEnabled(_ enabled: Bool) {
         isLoggingEnabled = enabled
-        info("로깅 시스템 \(enabled ? "활성화" : "비활성화")")
+        log("로깅 시스템 \(enabled ? "활성화" : "비활성화")", level: .info)
     }
     
     func setMinimumLogLevel(_ level: LogLevel) {

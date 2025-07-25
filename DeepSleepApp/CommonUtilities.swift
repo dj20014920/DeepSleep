@@ -457,27 +457,9 @@ public struct CacheConst {
     public static let recentDaysRaw = 7
 }
 
-// MARK: - StoredChatMessage for Compatibility
-public struct StoredChatMessage {
-    public let id: UUID
-    public let text: String
-    public let type: MessageType
-    public let timestamp: Date
-    public let metadata: [String: Any]?
-    
-    public enum MessageType {
-        case user
-        case bot
-    }
-    
-    public init(id: UUID = UUID(), text: String, type: MessageType, timestamp: Date = Date(), metadata: [String: Any]? = nil) {
-        self.id = id
-        self.text = text
-        self.type = type
-        self.timestamp = timestamp
-        self.metadata = metadata
-    }
-}
+// MARK: - StoredChatMessage 중복 정의 제거됨
+// ChatManager.swift에서 정의된 StoredChatMessage를 사용
+// (호환성을 위한 임시 정의였음 - 이제 통합 아키텍처에서 불필요)
 
 // MARK: - Note: Color extensions moved to UIColorExtensions.swift
 // Removed duplicate Color extension to avoid circular references 

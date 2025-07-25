@@ -91,6 +91,12 @@ class RemoteLogger {
         self.info("앱 상태 변화: \(from) → \(to)", category: "AppState")
     }
     
+    /// 보안 사고 로그 (InputValidationManager와의 호환성)
+    func logSecurityIncident(issues: [Any], context: String, timestamp: Date) {
+        let issueDescriptions = issues.map { String(describing: $0) }.joined(separator: ", ")
+        self.critical("보안 사고 감지: \(context) - 이슈: \(issueDescriptions)", category: "Security")
+    }
+    
     // MARK: - 내부 구현
     
     private func log(_ message: String, level: LogEntry.LogLevel, category: String) {

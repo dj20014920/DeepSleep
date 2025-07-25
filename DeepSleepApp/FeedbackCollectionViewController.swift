@@ -741,11 +741,10 @@ class FeedbackCollectionViewController: UIViewController {
                     "naturalFeedback": feedbackData.naturalLanguageFeedback
                 ]
                 
-                await PersonalizedHarmonyLearner.shared.learnFromFeedback(
+                await PersonalizedHarmonyLearner.shared.analyzeUserFeedback(
                     soundCombination: soundCombination,
                     userRating: feedbackData.numericRating,
-                    contextualFactors: contextualFactors,
-                    feedbackType: .explicit
+                    contextualFactors: contextualFactors
                 )
                 
                 print("✅ [FeedbackCollection] 학습 완료")

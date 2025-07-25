@@ -100,7 +100,8 @@ class FeedbackVisualizationViewController: UIViewController {
     private func loadLearningMetrics() {
         // AI 학습 메트릭 로드
         let behaviorProfile = UserBehaviorAnalytics.shared.getCurrentUserProfile()
-        let learningRecords = AutomaticLearningModels.loadAutomaticLearningRecords()
+        // ✅ ML 학습 관련 코드 제거됨 - 빈 배열로 대체
+        let learningRecords: [Any] = []
         
         learningMetrics = AILearningMetrics(
             totalSessions: feedbackData.count,

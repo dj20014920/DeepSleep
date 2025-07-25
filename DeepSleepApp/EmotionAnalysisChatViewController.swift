@@ -1,5 +1,5 @@
 import UIKit
-import Core
+
 import Combine
 
 class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDelegate, UITextFieldDelegate {
@@ -258,8 +258,8 @@ extension EmotionAnalysisChatViewController: UITableViewDataSource {
         // ChatMessage 객체 생성
         let chatMessage = ChatMessage(
             text: message.message,
-            sender: message.isUser ? .user : .ai,
-            type: message.isUser ? .user : .bot
+            sender: message.isUser ? MessageSender.user : MessageSender.ai,
+            type: message.isUser ? ChatMessageType.user : ChatMessageType.bot
         )
         
         cell.configure(with: chatMessage, isUserMessage: message.isUser)

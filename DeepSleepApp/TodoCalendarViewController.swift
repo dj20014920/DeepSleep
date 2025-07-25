@@ -1,6 +1,7 @@
 import UIKit
 import FSCalendar
-import Core
+
+// MARK: - ChatManager import for unified AI service
 
 // MARK: - ✅ GIF 고양이 로딩 뷰 (ChatBubbleCell에서 가져옴)
 class TodoGifCatView: UIView {
@@ -911,7 +912,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let weeklyContext = ChatManager.shared.getRecentContext()
         
         var promptContent = """
         📅 날짜: \(selectedDateString)
@@ -1002,51 +1003,44 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         loadingOverlay?.show(in: view)
 
         Task {
+            let promptContent = await self.buildComprehensivePrompt()
+            
             do {
-                let promptContent = await self.buildComprehensivePrompt()
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
+                // 🤖 ChatManager.sendMessage로 전체 할일 조언 호출 (통합 아키텍처)
+                let advice = try await ChatManager.shared.sendMessage(
+                    userInput: promptContent,
+                    modeString: "task_advice",
+                    modelString: "claude"  // 종합적인 조언에 최적화
+                )
                 
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+                await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
-                    
                     self.overallAdviceActivityIndicator?.stopAnimating()
-                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice.content)
+                    
+                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice)
                     AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
                     self.updateOverallAdviceButtonUI() // 성공 후 버튼 UI 업데이트
                 }
+                
             } catch {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+                await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
-                    
                     self.overallAdviceActivityIndicator?.stopAnimating()
                     
-                    // 구체적인 오류 메시지 제공
-                    let errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
-                    /*
-                    if let serviceError = error as? ReplicateChatService.ServiceError {
-                        switch serviceError {
-                        case .invalidAPIKey:
-                            errorMessage = "API 키 설정에 문제가 있습니다. 개발자에게 문의하세요."
-                        case .predictionTimeout:
-                            errorMessage = "응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
-                        case .replicateAPIError(let detail):
-                            errorMessage = "API 오류: \(detail)"
-                        default:
-                            errorMessage = serviceError.localizedDescription
-                        }
+                    // 사용량 제한 초과 에러 처리
+                    let errorMessage: String
+                    if error.localizedDescription.contains("일일 사용 한도") {
+                        errorMessage = error.localizedDescription
                     } else {
-                        errorMessage += " (\(error.localizedDescription))"
+                        errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
                     }
-                    */
                     
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
-            updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트 (다시 활성화 등)
+                    self.updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트
                 }
             }
         }
@@ -1084,7 +1078,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let weeklyContext = ChatManager.shared.getRecentContext()
         
         var promptContent = """
         📅 날짜: \(selectedDateString)
@@ -1165,7 +1159,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let weeklyContext = ChatManager.shared.getRecentContext()
         
         var promptContent = """
         🎯 할 일 상세 분석:
@@ -1263,7 +1257,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = CachedConversationManager.shared.getFormattedWeeklyHistory()
+        let weeklyContext = ChatManager.shared.getRecentContext()
         
         var promptContent = """
         🎯 할 일 상세 분석:
@@ -1315,12 +1309,17 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         """
         
         Task {
+            let promptContent = await self.buildIndividualTodoPrompt(for: todo)
+            
             do {
-                let promptContent = await self.buildIndividualTodoPrompt(for: todo)
-                let advice = try await LLMRouter.shared.send(task: .generalChat(message: promptContent, history: []))
+                // 🤖 ChatManager.sendMessage로 개별 할일 조언 호출 (통합 아키텍처)
+                let advice = try await ChatManager.shared.sendMessage(
+                    userInput: promptContent,
+                    modeString: "task_advice",
+                    modelString: "claude"  // 상세한 조언에 최적화
+                )
                 
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+                await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
@@ -1337,7 +1336,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                                 if let error = error {
                                     print("⚠️ 할 일 조언 횟수 업데이트 실패: \(error.localizedDescription)")
                                 } else {
-                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
+                                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
                                 }
                             }
                             
@@ -1348,16 +1347,23 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                         AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                     }
                     
-                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice.content)
+                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice)
                 }
+                
             } catch {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+                await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
                     
-                    let errorMessage = "개별 할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    // 사용량 제한 초과 에러 처리
+                    let errorMessage: String
+                    if error.localizedDescription.contains("일일 사용 한도") {
+                        errorMessage = error.localizedDescription
+                    } else {
+                        errorMessage = "개별 할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    }
+                    
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
                 }
             }
@@ -1424,22 +1430,44 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         showLoadingOverlay()
 
         Task {
+            let todoTitles = todosForDate.map { $0.title }
+            
             do {
-                let todoTitles = todosForDate.map { $0.title }
+                // 🤖 ChatManager.sendMessage로 날짜별 AI 조언 호출 (통합 아키텍처)
+                let advice = try await ChatManager.shared.sendMessage(
+                    userInput: """
+                    다음 할 일 목록에 대한 실용적인 조언을 제공해주세요:
+                    
+                    할 일 목록: \(todoTitles.joined(separator: ", "))
+                    
+                    요구사항:
+                    - 간결하고 실용적인 조언
+                    - 우선순위나 순서 제안
+                    - 효율적인 수행 방법 제안
+                    - 3-4문장 이내로 작성
+                    """,
+                    modeString: "task_advice",
+                    modelString: "claude"  // 상세한 조언에 최적화
+                )
                 
-                // 새로운 LLMRouter를 통해 할 일 추천(recommendTodo) 작업을 요청합니다.
-                let advice = try await LLMRouter.shared.send(task: .recommendTodo(todos: todoTitles))
-
-                // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.hideLoadingOverlay()
-                    self.presentAlert(title: "💡 AI 조언", message: advice.content)
+                    self.presentAlert(title: "💡 AI 조언", message: advice)
                 }
+                
             } catch {
-                // 메인 스레드에서 에러 처리
                 await MainActor.run {
                     self.hideLoadingOverlay()
-                    self.presentAlert(title: "오류", message: "AI 조언을 가져오는 데 실패했습니다: \(error.localizedDescription)")
+                    
+                    // 사용량 제한 초과 에러 처리
+                    let errorMessage: String
+                    if error.localizedDescription.contains("일일 사용 한도") {
+                        errorMessage = error.localizedDescription
+                    } else {
+                        errorMessage = "AI 조언을 가져오는 데 실패했습니다: \(error.localizedDescription)"
+                    }
+                    
+                    self.presentAlert(title: "오류", message: errorMessage)
                 }
             }
         }
@@ -1451,24 +1479,45 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     @objc private func addAITaskButtonTapped() {
-        // ... 기존 코드 ...
-        let promptContent = "현재 할 일 목록: \(currentTasks). 사용자가 다음으로 하면 좋을 만한 창의적이고 실용적인 할 일 아이템 하나를 제안해줘. 형식: '작업명: 설명'"
+        let currentTaskTitles = selectedDateTodos.map { $0.title }
+        
+        let promptContent = """
+        현재 할 일 목록: \(currentTaskTitles.joined(separator: ", "))
+        
+        위 목록을 고려하여 사용자가 다음으로 하면 좋을 만한 창의적이고 실용적인 할 일 아이템 하나를 제안해주세요.
+        
+        요구사항:
+        - 기존 할 일과 보완적이거나 연과된 작업
+        - 즉시 실행 가능한 구체적인 작업
+        - 형식: '작업명: 간략한 설명 (1줄)'
+        """
         
         Task {
             do {
-                let service = try LLMServiceFactory.shared.getService(for: "claude")
-                let config = LLMRequestConfig(maxTokens: 200, temperature: 0.8)
-                
-                let (suggestion, _) = try await service.sendMessage(promptContent, config: config)
+                // 🤖 ChatManager.sendMessage로 AI 작업 추천 호출 (통합 아키텍처)
+                let suggestion = try await ChatManager.shared.sendMessage(
+                    userInput: promptContent,
+                    modeString: "task_advice",
+                    modelString: "claude"  // 창의적인 작업 제안에 최적화
+                )
                 
                 await MainActor.run {
-                    // AI가 제안한 작업을 파싱하고 목록에 추가하는 로직
+                    // AI가 제안한 작업을 파싱하고 목록에 추가하는 로직 (향후 구현 예매)
                     // 예: self.parseAndAddNewTask(suggestion)
-                    self.showAlert(title: "AI 추천 작업", message: suggestion)
+                    self.showAlert(title: "🤖 AI 추천 작업", message: suggestion)
                 }
+                
             } catch {
                 await MainActor.run {
-                    self.showAlert(title: "오류", message: "AI 추천을 가져오는 데 실패했습니다.")
+                    // 사용량 제한 초과 에러 처리
+                    let errorMessage: String
+                    if error.localizedDescription.contains("일일 사용 한도") {
+                        errorMessage = error.localizedDescription
+                    } else {
+                        errorMessage = "AI 추천을 가져오는 데 실패했습니다. (\(error.localizedDescription))"
+                    }
+                    
+                    self.showAlert(title: "오류", message: errorMessage)
                 }
             }
         }

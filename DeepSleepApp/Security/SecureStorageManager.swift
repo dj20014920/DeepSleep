@@ -16,7 +16,7 @@ class SecureStorageManager {
         static let accessGroup = "group.deepsleep.keychain"
         
         // 2025년 보안 권장사항: 생체인증 필수, 디바이스 잠금시에만 접근
-        static let keychainAccessibility: SecAttrAccessible = .whenPasscodeSetThisDeviceOnly
+        static let keychainAccessibility: CFString = kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly
         static let biometricPolicy: LAPolicy = .deviceOwnerAuthenticationWithBiometrics
     }
     
@@ -247,36 +247,4 @@ extension SecureStorageManager {
     }
 }
 
-// MARK: - 사용자 프로필 모델
-struct UserProfile: Codable {
-    let nickname: String
-    let age: Int
-    let preferences: [String: Any]
-    
-    enum CodingKeys: String, CodingKey {
-        case nickname, age, preferences
-    }
-    
-    init(nickname: String, age: Int, preferences: [String: Any] = [:]) {
-        self.nickname = nickname
-        self.age = age
-        self.preferences = preferences
-    }
-    
-    // Custom Codable 구현 (Any 타입 처리)
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        nickname = try container.decode(String.self, forKey: .nickname)
-        age = try container.decode(Int.self, forKey: .age)
-        
-        // preferences의 Any 타입 처리는 실제 사용시 구체적인 타입으로 대체 필요
-        preferences = [:]
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(nickname, forKey: .nickname)
-        try container.encode(age, forKey: .age)
-        // preferences 인코딩은 실제 사용시 구체적인 타입으로 구현 필요
-    }
-}
+// UserProfile은 Models.swift에 정의됨

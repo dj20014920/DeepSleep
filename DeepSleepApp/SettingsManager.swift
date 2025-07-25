@@ -1,9 +1,58 @@
 import Foundation
 import UserNotifications
-import Core
 
-class SettingsManager {
-    static let shared = SettingsManager()
+// MARK: - UsageStats 타입 정의 (임시)
+public struct UsageStats: Codable {
+    let date: String
+    var appOpenCount: Int = 0
+    var totalUsageTime: TimeInterval = 0
+    var presetUsageCount: Int = 0
+    var emotionAnalysisCount: Int = 0
+    var aiInteractionCount: Int = 0
+    var chatCount: Int = 0
+    var presetRecommendationCount: Int = 0
+    var timerUsageCount: Int = 0
+    var soundPlaybackTime: TimeInterval = 0
+    var favoritePresets: [String] = []
+    var peakUsageHour: Int?
+    var deviceInfo: [String: String]?
+    var monthlyStatisticsCount: Int = 0  // 월간 통계 사용 횟수
+
+    init(date: String) {
+        self.date = date
+    }
+
+    mutating func incrementAppOpenCount() {
+        appOpenCount += 1
+    }
+
+    mutating func addUsageTime(_ time: TimeInterval) {
+        totalUsageTime += time
+    }
+
+    mutating func incrementPresetUsage() {
+        presetUsageCount += 1
+    }
+
+    mutating func incrementEmotionAnalysis() {
+        emotionAnalysisCount += 1
+    }
+
+    mutating func incrementAIInteraction() {
+        aiInteractionCount += 1
+    }
+
+    mutating func addSoundPlaybackTime(_ time: TimeInterval) {
+        soundPlaybackTime += time
+    }
+
+    mutating func incrementChatUsage() {
+        chatCount += 1
+    }
+}
+
+public class SettingsManager {
+    public static let shared = SettingsManager()
     private let userDefaults = UserDefaults.standard
     
     // MARK: - Keys
@@ -24,29 +73,29 @@ class SettingsManager {
     
     // MARK: - AI Model Selection
     
-    /// 사용 가능한 모든 LLM 모델의 목록입니다.
+    /// 사용 가능한 모든 AI 모델의 목록입니다.
     /// 향후 OS 버전에 따라 동적으로 온디바이스 모델을 포함하거나 제외할 수 있습니다.
-    var availableLLMs: [LLMServiceType] {
-        // onDevice는 아직 정의되지 않았으므로 기본 모델들만 반환
-        let models = LLMServiceType.allCases
-        
-        // iOS 18.0 이상에서 향후 온디바이스 모델 지원 예정
-        // if #available(iOS 18.0, *) {
-        //     models.append(.onDevice)  // 아직 미구현
-        // }
-        return models
+    var availableAIModels: [AIModelType] {
+        // 모든 모델 사용 가능
+        return AIModelType.allCases
     }
     
     /// 사용자가 선택한 AI 모델을 가져오거나 설정합니다.
     /// 기본값은 Claude 입니다.
-    var selectedLLM: LLMServiceType {
+    var selectedLLM: AIModelType {
         get {
-            // 저장된 값이 있으면 해당 값을 사용하고, 없으면 기본값 .claude 반환
-            if let rawValue = userDefaults.string(forKey: Keys.selectedLLM),
-               let model = LLMServiceType(rawValue: rawValue) {
-                return model
+            // 이전 버전 호환성: LLMServiceType 값을 AIModelType으로 변환
+            if let rawValue = userDefaults.string(forKey: Keys.selectedLLM) {
+                // 먼저 AIModelType으로 직접 변환 시도
+                if let model = AIModelType(rawValue: rawValue) {
+                    return model
+                }
+                // 실패하면 LLMServiceType에서 변환
+                if let llmType = LLMServiceType(rawValue: rawValue) {
+                    return AIModelType(from: llmType)
+                }
             }
-            return .claude // 기본 모델
+            return .claude35 // 기본 모델
         }
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
@@ -475,15 +524,15 @@ class SettingsManager {
         return versions["\(categoryIndex)"] ?? 0 // 기본값 0 반환
     }
     
-    // MARK: - Pattern Analysis Usage Limits
+    // MARK: - Monthly Statistics Usage Limits (DEPRECATED - use UsageLimitManager instead)
     func canUsePatternAnalysisToday() -> Bool {
         let todayStats = getTodayStats()
-        return todayStats.patternAnalysisCount < 1  // ✅ 하루 1번으로 변경
+        return todayStats.monthlyStatisticsCount < 1  // ✅ 하루 1번으로 변경
     }
     
     func incrementPatternAnalysisUsage() {
         updateTodayStats { stats in
-            stats.patternAnalysisCount += 1
+            stats.monthlyStatisticsCount += 1
         }
     }
     

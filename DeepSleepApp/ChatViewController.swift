@@ -1,7 +1,6 @@
 import UIKit
 import SwiftUI
 import Combine
-import Core
 import Foundation
 import AVFoundation
 
@@ -24,7 +23,10 @@ struct AIResponseData: Codable {
     let emotion: String?
 }
 
-// Note: ChatMessage is now defined in Models.swift to avoid duplication
+// MARK: - SharedCore 타입들 사용 (중복 제거 완료)
+// 모든 공통 타입들은 SharedCore.swift에서 사용
+
+// SharedCore 타입들을 직접 사용 (typealias 제거)
 
 // MARK: - AI Teaching Delegate Protocol
 protocol AITeachingDelegate: AnyObject {
@@ -91,7 +93,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private var lastRecommendationTime: Date?
     private var currentEmotion: Any?
     private var feedbackPendingPresets: [UUID: String] = [:]
-    private var performanceMetrics = AutomaticLearningModels.SessionMetrics(duration: 0, completionRate: 0.5, context: [:])
+    // ✅ ML 학습 관련 코드 제거됨 - 기본 성능 메트릭으로 대체
+    private var performanceMetrics = (duration: TimeInterval(0), completionRate: Float(0.5), context: [String: Any]())
     
     // 🔒 중복 요청 방지 플래그
     private var isProcessingRecommendation = false
@@ -225,7 +228,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         completion(localResponse)
     }
     
-    /// 외부 AI 처리
+    /// 외부 AI 처리 (ChatManager 통합 완료)
     private func processWithExternalAI(message: String, completion: @escaping (String?) -> Void) {
         // UI에 사용자 메시지 추가
         addMessageToChat(message: message, fromUser: true)
@@ -236,30 +239,36 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 비동기 작업으로 AI 서비스 호출
         Task {
             do {
-                // LLMServiceFactory를 통해 Claude 서비스 가져오기
-                let claudeService = try LLMServiceFactory.shared.getService(for: LLMServiceType.claude)
-                
-                // 기본 요청 설정
-                let config = LLMRequestConfig(
-                    maxTokens: 1024,
-                    temperature: 0.7,
-                    topP: 1.0
+                // 🤖 ChatManager.sendMessage로 통합 AI 호출 (통합 아키텍처)
+                let responseText = try await ChatManager.shared.sendMessage(
+                    userInput: message,
+                    modeString: "general_conversation",
+                    modelString: "claude"  // 일반 대화에 최적화
                 )
-                
-                // Claude API 호출
-                let (responseText, metadata) = try await claudeService.sendMessage(message, config: config)
                 
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.showLoading(false)
                     self.addMessageToChat(message: responseText, fromUser: false)
-                    DebugManager.shared.logAI("Claude API response metadata: \(metadata)")
+                    DebugManager.shared.logAI("ChatManager 통합 AI 응답 완료")
+                    completion(responseText)
                 }
+                
             } catch {
                 // 메인 스레드에서 에러 처리 및 UI 업데이트
                 await MainActor.run {
                     self.showLoading(false)
-                    self.addMessageToChat(message: "오류가 발생했습니다: \(error.localizedDescription)", fromUser: false)
+                    
+                    // 사용량 제한 초과 에러 처리
+                    let errorMessage: String
+                    if case AIServiceError.usageLimitExceeded(let message) = error {
+                        errorMessage = message
+                    } else {
+                        errorMessage = "오류가 발생했습니다: \(error.localizedDescription)"
+                    }
+                    
+                    self.addMessageToChat(message: errorMessage, fromUser: false)
+                    completion(nil)
                 }
             }
         }
@@ -298,13 +307,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         Task {
             do {
-                // 새로운 LLMRouter를 통해 일기 분석 작업을 요청합니다.
-                let responseText = try await LLMRouter.shared.send(task: .analyzeEmotionDiary(diaryContent: diary.content))
+                // 🚀 ChatManager의 통합 AI 서비스 사용
+                let responseContent = try await chatManager.sendMessage(
+                    userInput: diary.content,
+                    modeString: "emotion_diary_analysis",
+                    modelString: nil
+                )
+                
+                // ChatManager에 메시지 기록
+                addBotMessage(responseContent)
                 
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.removeLastLoadingMessage()
-                    self.appendChat(ChatMessage(text: responseText.content, sender: .ai, type: .bot))
+                    self.appendChat(ChatMessage(text: responseContent, sender: .ai, type: .bot))
                     
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -385,13 +401,85 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         Task {
             do {
-                // LLMRouter를 통해 일반 채팅(generalChat) 작업을 요청합니다.
-                let response = try await LLMRouter.shared.send(task: .generalChat(message: message, history: []))
-                handleAIResponse(response.content)
+                // 🚀 ChatManager의 통합 AI 서비스를 통한 메시지 전송
+                let responseContent = try await chatManager.sendMessage(
+                    userInput: message,
+                    modeString: "general_conversation",
+                    modelString: nil
+                )
+                
+                handleAIResponse(responseContent)
+                print("✅ [ChatViewController] AI 응답 받음")
+                
             } catch {
                 handleAIError(error)
             }
         }
+    }
+    
+    /// 현재 채팅 컨텍스트를 기반으로 AI 모드 결정
+    private func determineAIModeFromContext() -> AIMode {
+        // 컨텍스트에 따른 AI 모드 결정 로직
+        switch chatContext {
+        case "감정일기분석":
+            return .emotionDiaryAnalysis
+        case "할일조언":
+            return .taskAdvice
+        case "프리셋추천":
+            return .presetRecommendation
+        case "월간통계":
+            return .monthlyStatistics
+        case "운세":
+            return .fortuneTelling
+        default:
+            return .generalConversation
+        }
+    }
+    
+    /// AI 컨텍스트 생성
+    private func createAIContext() -> AIContext {
+        // AIContext 생성 시 conversationHistory는 옵셔널이므로 nil로 설정
+        return AIContext(
+            userId: "user_\(currentSessionId)",
+            sessionId: "\(currentSessionId)",
+            conversationHistory: nil  // ChatManager가 내부적으로 히스토리를 관리하므로 여기서는 nil
+        )
+    }
+    
+    /// 최근 채팅 히스토리를 문자열 배열로 변환
+    private func getRecentChatHistory() -> [String] {
+        let maxHistoryCount = 5 // 최근 5개 메시지만 포함
+        
+        let recentMessages = messages
+            .filter { message in
+                message.type != .loading && 
+                (message.text?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty == false)
+            }
+            .suffix(maxHistoryCount)
+        
+        return recentMessages.compactMap { message -> String? in
+            guard let text = message.text, !text.isEmpty else { return nil }
+            let role = message.sender == .user ? "사용자" : "AI"
+            return "\(role): \(text)"
+        }
+    }
+    
+    /// 현재 대화에서 히스토리를 구축합니다.
+    private func buildConversationHistory() -> [ChatMessage] {
+        let maxHistoryCount = 10 // 최근 10개 메시지만 포함 (성능 고려)
+        
+        // 최근 메시지부터 역순으로 추출 (로딩 메시지 제외)
+        let recentMessages = messages
+            .filter { message in
+                // 로딩 메시지가 아니고, 내용이 비어있지 않은 메시지만 필터링
+                message.type != .loading && 
+                (message.text?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty == false)
+            }
+            .suffix(maxHistoryCount)
+        
+        // ChatMessage 배열 반환 (타입 변환 불필요)
+        print("🔧 [ChatViewController] 대화 히스토리 구축 완료: \(recentMessages.count)개 메시지")
+        return Array(recentMessages)
     }
 
     /// 일기 분석을 AI에게 요청합니다.
@@ -451,6 +539,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             self.scrollToBottom()
             print("🟢 [ChatViewController] UI 업데이트 완료")
         }
+    }
+    
+    /// 봇 메시지를 채팅에 추가합니다
+    override func addBotMessage(_ message: String) {
+        print("🤖 [ChatViewController] addBotMessage 호출됨 - 메시지: \(message.prefix(50))")
+        let botMessage = ChatMessage(
+            text: message,
+            date: Date(),
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(botMessage)
     }
     
     /// 로딩 상태를 표시하거나 숨깁니다
@@ -680,7 +780,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             SettingsManager.shared.addSessionTime(sessionDuration)
             
             // 🧠 Enhanced: 세션 메트릭 기록
-            performanceMetrics = AutomaticLearningModels.SessionMetrics(duration: sessionDuration, completionRate: performanceMetrics.completionRate, context: performanceMetrics.context)
+            // ✅ ML 학습 관련 코드 제거됨 - 기본 메트릭 업데이트로 대체
+            performanceMetrics = (duration: sessionDuration, completionRate: performanceMetrics.completionRate, context: performanceMetrics.context)
             recordSessionMetrics()
             
             #if DEBUG
@@ -1139,9 +1240,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         let timeMultiplier: Float = hour >= 22 || hour <= 6 ? 0.7 : 1.0 // 밤시간 볼륨 조정
         let finalVolumes = adjustedVolumes.map { $0 * timeMultiplier }
         
-        // 성능 메트릭 업데이트
-        performanceMetrics.recommendationsGenerated += 1
-        performanceMetrics.aiAccuracy = 0.8 // 기본 정확도
+        // ✅ ML 관련 성능 메트릭 제거됨 - 기본 로깅으로 대체
+        print("✅ AI 추천 생성 완료")
         
         // 추천 시간 기록
         lastRecommendationTime = Date()
@@ -1338,8 +1438,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         let message = ChatMessage(text: "🙏 피드백 감사합니다! AI가 조금 더 똑똑해졌어요. 계속 학습하여 더 나은 추천을 드리겠습니다!", sender: .ai, type: .bot)
         appendChat(message)
         
-        // 성능 메트릭 업데이트
-        performanceMetrics.feedbackReceived += 1
+        // ✅ ML 관련 성능 메트릭 제거됨 - 기본 로깅으로 대체
+        print("✅ 피드백 수신 완료")
     }
     
     private func showPresetAppliedMessage(_ presetName: String) {
@@ -1644,7 +1744,7 @@ extension ChatViewController {
     // ✅ TLB식 캐시 시스템 초기화
     private func initializeTLBCacheSystem() {
         // 캐시 매니저 초기화
-        CachedConversationManager.shared.initialize()
+        ChatManager.shared.initialize()
         
         // 만료된 캐시들 정리 (14일 기준)
         UserDefaults.standard.cleanExpiredCaches()
@@ -1652,7 +1752,7 @@ extension ChatViewController {
         
         #if DEBUG
         DebugManager.shared.logCache("TLB식 캐시 시스템 초기화 완료 (14일 보존, 3일 raw)")
-        let debugInfo = CachedConversationManager.shared.getDebugInfo()
+        let debugInfo = ChatManager.shared.getDebugInfo()
         DebugManager.shared.logCache(debugInfo)
         #endif
     }
@@ -1666,39 +1766,19 @@ extension ChatViewController {
         let cutOffRecent = Calendar.current.date(byAdding: .day, value: -CacheConst.recentDaysRaw, to: Date())!
         let cutOffTotal = Calendar.current.date(byAdding: .day, value: -CacheConst.keepDays, to: Date())!
         
-        // 캐시에서 최근 대화 로드
-        if let cachedHistory = CachedConversationManager.shared.currentCache?.weeklyHistory {
-            var recentMessages: [ChatMessage] = []
-            var olderMessageCount = 0
-            
-            let lines = cachedHistory.components(separatedBy: "\n")
-                .filter { !$0.isEmpty }
-            
-            for line in lines {
-                if let messageDate = extractDateFromLine(line) {
-                    if messageDate >= cutOffRecent {
-                        // 최근 3일: 원본 메시지 추가
-                        if let message = parseMessageFromLine(line) {
-                            recentMessages.append(message)
-                        }
-                    } else if messageDate >= cutOffTotal {
-                        // 3일~14일: 카운트만 증가
-                        olderMessageCount += 1
-                    }
-                    // 14일 이전: 무시
-                }
-            }
-            
-            // 메시지 구성
-            if olderMessageCount > 0 {
-                let summaryMsg = ChatMessage(text: "📋 지난 \(olderMessageCount)개의 대화 기록을 기억하고 있어요. 이전 맥락을 바탕으로 대화를 이어가겠습니다! 😊", sender: .ai, type: .bot)
-                messages = [summaryMsg] + recentMessages
-            } else {
-                messages = recentMessages
-            }
+        // 캐시에서 최근 대화 로드 (ChatManager 통합 - 간소화)
+        let cachedHistory = ChatManager.shared.loadWeeklyMemory()
+        if !cachedHistory.isEmpty && cachedHistory.count > 20 { // 의미 있는 데이터가 있을 때만
+            // 캐시 요약을 시스템 메시지로 추가
+            let contextMessage = ChatMessage(
+                text: "💾 \(cachedHistory)", 
+                sender: .ai, 
+                type: .system
+            )
+            messages = [contextMessage]
             
             #if DEBUG
-            DebugManager.shared.logCache("TLB 로드 완료 - 최근: \(recentMessages.count)개, 이전: \(olderMessageCount)개")
+            DebugManager.shared.logCache("ChatManager 캐시 로드 완료 - \(cachedHistory.count)자")
             #endif
         }
     }
@@ -2164,14 +2244,14 @@ extension ChatViewController {
     // ✅ 캐시 상태 새로고침
     private func refreshCacheStatus() {
         // 캐시가 유효한지 확인하고 필요시 업데이트
-        let weeklyMemory = CachedConversationManager.shared.loadWeeklyMemory()
+        let weeklyMemory = ChatManager.shared.loadWeeklyMemory()
         
         #if DEBUG
         DebugManager.shared.logCache("캐시 상태 새로고침: 주간 메모리 로드 완료")
         #endif
         
         // 주간 메모리 백그라운드 업데이트
-        CachedConversationManager.shared.updateWeeklyMemoryAsync()
+        ChatManager.shared.updateWeeklyMemoryAsync()
     }
     
     private func handleInitialUserText(_ text: String) {
@@ -2196,10 +2276,14 @@ extension ChatViewController {
 
         Task {
             do {
-                // TODO: - AITask에 .analyzeEmotionPattern(data: String) 케이스 추가하고 아래 로직 변경 필요
+                // 🚀 ChatManager의 통합 AI 서비스 사용
                 let prompt = "다음은 나의 최근 30일간의 감정 데이터야. 이걸 보고 나의 감정 패턴을 분석하고 조언해줘.\n\n\(emotionData)"
-                let response = try await LLMRouter.shared.send(task: .generalChat(message: prompt, history: []))
-                handleAIResponse(response.content)
+                let responseContent = try await chatManager.sendMessage(
+                    userInput: prompt,
+                    modeString: "pattern_analysis",
+                    modelString: nil
+                )
+                handleAIResponse(responseContent)
                 addQuickEmotionButtons()
             } catch {
                 handleAIError(error)
@@ -2221,8 +2305,13 @@ extension ChatViewController {
             do {
                 let diaryContent = "감정: \(diaryData.emotion), 내용: 일기 분석 요청"
                 
-                let response = try await LLMRouter.shared.send(task: .analyzeEmotionDiary(diaryContent: diaryContent))
-                handleAIResponse(response.content)
+                // 🚀 ChatManager의 통합 AI 서비스 사용
+                let responseContent = try await chatManager.sendMessage(
+                    userInput: diaryContent,
+                    modeString: "emotion_diary_analysis",
+                    modelString: nil
+                )
+                handleAIResponse(responseContent)
             } catch {
                 handleAIError(error)
             }
@@ -2365,9 +2454,9 @@ extension ChatViewController {
     }
     
     private func debugCheckCacheStatus() {
-        DebugManager.shared.logCache("캐시 상태: \(CachedConversationManager.shared.getDebugInfo())")
+        DebugManager.shared.logCache("캐시 상태: \(ChatManager.shared.getDebugInfo())")
         
-        let debugInfo = CachedConversationManager.shared.getDebugInfo()
+        let debugInfo = ChatManager.shared.getDebugInfo()
         let alert = UIAlertController(title: "💾 캐시 상태", message: debugInfo, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         present(alert, animated: true)
@@ -2383,8 +2472,8 @@ extension ChatViewController {
             UserDefaults.standard.removeObject(forKey: "currentConversationCache")
             UserDefaults.standard.removeObject(forKey: "weeklyMemory")
             
-            // CachedConversationManager 재초기화
-            CachedConversationManager.shared.initialize()
+            // ChatManager 재초기화
+            ChatManager.shared.initialize()
             
             let successAlert = UIAlertController(title: "✅ 완료", message: "캐시 데이터가 초기화되었습니다.", preferredStyle: .alert)
             successAlert.addAction(UIAlertAction(title: "확인", style: .default))
@@ -2533,39 +2622,31 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let masterRecommendation: (volumes: [Double], compatibleVersions: [Int])
         
         do {
-            // SuperRecommendationEngine를 통한 실제 추천 실행
-            let timeContext = TimeContext(
-                currentTime: Date(),
-                dayOfWeek: String(Calendar.current.component(.weekday, from: Date())),
-                isWeekend: Calendar.current.isDateInWeekend(Date()),
-                isHoliday: isHoliday(date: Date()), // 실제 공휴일 체크 로직 구현
-                season: getCurrentSeason()
-            )
-            
-            let userContext = RecommendationUserContext(
-                currentTime: Date(),
-                batteryLevel: UIDevice.current.batteryLevel > 0 ? UIDevice.current.batteryLevel : 1.0,
-                headphonesConnected: AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .headphones },
-                locationContext: getLocationContext() // 위치 기반 컨텍스트 구현
-            )
-            
-            let recommendation = try await SuperRecommendationEngine.shared.recommendSound(
+            // 🎯 EnhancedSoundRecommendationEngine를 통한 로컬 프리셋 추천 실행
+            let recommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
                 emotion: recommendedEmotion,
-                timeContext: timeContext,
-                userContext: userContext
+                timeOfDay: getCurrentTimeOfDay(),
+                intensity: 1.0,
+                context: "local_recommendation",
+                preferredCount: nil
             )
             
             // 추천 결과를 기존 형식으로 변환
-            let confidence = Float(recommendation.confidence)
-            let volumes = Array(repeating: Double(confidence * 100), count: 10)
-            let versions = Array(repeating: Int(confidence * 5), count: 10)
+            let volumes = recommendation.sounds.map { Double($0.volume * 100) } // 볼륨을 백분율로 변환
+            let versions = recommendation.sounds.map { _ in Int.random(in: 1...2) } // 랜덤 버전 선택
             
-            masterRecommendation = (volumes: volumes, compatibleVersions: versions)
+            // 13개 사운드로 확장 (부족한 경우 기본값으로 채움)
+            let expandedVolumes = Array(volumes.prefix(13)) + Array(repeating: 30.0, count: max(0, 13 - volumes.count))
+            let expandedVersions = Array(versions.prefix(13)) + Array(repeating: 1, count: max(0, 13 - versions.count))
+            
+            masterRecommendation = (volumes: expandedVolumes, compatibleVersions: expandedVersions)
+            
+            print("✅ 로컬 프리셋 추천 성공: \(recommendation.sounds.count)개 사운드")
             
         } catch {
-            print("❌ SuperRecommendationEngine 오류: \(error)")
+            print("❌ EnhancedSoundRecommendationEngine 오류: \(error)")
             // 폴백: 기본값 사용
-            masterRecommendation = (volumes: Array(repeating: 50.0, count: 10), compatibleVersions: Array(repeating: 1, count: 10))
+            masterRecommendation = (volumes: Array(repeating: 50.0, count: 13), compatibleVersions: Array(repeating: 1, count: 13))
         }
         
         // 🎭 로컬 알고리즘이 생성한 시적 이름
@@ -2598,14 +2679,9 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         appendChat(chatMessage)
         
         // 🆕 로컬 AI 추천 기록 저장
-        CachedConversationManager.shared.recordLocalAIRecommendation(
+        ChatManager.shared.recordLocalAIRecommendation(
             userInput: "로컬 AI 추천 요청",
-            response: poeticName,
-            metadata: [
-                "type": "local",
-                "confidence": String(qualityScore),
-                "context": "\(recommendedEmotion) - \(currentTimeOfDay)"
-            ]
+            response: poeticName
         )
         
         // 🔓 로컬 추천 처리 완료
@@ -2644,7 +2720,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     private func performClaudeAnalysis() {
         // ⚠️ 토큰 절약: 전체 히스토리 대신 최소한의 컨텍스트만 사용
-        // let weeklyHistory = CachedConversationManager.shared.getFormattedWeeklyHistory() // 차단!
+        // let weeklyHistory = ChatManager.shared.getRecentContext(days: 7) // 차단!
         // let currentContext = buildCurrentEmotionContext() // 차단!
         
         // 🎯 토큰 절약형 컨텍스트 (최대 200 토큰 이내)
@@ -2655,16 +2731,19 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         Task {
             do {
-                // TODO: - AITask에 .recommendSoundFromHistory(prompt: String) 와 같은 케이스를 만들고,
-                //         해당 케이스에 맞는 시스템 프롬프트와 설정을 정의하는 것이 이상적입니다.
-                //         우선은 generalChat으로 처리합니다.
-                let aiResponse = try await LLMRouter.shared.send(task: .generalChat(message: analysisPrompt, history: []))
+                // 🚀 ChatManager의 통합 AI 서비스 사용
+                // 프리셋 추천에 특화된 처리
+                let responseContent = try await chatManager.sendMessage(
+                    userInput: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
+                    modeString: "preset_recommendation",
+                    modelString: "openai"  // JSON 출력에 최적화된 모델 사용
+                )
 
                 try await MainActor.run { [weak self] in
                     self?.removeLastLoadingMessage()
                 
-                    if !aiResponse.content.isEmpty {
-                        let recommendation = self?.parsePresetRecommendation(from: aiResponse.content)
+                    if !responseContent.isEmpty {
+                        let recommendation = self?.parsePresetRecommendation(from: responseContent)
                         if let recommendation = recommendation {
                             self?.displayAIRecommendation(recommendation)
                         }

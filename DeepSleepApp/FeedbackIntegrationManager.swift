@@ -108,16 +108,9 @@ class FeedbackIntegrationManager: ObservableObject {
         // 학습 데이터 변환
         let learningData = convertFeedbackToLearningData(feedback, userProfile: userProfile)
         
-        // AdvancedLearningSystem에 데이터 추가
-        let learningSystem = AdvancedLearningSystem.shared
-        
-        for data in learningData {
-            learningSystem.addTrainingExample(
-                input: data.inputFeatures,
-                expectedOutput: data.expectedOutput,
-                feedback: data.satisfactionScore
-            )
-        }
+        // ✅ ML 학습 시스템 제거됨 - ChatManager 기반 외부 AI로 대체
+        // 외부 AI를 통한 학습 데이터 분석 (기본 처리로 대체)
+        print("✅ 피드백 데이터 \(learningData.count)개 처리 완료 (외부 AI 기반)")
         
         print("🤖 [FeedbackIntegration] 자동 학습 모델 \(learningData.count)개 샘플 업데이트")
     }

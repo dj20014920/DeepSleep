@@ -1,5 +1,4 @@
 import UIKit
-import Core
 
 /// 📦 저장소 관리 화면
 /// 사용자가 대화 데이터 용량을 확인하고 선택적으로 삭제할 수 있는 기능 제공
@@ -284,7 +283,7 @@ class StorageManagementViewController: UIViewController {
         
         Task {
             do {
-                let statistics = try await DailyConversationManager.shared.getStorageStatistics()
+                let statistics = try await ChatManager.shared.getStorageStatistics()
                 
                 await MainActor.run {
                     self.updateUI(with: statistics)
@@ -377,7 +376,7 @@ class StorageManagementViewController: UIViewController {
     private func performDeleteOldConversations() {
         Task {
             do {
-                let deletedCount = try await DailyConversationManager.shared.deleteConversationsOlderThan(days: 30)
+                let deletedCount = try await ChatManager.shared.deleteConversationsOlderThan(days: 30)
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "\(deletedCount)개의 오래된 대화를 삭제했습니다.")
@@ -395,7 +394,7 @@ class StorageManagementViewController: UIViewController {
     private func performCompressOldConversations() {
         Task {
             do {
-                let compressedCount = try await DailyConversationManager.shared.compressOldConversations(olderThanDays: 60)
+                let compressedCount = try await ChatManager.shared.compressOldConversations(olderThanDays: 60)
                 
                 await MainActor.run {
                     self.showSuccessAlert("압축 완료", message: "\(compressedCount)개의 대화를 압축했습니다.")
@@ -414,7 +413,7 @@ class StorageManagementViewController: UIViewController {
         Task {
             do {
                 let allDates = dailyStorageData.map { $0.date }
-                try await DailyConversationManager.shared.deleteConversations(for: allDates)
+                try await ChatManager.shared.deleteConversations(for: allDates)
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "모든 대화를 삭제했습니다.")
@@ -432,7 +431,7 @@ class StorageManagementViewController: UIViewController {
     private func performDeleteSelectedConversations() {
         Task {
             do {
-                try await DailyConversationManager.shared.deleteConversations(for: Array(selectedDates))
+                try await ChatManager.shared.deleteConversations(for: Array(selectedDates))
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "\(self.selectedDates.count)개의 선택된 대화를 삭제했습니다.")

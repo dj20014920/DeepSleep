@@ -1378,7 +1378,7 @@ extension EnhancedSoundRecommendationEngine {
     
     /// 컨텍스트에서 감정 키워드 추출
     private func extractEmotionKeyword(from context: RecommendationContext) -> String {
-        let contextLower = context.emotion.lowercased()
+        let contextLower = context.userEmotion.lowercased()
         
         // 감정 키워드 매핑
         let emotionMappings = [

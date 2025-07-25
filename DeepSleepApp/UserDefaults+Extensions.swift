@@ -1,5 +1,6 @@
 import Foundation
-import Core
+
+// SharedModels.swift에서 타입들을 import해서 사용
 
 // MARK: - UserDefaults 안전한 저장/로드 확장
 extension UserDefaults {
@@ -100,25 +101,7 @@ extension UserDefaults {
         }
     }
     
-    /// 만료된 캐시 정리
-    func cleanExpiredCaches() {
-        let allKeys = Array(UserDefaults.standard.dictionaryRepresentation().keys)
-        let cacheKeys = allKeys.filter { $0.hasPrefix("cache_") || $0.contains("Cache") }
-        
-        var cleanedCount = 0
-        for key in cacheKeys {
-            if let expiration = getCacheExpiration(forKey: key), expiration < Date() {
-                removeObject(forKey: key)
-                cleanedCount += 1
-            }
-        }
-        
-        #if DEBUG
-        if cleanedCount > 0 {
-            print("🧹 만료된 캐시 \(cleanedCount)개 정리 완료")
-        }
-        #endif
-    }
+    // cleanExpiredCaches()는 SharedCore.swift에 정의되어 있음
 }
 
 // MARK: - 대화 관련 UserDefaults 확장

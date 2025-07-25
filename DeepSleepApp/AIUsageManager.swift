@@ -6,7 +6,7 @@ enum AIFeatureType: String {
     case chat = "Chat"
     case presetRecommendation = "PresetRecommendation"
     case diaryAnalysis = "DiaryAnalysis"
-    case patternAnalysis = "PatternAnalysis"
+    case monthlyStatistics = "MonthlyStatistics"  // patternAnalysis → monthlyStatistics로 변경
     case individualTodoAdvice = "IndividualTodoAdvice"
     case overallTodoAdvice = "OverallTodoAdvice"
 }
@@ -21,7 +21,7 @@ class AIUsageManager {
         .chat: 50,
         .presetRecommendation: 5,
         .diaryAnalysis: 5,
-        .patternAnalysis: 3,
+        .monthlyStatistics: 3,  // patternAnalysis → monthlyStatistics로 변경
         .individualTodoAdvice: 5,
         .overallTodoAdvice: 5
     ]

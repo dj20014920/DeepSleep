@@ -1,6 +1,4 @@
 import SwiftUI
-import SwiftData
-import Core
 
 /// 사용자 페르소나 및 AI 설정 화면
 @available(iOS 17.0, *)
@@ -215,7 +213,7 @@ struct PersonaSettingsView: View {
                                 .fontWeight(.semibold)
                         }
                         
-                        NavigationLink(destination: AIModelSettingsView()) {
+                        NavigationLink(destination: Text("AI 모델 설정 (준비 중)")) {
                             HStack {
                                 Text("사용 모델 변경")
                                 Spacer()
@@ -381,6 +379,7 @@ struct MemoryPreferenceSlider: View {
 @available(iOS 17.0, *)
 struct PersonaSettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        PersonaSettingsView(personaManager: PersonaMemoryManager(modelContext: ModelContext(try! ModelContainer(for: AdvancedUserPersona.self))))
+        // ✅ ChatManager 기반으로 변경됨 - 파라미터 없는 초기화
+        PersonaSettingsView(personaManager: PersonaMemoryManager())
     }
 } 

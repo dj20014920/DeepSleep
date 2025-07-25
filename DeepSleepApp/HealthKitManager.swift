@@ -14,16 +14,15 @@
  🚀 INTEGRATION FEATURES:
  - 애플워치/아이폰 건강 데이터 연동
  - 고도화된 AI 분석 시스템과 실시간 연결
- - CachedConversationManager와 메모리 형성
+ - ChatManager와 메모리 형성
  - ChainOfThoughtProcessor와 추론 연계
- - PerformanceOptimizedAISystem 활용
+ - 외부 AI 모델과 실시간 연동
  - 실시간 감정 분석 기반 건강 코칭
 */
 
 import Foundation
 import OSLog
 import HealthKit
-import Core
 
 /// 🏆 Multi-Threaded Enhanced Apple Watch Health Data AI Analysis System
 /// 애플워치 건강 데이터를 기반으로 한 고도화된 AI 분석 및 추천 시스템
@@ -46,9 +45,8 @@ class HealthKitManager: NSObject, ObservableObject {
     @Published var neuralNetworkResults: NeuralNetworkAnalysis?
     
     // MARK: - AI Integration Components (간소화)
-    // private let cachedConversationManager = CachedConversationManager.shared // 임시 비활성화
+    // private let chatManager = ChatManager.shared // ChatManager로 대체 가능
     // private let chainOfThoughtProcessor = ChainOfThoughtProcessor()
-    // private let performanceOptimizer = PerformanceOptimizedAISystem.shared
     private let healthVectorProcessor = HealthVectorProcessor()
     private let multiDimensionalAnalyzer = MultiDimensionalHealthAnalyzer()
     private let logger = Logger(subsystem: "DeepSleep", category: "HealthKitManager")

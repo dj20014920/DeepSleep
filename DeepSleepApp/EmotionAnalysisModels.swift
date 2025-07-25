@@ -1,6 +1,5 @@
 import Foundation
 import UIKit
-import Core
 
 // MARK: - EmotionAnalysisModels Namespace
 public enum EmotionAnalysisModels {
@@ -22,7 +21,7 @@ public enum EmotionAnalysisModels {
 }
 
 // MARK: - Chat Models
-struct ChatMessage: Codable, Equatable {
+struct EmotionChatMessage: Codable, Equatable {
     let id: UUID
     let content: String
     let isUser: Bool
@@ -41,7 +40,7 @@ struct ChatMessage: Codable, Equatable {
     }
     
     // Equatable conformance
-    static func == (lhs: ChatMessage, rhs: ChatMessage) -> Bool {
+    static func == (lhs: EmotionChatMessage, rhs: EmotionChatMessage) -> Bool {
         return lhs.id == rhs.id &&
                lhs.content == rhs.content &&
                lhs.isUser == rhs.isUser &&

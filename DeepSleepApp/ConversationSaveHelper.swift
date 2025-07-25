@@ -1,8 +1,7 @@
 import Foundation
-import Core
 
 /// 💾 대화 저장 도우미 클래스
-/// ChatViewController와 DailyConversationManager 사이의 브리지 역할
+/// ChatViewController와 ChatManager 사이의 브리지 역할
 final class ConversationSaveHelper {
     static let shared = ConversationSaveHelper()
     
@@ -58,7 +57,7 @@ final class ConversationSaveHelper {
         )
         
         do {
-            try await DailyConversationManager.shared.saveTodaysConversation(conversation)
+            try await ChatManager.shared.saveTodaysConversation(conversation)
             
             // 성공 시 대기 메시지 초기화
             pendingMessages.removeAll()

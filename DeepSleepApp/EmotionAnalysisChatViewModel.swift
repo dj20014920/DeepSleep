@@ -1,5 +1,5 @@
 import Foundation
-import Core
+
 import Combine
 
 final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {

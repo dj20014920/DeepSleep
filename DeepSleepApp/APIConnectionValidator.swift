@@ -110,7 +110,7 @@ class APIConnectionValidator {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
         // 최소한의 테스트 요청
-        let testPayload = [
+        let testPayload: [String: Any] = [
             "model": "claude-3-haiku-20240307",
             "max_tokens": 10,
             "messages": [
