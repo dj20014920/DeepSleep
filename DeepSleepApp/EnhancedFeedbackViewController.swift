@@ -119,7 +119,7 @@ class EnhancedFeedbackViewController: UIViewController {
         subtitleLabel.textColor = UIColor.secondaryLabel
         subtitleLabel.textAlignment = .center
         
-        progressBar.progressTintColor = UIColor.systemBlue
+        progressBar.progressTintColor = UIDesignSystem.Colors.accent
         progressBar.trackTintColor = UIColor.systemGray5
         progressBar.progress = 0.0
         
@@ -131,7 +131,7 @@ class EnhancedFeedbackViewController: UIViewController {
         
         // Buttons
         submitButton.setTitle("🚀 AI 학습에 기여하기", for: .normal)
-        submitButton.backgroundColor = UIColor.systemBlue
+        submitButton.backgroundColor = UIDesignSystem.Colors.accent
         submitButton.setTitleColor(.white, for: .normal)
         submitButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         submitButton.layer.cornerRadius = 12
@@ -200,7 +200,7 @@ class EnhancedFeedbackViewController: UIViewController {
     }
     
     private func setupEmotionSection() {
-        emotionSection.backgroundColor = UIColor.systemGray6
+        emotionSection.backgroundColor = UIDesignSystem.Colors.tagBackground
         emotionSection.layer.cornerRadius = 12
         
         emotionIntensitySlider.configure(
@@ -233,13 +233,13 @@ class EnhancedFeedbackViewController: UIViewController {
     }
     
     private func setupQualitativeSection() {
-        qualitativeSection.backgroundColor = UIColor.systemGray6
+        qualitativeSection.backgroundColor = UIDesignSystem.Colors.tagBackground
         qualitativeSection.layer.cornerRadius = 12
         
         adjustmentTextView.backgroundColor = UIColor.systemBackground
         adjustmentTextView.layer.cornerRadius = 8
         adjustmentTextView.layer.borderWidth = 1
-        adjustmentTextView.layer.borderColor = UIColor.systemGray4.cgColor
+        adjustmentTextView.layer.borderColor = UIDesignSystem.Colors.border.cgColor
         adjustmentTextView.font = UIFont.systemFont(ofSize: 16)
         adjustmentTextView.text = "개선 사항이나 조정 요청을 자유롭게 작성해주세요..."
         adjustmentTextView.textColor = UIColor.placeholderText
@@ -613,7 +613,7 @@ class CustomFeedbackSlider: UIView {
         rightLabel.textColor = UIColor.secondaryLabel
         
         valueLabel.font = UIFont.systemFont(ofSize: 16, weight: .bold)
-        valueLabel.textColor = UIColor.systemBlue
+        valueLabel.textColor = UIDesignSystem.Colors.accent
         valueLabel.textAlignment = .center
         
         let stackView = UIStackView(arrangedSubviews: [

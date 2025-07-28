@@ -107,7 +107,7 @@ final class UserFriendlyErrorHandler {
         }
         
         // 에러 로깅
-        DebugManager.shared.error("사용자 에러 표시: \(error.localizedDescription)")
+        UnifiedLogger.shared.error("사용자 에러 표시: \(error.localizedDescription)")
     }
     
     /// 성공 메시지 표시

@@ -59,10 +59,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // AppDelegate 타입 오류 해결을 위한 안전한 접근
-        if let appDelegate = UIApplication.shared.delegate as? NSObject,
-           let persistentContainer = appDelegate.value(forKey: "persistentContainer") as? NSPersistentContainer {
-            self.container = persistentContainer
+        // AppDelegate 타입 안전한 접근으로 수정
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            self.container = appDelegate.persistentContainer
         } else {
             // Fallback: 새로운 컨테이너 생성
             container = NSPersistentContainer(name: "DeepSleep")
@@ -425,7 +424,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
         
         // 데이터 새로고침
         collectionView.reloadData()
-        DebugManager.shared.logTodo("Todo item toggled: \(item.title)")
+        UnifiedLogger.shared.logTodo("Todo item toggled: \(item.title)")
     }
     
     func todoListCell(_ cell: TodoListCell, didDeleteItem item: TodoItem, at index: Int) {
@@ -433,9 +432,9 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             DispatchQueue.main.async {
                 if success {
                     self?.collectionView.reloadData()
-                    DebugManager.shared.logTodo("Todo item deleted: \(item.title)")
+                    UnifiedLogger.shared.logTodo("Todo item deleted: \(item.title)")
                 } else if let error = error {
-                    DebugManager.shared.error("Failed to delete todo: \(error.localizedDescription)")
+                    UnifiedLogger.shared.error("Failed to delete todo: \(error.localizedDescription)")
                 }
             }
         }
@@ -443,7 +442,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
     
     func todoListCellDidRequestAddItem(_ cell: TodoListCell) {
         // TODO: 할 일 추가 UI 구현
-        DebugManager.shared.logTodo("Add todo item requested")
+        UnifiedLogger.shared.logTodo("Add todo item requested")
         
         // 임시로 간단한 알럿으로 구현
         let alert = UIAlertController(title: "할 일 추가", message: "할 일을 입력하세요", preferredStyle: .alert)
@@ -467,10 +466,10 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             self.todoManager.addTodo(title: newTodo.title, dueDate: newTodo.dueDate, priority: newTodo.priority) { [weak self] _, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        DebugManager.shared.error("Failed to add todo: \(error.localizedDescription)")
+                        UnifiedLogger.shared.error("Failed to add todo: \(error.localizedDescription)")
                     } else {
                         self?.collectionView.reloadData()
-                        DebugManager.shared.logTodo("Todo added successfully")
+                        UnifiedLogger.shared.logTodo("Todo added successfully")
                     }
                 }
             }

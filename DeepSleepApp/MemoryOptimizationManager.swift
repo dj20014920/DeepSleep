@@ -1,12 +1,11 @@
 import Foundation
 import UIKit
 import Combine
-import os.log
 
 /// 2025년 최신 메모리 최적화 관리자
 /// iOS 26 기준 메모리 효율성 및 누수 방지 기법 적용
 @MainActor
-final class MemoryOptimizationManager: ObservableObject {
+final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProtocol {
     static let shared = MemoryOptimizationManager()
     
     // MARK: - Properties
@@ -16,7 +15,6 @@ final class MemoryOptimizationManager: ObservableObject {
     @Published var isMemoryWarningActive = false
     
     private var cancellables = Set<AnyCancellable>()
-    private let logger = Logger(subsystem: "DeepSleep", category: "MemoryOptimization")
     
     // 메모리 풀 관리
     private var imageCache = NSCache<NSString, UIImage>()
@@ -107,12 +105,7 @@ final class MemoryOptimizationManager: ObservableObject {
         }
         
         // 메모리 사용량 로깅 (개발 중에만)
-        #if DEBUG
-        let usageMB = Double(usage) / (1024 * 1024)
-        if usageMB > 100 { // 100MB 이상일 때만 로깅
-            logger.debug("현재 메모리 사용량: \(String(format: "%.2f", usageMB))MB")
-        }
-        #endif
+        
     }
     
     private func getCurrentMemoryUsage() -> UInt64 {
@@ -151,7 +144,7 @@ final class MemoryOptimizationManager: ObservableObject {
     // MARK: - Memory Management
     private func handleMemoryWarning() {
         isMemoryWarningActive = true
-        logger.warning("메모리 경고 발생 - 즉시 메모리 정리 시작")
+        UnifiedLogger.shared.warning("메모리 경고 발생 - 즉시 메모리 정리 시작", category: .performance)
         
         // 단계별 메모리 정리
         performEmergencyMemoryCleanup()
@@ -163,7 +156,7 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     private func handleMemoryPressureChange(_ level: MemoryPressureLevel) {
-        logger.info("메모리 압박 레벨 변경: \(level.description)")
+        UnifiedLogger.shared.info("메모리 압박 레벨 변경: \(level.description)", category: .performance)
         
         switch level {
         case .normal:
@@ -182,7 +175,7 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     private func handleBackgroundTransition() {
-        logger.info("백그라운드 전환 - 메모리 최적화 수행")
+        UnifiedLogger.shared.info("백그라운드 전환 - 메모리 최적화 수행", category: .performance)
         
         // 백그라운드에서 불필요한 캐시 정리
         clearNonEssentialCaches()
@@ -195,7 +188,7 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     private func handleForegroundTransition() {
-        logger.info("포그라운드 전환 - 캐시 재구성")
+        UnifiedLogger.shared.info("포그라운드 전환 - 캐시 재구성", category: .performance)
         
         // 필요한 모델 재로드
         preloadEssentialModels()
@@ -233,7 +226,7 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     private func performEmergencyMemoryCleanup() {
-        logger.critical("응급 메모리 정리 시작")
+        UnifiedLogger.shared.critical("응급 메모리 정리 시작", category: .performance)
         
         // 모든 캐시 완전 삭제
         clearAllCaches()
@@ -268,7 +261,7 @@ final class MemoryOptimizationManager: ObservableObject {
     
     private func clearOldCacheEntries() {
         // TODO: 캐시 항목 나이 기반 정리 구현
-        logger.debug("오래된 캐시 항목 정리")
+        UnifiedLogger.shared.debug("오래된 캐시 항목 정리", category: .performance)
     }
     
     private func clearMostCaches() {
@@ -282,21 +275,21 @@ final class MemoryOptimizationManager: ObservableObject {
         modelCache.removeAllObjects()
         stringCache.removeAllObjects()
         
-        logger.info("모든 캐시 완전 삭제 완료")
+        UnifiedLogger.shared.info("모든 캐시 완전 삭제 완료", category: .performance)
     }
     
     private func compressImageCaches() {
         // TODO: 이미지 캐시 압축 구현
-        logger.debug("이미지 캐시 압축")
+        UnifiedLogger.shared.debug("이미지 캐시 압축", category: .performance)
     }
     
     private func unloadNonEssentialModels() {
         // TODO: 비필수 AI 모델 언로드 구현
-        logger.debug("비필수 모델 언로드")
+        UnifiedLogger.shared.debug("비필수 모델 언로드", category: .ai)
     }
     
     private func unloadAllNonEssentialModels() {
-        logger.warning("모든 비필수 모델 언로드 시작")
+        UnifiedLogger.shared.warning("모든 비필수 모델 언로드 시작", category: .ai)
         
         // 모든 캐시 완전 정리
         imageCache.removeAllObjects()
@@ -315,11 +308,11 @@ final class MemoryOptimizationManager: ObservableObject {
             userInfo: ["level": "critical"]
         )
         
-        logger.warning("모든 비필수 모델 언로드 완료 - 긴급 모드 활성화")
+        UnifiedLogger.shared.warning("모든 비필수 모델 언로드 완료 - 긴급 모드 활성화", category: .ai)
     }
     
     private func preloadEssentialModels() {
-        logger.debug("필수 모델 재로드 시작")
+        UnifiedLogger.shared.debug("필수 모델 재로드 시작", category: .ai)
         
         // 기본 캐시 용량 복원
         imageCache.totalCostLimit = 1024 * 1024 * 50 // 50MB
@@ -333,11 +326,11 @@ final class MemoryOptimizationManager: ObservableObject {
             userInfo: ["level": "essential"]
         )
         
-        logger.info("필수 모델 재로드 완료")
+        UnifiedLogger.shared.info("필수 모델 재로드 완료", category: .ai)
     }
     
     private func suspendNonEssentialBackgroundTasks() {
-        logger.debug("비필수 백그라운드 작업 중단 시작")
+        UnifiedLogger.shared.debug("비필수 백그라운드 작업 중단 시작", category: .system)
         
         // 백그라운드 작업 중단 알림
         NotificationCenter.default.post(
@@ -358,12 +351,12 @@ final class MemoryOptimizationManager: ObservableObject {
             }
         }
         
-        logger.info("비필수 백그라운드 작업 중단 완료")
+        UnifiedLogger.shared.info("비필수 백그라운드 작업 중단 완료", category: .system)
     }
     
     // MARK: - Public Methods
     func requestMemoryOptimization() {
-        logger.info("메모리 최적화 요청됨")
+        UnifiedLogger.shared.info("메모리 최적화 요청됨", category: .performance)
         performPreventiveMemoryCleanup()
     }
     
@@ -390,19 +383,9 @@ final class MemoryOptimizationManager: ObservableObject {
     }
     
     func enableDetailedLogging(_ enabled: Bool) {
-        logger.info("상세 메모리 로깅 설정: \(enabled)")
+        UnifiedLogger.shared.info("상세 메모리 로깅 설정: \(enabled)", category: .performance)
         
-        if enabled {
-            // 상세 로깅 활성화
-            logger.debug("메모리 상세 로깅 활성화됨")
-            logger.debug("현재 메모리 사용량: \(self.currentMemoryUsage / 1024 / 1024)MB")
-            logger.debug("최대 메모리 사용량: \(self.peakMemoryUsage / 1024 / 1024)MB")
-            logger.debug("메모리 압박 수준: \(self.memoryPressureLevel.rawValue)")
-            logger.debug("이미지 캐시 개수: \(self.imageCache.countLimit)")
-            logger.debug("모델 캐시 개수: \(self.modelCache.countLimit)")
-        } else {
-            logger.info("메모리 상세 로깅 비활성화됨")
-        }
+        
     }
 }
 

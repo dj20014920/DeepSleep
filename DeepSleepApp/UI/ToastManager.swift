@@ -1,4 +1,5 @@
 import UIKit
+import Foundation
 
 /// 앱 전체에서 사용할 수 있는 Toast 메시지 시스템
 class ToastManager {
@@ -40,7 +41,7 @@ class ToastManager {
     
     private func presentToast(message: String, duration: TimeInterval, style: ToastStyle) {
         guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
-            DebugManager.shared.warning("Toast 표시 실패: Key Window를 찾을 수 없음")
+            UnifiedLogger.shared.warning("Toast 표시 실패: Key Window를 찾을 수 없음")
             return
         }
         
@@ -65,7 +66,7 @@ class ToastManager {
             toastView.removeFromSuperview()
         }
         
-        DebugManager.shared.logUI("Toast 표시: \(message)")
+        UnifiedLogger.shared.debug("Toast 표시: \(message)", category: .ui)
     }
     
     private func createToastView(message: String, style: ToastStyle) -> UIView {
@@ -110,9 +111,22 @@ class ToastManager {
         
         containerView.addSubview(stackView)
         
-        // Safe Area 가져오기
-        let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow })
-        let safeAreaInsets = window?.safeAreaInsets ?? .zero
+        // Safe Area 가져오기 (iOS 15+ 지원)
+        let window: UIWindow?
+        let safeAreaInsets: UIEdgeInsets
+        
+        if #available(iOS 15.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                window = windowScene.windows.first(where: { $0.isKeyWindow })
+                safeAreaInsets = window?.safeAreaInsets ?? .zero
+            } else {
+                window = nil
+                safeAreaInsets = .zero
+            }
+        } else {
+            window = UIApplication.shared.windows.first(where: { $0.isKeyWindow })
+            safeAreaInsets = window?.safeAreaInsets ?? .zero
+        }
         
         NSLayoutConstraint.activate([
             // Container constraints
@@ -143,13 +157,13 @@ enum ToastStyle {
     var backgroundColor: UIColor {
         switch self {
         case .default:
-            return UIColor.systemGray6.withAlphaComponent(0.95)
+            return UIDesignSystem.Colors.tagBackground.withAlphaComponent(0.95)
         case .success:
-            return UIColor.systemGreen.withAlphaComponent(0.9)
+            return UIDesignSystem.Colors.success.withAlphaComponent(0.9)
         case .error:
-            return UIColor.systemRed.withAlphaComponent(0.9)
+            return UIDesignSystem.Colors.error.withAlphaComponent(0.9)
         case .warning:
-            return UIColor.systemOrange.withAlphaComponent(0.9)
+            return UIDesignSystem.Colors.warning.withAlphaComponent(0.9)
         }
     }
     

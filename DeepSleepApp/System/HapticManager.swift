@@ -15,7 +15,7 @@ class HapticManager {
     // MARK: - Setup
     private func setupHapticEngine() {
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
-            DebugManager.shared.logSystem("Haptic feedback not supported on this device")
+            UnifiedLogger.shared.info("Haptic feedback not supported on this device", category: .system)
             return
         }
         
@@ -25,18 +25,18 @@ class HapticManager {
             isHapticAvailable = true
             
             hapticEngine?.stoppedHandler = { [weak self] reason in
-                DebugManager.shared.logSystem("Haptic engine stopped: \(reason)")
+                UnifiedLogger.shared.info("Haptic engine stopped: \(reason)", category: .system)
                 self?.restartHapticEngine()
             }
             
             hapticEngine?.resetHandler = { [weak self] in
-                DebugManager.shared.logSystem("Haptic engine reset")
+                UnifiedLogger.shared.info("Haptic engine reset", category: .system)
                 self?.restartHapticEngine()
             }
             
-            DebugManager.shared.logSystem("Haptic engine initialized successfully")
+            UnifiedLogger.shared.info("Haptic engine initialized successfully", category: .system)
         } catch {
-            DebugManager.shared.error("Failed to initialize haptic engine: \(error)")
+            UnifiedLogger.shared.error("Failed to initialize haptic engine: \(error)", category: .system)
             isHapticAvailable = false
         }
     }
@@ -44,9 +44,9 @@ class HapticManager {
     private func restartHapticEngine() {
         do {
             try hapticEngine?.start()
-            DebugManager.shared.logSystem("Haptic engine restarted")
+            UnifiedLogger.shared.info("Haptic engine restarted", category: .system)
         } catch {
-            DebugManager.shared.error("Failed to restart haptic engine: \(error)")
+            UnifiedLogger.shared.error("Failed to restart haptic engine: \(error)", category: .system)
         }
     }
     
@@ -56,49 +56,49 @@ class HapticManager {
     func lightImpact() {
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
-        DebugManager.shared.logSystem("Light haptic feedback triggered")
+        UnifiedLogger.shared.debug("Light haptic feedback triggered", category: .system)
     }
     
     /// 중간 햅틱 피드백 (선택, 토글 등)
     func mediumImpact() {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
-        DebugManager.shared.logSystem("Medium haptic feedback triggered")
+        UnifiedLogger.shared.debug("Medium haptic feedback triggered", category: .system)
     }
     
     /// 강한 햅틱 피드백 (중요한 액션)
     func heavyImpact() {
         let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
         impactFeedback.impactOccurred()
-        DebugManager.shared.logSystem("Heavy haptic feedback triggered")
+        UnifiedLogger.shared.debug("Heavy haptic feedback triggered", category: .system)
     }
     
     /// 성공 햅틱 피드백
     func success() {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
-        DebugManager.shared.logSystem("Success haptic feedback triggered")
+        UnifiedLogger.shared.debug("Success haptic feedback triggered", category: .system)
     }
     
     /// 경고 햅틱 피드백
     func warning() {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.warning)
-        DebugManager.shared.logSystem("Warning haptic feedback triggered")
+        UnifiedLogger.shared.debug("Warning haptic feedback triggered", category: .system)
     }
     
     /// 에러 햅틱 피드백
     func error() {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.error)
-        DebugManager.shared.logSystem("Error haptic feedback triggered")
+        UnifiedLogger.shared.debug("Error haptic feedback triggered", category: .system)
     }
     
     /// 선택 햅틱 피드백
     func selection() {
         let selectionFeedback = UISelectionFeedbackGenerator()
         selectionFeedback.selectionChanged()
-        DebugManager.shared.logSystem("Selection haptic feedback triggered")
+        UnifiedLogger.shared.debug("Selection haptic feedback triggered", category: .system)
     }
     
     // MARK: - Advanced Haptic Patterns
@@ -116,9 +116,9 @@ class HapticManager {
             let player = try engine.makePlayer(with: hapticPattern)
             try player.start(atTime: 0)
             
-            DebugManager.shared.logSystem("Custom haptic pattern played: \(pattern.name)")
+            UnifiedLogger.shared.debug("Custom haptic pattern played: \(pattern.name)", category: .system)
         } catch {
-            DebugManager.shared.error("Failed to play custom haptic pattern: \(error)")
+            UnifiedLogger.shared.error("Failed to play custom haptic pattern: \(error)", category: .system)
             // 실패 시 기본 피드백으로 대체
             mediumImpact()
         }

@@ -351,6 +351,137 @@ test_*.log
 !.gitignore
 !.swiftlint.yml
 
-# Config Files
-## IMPORTANT: Add your secret config files here
-DeepSleepApp/Secrets.xcconfig 
+# ===== 🔐 Security & API Keys (2025년 7월 업데이트) =====
+# API 키 설정 파일들 (절대 커밋 금지)
+DeepSleepApp/Secrets.xcconfig
+DeepSleepApp/gpt.xcconfig
+DeepSleepApp/naver.xcconfig
+DeepSleepApp/gemini.xcconfig
+DeepSleepApp/claude.xcconfig
+**/*.xcconfig
+!**/example.xcconfig
+!**/template.xcconfig
+
+# API 키 생성 스크립트 (보안상 제외)
+**/generate-secrets.sh
+**/setup-api-keys.sh
+**/*api-key*.sh
+**/*secret*.sh
+
+# API 키 관련 백업 파일
+Secrets.xcconfig.*
+*secrets*.backup
+*api-keys*.backup
+*-secrets.*
+*-api-keys.*
+
+# Bundle Info.plist에서 추출한 민감한 설정
+DeepSleepApp/Info-secrets.plist
+**/*-secrets.plist
+
+# ===== 📊 Analysis & Improvement Files (검토 후 임시 파일들) =====
+# 아키텍처 개선 문서 (검토 완료 후 정리)
+ARCHITECTURE_IMPROVEMENTS_NEEDED.md
+*IMPROVEMENTS*.md
+*ANALYSIS*.md
+*REVIEW*.md
+*VALIDATION*.md
+*VERIFICATION*.md
+
+# Todo 리스트 파일들 (작업 완료 후 정리)
+*.todo.md
+*TODO*.md
+*TASK*.md
+*PLAN*.md
+*CHECKLIST*.md
+
+# 개발 검토 리포트들
+*REPORT*.md
+*COMPLETION*.md
+*MIGRATION*.md
+*SUMMARY*.md
+*STATUS*.md
+
+# MCP 도구 임시 파일들
+*.mcp-temp
+*.mcp-cache
+.mcp/
+
+# ===== 🔧 Development Tools & IDE (2025년 기준 업데이트) =====
+# Claude Code IDE 관련
+.claude/
+*.claude
+.claude-env
+
+# Cursor IDE (업데이트)
+.cursor/
+.cursor-tutor
+*.cursor-tutor
+
+# AI 어시스턴트 캐시
+.ai-cache/
+.copilot-cache/
+.claude-cache/
+
+# ===== 📱 iOS Development (추가 보안) =====
+# 프로비저닝 프로파일
+*.mobileprovision
+*.provisionprofile
+
+# 키체인 관련
+*.p12
+*.p8
+AuthKey_*.p8
+
+# Apple 개발자 인증서
+distribution.cer
+development.cer
+ios_distribution.cer
+ios_development.cer
+
+# Export options
+ExportOptions.plist
+export-options.plist
+
+# ===== 🔍 Testing & Debugging (상세 추가) =====
+# 테스트 결과 상세 로그
+TestResults/
+TestResults.xcresult/
+test-results/
+test_results/
+
+# 디버그 로그
+debug.log
+debug_*.log
+crash_*.log
+error_*.log
+
+# Instruments 파일
+*.trace
+*.instruments
+
+# ===== 🚀 Build & Deployment =====
+# Archive 파일
+*.xcarchive
+archive/
+archives/
+
+# Export 파일
+export/
+exports/
+*.ipa.export/
+
+# 빌드 캐시
+.build-cache/
+build-cache/
+
+# ===== 🔄 Version Control 예외 (중요) =====
+# 임시 설정 파일들은 제외하되 필수 파일들은 포함
+!DeepSleepApp/Info.plist
+!DeepSleepApp/generate-secrets.sh.template
+!scripts/setup/api-keys-template.sh
+
+# 예시 설정 파일들은 포함 (보안 정보 없이)
+!**/*example*
+!**/*template*
+!**/*sample* 

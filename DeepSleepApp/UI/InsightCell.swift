@@ -172,15 +172,15 @@ class InsightCell: UICollectionViewCell {
     private func getIntensityColor(for intensity: Float) -> UIColor {
         switch intensity {
         case 0.0..<0.3:
-            return UIColor.systemGreen
+            return UIDesignSystem.Colors.success
         case 0.3..<0.6:
-            return UIColor.systemYellow
+            return UIDesignSystem.Colors.warning
         case 0.6..<0.8:
-            return UIColor.systemOrange
+            return UIDesignSystem.Colors.warning
         case 0.8...1.0:
-            return UIColor.systemRed
+            return UIDesignSystem.Colors.error
         default:
-            return UIColor.systemGray
+            return UIDesignSystem.Colors.secondaryText
         }
     }
     

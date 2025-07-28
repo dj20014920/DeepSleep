@@ -130,7 +130,7 @@ class TodoManager {
             let todos = try JSONDecoder().decode([TodoItem].self, from: data)
             return todos.sorted(by: { $0.dueDate < $1.dueDate })
         } catch {
-            DebugManager.shared.logTodo("Error decoding todos: \(error)")
+            UnifiedLogger.shared.logTodo("Error decoding todos: \(error)")
             return []
         }
     }
@@ -261,7 +261,7 @@ class TodoManager {
             let data = try JSONEncoder().encode(todos)
             UserDefaults.standard.set(data, forKey: todosKey)
         } catch {
-            DebugManager.shared.logTodo("Error encoding todos: \(error)")
+            UnifiedLogger.shared.logTodo("Error encoding todos: \(error)")
         }
     }
     

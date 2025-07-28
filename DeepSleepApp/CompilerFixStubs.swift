@@ -427,8 +427,8 @@ extension PersonaMemoryManager {
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: true)
             // UserPersona 및 기타 관련 모델을 사용합니다.
-            let container = try ModelContainer(for: UserPersona.self, ConversationMemory.self, PreferenceMemory.self, ContextualMemory.self, configurations: config)
-            let customModelContext = ModelContext(
+            let _ = try ModelContainer(for: UserPersona.self, ConversationMemory.self, PreferenceMemory.self, ContextualMemory.self, configurations: config)
+            let _ = ModelContext(
                 messages: [],
                 systemPrompt: "DeepSleep AI Assistant",
                 conversationSummary: "",

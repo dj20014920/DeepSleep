@@ -88,13 +88,13 @@ extension ViewController {
         let button = UIButton(type: .system)
         button.layer.cornerRadius = 12
         button.layer.borderWidth = 2
-        button.layer.borderColor = UIColor.systemPurple.cgColor
-        button.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.1)
+        button.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
+        button.backgroundColor = UIDesignSystem.Colors.accentLight
         button.titleLabel?.font = .systemFont(ofSize: 11, weight: .bold)
         button.titleLabel?.numberOfLines = 2
         button.titleLabel?.textAlignment = .center
         button.setTitle("🧠\nAI 추천", for: .normal)
-        button.setTitleColor(.systemPurple, for: .normal)
+        button.setTitleColor(UIDesignSystem.Colors.accent, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tag = 999 // AI 추천 버튼 식별용
         button.addTarget(self, action: #selector(aiRecommendButtonTapped), for: .touchUpInside)
@@ -102,8 +102,8 @@ extension ViewController {
         // 그라데이션 효과 추가
         let gradientLayer = CAGradientLayer()
         gradientLayer.colors = [
-            UIColor.systemPurple.withAlphaComponent(0.1).cgColor,
-            UIColor.systemBlue.withAlphaComponent(0.1).cgColor
+            UIDesignSystem.Colors.accentLight.cgColor,
+            UIDesignSystem.Colors.accent.withAlphaComponent(0.2).cgColor
         ]
         gradientLayer.startPoint = CGPoint(x: 0, y: 0)
         gradientLayer.endPoint = CGPoint(x: 1, y: 1)
@@ -122,13 +122,13 @@ extension ViewController {
         let button = UIButton(type: .system)
         button.layer.cornerRadius = 12
         button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor.systemGray4.cgColor
-        button.backgroundColor = UIColor.systemGray6
+        button.layer.borderColor = UIDesignSystem.Colors.border.cgColor
+        button.backgroundColor = UIDesignSystem.Colors.tagBackground
         button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
         button.titleLabel?.numberOfLines = 2
         button.titleLabel?.textAlignment = .center
         button.setTitle("빈 슬롯", for: .normal)
-        button.setTitleColor(.systemGray2, for: .normal)
+        button.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tag = (isRecent ? 100 : 200) + index
         button.addTarget(self, action: #selector(presetButtonTapped(_:)), for: .touchUpInside)

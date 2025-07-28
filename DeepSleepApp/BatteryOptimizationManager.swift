@@ -2,13 +2,12 @@ import Foundation
 import UIKit
 import Combine
 import CoreML
-import os.log
 import UserNotifications
 
 /// 2025년 최신 iOS 배터리 최적화 관리자
 /// iOS 26 기준 최신 배터리 효율성 기법 적용
 @MainActor
-final class BatteryOptimizationManager: ObservableObject {
+final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationProtocol {
     static let shared = BatteryOptimizationManager()
     
     // MARK: - Properties
@@ -18,7 +17,6 @@ final class BatteryOptimizationManager: ObservableObject {
     @Published var thermalState: ProcessInfo.ThermalState = .nominal
     
     private var cancellables = Set<AnyCancellable>()
-    private let logger = Logger(subsystem: "DeepSleep", category: "BatteryOptimization")
     
     // 2025년 최신 배터리 관리 설정
     private var adaptiveThrottling = true
@@ -100,22 +98,22 @@ final class BatteryOptimizationManager: ObservableObject {
     // MARK: - State Updates
     private func updateBatteryState() {
         batteryState = UIDevice.current.batteryState
-                        print("배터리 상태 업데이트: \(self.batteryState.description)")
+        UnifiedLogger.shared.debug("배터리 상태 업데이트: \(self.batteryState.description)", category: .system)
     }
     
     private func updateBatteryLevel() {
         batteryLevel = UIDevice.current.batteryLevel
-                        print("배터리 레벨 업데이트: \(Int(self.batteryLevel * 100))%")
+        UnifiedLogger.shared.debug("배터리 레벨 업데이트: \(Int(self.batteryLevel * 100))%", category: .system)
     }
     
     private func updatePowerState() {
         isLowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-                        print("Low Power Mode: \(self.isLowPowerModeEnabled)")
+        UnifiedLogger.shared.debug("Low Power Mode: \(self.isLowPowerModeEnabled)", category: .system)
     }
     
     private func updateThermalState() {
         thermalState = ProcessInfo.processInfo.thermalState
-                        print("Thermal State: \(self.thermalState.description)")
+        UnifiedLogger.shared.debug("Thermal State: \(self.thermalState.description)", category: .system)
     }
     
     // MARK: - Adaptive Performance Management
@@ -159,7 +157,7 @@ final class BatteryOptimizationManager: ObservableObject {
     }
     
     private func applyOptimizations(level: OptimizationLevel) {
-        print("배터리 최적화 레벨 적용: \(level)") // TODO: logger.info
+        UnifiedLogger.shared.info("배터리 최적화 레벨 적용: \(level)", category: .system)
         
         switch level {
         case .none:
@@ -228,7 +226,7 @@ final class BatteryOptimizationManager: ObservableObject {
         // 백그라운드 작업 제한 플래그 설정
         UserDefaults.standard.set(true, forKey: "limit_background_ai_processing")
         
-        logger.info("비필수 AI 기능 일시 비활성화 완료")
+        UnifiedLogger.shared.info("비필수 AI 기능 일시 비활성화 완료", category: .ai)
     }
     
     private func suspendNonCriticalBackgroundTasks() {
@@ -249,7 +247,7 @@ final class BatteryOptimizationManager: ObservableObject {
         // 네트워크 사용 제한
         UserDefaults.standard.set(false, forKey: "allow_cellular_data")
         
-        logger.info("비중요 백그라운드 작업 일시 중단 완료")
+        UnifiedLogger.shared.info("비중요 백그라운드 작업 일시 중단 완료", category: .system)
     }
     
     private func restoreFullFunctionality() {
@@ -275,12 +273,12 @@ final class BatteryOptimizationManager: ObservableObject {
         // 네트워크 설정 복원
         UserDefaults.standard.set(true, forKey: "allow_cellular_data")
         
-        logger.info("전체 기능 복원 완료")
+        UnifiedLogger.shared.info("전체 기능 복원 완료", category: .system)
     }
     
     // MARK: - Public Methods
     func requestBatteryOptimization() {
-        print("배터리 최적화 요청됨")
+        UnifiedLogger.shared.info("배터리 최적화 요청됨", category: .system)
         
         let currentLevel = calculateOptimizationLevel(
             batteryLevel: batteryLevel,
@@ -307,12 +305,12 @@ final class BatteryOptimizationManager: ObservableObject {
     
     func enableAdaptiveOptimization(_ enabled: Bool) {
         adaptiveThrottling = enabled
-        print("적응형 최적화: \(enabled)")
+        UnifiedLogger.shared.info("적응형 최적화: \(enabled)", category: .system)
     }
     
     func enableMLOptimization(_ enabled: Bool) {
         mlInferenceOptimization = enabled
-        print("ML 추론 최적화: \(enabled)")
+        UnifiedLogger.shared.info("ML 추론 최적화: \(enabled)", category: .ai)
     }
 }
 
@@ -367,7 +365,7 @@ extension ProcessInfo.ThermalState {
 
 // MARK: - Placeholder Classes
 // 실제 ML 추론 최적화 관리자 구현
-class MLInferenceOptimizer {
+class MLInferenceOptimizer: MLInferenceOptimizationProtocol {
     static let shared = MLInferenceOptimizer()
     private init() {}
     
@@ -423,7 +421,7 @@ class MLInferenceOptimizer {
             self.applyPerformanceSettings(mode)
             
             DispatchQueue.main.async {
-                print("ML 추론 성능 모드 변경: \(mode.description)")
+                UnifiedLogger.shared.info("ML 추론 성능 모드 변경: \(mode.description)", category: .ai)
             }
         }
     }
@@ -582,7 +580,7 @@ class MLInferenceOptimizer {
     }
 }
 
-class BackgroundTaskManager {
+class BackgroundTaskManager: BackgroundTaskManagementProtocol {
     static let shared = BackgroundTaskManager()
     private init() {}
     
@@ -665,7 +663,7 @@ class BackgroundTaskManager {
             self.applyThrottlingSettings(level)
             
             DispatchQueue.main.async {
-                print("백그라운드 작업 제한 레벨 변경: \(previousLevel.description) → \(level.description)")
+                UnifiedLogger.shared.info("백그라운드 작업 제한 레벨 변경: \(previousLevel.description) → \(level.description)", category: .system)
             }
         }
     }
@@ -700,7 +698,7 @@ class BackgroundTaskManager {
                 }
             }
             
-            print("초과 백그라운드 작업 \(tasksToSuspend.count)개 종료")
+            UnifiedLogger.shared.warning("초과 백그라운드 작업 \(tasksToSuspend.count)개 종료", category: .system)
         }
     }
     
@@ -718,7 +716,18 @@ class BackgroundTaskManager {
                 }
             }()
             
-            UserDefaults.standard.set(qos.qosClass.rawValue, forKey: "background_task_qos_\(taskType.rawValue)")
+            // QoS 클래스를 Int로 변환하여 저장
+            let qosValue: Int = {
+                switch qos {
+                case .userInteractive: return 33
+                case .userInitiated: return 25
+                case .default: return 21
+                case .utility: return 17
+                case .background: return 9
+                default: return 21 // default
+                }
+            }()
+            UserDefaults.standard.set(qosValue, forKey: "background_task_qos_\(taskType.rawValue)")
         }
     }
     
@@ -758,7 +767,7 @@ class BackgroundTaskManager {
             UserDefaults.standard.set(false, forKey: "suspend_\(taskType)")
         }
         
-        print("일시 중단된 작업 타입: \(disallowedTypes)")
+        UnifiedLogger.shared.info("일시 중단된 작업 타입: \(disallowedTypes)", category: .system)
     }
     
     private func updateSystemSettings(for level: ThrottlingLevel) {
@@ -789,13 +798,13 @@ class BackgroundTaskManager {
     func scheduleBackgroundTask(type: BackgroundTaskType, task: @escaping () -> Void) -> Bool {
         // 현재 제한 레벨에서 이 작업이 허용되는지 확인
         guard currentThrottlingLevel.allowedTaskTypes.contains(type) else {
-            print("작업 타입 \(type.rawValue)은 현재 제한 레벨에서 허용되지 않음")
+            UnifiedLogger.shared.warning("작업 타입 \(type.rawValue)은 현재 제한 레벨에서 허용되지 않음", category: .system)
             return false
         }
         
         // 동시 실행 작업 수 확인
         guard activeBackgroundTasks.count < currentThrottlingLevel.maxConcurrentTasks else {
-            print("최대 동시 실행 작업 수 초과")
+            UnifiedLogger.shared.warning("최대 동시 실행 작업 수 초과", category: .system)
             return false
         }
         
@@ -805,7 +814,7 @@ class BackgroundTaskManager {
         }
         
         guard taskId != .invalid else {
-            print("백그라운드 작업 시작 실패")
+            UnifiedLogger.shared.error("백그라운드 작업 시작 실패", category: .system)
             return false
         }
         
@@ -826,7 +835,7 @@ class BackgroundTaskManager {
     }
     
     private func cleanupBackgroundTask(type: BackgroundTaskType) {
-        print("백그라운드 작업 \(type.rawValue) 시간 초과로 정리")
+        UnifiedLogger.shared.warning("백그라운드 작업 \(type.rawValue) 시간 초과로 정리", category: .system)
         
         // 작업 관련 리소스 정리
         NotificationCenter.default.post(
@@ -859,6 +868,6 @@ class BackgroundTaskManager {
             UserDefaults.standard.removeObject(forKey: "suspend_\(taskType.rawValue)")
         }
         
-        print("모든 백그라운드 작업 복원 완료")
+        UnifiedLogger.shared.info("모든 백그라운드 작업 복원 완료", category: .system)
     }
 }

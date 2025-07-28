@@ -360,11 +360,10 @@ class InputValidationManager {
             print("   Input (truncated): \(sanitizedInput)")
             
             // 실제 구현시 원격 보안 로깅 시스템으로 전송
-            RemoteLogger.shared.logSecurityIncident(
-                issues: criticalIssues,
-                context: context,
-                timestamp: Date()
-            )
+            // TODO: UnifiedLogger 사용 (현재는 콘솔 로깅으로 대체)
+            print("🔐 SECURITY INCIDENT: \(context)")
+            print("   Issues: \(criticalIssues)")
+            print("   Timestamp: \(Date())")
         }
     }
 }

@@ -309,24 +309,24 @@ class TodoItemManager {
         do {
             let data = try JSONEncoder().encode(todos)
             userDefaults.set(data, forKey: todosKey)
-            DebugManager.shared.logTodo("Saved \(todos.count) todo items")
+            UnifiedLogger.shared.logTodo("Saved \(todos.count) todo items")
         } catch {
-            DebugManager.shared.error("Failed to save todos: \(error)")
+            UnifiedLogger.shared.error("Failed to save todos: \(error)")
         }
     }
     
     func loadTodos() -> [TodoItem] {
         guard let data = userDefaults.data(forKey: todosKey) else {
-            DebugManager.shared.logTodo("No saved todos found, returning default items")
+            UnifiedLogger.shared.logTodo("No saved todos found, returning default items")
             return TodoItem.createDefaultItems()
         }
         
         do {
             let todos = try JSONDecoder().decode([TodoItem].self, from: data)
-            DebugManager.shared.logTodo("Loaded \(todos.count) todo items")
+            UnifiedLogger.shared.logTodo("Loaded \(todos.count) todo items")
             return todos
         } catch {
-            DebugManager.shared.error("Failed to load todos: \(error)")
+            UnifiedLogger.shared.error("Failed to load todos: \(error)")
             return TodoItem.createDefaultItems()
         }
     }
@@ -335,28 +335,28 @@ class TodoItemManager {
     func addTodo(_ todo: TodoItem, to todos: inout [TodoItem]) {
         todos.append(todo)
         saveTodos(todos)
-        DebugManager.shared.logTodo("Added todo: \(todo.title)")
+        UnifiedLogger.shared.logTodo("Added todo: \(todo.title)")
     }
     
     func removeTodo(at index: Int, from todos: inout [TodoItem]) {
         guard index < todos.count else { return }
         let removedTodo = todos.remove(at: index)
         saveTodos(todos)
-        DebugManager.shared.logTodo("Removed todo: \(removedTodo.title)")
+        UnifiedLogger.shared.logTodo("Removed todo: \(removedTodo.title)")
     }
     
     func toggleTodo(at index: Int, in todos: inout [TodoItem]) {
         guard index < todos.count else { return }
         todos[index].toggle()
         saveTodos(todos)
-        DebugManager.shared.logTodo("Toggled todo: \(todos[index].title) -> \(todos[index].isCompleted ? "completed" : "incomplete")")
+        UnifiedLogger.shared.logTodo("Toggled todo: \(todos[index].title) -> \(todos[index].isCompleted ? "completed" : "incomplete")")
     }
     
     func updateTodo(at index: Int, with newTodo: TodoItem, in todos: inout [TodoItem]) {
         guard index < todos.count else { return }
         todos[index] = newTodo
         saveTodos(todos)
-        DebugManager.shared.logTodo("Updated todo: \(newTodo.title)")
+        UnifiedLogger.shared.logTodo("Updated todo: \(newTodo.title)")
     }
     
     // MARK: - Statistics

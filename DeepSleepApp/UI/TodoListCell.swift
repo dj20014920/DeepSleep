@@ -143,13 +143,13 @@ class TodoListCell: UICollectionViewCell {
         tableView.reloadData()
         updateEmptyState()
         
-        DebugManager.shared.logTodo("TodoListCell configured with \(items.count) items")
+        UnifiedLogger.shared.logTodo("TodoListCell configured with \(items.count) items")
     }
     
     // MARK: - Actions
     @objc private func addButtonTapped() {
         delegate?.todoListCellDidRequestAddItem(self)
-        DebugManager.shared.logUI("TodoListCell add button tapped")
+        UnifiedLogger.shared.debug("TodoListCell add button tapped", category: .ui)
     }
     
     // MARK: - Helper Methods
@@ -220,7 +220,7 @@ class TodoItemTableViewCell: UITableViewCell {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: "circle"), for: .normal)
         button.setImage(UIImage(systemName: "checkmark.circle.fill"), for: .selected)
-        button.tintColor = UIColor.systemBlue
+        button.tintColor = UIDesignSystem.Colors.accent
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
@@ -311,10 +311,10 @@ class TodoItemTableViewCell: UITableViewCell {
         // 우선순위 표시 (Int 타입으로 변경)
         switch item.priority {
         case 2: // high
-            priorityIndicator.backgroundColor = UIColor.systemRed
+            priorityIndicator.backgroundColor = UIDesignSystem.Colors.error
             priorityIndicator.isHidden = false
         case 1: // medium
-            priorityIndicator.backgroundColor = UIColor.systemYellow
+            priorityIndicator.backgroundColor = UIDesignSystem.Colors.warning
             priorityIndicator.isHidden = false
         case 0: // low
             priorityIndicator.isHidden = true
@@ -327,7 +327,7 @@ class TodoItemTableViewCell: UITableViewCell {
     @objc private func checkboxTapped() {
         guard let item = todoItem else { return }
         delegate?.todoItemCell(self, didToggleItem: item, at: itemIndex)
-        DebugManager.shared.logTodo("TodoItem toggled: \(item.title)")
+        UnifiedLogger.shared.logTodo("TodoItem toggled: \(item.title)")
     }
     
     // MARK: - Lifecycle

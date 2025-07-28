@@ -113,7 +113,7 @@ class GifCatView: UIView {
     }
 }
 
-class ChatBubbleCell: UITableViewCell {
+class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     static let identifier = "ChatBubbleCell"
     
     private var messageLabelBottomConstraint: NSLayoutConstraint!
@@ -342,11 +342,24 @@ class ChatBubbleCell: UITableViewCell {
         
         becomeFirstResponder()
         
-        let teachMenuItem = UIMenuItem(title: "가르치기", action: #selector(teachTapped))
-        let copyMenuItem = UIMenuItem(title: "복사하기", action: #selector(copyTapped))
-        
-        UIMenuController.shared.menuItems = [teachMenuItem, copyMenuItem]
-        UIMenuController.shared.showMenu(from: bubbleView, rect: bubbleView.bounds)
+        // iOS 16+ 방식: UIEditMenuInteraction 사용
+        if #available(iOS 16.0, *) {
+            let interaction = UIEditMenuInteraction(delegate: self)
+            bubbleView.addInteraction(interaction)
+            
+            let configuration = UIEditMenuConfiguration(
+                identifier: "chat-bubble-menu",
+                sourcePoint: CGPoint(x: bubbleView.bounds.midX, y: bubbleView.bounds.midY)
+            )
+            interaction.presentEditMenu(with: configuration)
+        } else {
+            // iOS 15 이하 방식: UIMenuController 사용
+            let teachMenuItem = UIMenuItem(title: "가르치기", action: #selector(teachTapped))
+            let copyMenuItem = UIMenuItem(title: "복사하기", action: #selector(copyTapped))
+            
+            UIMenuController.shared.menuItems = [teachMenuItem, copyMenuItem]
+            UIMenuController.shared.showMenu(from: bubbleView, rect: bubbleView.bounds)
+        }
     }
 
     @objc private func teachTapped() {
@@ -955,18 +968,18 @@ class ChatBubbleCell: UITableViewCell {
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
         
-        // 채팅 버블과 조화로운 보라색 계열 그라데이션
+        // UIDesignSystem의 전역 색상 사용
         let primaryColor: UIColor
         let secondaryColor: UIColor
         
         if title.contains("AI") || title.contains("✨") {
-            // AI 관련 - 밝은 보라색~핑크 그라데이션
-            primaryColor = UIColor.systemPurple
-            secondaryColor = UIColor.systemPink
+            // AI 관련 - 메인 테마색 ~ 보조색 그라데이션
+            primaryColor = UIDesignSystem.Colors.accent
+            secondaryColor = UIDesignSystem.Colors.secondary
         } else {
-            // 앱 분석 관련 - 깊은 보라색~인디고 그라데이션
-            primaryColor = UIColor.systemIndigo
-            secondaryColor = UIColor.systemPurple
+            // 앱 분석 관련 - 진한 테마색 ~ 메인 테마색 그라데이션
+            primaryColor = UIDesignSystem.Colors.accentDark
+            secondaryColor = UIDesignSystem.Colors.accent
         }
         
         // 그라데이션 설정
@@ -1099,5 +1112,29 @@ extension ChatBubbleCell {
             return true
         }
         return false
+    }
+}
+
+// MARK: - UIEditMenuInteractionDelegate (iOS 16+)
+@available(iOS 16.0, *)
+extension ChatBubbleCell {
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {
+        var actions: [UIAction] = []
+        
+        // 가르치기 액션 추가
+        if let originalUserMessage = originalUserMessageForTeachable, !originalUserMessage.isEmpty {
+            let teachAction = UIAction(title: "가르치기", image: UIImage(systemName: "brain.head.profile")) { [weak self] _ in
+                self?.teachTapped()
+            }
+            actions.append(teachAction)
+        }
+        
+        // 복사하기 액션 추가
+        let copyAction = UIAction(title: "복사하기", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in
+            self?.copyTapped()
+        }
+        actions.append(copyAction)
+        
+        return UIMenu(children: actions)
     }
 }

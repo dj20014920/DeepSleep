@@ -35,7 +35,7 @@ class SystemDetectionManager {
         // 배터리 모니터링 활성화
         UIDevice.current.isBatteryMonitoringEnabled = true
         
-        DebugManager.shared.logSystem("SystemDetectionManager initialized")
+        UnifiedLogger.shared.debug("SystemDetectionManager initialized", category: .system)
     }
     
     // MARK: - Audio Detection
@@ -49,7 +49,7 @@ class SystemDetectionManager {
             
             // 유선 헤드폰
             if portType == .headphones {
-                DebugManager.shared.logSystem("Wired headphones detected")
+                UnifiedLogger.shared.debug("Wired headphones detected", category: .system)
                 return true
             }
             
@@ -57,7 +57,7 @@ class SystemDetectionManager {
             if portType == .bluetoothA2DP || 
                portType == .bluetoothLE ||
                portType == .bluetoothA2DP {
-                DebugManager.shared.logSystem("Bluetooth audio device detected: \(portType.rawValue)")
+                UnifiedLogger.shared.debug("Bluetooth audio device detected: \(portType.rawValue)", category: .system)
                 return true
             }
             
@@ -65,12 +65,12 @@ class SystemDetectionManager {
             if description.portName.lowercased().contains("airpods") ||
                description.portName.lowercased().contains("beats") ||
                description.portName.lowercased().contains("headphones") {
-                DebugManager.shared.logSystem("Bluetooth headphones detected by name: \(description.portName)")
+                UnifiedLogger.shared.debug("Bluetooth headphones detected by name: \(description.portName)", category: .system)
                 return true
             }
         }
         
-        DebugManager.shared.logSystem("No headphones detected")
+        UnifiedLogger.shared.debug("No headphones detected", category: .system)
         return false
     }
     
@@ -110,7 +110,7 @@ class SystemDetectionManager {
         }
         
         let info = AudioOutputInfo(type: outputType, name: portName, isHeadphones: isHeadphones)
-        DebugManager.shared.logSystem("Current audio output: \(info)")
+        UnifiedLogger.shared.debug("Current audio output: \(info)", category: .system)
         return info
     }
     
@@ -119,21 +119,21 @@ class SystemDetectionManager {
     /// 현재 배터리 레벨 (0.0 - 1.0)
     func getBatteryLevel() -> Float {
         let level = UIDevice.current.batteryLevel
-        DebugManager.shared.logSystem("Battery level: \(Int(level * 100))%")
+        UnifiedLogger.shared.debug("Battery level: \(Int(level * 100))%", category: .system)
         return level
     }
     
     /// 배터리 상태 확인
     func getBatteryState() -> UIDevice.BatteryState {
         let state = UIDevice.current.batteryState
-        DebugManager.shared.logSystem("Battery state: \(state)")
+        UnifiedLogger.shared.debug("Battery state: \(state)", category: .system)
         return state
     }
     
     /// 저전력 모드 여부 확인
     func isLowPowerModeEnabled() -> Bool {
         let isEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-        DebugManager.shared.logSystem("Low power mode: \(isEnabled ? "enabled" : "disabled")")
+        UnifiedLogger.shared.debug("Low power mode: \(isEnabled ? "enabled" : "disabled")", category: .system)
         return isEnabled
     }
     
@@ -176,7 +176,7 @@ class SystemDetectionManager {
     /// 다크 모드 여부 확인
     func isDarkModeEnabled() -> Bool {
         let isDark = UITraitCollection.current.userInterfaceStyle == .dark
-        DebugManager.shared.logSystem("Dark mode: \(isDark ? "enabled" : "disabled")")
+        UnifiedLogger.shared.debug("Dark mode: \(isDark ? "enabled" : "disabled")", category: .system)
         return isDark
     }
     
@@ -192,7 +192,7 @@ class SystemDetectionManager {
     // MARK: - Notification Handlers
     
     @objc private func audioRouteChanged(notification: Notification) {
-        DebugManager.shared.logSystem("Audio route changed")
+        UnifiedLogger.shared.debug("Audio route changed", category: .system)
         
         guard let userInfo = notification.userInfo,
               let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
@@ -202,13 +202,13 @@ class SystemDetectionManager {
         
         switch reason {
         case .newDeviceAvailable:
-            DebugManager.shared.logSystem("New audio device available")
+            UnifiedLogger.shared.debug("New audio device available", category: .system)
         case .oldDeviceUnavailable:
-            DebugManager.shared.logSystem("Audio device disconnected")
+            UnifiedLogger.shared.debug("Audio device disconnected", category: .system)
         case .categoryChange:
-            DebugManager.shared.logSystem("Audio category changed")
+            UnifiedLogger.shared.debug("Audio category changed", category: .system)
         default:
-            DebugManager.shared.logSystem("Audio route change reason: \(reason.rawValue)")
+            UnifiedLogger.shared.debug("Audio route change reason: \(reason.rawValue)", category: .system)
         }
         
         // 헤드폰 상태 변경 알림 발송
@@ -221,7 +221,7 @@ class SystemDetectionManager {
     
     @objc private func batteryLevelChanged(notification: Notification) {
         let level = getBatteryLevel()
-        DebugManager.shared.logSystem("Battery level changed: \(Int(level * 100))%")
+        UnifiedLogger.shared.debug("Battery level changed: \(Int(level * 100))%", category: .system)
         
         NotificationCenter.default.post(
             name: .batteryLevelChanged,
@@ -232,7 +232,7 @@ class SystemDetectionManager {
     
     @objc private func batteryStateChanged(notification: Notification) {
         let state = getBatteryState()
-        DebugManager.shared.logSystem("Battery state changed: \(state)")
+        UnifiedLogger.shared.debug("Battery state changed: \(state)", category: .system)
         
         NotificationCenter.default.post(
             name: .batteryStateChanged,

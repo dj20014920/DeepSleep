@@ -324,7 +324,7 @@ class AISecurityManager {
     
     // 문맥상 진짜 시스템 누출인지 추가 검증
     private func isActualSystemLeak(_ text: String, pattern: String) -> Bool {
-        let lowercaseText = text.lowercased()
+        let _ = text.lowercased()
         
         // "당신은", "you are" 등은 일반적인 대화 표현이므로 허용
         if pattern == "당신은" || pattern == "you are" {

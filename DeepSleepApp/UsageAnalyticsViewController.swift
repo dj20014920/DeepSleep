@@ -618,9 +618,123 @@ class UsageAnalyticsViewController: UIViewController {
     // MARK: - Data Loading
     
     private func loadAnalyticsData() {
-        // 실제 앱에서는 UserDefaults나 Core Data에서 사용 데이터를 로드
-        // 여기서는 샘플 데이터를 생성
-        analyticsData = generateSampleAnalyticsData()
+        // 실제 사용자 행동 프로필에서 데이터 로드
+        if let profile = UserBehaviorAnalytics.shared.getCurrentUserProfile() {
+            analyticsData = convertProfileToAnalyticsData(profile)
+            print("✅ [UsageAnalytics] 실제 사용자 데이터 로드 완료")
+        } else {
+            // 데이터가 없을 때만 샘플 데이터 사용
+            analyticsData = generateSampleAnalyticsData()
+            print("⚠️ [UsageAnalytics] 실제 데이터 없음 - 샘플 데이터 사용")
+        }
+    }
+    
+    /// 실제 사용자 프로필을 UI 데이터로 변환
+    private func convertProfileToAnalyticsData(_ profile: UserBehaviorProfile) -> UsageAnalyticsData {
+        // 음악 순위 변환
+        let musicRankings = convertSoundPatternsToMusicRankings(profile.soundPatterns)
+        
+        // 시간대별 패턴 변환
+        let timePatterns = convertTimePatterns(profile.timePatterns)
+        
+        // 감정 패턴 변환  
+        let emotionPatterns = convertEmotionPatterns(profile.emotionPatterns)
+        
+        // AI 인사이트 생성
+        let aiInsights = generateAIInsights(from: profile)
+        
+        return UsageAnalyticsData(
+            musicRankings: musicRankings,
+            presetRankings: [], // TODO: 프리셋 데이터 연결
+            timePatterns: timePatterns,
+            emotionPatterns: emotionPatterns,
+            aiInsights: aiInsights
+        )
+    }
+    
+    private func convertSoundPatternsToMusicRankings(_ soundPatterns: SoundPreferenceAnalysis) -> [MusicRankingData] {
+        let sortedMetrics = soundPatterns.individualSoundMetrics.values
+            .sorted { $0.totalUsage > $1.totalUsage }
+            .prefix(5)
+        
+        let totalUsage = sortedMetrics.reduce(0) { $0 + $1.totalUsage }
+        
+        return sortedMetrics.enumerated().map { index, metric in
+            let percentage = totalUsage > 0 ? Int((Double(metric.totalUsage) / Double(totalUsage)) * 100) : 0
+            
+            return MusicRankingData(
+                style: metric.soundName,
+                listenCount: metric.totalUsage,
+                percentage: percentage
+            )
+        }
+    }
+    
+    private func convertTimePatterns(_ timePatterns: [Int: TimeUsagePattern]) -> UsageTimePatternData {
+        let dawnUsage = (0...5).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
+        let morningUsage = (6...11).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
+        let afternoonUsage = (12...17).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
+        let eveningUsage = (18...23).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
+        
+        let total = dawnUsage + morningUsage + afternoonUsage + eveningUsage
+        
+        return UsageTimePatternData(
+            dawn: total > 0 ? Int((Double(dawnUsage) / Double(total)) * 100) : 0,
+            morning: total > 0 ? Int((Double(morningUsage) / Double(total)) * 100) : 0,
+            afternoon: total > 0 ? Int((Double(afternoonUsage) / Double(total)) * 100) : 0,
+            evening: total > 0 ? Int((Double(eveningUsage) / Double(total)) * 100) : 0
+        )
+    }
+    
+    private func convertEmotionPatterns(_ emotionPatterns: [String: EmotionPreferencePattern]) -> EmotionPatternData {
+        return EmotionPatternData(
+            stressed: emotionPatterns["스트레스"]?.preferredSounds.joined(separator: ", ") ?? "로파이, 클래식",
+            sad: emotionPatterns["슬픔"]?.preferredSounds.joined(separator: ", ") ?? "클래식, 피아노",
+            happy: emotionPatterns["행복"]?.preferredSounds.joined(separator: ", ") ?? "팝, 재즈",
+            calm: emotionPatterns["차분"]?.preferredSounds.joined(separator: ", ") ?? "자연소리, 앰비언트"
+        )
+    }
+    
+    private func generateAIInsights(from profile: UserBehaviorProfile) -> [AIInsightData] {
+        var insights: [AIInsightData] = []
+        
+        // 만족도 기반 인사이트
+        if profile.satisfactionMetrics.averageCompletionRate > 0.8 {
+            insights.append(AIInsightData(
+                icon: "🎯",
+                text: "평균 완료율이 \(Int(profile.satisfactionMetrics.averageCompletionRate * 100))%로 매우 높습니다. 현재 패턴을 유지하세요!"
+            ))
+        }
+        
+        // 시간대 패턴 인사이트
+        let mostActiveHour = profile.timePatterns.max { $0.value.totalSessions < $1.value.totalSessions }
+        if let hour = mostActiveHour {
+            let timeDescription = getTimeDescription(for: hour.key)
+            insights.append(AIInsightData(
+                icon: "⏰",
+                text: "\(timeDescription)에 가장 활발하게 앱을 사용합니다 (\(hour.value.totalSessions)회)"
+            ))
+        }
+        
+        // 음원 조합 인사이트
+        if let topCombination = profile.soundPatterns.popularCombinations.first {
+            insights.append(AIInsightData(
+                icon: "🎵",
+                text: "'\(topCombination.name)' 조합을 \(topCombination.count)회 사용했습니다. 이 조합이 가장 효과적이네요!"
+            ))
+        }
+        
+        return insights.isEmpty ? [AIInsightData(icon: "💡", text: "사용 데이터를 더 수집하면 개인화된 인사이트를 제공할 수 있습니다.")] : insights
+    }
+    
+    private func getTimeDescription(for hour: Int) -> String {
+        switch hour {
+        case 0...5: return "새벽 시간대(\(hour)시)"
+        case 6...11: return "아침 시간대(\(hour)시)"
+        case 12...17: return "오후 시간대(\(hour)시)"
+        case 18...23: return "저녁 시간대(\(hour)시)"
+        default: return "\(hour)시"
+        }
     }
     
     private func generateSampleAnalyticsData() -> UsageAnalyticsData {

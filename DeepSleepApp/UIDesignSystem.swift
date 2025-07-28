@@ -143,9 +143,11 @@ public struct UIDesignSystem {
         static let error = UIColor.systemRed
         static let info = UIColor.systemBlue
         
-        // Accent Colors
-        static let accent = UIColor.systemPurple
-        static let secondary = UIColor.systemTeal
+        // Accent Colors - 앱의 주요 테마 색상
+        static let accent = UIColor.systemPurple  // 메인 테마 색상 (보라색)
+        static let accentLight = UIColor.systemPurple.withAlphaComponent(0.1)  // 연한 보라색 (배경용)
+        static let accentDark = UIColor.systemIndigo  // 진한 보라색/남색
+        static let secondary = UIColor.systemPink  // 보조 색상 (핑크)
         
         // Settings UI Colors
         static var cardBackground: UIColor {

@@ -44,18 +44,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     ) -> Bool {
         
         // 🔍 원격 로깅 시작
-        RemoteLogger.shared.info("앱 시작됨 - \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")", category: "AppLifecycle")
-        RemoteLogger.shared.logMemoryUsage(context: "앱 시작 시")
+        UnifiedLogger.shared.info("앱 시작됨 - \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")", category: .appLifecycle)
+        UnifiedLogger.shared.logMemoryUsage("앱 시작 시")
         
         // 🔐 API 키 보안 검증 실행
         EnvironmentConfig.shared.performSecurityCheck()
+        
+        // 🚀 성능 관리 시스템 초기화 (최우선 - 다른 시스템들이 성능 관리자에 의존할 수 있음)
+        PerformanceSystemBootstrap.shared.initializePerformanceSystem()
         
         // 💯 완전 토큰 소모 제로 API 체크
         performZeroTokenAPICheck()
         
         // SoundManager 초기화 (내부에서 오디오 세션 설정)
         _ = SoundManager.shared // SoundManager.shared를 호출하여 초기화 유도
-        RemoteLogger.shared.info("SoundManager 초기화 완료", category: "AppLifecycle")
+        UnifiedLogger.shared.info("SoundManager 초기화 완료", category: .appLifecycle)
         
         // 제어 센터(remote control) 이벤트 받기 시작 (오디오 세션 설정 이후에 호출되도록)
         application.beginReceivingRemoteControlEvents()
@@ -141,6 +144,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         didDiscardSceneSessions sceneSessions: Set<UISceneSession>
     ) {
         // 필요 시 릴리즈 로직
+    }
+    
+    // MARK: - App Termination
+    func applicationWillTerminate(_ application: UIApplication) {
+        UnifiedLogger.shared.info("앱 종료 시작 - 리소스 정리", category: .appLifecycle)
+        
+        // Core Data 저장
+        saveContext()
+        
+        // 성능 관리 시스템 정리
+        PerformanceSystemBootstrap.shared.shutdownPerformanceSystem()
+        
+        UnifiedLogger.shared.info("앱 종료 완료", category: .appLifecycle)
     }
 
     // MARK: - Core Data stack

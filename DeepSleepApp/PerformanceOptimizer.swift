@@ -2,7 +2,7 @@ import UIKit
 import Foundation
 
 /// 앱 성능 최적화 및 사용자 경험 개선 유틸리티
-final class PerformanceOptimizer {
+final class PerformanceOptimizer: PerformanceOptimizationProtocol {
     static let shared = PerformanceOptimizer()
     
     private init() {}
@@ -56,7 +56,7 @@ final class PerformanceOptimizer {
         batchOperations.removeValue(forKey: identifier)
         batchTimers.removeValue(forKey: identifier)
         
-        DebugManager.shared.logPerformance("배치 작업 실행 완료: \(identifier), 작업 수: \(operations.count)")
+        UnifiedLogger.shared.logPerformance("배치 작업 실행 완료: \(identifier), 작업 수: \(operations.count)")
     }
     
     // MARK: - 메모리 효율적인 이미지 처리
@@ -89,7 +89,7 @@ final class PerformanceOptimizer {
         }
         
         smartCache[key] = (data: data, timestamp: Date(), accessCount: 0)
-        DebugManager.shared.logPerformance("데이터 캐시됨: \(key)")
+        UnifiedLogger.shared.logPerformance("데이터 캐시됨: \(key)")
     }
     
     /// 캐시된 데이터 가져오기
@@ -112,7 +112,7 @@ final class PerformanceOptimizer {
     /// 캐시에서 데이터 제거
     func removeFromCache(key: String) {
         smartCache.removeValue(forKey: key)
-        DebugManager.shared.logPerformance("캐시에서 제거됨: \(key)")
+        UnifiedLogger.shared.logPerformance("캐시에서 제거됨: \(key)")
     }
     
     private func cleanExpiredCache() {
@@ -196,11 +196,11 @@ final class PerformanceOptimizer {
         let duration = Date().timeIntervalSince(startTime)
         performanceMetrics.removeValue(forKey: identifier)
         
-        DebugManager.shared.logPerformance("성능 측정 [\(identifier)]: \(String(format: "%.3f", duration))초")
+        UnifiedLogger.shared.logPerformance("성능 측정 [\(identifier)]: \(String(format: "%.3f", duration))초")
         
         // 성능 경고 (1초 이상 소요 시)
         if duration > 1.0 {
-            DebugManager.shared.warning("성능 경고 [\(identifier)]: \(String(format: "%.3f", duration))초 소요")
+            UnifiedLogger.shared.warning("성능 경고 [\(identifier)]: \(String(format: "%.3f", duration))초 소요")
         }
     }
     
@@ -218,7 +218,7 @@ final class PerformanceOptimizer {
         smartCache.removeAll()
         performanceMetrics.removeAll()
         
-        DebugManager.shared.logPerformance("PerformanceOptimizer 정리 완료")
+        UnifiedLogger.shared.logPerformance("PerformanceOptimizer 정리 완료")
     }
 }
 

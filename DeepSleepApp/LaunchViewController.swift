@@ -192,88 +192,67 @@ class LaunchViewController: UIViewController {
     private func fallbackTransition() {
         guard let window = view.window else { return }
         
-        let tabBarController = UITabBarController()
+        // 🚀 OptimizedTabBarController 사용 (SceneDelegate와 동일)
+        let optimizedTabController = OptimizedTabBarController()
         
         // 1. 메인 사운드 화면 (ViewController)
+        print("🔍 [LaunchViewController] ViewController 생성 시작")
         let mainVC = ViewController()
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
         mainNav.tabBarItem = UITabBarItem(title: "사운드", image: UIImage(systemName: "speaker.wave.2.fill"), tag: 0)
+        print("✅ [LaunchViewController] 사운드 탭 생성 완료")
         
         // 2. 일기 목록 화면 (EmotionDiaryViewController)
+        print("🔍 [LaunchViewController] EmotionDiaryViewController 생성 시작")
         let diaryVC = EmotionDiaryViewController()
         let diaryNav = UINavigationController(rootViewController: diaryVC)
         diaryNav.navigationBar.prefersLargeTitles = true
         diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
+        print("✅ [LaunchViewController] 일기목록 탭 생성 완료")
         
         // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
+        print("🔍 [LaunchViewController] TodaysFortuneViewController 생성 시작")
         let fortuneVC = TodaysFortuneViewController()
         let fortuneNav = UINavigationController(rootViewController: fortuneVC)
         fortuneNav.navigationBar.prefersLargeTitles = true
         fortuneNav.tabBarItem = UITabBarItem(title: "오늘의 운세", image: UIImage(systemName: "sparkles"), tag: 2)
+        print("✅ [LaunchViewController] 오늘의 운세 탭 생성 완료")
         
         // 4. 설정 화면 (SettingsViewController)
+        print("🔍 [LaunchViewController] SettingsViewController 생성 시작")
         let settingsVC = SettingsViewController()
         let settingsNav = UINavigationController(rootViewController: settingsVC)
         settingsNav.navigationBar.prefersLargeTitles = true
         settingsNav.tabBarItem = UITabBarItem(title: "설정", image: UIImage(systemName: "gearshape.fill"), tag: 3)
+        print("✅ [LaunchViewController] 설정 탭 생성 완료")
         
-        // TabBarController에 모든 뷰 컨트롤러들 설정
-        tabBarController.viewControllers = [mainNav, diaryNav, fortuneNav, settingsNav]
-        tabBarController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
+        // 탭바 컨트롤러에 설정하기 전 배열 확인
+        let allTabs = [mainNav, diaryNav, fortuneNav, settingsNav]
+        print("🔍 [LaunchViewController] 생성된 탭 개수: \(allTabs.count)")
+        for (index, tab) in allTabs.enumerated() {
+            print("   탭 \(index): \(tab.tabBarItem?.title ?? "제목 없음")")
+        }
         
-        // 스와이프 제스처로 탭 전환 설정
-        setupTabBarSwipeGestures(for: tabBarController)
+        // OptimizedTabBarController에 모든 뷰 컨트롤러들 설정
+        optimizedTabController.viewControllers = allTabs
+        optimizedTabController.selectedIndex = 0 // 기본으로 첫 번째 탭 선택
+        
+        // 기존 스와이프 제스처는 OptimizedTabBarController가 내장 처리하므로 제거
+        // setupTabBarSwipeGestures(for: optimizedTabController)
         
         UIView.transition(
             with: window,
             duration: 0.7,
             options: .transitionCrossDissolve,
             animations: {
-                window.rootViewController = tabBarController
+                window.rootViewController = optimizedTabController
             }
         )
+        
+        print("✅ [LaunchViewController] OptimizedTabBarController로 폴백 전환 완료")
     }
     
-    // MARK: - TabBar Swipe Gestures
-    
-    private func setupTabBarSwipeGestures(for tabBarController: UITabBarController) {
-        // 왼쪽 스와이프 - 다음 탭으로
-        let leftSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleTabSwipe(_:)))
-        leftSwipeGesture.direction = .left
-        tabBarController.view.addGestureRecognizer(leftSwipeGesture)
-        
-        // 오른쪽 스와이프 - 이전 탭으로
-        let rightSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(handleTabSwipe(_:)))
-        rightSwipeGesture.direction = .right
-        tabBarController.view.addGestureRecognizer(rightSwipeGesture)
-    }
-    
-    @objc private func handleTabSwipe(_ gesture: UISwipeGestureRecognizer) {
-        guard let window = view.window,
-              let tabBarController = window.rootViewController as? UITabBarController else { return }
-        
-        let currentIndex = tabBarController.selectedIndex
-        let totalTabs = tabBarController.viewControllers?.count ?? 0
-        
-        var newIndex: Int
-        
-        switch gesture.direction {
-        case .left:
-            // 왼쪽 스와이프 - 다음 탭으로
-            newIndex = (currentIndex + 1) % totalTabs
-        case .right:
-            // 오른쪽 스와이프 - 이전 탭으로
-            newIndex = (currentIndex - 1 + totalTabs) % totalTabs
-        default:
-            return
-        }
-        
-        // 햅틱 피드백
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
-        
-        // 탭 전환
-        tabBarController.selectedIndex = newIndex
-    }
+    // MARK: - 🧹 레거시 스와이프 제스처 제거됨
+    // OptimizedTabBarController가 모든 스와이프 기능을 내장 처리하므로 더 이상 필요 없음
 }

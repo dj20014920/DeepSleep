@@ -101,7 +101,7 @@ class APIConnectionValidator {
     private func testClaudeConnection(apiKey: String) async -> ConnectionStatus {
         let startTime = Date()
         
-        ConsoleLogger.shared.logAPIStart("Claude")
+        UnifiedLogger.shared.logAPIStart("Claude")
         
         var request = URLRequest(url: URL(string: APIEndpoints.claude)!)
         request.httpMethod = "POST"
@@ -128,9 +128,9 @@ class APIConnectionValidator {
                 let isSuccess = httpResponse.statusCode == 200
                 
                 if isSuccess {
-                    ConsoleLogger.shared.logAPISuccess("Claude", responseTime: responseTime)
+                    UnifiedLogger.shared.logAPISuccess("Claude", responseTime: responseTime)
                 } else {
-                    ConsoleLogger.shared.logAPIFailure("Claude", error: "HTTP \(httpResponse.statusCode)")
+                    UnifiedLogger.shared.logAPIFailure("Claude", error: "HTTP \(httpResponse.statusCode)")
                 }
                 
                 return ConnectionStatus(
@@ -144,7 +144,7 @@ class APIConnectionValidator {
             }
         } catch {
             let responseTime = Date().timeIntervalSince(startTime)
-            ConsoleLogger.shared.logAPIFailure("Claude", error: error.localizedDescription)
+            UnifiedLogger.shared.logAPIFailure("Claude", error: error.localizedDescription)
             
             return ConnectionStatus(
                 apiType: .claude,
@@ -170,7 +170,7 @@ class APIConnectionValidator {
     private func testOpenAIConnection(apiKey: String) async -> ConnectionStatus {
         let startTime = Date()
         
-        ConsoleLogger.shared.logAPIStart("OpenAI")
+        UnifiedLogger.shared.logAPIStart("OpenAI")
         
         var request = URLRequest(url: URL(string: APIEndpoints.openai)!)
         request.httpMethod = "POST"
@@ -230,7 +230,7 @@ class APIConnectionValidator {
     private func testGeminiConnection(apiKey: String) async -> ConnectionStatus {
         let startTime = Date()
         
-        ConsoleLogger.shared.logAPIStart("Gemini")
+        UnifiedLogger.shared.logAPIStart("Gemini")
         
         // Gemini는 GET 요청으로 모델 목록을 가져와서 연결 확인
         let urlString = "\(APIEndpoints.gemini)?key=\(apiKey)"
@@ -305,7 +305,7 @@ class APIConnectionValidator {
         let icon = getAPIIcon(status.apiType)
         print("\(icon) [\(status.apiType.displayName)] \(status.statusEmoji) \(status.isConnected ? "연결 성공" : "연결 실패")")
         
-        if let responseTime = status.responseTime {
+        if status.responseTime != nil {
             print("   ⏱️  응답 시간: \(status.responseTimeString)")
         }
         

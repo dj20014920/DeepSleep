@@ -193,7 +193,7 @@ class PersonaMemoryManager: ObservableObject {
             
             // 보안 저장소에 저장 (민감 데이터 암호화)
             let memoryKey = "episodic_\(episodicEntry.id.uuidString)"
-            try await secureStorage.saveSecureData(episodicEntry, forKey: memoryKey, requireBiometric: false)
+            try await secureStorage.saveSecureData(episodicEntry, forKey: memoryKey)
             
             await MainActor.run {
                 episodicMemoryCount += 1
@@ -336,7 +336,7 @@ class PersonaMemoryManager: ObservableObject {
             
             // 보안 저장소에 저장
             let knowledgeKey = "semantic_\(semanticEntry.id.uuidString)"
-            try await secureStorage.saveSecureData(semanticEntry, forKey: knowledgeKey, requireBiometric: false)
+            try await secureStorage.saveSecureData(semanticEntry, forKey: knowledgeKey)
             
             await MainActor.run {
                 semanticMemoryCount += 1
@@ -466,7 +466,7 @@ class PersonaMemoryManager: ObservableObject {
             
             // 보안 저장소에 저장 (외부 AI 기반)
             let proceduralKey = "procedural_\(proceduralEntry.id.uuidString)"
-            try await secureStorage.saveSecureData(proceduralEntry, forKey: proceduralKey, requireBiometric: false)
+            try await secureStorage.saveSecureData(proceduralEntry, forKey: proceduralKey)
             
             await MainActor.run {
                 proceduralMemoryCount += 1
@@ -703,7 +703,7 @@ class PersonaMemoryManager: ObservableObject {
             4. 장기 보존 가치 평가
             """
             
-            let aiAnalysis = try await chatManager.sendMessage(
+            let _ = try await chatManager.sendMessage(
                 userInput: consolidationPrompt,
                 modeString: "general_conversation",
                 modelString: "claude"
@@ -1269,7 +1269,7 @@ class AIMemoryConsolidationEngine {
             점수 범위: 0.0-1.0 (1.0이 최고)
             """
             
-            let aiResponse = try await chatManager.sendMessage(
+            let _ = try await chatManager.sendMessage(
                 userInput: consolidationPrompt,
                 modeString: "emotion_analysis",
                 modelString: "gpt4"

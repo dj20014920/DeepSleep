@@ -20,8 +20,7 @@ class ModelCharacteristicsViewController: UIViewController {
             personality: "차분하고 사려깊은 성격",
             specialties: ["깊이 있는 대화", "감정 분석", "창의적 문제해결", "윤리적 조언"],
             strengths: "복잡한 감정을 세심하게 이해하고, 장문의 일기도 꼼꼼히 분석해요",
-            bestFor: "진지한 고민 상담, 감정 정리, 인생 조언",
-            tone: "\"당신의 마음을 깊이 이해하려 노력할게요. 천천히 이야기해보세요.\""
+            bestFor: "진지한 고민 상담, 감정 정리, 인생 조언"
         ),
         AIModelInfo(
             name: "⚡ 지피티",
@@ -29,8 +28,7 @@ class ModelCharacteristicsViewController: UIViewController {
             personality: "밝고 적극적인 성격",
             specialties: ["빠른 분석", "실용적 조언", "목표 설정", "동기부여"],
             strengths: "신속하고 명확한 답변으로 즉시 도움을 드려요",
-            bestFor: "빠른 상담, 일상 조언, 스트레스 해소",
-            tone: "\"어떤 일이든 함께 해결해봐요! 지금 바로 시작하는 게 어때요?\""
+            bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
         ),
         AIModelInfo(
             name: "💎 제미니",
@@ -38,8 +36,7 @@ class ModelCharacteristicsViewController: UIViewController {
             personality: "자유롭고 창의적인 성격",
             specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],
             strengths: "독특하고 창의적인 시각으로 새로운 해결책을 제시해요",
-            bestFor: "창의적 고민, 예술적 영감, 색다른 관점",
-            tone: "\"상상해봐요! 전혀 다른 방식으로 접근해보는 건 어떨까요?\""
+            bestFor: "창의적 고민, 예술적 영감, 색다른 관점"
         ),
         AIModelInfo(
             name: "🇰🇷 하이퍼클로바",
@@ -47,8 +44,7 @@ class ModelCharacteristicsViewController: UIViewController {
             personality: "정겨우면서도 현실적인 성격",
             specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
             strengths: "한국인의 정서와 문화를 깊이 이해하며 현실적인 조언을 드려요",
-            bestFor: "한국적 고민, 사회생활 조언, 인간관계 상담",
-            tone: "\"그런 마음 충분히 이해해요. 우리나라 사람들이 흔히 겪는 일이죠.\""
+            bestFor: "한국적 고민, 사회생활 조언, 인간관계 상담"
         )
     ]
     
@@ -184,17 +180,13 @@ class ModelCharacteristicsViewController: UIViewController {
         
         // 추천 상황
         let bestForLabel = createInfoLabel(title: "이럴 때 추천", content: model.bestFor)
-        
-        // 말투 예시
-        let toneLabel = createInfoLabel(title: "말투 예시", content: model.tone, isQuote: true)
-        
+                
         cardStackView.addArrangedSubview(nameLabel)
         cardStackView.addArrangedSubview(subtitleLabel)
         cardStackView.addArrangedSubview(personalityLabel)
         cardStackView.addArrangedSubview(specialtiesLabel)
         cardStackView.addArrangedSubview(strengthsLabel)
         cardStackView.addArrangedSubview(bestForLabel)
-        cardStackView.addArrangedSubview(toneLabel)
         
         cardView.addSubview(cardStackView)
         
@@ -287,7 +279,6 @@ private struct AIModelInfo {
     let specialties: [String]
     let strengths: String
     let bestFor: String
-    let tone: String
 }
 
 // MARK: - UILabel Extension for Padding

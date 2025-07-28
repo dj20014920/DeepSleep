@@ -54,5 +54,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>CLAUDE_API_KEY</key>
+	<string>$(CLAUDE_API_KEY)</string>
+	<key>GEMINI_API_KEY</key>
+	<string>$(GEMINI_API_KEY)</string>
+	<key>OPEN_AI_4oMINI_API_KEY</key>
+	<string>$(OPEN_AI_4oMINI_API_KEY)</string>
+	<key>NAVER_CLOUD_API_KEY</key>
+	<string>$(NAVER_CLOUD_API_KEY)</string>
+	<key>NAVER_CLOUD_API_SECRET</key>
+	<string>$(NAVER_CLOUD_API_SECRET)</string>
 </dict>
 </plist>

@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */; };
+		E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */; };
+		E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */; };
+		E01798122E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */; };
+		E01798142E35FF71002F178C /* UnifiedLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798132E35FF71002F178C /* UnifiedLogger.swift */; };
+		E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */; };
+		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
+		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
 		E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */; };
 		E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */; };
@@ -172,8 +180,14 @@
 
 /* Begin PBXFileReference section */
 		A000 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E084F0422E33ACB3002F75E6 /* SoundPresetCatalog-dependency-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "SoundPresetCatalog-dependency-analysis.md"; sourceTree = "<group>"; };
-		E084F0432E33ACB3002F75E6 /* SoundPresetCatalog-refactoring-guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "SoundPresetCatalog-refactoring-guide.md"; sourceTree = "<group>"; };
+		E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PERFORMANCE_SYSTEM_GUIDE.md; sourceTree = "<group>"; };
+		E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceManagementProtocols.swift; sourceTree = "<group>"; };
+		E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceSystemBootstrap.swift; sourceTree = "<group>"; };
+		E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedPerformanceManager.swift; sourceTree = "<group>"; };
+		E01798132E35FF71002F178C /* UnifiedLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedLogger.swift; sourceTree = "<group>"; };
+		E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSelectionViewController.swift; sourceTree = "<group>"; };
+		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
+		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
@@ -225,7 +239,6 @@
 		E084F0892E33ACB3002F75E6 /* AIModelSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSettingsView.swift; sourceTree = "<group>"; };
 		E084F08A2E33ACB3002F75E6 /* PersonaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaSettingsView.swift; sourceTree = "<group>"; };
 		E084F08C2E33ACB3002F75E6 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		E084F08D2E33ACB3002F75E6 /* 참조오류수정계획.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "참조오류수정계획.md"; sourceTree = "<group>"; };
 		E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditTodoViewController.swift; sourceTree = "<group>"; };
 		E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedPresetCatalog.swift; sourceTree = "<group>"; };
 		E084F0902E33ACB3002F75E6 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
@@ -427,6 +440,8 @@
 		E084F1732E33ACB3002F75E6 /* PerformanceTests.swift.disabled */ = {isa = PBXFileReference; lastKnownFileType = text; path = PerformanceTests.swift.disabled; sourceTree = "<group>"; };
 		E084F1742E33ACB3002F75E6 /* Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Tests-Info.plist"; sourceTree = "<group>"; };
 		E084F1782E33ACB3002F75E6 /* DeepSleep.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = DeepSleep.xcdatamodel; sourceTree = "<group>"; };
+		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
+		E084F2DE2E33F3F6002F75E6 /* DEEPSLEEP_FIRES_TREE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_FIRES_TREE.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -445,7 +460,8 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
-				E084F0442E33ACB3002F75E6 /* analysis */,
+				E084F2DE2E33F3F6002F75E6 /* DEEPSLEEP_FIRES_TREE.md */,
+				E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */,
 				E084F04B2E33ACB3002F75E6 /* DeepSleep.xcdatamodeld */,
 				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
@@ -472,13 +488,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		E084F0442E33ACB3002F75E6 /* analysis */ = {
+		E017980E2E35FF51002F178C /* Performance */ = {
 			isa = PBXGroup;
 			children = (
-				E084F0422E33ACB3002F75E6 /* SoundPresetCatalog-dependency-analysis.md */,
-				E084F0432E33ACB3002F75E6 /* SoundPresetCatalog-refactoring-guide.md */,
+				E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */,
+				E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */,
+				E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */,
+				E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */,
 			);
-			path = analysis;
+			path = Performance;
 			sourceTree = "<group>";
 		};
 		E084F04F2E33ACB3002F75E6 /* ErrorHandler */ = {
@@ -620,6 +638,11 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E017981E2E3765ED002F178C /* SimpleTabBarController.swift */,
+				E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */,
+				E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */,
+				E01798132E35FF71002F178C /* UnifiedLogger.swift */,
+				E017980E2E35FF51002F178C /* Performance */,
 				E084F05C2E33ACB3002F75E6 /* AI */,
 				E084F0602E33ACB3002F75E6 /* Chat */,
 				E084F0642E33ACB3002F75E6 /* Managers */,
@@ -630,7 +653,6 @@
 				E084F0882E33ACB3002F75E6 /* UI */,
 				E084F08B2E33ACB3002F75E6 /* Views */,
 				E084F08C2E33ACB3002F75E6 /* .gitignore */,
-				E084F08D2E33ACB3002F75E6 /* 참조오류수정계획.md */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
 				E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */,
 				E084F0902E33ACB3002F75E6 /* AIContextManager.swift */,
@@ -1002,6 +1024,7 @@
 				E084F2A12E33AE9B002F75E6 /* 바람2.mp3 in Resources */,
 				E084F2A22E33AE9B002F75E6 /* 발걸음-눈.mp3 in Resources */,
 				E084F2A32E33AE9B002F75E6 /* 발걸음-눈2.mp3 in Resources */,
+				E01798122E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md in Resources */,
 				E084F2A42E33AE9B002F75E6 /* 밤.mp3 in Resources */,
 				E084F2A52E33AE9B002F75E6 /* 밤2.mp3 in Resources */,
 				E084F2A62E33AE9B002F75E6 /* 불1.mp3 in Resources */,
@@ -1068,7 +1091,9 @@
 				E084F1992E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift in Sources */,
 				E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */,
 				E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */,
+				E01798142E35FF71002F178C /* UnifiedLogger.swift in Sources */,
 				E084F19C2E33ACB3002F75E6 /* AIUsageManager.swift in Sources */,
+				E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */,
 				E084F19D2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift in Sources */,
 				E084F19E2E33ACB3002F75E6 /* SettingsViewController.swift in Sources */,
 				E084F19F2E33ACB3002F75E6 /* LegacyPresetManager.swift in Sources */,
@@ -1102,6 +1127,7 @@
 				E084F1BC2E33ACB3002F75E6 /* PerformanceOptimizer.swift in Sources */,
 				E084F1BD2E33ACB3002F75E6 /* PersonaMemoryModel.swift in Sources */,
 				E084F1BE2E33ACB3002F75E6 /* AddEditTodoViewController.swift in Sources */,
+				E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */,
 				E084F1BF2E33ACB3002F75E6 /* MessageStore.swift in Sources */,
 				E084F1C02E33ACB3002F75E6 /* forceSyncMainViewControllerPreset.swift in Sources */,
 				E084F1C12E33ACB3002F75E6 /* ViewController+Utilities.swift in Sources */,
@@ -1130,6 +1156,7 @@
 				E084F1DC2E33ACB3002F75E6 /* AnalysisInitExtensions.swift in Sources */,
 				E084F1DE2E33ACB3002F75E6 /* TodoCalendarViewController.swift in Sources */,
 				E084F1DF2E33ACB3002F75E6 /* EmotionAnalysisModels.swift in Sources */,
+				E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */,
 				E084F1E02E33ACB3002F75E6 /* SoundCatalogManager.swift in Sources */,
 				E084F1E12E33ACB3002F75E6 /* EmotionAnalysisViewModelProtocol.swift in Sources */,
 				E084F1E22E33ACB3002F75E6 /* UsageLimitManager.swift in Sources */,
@@ -1162,6 +1189,9 @@
 				E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */,
 				E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */,
 				E084F2002E33ACB3002F75E6 /* ConsoleLogger.swift in Sources */,
+				E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */,
+				E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */,
+				E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */,
 				E084F2012E33ACB3002F75E6 /* EmotionAnalysisChatViewController.swift in Sources */,
 				E084F2022E33ACB3002F75E6 /* PresetSharingManager.swift in Sources */,
 				E084F2032E33ACB3002F75E6 /* EditDiaryViewController.swift in Sources */,

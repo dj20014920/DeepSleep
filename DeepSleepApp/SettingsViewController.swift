@@ -256,50 +256,19 @@ class SettingsViewController: UIViewController {
 extension SettingsViewController {
     
     private func showAIModelSelection() {
-        // ✅ AI 모델 선택 기능 활성화 - SwiftUI 뷰 사용
-        // AIModelSettingsView는 Views 폴더에 있으므로 직접 생성하지 않고
-        // 임시로 간단한 선택 화면을 만들어 사용
-        
-        let alert = UIAlertController(
-            title: "🌳 대나무숲 친구 선택",
-            message: "대화할 AI 친구를 선택하세요",
-            preferredStyle: .actionSheet
-        )
-        
-        // 각 AI 모델에 대한 액션 추가
-        for model in AIModelType.allCases {
-            let action = UIAlertAction(
-                title: "\(model.icon) \(model.displayName) - \(model.description)",
-                style: .default
-            ) { [weak self] _ in
-                self?.selectedAIModel = model
-                SettingsManager.shared.selectedLLM = model
-                self?.updateAIModelDisplay()
-            }
-            
-            // 현재 선택된 모델 표시
-            if model == selectedAIModel {
-                action.setValue(true, forKey: "checked")
-            }
-            
-            alert.addAction(action)
+        // ✅ 대나무숲 친구 선택 화면을 별도 뷰컨트롤러로 표시
+        let modelSelectionVC = AIModelSelectionViewController()
+        modelSelectionVC.currentSelectedModel = selectedAIModel
+        modelSelectionVC.onModelSelected = { [weak self] selectedModel in
+            self?.selectedAIModel = selectedModel
+            SettingsManager.shared.selectedLLM = selectedModel
+            self?.updateAIModelDisplay()
         }
         
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        
-        // iPad를 위한 popover 설정
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        
-        present(alert, animated: true)
+        let navController = UINavigationController(rootViewController: modelSelectionVC)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
     }
-    
-    // ModelCharacteristicsViewController는 사용되지 않음 - 제거됨
-    // AI 모델 특성은 AIModelSettingsView에서 각 모델 카드에 표시됨
-    
     private func showUserBasicInfo() {
         let basicInfoVC = UserBasicInfoViewController()
         basicInfoVC.userInfo = userInfo

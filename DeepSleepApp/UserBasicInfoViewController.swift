@@ -25,7 +25,7 @@ class UserBasicInfoViewController: UIViewController {
     
     private let headerView: UIView = {
         let view = UIView()
-        view.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
+        view.backgroundColor = UIDesignSystem.Colors.accentLight
         view.layer.cornerRadius = 16
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
@@ -88,10 +88,10 @@ class UserBasicInfoViewController: UIViewController {
     private let personalityTextView: UITextView = {
         let textView = UITextView()
         textView.font = UIFont.systemFont(ofSize: 16)
-        textView.backgroundColor = UIColor.systemGray6
+        textView.backgroundColor = UIDesignSystem.Colors.tagBackground
         textView.layer.cornerRadius = 12
         textView.layer.borderWidth = 1
-        textView.layer.borderColor = UIColor.systemGray4.cgColor
+        textView.layer.borderColor = UIDesignSystem.Colors.border.cgColor
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         textView.translatesAutoresizingMaskIntoConstraints = false
         return textView
@@ -105,7 +105,7 @@ class UserBasicInfoViewController: UIViewController {
         성격은 내향적이고 완벽주의 성향이 있어서 작은 일에도 고민을 많이 하는 편입니다. 대나무숲 친구와 대화할 때는 친구처럼 편안하고 따뜻하게 대해주시면 좋겠어요.
         """
         label.font = UIFont.systemFont(ofSize: 15)
-        label.textColor = UIColor.systemGray3
+        label.textColor = UIDesignSystem.Colors.tertiaryText
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -385,10 +385,10 @@ class UserBasicInfoViewController: UIViewController {
         button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
         button.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         button.setTitleColor(.white, for: .selected)
-        button.backgroundColor = UIColor.systemGray6
+        button.backgroundColor = UIDesignSystem.Colors.tagBackground
         button.layer.cornerRadius = 8
         button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor.systemGray4.cgColor
+        button.layer.borderColor = UIDesignSystem.Colors.border.cgColor
         button.addTarget(self, action: #selector(quickOptionButtonTapped(_:)), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.heightAnchor.constraint(equalToConstant: 32).isActive = true
@@ -429,8 +429,8 @@ class UserBasicInfoViewController: UIViewController {
             sender.backgroundColor = UIDesignSystem.Colors.primary
             sender.layer.borderColor = UIDesignSystem.Colors.primary.cgColor
         } else {
-            sender.backgroundColor = UIColor.systemGray6
-            sender.layer.borderColor = UIColor.systemGray4.cgColor
+            sender.backgroundColor = UIDesignSystem.Colors.tagBackground
+            sender.layer.borderColor = UIDesignSystem.Colors.border.cgColor
         }
         
         updateUserInfoFromSelections()
@@ -458,12 +458,24 @@ class UserBasicInfoViewController: UIViewController {
         let keyboardHeight = keyboardFrame.cgRectValue.height
         
         scrollView.contentInset.bottom = keyboardHeight
-        scrollView.scrollIndicatorInsets.bottom = keyboardHeight
+        
+        if #available(iOS 13.0, *) {
+            scrollView.verticalScrollIndicatorInsets.bottom = keyboardHeight
+            scrollView.horizontalScrollIndicatorInsets.bottom = keyboardHeight
+        } else {
+            scrollView.scrollIndicatorInsets.bottom = keyboardHeight
+        }
     }
     
     @objc private func keyboardWillHide(_ notification: Notification) {
         scrollView.contentInset.bottom = 0
-        scrollView.scrollIndicatorInsets.bottom = 0
+        
+        if #available(iOS 13.0, *) {
+            scrollView.verticalScrollIndicatorInsets.bottom = 0
+            scrollView.horizontalScrollIndicatorInsets.bottom = 0
+        } else {
+            scrollView.scrollIndicatorInsets.bottom = 0
+        }
     }
     
     @objc private func dismissKeyboard() {
