@@ -381,6 +381,7 @@ test_build.sh
 !docs/*.md
 !scripts/pipeline/README.md
 !scripts/pipeline/REORGANIZATION_SUMMARY.md
+!DEEPSLEEP_COMPREHENSIVE_GUIDE.md
 
 # Keep essential scripts
 !*.sh
