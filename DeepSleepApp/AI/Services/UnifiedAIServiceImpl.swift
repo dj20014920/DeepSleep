@@ -53,14 +53,29 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             keyName = "OPENROUTER_API_KEY"
         }
         
-        guard let apiKey = Bundle.main.object(forInfoDictionaryKey: keyName) as? String,
-              !apiKey.isEmpty,
-              apiKey != "$(PLACEHOLDER)" else {
-            print("⚠️ [UnifiedAIService] \(model.rawValue) API 키를 찾을 수 없습니다.")
+        print("🔍 [UnifiedAIService] API 키 조회 시도: \(keyName)")
+        
+        let rawValue = Bundle.main.object(forInfoDictionaryKey: keyName)
+        print("🔍 [UnifiedAIService] Bundle에서 가져온 원시값: \(String(describing: rawValue))")
+        
+        guard let apiKey = rawValue as? String else {
+            print("❌ [UnifiedAIService] \(keyName): String 타입 변환 실패")
             return nil
         }
         
+        print("🔍 [UnifiedAIService] 변환된 문자열: '\(apiKey)'")
         
+        guard !apiKey.isEmpty else {
+            print("❌ [UnifiedAIService] \(keyName): 빈 문자열")
+            return nil
+        }
+        
+        guard !apiKey.hasPrefix("$(") else {
+            print("❌ [UnifiedAIService] \(keyName): 변수 치환 안됨 - '\(apiKey)'")
+            return nil
+        }
+        
+        print("✅ [UnifiedAIService] \(keyName): 유효한 API 키 발견 (길이: \(apiKey.count))")
         return apiKey
     }
     
@@ -94,9 +109,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         
         // OpenRouter 무료 모델 서비스 초기화 (API 키 검증)
-        if let _ = getAPIKey(for: .freeModel) {
+        if let openRouterKey = getAPIKey(for: .freeModel) {
             freeModelService = OpenRouterFallbackManager.shared
-            print("✅ [UnifiedAIService] OpenRouter 무료 모델 서비스 초기화 완료")
+            print("✅ [UnifiedAIService] OpenRouter 무료 모델 서비스 초기화 완료 - API 키: \(openRouterKey.prefix(10))...")
+        } else {
+            print("❌ [UnifiedAIService] OpenRouter API 키를 찾을 수 없습니다.")
         }
     }
     
@@ -247,7 +264,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .freeModel:
             // 통합된 무료 모델은 OpenRouter 순차 폴백을 통해 처리
+            print("🔍 [UnifiedAIService] freeModel 호출 시도")
+            print("🔍 [UnifiedAIService] freeModelService 상태: \(freeModelService != nil ? "초기화됨" : "nil")")
+            
             guard let freeService = freeModelService else {
+                print("❌ [UnifiedAIService] freeModelService가 nil입니다!")
                 throw AIServiceError.modelUnavailable(model: model)
             }
             let response = try await freeService.sendMessageWithFallback(
@@ -352,20 +373,30 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     
     /// 사용자 선택과 가용성을 고려한 모델 선택
     private func getSelectedModel(preferredModel: AIModel) -> AIModel {
+        print("🔍 [UnifiedAIService] 모델 선택 시작 - 선호 모델: \(preferredModel.rawValue)")
+        print("🔍 [UnifiedAIService] 사용 가능한 모델들: \(availableModels.map { $0.rawValue })")
+        print("🔍 [UnifiedAIService] Fallback 순서: \(fallbackOrder.map { $0.rawValue })")
+        
         // 1. 선호 모델이 사용 가능한지 확인 (최우선)
         if availableModels.contains(preferredModel) {
+            print("✅ [UnifiedAIService] 선호 모델 사용 가능: \(preferredModel.rawValue)")
             return preferredModel
         }
+        
+        print("⚠️ [UnifiedAIService] 선호 모델 사용 불가, fallback 시도")
         
         // 2. fallback 순서대로 사용 가능한 모델 반환
         for model in fallbackOrder {
             if availableModels.contains(model) {
+                print("✅ [UnifiedAIService] Fallback 모델 선택: \(model.rawValue)")
                 return model
             }
         }
         
         // 3. 마지막 수단: 첫 번째 사용 가능한 모델 반환
-        return availableModels.first ?? .freeModel
+        let finalModel = availableModels.first ?? .freeModel
+        print("🚨 [UnifiedAIService] 최후 수단 모델 선택: \(finalModel.rawValue)")
+        return finalModel
     }
     
     /// LLMServiceType을 AIModel로 변환

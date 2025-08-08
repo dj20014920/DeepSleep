@@ -1,7 +1,9 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
 ..*
+CLAUDE.md
 .specstory
+build_test
 *.xcconfig
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gemini.xcconfig
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gpt.xcconfig
