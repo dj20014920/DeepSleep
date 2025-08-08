@@ -28,7 +28,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private var naverService: NaverAPIService?
     
     // 무료 모델 서비스 (OpenRouter)
-    private let freeModelService = OpenRouterFallbackManager.shared
+    private var freeModelService: OpenRouterFallbackManager?
     
     private init() {
         initializeServices()
@@ -50,8 +50,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         case .naver:
             keyName = "NAVER_CLOUD_API_KEY"
         case .freeModel:
-            // OpenRouter 통합 무료 모델은 별도 매니저에서 처리. API 키는 다른 키를 사용하므로 여기서는 nil 반환.
-            return nil
+            keyName = "OPENROUTER_API_KEY"
         }
         
         guard let apiKey = Bundle.main.object(forInfoDictionaryKey: keyName) as? String,
@@ -93,6 +92,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             naverService = NaverAPIService(apiKey: naverKey)
             print("✅ [UnifiedAIService] Naver API 서비스 초기화 완료")
         }
+        
+        // OpenRouter 무료 모델 서비스 초기화 (API 키 검증)
+        if let _ = getAPIKey(for: .freeModel) {
+            freeModelService = OpenRouterFallbackManager.shared
+            print("✅ [UnifiedAIService] OpenRouter 무료 모델 서비스 초기화 완료")
+        }
     }
     
     // MARK: - 📊 사용 가능한 모델 확인
@@ -105,9 +110,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if openAIService != nil { models.append(.openAI) }
         if geminiService != nil { models.append(.gemini) }
         if naverService != nil { models.append(.naver) }
-        
-        // 통합된 무료 모델 (OpenRouter 폴백 시스템)
-        models.append(.freeModel)
+        if freeModelService != nil { models.append(.freeModel) }
         
         return models
     }
@@ -244,7 +247,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .freeModel:
             // 통합된 무료 모델은 OpenRouter 순차 폴백을 통해 처리
-            let response = try await freeModelService.sendMessageWithFallback(
+            guard let freeService = freeModelService else {
+                throw AIServiceError.modelUnavailable(model: model)
+            }
+            let response = try await freeService.sendMessageWithFallback(
                 content: "\(systemPrompt)\n\n사용자: \(content)",
                 mode: mode
             )
