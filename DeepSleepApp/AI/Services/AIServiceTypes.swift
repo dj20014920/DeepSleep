@@ -499,3 +499,55 @@ public enum LLMServiceType: String, CaseIterable, Codable {
     case naver = "naver"
     case onDevice = "on_device"
 }
+
+// MARK: - 📋 채팅 모드
+
+/// 채팅 모드 타입 정의  
+/// String 대신 사용하여 타입 안정성 보장
+public enum ChatMode: String, CaseIterable, Codable {
+    // MARK: - 주요 기능별 컨텍스트
+    case generalConversation = "일반대화"
+    case emotionDiaryAnalysis = "일기분석"
+    case emotionDiaryAnalysisAlt = "감정일기분석"  // 대체 이름
+    case emotionAnalysis = "감정분석"
+    case taskAdvice = "할일조언"
+    case presetRecommendation = "프리셋추천"
+    case soundRecommendation = "사운드추천"  // 프리셋추천의 대체 이름
+    case monthlyPatternAnalysis = "월간패턴분석"
+    case monthlyStatistics = "월간통계"  // 월간패턴분석의 대체 이름
+    case fortuneTelling = "운세"
+    case feedbackAnalysis = "피드백분석"
+    
+    // MARK: - 표시 이름
+    public var displayName: String {
+        return self.rawValue
+    }
+    
+    // MARK: - AIMode 매핑
+    public var aiMode: AIMode {
+        switch self {
+        case .generalConversation:
+            return .generalConversation
+        case .emotionDiaryAnalysis, .emotionDiaryAnalysisAlt:
+            return .emotionDiaryAnalysis
+        case .emotionAnalysis:
+            return .emotionAnalysis
+        case .taskAdvice:
+            return .taskAdvice
+        case .presetRecommendation, .soundRecommendation:
+            return .presetRecommendation
+        case .monthlyPatternAnalysis, .monthlyStatistics:
+            return .monthlyStatistics
+        case .fortuneTelling:
+            return .fortuneTelling
+        case .feedbackAnalysis:
+            return .generalConversation  // 피드백은 일반 대화로 처리
+        }
+    }
+    
+    // MARK: - String으로부터 생성 (하위 호환성)
+    public static func from(_ string: String) -> ChatMode {
+        // 기존 String 값과의 호환성 유지
+        return ChatMode.allCases.first { $0.rawValue == string } ?? .generalConversation
+    }
+}

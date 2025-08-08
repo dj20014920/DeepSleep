@@ -9,7 +9,8 @@ AI/
 ├── Services/               # AI 모델 통합 서비스
 │   ├── AIServiceTypes.swift                  # 공통 타입 및 에러 정의
 │   ├── UnifiedAIService.swift               # 통합 인터페이스 프로토콜
-│   ├── UnifiedAIServiceImpl.swift           # 통합 서비스 구현체
+│   ├── UnifiedAIServiceImpl.swift           # 통합 서비스 구현체 (730라인)
+│   ├── OpenRouterFallbackManager.swift      # 🆕 무료 모델 폴백 시스템 (25개 모델)
 │   ├── ClaudeAPIService.swift               # Claude API 서비스
 │   ├── OpenAIAPIService.swift               # OpenAI API 서비스
 │   ├── GeminiAPIService.swift               # Gemini API 서비스
@@ -23,8 +24,14 @@ AI/
 
 ## 🚀 주요 기능
 
-### 통합 AI 서비스
-- **4개 AI 모델 통합**: Claude, OpenAI GPT-4o Mini, Google Gemini, Naver HyperCLOVA X
+### 통합 AI 서비스 (2025-08-08 최신 업데이트)
+- **5개 AI 모델 통합**: Claude, OpenAI GPT-4o Mini, Google Gemini, Naver HyperCLOVA X, **🆕 통합 무료 모델**
+- **통합 무료 모델 시스템**: 25개 OpenRouter 무료 모델의 순차적 폴백
+  - **Tier 1**: DeepSeek R1, Qwen 2.5 Coder 32B (O3급 성능)
+  - **Tier 2**: Llama 3.3 70B, Mistral Small (고성능 중형)
+  - **Tier 3**: Gemini 2.0 Flash, NVIDIA Nemotron (실험적)
+  - **Tier 4-6**: 중형/경량 백업 모델들 (총 25개)
+- **지능형 순차 폴백**: 한국어 대화 + JSON 파싱 최적화 순서
 - **11가지 AI 모드**: 일반 대화, 감정 분석, 할일 조언, 프리셋 추천 등
 - **자동 Fallback**: 모델 실패 시 가장 저렴한 모델로 자동 전환
 - **보안 통합**: AISecurityManager와 완전 통합
@@ -43,6 +50,19 @@ let response = try await aiService.sendMessage(
     tokenConfig: nil
 )
 print(response.content)
+```
+
+### 🆕 통합 무료 모델 사용
+```swift
+// 25개 무료 모델을 순차적으로 시도
+let response = try await aiService.sendMessage(
+    content: "한국어로 대답해주세요",
+    model: .freeModel,  // 통합된 무료 모델
+    mode: .generalConversation,
+    context: context,
+    tokenConfig: nil
+)
+// DeepSeek R1 → Qwen 2.5 → Llama 3.3 → ... 순서로 자동 시도
 ```
 
 ### 감정 분석
@@ -87,14 +107,22 @@ let response = try await aiService.sendMessage(
 - 프롬프트 인젝션 방지
 - API 키는 Secrets.xcconfig에서 안전하게 관리
 
-## 💰 비용 관리
+## 💰 비용 관리 (2025-08-08 업데이트)
 
-| 모델 | 특징 | 권장 사용 |
-|------|------|-----------|
-| Claude | 고품질, 한국어 우수 | 감정 분석, 깊은 대화 |
-| OpenAI | 빠름, 구조화된 출력 | 할일 조언, 실용적 응답 |
-| Gemini | 다국어, 안전 필터 | 프리셋 추천, 창의적 응답 |
-| Naver | 한국어 특화, 가장 저렴 | 일반 대화, 비용 절감 |
+| 모델 | 특징 | 권장 사용 | 비용 |
+|------|------|-----------|------|
+| **🆕 통합 무료 모델** | **25개 모델 순차 폴백** | **베타 테스트, 대량 사용** | **무료** |
+| Claude Haiku 3.5 | 고품질, 한국어 우수 | 감정 분석, 깊은 대화 | $0.80/$4 |
+| OpenAI GPT-4o Mini | 빠름, 구조화된 출력 | 할일 조언, 실용적 응답 | $0.15/$0.60 |
+| Gemini 2.0 Flash-Lite | 다국어, 안전 필터 | 프리셋 추천, 창의적 응답 | $0.075/$0.30 |
+| Naver HyperCLOVA X | 한국어 특화 | 일반 대화, 한국 정서 | ₩0.25/₩1 |
+
+### 🎯 Fallback 우선순위 (비용 기준)
+1. **통합 무료 모델** (25개 모델 순차 시도)
+2. **Gemini 2.0 Flash-Lite** (가장 저렴한 유료 모델)
+3. **OpenAI GPT-4o Mini** (중간 비용, 안정성)
+4. **Naver HyperCLOVA X** (한국어 특화)
+5. **Claude Haiku 3.5** (최고 품질)
 
 ## 📚 상세 문서
 
@@ -115,6 +143,36 @@ let example = UnifiedAIServiceExample()
 await example.runAllExamples()
 ```
 
+## 🆕 2025-08-08 주요 업데이트
+
+### OpenRouter 무료 모델 통합 시스템
+- **25개 무료 모델**: DeepSeek R1, Qwen 2.5 Coder, Llama 3.3 등
+- **순차적 폴백**: 병렬 호출 → 순차 호출로 변경하여 안정성 향상
+- **지능형 순서**: 한국어 대화 + JSON 파싱 특화 순서로 재배열
+- **완벽한 통합**: testModel → freeModel 통합으로 코드 정리
+
+### 기술적 개선사항
+- **API 키 검증**: OPENROUTER_API_KEY 통합 관리
+- **서비스 초기화**: API 키 있을 때만 freeModelService 활성화
+- **안전한 호출**: guard 문으로 옵셔널 언래핑 처리
+- **빌드 성공**: 모든 컴파일 오류 해결 완료
+
+### 사용법
+```swift
+// Secrets.xcconfig에 추가
+OPENROUTER_API_KEY = sk-or-v1-...
+
+// 코드에서 사용
+let response = try await aiService.sendMessage(
+    content: "한국어로 JSON 형태로 답변해주세요",
+    model: .freeModel,  // 25개 모델 자동 폴백
+    mode: .presetRecommendation,
+    context: context
+)
+```
+
 ---
 
 **💡 팁**: 개발 중에는 `AppConfig.Development.isDebugMode = true`로 설정하여 상세한 디버그 정보를 확인할 수 있습니다.
+
+**🚀 베타 테스트**: 통합 무료 모델을 우선 사용하여 비용 절감과 안정성을 동시에 확보하세요!

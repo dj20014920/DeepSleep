@@ -321,8 +321,24 @@ public class ChatManager {
                 // 베타 테스트 기간: 기본값을 무료 모델로 설정
                 preferredModel = .freeModel
             }
+        } else if aiMode == .generalConversation {
+            // 일반 대화 모드일 때는 사용자 설정 모델 사용
+            let userSelectedType = SettingsManager.shared.selectedLLM
+            // AIModelType을 AIModel로 변환
+            switch userSelectedType {
+            case .claude35:
+                preferredModel = .claude
+            case .gpt4:
+                preferredModel = .openAI
+            case .gemini:
+                preferredModel = .gemini
+            case .naver:
+                preferredModel = .naver
+            case .onDevice, .freeModel, .testModel:
+                preferredModel = .freeModel
+            }
         } else {
-            // 베타 테스트 기간: 모델 미지정시 무료 모델 사용
+            // 특정 모드는 UnifiedAIServiceImpl에서 처리
             preferredModel = .freeModel
         }
         
@@ -330,7 +346,7 @@ public class ChatManager {
         let enhancedUserInput = injectSystemPrompt(for: aiMode, userInput: userInput)
         
         // 📊 AI 호출 시작 로깅
-        let selectedModel = preferredModel ?? .gemini
+        let selectedModel = preferredModel ?? .freeModel
         let callId = AICallLogger.shared.logAICallStart(
             mode: aiMode,
             model: selectedModel,

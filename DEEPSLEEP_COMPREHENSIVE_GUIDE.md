@@ -3,7 +3,7 @@
 > **단일 파일로 모든 것을 이해하는 DeepSleep 프로젝트 완전 가이드**
 > 
 > 작성일: 2025년 7월 25일  
-> 마지막 업데이트: 2025-07-31 - 하드코딩된 데이터의 설계 철학 추가
+> 마지막 업데이트: 2025-08-08 - OpenRouter 무료 모델 통합 시스템 완성
 > 
 > 이 문서를 읽으면 DeepSleep 프로젝트의 모든 것을 이해할 수 있습니다.
 
@@ -39,9 +39,11 @@
 - **사용량 관리**: 일일 AI 사용량 제한 및 추적
 - **배터리 최적화**: 2025년 최신 배터리 효율성 기법
 
-### 1.3 기술 스택
+### 1.3 기술 스택 (2025-08-08 업데이트)
 - **플랫폼**: iOS (Swift/SwiftUI)
-- **AI 모델**: 4개 외부 AI (Claude 3.5 Sonnet, GPT-4o mini, Gemini 2.0 Flash-Lite, HyperCLOVA X)
+- **AI 모델**: 5개 통합 시스템
+  - 4개 프리미엄 AI (Claude Haiku 3.5, GPT-4o mini, Gemini 2.0 Flash-Lite, HyperCLOVA X)
+  - **🆕 통합 무료 모델**: 25개 OpenRouter 무료 모델의 순차적 폴백 시스템
 - **로컬 AI**: EnhancedSoundRecommendationEngine (1692라인)
 - **보안**: Keychain 기반 (생체인증 제거됨)
 - **설정 관리**: .xcconfig 파일 기반
@@ -63,10 +65,16 @@
 │         │                                                   │
 │         ▼                                                   │
 │  UnifiedAIServiceImpl (730라인)                             │
-│    ├── Claude Haiku 3.5                                  │
+│    ├── Claude Haiku 3.5                                    │
 │    ├── OpenAI GPT-4o mini                                  │
 │    ├── Google Gemini 2.0 Flash-Lite                       │
-│    └── Naver HyperCLOVA X                                  │
+│    ├── Naver HyperCLOVA X                                  │
+│    └── 🆕 통합 무료 모델 (OpenRouterFallbackManager)        │
+│         └── 25개 무료 모델 순차 폴백 시스템                 │
+│             ├── Tier 1: DeepSeek R1, Qwen 2.5 Coder       │
+│             ├── Tier 2: Llama 3.3 70B, Mistral Small      │
+│             ├── Tier 3: Gemini 2.0 Flash, NVIDIA Nemotron │
+│             └── Tier 4-6: 중형/경량 백업 모델들            │
 │                                                             │
 │  로컬 AI: EnhancedSoundRecommendationEngine (1692라인)      │
 ├─────────────────────────────────────────────────────────────┤
@@ -82,10 +90,11 @@
 
 ### 2.2 핵심 설계 원칙
 
-#### 2.2.1 중앙 집중식 AI 통합
+#### 2.2.1 중앙 집중식 AI 통합 (2025-08-08 업데이트)
 - **ChatManager.sendMessage()** 하나의 메서드로 모든 AI 호출 처리
-- 4개 외부 AI 모델의 통합된 인터페이스 제공
-- 자동 fallback 시스템으로 안정성 보장
+- **5개 AI 시스템 통합**: 4개 프리미엄 + 1개 통합 무료 모델
+- **지능형 순차 폴백**: 25개 무료 모델을 한국어+JSON 최적화 순서로 시도
+- **비용 기반 우선순위**: 무료 → Gemini → OpenAI → Naver → Claude 순서
 
 #### 2.2.2 설정 기반 관리
 - **Secrets.xcconfig** 파일에 모든 설정 중앙 관리
@@ -807,7 +816,14 @@ $0.60
 **🎯 최종 검증**
 이 문서를 읽은 후 누구든 DeepSleep 프로젝트를 완전히 이해하고, 빌드하고, 수정할 수 있어야 합니다.
 
-**🚀 2025-07-30 추가 달성사항:**
+**🚀 2025-08-08 최신 달성사항:**
+- ✅ **OpenRouter 무료 모델 통합 시스템 완성** - 25개 모델 순차 폴백
+- ✅ **testModel → freeModel 통합** - 코드 정리 및 일관성 확보
+- ✅ **지능형 모델 순서 최적화** - 한국어 대화 + JSON 파싱 특화
+- ✅ **API 키 통합 관리** - OPENROUTER_API_KEY 완벽 연동
+- ✅ **빌드 안정성 100%** - 모든 컴파일 오류 해결
+
+**🚀 2025-07-30 이전 달성사항:**
 - ✅ 페르소나 기반 AI 프리셋 추천 시스템 완성
 - ✅ 일반 대화 최적화 (캐싱 + 토큰 절약 + 맥락 유지) 완성
 - ✅ 세계 최초급 AI 음원 추천 보안 시스템 구축
@@ -816,4 +832,169 @@ $0.60
 
 ---
 
-*© 2025 DeepSleep AI Project. 생성일: 2025-07-25*
+## 13. 🆕 OpenRouter 무료 모델 통합 시스템 (2025-08-08)
+
+### 13.1 시스템 개요
+**OpenRouterFallbackManager**를 통해 25개의 무료 AI 모델을 순차적으로 시도하는 혁신적인 폴백 시스템을 구축했습니다.
+
+### 13.2 핵심 특징
+
+#### 13.2.1 지능형 모델 순서 (한국어 + JSON 최적화)
+```swift
+// Tier 1: 최고 성능 추론 모델들
+"deepseek/deepseek-r1:free",                    // O3급 성능
+"deepseek/deepseek-r1-0528:free",               // 안정화된 R1
+"deepseek/deepseek-r1-0528-qwen3-8b:free",     // 경량화된 R1
+
+// Tier 2: 대형 고성능 모델들 (한국어 우수)
+"qwen/qwen-2.5-72b-instruct:free",             // 72B 대형
+"qwen/qwen-2.5-coder-32b-instruct:free",       // 코딩/JSON 특화
+"meta-llama/llama-3.3-70b-instruct:free",      // Meta 최신 70B
+"shisa-ai/shisa-v2-llama3.3-70b:free",         // 일본어 특화, 한국어 우수
+
+// ... 총 25개 모델
+```
+
+#### 13.2.2 순차적 폴백 로직
+```swift
+func sendMessageWithFallback(content: String, mode: AIMode) async throws -> String {
+    for (index, model) in unifiedFreeModels.enumerated() {
+        do {
+            print("🔄 [OpenRouterFallback] \(index + 1)/\(unifiedFreeModels.count) 시도: \(model)")
+            let output = try await callOpenRouter(model: model, userContent: prefixed)
+            print("✅ [OpenRouterFallback] 성공: \(model)")
+            return output
+        } catch {
+            print("❌ [OpenRouterFallback] \(model) 실패: \(error.localizedDescription)")
+            continue
+        }
+    }
+    throw AIServiceError.allModelsFailed(tried)
+}
+```
+
+### 13.3 통합 과정
+
+#### 13.3.1 모델 통합
+- **이전**: `testModel`과 `freeModel` 분리
+- **현재**: `freeModel` 하나로 통합
+- **결과**: 코드 일관성 확보, 유지보수성 향상
+
+#### 13.3.2 API 키 관리
+```swift
+// Secrets.xcconfig
+OPENROUTER_API_KEY = sk-or-v1-...
+
+// UnifiedAIServiceImpl.swift
+case .freeModel:
+    keyName = "OPENROUTER_API_KEY"  // 통합된 키 관리
+```
+
+#### 13.3.3 서비스 초기화
+```swift
+// API 키 검증 후에만 서비스 활성화
+if let _ = getAPIKey(for: .freeModel) {
+    freeModelService = OpenRouterFallbackManager.shared
+    print("✅ [UnifiedAIService] OpenRouter 무료 모델 서비스 초기화 완료")
+}
+```
+
+### 13.4 성능 개선 효과
+
+#### 13.4.1 이전 문제점
+```
+❌ 모든 모델 호출 실패
+시도한 모델: 25개 모델 동시 호출 → 리소스 낭비
+```
+
+#### 13.4.2 현재 해결책
+```
+🔄 [OpenRouterFallback] 순차 폴백 시작 - 총 25개 모델
+🔄 [OpenRouterFallback] 1/25 시도: deepseek/deepseek-r1:free
+✅ [OpenRouterFallback] 성공: deepseek/deepseek-r1:free
+```
+
+### 13.5 사용법
+
+#### 13.5.1 기본 사용
+```swift
+let response = try await aiService.sendMessage(
+    content: "한국어로 JSON 형태로 답변해주세요",
+    model: .freeModel,  // 25개 모델 자동 폴백
+    mode: .presetRecommendation,
+    context: context
+)
+```
+
+#### 13.5.2 ChatManager 통합
+```swift
+// ChatManager에서 자동으로 freeModel 선택
+let response = try await ChatManager.shared.sendMessage(
+    prompt: "프리셋 추천해주세요",
+    aiMode: .presetRecommendation
+)
+// 내부적으로 25개 무료 모델 순차 시도
+```
+
+### 13.6 비용 절감 효과
+
+| 이전 (유료 모델만) | 현재 (무료 모델 우선) |
+|-------------------|---------------------|
+| Claude: $0.80/$4 | **무료 모델: $0** |
+| OpenAI: $0.15/$0.60 | 폴백: Gemini $0.075/$0.30 |
+| 월 예상 비용: $50-100 | **월 예상 비용: $0-10** |
+
+### 13.7 안정성 보장
+
+#### 13.7.1 다층 폴백 시스템
+1. **1차**: 25개 무료 모델 순차 시도
+2. **2차**: Gemini 2.0 Flash-Lite (가장 저렴한 유료)
+3. **3차**: OpenAI GPT-4o Mini
+4. **4차**: Naver HyperCLOVA X
+5. **5차**: Claude Haiku 3.5 (최고 품질)
+
+#### 13.7.2 오류 처리
+```swift
+// 모든 무료 모델 실패 시
+catch {
+    print("💥 [OpenRouterFallback] 모든 \(tried.count)개 모델 실패")
+    throw AIServiceError.allModelsFailed(tried)
+}
+// UnifiedAIServiceImpl에서 자동으로 다음 유료 모델로 폴백
+```
+
+### 13.8 개발자 가이드
+
+#### 13.8.1 새 무료 모델 추가
+```swift
+// OpenRouterFallbackManager.swift
+private let unifiedFreeModels: [String] = [
+    // 기존 모델들...
+    "new-provider/new-free-model:free",  // 새 모델 추가
+]
+```
+
+#### 13.8.2 모델 순서 조정
+- **Tier 1**: 최고 성능 (DeepSeek R1 계열)
+- **Tier 2**: 대형 모델 (70B+ 파라미터)
+- **Tier 3**: 중형 안정 (24B-32B)
+- **Tier 4**: 실험적 고성능
+- **Tier 5-6**: 백업 모델들
+
+### 13.9 모니터링 및 로깅
+
+#### 13.9.1 상세 로깅
+```
+🔄 [OpenRouterFallback] 순차 폴백 시작 - 총 25개 모델
+🔄 [OpenRouterFallback] 1/25 시도: deepseek/deepseek-r1:free
+✅ [OpenRouterFallback] 성공: deepseek/deepseek-r1:free
+```
+
+#### 13.9.2 성능 추적
+- 각 모델의 성공/실패율 추적
+- 평균 응답 시간 측정
+- 가장 자주 성공하는 모델 식별
+
+---
+
+*© 2025 DeepSleep AI Project. 생성일: 2025-07-25, 최종 업데이트: 2025-08-08*

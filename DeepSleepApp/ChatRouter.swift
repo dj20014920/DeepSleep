@@ -3,8 +3,8 @@ import UIKit
 // MARK: - 🚀 채팅 화면 통합 관리 라우터
 enum ChatRouter {
     
-    /// 채팅 컨텍스트 타입
-    enum ChatContext {
+    /// 채팅 라우팅 컨텍스트 타입 (ChatMode enum과 구분하기 위해 다른 이름 사용)
+    enum RoutingContext {
         case general
         case diaryAnalysis(diary: EmotionDiary)
         case emotionAnalysis(emotion: String)
@@ -14,32 +14,33 @@ enum ChatRouter {
     }
     
     /// 통합된 채팅 화면 생성 (컨텍스트 지원)
-    static func chatViewController(context: ChatContext = .general) -> ChatViewController {
+    static func chatViewController(context: RoutingContext = .general) -> ChatViewController {
         let vc = ChatViewController()
         vc.chatManager = ChatManager.shared
         
-        // 컨텍스트에 따른 초기 설정
+        // 컨텍스트에 따른 초기 설정 (ChatMode enum 사용)
         switch context {
         case .general:
-            vc.chatContext = "일반대화"
+            vc.chatContext = .generalConversation
             
         case .diaryAnalysis(let diary):
-            vc.chatContext = "일기분석"
+            vc.chatContext = .emotionDiaryAnalysis
             vc.initialDiaryData = diary
             
         case .emotionAnalysis(let emotion):
-            vc.chatContext = "감정분석"
+            vc.chatContext = .emotionAnalysis
             vc.initialEmotion = emotion
             
         case .monthlyPattern(let data):
-            vc.chatContext = "월간패턴분석"
+            vc.chatContext = .monthlyPatternAnalysis
             vc.initialPatternData = data
             
         case .feedbackAnalysis:
-            vc.chatContext = "피드백분석"
+            vc.chatContext = .feedbackAnalysis
             
         case .customContext(let title, let initialMessage):
-            vc.chatContext = title
+            // 커스텀 컨텍스트의 경우 title에 따라 적절한 ChatMode enum 매핑
+            vc.chatContext = ChatMode.from(title)
             vc.initialSystemMessage = initialMessage
         }
         

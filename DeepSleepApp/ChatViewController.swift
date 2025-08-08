@@ -48,8 +48,8 @@ struct ClaudeRecommendation {
     let sessionDuration: String
 }
 
-// MARK: - Session Metrics Structures
 
+// MARK: - Session Metrics Structures
 
 
 struct EnhancedSessionMetrics {
@@ -82,7 +82,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     var categorySliders: [UISlider] = []
     
     // MARK: - 🔄 통합 채팅 컨텍스트 프로퍼티
-    var chatContext: String = "일반대화"
+    var chatContext: ChatMode = .generalConversation  // enum 타입으로 변경하여 타입 안정성 향상
     var initialDiaryData: EmotionDiary?
     var initialEmotion: String?
     var initialPatternData: String?
@@ -402,9 +402,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         Task {
             do {
                 // 🚀 ChatManager의 통합 AI 서비스를 통한 메시지 전송
+                // 현재 채팅 컨텍스트에 맞는 AI 모드 자동 결정
+                let aiMode = determineAIModeFromContext()
+                print("🎯 [ChatViewController] 현재 컨텍스트: '\(chatContext.displayName)' → AI 모드: \(aiMode.rawValue)")
+                
                 let responseContent = try await chatManager.sendMessage(
                     userInput: message,
-                    modeString: "general_conversation",
+                    modeString: aiMode.rawValue,
                     modelString: nil
                 )
                 
@@ -419,21 +423,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     /// 현재 채팅 컨텍스트를 기반으로 AI 모드 결정
     private func determineAIModeFromContext() -> AIMode {
-        // 컨텍스트에 따른 AI 모드 결정 로직
-        switch chatContext {
-        case "감정일기분석":
-            return .emotionDiaryAnalysis
-        case "할일조언":
-            return .taskAdvice
-        case "프리셋추천":
-            return .presetRecommendation
-        case "월간통계":
-            return .monthlyStatistics
-        case "운세":
-            return .fortuneTelling
-        default:
-            return .generalConversation
-        }
+        // ChatContext enum의 aiMode 프로퍼티를 직접 사용하여 간단하게 매핑
+        return chatContext.aiMode
     }
     
     /// AI 컨텍스트 생성
@@ -1964,16 +1955,16 @@ extension ChatViewController {
     
     /// 채팅 컨텍스트에 따른 초기 설정
     private func setupChatContext() {
-        UnifiedLogger.shared.debug("채팅 컨텍스트 설정: \(chatContext)", category: .ui)
+        UnifiedLogger.shared.debug("채팅 컨텍스트 설정: \(chatContext.displayName)", category: .ui)
         
         switch chatContext {
-        case "일기분석":
+        case .emotionDiaryAnalysis, .emotionDiaryAnalysisAlt:
             setupDiaryAnalysisContext()
-        case "감정분석":
+        case .emotionAnalysis:
             setupEmotionAnalysisContext()
-        case "월간패턴분석":
+        case .monthlyPatternAnalysis, .monthlyStatistics:
             setupMonthlyPatternContext()
-        case "피드백분석":
+        case .feedbackAnalysis:
             setupFeedbackAnalysisContext()
         default:
             setupGeneralContext()

@@ -352,20 +352,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     
     /// 사용자 선택과 가용성을 고려한 모델 선택
     private func getSelectedModel(preferredModel: AIModel) -> AIModel {
-        // 1. 선호 모델이 사용 가능한지 확인
+        // 1. 선호 모델이 사용 가능한지 확인 (최우선)
         if availableModels.contains(preferredModel) {
             return preferredModel
         }
         
-        // 2. 사용자가 설정한 기본 모델 확인
-        let userSelectedModel = settingsManager.selectedLLM
-        let mappedModel = mapAIModelTypeToAIModel(userSelectedModel)
-        if availableModels.contains(mappedModel) {
-            return mappedModel
+        // 2. fallback 순서대로 사용 가능한 모델 반환
+        for model in fallbackOrder {
+            if availableModels.contains(model) {
+                return model
+            }
         }
         
-        // 3. 첫 번째 사용 가능한 모델 반환
-        return availableModels.first ?? .claude
+        // 3. 마지막 수단: 첫 번째 사용 가능한 모델 반환
+        return availableModels.first ?? .freeModel
     }
     
     /// LLMServiceType을 AIModel로 변환
@@ -397,8 +397,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         case .naver:
             return .naver
         case .onDevice:
-            // 온디바이스는 아직 미지원이므로 기본값으로 Claude 사용
-            return .claude
+            // TODO: 온디바이스 모델 구현 필요 - 현재는 임시로 무료 모델 사용
+            // 설정 화면에도 온디바이스 옵션 추가 필요
+            return .freeModel
         case .freeModel:
             return .freeModel
         case .testModel:
@@ -477,15 +478,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     
     /// 모드별 최적 AI 모델 추천
     private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 확정된 모드별 AI 모델 매핑
+        // 모드별 AI 모델 매핑 (특정 모드는 최적 모델 사용, 일반 대화는 사용자 설정 따름)
         let optimalModelMapping: [AIMode: AIModel] = [
-            .presetRecommendation: .openAI,      // JSON 생성 우수
-            .emotionDiaryAnalysis: .claude,      // 깊은 공감
-            .taskAdvice: .gemini,                // 빠른 응답
-            .generalConversation: userPreferred, // 사용자 설정 존중
-            .monthlyStatistics: .gemini,         // 큰 컨텍스트와 데이터 분석
-            .fortuneTelling: .naver,             // 한국 정서
-            .emotionAnalysis: .openAI            // JSON 출력
+            // DeepSleep 앱의 주요 기능별 최적 모델
+            .generalConversation: userPreferred,                                               // 일반 대화: 사용자 설정 존중
+            .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,   // 감정 일기 분석: Claude (깊은 공감)
+            .taskAdvice: availableModels.contains(.gemini) ? .gemini : .freeModel,            // 할일 조언: Gemini (빠른 응답)
+            .presetRecommendation: availableModels.contains(.openAI) ? .openAI : .freeModel,   // 프리셋 추천: OpenAI (JSON 생성)
+            .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,     // 월간 통계: Gemini (데이터 분석)
+            .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,          // 운세: Naver (한국 정서)
+            .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel        // 감정 분석: OpenAI (구조화된 출력)
         ]
         
         // 매핑된 모델이 있고 사용 가능한 경우
@@ -499,8 +501,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             return userPreferred
         }
         
-        // 사용자 선호 모델도 사용 불가능한 경우 가장 저렴한 모델(Gemini) 사용
-        return availableModels.contains(.gemini) ? .gemini : availableModels.first ?? .claude
+        // 사용자 선호 모델도 사용 불가능한 경우 fallbackOrder 사용
+        return fallbackOrder.first ?? .freeModel
     }
     
     /// 모드와 모델에 맞는 시스템 프롬프트 생성
