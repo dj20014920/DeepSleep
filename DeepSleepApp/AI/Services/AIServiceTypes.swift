@@ -16,8 +16,7 @@ public enum AIModel: String, CaseIterable, Codable {
     case openAI = "openai"
     case gemini = "gemini"
     case naver = "naver"
-    case freeModel = "free_model"  // 무료 모델 (OpenRouter)
-    case testModel = "test_model"   // 베타 테스트용
+    case freeModel = "free_model"  // 통합된 무료 모델 (OpenRouter 순차 폴백)
     
     var displayName: String {
         switch self {
@@ -25,8 +24,7 @@ public enum AIModel: String, CaseIterable, Codable {
         case .openAI: return "OpenAI GPT-4o Mini"
         case .gemini: return "Google Gemini"
         case .naver: return "Naver HyperCLOVA X"
-        case .freeModel: return "무료 AI 모델"
-        case .testModel: return "테스트 모델"
+        case .freeModel: return "무료 AI 모델 (통합)"
         }
     }
 }

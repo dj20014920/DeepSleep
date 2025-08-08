@@ -49,8 +49,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             keyName = "GEMINI_API_KEY"
         case .naver:
             keyName = "NAVER_CLOUD_API_KEY"
-        case .freeModel, .testModel:
-            // OpenRouter 무료/테스트 모델은 별도 매니저에서 처리. API 키는 다른 키를 사용하므로 여기서는 nil 반환.
+        case .freeModel:
+            // OpenRouter 통합 무료 모델은 별도 매니저에서 처리. API 키는 다른 키를 사용하므로 여기서는 nil 반환.
             return nil
         }
         
@@ -106,19 +106,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if geminiService != nil { models.append(.gemini) }
         if naverService != nil { models.append(.naver) }
         
-        // 무료 모델은 항상 사용 가능
+        // 통합된 무료 모델 (OpenRouter 폴백 시스템)
         models.append(.freeModel)
-        models.append(.testModel)
         
         return models
     }
     
-    /// 비용 기반 Fallback 순서 (2025년 7월 최신 가격 기준)
-    /// 무료 모델 우선 → Gemini 1.5 Flash: $0.000075 → GPT-4o mini: $0.00015 → Claude 3.5: $0.003
+    /// 비용 기반 Fallback 순서 (2025년 8월 최신 가격 기준)
+    /// 통합된 무료 모델 우선 → Gemini 1.5 Flash: $0.000075 → GPT-4o mini: $0.00015 → Claude 3.5: $0.003
     /// HyperCLOVA X는 가격 비공개로 중간 순서 배치
     var fallbackOrder: [AIModel] {
-        // 베타 테스트 기간: 무료 모델 우선 사용
-        let costOrder: [AIModel] = [.freeModel, .testModel, .gemini, .openAI, .naver, .claude]
+        // 베타 테스트 기간: 통합된 무료 모델 우선 사용
+        let costOrder: [AIModel] = [.freeModel, .gemini, .openAI, .naver, .claude]
         return costOrder.filter { availableModels.contains($0) }
     }
     
@@ -243,8 +242,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
             return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
-        case .freeModel, .testModel:
-            // 무료 모델은 OpenRouter를 통해 처리
+        case .freeModel:
+            // 통합된 무료 모델은 OpenRouter 순차 폴백을 통해 처리
             let response = try await freeModelService.sendMessageWithFallback(
                 content: "\(systemPrompt)\n\n사용자: \(content)",
                 mode: mode
@@ -397,7 +396,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         case .freeModel:
             return .freeModel
         case .testModel:
-            return .testModel
+            return .freeModel  // testModel도 통합된 freeModel로 처리
         }
     }
     
@@ -618,9 +617,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             - 한국 사회의 맥락과 상황을 고려하세요
             - 친근하면서도 정중한 톤을 유지하세요
             """
-        case .freeModel, .testModel:
+        case .freeModel:
             return """
-            OpenRouter 무료/테스트 모델 공통 지침:
+            OpenRouter 통합 무료 모델 지침:
             - 한국어로 자연스럽고 간결하게 답하세요
             - JSON이 필요한 경우 올바른 스키마와 작은 따옴표/백틱 없이 순수 JSON만 출력하세요
             - 과한 창의성보다 정확성과 일관성을 우선하세요
@@ -682,8 +681,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 presencePenalty: config.presencePenalty,
                 responseFormat: config.responseFormat
             )
-        case .freeModel, .testModel:
-            // 무료/테스트 모델은 안정적 JSON/텍스트 위주로 보수적으로 설정
+        case .freeModel:
+            // 통합 무료 모델은 안정적 JSON/텍스트 위주로 보수적으로 설정
             optimizedConfig = TokenConfiguration(
                 maxTokens: min(config.maxTokens, 180),
                 temperature: min(max(config.temperature, 0.2), 0.6),

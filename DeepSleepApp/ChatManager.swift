@@ -316,7 +316,7 @@ public class ChatManager {
             case "free", "free_model":
                 preferredModel = .freeModel
             case "test", "test_model":
-                preferredModel = .testModel
+                preferredModel = .freeModel  // testModel도 통합된 freeModel로 처리
             default:
                 // 베타 테스트 기간: 기본값을 무료 모델로 설정
                 preferredModel = .freeModel
