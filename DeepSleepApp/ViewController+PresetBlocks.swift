@@ -146,7 +146,7 @@ extension ViewController {
     }
     
     private func performPresetBlocksUpdate() {
-        print("🔄 [performPresetBlocksUpdate] 프리셋 블록 업데이트 시작")
+        // 프리셋 블록 업데이트 시작
         
         let recentPresets = getRecentPresets()
         let favoritePresets = getFavoritePresets()
@@ -180,7 +180,7 @@ extension ViewController {
                 }
             }
             
-            print("✅ [performPresetBlocksUpdate] 프리셋 블록 업데이트 완료")
+            // 프리셋 블록 업데이트 완료
         }
     }
     
@@ -190,7 +190,7 @@ extension ViewController {
             return
         }
         
-        print("🔧 프리셋 버튼 설정 시작: \(preset.name)")
+        // 프리셋 버튼 설정 시작
         
         // 🛡️ 완전한 초기화: 모든 UI 요소를 완전히 제거
         cleanButton(button)
@@ -231,12 +231,12 @@ extension ViewController {
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 12
             
-            print("✅ 프리셋 버튼 설정 완료: \(preset.name)")
+            // 프리셋 버튼 설정 완료
         }
     }
     
     func configureEmptyPresetButton(_ button: UIButton) {
-        print("🔧 빈 프리셋 버튼 설정 시작")
+        // 빈 프리셋 버튼 설정 시작
         
         // 🛡️ 완전한 초기화
         cleanButton(button)
@@ -270,7 +270,7 @@ extension ViewController {
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 12
             
-            print("✅ 빈 프리셋 버튼 설정 완료")
+            // 빈 프리셋 버튼 설정 완료
         }
     }
     
@@ -288,7 +288,7 @@ extension ViewController {
         button.setTitle(nil, for: .normal)
         button.setAttributedTitle(nil, for: .normal)
         
-        print("🧹 버튼 초기화 완료 - 서브뷰 수: \(button.subviews.count)")
+        // 버튼 초기화 완료
     }
     
     func getRecentPresets() -> [SoundPreset] {

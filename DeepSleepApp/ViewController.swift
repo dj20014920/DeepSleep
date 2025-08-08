@@ -59,8 +59,7 @@ class ViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("👍 [ViewController] viewDidLoad() - 초기화 시작")
-        print("✅ ViewController [\(instanceUUID)] viewDidLoad.") // UUID 로깅 추가
+        // ViewController 초기화
         
         // 🚀 1단계: 필수 UI만 먼저 설정 (즉시)
         setupCriticalUI()
@@ -84,7 +83,7 @@ class ViewController: UIViewController {
         // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
         setupBasicSliderUI()
         
-        print("✅ 필수 UI 설정 완료 (즉시)")
+        // 필수 UI 설정 완료
     }
     
     /// 2단계: 백그라운드에서 비동기 초기화
@@ -92,9 +91,7 @@ class ViewController: UIViewController {
     private func performAsyncInitialization() async {
         // 데이터 검증 (백그라운드)
         await Task.detached { [weak self] in
-            #if DEBUG
-            print("✅ SoundPresetCatalog 카테고리 개수: \(SoundPresetCatalog.categoryCount)")
-            #endif
+            // SoundPresetCatalog 카테고리 로드됨
             
             // 마이그레이션 실행 (백그라운드)
             PresetManager.shared.migrateLegacyPresetsIfNeeded()
@@ -102,7 +99,7 @@ class ViewController: UIViewController {
             await MainActor.run { [weak self] in
                 self?.setupKeyboardNotifications()
                 self?.setupNotifications()
-                print("✅ 백그라운드 초기화 완료")
+                // 백그라운드 초기화 완료
             }
         }.value
         
@@ -112,7 +109,7 @@ class ViewController: UIViewController {
     
     /// 3단계: 지연 로딩 (viewDidAppear에서 호출)
     private func performDelayedInitialization() {
-        print("🚀 [performDelayedInitialization] 지연 초기화 시작")
+        // 지연 초기화 시작
         
         // 🆕 애플워치 헬스킷 초기화 (지연)
         Task {
@@ -138,12 +135,12 @@ class ViewController: UIViewController {
                 // 학습 시간 업데이트
                 UserDefaults.standard.set(now, forKey: "lastOnDeviceLearningTime")
             }
-            print("🤖 [performDelayedInitialization] 온디바이스 학습 스케줄됨 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
+            // 온디바이스 학습 스케줄됨
         } else {
-            print("⏭️ [performDelayedInitialization] 온디바이스 학습 스킵 (마지막 학습: \(Int((now - lastLearningTime) / 60))분 전)")
+            // 온디바이스 학습 스킵
         }
         
-        print("✅ [performDelayedInitialization] 지연 초기화 완료")
+        // 지연 초기화 완료
     }
     
     /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)
@@ -169,7 +166,7 @@ class ViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        print("👍 [ViewController] viewWillAppear(_:) - isGloballyPaused: \(SoundManager.shared.isGloballyPaused)")
+        // viewWillAppear 호출됨
         
         updatePlayButtonStates()
         startPlaybackStateMonitoring()
@@ -184,7 +181,7 @@ class ViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("👍 [ViewController] viewDidAppear(_:) - hasPerformedDelayedInit: \(hasPerformedDelayedInit)")
+        // viewDidAppear 호출됨
         
         // ✅ 카테고리 버튼 UI 업데이트 (저장된 버전 정보 반영)
         updateAllCategoryButtonTitles()
@@ -194,7 +191,7 @@ class ViewController: UIViewController {
         // 🚀 지연 초기화는 최초 1회만 실행
         if !hasPerformedDelayedInit {
             hasPerformedDelayedInit = true
-            print("🚀 [ViewController] 지연 초기화 최초 실행")
+            // 지연 초기화 최초 실행
             performDelayedInitialization()
         } else {
             print("🔄 [ViewController] 지연 초기화 이미 완료됨 - 스킵")
@@ -247,7 +244,7 @@ class ViewController: UIViewController {
         updateAllCategoryButtonTitles()
         updateAllVersionButtons()
         updatePresetBlocks()
-        print("✅ ViewController 초기 상태 설정 완료")
+        // ViewController 초기 상태 설정 완료
     }
     
     private func setupKeyboardNotifications() {
@@ -331,7 +328,7 @@ class ViewController: UIViewController {
             object: nil
         )
         
-        print("✅ ViewController 알림 옵저버 설정 완료")
+        // 알림 옵저버 설정 완료
     }
     
     private func setupGestures() {
@@ -944,7 +941,7 @@ class ViewController: UIViewController {
     private func updateAllVersionButtons() {
         // 기존 ViewController+SliderControls.swift의 updateAllCategoryButtonTitles() 호출
         updateAllCategoryButtonTitles()
-        print("🔄 [updateAllVersionButtons] 모든 버전 버튼 업데이트 완료")
+        // 모든 버전 버튼 업데이트 완료
     }
 
     @objc private func handleFavoritesUpdated() {
@@ -962,11 +959,7 @@ class ViewController: UIViewController {
     /// 온디바이스 학습 조건 검사 및 자동 트리거
     @MainActor
     private func checkAndTriggerOnDeviceLearning() async {
-        print("🤖 [Auto Learning] 온디바이스 학습 조건 검사 시작...")
-        
-        // TODO: 온디바이스 학습 기능 구현 필요
-        // 현재는 기본 추천 엔진만 사용
-        print("📊 [Auto Learning] 온디바이스 학습 기능은 추후 구현 예정")
+        // 온디바이스 학습 조건 검사 (추후 구현 예정)
     }
 
     // 🆕 온디바이스 학습 모델 업데이트 완료 알림 옵저버 처리

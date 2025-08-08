@@ -206,10 +206,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     /// 완전 토큰 소모 제로 API 상태 확인
     private func performZeroTokenAPICheck() {
-        print("\n" + "💯" + String(repeating: " ", count: 3) + "완전 토큰 소모 제로 API 체크" + String(repeating: " ", count: 3) + "💯")
-        print(String(repeating: "=", count: 50))
-        print("🔍 방식: 로컬 검증 + 네트워크 상태 확인만 (API 호출 절대 없음)")
-        print(String(repeating: "=", count: 50))
+        // API 상태 확인 (토큰 소모 없음)
         
         // 1단계: 즉시 빠른 체크
         // 타입 접근성 문제로 임시 주석 처리

@@ -23,7 +23,7 @@ final class PerformanceSystemBootstrap {
             await performInitializationSequence()
             isInitialized = true
             
-            UnifiedLogger.shared.info("🚀 성능 관리 시스템 초기화 완료", category: .system)
+            // 성능 관리 시스템 초기화 완료
         }
     }
     
@@ -51,7 +51,7 @@ final class PerformanceSystemBootstrap {
     
     @MainActor
     private func performInitializationSequence() async {
-        UnifiedLogger.shared.info("성능 관리 시스템 초기화 시작...", category: .system)
+        // 성능 관리 시스템 초기화 시작
         
         // 1단계: 의존성 컨테이너 설정
         setupDependencyContainer()

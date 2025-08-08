@@ -250,7 +250,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let optimizedTabController = OptimizedTabBarController()
         
         // 1. 메인 사운드 화면 (ViewController)
-        print("🔍 [SceneDelegate] ViewController 생성 시작")
+        // 메인 사운드 화면 생성
         let mainVC = ViewController()
         let mainNav = UINavigationController(rootViewController: mainVC)
         mainNav.navigationBar.prefersLargeTitles = true
@@ -258,7 +258,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         print("✅ [SceneDelegate] 사운드 탭 생성 완료")
         
         // 2. 일기 목록 화면 (EmotionDiaryViewController)
-        print("🔍 [SceneDelegate] EmotionDiaryViewController 생성 시작")
+        // 일기 목록 화면 생성
         let diaryVC = EmotionDiaryViewController()
         let diaryNav = UINavigationController(rootViewController: diaryVC)
         diaryNav.navigationBar.prefersLargeTitles = true
@@ -266,7 +266,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         print("✅ [SceneDelegate] 일기목록 탭 생성 완료")
         
         // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
-        print("🔍 [SceneDelegate] TodaysFortuneViewController 생성 시작")
+        // 오늘의 운세 화면 생성
         let fortuneVC = TodaysFortuneViewController()
         let fortuneNav = UINavigationController(rootViewController: fortuneVC)
         fortuneNav.navigationBar.prefersLargeTitles = true
@@ -274,7 +274,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         print("✅ [SceneDelegate] 오늘의 운세 탭 생성 완료")
         
         // 4. 설정 화면 (SettingsViewController)
-        print("🔍 [SceneDelegate] SettingsViewController 생성 시작")
+        // 설정 화면 생성
         let settingsVC = SettingsViewController()
         let settingsNav = UINavigationController(rootViewController: settingsVC)
         settingsNav.navigationBar.prefersLargeTitles = true

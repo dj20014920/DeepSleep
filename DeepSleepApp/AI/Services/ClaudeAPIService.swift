@@ -21,7 +21,7 @@ class ClaudeAPIService {
     
     init(apiKey: String) {
         self.apiKey = apiKey
-        print("🤖 [ClaudeAPI] 서비스 초기화 완료")
+        // Claude API 서비스 초기화됨
     }
     
     // MARK: - 🚀 메시지 전송 메인 함수

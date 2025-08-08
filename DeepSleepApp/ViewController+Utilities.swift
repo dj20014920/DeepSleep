@@ -27,8 +27,7 @@ extension ViewController {
     /// 애플워치 헬스킷 기능 초기화 (선택적)
     func setupHealthKitIfNeeded() {
         // ⚠️ Apple Developer 계정 권한 부족으로 임시 비활성화
-        print("⚠️ [HealthKit UI] Apple Developer 계정 권한 부족으로 비활성화됨")
-        print("📚 학술용 시뮬레이터 데모에서는 HealthKit 연동이 제외됩니다.")
+        // HealthKit 비활성화됨 (개발자 계정 권한 부족)
         
         /* 원본 코드 - Apple Developer 계정 필요
         // 사용자가 이전에 거부했다면 다시 묻지 않음

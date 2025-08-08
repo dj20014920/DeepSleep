@@ -98,12 +98,12 @@ final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationPro
     // MARK: - State Updates
     private func updateBatteryState() {
         batteryState = UIDevice.current.batteryState
-        UnifiedLogger.shared.debug("배터리 상태 업데이트: \(self.batteryState.description)", category: .system)
+        // 배터리 상태 업데이트됨
     }
     
     private func updateBatteryLevel() {
         batteryLevel = UIDevice.current.batteryLevel
-        UnifiedLogger.shared.debug("배터리 레벨 업데이트: \(Int(self.batteryLevel * 100))%", category: .system)
+        // 배터리 레벨 업데이트됨
     }
     
     private func updatePowerState() {

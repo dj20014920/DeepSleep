@@ -190,7 +190,7 @@ final class SoundManager {
             )
         }
 
-        UnifiedLogger.shared.debug("폴백 사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리", category: .audio)
+        // 폴백 사운드 카탈로그 로드 완료
     }
 
     // MARK: - 🆕 동적 카테고리 정보 접근

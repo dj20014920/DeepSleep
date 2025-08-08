@@ -249,9 +249,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.showLoading(false)
-                    self.addMessageToChat(message: responseText, fromUser: false)
+                    let parsedResponse = self.parseAIResponse(responseText)
+                    self.addMessageToChat(message: parsedResponse, fromUser: false)
                     UnifiedLogger.shared.info("ChatManager 통합 AI 응답 완료", category: .ai)
-                    completion(responseText)
+                    completion(parsedResponse)
                 }
                 
             } catch {
@@ -272,6 +273,25 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 }
             }
         }
+    }
+    
+    /// AI 응답 JSON 파싱
+    private func parseAIResponse(_ response: String) -> String {
+        // JSON 형식인지 확인
+        if response.hasPrefix("{") && response.hasSuffix("}") {
+            do {
+                if let data = response.data(using: .utf8),
+                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let responseText = json["response"] as? String {
+                    return responseText
+                }
+            } catch {
+                // JSON 파싱 실패 시 원본 반환
+            }
+        }
+        
+        // JSON이 아니거나 파싱 실패 시 원본 반환
+        return response
     }
     
     /// 로컬 AI 응답 생성
@@ -481,7 +501,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func handleAIResponse(_ text: String) {
         Task { @MainActor in
             self.showLoading(false)
-            self.addMessageToChat(message: text, fromUser: false)
+            let parsedResponse = self.parseAIResponse(text)
+            self.addMessageToChat(message: parsedResponse, fromUser: false)
         }
     }
 
@@ -2521,12 +2542,12 @@ extension ChatViewController {
 extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         let count = messages.count
-        print("📋 [ChatViewController] numberOfRowsInSection 호출됨 - 반환값: \(count)")
+        // 테이블뷰 행 수 반환
         return count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        print("📋 [ChatViewController] cellForRowAt 호출됨 - indexPath: \(indexPath), 메시지 수: \(messages.count)")
+        // 테이블뷰 셀 구성
         guard let cell = tableView.dequeueReusableCell(withIdentifier: ChatBubbleCell.identifier, for: indexPath) as? ChatBubbleCell else {
             print("🔴 [ChatViewController] ChatBubbleCell dequeue 실패")
             return UITableViewCell()

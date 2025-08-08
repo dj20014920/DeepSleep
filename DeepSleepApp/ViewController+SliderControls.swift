@@ -142,7 +142,7 @@ extension ViewController {
             stackView.addArrangedSubview(fullRowStack)
         }
         
-        print("✅ \(categoryCount)개 카테고리 슬라이더 UI 생성 완료 - 미리듣기 버튼 변경됨")
+        // 카테고리 슬라이더 UI 생성 완료
     }
     
     // MARK: - 마스터 볼륨 설정

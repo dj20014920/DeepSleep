@@ -99,16 +99,16 @@ public final class UnifiedLogger {
     private func setupLogger() {
         #if DEBUG
         isLoggingEnabled = true
-        minimumLogLevel = .debug
+        minimumLogLevel = .warning  // 디버그 모드에서도 경고 이상만 출력
         shouldLogToFile = true
         #else
         isLoggingEnabled = true
-        minimumLogLevel = .info
+        minimumLogLevel = .error    // 릴리즈 모드에서는 에러만 출력
         shouldLogToFile = false
         #endif
         
         setupLogFile()
-        info("🚀 UnifiedLogger 초기화 완료", category: .system)
+        // UnifiedLogger 초기화 완료
     }
     
     private func setupLogFile() {
