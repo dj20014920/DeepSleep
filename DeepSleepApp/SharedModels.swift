@@ -107,6 +107,8 @@ public enum AIModelType: String, CaseIterable, Sendable {
     case gemini = "gemini-pro"
     case naver = "hyperclova-x"
     case onDevice = "on-device"
+    case freeModel = "free-model"  // 무료 모델 (베타)
+    case testModel = "test-model"  // 테스트 모델 (베타)
     
     public var displayName: String {
         switch self {
@@ -115,6 +117,8 @@ public enum AIModelType: String, CaseIterable, Sendable {
         case .gemini: return "제미니"
         case .naver: return "하이퍼클로바"
         case .onDevice: return "온디"
+        case .freeModel: return "오픈AI (무료)"
+        case .testModel: return "실험 친구"
         }
     }
     
@@ -125,6 +129,8 @@ public enum AIModelType: String, CaseIterable, Sendable {
         case .gemini: return "💎"
         case .naver: return "🇰🇷"
         case .onDevice: return "📱"
+        case .freeModel: return "🎁"
+        case .testModel: return "🧪"
         }
     }
     
@@ -135,6 +141,8 @@ public enum AIModelType: String, CaseIterable, Sendable {
         case .gemini: return "창의적인 예술가"
         case .naver: return "따뜻한 한국 친구"
         case .onDevice: return "개인정보 보호 우선"
+        case .freeModel: return "무료로 만나는 똑똑한 친구"
+        case .testModel: return "새로운 기능을 시험하는 모험가"
         }
     }
     
@@ -145,6 +153,8 @@ public enum AIModelType: String, CaseIterable, Sendable {
         case .gemini: return ["창의적 발상", "재미있는 대화", "유연한 사고", "상상력 풍부"]
         case .naver: return ["친근한 말투", "한국 문화", "현실적 조언", "정겨운 소통"]
         case .onDevice: return ["빠른 처리", "개인정보 보호", "오프라인 사용", "배터리 효율"]
+        case .freeModel: return ["무료 이용", "다양한 기능", "베타 테스트", "자동 전환"]
+        case .testModel: return ["실험적 기능", "최신 모델", "피드백 환영", "향상된 성능"]
         }
     }
 }
@@ -186,6 +196,8 @@ public extension AIModelType {
         case .gemini: return .gemini
         case .naver: return .naver
         case .onDevice: return .onDevice
+        case .freeModel: return .openAI  // 무료 모델은 OpenRouter를 통해 OpenAI 호환 API 사용
+        case .testModel: return .openAI  // 테스트 모델도 OpenRouter 사용
         }
     }
     

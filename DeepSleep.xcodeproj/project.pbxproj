@@ -168,7 +168,6 @@
 		E084F2B12E33AE9B002F75E6 /* 파도.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E084F07E2E33ACB3002F75E6 /* 파도.mp3 */; };
 		E084F2B22E33AE9B002F75E6 /* 파도2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E084F07F2E33ACB3002F75E6 /* 파도2.mp3 */; };
 		E084F2B32E33AE9B002F75E6 /* cat.gif in Resources */ = {isa = PBXBuildFile; fileRef = E084F0802E33ACB3002F75E6 /* cat.gif */; };
-		E084F2B42E33AE9B002F75E6 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E084F08C2E33ACB3002F75E6 /* .gitignore */; };
 		E084F2B62E33AE9B002F75E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E084F09A2E33ACB3002F75E6 /* Assets.xcassets */; };
 		E084F2B72E33AE9B002F75E6 /* gemini.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */; };
 		E084F2B82E33AE9B002F75E6 /* gpt.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */; };
@@ -176,6 +175,9 @@
 		E084F2BB2E33AE9B002F75E6 /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */; };
 		E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D22E33B2CC002F75E6 /* FSCalendar */; };
 		E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D52E33B2ED002F75E6 /* GoogleGenerativeAI */; };
+		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
+		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
+		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -238,7 +240,6 @@
 		E084F0872E33ACB3002F75E6 /* TodoListCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListCell.swift; sourceTree = "<group>"; };
 		E084F0892E33ACB3002F75E6 /* AIModelSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSettingsView.swift; sourceTree = "<group>"; };
 		E084F08A2E33ACB3002F75E6 /* PersonaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaSettingsView.swift; sourceTree = "<group>"; };
-		E084F08C2E33ACB3002F75E6 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditTodoViewController.swift; sourceTree = "<group>"; };
 		E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedPresetCatalog.swift; sourceTree = "<group>"; };
 		E084F0902E33ACB3002F75E6 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
@@ -262,7 +263,6 @@
 		E084F0A62E33ACB3002F75E6 /* ConsoleLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleLogger.swift; sourceTree = "<group>"; };
 		E084F0A72E33ACB3002F75E6 /* ConversationSaveHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSaveHelper.swift; sourceTree = "<group>"; };
 		E084F0A82E33ACB3002F75E6 /* CoreDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataModels.swift; sourceTree = "<group>"; };
-		E084F0A92E33ACB3002F75E6 /* DailyConversationManager.swift.backup */ = {isa = PBXFileReference; lastKnownFileType = text; path = DailyConversationManager.swift.backup; sourceTree = "<group>"; };
 		E084F0AA2E33ACB3002F75E6 /* DebugManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugManager.swift; sourceTree = "<group>"; };
 		E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepSleep.entitlements; sourceTree = "<group>"; };
 		E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryWriteViewController.swift; sourceTree = "<group>"; };
@@ -298,7 +298,6 @@
 		E084F0CA2E33ACB3002F75E6 /* forceSyncMainViewControllerPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = forceSyncMainViewControllerPreset.swift; sourceTree = "<group>"; };
 		E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FortuneGenerator.swift; sourceTree = "<group>"; };
 		E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = gemini.xcconfig; sourceTree = "<group>"; };
-		E084F0CD2E33ACB3002F75E6 /* generate-secrets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-secrets.sh"; sourceTree = "<group>"; };
 		E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = gpt.xcconfig; sourceTree = "<group>"; };
 		E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationCharts.swift; sourceTree = "<group>"; };
 		E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationViewController.swift; sourceTree = "<group>"; };
@@ -354,94 +353,11 @@
 		E084F1052E33ACB3002F75E6 /* ViewController+SliderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+SliderControls.swift"; sourceTree = "<group>"; };
 		E084F1062E33ACB3002F75E6 /* ViewController+Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Utilities.swift"; sourceTree = "<group>"; };
 		E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeroTokenAPIChecker.swift; sourceTree = "<group>"; };
-		E084F1092E33ACB3002F75E6 /* Fastfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Fastfile; sourceTree = "<group>"; };
-		E084F10E2E33ACB3002F75E6 /* generate-docs.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-docs.sh"; sourceTree = "<group>"; };
-		E084F1102E33ACB3002F75E6 /* build_test.log */ = {isa = PBXFileReference; lastKnownFileType = text; path = build_test.log; sourceTree = "<group>"; };
-		E084F1112E33ACB3002F75E6 /* xcodebuild.log */ = {isa = PBXFileReference; lastKnownFileType = text; path = xcodebuild.log; sourceTree = "<group>"; };
 		E084F1182E33ACB3002F75E6 /* README 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README 2.md"; sourceTree = "<group>"; };
-		E084F11D2E33ACB3002F75E6 /* add_files_to_xcode.scpt */ = {isa = PBXFileReference; lastKnownFileType = text; path = add_files_to_xcode.scpt; sourceTree = "<group>"; };
-		E084F11E2E33ACB3002F75E6 /* add_missing_files.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = add_missing_files.py; sourceTree = "<group>"; };
-		E084F11F2E33ACB3002F75E6 /* add_to_xcode.rb */ = {isa = PBXFileReference; lastKnownFileType = text.script.ruby; path = add_to_xcode.rb; sourceTree = "<group>"; };
-		E084F1202E33ACB3002F75E6 /* force_xcode_refresh.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = force_xcode_refresh.sh; sourceTree = "<group>"; };
-		E084F1212E33ACB3002F75E6 /* xcode_commands.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = xcode_commands.md; sourceTree = "<group>"; };
-		E084F1222E33ACB3002F75E6 /* xcode_refresh.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = xcode_refresh.sh; sourceTree = "<group>"; };
-		E084F1232E33ACB3002F75E6 /* xcode_sync.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = xcode_sync.py; sourceTree = "<group>"; };
-		E084F1252E33ACB3002F75E6 /* spm_xcodegen_reset.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = spm_xcodegen_reset.sh; sourceTree = "<group>"; };
-		E084F1262E33ACB3002F75E6 /* architecture-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "architecture-patterns.yml"; sourceTree = "<group>"; };
-		E084F1272E33ACB3002F75E6 /* cleanup-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "cleanup-patterns.yml"; sourceTree = "<group>"; };
-		E084F1282E33ACB3002F75E6 /* command-architecture-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "command-architecture-patterns.yml"; sourceTree = "<group>"; };
-		E084F1292E33ACB3002F75E6 /* compression-performance-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "compression-performance-patterns.yml"; sourceTree = "<group>"; };
-		E084F12A2E33ACB3002F75E6 /* docs-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "docs-patterns.yml"; sourceTree = "<group>"; };
-		E084F12B2E33ACB3002F75E6 /* execution-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "execution-patterns.yml"; sourceTree = "<group>"; };
-		E084F12C2E33ACB3002F75E6 /* feature-template.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "feature-template.yml"; sourceTree = "<group>"; };
-		E084F12D2E33ACB3002F75E6 /* flag-inheritance.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "flag-inheritance.yml"; sourceTree = "<group>"; };
-		E084F12E2E33ACB3002F75E6 /* introspection-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "introspection-patterns.yml"; sourceTree = "<group>"; };
-		E084F12F2E33ACB3002F75E6 /* loading-config.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "loading-config.yml"; sourceTree = "<group>"; };
-		E084F1302E33ACB3002F75E6 /* mcp-cache-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "mcp-cache-patterns.yml"; sourceTree = "<group>"; };
-		E084F1312E33ACB3002F75E6 /* persona-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "persona-patterns.yml"; sourceTree = "<group>"; };
-		E084F1322E33ACB3002F75E6 /* planning-mode.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "planning-mode.yml"; sourceTree = "<group>"; };
-		E084F1332E33ACB3002F75E6 /* pre-commit-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "pre-commit-patterns.yml"; sourceTree = "<group>"; };
-		E084F1342E33ACB3002F75E6 /* quality-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "quality-patterns.yml"; sourceTree = "<group>"; };
-		E084F1352E33ACB3002F75E6 /* recovery-state-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "recovery-state-patterns.yml"; sourceTree = "<group>"; };
-		E084F1362E33ACB3002F75E6 /* reference-index.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "reference-index.yml"; sourceTree = "<group>"; };
-		E084F1372E33ACB3002F75E6 /* reference-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "reference-patterns.yml"; sourceTree = "<group>"; };
-		E084F1382E33ACB3002F75E6 /* research-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "research-patterns.yml"; sourceTree = "<group>"; };
-		E084F1392E33ACB3002F75E6 /* security-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "security-patterns.yml"; sourceTree = "<group>"; };
-		E084F13A2E33ACB3002F75E6 /* system-config.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "system-config.yml"; sourceTree = "<group>"; };
-		E084F13B2E33ACB3002F75E6 /* task-management-patterns.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "task-management-patterns.yml"; sourceTree = "<group>"; };
-		E084F13C2E33ACB3002F75E6 /* universal-constants.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "universal-constants.yml"; sourceTree = "<group>"; };
-		E084F13D2E33ACB3002F75E6 /* user-experience.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "user-experience.yml"; sourceTree = "<group>"; };
-		E084F13F2E33ACB3002F75E6 /* analyze.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = analyze.md; sourceTree = "<group>"; };
-		E084F1402E33ACB3002F75E6 /* build.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = build.md; sourceTree = "<group>"; };
-		E084F1412E33ACB3002F75E6 /* cleanup.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = cleanup.md; sourceTree = "<group>"; };
-		E084F1422E33ACB3002F75E6 /* deploy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = deploy.md; sourceTree = "<group>"; };
-		E084F1432E33ACB3002F75E6 /* design.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = design.md; sourceTree = "<group>"; };
-		E084F1442E33ACB3002F75E6 /* dev-setup.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "dev-setup.md"; sourceTree = "<group>"; };
-		E084F1452E33ACB3002F75E6 /* document.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = document.md; sourceTree = "<group>"; };
-		E084F1462E33ACB3002F75E6 /* estimate.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = estimate.md; sourceTree = "<group>"; };
-		E084F1472E33ACB3002F75E6 /* explain.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = explain.md; sourceTree = "<group>"; };
-		E084F1482E33ACB3002F75E6 /* git.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = git.md; sourceTree = "<group>"; };
-		E084F1492E33ACB3002F75E6 /* improve.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = improve.md; sourceTree = "<group>"; };
-		E084F14A2E33ACB3002F75E6 /* index.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = index.md; sourceTree = "<group>"; };
-		E084F14B2E33ACB3002F75E6 /* load.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = load.md; sourceTree = "<group>"; };
-		E084F14C2E33ACB3002F75E6 /* migrate.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = migrate.md; sourceTree = "<group>"; };
-		E084F14D2E33ACB3002F75E6 /* review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = review.md; sourceTree = "<group>"; };
-		E084F14E2E33ACB3002F75E6 /* scan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = scan.md; sourceTree = "<group>"; };
-		E084F14F2E33ACB3002F75E6 /* spawn.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spawn.md; sourceTree = "<group>"; };
-		E084F1502E33ACB3002F75E6 /* task.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = task.md; sourceTree = "<group>"; };
-		E084F1512E33ACB3002F75E6 /* test.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = test.md; sourceTree = "<group>"; };
-		E084F1522E33ACB3002F75E6 /* troubleshoot.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = troubleshoot.md; sourceTree = "<group>"; };
-		E084F1542E33ACB3002F75E6 /* superclaude-core.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "superclaude-core.yml"; sourceTree = "<group>"; };
-		E084F1552E33ACB3002F75E6 /* superclaude-mcp.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "superclaude-mcp.yml"; sourceTree = "<group>"; };
-		E084F1562E33ACB3002F75E6 /* superclaude-personas.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "superclaude-personas.yml"; sourceTree = "<group>"; };
-		E084F1572E33ACB3002F75E6 /* superclaude-rules.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "superclaude-rules.yml"; sourceTree = "<group>"; };
-		E084F15A2E33ACB3002F75E6 /* bug_report.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = bug_report.yml; sourceTree = "<group>"; };
-		E084F15B2E33ACB3002F75E6 /* feature_request.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = feature_request.yml; sourceTree = "<group>"; };
-		E084F15C2E33ACB3002F75E6 /* question.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = question.yml; sourceTree = "<group>"; };
-		E084F15E2E33ACB3002F75E6 /* pull_request_template.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = pull_request_template.md; sourceTree = "<group>"; };
-		E084F1602E33ACB3002F75E6 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		E084F1612E33ACB3002F75E6 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
-		E084F1622E33ACB3002F75E6 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
-		E084F1632E33ACB3002F75E6 /* CODE_OF_CONDUCT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CODE_OF_CONDUCT.md; sourceTree = "<group>"; };
-		E084F1642E33ACB3002F75E6 /* COMMANDS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = COMMANDS.md; sourceTree = "<group>"; };
-		E084F1652E33ACB3002F75E6 /* CONTRIBUTING.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTING.md; sourceTree = "<group>"; };
-		E084F1662E33ACB3002F75E6 /* install.log */ = {isa = PBXFileReference; lastKnownFileType = text; path = install.log; sourceTree = "<group>"; };
-		E084F1672E33ACB3002F75E6 /* install.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = install.sh; sourceTree = "<group>"; };
-		E084F1682E33ACB3002F75E6 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
-		E084F1692E33ACB3002F75E6 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		E084F16A2E33ACB3002F75E6 /* ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ROADMAP.md; sourceTree = "<group>"; };
-		E084F16B2E33ACB3002F75E6 /* SECURITY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SECURITY.md; sourceTree = "<group>"; };
-		E084F16C2E33ACB3002F75E6 /* VERSION */ = {isa = PBXFileReference; lastKnownFileType = text; path = VERSION; sourceTree = "<group>"; };
-		E084F16E2E33ACB3002F75E6 /* test_build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = test_build.sh; sourceTree = "<group>"; };
-		E084F16F2E33ACB3002F75E6 /* TestResults.xcresult */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = TestResults.xcresult; sourceTree = "<group>"; };
-		E084F1702E33ACB3002F75E6 /* AITaskTests.swift.disabled */ = {isa = PBXFileReference; lastKnownFileType = text; path = AITaskTests.swift.disabled; sourceTree = "<group>"; };
-		E084F1712E33ACB3002F75E6 /* LLMRouterTests.swift.disabled */ = {isa = PBXFileReference; lastKnownFileType = text; path = LLMRouterTests.swift.disabled; sourceTree = "<group>"; };
-		E084F1722E33ACB3002F75E6 /* LongTermMemoryManagerTests.swift.disabled */ = {isa = PBXFileReference; lastKnownFileType = text; path = LongTermMemoryManagerTests.swift.disabled; sourceTree = "<group>"; };
-		E084F1732E33ACB3002F75E6 /* PerformanceTests.swift.disabled */ = {isa = PBXFileReference; lastKnownFileType = text; path = PerformanceTests.swift.disabled; sourceTree = "<group>"; };
-		E084F1742E33ACB3002F75E6 /* Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Tests-Info.plist"; sourceTree = "<group>"; };
-		E084F1782E33ACB3002F75E6 /* DeepSleep.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = DeepSleep.xcdatamodel; sourceTree = "<group>"; };
 		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
-		E084F2DE2E33F3F6002F75E6 /* DEEPSLEEP_FIRES_TREE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_FIRES_TREE.md; sourceTree = "<group>"; };
+		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
+		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
+		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -460,22 +376,11 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
-				E084F2DE2E33F3F6002F75E6 /* DEEPSLEEP_FIRES_TREE.md */,
+				E09CD6E02E45E048007C133E /* .gitignore */,
 				E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */,
-				E084F04B2E33ACB3002F75E6 /* DeepSleep.xcdatamodeld */,
 				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
-				E084F10A2E33ACB3002F75E6 /* fastlane */,
-				E084F10E2E33ACB3002F75E6 /* generate-docs.sh */,
-				E084F1122E33ACB3002F75E6 /* logs */,
 				E084F1182E33ACB3002F75E6 /* README 2.md */,
-				E084F1242E33ACB3002F75E6 /* Scripts */,
-				E084F1252E33ACB3002F75E6 /* spm_xcodegen_reset.sh */,
-				E084F16D2E33ACB3002F75E6 /* SuperClaude */,
-				E084F16E2E33ACB3002F75E6 /* test_build.sh */,
-				E084F16F2E33ACB3002F75E6 /* TestResults.xcresult */,
-				E084F1752E33ACB3002F75E6 /* Tests */,
-				E084F2972E33AD62002F75E6 /* Frameworks */,
 				A011 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -518,6 +423,8 @@
 		E084F0592E33ACB3002F75E6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */,
+				E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */,
 				E084F0522E33ACB3002F75E6 /* AIServiceTypes.swift */,
 				E084F0532E33ACB3002F75E6 /* ClaudeAPIService.swift */,
 				E084F0542E33ACB3002F75E6 /* GeminiAPIService.swift */,
@@ -652,7 +559,6 @@
 				E084F0842E33ACB3002F75E6 /* System */,
 				E084F0882E33ACB3002F75E6 /* UI */,
 				E084F08B2E33ACB3002F75E6 /* Views */,
-				E084F08C2E33ACB3002F75E6 /* .gitignore */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
 				E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */,
 				E084F0902E33ACB3002F75E6 /* AIContextManager.swift */,
@@ -676,7 +582,6 @@
 				E084F0A62E33ACB3002F75E6 /* ConsoleLogger.swift */,
 				E084F0A72E33ACB3002F75E6 /* ConversationSaveHelper.swift */,
 				E084F0A82E33ACB3002F75E6 /* CoreDataModels.swift */,
-				E084F0A92E33ACB3002F75E6 /* DailyConversationManager.swift.backup */,
 				E084F0AA2E33ACB3002F75E6 /* DebugManager.swift */,
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
 				E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */,
@@ -712,7 +617,6 @@
 				E084F0CA2E33ACB3002F75E6 /* forceSyncMainViewControllerPreset.swift */,
 				E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */,
 				E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */,
-				E084F0CD2E33ACB3002F75E6 /* generate-secrets.sh */,
 				E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */,
 				E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */,
 				E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */,
@@ -772,179 +676,9 @@
 			path = DeepSleepApp;
 			sourceTree = "<group>";
 		};
-		E084F10A2E33ACB3002F75E6 /* fastlane */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1092E33ACB3002F75E6 /* Fastfile */,
-			);
-			path = fastlane;
-			sourceTree = "<group>";
-		};
-		E084F1122E33ACB3002F75E6 /* logs */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1102E33ACB3002F75E6 /* build_test.log */,
-				E084F1112E33ACB3002F75E6 /* xcodebuild.log */,
-			);
-			path = logs;
-			sourceTree = "<group>";
-		};
-		E084F1242E33ACB3002F75E6 /* Scripts */ = {
-			isa = PBXGroup;
-			children = (
-				E084F11D2E33ACB3002F75E6 /* add_files_to_xcode.scpt */,
-				E084F11E2E33ACB3002F75E6 /* add_missing_files.py */,
-				E084F11F2E33ACB3002F75E6 /* add_to_xcode.rb */,
-				E084F1202E33ACB3002F75E6 /* force_xcode_refresh.sh */,
-				E084F1212E33ACB3002F75E6 /* xcode_commands.md */,
-				E084F1222E33ACB3002F75E6 /* xcode_refresh.sh */,
-				E084F1232E33ACB3002F75E6 /* xcode_sync.py */,
-			);
-			path = Scripts;
-			sourceTree = "<group>";
-		};
-		E084F13E2E33ACB3002F75E6 /* shared */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1262E33ACB3002F75E6 /* architecture-patterns.yml */,
-				E084F1272E33ACB3002F75E6 /* cleanup-patterns.yml */,
-				E084F1282E33ACB3002F75E6 /* command-architecture-patterns.yml */,
-				E084F1292E33ACB3002F75E6 /* compression-performance-patterns.yml */,
-				E084F12A2E33ACB3002F75E6 /* docs-patterns.yml */,
-				E084F12B2E33ACB3002F75E6 /* execution-patterns.yml */,
-				E084F12C2E33ACB3002F75E6 /* feature-template.yml */,
-				E084F12D2E33ACB3002F75E6 /* flag-inheritance.yml */,
-				E084F12E2E33ACB3002F75E6 /* introspection-patterns.yml */,
-				E084F12F2E33ACB3002F75E6 /* loading-config.yml */,
-				E084F1302E33ACB3002F75E6 /* mcp-cache-patterns.yml */,
-				E084F1312E33ACB3002F75E6 /* persona-patterns.yml */,
-				E084F1322E33ACB3002F75E6 /* planning-mode.yml */,
-				E084F1332E33ACB3002F75E6 /* pre-commit-patterns.yml */,
-				E084F1342E33ACB3002F75E6 /* quality-patterns.yml */,
-				E084F1352E33ACB3002F75E6 /* recovery-state-patterns.yml */,
-				E084F1362E33ACB3002F75E6 /* reference-index.yml */,
-				E084F1372E33ACB3002F75E6 /* reference-patterns.yml */,
-				E084F1382E33ACB3002F75E6 /* research-patterns.yml */,
-				E084F1392E33ACB3002F75E6 /* security-patterns.yml */,
-				E084F13A2E33ACB3002F75E6 /* system-config.yml */,
-				E084F13B2E33ACB3002F75E6 /* task-management-patterns.yml */,
-				E084F13C2E33ACB3002F75E6 /* universal-constants.yml */,
-				E084F13D2E33ACB3002F75E6 /* user-experience.yml */,
-			);
-			path = shared;
-			sourceTree = "<group>";
-		};
-		E084F1532E33ACB3002F75E6 /* commands */ = {
-			isa = PBXGroup;
-			children = (
-				E084F13E2E33ACB3002F75E6 /* shared */,
-				E084F13F2E33ACB3002F75E6 /* analyze.md */,
-				E084F1402E33ACB3002F75E6 /* build.md */,
-				E084F1412E33ACB3002F75E6 /* cleanup.md */,
-				E084F1422E33ACB3002F75E6 /* deploy.md */,
-				E084F1432E33ACB3002F75E6 /* design.md */,
-				E084F1442E33ACB3002F75E6 /* dev-setup.md */,
-				E084F1452E33ACB3002F75E6 /* document.md */,
-				E084F1462E33ACB3002F75E6 /* estimate.md */,
-				E084F1472E33ACB3002F75E6 /* explain.md */,
-				E084F1482E33ACB3002F75E6 /* git.md */,
-				E084F1492E33ACB3002F75E6 /* improve.md */,
-				E084F14A2E33ACB3002F75E6 /* index.md */,
-				E084F14B2E33ACB3002F75E6 /* load.md */,
-				E084F14C2E33ACB3002F75E6 /* migrate.md */,
-				E084F14D2E33ACB3002F75E6 /* review.md */,
-				E084F14E2E33ACB3002F75E6 /* scan.md */,
-				E084F14F2E33ACB3002F75E6 /* spawn.md */,
-				E084F1502E33ACB3002F75E6 /* task.md */,
-				E084F1512E33ACB3002F75E6 /* test.md */,
-				E084F1522E33ACB3002F75E6 /* troubleshoot.md */,
-			);
-			path = commands;
-			sourceTree = "<group>";
-		};
-		E084F1582E33ACB3002F75E6 /* shared */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1542E33ACB3002F75E6 /* superclaude-core.yml */,
-				E084F1552E33ACB3002F75E6 /* superclaude-mcp.yml */,
-				E084F1562E33ACB3002F75E6 /* superclaude-personas.yml */,
-				E084F1572E33ACB3002F75E6 /* superclaude-rules.yml */,
-			);
-			path = shared;
-			sourceTree = "<group>";
-		};
-		E084F1592E33ACB3002F75E6 /* .claude */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1532E33ACB3002F75E6 /* commands */,
-				E084F1582E33ACB3002F75E6 /* shared */,
-			);
-			path = .claude;
-			sourceTree = "<group>";
-		};
-		E084F15D2E33ACB3002F75E6 /* ISSUE_TEMPLATE */ = {
-			isa = PBXGroup;
-			children = (
-				E084F15A2E33ACB3002F75E6 /* bug_report.yml */,
-				E084F15B2E33ACB3002F75E6 /* feature_request.yml */,
-				E084F15C2E33ACB3002F75E6 /* question.yml */,
-			);
-			path = ISSUE_TEMPLATE;
-			sourceTree = "<group>";
-		};
-		E084F15F2E33ACB3002F75E6 /* .github */ = {
-			isa = PBXGroup;
-			children = (
-				E084F15D2E33ACB3002F75E6 /* ISSUE_TEMPLATE */,
-				E084F15E2E33ACB3002F75E6 /* pull_request_template.md */,
-			);
-			path = .github;
-			sourceTree = "<group>";
-		};
-		E084F16D2E33ACB3002F75E6 /* SuperClaude */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1592E33ACB3002F75E6 /* .claude */,
-				E084F15F2E33ACB3002F75E6 /* .github */,
-				E084F1602E33ACB3002F75E6 /* .gitignore */,
-				E084F1612E33ACB3002F75E6 /* CHANGELOG.md */,
-				E084F1622E33ACB3002F75E6 /* CLAUDE.md */,
-				E084F1632E33ACB3002F75E6 /* CODE_OF_CONDUCT.md */,
-				E084F1642E33ACB3002F75E6 /* COMMANDS.md */,
-				E084F1652E33ACB3002F75E6 /* CONTRIBUTING.md */,
-				E084F1662E33ACB3002F75E6 /* install.log */,
-				E084F1672E33ACB3002F75E6 /* install.sh */,
-				E084F1682E33ACB3002F75E6 /* LICENSE */,
-				E084F1692E33ACB3002F75E6 /* README.md */,
-				E084F16A2E33ACB3002F75E6 /* ROADMAP.md */,
-				E084F16B2E33ACB3002F75E6 /* SECURITY.md */,
-				E084F16C2E33ACB3002F75E6 /* VERSION */,
-			);
-			path = SuperClaude;
-			sourceTree = "<group>";
-		};
-		E084F1752E33ACB3002F75E6 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-				E084F1702E33ACB3002F75E6 /* AITaskTests.swift.disabled */,
-				E084F1712E33ACB3002F75E6 /* LLMRouterTests.swift.disabled */,
-				E084F1722E33ACB3002F75E6 /* LongTermMemoryManagerTests.swift.disabled */,
-				E084F1732E33ACB3002F75E6 /* PerformanceTests.swift.disabled */,
-				E084F1742E33ACB3002F75E6 /* Tests-Info.plist */,
-			);
-			path = Tests;
-			sourceTree = "<group>";
-		};
 		E084F1762E33ACB3002F75E6 /* Products */ = {
 			isa = PBXGroup;
 			name = Products;
-			sourceTree = "<group>";
-		};
-		E084F2972E33AD62002F75E6 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1027,6 +761,7 @@
 				E01798122E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md in Resources */,
 				E084F2A42E33AE9B002F75E6 /* 밤.mp3 in Resources */,
 				E084F2A52E33AE9B002F75E6 /* 밤2.mp3 in Resources */,
+				E09CD6E12E45E048007C133E /* .gitignore in Resources */,
 				E084F2A62E33AE9B002F75E6 /* 불1.mp3 in Resources */,
 				E084F2A72E33AE9B002F75E6 /* 비.mp3 in Resources */,
 				E084F2A82E33AE9B002F75E6 /* 비-창문.mp3 in Resources */,
@@ -1041,7 +776,6 @@
 				E084F2B12E33AE9B002F75E6 /* 파도.mp3 in Resources */,
 				E084F2B22E33AE9B002F75E6 /* 파도2.mp3 in Resources */,
 				E084F2B32E33AE9B002F75E6 /* cat.gif in Resources */,
-				E084F2B42E33AE9B002F75E6 /* .gitignore in Resources */,
 				E084F2B62E33AE9B002F75E6 /* Assets.xcassets in Resources */,
 				E084F2B72E33AE9B002F75E6 /* gemini.xcconfig in Resources */,
 				E084F2B82E33AE9B002F75E6 /* gpt.xcconfig in Resources */,
@@ -1164,6 +898,8 @@
 				E084F1E42E33ACB3002F75E6 /* EmotionDiaryViewController+Actions.swift in Sources */,
 				E084F1E52E33ACB3002F75E6 /* AIServiceTypes.swift in Sources */,
 				E084F1E62E33ACB3002F75E6 /* EmotionAnalysisChatViewModel.swift in Sources */,
+				E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */,
+				E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */,
 				E084F1E72E33ACB3002F75E6 /* CompilerFixStubs.swift in Sources */,
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,
@@ -1432,19 +1168,6 @@
 			productName = GoogleGenerativeAI;
 		};
 /* End XCSwiftPackageProductDependency section */
-
-/* Begin XCVersionGroup section */
-		E084F04B2E33ACB3002F75E6 /* DeepSleep.xcdatamodeld */ = {
-			isa = XCVersionGroup;
-			children = (
-				E084F1782E33ACB3002F75E6 /* DeepSleep.xcdatamodel */,
-			);
-			currentVersion = E084F1782E33ACB3002F75E6 /* DeepSleep.xcdatamodel */;
-			path = DeepSleep.xcdatamodeld;
-			sourceTree = "<group>";
-			versionGroupType = wrapper.xcdatamodel;
-		};
-/* End XCVersionGroup section */
 	};
 	rootObject = A017 /* Project object */;
 }

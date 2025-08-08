@@ -16,6 +16,8 @@ public enum AIModel: String, CaseIterable, Codable {
     case openAI = "openai"
     case gemini = "gemini"
     case naver = "naver"
+    case freeModel = "free_model"  // 무료 모델 (OpenRouter)
+    case testModel = "test_model"   // 베타 테스트용
     
     var displayName: String {
         switch self {
@@ -23,6 +25,8 @@ public enum AIModel: String, CaseIterable, Codable {
         case .openAI: return "OpenAI GPT-4o Mini"
         case .gemini: return "Google Gemini"
         case .naver: return "Naver HyperCLOVA X"
+        case .freeModel: return "무료 AI 모델"
+        case .testModel: return "테스트 모델"
         }
     }
 }
@@ -326,6 +330,12 @@ public enum AIServiceError: Error, LocalizedError {
     case timeoutError
     case unknown(Error)
     
+    // MARK: - OpenRouter 관련 에러
+    case invalidURL
+    case httpError(Int)
+    case apiError(Int, String)
+    case allModelsFailed([String])
+    
     public var errorDescription: String? {
         switch self {
         // MARK: - 인증 및 권한 에러
@@ -363,6 +373,16 @@ public enum AIServiceError: Error, LocalizedError {
             return "⏱️ 요청 시간이 초과되었습니다.\n다시 시도해주세요."
         case .unknown(let error):
             return "❓ 알 수 없는 오류가 발생했습니다.\n(\(error.localizedDescription))"
+            
+        // MARK: - OpenRouter 관련 에러
+        case .invalidURL:
+            return "🔗 잘못된 API 주소입니다."
+        case .httpError(let code):
+            return "🌐 HTTP 오류가 발생했습니다.\n(오류 코드: \(code))"
+        case .apiError(let code, let message):
+            return "⚠️ API 오류: \(message)\n(코드: \(code))"
+        case .allModelsFailed(let models):
+            return "❌ 모든 모델 호출 실패\n시도한 모델: \(models.joined(separator: ", "))"
         }
     }
     
@@ -383,6 +403,10 @@ public enum AIServiceError: Error, LocalizedError {
         case .configurationError: return "설정 오류"
         case .timeoutError: return "시간 초과"
         case .unknown: return "알 수 없는 오류"
+        case .invalidURL: return "잘못된 주소"
+        case .httpError: return "HTTP 오류"
+        case .apiError: return "API 오류"
+        case .allModelsFailed: return "모든 모델 실패"
         }
     }
     
@@ -417,6 +441,14 @@ public enum AIServiceError: Error, LocalizedError {
             return "네트워크 상태를 확인하고 다시 시도해주세요."
         case .unknown:
             return "문제가 지속되면 고객센터에 문의해주세요."
+        case .invalidURL:
+            return "OpenRouter API 주소를 확인해주세요."
+        case .httpError:
+            return "일시적인 네트워크/서버 오류입니다. 잠시 후 다시 시도해주세요."
+        case .apiError:
+            return "모델 또는 요청 형식을 확인한 뒤 다시 시도해주세요."
+        case .allModelsFailed:
+            return "설정 화면에서 다른 모델을 선택하거나 잠시 후 다시 시도해주세요."
         }
     }
 }

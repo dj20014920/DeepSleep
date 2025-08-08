@@ -313,11 +313,17 @@ public class ChatManager {
                 preferredModel = .gemini
             case "naver":
                 preferredModel = .naver
+            case "free", "free_model":
+                preferredModel = .freeModel
+            case "test", "test_model":
+                preferredModel = .testModel
             default:
-                preferredModel = nil
+                // 베타 테스트 기간: 기본값을 무료 모델로 설정
+                preferredModel = .freeModel
             }
         } else {
-            preferredModel = nil
+            // 베타 테스트 기간: 모델 미지정시 무료 모델 사용
+            preferredModel = .freeModel
         }
         
         // 🎯 AIMode별 시스템 프롬프트 자동 주입

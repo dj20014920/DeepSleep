@@ -134,6 +134,20 @@ class AIModelSelectionViewController: UIViewController {
         // AI 모델 정보
         let models = [
             (
+                type: AIModelType.freeModel,
+                personality: "베타 테스터를 위한 무료 친구",
+                specialties: ["무료 이용", "다양한 AI 모델", "자동 전환", "한국어 지원"],
+                strengths: "여러 무료 AI 모델을 자동으로 전환하며 최적의 답변을 제공해요",
+                bestFor: "부담 없는 대화, 다양한 스타일 체험, 베타 테스트",
+            ),
+            (
+                type: AIModelType.testModel,
+                personality: "실험적이고 모험적인 성격",
+                specialties: ["최신 기능", "실험적 접근", "창의적 시도", "피드백 수집"],
+                strengths: "최신 AI 기술을 먼저 체험하고 새로운 기능을 테스트해요",
+                bestFor: "새로운 기능 체험, 실험적 대화, 피드백 제공",
+            ),
+            (
                 type: AIModelType.gemini,
                 personality: "자유롭고 창의적인 성격",
                 specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],

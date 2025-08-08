@@ -1,6 +1,12 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
-
+..*
+.specstory
+*.xcconfig
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gemini.xcconfig
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gpt.xcconfig
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/naver.xcconfig
+/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Secrets.xcconfig
 # ===== macOS =====
 .DS_Store
 .AppleDouble
@@ -229,6 +235,7 @@ cache/
 *.cache
 
 # API keys and secrets
+*.xcconfig
 secrets.json
 api_keys.json
 .env.local
@@ -292,11 +299,6 @@ vendor/bundle/
 *TRACKER*.md
 *SUMMARY*.md
 *COMPLETION*.md
-*FIRES_TREE*.md
-DEEPSLEEP_*.md
-INFO_PLIST_*.md
-TabBar_*.md
-UITabBar_*.md
 
 # ===== Project-specific temporary files =====
 # SuperClaude folder (development tools)
@@ -310,42 +312,6 @@ build_*.log
 test_*.log
 *_output*.log
 *_status*.log
-
-# ===== IDE & Development Tools (추가) =====
-# Cursor IDE
-.cursor/
-.cursorindexingignore
-*.cursor
-
-# SpecStory
-.specstory/
-.spec/
-
-# GitHub workflows (개발용)
-.github/
-
-# Performance monitoring
-Performance/
-logs/
-
-# Build outputs
-build/
-TestResults.xcresult/
-
-# Scripts (개발 전용)
-Scripts/
-*.sh
-!setup.sh
-!install.sh
-
-# Documentation (내부용)
-*_COMPREHENSIVE_*.md
-*_FIRES_*.md
-*Fix*.md
-*Crash*.md
-generate-docs.sh
-spm_xcodegen_reset.sh
-test_build.sh
 
 # ===== Xcode Project backup folders =====
 *.xcodeproj.bak/
@@ -381,7 +347,6 @@ test_build.sh
 !docs/*.md
 !scripts/pipeline/README.md
 !scripts/pipeline/REORGANIZATION_SUMMARY.md
-!DEEPSLEEP_COMPREHENSIVE_GUIDE.md
 
 # Keep essential scripts
 !*.sh
@@ -526,4 +491,4 @@ build-cache/
 # 예시 설정 파일들은 포함 (보안 정보 없이)
 !**/*example*
 !**/*template*
-!**/*sample* 
+!**/*sample*
