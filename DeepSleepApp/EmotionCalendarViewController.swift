@@ -597,10 +597,8 @@ extension EmotionCalendarViewController {
         // ✅ 사용 횟수 기록 (실제 분석 시작 시점에)
         AIUsageManager.shared.recordUsage(for: .monthlyStatistics)
         
-        let chatVC = ChatViewController()
-        // ✅ 타이틀 제거 - ChatViewController에서 통일된 타이틀 설정
-        
-        chatVC.emotionPatternData = anonymizedData
+        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
+        let chatVC = ChatRouter.chatViewController(context: .monthlyPattern(data: anonymizedData))
         chatVC.initialUserText = "감정_패턴_분석_모드"
         
         // ✅ 네비게이션 컨트롤러 설정 개선

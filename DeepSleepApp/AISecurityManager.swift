@@ -113,7 +113,7 @@ class AISecurityManager {
     
     /// 📋 **1. 입력 검증 및 정화 (Input Validation & Sanitization)**
     func validateAndSanitizeInput(_ input: String, userId: String) -> SecurityValidationResult {
-        print("🔍 [Security] 입력 보안 검사 시작: \(input.prefix(50))...")
+        // 입력 보안 검사 시작
         
         // 1. 기본 검증
         guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -159,7 +159,7 @@ class AISecurityManager {
         // 7. 사용량 기록
         dailyRequestCounts[userKey] = currentCount + 1
         
-        print("✅ [Security] 입력 검증 완료")
+        // 입력 검증 완료
         return .approved(cleanInput: sanitizedInput)
     }
     
@@ -265,7 +265,7 @@ class AISecurityManager {
     
     /// 📤 **6. 출력 검증 (Output Validation)**
     func validateOutput(_ output: String, originalInput: String) -> OutputValidationResult {
-        print("🔍 [Security] 출력 보안 검사 시작...")
+        // 출력 보안 검사 시작
         
         // 1. 시스템 프롬프트 노출 확인
         if containsSystemPromptLeakage(output) {
@@ -291,7 +291,7 @@ class AISecurityManager {
             return .blocked(reason: "코드 실행 시도가 감지되어 차단되었습니다.")
         }
         
-        print("✅ [Security] 출력 검증 완료")
+        // 출력 검증 완료
         return .approved
     }
     

@@ -349,9 +349,8 @@ class EmotionDiaryViewController: UIViewController {
             return
         }
 
-        let chatVC = ChatViewController()
-        let diaryContext = DiaryContext(from: diary) // 'diary'는 EmotionDiary 타입이어야 함
-        chatVC.diaryContext = diaryContext
+        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
+        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diary))
         chatVC.initialUserText = "선택된 일기 심층 분석"
         
         // 프리셋 적용 콜백 설정
@@ -381,8 +380,8 @@ class EmotionDiaryViewController: UIViewController {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let patternData = recentEntries.map { "\(dateFormatter.string(from: $0.date)):\($0.selectedEmotion)" }.joined(separator: ",")
 
-        let chatVC = ChatViewController()
-        chatVC.emotionPatternData = patternData
+        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
+        let chatVC = ChatRouter.chatViewController(context: .monthlyPattern(data: patternData))
         chatVC.initialUserText = "최근 30일 감정 패턴 분석"
         
         // 프리셋 적용 콜백 설정

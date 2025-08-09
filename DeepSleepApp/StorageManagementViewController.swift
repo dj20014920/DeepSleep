@@ -381,6 +381,10 @@ class StorageManagementViewController: UIViewController {
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "\(deletedCount)개의 오래된 대화를 삭제했습니다.")
                     self.loadStorageStatistics()
+                    
+                    // 🔄 ChatViewController에 변경 사항 알림
+                    NotificationCenter.default.post(name: Notification.Name("ChatStoreDidChange"), object: nil)
+                    UnifiedLogger.shared.debug("✅ ChatStoreDidChange 노티피케이션 발송 (30일 이전 삭제)", category: .storage)
                 }
                 
             } catch {
@@ -399,6 +403,10 @@ class StorageManagementViewController: UIViewController {
                 await MainActor.run {
                     self.showSuccessAlert("압축 완료", message: "\(compressedCount)개의 대화를 압축했습니다.")
                     self.loadStorageStatistics()
+                    
+                    // 🔄 ChatViewController에 변경 사항 알림
+                    NotificationCenter.default.post(name: Notification.Name("ChatStoreDidChange"), object: nil)
+                    UnifiedLogger.shared.debug("✅ ChatStoreDidChange 노티피케이션 발송 (압축 완료)", category: .storage)
                 }
                 
             } catch {
@@ -418,6 +426,10 @@ class StorageManagementViewController: UIViewController {
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "모든 대화를 삭제했습니다.")
                     self.loadStorageStatistics()
+                    
+                    // 🔄 ChatViewController에 변경 사항 알림
+                    NotificationCenter.default.post(name: Notification.Name("ChatStoreDidChange"), object: nil)
+                    UnifiedLogger.shared.debug("✅ ChatStoreDidChange 노티피케이션 발송 (모든 대화 삭제)", category: .storage)
                 }
                 
             } catch {
@@ -437,6 +449,10 @@ class StorageManagementViewController: UIViewController {
                     self.showSuccessAlert("삭제 완료", message: "\(self.selectedDates.count)개의 선택된 대화를 삭제했습니다.")
                     self.selectedDates.removeAll()
                     self.loadStorageStatistics()
+                    
+                    // 🔄 ChatViewController에 변경 사항 알림
+                    NotificationCenter.default.post(name: Notification.Name("ChatStoreDidChange"), object: nil)
+                    UnifiedLogger.shared.debug("✅ ChatStoreDidChange 노티피케이션 발송 (선택 삭제)", category: .storage)
                 }
                 
             } catch {

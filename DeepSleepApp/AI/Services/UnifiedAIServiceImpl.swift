@@ -246,8 +246,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
         case .freeModel:
-            // 통합된 무료 모델은 OpenRouter 순차 폴백을 통해 처리
-
+            print("🎁 [UnifiedAIService] 무료 모델 폴백 시스템 호출 - 모드: \(mode)")
             
             guard let freeService = freeModelService else {
                 print("❌ [UnifiedAIService] freeModelService가 nil입니다!")

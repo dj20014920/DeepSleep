@@ -108,6 +108,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private var isLoadingMessages = false
     private var hasMoreMessages = true
     private var displayMessages: [ChatMessage] = []
+    private var allMessagesCache: [ChatMessage] = []
     
     // MARK: - Model Switching Properties
     // TODO: 임시 주석 처리 - 컴파일 오류 해결 후 활성화
@@ -275,24 +276,146 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         }
     }
     
-    /// AI 응답 JSON 파싱
+    /// 🧠 지능형 AI 응답 파싱 (모든 JSON 구조 지원)
     private func parseAIResponse(_ response: String) -> String {
-        // JSON 형식인지 확인
-        if response.hasPrefix("{") && response.hasSuffix("}") {
-            do {
-                if let data = response.data(using: .utf8),
-                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseText = json["response"] as? String {
-                    return responseText
+        print("🔍 [ChatViewController] 원본 AI 응답: \(response)")
+        
+        // 1. 지능형 JSON 파싱 시도
+        if let cleanText = parseJSONIntelligently(response) {
+            print("✅ [ChatViewController] JSON 파싱 성공: \(cleanText.prefix(50))...")
+            return cleanText
+        }
+        
+        // 2. 원본 텍스트 정리 후 반환
+        let cleanedText = cleanRawResponse(response)
+        print("🔄 [ChatViewController] 정리된 텍스트 반환: \(cleanedText.prefix(50))...")
+        return cleanedText
+    }
+    
+    /// 🎯 지능형 JSON 파싱 - 다양한 키 구조 지원 (보안 강화)
+    private func parseJSONIntelligently(_ response: String) -> String? {
+        // JSON 형식 확인
+        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{") && trimmed.hasSuffix("}") else {
+            return nil
+        }
+        
+        // 🛡️ 보안 검증 - JSON 크기 제한 (DoS 방지)
+        guard trimmed.count < 50000 else {
+            print("⚠️ [ChatViewController] JSON 크기 초과 - 보안상 거부")
+            return nil
+        }
+        
+        do {
+            guard let data = trimmed.data(using: .utf8),
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            
+            print("🔧 [ChatViewController] JSON 구조: \(json.keys.sorted())")
+            
+            // 우선순위별 키 검색 (성능 최적화 - 상수로 분리)
+            for key in Self.priorityKeys {
+                if let text = json[key] as? String, !text.isEmpty {
+                    print("✅ [ChatViewController] '\(key)' 키에서 텍스트 추출")
+                    return sanitizeAIResponse(text)
                 }
-            } catch {
-                // JSON 파싱 실패 시 원본 반환
+            }
+            
+            // 중첩 객체에서 텍스트 검색
+            for (_, value) in json {
+                if let nestedDict = value as? [String: Any] {
+                    for key in Self.priorityKeys {
+                        if let text = nestedDict[key] as? String, !text.isEmpty {
+                            print("✅ [ChatViewController] 중첩 객체 '\(key)' 키에서 텍스트 추출")
+                            return sanitizeAIResponse(text)
+                        }
+                    }
+                }
+            }
+            
+            // 첫 번째 문자열 값 추출 (최후 수단)
+            for (key, value) in json {
+                if let text = value as? String, !text.isEmpty, text.count > 10 {
+                    print("⚠️ [ChatViewController] '\(key)' 키에서 긴 문자열 추출 (최후 수단)")
+                    return sanitizeAIResponse(text)
+                }
+            }
+            
+            print("❌ [ChatViewController] JSON에서 유효한 텍스트를 찾을 수 없음")
+            return nil
+            
+        } catch {
+            print("❌ [ChatViewController] JSON 파싱 오류: \(error)")
+            return nil
+        }
+    }
+    
+    /// 🛡️ AI 응답 보안 검증 및 살균
+    private func sanitizeAIResponse(_ text: String) -> String {
+        let validationResult = InputValidationManager.shared.validate(text, against: .searchQuery)
+        
+        if !validationResult.isValid {
+            print("⚠️ [ChatViewController] 보안 위험 감지: \(validationResult.securityIssues)")
+            // 보안 문제가 있는 경우 안전한 기본 응답 반환
+            return "죄송합니다. 응답을 처리하는 중 문제가 발생했습니다. 다시 시도해주세요."
+        }
+        
+        return validationResult.sanitizedValue ?? text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    /// 📋 우선순위 키 목록 (성능 최적화)
+    private static let priorityKeys = ["message", "response", "text", "content", "answer", "reply"]
+    
+    /// 🧹 원본 응답 정리 - JSON 아티팩트 제거 (성능 최적화)
+    private func cleanRawResponse(_ response: String) -> String {
+        var cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 🛡️ 보안 검증 먼저 수행
+        let validationResult = InputValidationManager.shared.validate(cleaned, against: .searchQuery)
+        if !validationResult.isValid {
+            print("⚠️ [ChatViewController] 원본 응답에서 보안 위험 감지")
+            return "응답을 처리할 수 없습니다. 다시 시도해주세요."
+        }
+        
+        // JSON 형태라면 최대한 읽기 쉽게 정리
+        if cleaned.hasPrefix("{") && cleaned.hasSuffix("}") {
+            // 성능 최적화: 미리 컴파일된 정규식 사용
+            for regex in Self.precompiledRegexes {
+                if let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
+                   let range = Range(match.range(at: 1), in: cleaned) {
+                    let extractedText = String(cleaned[range])
+                    print("🔧 [ChatViewController] 정규식으로 텍스트 추출: \(extractedText.prefix(50))...")
+                    return extractedText
+                }
+            }
+            
+            // 정규식 실패 시 JSON 아티팩트 제거
+            cleaned = cleaned
+                .replacingOccurrences(of: "\\\"", with: "\"")  // 이스케이프 따옴표
+                .replacingOccurrences(of: "\\n", with: "\n")   // 이스케이프 개행
+                .replacingOccurrences(of: "\\t", with: " ")    // 이스케이프 탭
+            
+            // 간단한 JSON 구조 정리
+            if cleaned.contains("\"message\":") {
+                cleaned = cleaned.replacingOccurrences(of: "^\\{.*\"message\"\\s*:\\s*\"", with: "", options: .regularExpression)
+                cleaned = cleaned.replacingOccurrences(of: "\".*\\}$", with: "", options: .regularExpression)
             }
         }
         
-        // JSON이 아니거나 파싱 실패 시 원본 반환
-        return response
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    
+    /// 📋 미리 컴파일된 정규식 (성능 최적화)
+    private static let precompiledRegexes: [NSRegularExpression] = {
+        let patterns = [
+            "\"message\"\\s*:\\s*\"([^\"]+)\"",
+            "\"response\"\\s*:\\s*\"([^\"]+)\"", 
+            "\"text\"\\s*:\\s*\"([^\"]+)\"",
+            "\"content\"\\s*:\\s*\"([^\"]+)\""
+        ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: []) }
+    }()
     
     /// 로컬 AI 응답 생성
     private func generateLocalResponse(for message: String) -> String {
@@ -355,44 +478,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 }
             }
         }
-    }
-    
-    // MARK: - 🎵 프리셋 추천 시스템 (통합)
-    
-    /// 프리셋 추천 요청 자동 감지
-    private func isPresetRecommendationRequest(_ text: String) -> Bool {
-        let lowercaseText = text.lowercased()
-        
-        let emotionKeywords = ["힘들어", "슬퍼", "우울해", "스트레스", "피곤해", "지쳐", "행복해", "기뻐", "화나", "불안해"]
-        let recommendationKeywords = ["추천", "프리셋", "사운드", "음원", "음악", "소리", "어울리", "맞는", "좋은", "틀어", "들려", "도움"]
-        
-        let emotionCount = emotionKeywords.filter { lowercaseText.contains($0) }.count
-        let recommendationCount = recommendationKeywords.filter { lowercaseText.contains($0) }.count
-        
-        return (emotionCount >= 1 && recommendationCount >= 1) || recommendationCount >= 2
-    }
-    
-    /// 자동 감지된 프리셋 요청 처리
-    private func handleAutoDetectedPresetRequest(originalMessage: String) {
-        let userMessage = ChatMessage(text: originalMessage, sender: .user, type: .user)
-        appendChat(userMessage)
-        
-        let detectionMessage = """
-        💡 프리셋 추천 요청을 감지했어요!
-        
-        "\(originalMessage.prefix(50))\(originalMessage.count > 50 ? "..." : "")"
-        
-        지금 상황에 딱 맞는 사운드를 추천해드릴게요. 어떤 방식으로 추천받으시겠어요?
-        """
-        
-        var aiMessage = ChatMessage(text: detectionMessage, sender: .ai, type: .bot)
-        aiMessage.quickActions = [
-            QuickAction(title: "🧠 대나무숲 분석 추천", action: "ai_recommendation"),
-            QuickAction(title: "⚡ 빠른 로컬 추천", action: "local_recommendation"),
-            QuickAction(title: "🎵 하단 버튼으로 이동", action: "scroll_to_preset_button")
-        ]
-        
-        appendChat(aiMessage)
     }
     
     // MARK: - 💬 메시지 전송 처리 (리팩토링 완료)
@@ -475,42 +560,63 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         }
     }
     
-    /// 현재 대화에서 히스토리를 구축합니다.
-    private func buildConversationHistory() -> [ChatMessage] {
-        let maxHistoryCount = 10 // 최근 10개 메시지만 포함 (성능 고려)
-        
-        // 최근 메시지부터 역순으로 추출 (로딩 메시지 제외)
-        let recentMessages = messages
-            .filter { message in
-                // 로딩 메시지가 아니고, 내용이 비어있지 않은 메시지만 필터링
-                message.type != .loading && 
-                (message.text?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty == false)
+    /// 🎯 중앙집중형 메시지 추가 메서드 - 모든 메시지는 이 메서드를 통해 추가됨
+    /// ChatMessage 객체를 채팅에 추가하고 UI를 업데이트합니다
+    private func appendChat(_ message: ChatMessage) {
+        // 메인 스레드에서 안전하게 처리
+        DispatchQueue.main.async {
+            // 1. UI 메시지 배열에 추가
+            self.messages.append(message)
+            
+            // 2. ChatManager를 통한 영속성 처리 (중앙집중형)
+            if let chatManager = self.chatManager {
+                chatManager.append(message)
+                
+                // 3. 즉시 디스크에 저장 (데이터 안전성 보장)
+                chatManager.flush()
+                
+                print("✅ [ChatViewController] 메시지 추가 및 즉시 저장 완료 - Type: \(message.type), Sender: \(message.sender)")
+            } else {
+                print("❌ [ChatViewController] ChatManager가 nil - 메시지 저장 실패!")
             }
-            .suffix(maxHistoryCount)
-        
-        // ChatMessage 배열 반환 (타입 변환 불필요)
-        print("🔧 [ChatViewController] 대화 히스토리 구축 완료: \(recentMessages.count)개 메시지")
-        return Array(recentMessages)
+            
+            // 4. UI 업데이트
+            self.tableView.reloadData()
+            self.scrollToBottom()
+        }
     }
-
-    /// 일기 분석을 AI에게 요청합니다.
-    // ... (기존 analyzeDiary 함수는 fetchAIResponse와 유사하므로 삭제하고, 대신 Task 타입을 호출부에 명시) ...
-    
-    // MARK: - 🤖 AI 응답/에러 공통 처리
 
     private func handleAIResponse(_ text: String) {
         Task { @MainActor in
             self.showLoading(false)
             let parsedResponse = self.parseAIResponse(text)
-            self.addMessageToChat(message: parsedResponse, fromUser: false)
+            
+            // 🎯 중앙집중형 처리: appendChat 하나로 통합
+            let aiMessage = ChatMessage(
+                text: parsedResponse,
+                date: Date(),
+                sender: .ai,
+                type: .bot
+            )
+            
+            // appendChat이 모든 저장과 UI 업데이트를 처리
+            self.appendChat(aiMessage)
+            print("✅ [ChatViewController] AI 응답 처리 완료")
         }
     }
 
     private func handleAIError(_ error: Error) {
         Task { @MainActor in
+            print("❌ [ChatViewController] AI 에러 처리 시작: \(error)")
+            
+            // 중앙집중식 로딩 제거
             self.showLoading(false)
+            
             let errorMessage = UserFriendlyErrorHandler.shared.getUserFriendlyMessage(for: error)
+            print("🔧 [ChatViewController] 사용자 친화적 에러 메시지: \(errorMessage)")
+            
             self.addMessageToChat(message: errorMessage, fromUser: false)
+            print("✅ [ChatViewController] 에러 메시지 추가 완료")
         }
     }
     
@@ -531,27 +637,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         appendChat(chatMessage)
     }
     
-    /// ChatMessage 객체를 채팅에 추가하고 UI를 업데이트합니다
-    private func appendChat(_ message: ChatMessage) {
-        print("🟢 [ChatViewController] appendChat 호출됨 - 메시지 ID: \(message.id), 현재 메시지 수: \(messages.count)")
-        DispatchQueue.main.async {
-            print("🟢 [ChatViewController] 메인 스레드에서 UI 업데이트 시작")
-            self.messages.append(message)
-            print("🟢 [ChatViewController] 메시지 배열에 추가됨 - 새로운 메시지 수: \(self.messages.count)")
-            
-            if let chatManager = self.chatManager {
-                chatManager.append(message)
-                print("🟢 [ChatViewController] ChatManager에 메시지 추가됨")
-            } else {
-                print("🔴 [ChatViewController] ChatManager가 nil임!")
-            }
-            
-            print("🟢 [ChatViewController] tableView.reloadData() 호출")
-            self.tableView.reloadData()
-            self.scrollToBottom()
-            print("🟢 [ChatViewController] UI 업데이트 완료")
-        }
-    }
     
     /// 봇 메시지를 채팅에 추가합니다
     override func addBotMessage(_ message: String) {
@@ -580,13 +665,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 self.appendChat(loadingMessage)
                 print("⏳ [ChatViewController] 로딩 메시지 추가됨 - 메시지 수: \(self.messages.count)")
             } else {
-                print("⏳ [ChatViewController] 로딩 메시지 제거 시도")
-                if let lastMessage = self.messages.last, lastMessage.type == .loading {
-                    self.messages.removeLast()
-                    print("⏳ [ChatViewController] 로딩 메시지 제거됨 - 메시지 수: \(self.messages.count)")
-                } else {
-                    print("🔴 [ChatViewController] 제거할 로딩 메시지가 없음")
-                }
+                // 중앙집중식 로딩 메시지 제거
+                self.removeAllLoadingMessages()
             }
             print("⏳ [ChatViewController] tableView.reloadData() 호출")
             self.tableView.reloadData()
@@ -596,29 +676,49 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     }
     
     /// 테이블뷰를 맨 아래로 스크롤합니다
-    private func scrollToBottom() {
+    private func scrollToBottom(animated: Bool = true) {
         DispatchQueue.main.async {
-            print("🔄 [ChatViewController] scrollToBottom 호출됨 - 메시지 수: \(self.messages.count)")
+            // 스크롤 하단으로 이동
             guard !self.messages.isEmpty else { 
                 print("🔴 [ChatViewController] 메시지가 없어서 스크롤하지 않음")
                 return 
             }
             let indexPath = IndexPath(row: self.messages.count - 1, section: 0)
-            print("🔄 [ChatViewController] 스크롤 대상 IndexPath: \(indexPath)")
-            self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
-            print("🔄 [ChatViewController] 스크롤 완료")
+            self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: animated)
+            // 스크롤 완료
         }
     }
     
     // MARK: - 🔧 Additional Helper Methods
     
-    /// 마지막 로딩 메시지를 제거합니다
+    /// 모든 로딩 메시지를 제거합니다 (중앙집중식 처리, 메모리 최적화)
+    private func removeAllLoadingMessages() {
+        let beforeCount = messages.count
+        messages.removeAll { $0.type == .loading }
+        let afterCount = messages.count
+        let removedCount = beforeCount - afterCount
+        
+        if removedCount > 0 {
+            print("🧹 [ChatViewController] 로딩 메시지 \(removedCount)개 제거 완료 - 현재 메시지 수: \(afterCount)")
+            
+            // 메모리 최적화: 메인 스레드에서 이미 실행 중인지 확인
+            if Thread.isMainThread {
+                self.tableView.reloadData()
+                self.scrollToBottom()
+            } else {
+                DispatchQueue.main.async {
+                    self.tableView.reloadData()
+                    self.scrollToBottom()
+                }
+            }
+        }
+    }
+    
+    /// 마지막 로딩 메시지를 제거합니다 (레거시 메서드)
     private func removeLastLoadingMessage() {
         DispatchQueue.main.async {
-            if let lastMessage = self.messages.last, lastMessage.type == .loading {
-                self.messages.removeLast()
-                self.tableView.reloadData()
-            }
+            self.removeAllLoadingMessages()
+            self.tableView.reloadData()
         }
     }
     
@@ -683,9 +783,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     // MARK: - 💾 채팅 기록 저장/불러오기 (통합)
     
-    /// 채팅 기록 저장
+    /// 채팅 기록 저장 - ChatManager가 자동으로 처리
     private func saveChatHistory() {
         // ChatManager가 자동으로 처리하므로 별도 작업 불필요
+        #if DEBUG
+        print("💾 [ChatPersistence] 채팅 기록 자동 저장 (ChatManager 관리)")
+        #endif
         UnifiedLogger.shared.debug("채팅 기록 자동 저장 (ChatManager 관리)", category: .cache)
     }
     
@@ -708,9 +811,241 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     // Note: These functions moved to CompilerFixStubs.swift to avoid duplication
     
+    // MARK: - 📝 Step 2: 저장된 메시지 불러오기 구현
+    
+    /// viewDidLoad 후 저장된 메시지를 불러와서 표시 - 앱 시작 시 이전 대화 복원
+    private func loadSavedMessages() {
+        guard let chatManager = chatManager else {
+            #if DEBUG
+            print("💾 [ChatPersistence] 경고: ChatManager가 초기화되지 않음")
+            #endif
+            return
+        }
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 저장된 메시지 불러오기 시작")
+        #endif
+        
+        // 1. ChatManager에서 최근 메시지 가져오기 (초기 로드는 100개)
+        let stored = chatManager.getRecentMessages(limit: 100)  // 최근 100개 메시지
+        
+        // 2. StoredChatMessage를 ChatMessage로 변환하여 전체 캐시에 저장
+        allMessagesCache = stored.map { chatManager.convertToChatMessage($0) }
+        
+        // 3. 초기 페이지 설정 (최근 pageSize개만 표시)
+        currentPage = 0
+        let initialCount = min(pageSize, allMessagesCache.count)
+        messages = Array(allMessagesCache.suffix(initialCount))
+        hasMoreMessages = allMessagesCache.count > pageSize
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 전체 \(allMessagesCache.count)개 중 \(messages.count)개 메시지 UI에 표시")
+        #endif
+        
+        // 4. 테이블뷰 리로드 및 하단으로 스크롤
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.tableView.reloadData()
+            if !self.messages.isEmpty {
+                self.scrollToBottom(animated: false)
+            }
+        }
+    }
+    
+    /// 이전 메시지를 페이징으로 로드 - 스크롤 시 추가 메시지 로드
+    private func paginateOlderMessages() {
+        guard hasMoreMessages && !isLoadingMessages else {
+            #if DEBUG
+            print("💾 [ChatPersistence] 페이징 스킵 - hasMore: \(hasMoreMessages), loading: \(isLoadingMessages)")
+            #endif
+            return
+        }
+        
+        isLoadingMessages = true
+        #if DEBUG
+        print("💾 [ChatPersistence] 이전 메시지 페이징 시작 - 현재 페이지: \(currentPage)")
+        #endif
+        
+        // 📊 페이징 전 메모리 체크
+        #if DEBUG
+        MemoryProfiler.shared.logMemoryUsage(context: "페이징 전 (페이지: \(currentPage))")
+        #endif
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // 다음 페이지 계산
+            let nextPage = self.currentPage + 1
+            let startIndex = max(0, self.allMessagesCache.count - (nextPage + 1) * self.pageSize)
+            let endIndex = max(0, self.allMessagesCache.count - nextPage * self.pageSize)
+            
+            guard startIndex < endIndex else {
+                DispatchQueue.main.async {
+                    self.hasMoreMessages = false
+                    self.isLoadingMessages = false
+                    print("📝 [ChatViewController] 더 이상 로드할 메시지 없음")
+                }
+                return
+            }
+            
+            // 이전 메시지들 추출
+            let olderMessages = Array(self.allMessagesCache[startIndex..<endIndex])
+            
+            DispatchQueue.main.async {
+                // 현재 스크롤 위치 저장
+                let previousContentHeight = self.tableView.contentSize.height
+                let previousContentOffset = self.tableView.contentOffset.y
+                
+                // 메시지 추가 (앞쪽에 삽입)
+                self.messages.insert(contentsOf: olderMessages, at: 0)
+                self.currentPage = nextPage
+                
+                // 테이블 뷰 업데이트
+                self.tableView.reloadData()
+                
+                // 스크롤 위치 유지
+                self.tableView.layoutIfNeeded()
+                let newContentHeight = self.tableView.contentSize.height
+                let contentHeightDiff = newContentHeight - previousContentHeight
+                self.tableView.contentOffset = CGPoint(x: 0, y: previousContentOffset + contentHeightDiff)
+                
+                // 상태 업데이트
+                self.hasMoreMessages = startIndex > 0
+                self.isLoadingMessages = false
+                
+                #if DEBUG
+                print("💾 [ChatPersistence] 페이징 완료 - 추가된 메시지: \(olderMessages.count), 전체: \(self.messages.count)")
+                #endif
+                
+                // 📊 페이징 후 메모리 체크
+                #if DEBUG
+                MemoryProfiler.shared.logMemoryUsage(context: "페이징 후 (현재 표시: \(self.messages.count)개)")
+                
+                // 50MB 초과 시 경고
+                if MemoryProfiler.shared.checkMemoryWarning() {
+                    print("⚠️ 메모리 사용량이 50MB를 초과했습니다!")
+                    // 필요시 오래된 메시지 정리
+                    self.cleanupOldMessages()
+                }
+                #endif
+            }
+        }
+    }
+    
+    // MARK: - 🔄 StorageManagement 변경 사항 처리
+    
+    /// StorageManagement에서 대화 삭제/압축 시 호출되는 핸들러
+    @objc private func handleChatStoreDidChange(_ notification: Notification) {
+        UnifiedLogger.shared.debug("🔄 ChatStoreDidChange 노티피케이션 수신 - 메시지 다시 로드", category: .storage)
+        
+        // 1. 저장된 메시지 다시 로드
+        loadSavedMessages()
+        
+        // 2. 메모리 캐시 정리 (삭제된 세션 제거)
+        cleanupSessionCache()
+        
+        // 3. 사용자에게 알림 표시 (선택적)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 메시지가 모두 사라진 경우 안내 메시지 표시
+            if self.messages.isEmpty {
+                let infoMessage = ChatMessage(
+                    text: "💾 저장소 정리가 완료되었습니다. 새로운 대화를 시작해보세요!",
+                    sender: .system,
+                    type: .system
+                )
+                self.messages = [infoMessage]
+                self.tableView.reloadData()
+            }
+            
+            UnifiedLogger.shared.debug("✅ ChatStoreDidChange 처리 완료 - 현재 메시지 수: \(self.messages.count)", category: .storage)
+        }
+    }
+    
+    /// 메모리에 캐시된 세션 정리
+    private func cleanupSessionCache() {
+        guard let chatManager = chatManager else { return }
+        
+        // ChatManager의 메모리 캐시 정리 요청
+        // 삭제된 세션이 메모리에 남아있지 않도록 처리
+        Task {
+            // 오래된 세션 정리 (캐시 갱신)
+            chatManager.cleanupOldSessions(olderThan: 0) // 즉시 캐시 갱신
+            
+            UnifiedLogger.shared.debug("🧹 세션 캐시 정리 완료", category: .storage)
+        }
+    }
+    
+    // MARK: - 📅 날짜별 메시지 그룹화 유틸리티 (Optional)
+    
+    /// 메시지를 날짜별로 그룹화합니다
+    private func groupMessagesByDate() -> [[ChatMessage]] {
+        var groupedMessages: [[ChatMessage]] = []
+        var currentDateMessages: [ChatMessage] = []
+        var currentDate: Date?
+        
+        let calendar = Calendar.current
+        
+        for message in messages {
+            let messageDate = message.date ?? Date()
+            
+            // 날짜 비교 (일 단위)
+            if let current = currentDate {
+                if !calendar.isDate(messageDate, inSameDayAs: current) {
+                    // 날짜가 바뀌면 이전 그룹 저장하고 새 그룹 시작
+                    if !currentDateMessages.isEmpty {
+                        groupedMessages.append(currentDateMessages)
+                    }
+                    currentDateMessages = [message]
+                    currentDate = messageDate
+                } else {
+                    // 같은 날짜면 현재 그룹에 추가
+                    currentDateMessages.append(message)
+                }
+            } else {
+                // 첫 메시지
+                currentDate = messageDate
+                currentDateMessages = [message]
+            }
+        }
+        
+        // 마지막 그룹 추가
+        if !currentDateMessages.isEmpty {
+            groupedMessages.append(currentDateMessages)
+        }
+        
+        return groupedMessages
+    }
+    
+    /// 날짜 헤더를 위한 날짜 문자열 포맷팅
+    private func formatDateHeader(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        
+        if calendar.isDateInToday(date) {
+            return "오늘"
+        } else if calendar.isDateInYesterday(date) {
+            return "어제"
+        } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
+            formatter.dateFormat = "EEEE"  // 요일
+            return formatter.string(from: date)
+        } else {
+            formatter.dateFormat = "M월 d일"  // 월 일
+            return formatter.string(from: date)
+        }
+    }
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // 📊 메모리 프로파일링 시작
+        #if DEBUG
+        MemoryProfiler.shared.setBaseline()
+        MemoryProfiler.shared.logMemoryUsage(context: "viewDidLoad 시작")
+        #endif
         
         // UI 설정
         setupUI()
@@ -728,15 +1063,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         // TODO: 모델 전환 시스템 통합 예정
         
-        // 기본 초기화
-        setupInitialMessages()
-        
-        // 페이징 및 캐시
+        // 페이징 설정
         setupPaging()
-        loadCachedMessages()
         
-        // 🎯 채팅 히스토리 복원 (MessageStore와 ChatManager에서)
-        restoreChatHistoryFromStorage()
+        // 🎯 중앙집중식 메시지 복원 - 하나의 메서드만 호출
+        restoreAndInitializeMessages()
+        
+        // 📊 메모리 사용량 체크
+        #if DEBUG
+        MemoryProfiler.shared.logMemoryUsage(context: "loadSavedMessages 완료")
+        #endif
         
         // 메모리 압박 상황 모니터링
         NotificationCenter.default.addObserver(
@@ -2135,6 +2471,16 @@ extension ChatViewController {
     private func setupNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
+        
+        // 🔄 StorageManagement에서 채팅 데이터 변경 시 알림 수신
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleChatStoreDidChange),
+            name: Notification.Name("ChatStoreDidChange"),
+            object: nil
+        )
+        
+        UnifiedLogger.shared.debug("📡 ChatStoreDidChange 노티피케이션 옵저버 등록 완료", category: .storage)
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         view.addGestureRecognizer(tapGesture)
@@ -2387,156 +2733,6 @@ extension ChatViewController {
     }
 }
 
-// MARK: - Debug Features
-extension ChatViewController {
-    #if DEBUG
-    private func setupDebugGestures() {
-        let debugTap = UITapGestureRecognizer(target: self, action: #selector(debugTenTap))
-        debugTap.numberOfTapsRequired = 10
-        view.addGestureRecognizer(debugTap)
-    }
-    
-    @objc private func debugTenTap() {
-        showPasswordPrompt()
-    }
-    
-    private func showPasswordPrompt() {
-        let alert = UIAlertController(title: "🔐 개발자 모드", message: "비밀번호를 입력하세요", preferredStyle: .alert)
-        
-        alert.addTextField { textField in
-            textField.placeholder = "비밀번호"
-            textField.isSecureTextEntry = true
-        }
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
-            if let password = alert.textFields?.first?.text {
-                self?.checkPassword(password)
-            }
-        })
-        
-        present(alert, animated: true)
-    }
-    
-    private func checkPassword(_ password: String) {
-        if password == "492000!" {
-            showDebugMenu()
-        } else {
-            let errorAlert = UIAlertController(title: "❌ 접근 거부", message: "잘못된 비밀번호입니다", preferredStyle: .alert)
-            errorAlert.addAction(UIAlertAction(title: "확인", style: .default))
-            present(errorAlert, animated: true)
-        }
-    }
-    
-    private func showDebugMenu() {
-        let alert = UIAlertController(title: "🔧 디버그 메뉴", message: "디버그 기능을 선택하세요", preferredStyle: .actionSheet)
-        
-        // 1. 캐시 상태 확인
-        alert.addAction(UIAlertAction(title: "💾 캐시 상태 확인", style: .default) { [weak self] _ in
-            self?.debugCheckCacheStatus()
-        })
-        
-        // 2. 피드백 상태 확인
-        alert.addAction(UIAlertAction(title: "📊 피드백 상태 확인", style: .default) { [weak self] _ in
-            self?.debugCheckFeedbackStatus()
-        })
-        
-        // 3. 테스트 데이터 생성
-        alert.addAction(UIAlertAction(title: "🧪 테스트 데이터 생성", style: .default) { [weak self] _ in
-            self?.debugCreateTestData()
-        })
-        
-        // 4. 학습 시스템 테스트
-        alert.addAction(UIAlertAction(title: "🤖 학습 시스템 테스트", style: .default) { [weak self] _ in
-            self?.debugTestLearningSystem()
-        })
-        
-        // 5. 토큰 사용량 확인
-        alert.addAction(UIAlertAction(title: "🔢 토큰 사용량 확인", style: .default) { [weak self] _ in
-            self?.debugShowTokenUsage()
-        })
-        
-        // 6. 캐시 초기화
-        alert.addAction(UIAlertAction(title: "🗑️ 캐시 초기화", style: .destructive) { [weak self] _ in
-            self?.debugResetCache()
-        })
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        present(alert, animated: true)
-    }
-    
-    private func debugCheckCacheStatus() {
-        UnifiedLogger.shared.debug("캐시 상태: \(ChatManager.shared.getDebugInfo())", category: .cache)
-        
-        let debugInfo = ChatManager.shared.getDebugInfo()
-        let alert = UIAlertController(title: "💾 캐시 상태", message: debugInfo, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
-    
-    // Note: Debug functions moved to CompilerFixStubs.swift to avoid duplication
-    
-    private func debugResetCache() {
-        let alert = UIAlertController(title: "⚠️ 캐시 초기화", message: "모든 캐시 데이터를 삭제하시겠습니까?\n(피드백 데이터는 유지됩니다)", preferredStyle: .alert)
-        
-        alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
-            // 캐시 초기화
-            UserDefaults.standard.removeObject(forKey: "currentConversationCache")
-            UserDefaults.standard.removeObject(forKey: "weeklyMemory")
-            
-            // ChatManager 재초기화
-            ChatManager.shared.initialize()
-            
-            let successAlert = UIAlertController(title: "✅ 완료", message: "캐시 데이터가 초기화되었습니다.", preferredStyle: .alert)
-            successAlert.addAction(UIAlertAction(title: "확인", style: .default))
-            self.present(successAlert, animated: true)
-        })
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        present(alert, animated: true)
-    }
-    
-    private func debugShowTokenUsage() {
-        let stats = TokenTracker.shared.getTodayDetailedUsage()
-        let monthlyProjection = TokenTracker.shared.getMonthlyProjectedCost()
-        
-        let alertMessage = """
-        📊 개인 토큰 사용량 (오늘):
-        
-        🔢 토큰 현황:
-        • 총 사용: \(stats.tokens)개
-        • 입력: \(stats.inputTokens)개 | 출력: \(stats.outputTokens)개
-        
-        💰 비용 현황:
-        • 오늘: ₩\(stats.costKRW) ($\(String(format: "%.4f", stats.costUSD)))
-        • 월간 예상: ₩\(monthlyProjection.krw)
-        
-        ℹ️ 개인 사용량만 추적됩니다
-        """
-        
-        let alert = UIAlertController(title: "🔐 개발자 토큰 분석", message: alertMessage, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        alert.addAction(UIAlertAction(title: "상세 로그", style: .destructive) { _ in
-            TokenTracker.shared.forceLogCurrentStats()
-        })
-        present(alert, animated: true)
-    }
-    #endif
-
-    func showToast(message: String) {
-        // TODO: Implement actual toast view
-        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        alert.view.backgroundColor = .black
-        alert.view.alpha = 0.6
-        alert.view.layer.cornerRadius = 15
-        
-        present(alert, animated: true)
-        
-        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
-            alert.dismiss(animated: true)
-        }
-    }
-}
 
 // MARK: - UITableViewDataSource, UITableViewDelegate
 extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
@@ -2544,6 +2740,90 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let count = messages.count
         // 테이블뷰 행 수 반환
         return count
+    }
+    
+    // MARK: - Helper Methods (기존 클래스 활용)
+    
+    // 최근 사용한 프리셋 가져오기 - ChatManager 활용
+    private func getRecentPresets() -> [(name: String, emotion: String)] {
+        // ChatManager의 최근 프리셋 정보 활용
+        let recentSessions = ChatManager.shared.getSessions().prefix(5)
+        var recentPresets: [(name: String, emotion: String)] = []
+        
+        for session in recentSessions {
+            if let presetMessage = session.messages.first(where: { $0.type == .presetRecommendation }),
+               let presetName = extractPresetNameFromText(presetMessage.text) {
+                // 메타데이터에서 감정 추출 (기본값: "평온")
+                let emotion = session.metadata?.emotion ?? "평온"
+                recentPresets.append((name: presetName, emotion: emotion))
+            }
+        }
+        
+        // UserDefaults 백업 확인
+        if recentPresets.isEmpty,
+           let recentData = UserDefaults.standard.array(forKey: "recentPresets") as? [[String: String]] {
+            return recentData.compactMap { dict in
+                guard let name = dict["name"], let emotion = dict["emotion"] else { return nil }
+                return (name: name, emotion: emotion)
+            }
+        }
+        
+        return recentPresets
+    }
+    
+    // 감정에 맞는 시적인 프리셋 이름 생성 - 기본 구현
+    private func generatePoeticPresetName(for emotion: String) -> String {
+        // EnhancedSoundRecommendationEngine의 private 메서드이므로 직접 구현
+        // 또는 SoundPresetCatalog의 기존 프리셋 이름 활용
+        let poeticNames: [String: [String]] = [
+            "평온": ["고요한 호수의 속삭임", "바람의 노래", "평화로운 새벽"],
+            "수면": ["달빛 자장가", "꿈의 정원", "별들의 춤"],
+            "활력": ["태양의 에너지", "새로운 시작", "생명의 리듬"],
+            "집중": ["깊은 몰입", "명상의 순간", "내면의 초점"],
+            "안정": ["마음의 닻", "평온한 항구", "안식의 공간"],
+            "이완": ["부드러운 파도", "구름 위의 휴식", "저녁 노을"]
+        ]
+        
+        // SoundPresetCatalog의 기존 프리셋 이름 확인
+        let catalogPresets = SoundPresetCatalog.samplePresets.keys.filter { $0.contains(emotion) }
+        if !catalogPresets.isEmpty {
+            return catalogPresets.randomElement() ?? "맞춤형 사운드"
+        }
+        
+        // 위의 poeticNames에서 선택
+        let names = poeticNames[emotion] ?? ["맞춤형 사운드"]
+        return names.randomElement() ?? "맞춤형 사운드"
+    }
+    
+    // 로컬 추천 설명 생성 - CommonUtilities 활용
+    private func generateLocalRecommendationDescription(for emotion: String) -> String {
+        // CommonUtilities의 generateSoundDescription 활용
+        let dummyVolumes: [Float] = Array(repeating: 0.5, count: 13)
+        let hour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = CommonUtilities.shared.getTimeOfDay(from: hour)
+        
+        return CommonUtilities.shared.generateSoundDescription(
+            volumes: dummyVolumes,
+            emotion: emotion,
+            timeOfDay: timeOfDay,  // 시간대 제공
+            includeVolumes: false,
+            style: .poetic
+        )
+    }
+    
+    // 현재 시간대 가져오기 - CommonUtilities 활용
+    private func getCurrentTimeOfDay() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        return CommonUtilities.shared.getTimeOfDay(from: hour)
+    }
+    
+    // MARK: - 스크롤 감지 및 페이징 처리
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // 스크롤이 상단에 도달했는지 확인 (상단 50pt 이내)
+        if scrollView.contentOffset.y < 50 && !isLoadingMessages && hasMoreMessages {
+            print("📝 [ChatViewController] 스크롤 상단 도달 - 이전 메시지 로드")
+            paginateOlderMessages()
+        }
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -2555,7 +2835,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         let message = messages[indexPath.row]
         let isUserMessage = (message.sender == .user)
-        print("📋 [ChatViewController] 메시지 구성 - 텍스트: '\(message.text ?? "nil")', 사용자 메시지: \(isUserMessage)")
+        // 메시지 셀 구성
         
         var originalUserInput: String?
         if !isUserMessage && indexPath.row > 0 {
@@ -2787,15 +3067,18 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
         UnifiedLogger.shared.debug("프리셋 파싱 시작: \(response.prefix(100))...", category: .ai)
         
-        // 1. JSON 기반 파싱 시도 (최우선)
-        do {
-            let result = try decodeAIResponse(from: response)
-            UnifiedLogger.shared.debug("JSON 형식 파싱 성공", category: .ai)
-            return result
-        } catch let error as JSONParsingError {
-            UnifiedLogger.shared.warning("JSON 파싱 실패: \(error.localizedDescription)")
-        } catch {
-            UnifiedLogger.shared.warning("JSON 파서 예상치 못한 오류: \(error.localizedDescription)")
+        // 🔄 통합 JSON 파싱 시스템 활용 (중앙집중식)
+        if let cleanText = parseJSONIntelligently(response) {
+            // 추출된 텍스트를 프리셋 형식으로 변환 시도
+            do {
+                let result = try decodeAIResponse(from: cleanText)
+                UnifiedLogger.shared.debug("통합 파서로 JSON 형식 파싱 성공", category: .ai)
+                return result
+            } catch let error as JSONParsingError {
+                UnifiedLogger.shared.warning("통합 파서 JSON 파싱 실패: \(error.localizedDescription)")
+            } catch {
+                UnifiedLogger.shared.warning("통합 파서 예상치 못한 오류: \(error.localizedDescription)")
+            }
         }
         
         // 2. 레거시 정규식 파싱 시도 (호환성 유지)
@@ -3505,6 +3788,7 @@ extension ChatViewController {
         return "깊은 휴식"
     }
     
+    
     // MARK: - 🔥 토큰 절약형 AI 컨텍스트
     
     /// 토큰을 절약하는 최소한의 컨텍스트 생성 (최대 200토큰)
@@ -3551,25 +3835,63 @@ extension ChatViewController {
     }
 }
 
-// MARK: - 🎯 채팅 히스토리 복원
+    // MARK: - 🎯 채팅 히스토리 복원
 extension ChatViewController {
     
-    /// MessageStore와 ChatManager에서 이전 채팅들을 복원합니다
+    /// 중앙집중식 메시지 복원 및 초기화
+    private func restoreAndInitializeMessages() {
+        #if DEBUG
+        print("💾 [ChatPersistence] 중앙집중식 메시지 복원 시작")
+        #endif
+        
+        guard let chatManager = chatManager else {
+            print("❌ [ChatViewController] ChatManager 없음 - 초기 메시지만 설정")
+            setupInitialMessages()
+            return
+        }
+        
+        // 1. ChatManager에서 저장된 세션 확인
+        let sessions = chatManager.getSessions()
+        let hasStoredMessages = sessions.contains { !$0.messages.isEmpty }
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 세션 수: \(sessions.count), 저장된 메시지 있음: \(hasStoredMessages)")
+        #endif
+        
+        if hasStoredMessages {
+            // 2. 저장된 메시지가 있으면 복원
+            loadSavedMessages()
+        } else {
+            // 3. 저장된 메시지가 없으면 초기 메시지 설정
+            setupInitialMessages()
+        }
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 최종 메시지 수: \(messages.count)")
+        #endif
+    }
+    
+    /// MessageStore와 ChatManager에서 이전 채팅들을 복원 - 앱 시작 시 호출
     private func restoreChatHistoryFromStorage() {
-        print("🔄 [ChatViewController] 채팅 히스토리 복원 시작")
+        #if DEBUG
+        print("💾 [ChatPersistence] 채팅 히스토리 복원 시작")
+        #endif
         
         Task {
             do {
                 // MessageStore에서 최근 메시지들 로드 (최대 50개)
                 let storedMessages = try await MessageStore.shared.loadMessages(page: 0, pageSize: 50)
                 
-                print("🔄 [ChatViewController] MessageStore에서 \(storedMessages.count)개 메시지 로드됨")
+                #if DEBUG
+                print("💾 [ChatPersistence] MessageStore에서 \(storedMessages.count)개 메시지 로드됨")
+                #endif
                 
                 DispatchQueue.main.async {
-                    // 저장된 메시지가 있으면 기존 초기 메시지들 제거
-                    if !storedMessages.isEmpty {
-                        self.messages.removeAll()
-                    }
+                    // 저장된 메시지가 있으면 기존 초기 메시지들 제거 - 제거 비활성화
+                    // 이미 restoreAndInitializeMessages에서 처리됨
+                    // if !storedMessages.isEmpty {
+                    //     self.messages.removeAll()
+                    // }
                     
                     // 저장된 메시지들을 ChatMessage로 변환하고 추가
                     for storedMessage in storedMessages {
@@ -3584,7 +3906,9 @@ extension ChatViewController {
                         self.messages.append(chatMessage)
                     }
                     
-                    print("🔄 [ChatViewController] \(self.messages.count)개 메시지 UI에 복원됨")
+                    #if DEBUG
+                    print("💾 [ChatPersistence] \(self.messages.count)개 메시지 UI에 복원 완료")
+                    #endif
                     
                     // UI 업데이트
                     self.tableView.reloadData()
@@ -3602,9 +3926,11 @@ extension ChatViewController {
         }
     }
     
-    /// ChatManager에서 채팅 히스토리 복원 (백업 방법)
+    /// ChatManager에서 채팅 히스토리 복원 - MessageStore 실패 시 백업 방법
     private func restoreFromChatManager() {
-        print("🔄 [ChatViewController] ChatManager에서 히스토리 복원 시도")
+        #if DEBUG
+        print("💾 [ChatPersistence] ChatManager에서 히스토리 복원 시도 (백업)")
+        #endif
         
         guard let chatManager = chatManager else {
             print("❌ [ChatViewController] ChatManager가 없습니다")
@@ -3617,13 +3943,16 @@ extension ChatViewController {
             return
         }
         
-        print("🔄 [ChatViewController] 최신 세션에서 \(latestSession.messages.count)개 메시지 발견")
+        #if DEBUG
+        print("💾 [ChatPersistence] 최신 세션에서 \(latestSession.messages.count)개 메시지 발견")
+        #endif
         
         Task { @MainActor in
-            // 기존 메시지 제거
-            if !latestSession.messages.isEmpty {
-                self.messages.removeAll()
-            }
+            // 기존 메시지 제거 - 제거 비활성화
+            // 이미 restoreAndInitializeMessages에서 처리됨
+            // if !latestSession.messages.isEmpty {
+            //     self.messages.removeAll()
+            // }
             
             // StoredChatMessage를 ChatMessage로 변환
             for storedMessage in latestSession.messages {
@@ -3639,7 +3968,9 @@ extension ChatViewController {
                 self.messages.append(chatMessage)
             }
             
-            print("🔄 [ChatViewController] ChatManager에서 \(self.messages.count)개 메시지 복원됨")
+            #if DEBUG
+            print("💾 [ChatPersistence] ChatManager에서 \(self.messages.count)개 메시지 복원 완료")
+            #endif
             
             // UI 업데이트
             self.tableView.reloadData()

@@ -428,7 +428,7 @@ class EnhancedSoundRecommendationEngine {
         return min(baseScore, 1.0)
     }
     
-    private func generatePoeticalPresetName(
+    func generatePoeticalPresetName(
         sounds: [(soundId: String, version: String, volume: Float)],
         emotion: String
     ) -> String {

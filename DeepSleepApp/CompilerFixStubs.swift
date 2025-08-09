@@ -485,44 +485,7 @@ extension EnhancedRecommendationResponse {
 // MARK: - ChatViewController Extensions removed to avoid conflicts
 // Methods are now implemented directly in ChatViewController
 
-// MARK: - Utility Functions
-
-func getCurrentTimeOfDay() -> String {
-    let hour = Calendar.current.component(.hour, from: Date())
-    switch hour {
-    case 6..<12: return "morning"
-    case 12..<18: return "afternoon"
-    case 18..<22: return "evening"
-    default: return "night"
-    }
-}
-
-func getRecentPresets() -> [SoundPreset] {
-    return []
-}
-
-func generatePoeticPresetName(for emotion: String) -> String {
-    switch emotion.lowercased() {
-    case "행복", "기쁨": return "햇살 가득한 오후"
-    case "슬픔", "우울": return "빗소리와 함께하는 위로"
-    case "평온", "휴식": return "바람결 같은 고요"
-    default: return "마음을 다독이는 선율"
-    }
-}
-
-func generateLocalRecommendationDescription(for emotion: String) -> String {
-    return "\(emotion) 상태에 맞는 사운드를 추천드립니다."
-}
-
-func buildCurrentEmotionContext() -> String {
-    // ⚠️ 토큰 절약: 최소한의 감정 컨텍스트만 제공
-    return "현재: 평온"
-}
-
-func buildClaudeAnalysisPrompt(context: String) -> String {
-    // ⚠️ 토큰 절약: 간단한 프롬프트만 제공
-    return "수면 사운드 추천: \(context.prefix(100))"
-}
+// MARK: - Utility Functions (ChatViewController 중복 제거 완료)
 
 @available(iOS 15.0, *)
 func isAvailableForModernAI() -> Bool {

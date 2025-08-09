@@ -72,7 +72,7 @@ public class UsageLimitManager {
         UserDefaults.standard.set(currentUsage + 1, forKey: usageKey)
         
         #if DEBUG
-        print("🔄 [UsageLimitManager] \(mode.displayName) 사용량 증가: \(currentUsage + 1)")
+        // 사용량 증가
         #endif
     }
     

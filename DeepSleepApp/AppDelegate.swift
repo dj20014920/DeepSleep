@@ -146,9 +146,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 필요 시 릴리즈 로직
     }
     
+    // MARK: - App Lifecycle Methods
+    
+    /// 앱이 비활성화되기 직전 (홈 버튼, 전화 수신 등)
+    func applicationWillResignActive(_ application: UIApplication) {
+        UnifiedLogger.shared.info("앱 비활성화 - 데이터 저장 시작", category: .appLifecycle)
+        
+        // 🎯 ChatManager 디스크 동기화 (메모리 → 디스크)
+        ChatManager.shared.flush()
+        UnifiedLogger.shared.info("ChatManager 데이터 플러시 완료", category: .appLifecycle)
+        
+        // Core Data 저장
+        saveContext()
+    }
+    
+    /// 앱이 백그라운드로 진입
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        UnifiedLogger.shared.info("앱 백그라운드 진입 - 추가 저장 처리", category: .appLifecycle)
+        
+        // 🎯 한번 더 ChatManager 플러시 (안전성 강화)
+        ChatManager.shared.flush()
+        
+        // MessageStore는 메모리 기반이므로 별도 플러시 불필요
+        UnifiedLogger.shared.info("ChatManager 백그라운드 플러시 완료", category: .appLifecycle)
+    }
+    
     // MARK: - App Termination
     func applicationWillTerminate(_ application: UIApplication) {
         UnifiedLogger.shared.info("앱 종료 시작 - 리소스 정리", category: .appLifecycle)
+        
+        // 🎯 최종 ChatManager 플러시
+        ChatManager.shared.flush()
         
         // Core Data 저장
         saveContext()

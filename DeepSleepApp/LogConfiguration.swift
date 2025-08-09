@@ -85,7 +85,7 @@ final class LogConfiguration {
 // MARK: - UnifiedLogger 확장
 extension UnifiedLogger {
     /// LogConfiguration과 연동하여 카테고리 필터링 적용
-    func log(
+    func filteredLog(
         _ message: String,
         level: LogLevel,
         category: Category,

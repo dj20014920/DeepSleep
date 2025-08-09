@@ -178,6 +178,8 @@
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
+		E09CD6E42E4666D4007C133E /* LogConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E32E4666D4007C133E /* LogConfiguration.swift */; };
+		E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E52E466707007C133E /* MemoryProfiler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -358,6 +360,8 @@
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		E09CD6E32E4666D4007C133E /* LogConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogConfiguration.swift; sourceTree = "<group>"; };
+		E09CD6E52E466707007C133E /* MemoryProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfiler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -545,6 +549,8 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E09CD6E62E466707007C133E /* Utils */,
+				E09CD6E32E4666D4007C133E /* LogConfiguration.swift */,
 				E017981E2E3765ED002F178C /* SimpleTabBarController.swift */,
 				E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */,
 				E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */,
@@ -679,6 +685,14 @@
 		E084F1762E33ACB3002F75E6 /* Products */ = {
 			isa = PBXGroup;
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E09CD6E62E466707007C133E /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				E09CD6E52E466707007C133E /* MemoryProfiler.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -822,6 +836,7 @@
 				E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */,
 				E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */,
 				E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */,
+				E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */,
 				E084F1992E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift in Sources */,
 				E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */,
 				E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */,
@@ -888,6 +903,7 @@
 				E084F1D92E33ACB3002F75E6 /* AIErrorHandler.swift in Sources */,
 				E084F1DA2E33ACB3002F75E6 /* BatteryOptimizationManager.swift in Sources */,
 				E084F1DC2E33ACB3002F75E6 /* AnalysisInitExtensions.swift in Sources */,
+				E09CD6E42E4666D4007C133E /* LogConfiguration.swift in Sources */,
 				E084F1DE2E33ACB3002F75E6 /* TodoCalendarViewController.swift in Sources */,
 				E084F1DF2E33ACB3002F75E6 /* EmotionAnalysisModels.swift in Sources */,
 				E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */,

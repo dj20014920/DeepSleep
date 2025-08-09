@@ -31,7 +31,7 @@ class NaverAPIService {
             self.apiSecret = "" // 별도 시크릿이 없는 경우
         }
         
-        print("🔷 [Naver] 서비스 초기화 완료")
+        // Naver 서비스 초기화됨
     }
     
     // MARK: - 🚀 메시지 전송 메인 함수

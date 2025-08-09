@@ -58,7 +58,7 @@ public final class AICallLogger {
         
         writeLog(entry: logEntry)
         
-        logger.info("🚀 AI 호출 시작 - Mode: \(mode.displayName), Model: \(model.displayName), ID: \(callId)")
+        // AI 호출 시작
         
         return callId
     }
@@ -86,7 +86,7 @@ public final class AICallLogger {
         
         writeLog(entry: logEntry)
         
-        logger.info("✅ AI 호출 성공 - ID: \(callId), 응답 길이: \(responseLength), 처리 시간: \(processingTime)ms")
+        // AI 호출 성공
     }
     
     /// AI 호출 실패 로그

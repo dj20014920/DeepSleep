@@ -64,7 +64,7 @@ final class OpenRouterFallbackManager {
         case .emotionAnalysis:
             return "한국어로 감정을 분석하세요. JSON만 출력. 키는 primary, intensity(0..1), secondary(사전)."
         default:
-            return "한국어로 간결하고 친절하게 답변하세요."
+            return "한국어로 간결하고 친절하게 답변하세요. 가능하면 JSON 형식으로 응답: {\"message\": \"답변내용\", \"emotion\": \"감정상태\"}"
         }
     }
 
@@ -73,16 +73,19 @@ final class OpenRouterFallbackManager {
         var tried: [String] = []
         var lastError: Error?
 
-        print("🔄 [OpenRouterFallback] 순차 폴백 시작 - 총 \(unifiedFreeModels.count)개 모델")
+        print("🚀 [OpenRouterFallback] 폴백 시스템 시작 - 총 \(unifiedFreeModels.count)개 모델 대기")
         
         for (index, model) in unifiedFreeModels.enumerated() {
             do {
-                print("🔄 [OpenRouterFallback] \(index + 1)/\(unifiedFreeModels.count) 시도: \(model)")
+                print("🎯 [OpenRouterFallback] 모델 #\(index + 1) 시도: \(model)")
                 
                 let prefixed = systemPromptPrefix(for: mode) + "\n\n" + content
                 let output = try await callOpenRouter(model: model, userContent: prefixed)
                 
-                print("✅ [OpenRouterFallback] 성공: \(model)")
+                print("✅ [OpenRouterFallback] 성공! 모델: \(model) (시도 #\(index + 1))")
+                if tried.count > 0 {
+                    print("🔄 [OpenRouterFallback] 폴백 완료 - 실패한 모델: \(tried.count)개, 성공 모델: \(model)")
+                }
                 return output
                 
             } catch {
@@ -93,6 +96,11 @@ final class OpenRouterFallbackManager {
                 // 처음 몇 개 모델 실패 시 더 자세한 로그
                 if index < 5 {
                     print("🔍 [OpenRouterFallback] 상세 오류: \(error)")
+                }
+                
+                // 다음 모델로 폴백 시도
+                if index < unifiedFreeModels.count - 1 {
+                    print("🔄 [OpenRouterFallback] 다음 모델로 폴백 시도... (\(index + 2)/\(unifiedFreeModels.count))")
                 }
                 
                 continue

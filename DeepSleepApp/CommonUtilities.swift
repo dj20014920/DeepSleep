@@ -30,12 +30,6 @@ class CommonUtilities {
     
     // MARK: - 🕐 시간대 관련 통합 함수
     
-    /// 통합된 시간대 판단 함수 (모든 중복 함수들을 대체)
-    func getCurrentTimeOfDay() -> String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        return getTimeOfDay(from: hour)
-    }
-    
     /// 시간(Int)을 받아 시간대 문자열로 변환
     func getTimeOfDay(from hour: Int) -> String {
         switch hour {
@@ -52,7 +46,8 @@ class CommonUtilities {
     
     /// 현재 사용 시간대 (사용자 친화적)
     func getCurrentTimeOfUse() -> String {
-        let timeOfDay = getCurrentTimeOfDay()
+        let hour = Calendar.current.component(.hour, from: Date())
+        let timeOfDay = getTimeOfDay(from: hour)
         return "\(timeOfDay) 시간"
     }
     
@@ -67,7 +62,8 @@ class CommonUtilities {
         style: DescriptionStyle = .detailed
     ) -> String {
         
-        let currentTimeOfDay = timeOfDay ?? getCurrentTimeOfDay()
+        let hour = Calendar.current.component(.hour, from: Date())
+        let currentTimeOfDay = timeOfDay ?? getTimeOfDay(from: hour)
         let activeSounds = getActiveSounds(from: volumes)
         
         switch style {

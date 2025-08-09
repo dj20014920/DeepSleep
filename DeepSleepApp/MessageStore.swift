@@ -6,10 +6,13 @@ final class MessageStore {
     
     private init() {
         // 🎯 시스템 메시지들을 앱 시작 시 자동으로 추가
+#if DEBUG
+        // MessageStore 초기화
+#endif
         loadInitialSystemMessages()
     }
     
-    // 메시지 저장소 - 더 자세한 정보 포함
+    // 메시지 저장소 - 더 자세한 정보 포함 (id, 사용자 여부, 내용, 시간, 타입, 지속성)
     private var messages: [(id: UUID, isUser: Bool, content: String, timestamp: Date, messageType: String, isPersistent: Bool)] = []
     
     // MARK: - Public Methods
@@ -22,19 +25,25 @@ final class MessageStore {
     ///   - isPersistent: 지속적으로 유지할 메시지인지 (시스템 메시지 등)
     func saveMessage(content: String, isUser: Bool, messageType: String = "normal", isPersistent: Bool = false) async throws {
         let message = (
-            id: UUID(), 
-            isUser: isUser, 
-            content: content, 
+            id: UUID(),
+            isUser: isUser,
+            content: content,
             timestamp: Date(),
             messageType: messageType,
             isPersistent: isPersistent
         )
         messages.append(message)
-        print("[MessageStore] 메시지 저장: \(messageType) - \(content.prefix(50))...")
+        
+#if DEBUG
+        // 메시지 저장됨
+#endif
     }
     
     /// 🎯 시스템 메시지 전용 저장 함수 (항상 지속적)
     func saveSystemMessage(content: String) async throws {
+#if DEBUG
+        // 시스템 메시지 저장됨
+#endif
         try await saveMessage(content: content, isUser: false, messageType: "system", isPersistent: true)
     }
     
@@ -73,17 +82,25 @@ final class MessageStore {
         return pageMessages.map { (isUser: $0.isUser, content: $0.content, messageType: $0.messageType) }
     }
     
-    /// 🛡️ 임시 메시지만 삭제 (지속성 메시지는 보존)
+    /// 🔄 임시 메시지만 삭제 (지속성 메시지는 보존)
     func clearTemporaryMessages() {
         let persistentMessages = messages.filter { $0.isPersistent }
+        let removedCount = messages.count - persistentMessages.count
         messages = persistentMessages
-        print("[MessageStore] 임시 메시지 삭제, 지속성 메시지 \(persistentMessages.count)개 보존")
+        
+#if DEBUG
+        print("💾 [ChatPersistence] 임시 메시지 \(removedCount)개 삭제, 지속성 메시지 \(persistentMessages.count)개 보존")
+#endif
     }
     
     /// 모든 메시지 삭제 (긴급상황용)
     func clearAllMessages() {
+        let totalCount = messages.count
         messages.removeAll()
-        print("[MessageStore] 모든 메시지 삭제")
+        
+#if DEBUG
+        print("💾 [ChatPersistence] 🔄 모든 메시지 삭제 - 총 \(totalCount)개")
+#endif
     }
     
     /// 메시지 개수 반환
@@ -113,11 +130,11 @@ final class MessageStore {
                 content: message,
                 timestamp: Date(),
                 messageType: "system",
-                isPersistent: true
+                isPersistent: true  // 시스템 메시지는 항상 지속성
             )
             messages.append(systemMessage)
         }
         
-        print("[MessageStore] 초기 시스템 메시지 \(welcomeMessages.count)개 로드 완료")
+        
     }
-} 
+}

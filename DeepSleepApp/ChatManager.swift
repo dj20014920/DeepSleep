@@ -8,27 +8,35 @@ import Foundation
 // AI/Logging/AICallLogger.swift: AICallLogger
 // AI/UsageLimitManager.swift: UsageLimitManager
 
-/// 채팅 세션 및 메시지 관리를 담당하는 매니저
-/// PERF-WARNING: 대량의 채팅 히스토리 처리 시 메모리 사용량 주의
-/// - 테스트 방안: Instruments의 Allocations로 메모리 누수 확인
-public class ChatManager {
-    public static let shared = ChatManager()
-    
-    private let userDefaults = UserDefaults.standard
-    private let chatHistoryKey = "deepSleep_chatHistory"
-    private let sessionMetadataKey = "deepSleep_sessionMetadata"
-    
-    // 메모리 캐시
-    private var sessionCache: [String: ChatSession] = [:]
-    private let cacheQueue = DispatchQueue(label: "com.deepsleep.chatmanager", attributes: .concurrent)
-    
-    // 🚀 AI 서비스 통합
-    private let aiService = UnifiedAIServiceImpl.shared
-    private let settingsManager = SettingsManager.shared
-    
-    private init() {
-        loadAllSessions()
-    }
+    /// 채팅 세션 및 메시지 관리를 담당하는 매니저
+    /// PERF-WARNING: 대량의 채팅 히스토리 처리 시 메모리 사용량 주의
+    /// - 테스트 방안: Instruments의 Allocations로 메모리 누수 확인
+    public class ChatManager {
+        public static let shared = ChatManager()
+        
+        // UserDefaults 키 설정 - 채팅 히스토리와 세션 메타데이터 저장용
+        private let userDefaults = UserDefaults.standard
+        private let chatHistoryKey = "deepSleep_chatHistory"
+        private let sessionMetadataKey = "deepSleep_sessionMetadata"
+        
+        // 메모리 캐시 - 빠른 접근을 위한 세션 캐시 저장소
+        private var sessionCache: [String: ChatSession] = [:]
+        // 동시성 처리를 위한 전용 큐
+        private let cacheQueue = DispatchQueue(label: "com.deepsleep.chatmanager", attributes: .concurrent)
+        
+        // 🚀 AI 서비스 통합 - 통합 AI 서비스와 설정 매니저
+        private let aiService = UnifiedAIServiceImpl.shared
+        private let settingsManager = SettingsManager.shared
+        
+        private init() {
+            #if DEBUG
+            print("💾 [ChatPersistence] ChatManager 초기화 시작")
+            #endif
+            loadAllSessions()
+            #if DEBUG
+            print("💾 [ChatPersistence] 세션 로드 완료 - 총 \(sessionCache.count)개 세션")
+            #endif
+        }
     
     
     // MARK: - Public Methods
@@ -47,7 +55,7 @@ public class ChatManager {
         }
     }
     
-    /// 새 세션 생성
+    /// 새 세션 생성 - 고유 ID와 현재 시간으로 새로운 채팅 세션 생성
     public func createSession(metadata: ChatSessionMetadata? = nil) -> ChatSession {
         let session = ChatSession(
             id: UUID().uuidString,
@@ -57,30 +65,53 @@ public class ChatManager {
             metadata: metadata
         )
         
+        #if DEBUG
+        print("💾 [ChatPersistence] 새 세션 생성 - ID: \(session.id)")
+        #endif
+        
+        // 메모리 캐시에 저장 후 디스크에 즉시 기록
         cacheQueue.async(flags: .barrier) {
             self.sessionCache[session.id] = session
             self.saveSessionToDisk(session)
+            #if DEBUG
+            print("💾 [ChatPersistence] 세션 디스크 저장 완료")
+            #endif
         }
         
         return session
     }
     
-    /// 세션에 메시지 추가
+    /// 세션에 메시지 추가 - 특정 세션에 새 메시지를 추가하고 마지막 활동 시간 업데이트
     public func addMessage(to sessionId: String, message: StoredChatMessage) {
+        #if DEBUG
+        print("💾 [ChatPersistence] 메시지 추가 - 세션: \(sessionId), 타입: \(message.type)")
+        #endif
+        
         cacheQueue.async(flags: .barrier) {
-            guard var session = self.sessionCache[sessionId] else { return }
+            guard var session = self.sessionCache[sessionId] else {
+                #if DEBUG
+                print("💾 [ChatPersistence] 경고: 세션을 찾을 수 없음 - ID: \(sessionId)")
+                #endif
+                return
+            }
             
+            // 메시지 추가 및 세션 활동 시간 갱신
             session.messages.append(message)
             session.lastActivityAt = Date()
             
+            // 캐시 업데이트 및 디스크 저장
             self.sessionCache[sessionId] = session
             self.saveSessionToDisk(session)
+            
+            #if DEBUG
+            print("💾 [ChatPersistence] 메시지 저장 완료 - 현재 세션 메시지 수: \(session.messages.count)")
+            #endif
         }
     }
     
     /// 🎯 ChatMessage를 현재 활성 세션에 추가 (ChatViewController에서 호출)
     public func append(_ message: ChatMessage) {
-        print("🔵 [ChatManager] append 호출됨 - 메시지: \(message.text?.prefix(50) ?? "")")
+        // ChatManager에 메시지 추가
         
         // 현재 활성 세션 가져오기 또는 새로 생성
         let currentSession = getCurrentOrCreateSession()
@@ -106,13 +137,13 @@ public class ChatManager {
                     messageType: getMessageTypeString(from: message.type),
                     isPersistent: shouldBePersistent(message.type)
                 )
-                print("🔵 [ChatManager] MessageStore에도 저장 완료")
+                // MessageStore에도 저장 완료
             } catch {
                 print("❌ [ChatManager] MessageStore 저장 실패: \(error)")
             }
         }
         
-        print("🔵 [ChatManager] 메시지 저장 완료 - 세션 ID: \(currentSession.id)")
+        // 메시지 저장 완료
     }
     
     /// 현재 활성 세션 가져오기 또는 새로 생성
@@ -194,6 +225,30 @@ public class ChatManager {
         }
     }
     
+    /// 🎯 메모리 캐시를 디스크로 즉시 동기화 (앱 백그라운드 진입 시 호출)
+    public func flush() {
+        print("💾 [ChatManager] flush() 호출됨 - 메모리 → 디스크 동기화 시작")
+        
+        cacheQueue.sync(flags: .barrier) {
+            // 모든 세션을 디스크에 저장
+            for session in sessionCache.values {
+                saveSessionToDisk(session)
+            }
+            
+            // 전체 세션 메타데이터 저장
+            saveAllSessionsToDisk()
+            
+            print("💾 [ChatManager] flush() 완료 - \(sessionCache.count)개 세션 저장됨")
+        }
+        
+        // MessageStore도 동기화 (비동기로 처리)
+        Task {
+            // MessageStore에 flushToDisk 메서드가 없으므로 주석 처리
+            // MessageStore는 자동으로 저장되므로 별도 처리 불필요
+            print("💾 [ChatManager] MessageStore는 자동 저장됨")
+        }
+    }
+    
     /// 세션 삭제
     public func deleteSession(id: String) {
         cacheQueue.async(flags: .barrier) {
@@ -213,23 +268,62 @@ public class ChatManager {
     
     // MARK: - Private Methods
     
+    /// 모든 세션을 디스크에서 메모리로 로드 - 앱 시작 시 호출
     private func loadAllSessions() {
+        #if DEBUG
+        print("💾 [ChatPersistence] 디스크에서 세션 로드 시작")
+        #endif
+        
         guard let data = userDefaults.data(forKey: chatHistoryKey),
               let sessions = try? JSONDecoder().decode([String: ChatSession].self, from: data) else {
+            #if DEBUG
+            print("💾 [ChatPersistence] 저장된 세션 없음 또는 로드 실패")
+            #endif
             return
         }
         
-        cacheQueue.async(flags: .barrier) {
+        // 메모리 캐시에 로드된 세션 저장 (동기적으로 처리하여 즉시 사용 가능하도록)
+        cacheQueue.sync(flags: .barrier) {
             self.sessionCache = sessions
+            #if DEBUG
+            print("💾 [ChatPersistence] \(sessions.count)개 세션 메모리 로드 완료")
+            for (id, session) in sessions {
+                print("  - 세션 ID: \(id), 메시지 수: \(session.messages.count)")
+            }
+            #endif
         }
     }
     
+    /// 개별 세션을 디스크에 저장 - 메모리 캐시를 UserDefaults에 즉시 기록
     private func saveSessionToDisk(_ session: ChatSession) {
         var allSessions = sessionCache
         allSessions[session.id] = session
         
-        guard let data = try? JSONEncoder().encode(allSessions) else { return }
+        guard let data = try? JSONEncoder().encode(allSessions) else {
+            #if DEBUG
+            print("💾 [ChatPersistence] 에러: 세션 인코딩 실패")
+            #endif
+            return
+        }
+        
+        // UserDefaults에 데이터 저장
         userDefaults.set(data, forKey: chatHistoryKey)
+        
+        // ⚡ 즉시 디스크 플러시 보장 (iOS 12+ 에서는 자동이지만 명시적 호출)
+        // UserDefaults.synchronize()는 deprecated 되었지만 
+        // 중요한 데이터의 경우 CFPreferencesAppSynchronize 사용 가능
+        if #available(iOS 12.0, *) {
+            // iOS 12 이상에서는 자동으로 동기화됨
+            // 하지만 중요한 데이터는 명시적으로 동기화
+            _ = CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication)
+        } else {
+            // iOS 12 미만에서는 synchronize 호출
+            userDefaults.synchronize()
+        }
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 세션 디스크 저장 완료 - ID: \(session.id)")
+        #endif
     }
     
     private func deleteSessionFromDisk(_ sessionId: String) {
@@ -240,6 +334,87 @@ public class ChatManager {
         userDefaults.set(data, forKey: chatHistoryKey)
     }
     
+    
+    /// 최근 메시지 조회 API - 현재 또는 최신 세션에서 지정된 개수만큼 메시지 반환
+    /// - Parameter limit: 반환할 메시지 개수 (기본값: 100)
+    /// - Returns: 최근 메시지 배열 (시간순)
+    public func getRecentMessages(limit: Int = 100) -> [StoredChatMessage] {
+        print("🔍 [ChatManager] getRecentMessages 호출 - limit: \(limit)")
+        
+        return cacheQueue.sync {
+            // 현재 활성 세션 가져오기
+            let currentSession = getCurrentOrCreateSession()
+            
+            // suffix를 사용하여 최근 N개 메시지 추출
+            let recentMessages = Array(currentSession.messages.suffix(limit))
+            
+            print("✅ [ChatManager] 최근 메시지 \(recentMessages.count)개 반환")
+            return recentMessages
+        }
+    }
+    
+    /// StoredChatMessage를 ChatMessage로 변환하는 헬퍼 메서드
+    /// - Parameter stored: 저장된 메시지
+    /// - Returns: 변환된 ChatMessage
+    public func convertToChatMessage(_ stored: StoredChatMessage) -> ChatMessage {
+        // StoredMessageType을 ChatMessageType으로 변환
+        let chatMessageType: ChatMessageType
+        switch stored.type {
+        case .user:
+            chatMessageType = .user
+        case .bot:
+            chatMessageType = .bot
+        case .system:
+            chatMessageType = .system
+        case .presetRecommendation:
+            chatMessageType = .presetRecommendation
+        case .error:
+            chatMessageType = .error
+        }
+        
+        // MessageSender 결정
+        let sender: MessageSender
+        switch stored.type {
+        case .user:
+            sender = .user
+        case .bot, .presetRecommendation:
+            sender = .ai
+        case .system, .error:
+            sender = .system
+        }
+        
+        // QuickActions 복원 (메타데이터에서)
+        var quickActions: [QuickAction]? = nil
+        if let quickActionsString = stored.metadata?["quickActions"] {
+            // "title:action,title2:action2" 형식의 문자열을 파싱
+            let actionPairs = quickActionsString.components(separatedBy: ",")
+            quickActions = actionPairs.compactMap { pair in
+                let components = pair.components(separatedBy: ":")
+                guard components.count == 2 else { return nil }
+                return QuickAction(title: components[0], action: components[1])
+            }
+        }
+        
+        // ChatMetadata 생성
+        let metadata = ChatMetadata(
+            responseTime: nil,
+            modelUsed: stored.metadata?["model"],
+            tokenCount: nil,
+            sessionId: stored.metadata?["sessionId"]
+        )
+        
+        return ChatMessage(
+            id: stored.id,
+            text: stored.text,
+            date: stored.timestamp,
+            sender: sender,
+            type: chatMessageType,
+            quickActions: quickActions,
+            isPending: false,
+            aithoughts: nil,
+            metadata: metadata
+        )
+    }
     
     /// 모든 메시지 가져오기 (ChatRouter 호환성용)
     public var messages: [StoredChatMessage] {
@@ -633,26 +808,50 @@ extension ChatManager {
         }
     }
     
-    /// 오래된 세션 정리 (30일 이상)
+    /// 오래된 세션 정리 - 지정된 일수보다 오래된 세션을 삭제하여 저장 공간 확보
     public func cleanupOldSessions(olderThan days: Int = 30) {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
         
+        #if DEBUG
+        print("💾 [ChatPersistence] \(days)일 이상 된 세션 정리 시작")
+        #endif
+        
         cacheQueue.async(flags: .barrier) {
+            // 삭제할 세션 필터링
             let sessionsToDelete = self.sessionCache.values.filter { $0.lastActivityAt < cutoffDate }
             
+            // 각 세션 삭제
             for session in sessionsToDelete {
                 self.sessionCache.removeValue(forKey: session.id)
             }
             
+            // 변경사항이 있으면 디스크에 저장
             if !sessionsToDelete.isEmpty {
+                #if DEBUG
+                print("💾 [ChatPersistence] \(sessionsToDelete.count)개 오래된 세션 삭제")
+                #endif
                 self.saveAllSessionsToDisk()
             }
         }
     }
     
+    /// 모든 세션을 디스크에 일괄 저장 - 전체 세션 캐시를 UserDefaults에 기록
     private func saveAllSessionsToDisk() {
-        guard let data = try? JSONEncoder().encode(sessionCache) else { return }
+        guard let data = try? JSONEncoder().encode(sessionCache) else {
+            #if DEBUG
+            print("💾 [ChatPersistence] 에러: 전체 세션 인코딩 실패")
+            #endif
+            return
+        }
+        
         userDefaults.set(data, forKey: chatHistoryKey)
+        
+        // ⚡ 즉시 디스크 플러시 보장
+        _ = CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication)
+        
+        #if DEBUG
+        print("💾 [ChatPersistence] 전체 세션 디스크 저장 완료 - 총 \(sessionCache.count)개")
+        #endif
     }
 }
 
@@ -1166,7 +1365,8 @@ public struct EmotionContext: Codable {
         self.intensity = intensity
         self.secondaryEmotions = secondaryEmotions
         self.userGoal = userGoal
-        self.timeOfDay = getCurrentTimeOfDay()
+        let hour = Calendar.current.component(.hour, from: Date())
+        self.timeOfDay = CommonUtilities.shared.getTimeOfDay(from: hour)
     }
 }
 
@@ -1196,7 +1396,7 @@ public enum SessionType: String, Codable {
 
 // MARK: - Utility Functions
 
-// getCurrentTimeOfDay는 CommonUtilities.swift에 정의되어 있음
+// getTimeOfDay(from:)는 CommonUtilities.swift에 정의되어 있음
 
 // MARK: - Extensions
 
