@@ -28,8 +28,8 @@ public class AIContextManager {
     /// 마지막 컨텍스트 업데이트 시간
     private var lastContextUpdate: Date = Date()
     
-    /// 컨텍스트 유효 시간 (30분)
-    private let contextValidityDuration: TimeInterval = 30 * 60
+    /// 컨텍스트 유효 시간 (3시간) - 토큰 절약을 위한 확장
+    private let contextValidityDuration: TimeInterval = 3 * 60 * 60
     
     // MARK: - 🎭 역할 정의
     

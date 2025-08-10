@@ -444,9 +444,12 @@ class UserBasicInfoViewController: UIViewController {
         saveUserData()
         onInfoUpdated?(userInfo)
         
+        // 🎭 페르소나 시스템: 사용자 정보 변경 시 AI 컨텍스트 캐시 무효화
+        AIContextManager.shared.clearCache()
+        
         let alert = UIAlertController(
             title: "저장 완료",
-            message: "기본 정보가 성공적으로 저장되었습니다.",
+            message: "기본 정보가 성공적으로 저장되었습니다.\nAI가 새로운 정보를 반영하여 더 맞춤형 응답을 제공합니다.",
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "확인", style: .default))

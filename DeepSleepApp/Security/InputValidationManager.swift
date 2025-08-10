@@ -15,7 +15,8 @@ class InputValidationManager {
         case age               // 나이: 1-120 숫자만
         case email             // 이메일: RFC 5322 준수
         case apiKey            // API 키: 영문, 숫자, 특정 기호만
-        case searchQuery       // 검색어: XSS 방지 필터링
+        case searchQuery       // 검색어: XSS 방지 필터링 (최대 200자)
+        case aiResponse        // AI 응답: XSS 방지, 긴 텍스트 허용 (최대 5000자)
         case filename          // 파일명: Path Traversal 방지
         case jsonData          // JSON 데이터: 구조 검증
         case sql              // SQL 쿼리: Injection 방지
@@ -216,6 +217,10 @@ class InputValidationManager {
             // 검색어는 XSS 방지에만 집중
             return ValidationResult(isValid: true, sanitizedValue: input, errorMessage: nil, securityIssues: [])
             
+        case .aiResponse:
+            // AI 응답은 자연어이므로 패턴 검증 없이 보안 위협 탐지에만 의존
+            return ValidationResult(isValid: true, sanitizedValue: input, errorMessage: nil, securityIssues: [])
+            
         case .jsonData:
             return validateJSON(input)
             
@@ -249,6 +254,7 @@ class InputValidationManager {
         case .email: maxLength = 100
         case .apiKey: maxLength = 100
         case .searchQuery: maxLength = 200
+        case .aiResponse: maxLength = 5000  // AI 응답은 긴 텍스트 허용
         case .filename: maxLength = 50
         case .jsonData: maxLength = 10000
         case .sql: maxLength = 0  // SQL 직접 입력 금지

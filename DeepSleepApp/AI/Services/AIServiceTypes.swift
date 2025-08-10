@@ -451,6 +451,24 @@ public enum AIServiceError: Error, LocalizedError {
     }
 }
 
+// MARK: - 🔄 AIMode → ConversationType 매핑 Extension
+
+extension AIMode {
+    /// AIMode를 ConversationType으로 변환
+    public func toConversationType() -> ConversationType {
+        switch self {
+        case .generalConversation:
+            return .general
+        case .emotionDiaryAnalysis, .emotionAnalysis:
+            return .emotional
+        case .taskAdvice:
+            return .task
+        case .presetRecommendation, .monthlyStatistics, .fortuneTelling:
+            return .analysis
+        }
+    }
+}
+
 // MARK: - 🔒 보안 관련
 
 /// 보안 검증 결과

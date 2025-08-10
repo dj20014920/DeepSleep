@@ -353,12 +353,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     /// 🛡️ AI 응답 보안 검증 및 살균
     private func sanitizeAIResponse(_ text: String) -> String {
-        let validationResult = InputValidationManager.shared.validate(text, against: .searchQuery)
+        let validationResult = InputValidationManager.shared.validate(text, against: .aiResponse)
         
         if !validationResult.isValid {
-            print("⚠️ [ChatViewController] 보안 위험 감지: \(validationResult.securityIssues)")
-            // 보안 문제가 있는 경우 안전한 기본 응답 반환
-            return "죄송합니다. 응답을 처리하는 중 문제가 발생했습니다. 다시 시도해주세요."
+            // 심각한 보안 위험만 차단 (길이 초과는 허용)
+            let criticalIssues = validationResult.securityIssues.filter { 
+                $0.severity == .critical || $0.severity == .high 
+            }
+            
+            if !criticalIssues.isEmpty {
+                print("⚠️ [ChatViewController] 심각한 보안 위험 감지: \(criticalIssues)")
+                return "죄송합니다. 응답을 처리하는 중 문제가 발생했습니다. 다시 시도해주세요."
+            } else {
+                print("ℹ️ [ChatViewController] 경미한 보안 이슈 감지하지만 허용: \(validationResult.securityIssues)")
+            }
         }
         
         return validationResult.sanitizedValue ?? text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -371,11 +379,17 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func cleanRawResponse(_ response: String) -> String {
         var cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 🛡️ 보안 검증 먼저 수행
-        let validationResult = InputValidationManager.shared.validate(cleaned, against: .searchQuery)
+        // 🛡️ 보안 검증 먼저 수행 (AI 응답용 규칙 사용)
+        let validationResult = InputValidationManager.shared.validate(cleaned, against: .aiResponse)
         if !validationResult.isValid {
-            print("⚠️ [ChatViewController] 원본 응답에서 보안 위험 감지")
-            return "응답을 처리할 수 없습니다. 다시 시도해주세요."
+            // 심각한 보안 위험만 차단
+            let criticalIssues = validationResult.securityIssues.filter { 
+                $0.severity == .critical || $0.severity == .high 
+            }
+            if !criticalIssues.isEmpty {
+                print("⚠️ [ChatViewController] 원본 응답에서 심각한 보안 위험 감지")
+                return "응답을 처리할 수 없습니다. 다시 시도해주세요."
+            }
         }
         
         // JSON 형태라면 최대한 읽기 쉽게 정리
@@ -657,7 +671,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             if show {
                 print("⏳ [ChatViewController] 로딩 메시지 추가")
                 let loadingMessage = ChatMessage(
-                    text: "생각하고 있어요...",
+                    text: "", // 빈 텍스트로 변경 - 고양이.gif만 표시
                     date: Date(),
                     sender: .ai,
                     type: .loading
