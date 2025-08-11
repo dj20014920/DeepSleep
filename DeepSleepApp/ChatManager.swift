@@ -109,13 +109,8 @@ import Foundation
         }
     }
     
-    /// 🎯 ChatMessage를 현재 활성 세션에 추가 (ChatViewController에서 호출)
+    /// 🎯 Phase 2: SessionManager 통합 - ChatMessage를 현재 활성 세션에 추가
     public func append(_ message: ChatMessage) {
-        // ChatManager에 메시지 추가
-        
-        // 현재 활성 세션 가져오기 또는 새로 생성
-        let currentSession = getCurrentOrCreateSession()
-        
         // ChatMessage를 StoredChatMessage로 변환
         let storedMessage = StoredChatMessage(
             id: message.id,
@@ -125,7 +120,11 @@ import Foundation
             metadata: createStringMetadata(from: message)
         )
         
-        // 세션에 메시지 추가
+        // 🎯 Phase 2: SessionManager를 통한 통합 저장
+        let currentSession = SessionManager.shared.getCurrentOrCreateSession()
+        SessionManager.shared.addChatMessage(to: currentSession.id, message: storedMessage)
+        
+        // 🎯 기존 ChatManager 캐시도 업데이트 (호환성 유지)
         addMessage(to: currentSession.id, message: storedMessage)
         
         // 🎯 MessageStore에도 저장 (이중 저장으로 안정성 확보)
@@ -143,7 +142,7 @@ import Foundation
             }
         }
         
-        // 메시지 저장 완료
+        print("✅ [ChatManager] Phase 2: SessionManager 통합 저장 완료")
     }
     
     /// 현재 활성 세션 가져오기 또는 새로 생성

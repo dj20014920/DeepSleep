@@ -155,7 +155,7 @@ final class FeedbackManager: ObservableObject {
         print("🎯 [FeedbackManager] 새로운 세션 시작: \(presetName) (감정: \(contextEmotion), 시간: \(currentHour)시)")
     }
     
-    /// 현재 세션 종료 및 피드백 저장
+    /// Phase 2: SessionManager 통합 - 현재 세션 종료 및 피드백 저장
     func endCurrentSession(
         finalVolumes: [Float],
         listeningDuration: TimeInterval,
@@ -195,14 +195,18 @@ final class FeedbackManager: ObservableObject {
             userEmotion: session.userEmotion
         )
         
-        // UserDefaults에 저장
+        // 🎯 Phase 2: SessionManager를 통한 통합 저장
+        let unifiedSession = SessionManager.shared.getCurrentOrCreateSession()
+        SessionManager.shared.addFeedbackData(to: unifiedSession.id, feedback: currentSession!)
+        
+        // 🎯 기존 UserDefaults 저장도 유지 (호환성)
         feedbackData.append(currentSession!)
         saveFeedbackData()
         
         // UserBehaviorAnalytics에 알림 (비동기 처리)
         notifyAnalytics(currentSession!)
             
-        print("✅ [FeedbackManager] 세션 저장 완료: \(currentSession!.presetName ?? "-")")
+        print("✅ [FeedbackManager] Phase 2: SessionManager 통합 저장 완료: \(currentSession!.presetName ?? "-")")
         print("  - 청취 시간: \(String(format: "%.1f", currentSession!.listeningDuration ?? 0))초")
         print("  - 저장 여부: \(currentSession!.wasSaved?.description ?? "-")")
         

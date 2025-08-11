@@ -180,6 +180,7 @@
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
 		E09CD6E42E4666D4007C133E /* LogConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E32E4666D4007C133E /* LogConfiguration.swift */; };
 		E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E52E466707007C133E /* MemoryProfiler.swift */; };
+		E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E82E49DB04007C133E /* SessionManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -362,6 +363,7 @@
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		E09CD6E32E4666D4007C133E /* LogConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogConfiguration.swift; sourceTree = "<group>"; };
 		E09CD6E52E466707007C133E /* MemoryProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfiler.swift; sourceTree = "<group>"; };
+		E09CD6E82E49DB04007C133E /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -549,6 +551,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E09CD6E82E49DB04007C133E /* SessionManager.swift */,
 				E09CD6E62E466707007C133E /* Utils */,
 				E09CD6E32E4666D4007C133E /* LogConfiguration.swift */,
 				E017981E2E3765ED002F178C /* SimpleTabBarController.swift */,
@@ -915,6 +918,7 @@
 				E084F1E52E33ACB3002F75E6 /* AIServiceTypes.swift in Sources */,
 				E084F1E62E33ACB3002F75E6 /* EmotionAnalysisChatViewModel.swift in Sources */,
 				E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */,
+				E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */,
 				E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */,
 				E084F1E72E33ACB3002F75E6 /* CompilerFixStubs.swift in Sources */,
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,

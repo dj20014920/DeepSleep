@@ -2886,7 +2886,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         }
     }
     
-    // 🆕 로컬 추천 처리
+    // 🆕 Phase 2: 통합 데이터 기반 로컬 추천 처리
     private func handleLocalRecommendation() async {
         // 🔒 중복 요청 방지
         guard !isProcessingRecommendation else {
@@ -2899,41 +2899,30 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let userMessage = ChatMessage(text: "앱 분석 추천받기", sender: .user, type: .user)
         appendChat(userMessage)
         
-        // 현재 시간대 기반 추천
-        let currentTimeOfDay = getCurrentTimeOfDay()
-        var recommendedEmotion = "평온"
+        // 🎯 Phase 2: SessionManager에서 통합 데이터 가져오기
+        let richContext = SessionManager.shared.buildRichContextForLocalAI()
         
-        // 시간대별 기본 감정 추천
-        switch currentTimeOfDay {
-        case "새벽", "자정":
-            recommendedEmotion = "수면"
-        case "아침":
-            recommendedEmotion = "활력"
-        case "오전", "점심":
-            recommendedEmotion = "집중"
-        case "오후":
-            recommendedEmotion = "안정"
-        case "저녁":
-            recommendedEmotion = "이완"
-        case "밤":
-            recommendedEmotion = "수면"
-        default:
-            recommendedEmotion = "평온"
-        }
+        // 🧠 실제 사용자 데이터 기반 감정 추론
+        let recommendedEmotion = inferEmotionFromUserData(context: richContext)
         
-        // 🧠 로컬 신경망 기반 추천 시스템 (혁신적 다층 추론)
-        let recentPresets = getRecentPresets()
+        // 🎯 풍부한 컨텍스트 구성
+        let contextString = buildRichContextString(
+            feedbackData: richContext.feedbackData,
+            emotionHistory: richContext.emotionHistory,
+            behaviorPatterns: richContext.behaviorPatterns,
+            timePreferences: richContext.timePreferences
+        )
         
         // 로컬 컨텍스트 구성 (통합 추천 엔진을 통한 다양한 정보 종합)
         let masterRecommendation: (volumes: [Double], compatibleVersions: [Int])
         
         do {
-            // 🎯 EnhancedSoundRecommendationEngine를 통한 로컬 프리셋 추천 실행
+            // 🎯 Phase 2: 실제 사용자 데이터를 EnhancedSoundRecommendationEngine에 전달
             let recommendation = EnhancedSoundRecommendationEngine.shared.getEnhancedRecommendation(
                 emotion: recommendedEmotion,
                 timeOfDay: getCurrentTimeOfDay(),
-                intensity: 1.0,
-                context: "local_recommendation",
+                intensity: calculateEmotionIntensity(from: richContext.emotionHistory),
+                context: contextString, // 풍부한 컨텍스트 전달
                 preferredCount: nil
             )
             
@@ -2992,6 +2981,127 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         // 🔓 로컬 추천 처리 완료
         isProcessingRecommendation = false
+    }
+    
+    // MARK: - Phase 2: 통합 데이터 분석 헬퍼 메서드
+    
+    /// 사용자 데이터 기반 감정 추론
+    private func inferEmotionFromUserData(context: LocalAIContext) -> String {
+        // 1. 최근 감정 히스토리 분석
+        if let recentEmotion = context.emotionHistory.first?.emotion {
+            return recentEmotion
+        }
+        
+        // 2. 피드백 데이터에서 감정 추출
+        if let recentFeedback = context.feedbackData.first,
+           let emotion = recentFeedback.contextEmotion {
+            return emotion
+        }
+        
+        // 3. 시간대별 기본 감정 (폴백)
+        let currentTimeOfDay = getCurrentTimeOfDay()
+        switch currentTimeOfDay {
+        case "새벽", "자정":
+            return "수면"
+        case "아침":
+            return "활력"
+        case "오전", "점심":
+            return "집중"
+        case "오후":
+            return "안정"
+        case "저녁":
+            return "이완"
+        case "밤":
+            return "수면"
+        default:
+            return "평온"
+        }
+    }
+    
+    /// 감정 강도 계산
+    private func calculateEmotionIntensity(from emotionHistory: [EmotionHistoryItem]) -> Float {
+        guard !emotionHistory.isEmpty else { return 1.0 }
+        
+        // 최근 3개 감정의 평균 강도
+        let recentEmotions = Array(emotionHistory.prefix(3))
+        let averageIntensity = recentEmotions.map { $0.intensity }.reduce(0, +) / Float(recentEmotions.count)
+        
+        return averageIntensity
+    }
+    
+    /// 🚨 수정: 검증 가능한 풍부한 컨텍스트 문자열 생성
+    private func buildRichContextString(
+        feedbackData: [PresetFeedback],
+        emotionHistory: [EmotionHistoryItem],
+        behaviorPatterns: [BehaviorPattern],
+        timePreferences: [TimePreference]
+    ) -> String {
+        var contextBuilder = "사용자 개인화 데이터:\n"
+        var contextQuality = 0 // 컨텍스트 품질 점수
+        
+        // 1. 최근 피드백 요약 (가중치: 높음)
+        if !feedbackData.isEmpty {
+            let recentFeedback = Array(feedbackData.prefix(3))
+            contextBuilder += "최근 피드백: "
+            for feedback in recentFeedback {
+                if let presetName = feedback.presetName,
+                   let satisfaction = feedback.satisfactionScore {
+                    contextBuilder += "\(presetName)(만족도: \(satisfaction)), "
+                    contextQuality += 3 // 피드백 데이터는 높은 가중치
+                }
+            }
+            contextBuilder += "\n"
+        }
+        
+        // 2. 감정 히스토리 요약 (가중치: 중간)
+        if !emotionHistory.isEmpty {
+            let recentEmotions = Array(emotionHistory.prefix(3))
+            contextBuilder += "최근 감정: "
+            for emotion in recentEmotions {
+                contextBuilder += "\(emotion.emotion)(\(emotion.intensity)), "
+                contextQuality += 2 // 감정 데이터는 중간 가중치
+            }
+            contextBuilder += "\n"
+        }
+        
+        // 3. 행동 패턴 요약 (가중치: 중간)
+        if !behaviorPatterns.isEmpty {
+            contextBuilder += "행동 패턴: "
+            for pattern in behaviorPatterns.prefix(2) {
+                contextBuilder += "\(pattern.pattern)(신뢰도: \(pattern.confidence)), "
+                contextQuality += 2
+            }
+            contextBuilder += "\n"
+        }
+        
+        // 4. 시간 선호도 요약 (가중치: 낮음)
+        if !timePreferences.isEmpty {
+            let currentHour = Calendar.current.component(.hour, from: Date())
+            if let currentTimePreference = timePreferences.first(where: { $0.hour == currentHour }) {
+                contextBuilder += "현재 시간대 선호도: \(currentTimePreference.preference)\n"
+                contextQuality += 1
+            }
+        }
+        
+        let finalContext = contextBuilder.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 🚨 Gemini 지적 반영: 컨텍스트 품질 로깅 및 검증
+        print("🔍 [AI Context] 생성된 컨텍스트 품질 점수: \(contextQuality)")
+        print("🔍 [AI Context] 최종 컨텍스트: \(finalContext)")
+        
+        // 컨텍스트가 너무 빈약하면 경고
+        if contextQuality < 3 {
+            print("⚠️ [AI Context] 컨텍스트 품질이 낮습니다. 추천 품질에 영향을 줄 수 있습니다.")
+        }
+        
+        return finalContext
+    }
+    
+    /// 🆕 AI 추천 품질 검증을 위한 로깅
+    private func logAIRecommendationQuality(context: String, recommendation: Any) {
+        // TODO: Phase 2.5에서 A/B 테스트 구현
+        print("📊 [AI Quality] 컨텍스트 길이: \(context.count)자")
+        print("📊 [AI Quality] 추천 결과 로깅 (품질 측정 필요)")
     }
     
     // 🆕 진짜 외부 AI 추천 처리 (Claude 3.5 API)
@@ -3805,10 +3915,16 @@ extension ChatViewController {
     
     // MARK: - 🔥 토큰 절약형 AI 컨텍스트
     
-    /// 토큰을 절약하는 최소한의 컨텍스트 생성 (최대 200토큰)
+    /// Phase 2: 페르소나 정보를 포함한 AI 컨텍스트 생성 (최대 200토큰)
     private func buildMinimalContextForAI() -> String {
         let currentHour = Calendar.current.component(.hour, from: Date())
         let timeContext = getTimeContext(hour: currentHour)
+        
+        // 🎭 Phase 2: 페르소나 정보 추가
+        let personaContext = buildPersonaContext()
+        
+        // 🧠 Phase 2: 최근 감정 패턴 추가
+        let emotionContext = buildEmotionContext()
         
         // 최근 3개 메시지만 (사용자의 현재 요청 파악용)
         let recentMessages = messages.suffix(3)
@@ -3821,8 +3937,32 @@ extension ChatViewController {
         
         return """
         시간: \(timeContext)
+        페르소나: \(personaContext)
+        감정패턴: \(emotionContext)
         최근요청: \(recentContext.isEmpty ? "없음" : recentContext)
         """
+    }
+    
+    /// 페르소나 컨텍스트 생성
+    private func buildPersonaContext() -> String {
+        let userSettings = SettingsManager.shared.userSettings
+        
+        let personality = userSettings.personality ?? "보통"
+        let preferredStyle = userSettings.preferredStyle ?? "자연음"
+        let sleepPattern = userSettings.sleepPattern ?? "일반"
+        
+        return "성격:\(personality), 선호:\(preferredStyle), 수면:\(sleepPattern)"
+    }
+    
+    /// 감정 컨텍스트 생성
+    private func buildEmotionContext() -> String {
+        let richContext = SessionManager.shared.buildRichContextForLocalAI()
+        
+        if let recentEmotion = richContext.emotionHistory.first {
+            return "\(recentEmotion.emotion)(\(recentEmotion.intensity))"
+        }
+        
+        return "평온(1.0)"
     }
     
     /// 토큰 효율적인 프롬프트 생성 (기존 대비 90% 절약)

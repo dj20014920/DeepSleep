@@ -284,6 +284,19 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     // MARK: - Actions
     
     @objc private func addButtonTapped(_ sender: UIButton) {
+        UnifiedLogger.shared.logTodo("Add button tapped from section header")
+        presentAddEditTodoViewController(todoItem: nil)
+    }
+    
+    // MARK: - Todo Management
+    private func presentAddEditTodoViewController(todoItem: TodoItem?) {
+        let addEditVC = AddEditTodoViewController()
+        addEditVC.delegate = self
+        addEditVC.todoItem = todoItem
+        
+        let navController = UINavigationController(rootViewController: addEditVC)
+        navController.modalPresentationStyle = .formSheet
+        present(navController, animated: true)
     }
 }
 
@@ -441,41 +454,8 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
     }
     
     func todoListCellDidRequestAddItem(_ cell: TodoListCell) {
-        // TODO: 할 일 추가 UI 구현
         UnifiedLogger.shared.logTodo("Add todo item requested")
-        
-        // 임시로 간단한 알럿으로 구현
-        let alert = UIAlertController(title: "할 일 추가", message: "할 일을 입력하세요", preferredStyle: .alert)
-        alert.addTextField { textField in
-            textField.placeholder = "할 일 제목"
-        }
-        
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "추가", style: .default) { [weak self] _ in
-            guard let self = self,
-                  let title = alert.textFields?.first?.text,
-                  !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            
-            let newTodo = TodoItem(
-                title: title,
-                dueDate: self.selectedDate,
-                priority: 1, // medium
-                category: .sleep
-            )
-            
-            self.todoManager.addTodo(title: newTodo.title, dueDate: newTodo.dueDate, priority: newTodo.priority) { [weak self] _, error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        UnifiedLogger.shared.error("Failed to add todo: \(error.localizedDescription)")
-                    } else {
-                        self?.collectionView.reloadData()
-                        UnifiedLogger.shared.logTodo("Todo added successfully")
-                    }
-                }
-            }
-        })
-        
-        present(alert, animated: true)
+        presentAddEditTodoViewController(todoItem: nil)
     }
 }
 
@@ -976,5 +956,18 @@ extension EmotionCalendarViewController {
         presentedNav.dismiss(animated: true) { [weak self] in
             self?.startDiaryConversation(with: entry)
         }
+    }
+}
+
+// MARK: - AddEditTodoDelegate
+extension EmotionCalendarViewController: AddEditTodoDelegate {
+    func didSaveTodoItem(_ todoItem: TodoItem) {
+        UnifiedLogger.shared.logTodo("Todo item saved: \(todoItem.title)")
+        
+        // 현재 선택된 날짜의 데이터 새로고침
+        loadData(for: selectedDate)
+        
+        // 캘린더 새로고침 (이벤트 점 표시 업데이트)
+        calendar.reloadData()
     }
 }
