@@ -198,6 +198,9 @@ final class FeedbackManager: ObservableObject {
         // UserDefaults에 저장
         feedbackData.append(currentSession!)
         saveFeedbackData()
+        
+        // UserBehaviorAnalytics에 알림 (비동기 처리)
+        notifyAnalytics(currentSession!)
             
         print("✅ [FeedbackManager] 세션 저장 완료: \(currentSession!.presetName ?? "-")")
         print("  - 청취 시간: \(String(format: "%.1f", currentSession!.listeningDuration ?? 0))초")
@@ -260,6 +263,13 @@ final class FeedbackManager: ObservableObject {
     
     // MARK: - 데이터 조회
     
+    /// 최근 세션 데이터 조회 (UserBehaviorAnalytics 연동용)
+    func loadRecentSessions(limit: Int = 20) -> [PresetFeedback] {
+        // feedbackData를 시간 역순으로 정렬하여 최근 데이터부터 반환
+        let sortedFeedback = feedbackData.sorted { $0.timestamp > $1.timestamp }
+        return Array(sortedFeedback.prefix(limit))
+    }
+    
     /// 최근 N개의 피드백 데이터 조회 - UserDefaults 기반 임시 구현
     func getRecentFeedback(limit: Int = 20) -> [PresetFeedback] {
         #if DEBUG
@@ -312,6 +322,18 @@ final class FeedbackManager: ObservableObject {
     }
     
     // MARK: - 데이터 관리
+    
+    /// UserBehaviorAnalytics에 피드백 데이터 알림
+    private func notifyAnalytics(_ feedback: PresetFeedback) {
+        // 비동기로 UserBehaviorAnalytics에 통지
+        DispatchQueue.global(qos: .background).async {
+            // UserBehaviorAnalytics는 FeedbackManager의 loadRecentSessions를 호출하여
+            // 필요한 데이터를 가져가므로, 여기서는 패턴 분석만 트리거
+            UserBehaviorAnalytics.shared.triggerPatternAnalysis()
+            
+            print("🔔 [FeedbackManager] UserBehaviorAnalytics에 패턴 분석 트리거")
+        }
+    }
     
     /// 🧹 오래된 피드백 데이터 자동 정리 (30일 이상 된 데이터) - UserDefaults 기반 임시 구현
     func cleanupOldFeedback() {

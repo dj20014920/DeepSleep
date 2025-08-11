@@ -117,21 +117,11 @@ class FeedbackIntegrationManager: ObservableObject {
     
     /// 행동 분석 시스템 동기화
     private func syncBehaviorAnalytics(with feedback: [PresetFeedback]) async {
-        for fb in feedback {
-            // 각 피드백을 행동 분석 시스템에 세션으로 기록
-            behaviorAnalytics.recordSession(
-                presetName: fb.presetName ?? "-",
-                volumes: fb.finalVolumes ?? [],
-                versions: fb.recommendedVersions ?? [],
-                emotion: fb.contextEmotion ?? "-",
-                startTime: fb.timestamp,
-                endTime: fb.timestamp.addingTimeInterval(fb.listeningDuration ?? 0),
-                completionRate: min(1.0, Float((fb.listeningDuration ?? 0) / 60.0)),
-                interactionEvents: generateInteractionEvents(from: fb)
-            )
-        }
+        // refreshFromFeedback()를 호출하여 FeedbackManager에서 데이터를 일괄 동기화
+        // 이제 개별 루프 대신 한 번의 호출로 모든 세션을 처리
+        await behaviorAnalytics.refreshFromFeedback(limit: 100)
         
-        print("📈 [FeedbackIntegration] 행동 분석 시스템 동기화 완료")
+        print("📈 [FeedbackIntegration] 행동 분석 시스템 일괄 동기화 완료")
     }
     
     // MARK: - 데이터 변환 메서드

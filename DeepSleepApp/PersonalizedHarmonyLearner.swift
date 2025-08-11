@@ -404,6 +404,30 @@ class PersonalizedHarmonyLearner: ObservableObject {
             ]
         )
     }
+    
+    // MARK: - 🔄 간소화된 학습 시스템 (빌드 오류 수정)
+    
+    /// 실시간 사용자 상호작용 학습 (기존 피드백 시스템 연동)
+    public func learnFromUserInteraction(
+        soundCategories: [String: Float],
+        userEmotion: String,
+        timeOfDay: Int,
+        context: String
+    ) async {
+        print("🤖 [PersonalizedHarmonyLearner] 실시간 상호작용 학습: \(context)")
+        print("🤖 사운드 카테고리: \(soundCategories)")
+        print("🤖 감정: \(userEmotion), 시간: \(timeOfDay)시")
+        
+        // 간단한 학습 로직 - UserDefaults에 패턴 저장
+        let learningKey = "interaction_\(context)_\(Date().timeIntervalSince1970)"
+        let learningData: [String: Any] = [
+            "soundCategories": soundCategories,
+            "userEmotion": userEmotion,
+            "timeOfDay": timeOfDay,
+            "context": context
+        ]
+        UserDefaults.standard.set(learningData, forKey: learningKey)
+    }
 }
 
 // MARK: - Supporting Data Models
@@ -424,5 +448,3 @@ enum FeedbackType: String, CaseIterable {
     case explicit = "explicit"     // 명시적 피드백 (사용자가 직접 평점)
     case implicit = "implicit"     // 암시적 피드백 (사용 시간, 반복 등)
 }
-
-// AdvancedHarmonyNetwork 제거됨 - ChatManager.sendMessage를 통한 외부 AI 모델 사용 

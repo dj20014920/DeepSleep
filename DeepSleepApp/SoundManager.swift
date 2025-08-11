@@ -939,6 +939,10 @@ final class SoundManager {
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이. (피드백 실시간 업데이트)
     func setVolume(at index: Int, volume: Float, forUIUpdate: Bool = false) {
         guard index >= 0, index < players.count else { return }
+        
+        // 🆕 이전 볼륨 저장 (추적용)
+        let oldVolume = players[index].volume * 100.0
+        
         let normalizedVolume = volume / 100.0
         players[index].volume = normalizedVolume
 
@@ -955,7 +959,7 @@ final class SoundManager {
                 print("⏸️ 카테고리 \(index) 일시정지")
             }
 
-            // Phase 2: 실시간 볼륨 변경 피드백
+            // 🔄 기존 시스템 활용: 실시간 볼륨 변경 피드백 (이미 모든 추적 포함)
             updateCurrentSessionVolumes()
         } else {
             print("🔇 재생 건너뜀 (UI업데이트: \(forUIUpdate), 전체멈춤: \(isGloballyPaused))")

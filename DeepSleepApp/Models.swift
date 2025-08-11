@@ -387,6 +387,7 @@ extension PresetFeedback {
     var presetName: String? { quantitative["presetName"] as? String }
     var finalVolumes: [Float]? { quantitative["finalVolumes"] as? [Float] }
     var recommendedVersions: [Int]? { quantitative["recommendedVersions"] as? [Int] }
+    var recommendedVolumes: [Float]? { quantitative["recommendedVolumes"] as? [Float] }
     var contextEmotion: String? {
         if let ce = quantitative["contextEmotion"] as? String { return ce }
         return nil

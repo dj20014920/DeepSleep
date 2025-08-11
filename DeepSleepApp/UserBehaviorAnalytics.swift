@@ -15,8 +15,8 @@ class UserBehaviorAnalytics {
     
     // MARK: - 🎯 Core Analytics Engine
     
-    /// 사용자 세션 자동 기록 (백그라운드에서 실행)
-    func recordSession(
+    /// 사용자 세션 자동 기록 (백그라운드에서 실행) - 비공개 메서드로 변경
+    private func recordSession(
         presetName: String,
         volumes: [Float],
         versions: [Int],
@@ -25,7 +25,7 @@ class UserBehaviorAnalytics {
         endTime: Date? = nil,
         completionRate: Float = 0.0,
         interactionEvents: [InteractionEvent] = []
-    ) {
+    ) async {
         let session = UserSession(
             id: UUID(),
             presetName: presetName,
@@ -37,45 +37,43 @@ class UserBehaviorAnalytics {
             duration: endTime?.timeIntervalSince(startTime) ?? Date().timeIntervalSince(startTime),
             completionRate: completionRate,
             interactionEvents: interactionEvents,
-            contextData: captureCurrentContext()
+            contextData: await captureCurrentContext()
         )
         
         // 세션 저장
         saveSession(session)
         
         // 실시간 패턴 분석 트리거
-        analyzeRealtimePatterns()
+        await analyzeRealtimePatterns()
     }
     
     /// 🔍 실시간 패턴 분석 (Google Analytics 스타일)
-    private func analyzeRealtimePatterns() {
-        DispatchQueue.global(qos: .utility).async {
-            // 1. 최근 100개 세션 분석
-            let recentSessions = self.loadRecentSessions(limit: 100)
-            
-            // 2. 감정별 선호도 패턴 분석
-            let emotionPatterns = self.analyzeEmotionPatterns(sessions: recentSessions)
-            
-            // 3. 시간대별 사용 패턴 분석
-            let timePatterns = self.analyzeTimePatterns(sessions: recentSessions)
-            
-            // 4. 음원 조합 선호도 분석
-            let soundPatterns = self.analyzeSoundPreferences(sessions: recentSessions)
-            
-            // 5. 완료율 기반 만족도 추정
-            let satisfactionMetrics = self.analyzeSatisfactionMetrics(sessions: recentSessions)
-            
-            // 6. 결과를 종합하여 사용자 프로필 업데이트
-            let comprehensiveProfile = UserBehaviorProfile(
-                emotionPatterns: emotionPatterns,
-                timePatterns: timePatterns,
-                soundPatterns: soundPatterns,
-                satisfactionMetrics: satisfactionMetrics,
-                lastUpdated: Date()
-            )
-            
-            self.updateUserProfile(comprehensiveProfile)
-        }
+    private func analyzeRealtimePatterns() async {
+        // 1. 최근 100개 세션 분석
+        let recentSessions = await self.loadRecentSessions(limit: 100)
+        
+        // 2. 감정별 선호도 패턴 분석
+        let emotionPatterns = self.analyzeEmotionPatterns(sessions: recentSessions)
+        
+        // 3. 시간대별 사용 패턴 분석
+        let timePatterns = self.analyzeTimePatterns(sessions: recentSessions)
+        
+        // 4. 음원 조합 선호도 분석
+        let soundPatterns = self.analyzeSoundPreferences(sessions: recentSessions)
+        
+        // 5. 완료율 기반 만족도 추정
+        let satisfactionMetrics = self.analyzeSatisfactionMetrics(sessions: recentSessions)
+        
+        // 6. 결과를 종합하여 사용자 프로필 업데이트
+        let comprehensiveProfile = UserBehaviorProfile(
+            emotionPatterns: emotionPatterns,
+            timePatterns: timePatterns,
+            soundPatterns: soundPatterns,
+            satisfactionMetrics: satisfactionMetrics,
+            lastUpdated: Date()
+        )
+        
+        self.updateUserProfile(comprehensiveProfile)
     }
     
     // MARK: - 📊 Advanced Pattern Analysis
@@ -216,7 +214,7 @@ class UserBehaviorAnalytics {
         
         // 최적 세션 길이 분석
         let highSatisfactionSessions = sessions.filter { $0.completionRate > 0.7 }
-        let optimalDuration = highSatisfactionSessions.isEmpty ? 0 : 
+        let optimalDuration = highSatisfactionSessions.isEmpty ? 0 :
             highSatisfactionSessions.reduce(0) { $0 + $1.duration } / Double(highSatisfactionSessions.count)
         
         return SatisfactionAnalysis(
@@ -235,7 +233,7 @@ class UserBehaviorAnalytics {
     // MARK: - 🎯 Context Capture
     
     /// 현재 컨텍스트 자동 캡처 (Google-level context awareness)
-    private func captureCurrentContext() -> ContextData {
+    private func captureCurrentContext() async -> ContextData {
         let calendar = Calendar.current
         let now = Date()
         
@@ -248,8 +246,8 @@ class UserBehaviorAnalytics {
             deviceOrientation: UIDevice.current.orientation.rawValue,
             systemVolume: AVAudioSession.sharedInstance().outputVolume,
             estimatedAmbientNoise: estimateAmbientNoise(),
-            recentEmotions: getRecentEmotions(hours: 6),
-            appUsageStreak: calculateUsageStreak()
+            recentEmotions: await getRecentEmotions(hours: 6),
+            appUsageStreak: await calculateUsageStreak()
         )
     }
     
@@ -274,17 +272,17 @@ class UserBehaviorAnalytics {
         }
     }
     
-    private func getRecentEmotions(hours: Int) -> [String] {
+    private func getRecentEmotions(hours: Int) async -> [String] {
         // 최근 N시간 내 감정 데이터 가져오기
         let cutoffTime = Date().addingTimeInterval(-Double(hours * 3600))
-        return loadRecentSessions(limit: 50)
+        return await loadRecentSessions(limit: 50)
             .filter { $0.startTime >= cutoffTime }
             .map { $0.emotion }
     }
     
-    private func calculateUsageStreak() -> Int {
+    private func calculateUsageStreak() async -> Int {
         // 연속 사용 일수 계산
-        let sessions = loadRecentSessions(limit: 100)
+        let sessions = await loadRecentSessions(limit: 100)
         let calendar = Calendar.current
         
         var streak = 0
@@ -326,8 +324,56 @@ class UserBehaviorAnalytics {
         }
     }
     
-    private func loadRecentSessions(limit: Int) -> [UserSession] {
-        return Array(loadAllSessions().suffix(limit))
+    private func loadRecentSessions(limit: Int) async -> [UserSession] {
+        // 1. 기존 UserDefaults 세션 데이터
+        let existingSessions = Array(loadAllSessions().suffix(limit / 2))
+        
+        // 2. FeedbackManager에서 세션 데이터 가져오기 (iOS 17+)
+        if #available(iOS 17.0, *) {
+            let feedbackSessions = await FeedbackManager.shared.loadRecentSessions(limit: limit / 2)
+                .compactMap { feedback -> UserSession? in
+                    guard let presetName = feedback.presetName,
+                          let emotion = feedback.contextEmotion,
+                          let volumes = feedback.finalVolumes ?? feedback.recommendedVolumes,
+                          let versions = feedback.recommendedVersions,
+                          let duration = feedback.listeningDuration else {
+                        return nil
+                    }
+                    
+                    let completionRate: Float = duration > 30 ? min(1.0, Float(duration / 300.0)) : 0.0
+                    
+                    return UserSession(
+                        id: UUID(),
+                        presetName: presetName,
+                        volumes: volumes,
+                        versions: versions,
+                        emotion: emotion,
+                        startTime: feedback.timestamp,
+                        endTime: feedback.timestamp.addingTimeInterval(duration),
+                        duration: duration,
+                        completionRate: completionRate,
+                        interactionEvents: [],
+                        contextData: ContextData(
+                            timeOfDay: feedback.contextTime ?? Calendar.current.component(.hour, from: feedback.timestamp),
+                            dayOfWeek: Calendar.current.component(.weekday, from: feedback.timestamp),
+                            isWeekend: [1, 7].contains(Calendar.current.component(.weekday, from: feedback.timestamp)),
+                            season: getCurrentSeason(),
+                            deviceBatteryLevel: UIDevice.current.batteryLevel,
+                            deviceOrientation: UIDevice.current.orientation.rawValue,
+                            systemVolume: AVAudioSession.sharedInstance().outputVolume,
+                            estimatedAmbientNoise: estimateAmbientNoise(),
+                            recentEmotions: [],
+                            appUsageStreak: 0
+                        )
+                    )
+                }
+            
+            // 두 데이터 소스를 병합하고 중복 제거
+            let combinedSessions = existingSessions + feedbackSessions
+            return Array(combinedSessions.suffix(limit))
+        } else {
+            return existingSessions
+        }
     }
     
     private func loadAllSessions() -> [UserSession] {
@@ -482,11 +528,11 @@ extension UserBehaviorAnalytics {
     }
     
     /// 간편한 세션 종료 기록
-    func endSession(completionRate: Float = 1.0, interactionEvents: [InteractionEvent] = []) {
+    func endSession(completionRate: Float = 1.0, interactionEvents: [InteractionEvent] = []) async {
         guard let startTime = currentSessionStartTime,
               let (presetName, volumes, versions, emotion) = currentSessionData else { return }
         
-        recordSession(
+        await recordSession(
             presetName: presetName,
             volumes: volumes,
             versions: versions,
@@ -501,10 +547,90 @@ extension UserBehaviorAnalytics {
         currentSessionData = nil
     }
     
+    /// 패턴 분석 트리거 (외부에서 호출 가능)
+    func triggerPatternAnalysis() {
+        Task {
+            await analyzeRealtimePatterns()
+        }
+    }
+    
+    /// FeedbackManager에서 데이터를 새로 고침하여 캐시 업데이트
+    /// - Parameters:
+    ///   - limit: 가져올 최근 세션 수 (기본값: 100)
+    @available(iOS 17.0, *)
+    func refreshFromFeedback(limit: Int = 100) async {
+        // 내부 캐시 초기화
+        clearInternalCache()
+        
+        // FeedbackManager에서 최신 세션 데이터 가져오기
+        let feedbackSessions = await FeedbackManager.shared.loadRecentSessions(limit: limit)
+        
+        // UserSession으로 변환하여 저장
+        let convertedSessions = feedbackSessions.compactMap { feedback -> UserSession? in
+            guard let presetName = feedback.presetName,
+                  let emotion = feedback.contextEmotion,
+                  let volumes = feedback.finalVolumes ?? feedback.recommendedVolumes,
+                  let versions = feedback.recommendedVersions,
+                  let duration = feedback.listeningDuration else {
+                return nil
+            }
+            
+            let completionRate: Float = duration > 30 ? min(1.0, Float(duration / 300.0)) : 0.0
+            
+            return UserSession(
+                id: UUID(),
+                presetName: presetName,
+                volumes: volumes,
+                versions: versions,
+                emotion: emotion,
+                startTime: feedback.timestamp,
+                endTime: feedback.timestamp.addingTimeInterval(duration),
+                duration: duration,
+                completionRate: completionRate,
+                interactionEvents: [],
+                contextData: ContextData(
+                    timeOfDay: feedback.contextTime ?? Calendar.current.component(.hour, from: feedback.timestamp),
+                    dayOfWeek: Calendar.current.component(.weekday, from: feedback.timestamp),
+                    isWeekend: [1, 7].contains(Calendar.current.component(.weekday, from: feedback.timestamp)),
+                    season: getCurrentSeason(),
+                    deviceBatteryLevel: UIDevice.current.batteryLevel,
+                    deviceOrientation: UIDevice.current.orientation.rawValue,
+                    systemVolume: AVAudioSession.sharedInstance().outputVolume,
+                    estimatedAmbientNoise: estimateAmbientNoise(),
+                    recentEmotions: [],
+                    appUsageStreak: 0
+                )
+            )
+        }
+        
+        // 변환된 세션들을 저장
+        for session in convertedSessions {
+            saveSession(session)
+        }
+        
+        // 패턴 분석 실행
+        await analyzeRealtimePatterns()
+        
+        print("✅ [UserBehaviorAnalytics] FeedbackManager에서 \(convertedSessions.count)개 세션 동기화 완료")
+    }
+    
+    /// 내부 캐시 초기화
+    private func clearInternalCache() {
+        // 현재 세션 정보만 유지하고 나머지는 초기화
+        // (현재 진행 중인 세션은 유지해야 함)
+        if currentSessionStartTime == nil {
+            // 진행 중인 세션이 없으면 모든 세션 데이터 초기화 가능
+            UserDefaults.standard.removeObject(forKey: "userSessions")
+            print("🗑️ [UserBehaviorAnalytics] 내부 캐시 초기화 완료")
+        } else {
+            print("⚠️ [UserBehaviorAnalytics] 진행 중인 세션이 있어 캐시 초기화 건너뜀")
+        }
+    }
+    
     /// Get analytics summary for debugging
-    func getAnalyticsSummary() -> String {
+    func getAnalyticsSummary() async -> String {
         let profile = getCurrentUserProfile()
-        let recentSessions = loadRecentSessions(limit: 50)
+        let recentSessions = await loadRecentSessions(limit: 50)
         
         return """
         📊 User Behavior Analytics Summary
@@ -514,7 +640,7 @@ extension UserBehaviorAnalytics {
         ⏰ Time Patterns: \(profile?.timePatterns.keys.count ?? 0)
         🎵 Sound Combinations: \(profile?.soundPatterns.popularCombinations.count ?? 0)
         📊 Avg Completion Rate: \(String(format: "%.1f%%", (profile?.satisfactionMetrics.averageCompletionRate ?? 0) * 100))
-        🔥 Usage Streak: \(getRecentEmotions(hours: 24).count > 0 ? "Active" : "Inactive")
+        🔥 Usage Streak: \((await getRecentEmotions(hours: 24)).count > 0 ? "Active" : "Inactive")
         """
     }
     
