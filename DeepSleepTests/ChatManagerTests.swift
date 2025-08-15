@@ -24,7 +24,7 @@ class ChatManagerTests: XCTestCase {
     
     func testSaveAndRestoreSingleMessage() {
         // Given - 단일 메시지 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let message = StoredChatMessage(
             id: UUID(),
             text: "테스트 메시지입니다",
@@ -48,7 +48,7 @@ class ChatManagerTests: XCTestCase {
     
     func testSaveAndRestoreMultipleMessages() {
         // Given - 여러 메시지 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let messages = [
             StoredChatMessage(id: UUID(), text: "첫 번째 메시지", type: .user, timestamp: Date(), metadata: nil),
             StoredChatMessage(id: UUID(), text: "두 번째 메시지", type: .bot, timestamp: Date(), metadata: nil),
@@ -76,7 +76,7 @@ class ChatManagerTests: XCTestCase {
             context: "morning routine",
             userProfile: "test_user"
         )
-        let session = chatManager.createSession(metadata: metadata)
+        let session = chatManager.createSessionSafely(metadata: metadata)
         
         // When - 플러시
         chatManager.flush()
@@ -93,7 +93,7 @@ class ChatManagerTests: XCTestCase {
     
     func testEmptySession() {
         // Given - 빈 세션 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         
         // When - 플러시
         chatManager.flush()
@@ -106,7 +106,7 @@ class ChatManagerTests: XCTestCase {
     
     func testSingleMessageSession() {
         // Given - 1개 메시지만 있는 세션
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let message = StoredChatMessage(
             id: UUID(),
             text: "단일 메시지",
@@ -126,7 +126,7 @@ class ChatManagerTests: XCTestCase {
     
     func testLargeNumberOfMessages() {
         // Given - 1000개의 메시지 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let messageCount = 1000
         
         // When - 대량의 메시지 추가
@@ -185,7 +185,7 @@ class ChatManagerTests: XCTestCase {
     
     func testGetRecentMessages() {
         // Given - 여러 메시지가 있는 세션
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         for i in 0..<20 {
             let message = StoredChatMessage(
                 id: UUID(),
@@ -208,7 +208,7 @@ class ChatManagerTests: XCTestCase {
     
     func testDeleteSession() {
         // Given - 세션 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let message = StoredChatMessage(
             id: UUID(),
             text: "삭제될 메시지",
@@ -230,7 +230,7 @@ class ChatManagerTests: XCTestCase {
     func testClearAllSessions() {
         // Given - 여러 세션 생성
         for _ in 0..<5 {
-            let session = chatManager.createSession()
+            let session = chatManager.createSessionSafely()
             let message = StoredChatMessage(
                 id: UUID(),
                 text: "메시지",
@@ -253,7 +253,7 @@ class ChatManagerTests: XCTestCase {
     
     func testMemoryUsageEstimation() {
         // Given - 메시지가 있는 세션
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         for i in 0..<10 {
             let message = StoredChatMessage(
                 id: UUID(),
@@ -274,7 +274,7 @@ class ChatManagerTests: XCTestCase {
     
     func testCleanupOldSessions() {
         // Given - 오래된 세션 생성 (시뮬레이션)
-        let oldSession = chatManager.createSession()
+        let oldSession = chatManager.createSessionSafely()
         
         // 세션의 lastActivityAt을 31일 전으로 수동 설정 (실제로는 private이므로 테스트용 메서드 필요)
         // 이 테스트는 실제 구현에서는 더 복잡한 방법이 필요함
@@ -291,7 +291,7 @@ class ChatManagerTests: XCTestCase {
     
     func testConcurrentMessageAddition() {
         // Given
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         let expectation = XCTestExpectation(description: "Concurrent messages")
         let messageCount = 100
         
@@ -324,7 +324,7 @@ class ChatManagerTests: XCTestCase {
     func testPerformanceOfLargeMessageSave() {
         measure {
             // Given
-            let session = chatManager.createSession()
+            let session = chatManager.createSessionSafely()
             
             // When - 100개 메시지 저장 성능 측정
             for i in 0..<100 {
@@ -343,7 +343,7 @@ class ChatManagerTests: XCTestCase {
     
     func testPerformanceOfMessageRetrieval() {
         // Setup - 미리 많은 메시지 생성
-        let session = chatManager.createSession()
+        let session = chatManager.createSessionSafely()
         for i in 0..<1000 {
             let message = StoredChatMessage(
                 id: UUID(),

@@ -152,9 +152,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applicationWillResignActive(_ application: UIApplication) {
         UnifiedLogger.shared.info("앱 비활성화 - 데이터 저장 시작", category: .appLifecycle)
         
-        // 🎯 ChatManager 디스크 동기화 (메모리 → 디스크)
-        ChatManager.shared.flush()
-        UnifiedLogger.shared.info("ChatManager 데이터 플러시 완료", category: .appLifecycle)
+        // 🎯 SessionManager 디스크 동기화 (메모리 → 디스크)
+        SessionManager.shared.flush()
+        UnifiedLogger.shared.info("SessionManager 데이터 플러시 완료", category: .appLifecycle)
         
         // Core Data 저장
         saveContext()
@@ -164,19 +164,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applicationDidEnterBackground(_ application: UIApplication) {
         UnifiedLogger.shared.info("앱 백그라운드 진입 - 추가 저장 처리", category: .appLifecycle)
         
-        // 🎯 한번 더 ChatManager 플러시 (안전성 강화)
-        ChatManager.shared.flush()
+        // 🎯 한번 더 SessionManager 플러시 (안전성 강화)
+        SessionManager.shared.flush()
         
         // MessageStore는 메모리 기반이므로 별도 플러시 불필요
-        UnifiedLogger.shared.info("ChatManager 백그라운드 플러시 완료", category: .appLifecycle)
+        UnifiedLogger.shared.info("SessionManager 백그라운드 플러시 완료", category: .appLifecycle)
     }
     
     // MARK: - App Termination
     func applicationWillTerminate(_ application: UIApplication) {
         UnifiedLogger.shared.info("앱 종료 시작 - 리소스 정리", category: .appLifecycle)
         
-        // 🎯 최종 ChatManager 플러시
-        ChatManager.shared.flush()
+        // 🎯 최종 SessionManager 플러시
+        SessionManager.shared.flush()
         
         // Core Data 저장
         saveContext()
@@ -186,6 +186,115 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         UnifiedLogger.shared.info("앱 종료 완료", category: .appLifecycle)
     }
+    
+    // MARK: - 🚨 Phase 3: Core Data 에러 처리 개선
+    
+    /// Core Data 초기화 에러 사용자 알림
+    private func showCoreDataError(_ error: NSError) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            print("❌ [AppDelegate] 루트 뷰컨트롤러를 찾을 수 없음")
+            return
+        }
+        
+        let alert = UIAlertController(
+            title: "데이터 저장소 초기화 오류",
+            message: "앱의 데이터 저장소를 초기화하는 중 문제가 발생했습니다. 임시 저장소를 사용하여 계속 진행합니다.\n\n오류: \(error.localizedDescription)",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "계속 사용", style: .default) { _ in
+            print("✅ [AppDelegate] 사용자가 임시 저장소 사용에 동의")
+        })
+        
+        alert.addAction(UIAlertAction(title: "앱 재시작", style: .destructive) { _ in
+            print("🔄 [AppDelegate] 사용자가 앱 재시작 선택")
+            exit(0) // 사용자가 명시적으로 선택한 경우에만 종료
+        })
+        
+        rootViewController.present(alert, animated: true)
+    }
+    
+    /// Core Data 저장 에러 사용자 알림
+    private func showCoreDataSaveError(_ error: NSError) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            return
+        }
+        
+        let alert = UIAlertController(
+            title: "데이터 저장 오류",
+            message: "데이터를 저장하는 중 문제가 발생했습니다. 변경사항이 손실될 수 있습니다.\n\n오류: \(error.localizedDescription)",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        
+        rootViewController.present(alert, animated: true)
+    }
+    
+    /// 메모리 전용 저장소 설정 (폴백)
+    private func setupInMemoryStore(container: NSPersistentContainer) {
+        print("🔄 [AppDelegate] 메모리 전용 저장소로 폴백")
+        
+        // 기존 저장소 제거
+        container.persistentStoreCoordinator.persistentStores.forEach { store in
+            try? container.persistentStoreCoordinator.remove(store)
+        }
+        
+        // 메모리 전용 저장소 추가
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        description.shouldAddStoreAsynchronously = false
+        
+        container.persistentStoreDescriptions = [description]
+        
+        container.loadPersistentStores { (storeDescription, error) in
+            if let error = error {
+                print("❌ [AppDelegate] 메모리 저장소 설정도 실패: \(error)")
+                // 이 경우에는 정말 심각한 문제이므로 로깅만 하고 계속 진행
+                UnifiedLogger.shared.error("메모리 저장소 설정 실패: \(error.localizedDescription)", category: .coreData)
+            } else {
+                print("✅ [AppDelegate] 메모리 전용 저장소 설정 완료")
+                UnifiedLogger.shared.info("메모리 전용 저장소로 폴백 완료", category: .coreData)
+            }
+        }
+    }
+    
+    /// Core Data 에러 로깅 (분석용)
+    private func logCoreDataError(_ error: NSError) {
+        let errorInfo: [String: Any] = [
+            "error_code": error.code,
+            "error_domain": error.domain,
+            "error_description": error.localizedDescription,
+            "user_info": error.userInfo.description,
+            "timestamp": Date().timeIntervalSince1970,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        ]
+        
+        // 원격 로깅 (실제 구현 시 원격 서버로 전송)
+        UnifiedLogger.shared.error("Core Data 에러 상세 정보: \(errorInfo)", category: .coreData)
+        
+        // 로컬 로그 파일에도 저장 (디버깅용)
+        if let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let logFile = documentsPath.appendingPathComponent("coredata_errors.log")
+            let logEntry = "\(Date()): \(errorInfo)\n"
+            
+            if let data = logEntry.data(using: .utf8) {
+                if FileManager.default.fileExists(atPath: logFile.path) {
+                    if let fileHandle = try? FileHandle(forWritingTo: logFile) {
+                        fileHandle.seekToEndOfFile()
+                        fileHandle.write(data)
+                        fileHandle.closeFile()
+                    }
+                } else {
+                    try? data.write(to: logFile)
+                }
+            }
+        }
+    }
 
     // MARK: - Core Data stack
 
@@ -193,7 +302,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let container = NSPersistentContainer(name: "DeepSleep")
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                // 🚨 Phase 3: fatalError 제거 - 우아한 에러 처리
+                UnifiedLogger.shared.error("❌ Core Data 초기화 실패: \(error.localizedDescription)", category: .coreData)
+                
+                // 1. 사용자에게 알림
+                DispatchQueue.main.async {
+                    self.showCoreDataError(error)
+                }
+                
+                // 2. 메모리 전용 저장소로 폴백
+                self.setupInMemoryStore(container: container)
+                
+                // 3. 분석을 위한 에러 로깅
+                self.logCoreDataError(error)
             }
         })
         return container
@@ -208,7 +329,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 try context.save()
             } catch {
                 let nserror = error as NSError
-                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
+                // 🚨 Phase 3: fatalError 제거 - 우아한 에러 처리
+                UnifiedLogger.shared.error("❌ Core Data 저장 실패: \(nserror.localizedDescription)", category: .coreData)
+                
+                // 1. 사용자에게 알림
+                DispatchQueue.main.async {
+                    self.showCoreDataSaveError(nserror)
+                }
+                
+                // 2. 컨텍스트 롤백 시도
+                context.rollback()
+                
+                // 3. 분석을 위한 에러 로깅
+                self.logCoreDataError(nserror)
             }
         }
     }

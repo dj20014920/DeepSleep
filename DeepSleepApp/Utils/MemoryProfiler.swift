@@ -85,8 +85,8 @@ class MemoryProfiler {
         for i in 0..<messageCount {
             let message = ChatMessage(
                 text: "테스트 메시지 \(i) - " + String(repeating: "텍스트", count: 100),
-                sender: i % 2 == 0 ? .user : .ai,
-                type: i % 2 == 0 ? .user : .bot
+                sender: i % 2 == 0 ? MessageSender.user : MessageSender.ai,
+                type: i % 2 == 0 ? ChatMessageType.user : ChatMessageType.bot
             )
             messages.append(message)
             
@@ -128,8 +128,8 @@ class MemoryProfiler {
         for i in 0..<totalMessages {
             allMessagesCache.append(ChatMessage(
                 text: "캐시 메시지 \(i)",
-                sender: .user,
-                type: .user
+                sender: MessageSender.user,
+                type: ChatMessageType.user
             ))
         }
         

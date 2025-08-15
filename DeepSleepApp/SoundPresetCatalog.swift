@@ -2646,7 +2646,7 @@ extension LocalAIRecommendationEngine {
             let satisfactionBoost = Float((feedback.satisfactionScore - 0.5) * 0.2)
             // 실제로는 presetId와 index를 매핑하는 로직이 필요
             for i in 0..<weights.count {
-                weights[i] += satisfactionBoost * Float(feedback.context.usageDuration)
+                weights[i] += satisfactionBoost * Float(feedback.context?.usageDuration ?? 0.0)
             }
         }
         

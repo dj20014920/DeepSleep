@@ -19,7 +19,6 @@
 		E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */; };
 		E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */; };
 		E084F17C2E33ACB3002F75E6 /* AIModelSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0892E33ACB3002F75E6 /* AIModelSettingsView.swift */; };
-		E084F17D2E33ACB3002F75E6 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0C62E33ACB3002F75E6 /* FeedbackManager.swift */; };
 		E084F17E2E33ACB3002F75E6 /* PresetListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0E02E33ACB3002F75E6 /* PresetListViewController.swift */; };
 		E084F17F2E33ACB3002F75E6 /* FortuneGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */; };
 		E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FF2E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift */; };
@@ -50,7 +49,6 @@
 		E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BD2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift */; };
 		E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F52E33ACB3002F75E6 /* TodaysFortuneViewController.swift */; };
 		E084F19C2E33ACB3002F75E6 /* AIUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0922E33ACB3002F75E6 /* AIUsageManager.swift */; };
-		E084F19D2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FD2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift */; };
 		E084F19E2E33ACB3002F75E6 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EA2E33ACB3002F75E6 /* SettingsViewController.swift */; };
 		E084F19F2E33ACB3002F75E6 /* LegacyPresetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D62E33ACB3002F75E6 /* LegacyPresetManager.swift */; };
 		E084F1A02E33ACB3002F75E6 /* ConversationSaveHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A72E33ACB3002F75E6 /* ConversationSaveHelper.swift */; };
@@ -63,7 +61,6 @@
 		E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */; };
 		E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D52E33ACB3002F75E6 /* LaunchViewController.swift */; };
 		E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EB2E33ACB3002F75E6 /* SharedCore.swift */; };
-		E084F1AB2E33ACB3002F75E6 /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F09E2E33ACB3002F75E6 /* ChatManager.swift */; };
 		E084F1AC2E33ACB3002F75E6 /* TokenTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F82E33ACB3002F75E6 /* TokenTracker.swift */; };
 		E084F1AD2E33ACB3002F75E6 /* CoreDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A82E33ACB3002F75E6 /* CoreDataModels.swift */; };
 		E084F1AE2E33ACB3002F75E6 /* GeminiAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0542E33ACB3002F75E6 /* GeminiAPIService.swift */; };
@@ -181,6 +178,9 @@
 		E09CD6E42E4666D4007C133E /* LogConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E32E4666D4007C133E /* LogConfiguration.swift */; };
 		E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E52E466707007C133E /* MemoryProfiler.swift */; };
 		E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E82E49DB04007C133E /* SessionManager.swift */; };
+		E09CD6ED2E4B0D93007C133E /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */; };
+		E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */; };
+		E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -257,7 +257,6 @@
 		E084F09A2E33ACB3002F75E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E084F09C2E33ACB3002F75E6 /* BatteryOptimizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryOptimizationManager.swift; sourceTree = "<group>"; };
 		E084F09D2E33ACB3002F75E6 /* ChatBubbleCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleCell.swift; sourceTree = "<group>"; };
-		E084F09E2E33ACB3002F75E6 /* ChatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManager.swift; sourceTree = "<group>"; };
 		E084F09F2E33ACB3002F75E6 /* ChatRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRouter.swift; sourceTree = "<group>"; };
 		E084F0A02E33ACB3002F75E6 /* ChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewController.swift; sourceTree = "<group>"; };
 		E084F0A12E33ACB3002F75E6 /* CommonUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonUtilities.swift; sourceTree = "<group>"; };
@@ -294,7 +293,6 @@
 		E084F0C32E33ACB3002F75E6 /* EnvironmentConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentConfig.swift; sourceTree = "<group>"; };
 		E084F0C42E33ACB3002F75E6 /* FeedbackCollectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackCollectionViewController.swift; sourceTree = "<group>"; };
 		E084F0C52E33ACB3002F75E6 /* FeedbackIntegrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackIntegrationManager.swift; sourceTree = "<group>"; };
-		E084F0C62E33ACB3002F75E6 /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
 		E084F0C72E33ACB3002F75E6 /* FeedbackPromptViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackPromptViewController.swift; sourceTree = "<group>"; };
 		E084F0C82E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackVisualizationCharts.swift; sourceTree = "<group>"; };
 		E084F0C92E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackVisualizationViewController.swift; sourceTree = "<group>"; };
@@ -345,7 +343,6 @@
 		E084F0FA2E33ACB3002F75E6 /* UIDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIDesignSystem.swift; sourceTree = "<group>"; };
 		E084F0FB2E33ACB3002F75E6 /* UsageAnalyticsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAnalyticsViewController.swift; sourceTree = "<group>"; };
 		E084F0FC2E33ACB3002F75E6 /* UserBasicInfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBasicInfoViewController.swift; sourceTree = "<group>"; };
-		E084F0FD2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBehaviorAnalytics.swift; sourceTree = "<group>"; };
 		E084F0FE2E33ACB3002F75E6 /* UserDefaults+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+Extensions.swift"; sourceTree = "<group>"; };
 		E084F0FF2E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFriendlyErrorHandler.swift; sourceTree = "<group>"; };
 		E084F1002E33ACB3002F75E6 /* UserSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettingsModel.swift; sourceTree = "<group>"; };
@@ -364,6 +361,9 @@
 		E09CD6E32E4666D4007C133E /* LogConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogConfiguration.swift; sourceTree = "<group>"; };
 		E09CD6E52E466707007C133E /* MemoryProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfiler.swift; sourceTree = "<group>"; };
 		E09CD6E82E49DB04007C133E /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManager.swift; sourceTree = "<group>"; };
+		E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
+		E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
+		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -477,6 +477,9 @@
 		E084F0672E33ACB3002F75E6 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */,
+				E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */,
+				E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */,
 				E084F0652E33ACB3002F75E6 /* PersonaMemoryModel.swift */,
 				E084F0662E33ACB3002F75E6 /* TodoItem.swift */,
 			);
@@ -582,7 +585,6 @@
 				E084F09A2E33ACB3002F75E6 /* Assets.xcassets */,
 				E084F09C2E33ACB3002F75E6 /* BatteryOptimizationManager.swift */,
 				E084F09D2E33ACB3002F75E6 /* ChatBubbleCell.swift */,
-				E084F09E2E33ACB3002F75E6 /* ChatManager.swift */,
 				E084F09F2E33ACB3002F75E6 /* ChatRouter.swift */,
 				E084F0A02E33ACB3002F75E6 /* ChatViewController.swift */,
 				E084F0A12E33ACB3002F75E6 /* CommonUtilities.swift */,
@@ -619,7 +621,6 @@
 				E084F0C32E33ACB3002F75E6 /* EnvironmentConfig.swift */,
 				E084F0C42E33ACB3002F75E6 /* FeedbackCollectionViewController.swift */,
 				E084F0C52E33ACB3002F75E6 /* FeedbackIntegrationManager.swift */,
-				E084F0C62E33ACB3002F75E6 /* FeedbackManager.swift */,
 				E084F0C72E33ACB3002F75E6 /* FeedbackPromptViewController.swift */,
 				E084F0C82E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift */,
 				E084F0C92E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift */,
@@ -670,7 +671,6 @@
 				E084F0FA2E33ACB3002F75E6 /* UIDesignSystem.swift */,
 				E084F0FB2E33ACB3002F75E6 /* UsageAnalyticsViewController.swift */,
 				E084F0FC2E33ACB3002F75E6 /* UserBasicInfoViewController.swift */,
-				E084F0FD2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift */,
 				E084F0FE2E33ACB3002F75E6 /* UserDefaults+Extensions.swift */,
 				E084F0FF2E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift */,
 				E084F1002E33ACB3002F75E6 /* UserSettingsModel.swift */,
@@ -812,7 +812,6 @@
 				E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */,
 				E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */,
 				E084F17C2E33ACB3002F75E6 /* AIModelSettingsView.swift in Sources */,
-				E084F17D2E33ACB3002F75E6 /* FeedbackManager.swift in Sources */,
 				E084F17E2E33ACB3002F75E6 /* PresetListViewController.swift in Sources */,
 				E084F17F2E33ACB3002F75E6 /* FortuneGenerator.swift in Sources */,
 				E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */,
@@ -846,7 +845,6 @@
 				E01798142E35FF71002F178C /* UnifiedLogger.swift in Sources */,
 				E084F19C2E33ACB3002F75E6 /* AIUsageManager.swift in Sources */,
 				E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */,
-				E084F19D2E33ACB3002F75E6 /* UserBehaviorAnalytics.swift in Sources */,
 				E084F19E2E33ACB3002F75E6 /* SettingsViewController.swift in Sources */,
 				E084F19F2E33ACB3002F75E6 /* LegacyPresetManager.swift in Sources */,
 				E084F1A02E33ACB3002F75E6 /* ConversationSaveHelper.swift in Sources */,
@@ -859,7 +857,6 @@
 				E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */,
 				E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */,
 				E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */,
-				E084F1AB2E33ACB3002F75E6 /* ChatManager.swift in Sources */,
 				E084F1AC2E33ACB3002F75E6 /* TokenTracker.swift in Sources */,
 				E084F1AD2E33ACB3002F75E6 /* CoreDataModels.swift in Sources */,
 				E084F1AE2E33ACB3002F75E6 /* GeminiAPIService.swift in Sources */,
@@ -915,6 +912,9 @@
 				E084F1E22E33ACB3002F75E6 /* UsageLimitManager.swift in Sources */,
 				E084F1E32E33ACB3002F75E6 /* SecureStorageManager.swift in Sources */,
 				E084F1E42E33ACB3002F75E6 /* EmotionDiaryViewController+Actions.swift in Sources */,
+				E09CD6ED2E4B0D93007C133E /* CoreDataStack.swift in Sources */,
+				E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */,
+				E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */,
 				E084F1E52E33ACB3002F75E6 /* AIServiceTypes.swift in Sources */,
 				E084F1E62E33ACB3002F75E6 /* EmotionAnalysisChatViewModel.swift in Sources */,
 				E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */,

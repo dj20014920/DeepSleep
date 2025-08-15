@@ -702,63 +702,52 @@ final class SoundManager {
 
     // MARK: - Phase 2: 피드백 시스템 통합
 
-    /// 피드백 세션 시작
+    /// 피드백 세션 시작 (SessionManager 통합)
     private func startFeedbackSession(presetName: String, volumes: [Float], versions: [Int], emotion: String) {
-        #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            Task { @MainActor in
-                let recommendation = EnhancedRecommendationResponse(
-                    presetName: presetName,
-                    volumes: volumes,
-                    versions: versions
-                )
+        Task { @MainActor in
+            let recommendation = EnhancedRecommendationResponse(
+                presetName: presetName,
+                volumes: volumes,
+                versions: versions,
+                reason: "SessionManager 통합 피드백 세션"
+            )
 
-                FeedbackManager.shared.startSession(
-                    presetName: presetName,
-                    recommendation: recommendation,
-                    contextEmotion: emotion
-                )
+            SessionManager.shared.startSession(
+                presetName: presetName,
+                recommendation: recommendation,
+                contextEmotion: emotion
+            )
 
-                print("🎯 [FeedbackManager] 세션 시작: \(presetName)")
-            }
+            print("🎯 [SessionManager] 피드백 세션 시작: \(presetName)")
         }
-        #endif
     }
 
-    /// 현재 세션 볼륨 업데이트
+    /// 현재 세션 볼륨 업데이트 (SessionManager 통합)
     private func updateCurrentSessionVolumes() {
-        #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            let currentVolumes = players.map { $0.volume * 100.0 }
+        let currentVolumes = players.map { $0.volume * 100.0 }
 
-            Task { @MainActor in
-                FeedbackManager.shared.updateCurrentSessionVolumes(currentVolumes)
-            }
+        Task { @MainActor in
+            SessionManager.shared.updateCurrentSessionVolumes(currentVolumes)
         }
-        #endif
     }
 
-    /// 피드백 세션 종료
+    /// 피드백 세션 종료 (SessionManager 통합)
     private func endCurrentFeedbackSession(finalVolumes: [Float], wasSaved: Bool, satisfaction: Int = 0) {
-        #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            Task { @MainActor in
-                let duration = FeedbackManager.shared.currentSessionDuration
+        Task { @MainActor in
+            let duration = SessionManager.shared.currentSessionDuration
 
-                FeedbackManager.shared.endCurrentSession(
-                    finalVolumes: finalVolumes,
-                    listeningDuration: duration,
-                    wasSaved: wasSaved,
-                    satisfaction: satisfaction
-                )
+            SessionManager.shared.endCurrentSession(
+                finalVolumes: finalVolumes,
+                listeningDuration: duration,
+                wasSaved: wasSaved,
+                satisfaction: satisfaction
+            )
 
-                print("🏁 [FeedbackManager] 세션 종료: 청취시간 \(String(format: "%.1f", duration))초")
+            print("🏁 [SessionManager] 피드백 세션 종료: 청취시간 \(String(format: "%.1f", duration))초")
 
-                // 🎯 자연스러운 피드백 요청 (조건부)
-                checkAndRequestFeedback(duration: duration, wasSaved: wasSaved)
-            }
+            // 🎯 자연스러운 피드백 요청 (조건부)
+            checkAndRequestFeedback(duration: duration, wasSaved: wasSaved)
         }
-        #endif
     }
 
     /// 🎯 피드백 요청 조건 체크 및 실행
@@ -807,36 +796,24 @@ final class SoundManager {
         }
     }
 
-    /// 현재 프리셋 이름 가져오기
+    /// 현재 프리셋 이름 가져오기 (SessionManager 통합)
     @MainActor private func getCurrentPresetName() -> String? {
-        // FeedbackManager에서 현재 세션 프리셋 이름 가져오기
-        #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            return FeedbackManager.shared.getCurrentSessionPresetName()
-        }
-        #endif
-        return nil
+        return SessionManager.shared.getCurrentSessionPresetName()
     }
 
-    /// 추천 타입 결정
+    /// 추천 타입 결정 (SessionManager 통합)
     @MainActor private func determineRecommendationType() -> FeedbackPromptViewController.RecommendationType {
-        // 최근 피드백에서 추천 소스 분석 (간소화)
-        #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            let recentFeedback = FeedbackManager.shared.getRecentFeedback(limit: 5)
+        let recentFeedback = SessionManager.shared.getRecentFeedback(limit: 5)
 
-            // PresetFeedback에 recommendationSource가 없으므로 기본값 사용
-            // 추후 모델 업데이트 시 개선 예정
-            if recentFeedback.count > 3 {
-                return .comprehensive
-            } else if recentFeedback.count > 1 {
-                return .ai
-            } else {
-                return .local
-            }
+        // PresetFeedback에 recommendationSource가 없으므로 기본값 사용
+        // 추후 모델 업데이트 시 개선 예정
+        if recentFeedback.count > 3 {
+            return .comprehensive
+        } else if recentFeedback.count > 1 {
+            return .ai
+        } else {
+            return .local
         }
-        #endif
-        return .local // iOS 16.0 이하 또는 FeedbackManager를 import할 수 없는 경우
     }
 
     /// 사용자가 프리셋을 저장할 때 호출 (만족도 높음으로 기록)
@@ -1463,14 +1440,16 @@ final class SoundManager {
         Task {
             do {
                 // 🤖 ChatManager.sendMessage로 프리셋 추천 호출 (통합 아키텍처)
-                let aiResponse = try await ChatManager.shared.sendMessage(
-                    userInput: contextPrompt,
-                    modeString: "preset_recommendation",
-                    modelString: "gemini"  // JSON 출력에 최적화된 모델
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: contextPrompt,
+                    model: .gemini,
+                    mode: .presetRecommendation,
+                    context: nil,
+                    tokenConfig: nil
                 )
                 
                 // JSON 파싱하여 SoundPreset 객체 생성
-                let preset = try parsePresetFromJSON(aiResponse, emotion: emotion)
+                let preset = try parsePresetFromJSON(aiResponse.content, emotion: emotion)
                 
                 await MainActor.run {
                     completion(preset)

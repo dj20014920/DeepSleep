@@ -16,7 +16,7 @@ enum ChatRouter {
     /// 통합된 채팅 화면 생성 (컨텍스트 지원)
     static func chatViewController(context: RoutingContext = .general) -> ChatViewController {
         let vc = ChatViewController()
-        vc.chatManager = ChatManager.shared
+        // SessionManager는 싱글톤으로 자동 관리됨
         
         // 컨텍스트에 따른 초기 설정 (ChatMode enum 사용)
         switch context {
@@ -76,13 +76,13 @@ enum ChatRouter {
 extension ChatRouter {
     static func debugInfo() -> String {
         let hasCache = false // 캐시 제거로 인해 항상 false
-        let messageCount = ChatManager.shared.messages.count
+        let messageCount = SessionManager.shared.getRecentChatMessages(limit: 100).count
         
         return """
         🔍 [ChatRouter 디버그 정보]
         • 캐시된 VC: \(hasCache ? "있음" : "없음")
         • 메시지 수: \(messageCount)개
-        • ChatManager: \(ChatManager.shared)
+        • SessionManager: \(SessionManager.shared)
         """
     }
 } 

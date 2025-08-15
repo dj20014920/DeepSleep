@@ -19,8 +19,8 @@ class PersonaMemoryManager: ObservableObject {
     @Published var temporalCoherenceScore: Double = 0.0
     @Published var cognitiveLoadIndex: Double = 0.0
     
-    // ChatManager를 통한 외부 AI 모델 사용 (Claude, GPT-4, Gemini, HyperCLOVA X)
-    private let chatManager = ChatManager.shared
+    // SessionManager를 통한 외부 AI 모델 사용 (Claude, GPT-4, Gemini, HyperCLOVA X)
+    private let sessionManager = SessionManager.shared
     
     // MARK: - AI 모델별 전용 처리 (외부 AI 기반)
     private let logger = Logger(subsystem: "DeepSleep", category: "PersonaMemory")
@@ -78,14 +78,16 @@ class PersonaMemoryManager: ObservableObject {
                 분석 대상: 인지적 특성, 메모리 패턴, 학습 선호도, 감정적 기준선
                 """
                 
-                let aiResponse = try await chatManager.sendMessage(
-                    userInput: analysisPrompt,
-                    modeString: "emotion_analysis",
-                    modelString: "claude"
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: analysisPrompt,
+                    model: .claude,
+                    mode: .emotionAnalysis,
+                    context: AIContext(userId: "persona_user", sessionId: "persona_analysis"),
+                    tokenConfig: nil
                 )
                 
                 await MainActor.run {
-                    currentPersona = AdvancedUserPersona(fromAIAnalysis: aiResponse)
+                    currentPersona = AdvancedUserPersona(fromAIAnalysis: aiResponse.content)
                 }
                 logger.info("🤖 외부 AI를 통한 페르소나 로드 완료")
             } else {
@@ -108,13 +110,15 @@ class PersonaMemoryManager: ObservableObject {
             특이사항: 2025년 최신 인지과학 연구 반영
             """
             
-            let aiResponse = try await chatManager.sendMessage(
-                userInput: creationPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: creationPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "persona_user", sessionId: "persona_creation"),
+                tokenConfig: nil
             )
             
-            let newPersona = AdvancedUserPersona(fromAIAnalysis: aiResponse)
+            let newPersona = AdvancedUserPersona(fromAIAnalysis: aiResponse.content)
             
             // 보안 저장소에 저장
             // ✅ UserProfile 올바른 초기화 (userId만 필요)
@@ -171,10 +175,12 @@ class PersonaMemoryManager: ObservableObject {
             4. 개인화 추천에 활용 방안
             """
             
-            let aiAnalysis = try await chatManager.sendMessage(
-                userInput: memoryAnalysisPrompt,
-                modeString: "emotion_analysis",
-                modelString: "claude"
+            let aiAnalysis = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: memoryAnalysisPrompt,
+                model: .claude,
+                mode: .emotionAnalysis,
+                context: AIContext(userId: "memory_user", sessionId: "memory_analysis"),
+                tokenConfig: nil
             )
             
             // 에피소드 메모리 데이터 구조화
@@ -188,7 +194,7 @@ class PersonaMemoryManager: ObservableObject {
             )
             
             // AI 분석 결과를 바탕으로 메모리 상세 정보 설정
-            episodicEntry.aiAnalysisResult = aiAnalysis
+            episodicEntry.aiAnalysisResult = aiAnalysis.content
             episodicEntry.relevanceScore = min(importance * 1.2, 1.0) // AI 분석 반영
             
             // 보안 저장소에 저장 (민감 데이터 암호화)
@@ -236,10 +242,12 @@ class PersonaMemoryManager: ObservableObject {
             4. 사용자 컨텍스트에 최적화된 결과 제공
             """
             
-            let aiSearchResult = try await chatManager.sendMessage(
-                userInput: searchPrompt,
-                modeString: "general_conversation",
-                modelString: "gpt4"
+            let aiSearchResult = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: searchPrompt,
+                model: .openAI,
+                mode: .generalConversation,
+                context: AIContext(userId: "search_user", sessionId: "episodic_search"),
+                tokenConfig: nil
             )
             
             // 보안 저장소에서 실제 메모리 데이터 검색 (샘플 구현)
@@ -262,7 +270,7 @@ class PersonaMemoryManager: ObservableObject {
                     importance: Double.random(in: contextSimilarity...1.0),
                     sensoryData: [:]
                 )
-                sampleMemory.aiAnalysisResult = aiSearchResult
+                sampleMemory.aiAnalysisResult = aiSearchResult.content
                 sampleMemory.relevanceScore = Double.random(in: contextSimilarity...1.0)
                 foundMemories.append(sampleMemory)
             }
@@ -315,10 +323,12 @@ class PersonaMemoryManager: ObservableObject {
             4. 지식 신뢰도 점수 (0-1)
             """
             
-            let aiAnalysis = try await chatManager.sendMessage(
-                userInput: knowledgeAnalysisPrompt,
-                modeString: "general_conversation",
-                modelString: "gemini"
+            let aiAnalysis = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: knowledgeAnalysisPrompt,
+                model: .gemini,
+                mode: .generalConversation,
+                context: AIContext(userId: "knowledge_user", sessionId: "knowledge_analysis"),
+                tokenConfig: nil
             )
             
             // 의미적 지식 데이터 구조화
@@ -332,7 +342,7 @@ class PersonaMemoryManager: ObservableObject {
             )
             
             // AI 분석 결과 반영
-            semanticEntry.aiValidationResult = aiAnalysis
+            semanticEntry.aiValidationResult = aiAnalysis.content
             
             // 보안 저장소에 저장
             let knowledgeKey = "semantic_\(semanticEntry.id.uuidString)"
@@ -380,10 +390,12 @@ class PersonaMemoryManager: ObservableObject {
             5. 각 결과의 신뢰도 점수 포함
             """
             
-            let aiReasoningResult = try await chatManager.sendMessage(
-                userInput: semanticSearchPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let aiReasoningResult = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: semanticSearchPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "reasoning_user", sessionId: "semantic_search"),
+                tokenConfig: nil
             )
             
             // AI 추론 결과를 바탕으로 지식 엔트리 생성
@@ -406,7 +418,7 @@ class PersonaMemoryManager: ObservableObject {
                     sources: ["AI 추론"],
                     domain: domain ?? "general"
                 )
-                sampleEntry.aiValidationResult = aiReasoningResult
+                sampleEntry.aiValidationResult = aiReasoningResult.content
                 knowledgeEntries.append(sampleEntry)
             }
             
@@ -452,13 +464,15 @@ class PersonaMemoryManager: ObservableObject {
                 컨텍스트: \(context)
                 """
                 
-                let aiResponse = try await chatManager.sendMessage(
-                    userInput: embeddingPrompt,
-                    modeString: "general_conversation",
-                    modelString: "claude"
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: embeddingPrompt,
+                    model: .claude,
+                    mode: .generalConversation,
+                    context: AIContext(userId: "embedding_user", sessionId: "embedding_generation"),
+                    tokenConfig: nil
                 )
                 
-                proceduralEntry.neuralEmbedding = [Float(aiResponse.count)] // 외부 AI 응답 기반 임베딩
+                proceduralEntry.neuralEmbedding = [Float(aiResponse.content.count)] // 외부 AI 응답 기반 임베딩
             } catch {
                 logger.error("외부 AI 임베딩 생성 실패: \(error)")
                 proceduralEntry.neuralEmbedding = [0.5] // 기본 임베딩
@@ -511,10 +525,12 @@ class PersonaMemoryManager: ObservableObject {
             \(episodicMemories.description)
             """
             
-            let _ = try await chatManager.sendMessage(
-                userInput: consolidationPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let _ = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: consolidationPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "consolidation_user", sessionId: "memory_consolidation"),
+                tokenConfig: nil
             )
             
             logger.info("✅ 외부 AI를 통한 메모리 통합 완료")
@@ -574,10 +590,12 @@ class PersonaMemoryManager: ObservableObject {
             시간 범위: \(temporalSpan)
             """
             
-            let infiniteQuery = try await chatManager.sendMessage(
-                userInput: attentionPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let infiniteQuery = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: attentionPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "infinite_user", sessionId: "infinite_query"),
+                tokenConfig: nil
             )
             
             // Retrieve across all memory types
@@ -607,15 +625,17 @@ class PersonaMemoryManager: ObservableObject {
             쿼리: \(infiniteQuery)
             """
             
-            let aiSynthesis = try await chatManager.sendMessage(
-                userInput: synthesisPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let aiSynthesis = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: synthesisPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "synthesis_user", sessionId: "synthesis"),
+                tokenConfig: nil
             )
             
             // InfiniteContextResult 생성 (올바른 파라미터 사용)
             let synthesizedResult = InfiniteContextResult(
-                synthesizedContext: aiSynthesis,
+                synthesizedContext: aiSynthesis.content,
                 relevantMemories: [episodicResults, semanticResults, proceduralResults],
                 confidenceScore: 0.8,
                 processingTime: 0.1
@@ -703,10 +723,12 @@ class PersonaMemoryManager: ObservableObject {
             4. 장기 보존 가치 평가
             """
             
-            let _ = try await chatManager.sendMessage(
-                userInput: consolidationPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let _ = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: consolidationPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "consolidation_user", sessionId: "memory_consolidation"),
+                tokenConfig: nil
             )
             
             // 예시 결과 (실제 구현에서는 저장된 메모리 ID 목록 반환)
@@ -735,10 +757,12 @@ class PersonaMemoryManager: ObservableObject {
             4. 단계별 실행 가능한 액션 플랜
             """
             
-            let aiSearchResult = try await chatManager.sendMessage(
-                userInput: proceduralSearchPrompt,
-                modeString: "preset_recommendation",
-                modelString: "gpt4"
+            let aiSearchResult = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: proceduralSearchPrompt,
+                model: .openAI,
+                mode: .presetRecommendation,
+                context: AIContext(userId: "procedural_user", sessionId: "procedural_search"),
+                tokenConfig: nil
             )
             
             // AI 검색 결과를 바탕으로 절차적 메모리 생성
@@ -759,7 +783,7 @@ class PersonaMemoryManager: ObservableObject {
                     successRate: Double.random(in: 0.7...0.95),
                     adaptationHistory: []
                 )
-                sampleMemory.aiRecommendationResult = aiSearchResult
+                sampleMemory.aiRecommendationResult = aiSearchResult.content
                 proceduralMemories.append(sampleMemory)
             }
             
@@ -1131,7 +1155,7 @@ class ProceduralMemoryEntry: Codable {
 
 // MARK: - AI-Powered Memory Performance Metrics (외부 AI 기반 메트릭 계산)
 class AIMemoryPerformanceCalculator {
-    private let chatManager = ChatManager.shared
+    private let sessionManager = SessionManager.shared
     
     /// 외부 AI를 통한 메모리 성능 메트릭 계산
     func calculateMemoryMetrics() async -> (latency: Double, cognitiveLoad: Double) {
@@ -1144,10 +1168,12 @@ class AIMemoryPerformanceCalculator {
             3. 배터리 효율성 고려사항
             """
             
-            let aiResponse = try await chatManager.sendMessage(
-                userInput: metricsPrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: metricsPrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "metrics_user", sessionId: "memory_metrics"),
+                tokenConfig: nil
             )
             
             // AI 응답에서 메트릭 추출 (예시)
@@ -1254,7 +1280,7 @@ struct InfiniteContextResult {
 
 // MARK: - AI-Powered Memory Consolidation (외부 AI 기반 메모리 통합)
 class AIMemoryConsolidationEngine {
-    private let chatManager = ChatManager.shared
+    private let sessionManager = SessionManager.shared
     
     /// 외부 AI를 통한 메모리 통합 효율성 계산
     func calculateConsolidationEfficiency() async -> Double {
@@ -1269,10 +1295,12 @@ class AIMemoryConsolidationEngine {
             점수 범위: 0.0-1.0 (1.0이 최고)
             """
             
-            let _ = try await chatManager.sendMessage(
-                userInput: consolidationPrompt,
-                modeString: "emotion_analysis",
-                modelString: "gpt4"
+            let _ = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: consolidationPrompt,
+                model: .openAI,
+                mode: .emotionAnalysis,
+                context: AIContext(userId: "efficiency_user", sessionId: "consolidation_efficiency"),
+                tokenConfig: nil
             )
             
             // AI 응답에서 효율성 점수 추출
@@ -1295,10 +1323,12 @@ class AIMemoryConsolidationEngine {
             점수 범위: 0.0-1.0
             """
             
-            let aiResponse = try await chatManager.sendMessage(
-                userInput: coherencePrompt,
-                modeString: "general_conversation",
-                modelString: "claude"
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: coherencePrompt,
+                model: .claude,
+                mode: .generalConversation,
+                context: AIContext(userId: "coherence_user", sessionId: "temporal_coherence"),
+                tokenConfig: nil
             )
             
             return Double.random(in: 0.75...0.92)

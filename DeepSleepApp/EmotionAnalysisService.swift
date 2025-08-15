@@ -25,12 +25,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 ChatManager.sendMessage로 감정 분석 전문가 응답 생성
-            let response = try await ChatManager.shared.sendMessage(
-                userInput: analysisRequest,
-                modeString: "emotion_analysis", // 감정 분석 전문가 모드
-                modelString: "claude" // 구조화된 분석에 최적화
+            // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 응답 생성
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: analysisRequest,
+                model: .claude,
+                mode: .emotionAnalysis,
+                context: nil,
+                tokenConfig: nil
             )
+            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),
@@ -116,12 +119,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 ChatManager.sendMessage로 감정 분석 전문가 패턴 분석 생성
-            let response = try await ChatManager.shared.sendMessage(
-                userInput: patternAnalysisRequest,
-                modeString: "emotion_analysis", // 감정 분석 전문가 모드
-                modelString: "claude" // 복잡한 패턴 분석에 최적화
+            // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 패턴 분석 생성
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: patternAnalysisRequest,
+                model: .claude,
+                mode: .emotionAnalysis, // 감정 분석 전문가 모드
+                context: nil,
+                tokenConfig: nil
             )
+            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),
@@ -197,14 +203,16 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
             """
         }
         
-        // 🤖 ChatManager.sendMessage로 감정 분석 전문가 응답 생성
-        let response = try await ChatManager.shared.sendMessage(
-            userInput: contextualMessage,
-            modeString: "emotion_analysis", // 감정 분석 전문가 모드
-            modelString: "claude" // 자연스러운 대화에 최적화
+        // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 응답 생성
+        let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+            content: contextualMessage,
+            model: .claude,
+            mode: .emotionAnalysis, // 감정 분석 전문가 모드
+            context: nil,
+            tokenConfig: nil
         )
         
-        return response
+        return aiResponse.content
     }
     
     /// 빠른 팁 생성 (🤖 ChatManager.sendMessage 통합)
@@ -224,14 +232,16 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         - 공감과 격려가 포함된 따뜻한 톤
         """
         
-        // 🤖 ChatManager.sendMessage로 생산성 전문가 조언 생성
-        let response = try await ChatManager.shared.sendMessage(
-            userInput: tipRequest,
-            modeString: "task_advice", // 생산성 전문가 모드
-            modelString: "claude" // 구체적이고 실용적인 조언에 최적화
+        // 🤖 UnifiedAIServiceImpl.sendMessage로 생산성 전문가 조언 생성
+        let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+            content: tipRequest,
+            model: .claude,
+            mode: .taskAdvice, // 생산성 전문가 모드
+            context: nil,
+            tokenConfig: nil
         )
         
-        return response
+        return aiResponse.content
     }
     
     /// AI 추천 생성 (🤖 ChatManager.sendMessage 통합)
@@ -275,12 +285,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 ChatManager.sendMessage로 사운드 추천 전문가 응답 생성
-            let response = try await ChatManager.shared.sendMessage(
-                userInput: recommendationRequest,
-                modeString: "preset_recommendation", // 사운드 추천 전문가 모드
-                modelString: "claude" // 창의적인 조합 생성에 최적화
+            // 🤖 UnifiedAIServiceImpl.sendMessage로 사운드 추천 전문가 응답 생성
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: recommendationRequest,
+                model: .claude,
+                mode: .presetRecommendation, // 사운드 추천 전문가 모드
+                context: nil,
+                tokenConfig: nil
             )
+            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),

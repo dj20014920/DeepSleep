@@ -167,7 +167,7 @@ class ChatMigrationHelper {
     
     /// Migrate existing ChatViewController usage to new architecture
     static func migrateFromLegacy(
-        chatManager: ChatManager? = nil,
+        sessionManager: SessionManager? = nil,
         messages: [(isUser: Bool, message: String)] = []
     ) -> LegacyChatViewController {
         

@@ -1,7 +1,7 @@
 import UIKit
 
-/// 📊 사용 패턴 분석 화면
-/// AI가 분석한 사용자의 음악/프리셋 선호도와 사용 패턴을 표시
+/// 📊 사용 패턴 분석 화면 (SessionManager 기반)
+/// SessionManager에서 실제 사용자 데이터를 가져와 분석 결과를 표시
 class UsageAnalyticsViewController: UIViewController {
     
     // MARK: - UI Components
@@ -40,7 +40,7 @@ class UsageAnalyticsViewController: UIViewController {
     
     private let subtitleLabel: UILabel = {
         let label = UILabel()
-        label.text = "당신의 음악 취향과 사용 패턴을 AI가 학습하여 분석한 결과입니다"
+        label.text = "SessionManager에서 수집된 실제 사용 데이터를 기반으로 분석한 결과입니다"
         label.font = UIFont.systemFont(ofSize: 15)
         label.textColor = UIDesignSystem.Colors.secondaryText
         label.textAlignment = .center
@@ -130,66 +130,21 @@ class UsageAnalyticsViewController: UIViewController {
     // MARK: - Analytics Creation
     
     private func createAnalyticsSections() {
-        // 1. 음악 선호도 순위
-        let musicRankingCard = createMusicRankingCard()
-        stackView.addArrangedSubview(musicRankingCard)
-        
-        // 2. 프리셋 사용 순위
+        // 1. 프리셋 사용 순위
         let presetRankingCard = createPresetRankingCard()
         stackView.addArrangedSubview(presetRankingCard)
         
-        // 3. 시간대별 사용 패턴
+        // 2. 시간대별 사용 패턴
         let timePatternCard = createTimePatternCard()
         stackView.addArrangedSubview(timePatternCard)
         
-        // 4. 감정 상태별 선호도
-        let emotionPatternCard = createEmotionPatternCard()
-        stackView.addArrangedSubview(emotionPatternCard)
-        
-        // 5. AI 추천 성과
+        // 3. AI 인사이트
         let aiInsightsCard = createAIInsightsCard()
         stackView.addArrangedSubview(aiInsightsCard)
     }
     
-    private func createMusicRankingCard() -> UIView {
-        let cardView = createAnalyticsCard(title: "🎵 좋아하는 음악 순위", subtitle: "가장 자주 듣는 음악 스타일")
-        
-        let rankingContainer = UIView()
-        rankingContainer.translatesAutoresizingMaskIntoConstraints = false
-        
-        var lastView: UIView = rankingContainer
-        
-        for (index, musicData) in analyticsData.musicRankings.enumerated() {
-            let rankingItem = createRankingItem(
-                rank: index + 1,
-                title: musicData.style,
-                subtitle: "\(musicData.listenCount)회 재생",
-                percentage: musicData.percentage,
-                color: getMusicRankingColor(rank: index + 1)
-            )
-            
-            rankingContainer.addSubview(rankingItem)
-            
-            NSLayoutConstraint.activate([
-                rankingItem.leadingAnchor.constraint(equalTo: rankingContainer.leadingAnchor),
-                rankingItem.trailingAnchor.constraint(equalTo: rankingContainer.trailingAnchor),
-                rankingItem.topAnchor.constraint(equalTo: lastView == rankingContainer ? rankingContainer.topAnchor : lastView.bottomAnchor, constant: lastView == rankingContainer ? 0 : 12),
-                rankingItem.heightAnchor.constraint(equalToConstant: 60)
-            ])
-            
-            lastView = rankingItem
-        }
-        
-        if lastView != rankingContainer {
-            lastView.bottomAnchor.constraint(equalTo: rankingContainer.bottomAnchor).isActive = true
-        }
-        
-        addContentToCard(cardView, content: rankingContainer)
-        return cardView
-    }
-    
     private func createPresetRankingCard() -> UIView {
-        let cardView = createAnalyticsCard(title: "⚙️ 자주 사용하는 프리셋", subtitle: "선호하는 설정 조합")
+        let cardView = createAnalyticsCard(title: "⚙️ 자주 사용하는 프리셋", subtitle: "SessionManager 데이터 기반")
         
         let rankingContainer = UIView()
         rankingContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -268,50 +223,8 @@ class UsageAnalyticsViewController: UIViewController {
         return cardView
     }
     
-    private func createEmotionPatternCard() -> UIView {
-        let cardView = createAnalyticsCard(title: "😊 감정 상태별 선호도", subtitle: "기분에 따른 음악 취향")
-        
-        let emotionContainer = UIView()
-        emotionContainer.translatesAutoresizingMaskIntoConstraints = false
-        
-        let emotions = [
-            ("스트레스 받을 때", analyticsData.emotionPatterns.stressed, "😤"),
-            ("슬플 때", analyticsData.emotionPatterns.sad, "😢"),
-            ("행복할 때", analyticsData.emotionPatterns.happy, "😊"),
-            ("차분할 때", analyticsData.emotionPatterns.calm, "😌")
-        ]
-        
-        var lastView: UIView = emotionContainer
-        
-        for (emotion, preferredMusic, emoji) in emotions {
-            let emotionItem = createEmotionPreferenceItem(
-                icon: emoji,
-                emotion: emotion,
-                preferredMusic: preferredMusic
-            )
-            
-            emotionContainer.addSubview(emotionItem)
-            
-            NSLayoutConstraint.activate([
-                emotionItem.leadingAnchor.constraint(equalTo: emotionContainer.leadingAnchor),
-                emotionItem.trailingAnchor.constraint(equalTo: emotionContainer.trailingAnchor),
-                emotionItem.topAnchor.constraint(equalTo: lastView == emotionContainer ? emotionContainer.topAnchor : lastView.bottomAnchor, constant: lastView == emotionContainer ? 0 : 12),
-                emotionItem.heightAnchor.constraint(equalToConstant: 50)
-            ])
-            
-            lastView = emotionItem
-        }
-        
-        if lastView != emotionContainer {
-            lastView.bottomAnchor.constraint(equalTo: emotionContainer.bottomAnchor).isActive = true
-        }
-        
-        addContentToCard(cardView, content: emotionContainer)
-        return cardView
-    }
-    
     private func createAIInsightsCard() -> UIView {
-        let cardView = createAnalyticsCard(title: "🤖 AI 분석 인사이트", subtitle: "당신만의 특별한 패턴")
+        let cardView = createAnalyticsCard(title: "🤖 AI 분석 인사이트", subtitle: "SessionManager 데이터 기반 분석")
         
         let insightsContainer = UIView()
         insightsContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -520,49 +433,6 @@ class UsageAnalyticsViewController: UIViewController {
         return container
     }
     
-    private func createEmotionPreferenceItem(icon: String, emotion: String, preferredMusic: String) -> UIView {
-        let container = UIView()
-        container.backgroundColor = UIColor.systemGray6
-        container.layer.cornerRadius = 12
-        container.translatesAutoresizingMaskIntoConstraints = false
-        
-        let iconLabel = UILabel()
-        iconLabel.text = icon
-        iconLabel.font = UIFont.systemFont(ofSize: 20)
-        iconLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        let emotionLabel = UILabel()
-        emotionLabel.text = emotion
-        emotionLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        emotionLabel.textColor = UIDesignSystem.Colors.primaryText
-        emotionLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        let musicLabel = UILabel()
-        musicLabel.text = "→ \(preferredMusic)"
-        musicLabel.font = UIFont.systemFont(ofSize: 13)
-        musicLabel.textColor = UIDesignSystem.Colors.primary
-        musicLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        container.addSubview(iconLabel)
-        container.addSubview(emotionLabel)
-        container.addSubview(musicLabel)
-        
-        NSLayoutConstraint.activate([
-            iconLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            iconLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            
-            emotionLabel.leadingAnchor.constraint(equalTo: iconLabel.trailingAnchor, constant: 8),
-            emotionLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            
-            musicLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            musicLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            
-            emotionLabel.trailingAnchor.constraint(lessThanOrEqualTo: musicLabel.leadingAnchor, constant: -8)
-        ])
-        
-        return container
-    }
-    
     private func createInsightItem(icon: String, text: String) -> UIView {
         let container = UIView()
         container.backgroundColor = UIDesignSystem.Colors.success.withAlphaComponent(0.1)
@@ -597,15 +467,6 @@ class UsageAnalyticsViewController: UIViewController {
         return container
     }
     
-    private func getMusicRankingColor(rank: Int) -> UIColor {
-        switch rank {
-        case 1: return UIDesignSystem.Colors.primary
-        case 2: return UIDesignSystem.Colors.success
-        case 3: return UIDesignSystem.Colors.warning
-        default: return UIDesignSystem.Colors.warning
-        }
-    }
-    
     private func getPresetRankingColor(rank: Int) -> UIColor {
         switch rank {
         case 1: return UIDesignSystem.Colors.accent
@@ -615,13 +476,16 @@ class UsageAnalyticsViewController: UIViewController {
         }
     }
     
-    // MARK: - Data Loading
+    // MARK: - Data Loading (SessionManager 기반)
     
     private func loadAnalyticsData() {
-        // 실제 사용자 행동 프로필에서 데이터 로드
-        if let profile = UserBehaviorAnalytics.shared.getCurrentUserProfile() {
-            analyticsData = convertProfileToAnalyticsData(profile)
-            print("✅ [UsageAnalytics] 실제 사용자 데이터 로드 완료")
+        // SessionManager에서 실제 데이터 로드
+        let sessions = SessionManager.shared.getRecentSessions(limit: 50)
+        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: 50)
+        
+        if !sessions.isEmpty {
+            analyticsData = createAnalyticsDataFromSessions(sessions, behaviorEvents: behaviorEvents)
+            print("✅ [UsageAnalytics] SessionManager 데이터 로드 완료: \(sessions.count)개 세션")
         } else {
             // 데이터가 없을 때만 샘플 데이터 사용
             analyticsData = generateSampleAnalyticsData()
@@ -629,136 +493,157 @@ class UsageAnalyticsViewController: UIViewController {
         }
     }
     
-    /// 실제 사용자 프로필을 UI 데이터로 변환
-    private func convertProfileToAnalyticsData(_ profile: UserBehaviorProfile) -> UsageAnalyticsData {
-        // 음악 순위 변환
-        let musicRankings = convertSoundPatternsToMusicRankings(profile.soundPatterns)
-        
-        // 시간대별 패턴 변환
-        let timePatterns = convertTimePatterns(profile.timePatterns)
-        
-        // 감정 패턴 변환  
-        let emotionPatterns = convertEmotionPatterns(profile.emotionPatterns)
-        
-        // AI 인사이트 생성
-        let aiInsights = generateAIInsights(from: profile)
+    /// SessionManager 데이터를 분석 데이터로 변환
+    private func createAnalyticsDataFromSessions(_ sessions: [UnifiedSession], behaviorEvents: [BehaviorEvent]) -> UsageAnalyticsData {
+        let presetRankings = createPresetRankingsFromSessions(sessions)
+        let timePatterns = createTimePatternFromSessions(sessions)
+        let aiInsights = generateAIInsightsFromSessions(sessions, behaviorEvents: behaviorEvents)
         
         return UsageAnalyticsData(
-            musicRankings: musicRankings,
-            presetRankings: [], // TODO: 프리셋 데이터 연결
+            musicRankings: [], // 음악 순위는 현재 사용하지 않음
+            presetRankings: presetRankings,
             timePatterns: timePatterns,
-            emotionPatterns: emotionPatterns,
+            emotionPatterns: EmotionPatternData(
+                stressed: "자연음",
+                sad: "클래식",
+                happy: "업비트",
+                calm: "백색소음"
+            ),
             aiInsights: aiInsights
         )
     }
     
-    private func convertSoundPatternsToMusicRankings(_ soundPatterns: SoundPreferenceAnalysis) -> [MusicRankingData] {
-        let sortedMetrics = soundPatterns.individualSoundMetrics.values
-            .sorted { $0.totalUsage > $1.totalUsage }
+    /// 세션 데이터에서 프리셋 순위 생성
+    private func createPresetRankingsFromSessions(_ sessions: [UnifiedSession]) -> [PresetRankingData] {
+        // 피드백 데이터에서 프리셋 이름 추출
+        var presetNames: [String] = []
+        for session in sessions {
+            for feedback in session.feedbackData {
+                presetNames.append(feedback.presetName ?? "기본 프리셋")
+            }
+        }
+        
+        let presetCounts = Dictionary(grouping: presetNames, by: { $0 })
+            .mapValues { $0.count }
+            .sorted { $0.value > $1.value }
             .prefix(5)
         
-        let totalUsage = sortedMetrics.reduce(0) { $0 + $1.totalUsage }
+        let totalCount = presetNames.count
         
-        return sortedMetrics.enumerated().map { index, metric in
-            let percentage = totalUsage > 0 ? Int((Double(metric.totalUsage) / Double(totalUsage)) * 100) : 0
-            
-            return MusicRankingData(
-                style: metric.soundName,
-                listenCount: metric.totalUsage,
-                percentage: percentage
+        return Array(presetCounts.enumerated().map { index, element in
+            PresetRankingData(
+                name: element.key,
+                useCount: element.value,
+                percentage: totalCount > 0 ? Int((Double(element.value) / Double(totalCount)) * 100) : 0
             )
-        }
+        })
     }
     
-    private func convertTimePatterns(_ timePatterns: [Int: TimeUsagePattern]) -> UsageTimePatternData {
-        let dawnUsage = (0...5).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
-        let morningUsage = (6...11).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
-        let afternoonUsage = (12...17).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
-        let eveningUsage = (18...23).compactMap { timePatterns[$0] }.reduce(0) { $0 + $1.totalSessions }
+    /// 세션 데이터에서 시간대별 패턴 생성
+    private func createTimePatternFromSessions(_ sessions: [UnifiedSession]) -> UsageTimePatternData {
+        let calendar = Calendar.current
         
-        let total = dawnUsage + morningUsage + afternoonUsage + eveningUsage
+        let dawnSessions = sessions.filter { 
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 0 && hour < 6
+        }.count
+        
+        let morningSessions = sessions.filter { 
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 6 && hour < 12
+        }.count
+        
+        let afternoonSessions = sessions.filter { 
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 12 && hour < 18
+        }.count
+        
+        let eveningSessions = sessions.filter { 
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 18 && hour < 24
+        }.count
+        
+        let totalSessions = sessions.count
         
         return UsageTimePatternData(
-            dawn: total > 0 ? Int((Double(dawnUsage) / Double(total)) * 100) : 0,
-            morning: total > 0 ? Int((Double(morningUsage) / Double(total)) * 100) : 0,
-            afternoon: total > 0 ? Int((Double(afternoonUsage) / Double(total)) * 100) : 0,
-            evening: total > 0 ? Int((Double(eveningUsage) / Double(total)) * 100) : 0
+            dawn: totalSessions > 0 ? Int((Double(dawnSessions) / Double(totalSessions)) * 100) : 0,
+            morning: totalSessions > 0 ? Int((Double(morningSessions) / Double(totalSessions)) * 100) : 0,
+            afternoon: totalSessions > 0 ? Int((Double(afternoonSessions) / Double(totalSessions)) * 100) : 0,
+            evening: totalSessions > 0 ? Int((Double(eveningSessions) / Double(totalSessions)) * 100) : 0
         )
     }
     
-    private func convertEmotionPatterns(_ emotionPatterns: [String: EmotionPreferencePattern]) -> EmotionPatternData {
-        return EmotionPatternData(
-            stressed: emotionPatterns["스트레스"]?.preferredSounds.joined(separator: ", ") ?? "로파이, 클래식",
-            sad: emotionPatterns["슬픔"]?.preferredSounds.joined(separator: ", ") ?? "클래식, 피아노",
-            happy: emotionPatterns["행복"]?.preferredSounds.joined(separator: ", ") ?? "팝, 재즈",
-            calm: emotionPatterns["차분"]?.preferredSounds.joined(separator: ", ") ?? "자연소리, 앰비언트"
-        )
-    }
-    
-    private func generateAIInsights(from profile: UserBehaviorProfile) -> [AIInsightData] {
+    /// SessionManager 데이터에서 AI 인사이트 생성
+    private func generateAIInsightsFromSessions(_ sessions: [UnifiedSession], behaviorEvents: [BehaviorEvent]) -> [AIInsightData] {
         var insights: [AIInsightData] = []
         
-        // 만족도 기반 인사이트
-        if profile.satisfactionMetrics.averageCompletionRate > 0.8 {
+        // 세션 수 기반 인사이트
+        if sessions.count > 10 {
             insights.append(AIInsightData(
                 icon: "🎯",
-                text: "평균 완료율이 \(Int(profile.satisfactionMetrics.averageCompletionRate * 100))%로 매우 높습니다. 현재 패턴을 유지하세요!"
+                text: "총 \(sessions.count)개의 세션을 완료했습니다. 꾸준한 사용 패턴을 보이고 있어요!"
             ))
         }
         
-        // 시간대 패턴 인사이트
-        let mostActiveHour = profile.timePatterns.max { $0.value.totalSessions < $1.value.totalSessions }
-        if let hour = mostActiveHour {
-            let timeDescription = getTimeDescription(for: hour.key)
+        // 가장 인기 있는 프리셋 인사이트 (피드백 데이터 기반)
+        var allPresetNames: [String] = []
+        for session in sessions {
+            for feedback in session.feedbackData {
+                allPresetNames.append(feedback.presetName ?? "기본 프리셋")
+            }
+        }
+        
+        if let mostUsedPreset = Dictionary(grouping: allPresetNames, by: { $0 })
+            .max(by: { $0.value.count < $1.value.count }) {
             insights.append(AIInsightData(
-                icon: "⏰",
-                text: "\(timeDescription)에 가장 활발하게 앱을 사용합니다 (\(hour.value.totalSessions)회)"
+                icon: "⭐",
+                text: "'\(mostUsedPreset.key)' 프리셋을 가장 선호하시네요! (\(mostUsedPreset.value.count)회 사용)"
             ))
         }
         
-        // 음원 조합 인사이트
-        if let topCombination = profile.soundPatterns.popularCombinations.first {
+        // 평균 세션 활동 시간 인사이트
+        let totalDuration = sessions.reduce(0.0) { result, session in
+            return result + session.lastActivityAt.timeIntervalSince(session.createdAt)
+        }
+        let avgDuration = totalDuration / Double(max(sessions.count, 1))
+        if avgDuration > 0 {
+            let minutes = Int(avgDuration / 60)
             insights.append(AIInsightData(
-                icon: "🎵",
-                text: "'\(topCombination.name)' 조합을 \(topCombination.count)회 사용했습니다. 이 조합이 가장 효과적이네요!"
+                icon: "⏱️",
+                text: "평균 세션 활동 시간은 \(minutes)분입니다."
+            ))
+        }
+        
+        // 행동 이벤트 기반 인사이트
+        let feedbackEvents = behaviorEvents.filter { $0.type == .feedback }.count
+        if feedbackEvents > 0 {
+            insights.append(AIInsightData(
+                icon: "💬",
+                text: "\(feedbackEvents)개의 피드백을 남겨주셨습니다. 소중한 의견 감사합니다!"
             ))
         }
         
         return insights.isEmpty ? [AIInsightData(icon: "💡", text: "사용 데이터를 더 수집하면 개인화된 인사이트를 제공할 수 있습니다.")] : insights
     }
     
-    private func getTimeDescription(for hour: Int) -> String {
-        switch hour {
-        case 0...5: return "새벽 시간대(\(hour)시)"
-        case 6...11: return "아침 시간대(\(hour)시)"
-        case 12...17: return "오후 시간대(\(hour)시)"
-        case 18...23: return "저녁 시간대(\(hour)시)"
-        default: return "\(hour)시"
-        }
-    }
-    
+    /// 샘플 데이터 생성 (실제 데이터가 없을 때만 사용)
     private func generateSampleAnalyticsData() -> UsageAnalyticsData {
         return UsageAnalyticsData(
-            musicRankings: [
-                MusicRankingData(style: "로파이", listenCount: 142, percentage: 35),
-                MusicRankingData(style: "클래식", listenCount: 98, percentage: 24),
-                MusicRankingData(style: "자연소리", listenCount: 76, percentage: 19),
-                MusicRankingData(style: "재즈", listenCount: 45, percentage: 11),
-                MusicRankingData(style: "앰비언트", listenCount: 31, percentage: 8)
-            ],
+            musicRankings: [],
             presetRankings: [
-                PresetRankingData(name: "편안한 밤 🌙", useCount: 89, percentage: 42),
-                PresetRankingData(name: "집중 모드 🎯", useCount: 67, percentage: 31),
-                PresetRankingData(name: "명상 시간 🧘", useCount: 34, percentage: 16),
-                PresetRankingData(name: "커스텀 #1", useCount: 23, percentage: 11)
+                PresetRankingData(name: "기본 프리셋", useCount: 15, percentage: 45),
+                PresetRankingData(name: "집중 모드", useCount: 10, percentage: 30),
+                PresetRankingData(name: "휴식 모드", useCount: 8, percentage: 25)
             ],
-            timePatterns: UsageTimePatternData(dawn: 15, morning: 25, afternoon: 20, evening: 40),
-            emotionPatterns: EmotionPatternData(stressed: "로파이, 클래식", sad: "클래식, 피아노", happy: "팝, 재즈", calm: "자연소리, 앰비언트"),
+            timePatterns: UsageTimePatternData(dawn: 10, morning: 30, afternoon: 35, evening: 25),
+            emotionPatterns: EmotionPatternData(
+                stressed: "자연음",
+                sad: "클래식",
+                happy: "업비트",
+                calm: "백색소음"
+            ),
             aiInsights: [
-                AIInsightData(icon: "🎯", text: "스트레스 받을 때 로파이 음악을 듣고 나면 93% 확률로 긍정적인 감정 변화를 보입니다"),
-                AIInsightData(icon: "⏰", text: "저녁 시간대(18-24시)에 가장 활발하게 앱을 사용하며, 이때 클래식 음악을 선호합니다"),
-                AIInsightData(icon: "🌙", text: "수면 전 30분 동안 자연소리를 들으면 다음날 기분이 15% 더 좋아지는 패턴을 발견했습니다"),
-                AIInsightData(icon: "💡", text: "월요일과 화요일에는 업템포 음악을, 주말에는 차분한 음악을 선호하는 경향이 있습니다")
+                AIInsightData(icon: "💡", text: "아직 충분한 데이터가 수집되지 않았습니다. 더 사용하시면 개인화된 분석을 제공할 수 있어요!")
             ]
         )
     }
@@ -797,7 +682,6 @@ struct PresetRankingData {
     let useCount: Int
     let percentage: Int
 }
-
 
 struct UsageTimePatternData {
     let dawn: Int      // 0-6시

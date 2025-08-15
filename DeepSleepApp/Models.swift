@@ -303,76 +303,7 @@ public struct SoundPreset: Codable, Equatable {
     }
 }
 
-// MARK: - Preset Feedback Model
-public struct PresetFeedback {
-    public struct QualitativeFeedback {
-        public let freeText: String
-        public let moodAfter: String
-        public let tags: [String]
-        
-        public init(freeText: String, moodAfter: String, tags: [String]) {
-            self.freeText = freeText
-            self.moodAfter = moodAfter
-            self.tags = tags
-        }
-    }
-    
-    public struct Context {
-        public let usageDuration: TimeInterval
-        public let intentionalStop: Bool
-        public let repeatUsageIntent: Bool
-        public let recommendationIntent: Bool
-        
-        public init(usageDuration: TimeInterval, intentionalStop: Bool, repeatUsageIntent: Bool, recommendationIntent: Bool) {
-            self.usageDuration = usageDuration
-            self.intentionalStop = intentionalStop
-            self.repeatUsageIntent = repeatUsageIntent
-            self.recommendationIntent = recommendationIntent
-        }
-    }
-    
-    public struct DeviceContext {
-        public let isCharging: Bool
-        public let batteryLevel: Float
-        
-        public init(isCharging: Bool, batteryLevel: Float) {
-            self.isCharging = isCharging
-            self.batteryLevel = batteryLevel
-        }
-    }
-    
-    public struct EnvironmentContext {
-        public let timeOfDay: String
-        public let noiseLevel: Float
-        
-        public init(timeOfDay: String, noiseLevel: Float) {
-            self.timeOfDay = timeOfDay
-            self.noiseLevel = noiseLevel
-        }
-    }
-    
-    public let presetId: String
-    public let sessionId: String
-    public let timestamp: Date
-    public let quantitative: [String: Any]
-    public let qualitative: QualitativeFeedback
-    public let context: Context
-    public let deviceContext: DeviceContext?
-    public let environmentContext: EnvironmentContext?
-    public let userEmotion: EmotionType?
-    
-    public init(presetId: String, sessionId: String, timestamp: Date, quantitative: [String: Any], qualitative: QualitativeFeedback, context: Context, deviceContext: DeviceContext?, environmentContext: EnvironmentContext?, userEmotion: EmotionType?) {
-        self.presetId = presetId
-        self.sessionId = sessionId
-        self.timestamp = timestamp
-        self.quantitative = quantitative
-        self.qualitative = qualitative
-        self.context = context
-        self.deviceContext = deviceContext
-        self.environmentContext = environmentContext
-        self.userEmotion = userEmotion
-    }
-}
+// PresetFeedback는 SessionDataModels.swift에서 정의됨
 
 // MARK: - Recommended Preset Model
 public struct RecommendedPreset: Equatable {
@@ -382,25 +313,9 @@ public struct RecommendedPreset: Equatable {
     public let personalizedExplanation: String
 }
 
-// MARK: - PresetFeedback 확장 (computed properties)
-extension PresetFeedback {
-    var presetName: String? { quantitative["presetName"] as? String }
-    var finalVolumes: [Float]? { quantitative["finalVolumes"] as? [Float] }
-    var recommendedVersions: [Int]? { quantitative["recommendedVersions"] as? [Int] }
-    var recommendedVolumes: [Float]? { quantitative["recommendedVolumes"] as? [Float] }
-    var contextEmotion: String? {
-        if let ce = quantitative["contextEmotion"] as? String { return ce }
-        return nil
-    }
-    var contextTime: Int? { quantitative["contextTime"] as? Int }
-    var listeningDuration: TimeInterval? { quantitative["listeningDuration"] as? TimeInterval }
-    var userSatisfaction: Int? { quantitative["userSatisfaction"] as? Int }
-    var satisfactionScore: Float {
-        return Float(userSatisfaction ?? 5) / 10.0  // Convert 1-10 scale to 0.0-1.0
-    }
-    var wasSaved: Bool? { quantitative["wasSaved"] as? Bool }
-    var wasSkipped: Bool? { quantitative["wasSkipped"] as? Bool }
-}
+// MARK: - PresetFeedback extensions moved to SharedModels.swift
+// PresetFeedback is now defined in SharedModels.swift with built-in properties
+// and backward compatibility through quantitative computed property
 
 // MARK: - Recommendation Models
 public struct RecommendationData: Codable {

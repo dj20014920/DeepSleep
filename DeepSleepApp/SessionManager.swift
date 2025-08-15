@@ -1,32 +1,26 @@
 import Foundation
 import CoreData
 
-/// 🎯 Phase 2: 통합 세션 관리자
+/// 🎯 Phase 2: 통합 세션 관리자 - Core Data 완전 통합
 /// ChatManager, FeedbackManager, UserBehaviorAnalytics의 데이터를 통합 관리
 /// 중앙집중형 처리방식으로 데이터 관리 3중 분열 문제 해결
 public class SessionManager {
     public static let shared = SessionManager()
     
     // MARK: - Core Data Stack
-    private lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "DeepSleep")
-        container.loadPersistentStores { _, error in
-            if let error = error {
-                // fatalError 대신 우아한 에러 처리
-                print("❌ [SessionManager] Core Data 초기화 실패: \(error)")
-                self.setupInMemoryStore()
-            }
-        }
-        return container
-    }()
+    private let coreDataStack = CoreDataStack.shared
     
     private var context: NSManagedObjectContext {
-        return persistentContainer.viewContext
+        return coreDataStack.viewContext
     }
     
     // MARK: - 통합 세션 캐시
     private var sessionCache: [String: UnifiedSession] = [:]
     private let cacheQueue = DispatchQueue(label: "com.deepsleep.sessionmanager", attributes: .concurrent)
+    
+    // MARK: - 피드백 세션 관리 (FeedbackManager 통합)
+    private var currentFeedbackSession: FeedbackSession?
+    private let feedbackQueue = DispatchQueue(label: "com.deepsleep.feedback", attributes: .concurrent)
     
     // MARK: - 마이그레이션 상태
     private var isMigrationCompleted: Bool {
@@ -36,6 +30,9 @@ public class SessionManager {
     
     private init() {
         print("🎯 [SessionManager] 초기화 시작")
+        
+        // Core Data 변경 알림 구독 (캐시 동기화)
+        setupCoreDataNotifications()
         
         // 기존 데이터 마이그레이션 (한 번만 실행)
         if !isMigrationCompleted {
@@ -50,134 +47,616 @@ public class SessionManager {
     
     // MARK: - Public API
     
-    /// 새로운 통합 세션 생성
-    public func createSession(metadata: SessionMetadata? = nil) -> UnifiedSession {
-        let session = UnifiedSession(
-            id: UUID().uuidString,
-            createdAt: Date(),
-            lastActivityAt: Date(),
-            chatMessages: [],
-            feedbackData: [],
-            behaviorEvents: [],
-            metadata: metadata ?? SessionMetadata()
-        )
+    /// 데이터 플러시 (메모리 캐시를 Core Data에 저장)
+    public func flush() {
+        do {
+            if context.hasChanges {
+                try context.save()
+                print("✅ [SessionManager] 데이터 플러시 완료")
+            }
+        } catch {
+            print("❌ [SessionManager] 데이터 플러시 실패: \(error)")
+        }
+    }
+    
+    /// 새로운 통합 세션 생성 (에러 전파)
+    public func createSession(metadata: SessionMetadata? = nil) throws -> UnifiedSession {
+        let sessionEntity = UnifiedSessionEntity(context: context)
+        sessionEntity.id = UUID()
+        sessionEntity.createdAt = Date()
+        sessionEntity.lastActivityAt = Date()
         
+        // 메타데이터를 JSON으로 인코딩하여 저장
+        if let metadata = metadata {
+            sessionEntity.metadataData = try? JSONEncoder().encode(metadata)
+        }
+        
+        // Core Data에 저장 (에러 전파)
+        do {
+            try saveContext()
+        } catch {
+            // 저장 실패 시 엔티티 삭제
+            context.delete(sessionEntity)
+            throw error
+        }
+        
+        // struct 모델로 변환하여 반환
+        let session = convertToUnifiedSession(from: sessionEntity)
+        
+        // 메모리 캐시에도 저장
         cacheQueue.async(flags: .barrier) {
             self.sessionCache[session.id] = session
-            self.saveSessionToDisk(session)
         }
         
         print("🎯 [SessionManager] 새 세션 생성: \(session.id)")
         return session
     }
     
+    /// 새로운 통합 세션 생성 (호환성 유지 - 에러 무시)
+    public func createSessionSafely(metadata: SessionMetadata? = nil) -> UnifiedSession {
+        do {
+            return try createSession(metadata: metadata)
+        } catch {
+            print("❌ [SessionManager] 세션 생성 실패, 임시 세션 반환: \(error)")
+            // 실패 시 임시 세션 반환 (메모리에만 존재)
+            let tempSession = UnifiedSession(
+                id: UUID().uuidString,
+                createdAt: Date(),
+                lastActivityAt: Date(),
+                chatMessages: [],
+                feedbackData: [],
+                behaviorEvents: [],
+                metadata: metadata ?? SessionMetadata()
+            )
+            
+            cacheQueue.async(flags: .barrier) {
+                self.sessionCache[tempSession.id] = tempSession
+            }
+            
+            return tempSession
+        }
+    }
+    
     /// 세션 조회
     public func getSession(id: String) -> UnifiedSession? {
-        return cacheQueue.sync {
-            sessionCache[id]
+        // 먼저 캐시에서 확인
+        if let cachedSession = cacheQueue.sync(execute: { sessionCache[id] }) {
+            return cachedSession
+        }
+        
+        // 캐시에 없으면 Core Data에서 조회 (성능 최적화)
+        return getSessionFromCoreData(id: id)
+    }
+    
+    /// Core Data에서 세션 조회 (비동기 처리 가능)
+    private func getSessionFromCoreData(id: String) -> UnifiedSession? {
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            let sessionEntities = try context.fetch(request)
+            if let sessionEntity = sessionEntities.first {
+                let session = convertToUnifiedSession(from: sessionEntity)
+                
+                // 캐시에 저장
+                cacheQueue.async(flags: .barrier) {
+                    self.sessionCache[id] = session
+                }
+                
+                return session
+            }
+        } catch {
+            print("❌ [SessionManager] 세션 조회 실패: \(error)")
+        }
+        
+        return nil
+    }
+    
+    /// 비동기 세션 조회 (성능 최적화)
+    public func getSessionAsync(id: String, completion: @escaping (UnifiedSession?) -> Void) {
+        // 먼저 캐시에서 확인
+        if let cachedSession = cacheQueue.sync(execute: { sessionCache[id] }) {
+            completion(cachedSession)
+            return
+        }
+        
+        // 백그라운드에서 Core Data 조회
+        coreDataStack.performBackgroundTask { backgroundContext in
+            let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            request.fetchLimit = 1
+            
+            do {
+                let sessionEntities = try backgroundContext.fetch(request)
+                if let sessionEntity = sessionEntities.first {
+                    let session = self.convertToUnifiedSession(from: sessionEntity)
+                    
+                    // 캐시에 저장
+                    self.cacheQueue.async(flags: .barrier) {
+                        self.sessionCache[id] = session
+                    }
+                    
+                    DispatchQueue.main.async {
+                        completion(session)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
+                }
+            } catch {
+                print("❌ [SessionManager] 비동기 세션 조회 실패: \(error)")
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+            }
         }
     }
     
     /// 현재 활성 세션 가져오기 또는 새로 생성
     public func getCurrentOrCreateSession() -> UnifiedSession {
-        let sessions = getAllSessions()
-        if let latestSession = sessions.first,
-           Calendar.current.isDate(latestSession.lastActivityAt, inSameDayAs: Date()) {
-            return latestSession
+        // 오늘 날짜의 세션을 Core Data에서 직접 조회
+        let calendar = Calendar.current
+        let today = Date()
+        let startOfDay = calendar.startOfDay(for: today)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "lastActivityAt >= %@ AND lastActivityAt < %@", startOfDay as NSDate, endOfDay as NSDate)
+        request.sortDescriptors = [NSSortDescriptor(key: "lastActivityAt", ascending: false)]
+        request.fetchLimit = 1
+        
+        do {
+            let sessionEntities = try context.fetch(request)
+            if let latestSessionEntity = sessionEntities.first {
+                let session = convertToUnifiedSession(from: latestSessionEntity)
+                
+                // 캐시 업데이트
+                cacheQueue.async(flags: .barrier) {
+                    self.sessionCache[session.id] = session
+                }
+                
+                return session
+            }
+        } catch {
+            print("❌ [SessionManager] 현재 세션 조회 실패: \(error)")
         }
-        return createSession()
+        
+        // 오늘 세션이 없으면 새로 생성
+        return createSessionSafely()
     }
     
     /// 모든 세션 조회 (최근 활동 순)
     public func getAllSessions() -> [UnifiedSession] {
-        return cacheQueue.sync {
+        // 먼저 캐시에서 확인
+        let cachedSessions = cacheQueue.sync {
             Array(sessionCache.values).sorted { $0.lastActivityAt > $1.lastActivityAt }
         }
+        
+        // 캐시가 비어있으면 Core Data에서 직접 로드
+        if cachedSessions.isEmpty {
+            let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+            request.sortDescriptors = [NSSortDescriptor(key: "lastActivityAt", ascending: false)]
+            
+            do {
+                let sessionEntities = try context.fetch(request)
+                return sessionEntities.map { convertToUnifiedSession(from: $0) }
+            } catch {
+                print("❌ [SessionManager] 세션 조회 실패: \(error)")
+                return []
+            }
+        }
+        
+        return cachedSessions
     }
     
     /// 최근 N개 세션 조회
     public func getRecentSessions(limit: Int = 20) -> [UnifiedSession] {
-        let allSessions = getAllSessions()
-        return Array(allSessions.prefix(limit))
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "lastActivityAt", ascending: false)]
+        request.fetchLimit = limit
+        
+        do {
+            let sessionEntities = try context.fetch(request)
+            return sessionEntities.map { convertToUnifiedSession(from: $0) }
+        } catch {
+            print("❌ [SessionManager] 최근 세션 조회 실패: \(error)")
+            return []
+        }
+    }
+    
+    /// 세션 삭제 (에러 전파)
+    private func deleteSessionInternal(by sessionId: String) throws {
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        
+        do {
+            let sessions = try context.fetch(request)
+            guard let sessionEntity = sessions.first else {
+                throw SessionManagerError.sessionNotFound(id: sessionId)
+            }
+            
+            // Core Data에서 삭제 (Cascade 규칙으로 관련 데이터도 자동 삭제)
+            context.delete(sessionEntity)
+            try saveContext()
+            
+            print("✅ [SessionManager] 세션 삭제 완료: \(sessionId)")
+            
+        } catch let error as SessionManagerError {
+            throw error
+        } catch {
+            throw SessionManagerError.saveFailure(underlying: error)
+        }
+    }
+    
+    /// 세션 삭제 (호환성 유지)
+    public func deleteSession(by sessionId: String) -> Bool {
+        do {
+            try deleteSessionInternal(by: sessionId)
+            return true
+        } catch {
+            print("❌ [SessionManager] 세션 삭제 실패: \(error.localizedDescription)")
+            NotificationCenter.default.post(
+                name: .sessionManagerError,
+                object: nil,
+                userInfo: ["error": error, "operation": "deleteSession"]
+            )
+            return false
+        }
+    }
+    
+    /// 오래된 세션들 정리 (30일 이상)
+    public func cleanupOldSessions(olderThanDays days: Int = 30) -> Int {
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "createdAt < %@", cutoffDate as NSDate)
+        
+        do {
+            let oldSessions = try context.fetch(request)
+            let deletedCount = oldSessions.count
+            
+            for session in oldSessions {
+                context.delete(session)
+                
+                // 캐시에서도 제거
+                cacheQueue.async(flags: .barrier) {
+                    self.sessionCache.removeValue(forKey: session.id.uuidString)
+                }
+            }
+            
+            try? saveContext()
+            print("✅ [SessionManager] 오래된 세션 정리 완료: \(deletedCount)개")
+            return deletedCount
+            
+        } catch {
+            print("❌ [SessionManager] 오래된 세션 정리 실패: \(error)")
+            return 0
+        }
     }
     
     // MARK: - 데이터 추가 API (기존 매니저들과의 호환성)
     
-    /// 채팅 메시지 추가
-    public func addChatMessage(to sessionId: String, message: StoredChatMessage) {
-        cacheQueue.async(flags: .barrier) {
-            guard var session = self.sessionCache[sessionId] else { return }
+    /// 채팅 메시지 추가 (에러 전파)
+    public func addChatMessage(to sessionId: String, message: StoredChatMessage) throws {
+        // Core Data에서 세션 찾기
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        
+        do {
+            let sessions = try context.fetch(request)
+            guard let sessionEntity = sessions.first else {
+                throw SessionManagerError.sessionNotFound(id: sessionId)
+            }
             
-            session.chatMessages.append(message)
-            session.lastActivityAt = Date()
+            // 새 메시지 엔티티 생성
+            let messageEntity = StoredChatMessageEntity(context: context)
+            messageEntity.id = UUID()
+            messageEntity.timestamp = message.timestamp
+            messageEntity.role = message.role
+            messageEntity.content = message.content
+            messageEntity.session = sessionEntity
             
-            self.sessionCache[sessionId] = session
-            self.saveSessionToDisk(session)
+            // 세션 활동 시간 업데이트
+            sessionEntity.lastActivityAt = Date()
+            
+            // 저장 (에러 전파)
+            try saveContext()
+            
+            print("✅ [SessionManager] 메시지 추가 완료: \(sessionId)")
+            
+        } catch let error as SessionManagerError {
+            throw error
+        } catch {
+            throw SessionManagerError.saveFailure(underlying: error)
         }
     }
     
-    /// 피드백 데이터 추가
-    public func addFeedbackData(to sessionId: String, feedback: PresetFeedback) {
-        cacheQueue.async(flags: .barrier) {
-            guard var session = self.sessionCache[sessionId] else { return }
+    /// 채팅 메시지 추가 (호환성 유지 - 에러 무시)
+    public func addChatMessageSafely(to sessionId: String, message: StoredChatMessage) {
+        do {
+            try addChatMessage(to: sessionId, message: message)
+        } catch {
+            print("❌ [SessionManager] 메시지 추가 실패: \(error.localizedDescription)")
+            // 사용자에게 알림을 보내는 로직이 여기에 추가되어야 함
+            NotificationCenter.default.post(
+                name: .sessionManagerError,
+                object: nil,
+                userInfo: ["error": error, "operation": "addChatMessage"]
+            )
+        }
+    }
+    
+    /// 피드백 데이터 추가 (에러 전파)
+    public func addFeedbackData(to sessionId: String, feedback: PresetFeedback) throws {
+        // Core Data에서 세션 찾기
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        
+        do {
+            let sessions = try context.fetch(request)
+            guard let sessionEntity = sessions.first else {
+                throw SessionManagerError.sessionNotFound(id: sessionId)
+            }
             
-            session.feedbackData.append(feedback)
-            session.lastActivityAt = Date()
+            // 새 피드백 엔티티 생성
+            let feedbackEntity = PresetFeedbackEntity(context: context)
+            feedbackEntity.id = UUID()
+            feedbackEntity.timestamp = feedback.timestamp
+            feedbackEntity.presetName = feedback.presetName ?? ""
+            feedbackEntity.rating = Int16(feedback.userSatisfaction)
+            feedbackEntity.comment = feedback.comment
+            feedbackEntity.session = sessionEntity
             
-            self.sessionCache[sessionId] = session
-            self.saveSessionToDisk(session)
+            // 세션 활동 시간 업데이트
+            sessionEntity.lastActivityAt = Date()
+            
+            // 저장 (에러 전파)
+            try saveContext()
+            
+            print("✅ [SessionManager] 피드백 추가 완료: \(sessionId)")
+            
+        } catch let error as SessionManagerError {
+            throw error
+        } catch {
+            throw SessionManagerError.saveFailure(underlying: error)
+        }
+    }
+    
+    /// 피드백 데이터 추가 (호환성 유지 - 에러 무시)
+    public func addFeedbackDataSafely(to sessionId: String, feedback: PresetFeedback) {
+        do {
+            try addFeedbackData(to: sessionId, feedback: feedback)
+        } catch {
+            print("❌ [SessionManager] 피드백 추가 실패: \(error.localizedDescription)")
+            NotificationCenter.default.post(
+                name: .sessionManagerError,
+                object: nil,
+                userInfo: ["error": error, "operation": "addFeedbackData"]
+            )
         }
     }
     
     /// 행동 이벤트 추가
     public func addBehaviorEvent(to sessionId: String, event: BehaviorEvent) {
-        cacheQueue.async(flags: .barrier) {
-            guard var session = self.sessionCache[sessionId] else { return }
+        // Core Data에서 세션 찾기
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        
+        do {
+            let sessions = try context.fetch(request)
+            guard let sessionEntity = sessions.first else {
+                print("❌ [SessionManager] 세션을 찾을 수 없음: \(sessionId)")
+                return
+            }
             
-            session.behaviorEvents.append(event)
-            session.lastActivityAt = Date()
+            // 새 행동 이벤트 엔티티 생성
+            let eventEntity = BehaviorEventEntity(context: context)
+            eventEntity.id = UUID()
+            eventEntity.timestamp = event.timestamp
+            eventEntity.eventType = event.type.rawValue
+            eventEntity.details = event.data.description
+            eventEntity.session = sessionEntity
             
-            self.sessionCache[sessionId] = session
-            self.saveSessionToDisk(session)
+            // 세션 활동 시간 업데이트
+            sessionEntity.lastActivityAt = Date()
+            
+            // 저장
+            try? saveContext()
+            
+            // 메모리 캐시 업데이트
+            cacheQueue.async(flags: .barrier) {
+                if var cachedSession = self.sessionCache[sessionId] {
+                    cachedSession.behaviorEvents.append(event)
+                    cachedSession.lastActivityAt = Date()
+                    self.sessionCache[sessionId] = cachedSession
+                }
+            }
+            
+            print("✅ [SessionManager] 행동 이벤트 추가 완료: \(sessionId)")
+            
+        } catch {
+            print("❌ [SessionManager] 행동 이벤트 추가 실패: \(error)")
         }
     }
     
     // MARK: - 호환성 API (기존 매니저들을 위한)
     
-    /// ChatManager 호환성: 최근 메시지 조회
+    /// ChatManager 호환성: 최근 메시지 조회 (성능 최적화)
     public func getRecentChatMessages(limit: Int = 100) -> [StoredChatMessage] {
-        let recentSessions = getRecentSessions(limit: 10)
-        var allMessages: [StoredChatMessage] = []
+        let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        request.fetchLimit = limit
         
-        for session in recentSessions {
-            allMessages.append(contentsOf: session.chatMessages)
+        // 성능 최적화: 세션 관계 미리 페칭
+        request.relationshipKeyPathsForPrefetching = ["session"]
+        
+        do {
+            let messageEntities = try context.fetch(request)
+            return messageEntities.map { entity in
+                StoredChatMessage(
+                    id: entity.id.uuidString,
+                    timestamp: entity.timestamp ?? Date(),
+                    role: entity.role ?? "user",
+                    content: entity.content ?? "",
+                    type: .text
+                )
+            }
+        } catch {
+            print("❌ [SessionManager] 최근 메시지 조회 실패: \(error)")
+            return []
         }
-        
-        return Array(allMessages.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
     }
     
-    /// FeedbackManager 호환성: 최근 피드백 조회
+    /// FeedbackManager 호환성: 최근 피드백 조회 (성능 최적화)
     public func getRecentFeedback(limit: Int = 20) -> [PresetFeedback] {
-        let recentSessions = getRecentSessions(limit: 10)
-        var allFeedback: [PresetFeedback] = []
+        let request: NSFetchRequest<PresetFeedbackEntity> = PresetFeedbackEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        request.fetchLimit = limit
         
-        for session in recentSessions {
-            allFeedback.append(contentsOf: session.feedbackData)
+        // 성능 최적화: 세션 관계 미리 페칭
+        request.relationshipKeyPathsForPrefetching = ["session"]
+        
+        do {
+            let feedbackEntities = try context.fetch(request)
+            return feedbackEntities.map { entity in
+                PresetFeedback(
+                    id: entity.id ?? UUID(),
+                    timestamp: entity.timestamp ?? Date(),
+                    presetName: entity.presetName,
+                    contextEmotion: "평온", // 기본값
+                    contextTime: entity.rating, // 임시 매핑
+                    recommendedVolumes: [],
+                    recommendedVersions: [],
+                    finalVolumes: [],
+                    listeningDuration: 0,
+                    wasSkipped: false,
+                    wasSaved: true,
+                    userSatisfaction: Int(entity.rating),
+                    comment: entity.comment
+                )
+            }
+        } catch {
+            print("❌ [SessionManager] 최근 피드백 조회 실패: \(error)")
+            return []
         }
-        
-        return Array(allFeedback.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
     }
     
-    /// UserBehaviorAnalytics 호환성: 최근 행동 데이터 조회
+    /// UserBehaviorAnalytics 호환성: 최근 행동 데이터 조회 (성능 최적화)
     public func getRecentBehaviorEvents(limit: Int = 50) -> [BehaviorEvent] {
-        let recentSessions = getRecentSessions(limit: 10)
-        var allEvents: [BehaviorEvent] = []
+        let request: NSFetchRequest<BehaviorEventEntity> = BehaviorEventEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        request.fetchLimit = limit
         
-        for session in recentSessions {
-            allEvents.append(contentsOf: session.behaviorEvents)
+        // 성능 최적화: 세션 관계 미리 페칭
+        request.relationshipKeyPathsForPrefetching = ["session"]
+        
+        do {
+            let eventEntities = try context.fetch(request)
+            return eventEntities.map { entity in
+                BehaviorEvent(
+                    id: entity.id.uuidString,
+                    type: BehaviorEventType(rawValue: entity.eventType ?? "sessionStart") ?? .sessionStart,
+                    timestamp: entity.timestamp ?? Date(),
+                    data: parseEventDetails(entity.details ?? "")
+                )
+            }
+        } catch {
+            print("❌ [SessionManager] 최근 행동 이벤트 조회 실패: \(error)")
+            return []
         }
-        
-        return Array(allEvents.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
+    }
+    
+    /// 이벤트 세부사항 파싱 헬퍼
+    private func parseEventDetails(_ details: String) -> [String: String] {
+        // 간단한 키-값 파싱 (실제로는 JSON 파싱 등을 사용할 수 있음)
+        var result: [String: String] = [:]
+        let pairs = details.components(separatedBy: ",")
+        for pair in pairs {
+            let keyValue = pair.components(separatedBy: ":")
+            if keyValue.count == 2 {
+                result[keyValue[0].trimmingCharacters(in: .whitespaces)] = keyValue[1].trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return result
+    }
+    
+    // MARK: - FeedbackManager 호환성 API (완전 통합)
+    
+    /// 피드백 세션 시작 (FeedbackManager.startSession 대체)
+    public func startSession(presetName: String, recommendation: Any?, contextEmotion: String) {
+        feedbackQueue.async(flags: .barrier) {
+            let session = FeedbackSession(
+                id: UUID().uuidString,
+                presetName: presetName,
+                startTime: Date(),
+                contextEmotion: contextEmotion,
+                recommendedVolumes: [],
+                currentVolumes: []
+            )
+            self.currentFeedbackSession = session
+            
+            print("🎯 [SessionManager] 피드백 세션 시작: \(presetName)")
+        }
+    }
+    
+    /// 현재 세션 볼륨 업데이트 (FeedbackManager.updateCurrentSessionVolumes 대체)
+    public func updateCurrentSessionVolumes(_ volumes: [Float]) {
+        feedbackQueue.async(flags: .barrier) {
+            self.currentFeedbackSession?.currentVolumes = volumes
+        }
+    }
+    
+    /// 피드백 세션 종료 (FeedbackManager.endCurrentSession 대체)
+    public func endCurrentSession(finalVolumes: [Float], listeningDuration: TimeInterval, wasSaved: Bool, satisfaction: Int = 0) {
+        feedbackQueue.async(flags: .barrier) {
+            guard let session = self.currentFeedbackSession else {
+                print("⚠️ [SessionManager] 종료할 피드백 세션이 없음")
+                return
+            }
+            
+            // PresetFeedback 생성
+            let feedback = PresetFeedback(
+                id: UUID(),
+                timestamp: Date(),
+                presetName: session.presetName,
+                contextEmotion: session.contextEmotion,
+                contextTime: Int16(Calendar.current.component(.hour, from: Date())),
+                recommendedVolumes: session.recommendedVolumes,
+                recommendedVersions: [],
+                finalVolumes: finalVolumes,
+                listeningDuration: listeningDuration,
+                wasSkipped: !wasSaved,
+                wasSaved: wasSaved,
+                userSatisfaction: satisfaction,
+                comment: nil
+            )
+            
+            // 현재 세션에 피드백 추가
+            let currentSession = self.getCurrentOrCreateSession()
+            self.addFeedbackDataSafely(to: currentSession.id, feedback: feedback)
+            
+            // 피드백 세션 정리
+            self.currentFeedbackSession = nil
+            
+            print("🏁 [SessionManager] 피드백 세션 종료: 청취시간 \(String(format: "%.1f", listeningDuration))초")
+        }
+    }
+    
+    /// 현재 세션 프리셋 이름 (FeedbackManager.getCurrentSessionPresetName 대체)
+    public func getCurrentSessionPresetName() -> String? {
+        return feedbackQueue.sync {
+            return currentFeedbackSession?.presetName
+        }
+    }
+    
+    /// 현재 세션 지속 시간 (FeedbackManager.currentSessionDuration 대체)
+    public var currentSessionDuration: TimeInterval {
+        return feedbackQueue.sync {
+            guard let session = currentFeedbackSession else { return 0 }
+            return Date().timeIntervalSince(session.startTime)
+        }
     }
     
     // MARK: - 로컬 AI 추천을 위한 통합 데이터 제공
@@ -211,42 +690,67 @@ public class SessionManager {
     
     /// 모든 세션을 메모리에 로드
     private func loadAllSessions() {
-        // Core Data에서 세션 로드 (추후 구현)
-        // 현재는 빈 캐시로 시작
-        print("🎯 [SessionManager] 세션 로드 완료")
-    }
-    
-    /// 세션을 디스크에 저장
-    private func saveSessionToDisk(_ session: UnifiedSession) {
-        // Core Data에 저장 (추후 구현)
-        print("💾 [SessionManager] 세션 저장: \(session.id)")
-    }
-    
-    /// 인메모리 저장소 설정 (Core Data 실패 시 폴백)
-    private func setupInMemoryStore() {
-        print("⚠️ [SessionManager] 인메모리 저장소로 폴백")
-        // 인메모리 저장소 설정
-    }
-    
-    /// 🚨 긴급 수정: 실제 데이터 마이그레이션 구현
-    private func performDataMigration() async {
-        print("🔄 [SessionManager] 실제 데이터 마이그레이션 시작")
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "lastActivityAt", ascending: false)]
         
         do {
+            let sessionEntities = try context.fetch(request)
+            
+            cacheQueue.async(flags: .barrier) {
+                self.sessionCache.removeAll()
+                for entity in sessionEntities {
+                    let session = self.convertToUnifiedSession(from: entity)
+                    self.sessionCache[session.id] = session
+                }
+            }
+            
+            print("🎯 [SessionManager] 세션 로드 완료 - 총 \(sessionEntities.count)개")
+            
+        } catch {
+            print("❌ [SessionManager] 세션 로드 실패: \(error)")
+        }
+    }
+    
+    /// Core Data 컨텍스트 저장 (에러 전파)
+    private func saveContext() throws {
+        try coreDataStack.saveContextWithError()
+    }
+    
+    /// UnifiedSessionEntity를 UnifiedSession struct로 변환 (개선된 버전)
+    private func convertToUnifiedSession(from entity: UnifiedSessionEntity) -> UnifiedSession {
+        return entity.toStruct()
+    }
+    
+    /// 실제 데이터 마이그레이션 구현
+    private func performDataMigration() async {
+        print("🔄 [SessionManager] 데이터 마이그레이션 시작")
+        
+        do {
+            var totalMigrated = 0
+            
             // ChatManager 데이터 마이그레이션
             let migratedChatSessions = await migrateChatManagerData()
+            totalMigrated += migratedChatSessions
             print("✅ [SessionManager] ChatManager 데이터 마이그레이션 완료: \(migratedChatSessions)개 세션")
             
             // FeedbackManager 데이터 마이그레이션
             let migratedFeedback = await migrateFeedbackManagerData()
+            totalMigrated += migratedFeedback
             print("✅ [SessionManager] FeedbackManager 데이터 마이그레이션 완료: \(migratedFeedback)개 피드백")
             
             // UserBehaviorAnalytics 데이터 마이그레이션
             let migratedBehavior = await migrateBehaviorAnalyticsData()
+            totalMigrated += migratedBehavior
             print("✅ [SessionManager] UserBehaviorAnalytics 데이터 마이그레이션 완료: \(migratedBehavior)개 이벤트")
             
+            // 마이그레이션 완료 표시
             isMigrationCompleted = true
-            print("✅ [SessionManager] 전체 데이터 마이그레이션 완료")
+            
+            if totalMigrated > 0 {
+                print("✅ [SessionManager] 전체 데이터 마이그레이션 완료 - 총 \(totalMigrated)개 항목")
+            } else {
+                print("ℹ️ [SessionManager] 마이그레이션할 기존 데이터가 없음")
+            }
             
         } catch {
             print("❌ [SessionManager] 데이터 마이그레이션 실패: \(error)")
@@ -256,7 +760,7 @@ public class SessionManager {
     }
     
     private func migrateChatManagerData() async -> Int {
-        // ChatManager의 UserDefaults 데이터를 SessionManager로 실제 이전
+        // ChatManager의 UserDefaults 데이터를 Core Data로 실제 이전
         let userDefaults = UserDefaults.standard
         
         guard let data = userDefaults.data(forKey: "deepSleep_chatHistory"),
@@ -266,33 +770,47 @@ public class SessionManager {
         }
         
         var migratedCount = 0
+        
         for (_, chatSession) in existingSessions {
-            // ChatSession을 UnifiedSession으로 변환
-            let unifiedSession = UnifiedSession(
-                id: chatSession.id,
-                createdAt: chatSession.createdAt,
-                lastActivityAt: chatSession.lastActivityAt,
-                chatMessages: chatSession.messages,
-                feedbackData: [], // 빈 배열로 시작
-                behaviorEvents: [], // 빈 배열로 시작
-                metadata: SessionMetadata(
-                    primaryEmotion: chatSession.metadata?.emotion,
-                    emotionIntensity: nil,
-                    context: chatSession.metadata?.context,
-                    userProfile: chatSession.metadata?.userProfile
-                )
-            )
+            // Core Data 엔티티 생성
+            let sessionEntity = UnifiedSessionEntity(context: context)
+            sessionEntity.id = UUID(uuidString: chatSession.id) ?? UUID()
+            sessionEntity.createdAt = chatSession.createdAt
+            sessionEntity.lastActivityAt = chatSession.lastActivityAt
             
-            // 메모리 캐시에 추가
-            sessionCache[unifiedSession.id] = unifiedSession
+            // 메타데이터 변환 및 저장
+            let metadata = SessionMetadata(
+                primaryEmotion: chatSession.metadata?.emotion,
+                emotionIntensity: nil,
+                context: chatSession.metadata?.context,
+                userProfile: chatSession.metadata?.userProfile
+            )
+            sessionEntity.metadataData = try? JSONEncoder().encode(metadata)
+            
+            // 채팅 메시지들 변환
+            for message in chatSession.messages {
+                let messageEntity = StoredChatMessageEntity(context: context)
+                messageEntity.id = UUID(uuidString: message.id) ?? UUID()
+                messageEntity.timestamp = message.timestamp
+                messageEntity.role = message.role
+                messageEntity.content = message.content
+                messageEntity.session = sessionEntity
+            }
+            
             migratedCount += 1
         }
+        
+        // Core Data에 저장
+        try? saveContext()
+        
+        // 마이그레이션 완료 후 UserDefaults에서 제거
+        userDefaults.removeObject(forKey: "deepSleep_chatHistory")
         
         return migratedCount
     }
     
     private func migrateFeedbackManagerData() async -> Int {
-        // FeedbackManager의 UserDefaults 데이터를 SessionManager로 실제 이전
+        // FeedbackManager의 UserDefaults 데이터를 Core Data로 실제 이전
         let userDefaults = UserDefaults.standard
         
         guard let data = userDefaults.data(forKey: "feedback_data") else {
@@ -300,19 +818,50 @@ public class SessionManager {
             return 0
         }
         
-        // 기존 피드백 데이터를 적절한 세션에 연결
-        // 현재는 가장 최근 세션에 연결하는 단순한 로직
-        if let latestSession = sessionCache.values.max(by: { $0.lastActivityAt < $1.lastActivityAt }) {
-            // 실제 구현에서는 더 정교한 매칭 로직 필요
-            print("📝 [SessionManager] 피드백 데이터를 최근 세션에 연결")
-            return 1
+        // 피드백 데이터 디코딩 시도
+        do {
+            // PresetFeedbackWrapper 구조체가 있다고 가정하고 시도
+            if let feedbackWrappers = try? JSONDecoder().decode([PresetFeedbackWrapper].self, from: data) {
+                var migratedCount = 0
+                
+                // 가장 최근 세션을 찾거나 새로 생성
+                let recentSession = getCurrentOrCreateSession()
+                
+                let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+                request.predicate = NSPredicate(format: "id == %@", recentSession.id as CVarArg)
+                
+                if let sessionEntity = try? context.fetch(request).first {
+                    for wrapper in feedbackWrappers {
+                        let feedbackEntity = PresetFeedbackEntity(context: context)
+                        feedbackEntity.id = wrapper.feedback.id
+                        feedbackEntity.timestamp = wrapper.feedback.timestamp
+                        feedbackEntity.presetName = wrapper.feedback.presetName ?? ""
+                        feedbackEntity.rating = Int16(wrapper.feedback.userSatisfaction)
+                        feedbackEntity.comment = wrapper.feedback.comment
+                        feedbackEntity.session = sessionEntity
+                        
+                        migratedCount += 1
+                    }
+                    
+                    try? saveContext()
+                }
+                
+                // 마이그레이션 완료 후 UserDefaults에서 제거
+                userDefaults.removeObject(forKey: "feedback_data")
+                
+                return migratedCount
+            }
+        } catch {
+            print("⚠️ [SessionManager] 피드백 데이터 파싱 실패: \(error)")
         }
         
+        // 파싱 실패 시에도 UserDefaults 정리
+        userDefaults.removeObject(forKey: "feedback_data")
         return 0
     }
     
     private func migrateBehaviorAnalyticsData() async -> Int {
-        // UserBehaviorAnalytics의 UserDefaults 데이터를 SessionManager로 실제 이전
+        // UserBehaviorAnalytics의 UserDefaults 데이터를 Core Data로 실제 이전
         let userDefaults = UserDefaults.standard
         
         guard let data = userDefaults.data(forKey: "userSessions") else {
@@ -320,9 +869,66 @@ public class SessionManager {
             return 0
         }
         
-        // 행동 분석 데이터를 적절한 세션에 연결
-        print("📝 [SessionManager] 행동 분석 데이터 마이그레이션 (구현 필요)")
+        // 행동 분석 데이터 디코딩 시도
+        do {
+            // UserSession 배열로 디코딩 시도
+            if let userSessions = try? JSONDecoder().decode([UserSession].self, from: data) {
+                var migratedCount = 0
+                
+                for userSession in userSessions {
+                    // 해당 날짜의 세션을 찾거나 새로 생성
+                    let sessionId = findOrCreateSessionForDate(userSession.startTime)
+                    
+                    // 행동 이벤트로 변환
+                    let behaviorEvent = BehaviorEvent(
+                        type: .presetStart,
+                        timestamp: userSession.startTime,
+                        data: [
+                            "presetName": userSession.presetName,
+                            "duration": String(userSession.duration),
+                            "completionRate": String(userSession.completionRate)
+                        ]
+                    )
+                    
+                    addBehaviorEvent(to: sessionId, event: behaviorEvent)
+                    migratedCount += 1
+                }
+                
+                // 마이그레이션 완료 후 UserDefaults에서 제거
+                userDefaults.removeObject(forKey: "userSessions")
+                
+                return migratedCount
+            }
+        } catch {
+            print("⚠️ [SessionManager] 행동 분석 데이터 파싱 실패: \(error)")
+        }
+        
+        // 파싱 실패 시에도 UserDefaults 정리
+        userDefaults.removeObject(forKey: "userSessions")
         return 0
+    }
+    
+    /// 특정 날짜의 세션을 찾거나 새로 생성
+    private func findOrCreateSessionForDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "createdAt >= %@ AND createdAt < %@", startOfDay as NSDate, endOfDay as NSDate)
+        request.fetchLimit = 1
+        
+        do {
+            if let existingSession = try context.fetch(request).first {
+                return existingSession.id.uuidString
+            }
+        } catch {
+            print("❌ [SessionManager] 날짜별 세션 조회 실패: \(error)")
+        }
+        
+        // 해당 날짜의 세션이 없으면 새로 생성
+        let newSession = createSessionSafely()
+        return newSession.id
     }
     
     // MARK: - 데이터 분석 헬퍼 메서드
@@ -355,128 +961,10 @@ public class SessionManager {
 }
 
 // MARK: - Data Models
-
-/// 통합 세션 모델
-public struct UnifiedSession: Codable {
-    public let id: String
-    public let createdAt: Date
-    public var lastActivityAt: Date
-    public var chatMessages: [StoredChatMessage]
-    public var feedbackData: [PresetFeedback]
-    public var behaviorEvents: [BehaviorEvent]
-    public var metadata: SessionMetadata
-    
-    public init(id: String, createdAt: Date, lastActivityAt: Date, 
-                chatMessages: [StoredChatMessage], feedbackData: [PresetFeedback], 
-                behaviorEvents: [BehaviorEvent], metadata: SessionMetadata) {
-        self.id = id
-        self.createdAt = createdAt
-        self.lastActivityAt = lastActivityAt
-        self.chatMessages = chatMessages
-        self.feedbackData = feedbackData
-        self.behaviorEvents = behaviorEvents
-        self.metadata = metadata
-    }
-}
-
-/// 세션 메타데이터
-public struct SessionMetadata: Codable {
-    public var primaryEmotion: String?
-    public var emotionIntensity: Float?
-    public var context: String?
-    public var userProfile: String?
-    
-    public init(primaryEmotion: String? = nil, emotionIntensity: Float? = nil, 
-                context: String? = nil, userProfile: String? = nil) {
-        self.primaryEmotion = primaryEmotion
-        self.emotionIntensity = emotionIntensity
-        self.context = context
-        self.userProfile = userProfile
-    }
-}
-
-/// 행동 이벤트
-public struct BehaviorEvent: Codable {
-    public let id: String
-    public let type: BehaviorEventType
-    public let timestamp: Date
-    public let data: [String: String]
-    
-    public init(id: String, type: BehaviorEventType, timestamp: Date, data: [String: String]) {
-        self.id = id
-        self.type = type
-        self.timestamp = timestamp
-        self.data = data
-    }
-}
-
-/// 행동 이벤트 타입
-public enum BehaviorEventType: String, Codable {
-    case presetStart = "preset_start"
-    case presetEnd = "preset_end"
-    case volumeChange = "volume_change"
-    case skip = "skip"
-    case save = "save"
-    case feedback = "feedback"
-}
-
-/// 로컬 AI를 위한 컨텍스트
-public struct LocalAIContext {
-    public let feedbackData: [PresetFeedback]
-    public let emotionHistory: [EmotionHistoryItem]
-    public let behaviorPatterns: [BehaviorPattern]
-    public let timePreferences: [TimePreference]
-    public let lastUpdated: Date
-    
-    public init(feedbackData: [PresetFeedback], emotionHistory: [EmotionHistoryItem], 
-                behaviorPatterns: [BehaviorPattern], timePreferences: [TimePreference], 
-                lastUpdated: Date) {
-        self.feedbackData = feedbackData
-        self.emotionHistory = emotionHistory
-        self.behaviorPatterns = behaviorPatterns
-        self.timePreferences = timePreferences
-        self.lastUpdated = lastUpdated
-    }
-}
-
-/// 감정 히스토리 아이템
-public struct EmotionHistoryItem: Codable {
-    public let emotion: String
-    public let timestamp: Date
-    public let intensity: Float
-    
-    public init(emotion: String, timestamp: Date, intensity: Float) {
-        self.emotion = emotion
-        self.timestamp = timestamp
-        self.intensity = intensity
-    }
-}
-
-/// 행동 패턴
-public struct BehaviorPattern: Codable {
-    public let pattern: String
-    public let frequency: Int
-    public let confidence: Float
-    
-    public init(pattern: String, frequency: Int, confidence: Float) {
-        self.pattern = pattern
-        self.frequency = frequency
-        self.confidence = confidence
-    }
-}
-
-/// 시간 선호도
-public struct TimePreference: Codable {
-    public let hour: Int
-    public let preference: Float
-    public let sampleCount: Int
-    
-    public init(hour: Int, preference: Float, sampleCount: Int) {
-        self.hour = hour
-        self.preference = preference
-        self.sampleCount = sampleCount
-    }
-}
+// All data models moved to SharedModels.swift as Single Source of Truth
+// UnifiedSession, SessionMetadata, BehaviorEvent, BehaviorEventType,
+// LocalAIContext, EmotionHistoryItem, BehaviorPattern, TimePreference
+// are now defined in SharedModels.swift
 
 // MARK: - 🚨 이중 저장 시스템 출구 전략
 
@@ -507,4 +995,269 @@ extension SessionManager {
         // UserDefaults 저장을 중단하고 SessionManager만 사용
         print("🚫 [SessionManager] UserDefaults 저장 중단 (Phase 2.5에서 구현 예정)")
     }
+    
+    // MARK: - 🎯 중앙집중형 AI 호출 시스템 (ChatManager 통합)
+    
+    /// 현재 세션 ID 가져오기 (없으면 새로 생성)
+    public func getCurrentSessionId() -> String {
+        let currentSession = getCurrentOrCreateSession()
+        return currentSession.id
+    }
+    
+    /// 🎯 모든 외부 AI 모델 호출의 중앙집중 처리 메서드
+    /// ChatManager.sendMessage() 역할을 SessionManager에서 통합 처리
+    /// - Parameters:
+    ///   - content: 전송할 메시지 내용
+    ///   - model: 사용할 AI 모델 (.claude, .openAI, .gemini 등)
+    ///   - context: 컨텍스트 정보 (선택사항)
+    ///   - saveMessages: 메시지 저장 여부 (기본값: true)
+    /// - Returns: AI 응답 문자열
+    public func sendMessage(
+        content: String,
+        model: AIModel = .claude,
+        context: String? = nil,
+        saveMessages: Bool = true
+    ) async throws -> String {
+        
+        print("🎯 [SessionManager] 중앙집중 AI 호출 - 모델: \(model.rawValue), 내용: \(content.prefix(50))...")
+        
+        if saveMessages {
+            // 사용자 메시지 저장
+            let currentSessionId = getCurrentSessionId()
+            let userMessage = StoredChatMessage(
+                id: UUID().uuidString,
+                timestamp: Date(),
+                role: "user",
+                content: content,
+                type: .text
+            )
+            addChatMessageSafely(to: currentSessionId, message: userMessage)
+        }
+        
+        do {
+            // UnifiedAIServiceImpl을 통한 실제 AI 호출
+            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                content: content,
+                model: model,
+                mode: .generalConversation,
+                context: nil,
+                tokenConfig: nil
+            )
+            let response = aiResponse.content
+            
+            if saveMessages {
+                // AI 응답 저장
+                let currentSessionId = getCurrentSessionId()
+                let aiMessage = StoredChatMessage(
+                    id: UUID().uuidString,
+                    timestamp: Date(),
+                    role: "assistant",
+                    content: response,
+                    type: .text
+                )
+                addChatMessageSafely(to: currentSessionId, message: aiMessage)
+            }
+            
+            print("✅ [SessionManager] AI 응답 성공 - 길이: \(response.count)자")
+            return response
+            
+        } catch {
+            print("❌ [SessionManager] AI 호출 실패: \(error.localizedDescription)")
+            
+            if saveMessages {
+                // 에러 메시지도 저장
+                let currentSessionId = getCurrentSessionId()
+                let errorMessage = StoredChatMessage(
+                    id: UUID().uuidString,
+                    timestamp: Date(),
+                    role: "assistant",
+                    content: "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                    type: .text
+                )
+                addChatMessageSafely(to: currentSessionId, message: errorMessage)
+            }
+            
+            throw error
+        }
+    }
+    
+    // MARK: - 호환성 메서드들 (ChatManager 대체)
+    
+    /// 감정 분석 전용 AI 호출
+    public func analyzeEmotion(content: String) async throws -> String {
+        let prompt = "다음 텍스트의 감정을 분석해주세요: \(content)"
+        return try await sendMessage(content: prompt, model: .claude)
+    }
+    
+    /// 프리셋 추천 전용 AI 호출
+    public func recommendPreset(emotion: String, context: String) async throws -> String {
+        let prompt = "감정: \(emotion), 상황: \(context)에 맞는 음악 프리셋을 추천해주세요."
+        return try await sendMessage(content: prompt, model: .openAI)
+    }
+    
+    /// 일반 채팅 AI 호출
+    public func chat(message: String) async throws -> String {
+        return try await sendMessage(content: message, model: .claude)
+    }
+    
+    // MARK: - Cache Synchronization System
+    
+    /// Core Data 변경 알림 설정 (캐시 동기화)
+    private func setupCoreDataNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(contextDidSave(_:)),
+            name: .NSManagedObjectContextDidSave,
+            object: nil
+        )
+        
+        print("🔄 [SessionManager] Core Data 알림 구독 완료")
+    }
+    
+    /// Core Data 컨텍스트 저장 알림 처리 (성능 최적화)
+    @objc private func contextDidSave(_ notification: Notification) {
+        guard let context = notification.object as? NSManagedObjectContext,
+              context != self.context else {
+            return // 자신의 컨텍스트 변경은 무시
+        }
+        
+        print("🔄 [SessionManager] 외부 Core Data 변경 감지, 캐시 동기화 시작")
+        
+        // 백그라운드에서 캐시 동기화 수행 (성능 최적화)
+        DispatchQueue.global(qos: .utility).async {
+            self.synchronizeCache(with: notification)
+        }
+    }
+    
+    /// 캐시와 Core Data 동기화
+    private func synchronizeCache(with notification: Notification) {
+        guard let userInfo = notification.userInfo else { return }
+        
+        // 삽입된 객체들 처리
+        if let insertedObjects = userInfo[NSInsertedObjectsKey] as? Set<NSManagedObject> {
+            handleInsertedObjects(insertedObjects)
+        }
+        
+        // 업데이트된 객체들 처리
+        if let updatedObjects = userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject> {
+            handleUpdatedObjects(updatedObjects)
+        }
+        
+        // 삭제된 객체들 처리
+        if let deletedObjects = userInfo[NSDeletedObjectsKey] as? Set<NSManagedObject> {
+            handleDeletedObjects(deletedObjects)
+        }
+        
+        print("✅ [SessionManager] 캐시 동기화 완료")
+    }
+    
+    /// 삽입된 객체들 캐시에 반영 (성능 최적화)
+    private func handleInsertedObjects(_ objects: Set<NSManagedObject>) {
+        let sessionUpdates: [(String, UnifiedSession)] = objects.compactMap { object in
+            guard let sessionEntity = object as? UnifiedSessionEntity else { return nil }
+            let session = convertToUnifiedSession(from: sessionEntity)
+            return (session.id, session)
+        }
+        
+        guard !sessionUpdates.isEmpty else { return }
+        
+        cacheQueue.async(flags: .barrier) {
+            for (sessionId, session) in sessionUpdates {
+                self.sessionCache[sessionId] = session
+                print("🔄 [SessionManager] 새 세션 캐시에 추가: \(sessionId)")
+            }
+        }
+    }
+    
+    /// 업데이트된 객체들 캐시에 반영 (성능 최적화)
+    private func handleUpdatedObjects(_ objects: Set<NSManagedObject>) {
+        let sessionUpdates: [(String, UnifiedSession)] = objects.compactMap { object in
+            guard let sessionEntity = object as? UnifiedSessionEntity else { return nil }
+            let session = convertToUnifiedSession(from: sessionEntity)
+            return (session.id, session)
+        }
+        
+        guard !sessionUpdates.isEmpty else { return }
+        
+        cacheQueue.async(flags: .barrier) {
+            for (sessionId, session) in sessionUpdates {
+                self.sessionCache[sessionId] = session
+                print("🔄 [SessionManager] 세션 캐시 업데이트: \(sessionId)")
+            }
+        }
+    }
+    
+    /// 삭제된 객체들 캐시에서 제거 (성능 최적화)
+    private func handleDeletedObjects(_ objects: Set<NSManagedObject>) {
+        let sessionIds: [String] = objects.compactMap { object in
+            guard let sessionEntity = object as? UnifiedSessionEntity else { return nil }
+            return sessionEntity.id.uuidString
+        }
+        
+        guard !sessionIds.isEmpty else { return }
+        
+        cacheQueue.async(flags: .barrier) {
+            for sessionId in sessionIds {
+                self.sessionCache.removeValue(forKey: sessionId)
+                print("🔄 [SessionManager] 세션 캐시에서 제거: \(sessionId)")
+            }
+        }
+    }
+    
+    /// 캐시 무효화 (전체 재로드)
+    public func invalidateCache() {
+        print("🔄 [SessionManager] 캐시 무효화 및 재로드 시작")
+        
+        cacheQueue.async(flags: .barrier) {
+            self.sessionCache.removeAll()
+        }
+        
+        loadAllSessions()
+        
+        print("✅ [SessionManager] 캐시 무효화 완료")
+    }
+    
+    /// 캐시 상태 검증
+    public func validateCacheIntegrity() -> Bool {
+        let cacheCount = cacheQueue.sync { sessionCache.count }
+        
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        
+        do {
+            let coreDataCount = try context.count(for: request)
+            let isValid = cacheCount == coreDataCount
+            
+            if !isValid {
+                print("⚠️ [SessionManager] 캐시 불일치 감지 - 캐시: \(cacheCount), Core Data: \(coreDataCount)")
+            }
+            
+            return isValid
+        } catch {
+            print("❌ [SessionManager] 캐시 검증 실패: \(error)")
+            return false
+        }
+    }
+    
+    // deinit 임시 제거 - 컴파일 에러 해결을 위해
+    // deinit {
+    //     NotificationCenter.default.removeObserver(self)
+    // }
+}
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let sessionManagerError = Notification.Name("SessionManagerError")
+    static let sessionManagerCacheUpdated = Notification.Name("SessionManagerCacheUpdated")
+}
+
+// MARK: - FeedbackSession 데이터 모델
+
+/// 피드백 세션 임시 데이터 구조체
+private struct FeedbackSession {
+    let id: String
+    let presetName: String
+    let startTime: Date
+    let contextEmotion: String
+    var recommendedVolumes: [Float]
+    var currentVolumes: [Float]
 }

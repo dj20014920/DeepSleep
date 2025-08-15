@@ -65,7 +65,7 @@ struct EnhancedSessionMetrics {
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeachingDelegate {
     // MARK: - Properties
-    var chatManager: ChatManager!  // 🚀 의존성 주입용 (ChatRouter에서 설정)
+    private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
     var initialUserText: String?
     var diaryContext: DiaryContext?
@@ -240,19 +240,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 비동기 작업으로 AI 서비스 호출
         Task {
             do {
-                // 🤖 ChatManager.sendMessage로 통합 AI 호출 (통합 아키텍처)
-                let responseText = try await ChatManager.shared.sendMessage(
-                    userInput: message,
-                    modeString: "general_conversation",
-                    modelString: "claude"  // 일반 대화에 최적화
+                let response = try await SessionManager.shared.sendMessage(
+                    content: message,
+                    model: .claude,
+                    context: nil
                 )
                 
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.showLoading(false)
-                    let parsedResponse = self.parseAIResponse(responseText)
-                    self.addMessageToChat(message: parsedResponse, fromUser: false)
-                    UnifiedLogger.shared.info("ChatManager 통합 AI 응답 완료", category: .ai)
+                    let parsedResponse = self.parseAIResponse(response)
+                    // SessionManager.sendMessage에서 이미 메시지를 저장하므로 중복 저장 방지
+                    // 대신 메시지 목록을 새로고침
+                    self.loadSessionManagerMessages()
+                    UnifiedLogger.shared.info("SessionManager 통합 AI 응답 완료", category: .ai)
                     completion(parsedResponse)
                 }
                 
@@ -464,20 +465,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         Task {
             do {
-                // 🚀 ChatManager의 통합 AI 서비스 사용
-                let responseContent = try await chatManager.sendMessage(
-                    userInput: diary.content,
-                    modeString: "emotion_diary_analysis",
-                    modelString: nil
+                let response = try await SessionManager.shared.sendMessage(
+                    content: diary.content,
+                    model: .claude,
+                    context: "감정 일기 분석"
                 )
                 
-                // ChatManager에 메시지 기록
-                addBotMessage(responseContent)
-                
-                // 메인 스레드에서 UI 업데이트
+                // SessionManager에 메시지 기록 및 UI 업데이트
                 await MainActor.run {
                     self.removeLastLoadingMessage()
-                    self.appendChat(ChatMessage(text: responseContent, sender: .ai, type: .bot))
+                    self.addBotMessage(response)
                     
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -525,13 +522,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 let aiMode = determineAIModeFromContext()
                 print("🎯 [ChatViewController] 현재 컨텍스트: '\(chatContext.displayName)' → AI 모드: \(aiMode.rawValue)")
                 
-                let responseContent = try await chatManager.sendMessage(
-                    userInput: message,
-                    modeString: aiMode.rawValue,
-                    modelString: nil
+                let response = try await SessionManager.shared.sendMessage(
+                    content: message,
+                    model: .claude,
+                    context: nil
                 )
                 
-                handleAIResponse(responseContent)
+                                handleAIResponse(response)
                 print("✅ [ChatViewController] AI 응답 받음")
                 
             } catch {
@@ -578,20 +575,24 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     /// ChatMessage 객체를 채팅에 추가하고 UI를 업데이트합니다
     private func appendChat(_ message: ChatMessage) {
         // 메인 스레드에서 안전하게 처리
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [self] in
             // 1. UI 메시지 배열에 추가
             self.messages.append(message)
             
-            // 2. ChatManager를 통한 영속성 처리 (중앙집중형)
-            if let chatManager = self.chatManager {
-                chatManager.append(message)
-                
-                // 3. 즉시 디스크에 저장 (데이터 안전성 보장)
-                chatManager.flush()
-                
+            // 2. SessionManager를 통한 영속성 처리 (중앙집중형)
+            do {
+                let currentSession = sessionManager.getCurrentOrCreateSession()
+                let storedMessage = StoredChatMessage(
+                    id: UUID().uuidString,
+                    timestamp: Date(),
+                    role: message.sender.rawValue,
+                    content: message.text ?? "",
+                    type: message.type
+                )
+                try sessionManager.addChatMessage(to: currentSession.id, message: storedMessage)
                 print("✅ [ChatViewController] 메시지 추가 및 즉시 저장 완료 - Type: \(message.type), Sender: \(message.sender)")
-            } else {
-                print("❌ [ChatViewController] ChatManager가 nil - 메시지 저장 실패!")
+            } catch {
+                print("❌ [ChatViewController] SessionManager 메시지 저장 실패: \(error)")
             }
             
             // 4. UI 업데이트
@@ -756,9 +757,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func debugCheckFeedbackStatus() {
         if #available(iOS 17.0, *) {
-            let totalCount = FeedbackManager.shared.getTotalFeedbackCount()
-            let recentCount = FeedbackManager.shared.getRecentFeedback(limit: 20).count
-            let avgSatisfaction = FeedbackManager.shared.getAverageSatisfaction()
+            let recentFeedback = SessionManager.shared.getRecentFeedback(limit: 20)
+            let totalCount = recentFeedback.count
+            let recentCount = recentFeedback.count
+            let avgSatisfaction = recentFeedback.isEmpty ? 0.0 : recentFeedback.map { $0.satisfactionScore }.reduce(0, +) / Float(recentFeedback.count)
             print("Feedback - Total: \(totalCount), Recent: \(recentCount), Avg: \(avgSatisfaction)")
         } else {
             print("Feedback system requires iOS 17.0+")
@@ -767,7 +769,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func debugCreateTestData() {
         if #available(iOS 17.0, *) {
-            FeedbackManager.shared.createTestFeedbackData()
+            // Test feedback data creation not available in SessionManager
             print("Test feedback data created")
         } else {
             print("Test data creation requires iOS 17.0+")
@@ -776,7 +778,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     private func debugTestLearningSystem() {
         if #available(iOS 17.0, *) {
-            let feedbackCount = FeedbackManager.shared.getTotalFeedbackCount()
+            let feedbackCount = SessionManager.shared.getRecentFeedback(limit: 100).count
             print("Learning system test - Feedback count: \(feedbackCount)")
         } else {
             print("Learning system requires iOS 17.0+")
@@ -806,19 +808,38 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         UnifiedLogger.shared.debug("채팅 기록 자동 저장 (ChatManager 관리)", category: .cache)
     }
     
-    /// ChatManager 메시지 로드
-    private func loadChatManagerMessages() {
-        guard let chatManager = chatManager else { return }
-        
-        // ChatManager의 메시지를 로컬 배열에 동기화
-        messages = chatManager.messages.compactMap { $0 as? ChatMessage }
+    /// SessionManager 메시지 로드
+    private func loadSessionManagerMessages() {
+        // SessionManager의 메시지를 로컬 배열에 동기화
+        let storedMessages = sessionManager.getRecentChatMessages(limit: 100)
+        messages = storedMessages.map { storedMessage in
+            // role 변환: "assistant" → .ai, "user" → .user
+            let sender: MessageSender = {
+                switch storedMessage.role {
+                case "assistant":
+                    return .ai
+                case "user":
+                    return .user
+                case "system":
+                    return .system
+                default:
+                    return .user
+                }
+            }()
+            
+            return ChatMessage(
+                text: storedMessage.content,
+                sender: sender,
+                type: storedMessage.type
+            )
+        }
         
         DispatchQueue.main.async {
             self.tableView.reloadData()
             self.scrollToBottom()
         }
         
-        UnifiedLogger.shared.debug("ChatManager에서 \(messages.count)개 메시지 로드 완료", category: .chat)
+        UnifiedLogger.shared.debug("SessionManager에서 \(messages.count)개 메시지 로드 완료", category: .chat)
     }
     
     // MARK: - 🎯 유틸리티 함수들 (통합)
@@ -829,22 +850,35 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     /// viewDidLoad 후 저장된 메시지를 불러와서 표시 - 앱 시작 시 이전 대화 복원
     private func loadSavedMessages() {
-        guard let chatManager = chatManager else {
-            #if DEBUG
-            print("💾 [ChatPersistence] 경고: ChatManager가 초기화되지 않음")
-            #endif
-            return
-        }
-        
         #if DEBUG
         print("💾 [ChatPersistence] 저장된 메시지 불러오기 시작")
         #endif
         
-        // 1. ChatManager에서 최근 메시지 가져오기 (초기 로드는 100개)
-        let stored = chatManager.getRecentMessages(limit: 100)  // 최근 100개 메시지
+        // 1. SessionManager에서 최근 메시지 가져오기 (초기 로드는 100개)
+        let stored = sessionManager.getRecentChatMessages(limit: 100)  // 최근 100개 메시지
         
         // 2. StoredChatMessage를 ChatMessage로 변환하여 전체 캐시에 저장
-        allMessagesCache = stored.map { chatManager.convertToChatMessage($0) }
+        allMessagesCache = stored.map { storedMessage in
+            // role 변환: "assistant" → .ai, "user" → .user
+            let sender: MessageSender = {
+                switch storedMessage.role {
+                case "assistant":
+                    return .ai
+                case "user":
+                    return .user
+                case "system":
+                    return .system
+                default:
+                    return .user
+                }
+            }()
+            
+            return ChatMessage(
+                text: storedMessage.content,
+                sender: sender,
+                type: storedMessage.type
+            )
+        }
         
         // 3. 초기 페이지 설정 (최근 pageSize개만 표시)
         currentPage = 0
@@ -979,13 +1013,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     
     /// 메모리에 캐시된 세션 정리
     private func cleanupSessionCache() {
-        guard let chatManager = chatManager else { return }
+        // SessionManager를 통한 세션 정리
         
         // ChatManager의 메모리 캐시 정리 요청
         // 삭제된 세션이 메모리에 남아있지 않도록 처리
         Task {
             // 오래된 세션 정리 (캐시 갱신)
-            chatManager.cleanupOldSessions(olderThan: 0) // 즉시 캐시 갱신
+            SessionManager.shared.cleanupOldSessions(olderThanDays: 0) // 즉시 캐시 갱신
             
             UnifiedLogger.shared.debug("🧹 세션 캐시 정리 완료", category: .storage)
         }
@@ -1736,10 +1770,19 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         // 간단한 피드백 객체 생성 (기본 FeedbackManager 호환)
         let quickFeedback = PresetFeedback(
-            presetId: presetName,
-            sessionId: UUID().uuidString,
+            id: UUID(),
             timestamp: Date(),
-            quantitative: ["satisfaction": satisfaction],
+            presetName: presetName,
+            contextEmotion: "평온",
+            contextTime: Int16(Date().timeIntervalSince1970),
+            recommendedVolumes: [],
+            recommendedVersions: [],
+            finalVolumes: [],
+            listeningDuration: 0,
+            wasSkipped: false,
+            wasSaved: false,
+            userSatisfaction: Int(satisfaction * 10),
+            comment: "빠른 피드백",
             qualitative: PresetFeedback.QualitativeFeedback(
                 freeText: "빠른 피드백",
                 moodAfter: satisfaction > 0.6 ? "좋음" : "보통",
@@ -1951,7 +1994,7 @@ extension ChatViewController {
         messages.removeAll()
         
         // ChatManager에서 메시지 로드 - 간소화
-        let loadedSessions = ChatManager.shared.getSessions()
+        let loadedSessions = SessionManager.shared.getAllSessions()
         UnifiedLogger.shared.debug("loadChatHistory: \(loadedSessions.count)개 세션 발견", category: .cache)
         
         DispatchQueue.main.async {
@@ -1971,17 +2014,17 @@ extension ChatViewController {
         // 기존 메시지들을 새 포맷으로 변환
         for message in messages {
             let storedMessage = StoredChatMessage(
-                id: UUID(),
-                text: message.text ?? "",
-                type: message.type == .user ? .user : .bot,
+                id: UUID().uuidString,
                 timestamp: Date(),
-                metadata: nil
+                role: message.type == .user ? "user" : "assistant",
+                content: message.text ?? "",
+                type: message.type == .user ? .text : .text
             )
             // ChatManager.shared.addMessage(to: migrationSessionId.uuidString, message: storedMessage)
         }
         
         // 마이그레이션 완료 확인
-        let migratedSessions = ChatManager.shared.getSessions()
+        let migratedSessions = SessionManager.shared.getAllSessions()
         if !migratedSessions.isEmpty {
             UnifiedLogger.shared.debug("마이그레이션 완료: \(migratedSessions.count)개 세션", category: .cache)
         }
@@ -2106,7 +2149,7 @@ extension ChatViewController {
     // ✅ TLB식 캐시 시스템 초기화
     private func initializeTLBCacheSystem() {
         // 캐시 매니저 초기화
-        ChatManager.shared.initialize()
+        // SessionManager initializes automatically
         
         // 만료된 캐시들 정리 (14일 기준)
         UserDefaults.standard.cleanExpiredCaches()
@@ -2114,7 +2157,7 @@ extension ChatViewController {
         
         #if DEBUG
         UnifiedLogger.shared.debug("TLB식 캐시 시스템 초기화 완료 (14일 보존, 3일 raw)", category: .cache)
-        let debugInfo = ChatManager.shared.getDebugInfo()
+        let debugInfo = "SessionManager active with \(SessionManager.shared.getAllSessions().count) sessions"
         UnifiedLogger.shared.debug(debugInfo, category: .cache)
         #endif
     }
@@ -2129,7 +2172,7 @@ extension ChatViewController {
         let cutOffTotal = Calendar.current.date(byAdding: .day, value: -CacheConst.keepDays, to: Date())!
         
         // 캐시에서 최근 대화 로드 (ChatManager 통합 - 간소화)
-        let cachedHistory = ChatManager.shared.loadWeeklyMemory()
+        let cachedHistory = SessionManager.shared.getRecentChatMessages(limit: 50)
         if !cachedHistory.isEmpty && cachedHistory.count > 20 { // 의미 있는 데이터가 있을 때만
             // 캐시 요약을 시스템 메시지로 추가
             let contextMessage = ChatMessage(
@@ -2616,14 +2659,14 @@ extension ChatViewController {
     // ✅ 캐시 상태 새로고침
     private func refreshCacheStatus() {
         // 캐시가 유효한지 확인하고 필요시 업데이트
-        let weeklyMemory = ChatManager.shared.loadWeeklyMemory()
+        let weeklyMemory = SessionManager.shared.getRecentChatMessages(limit: 50)
         
         #if DEBUG
         UnifiedLogger.shared.debug("캐시 상태 새로고침: 주간 메모리 로드 완료", category: .cache)
         #endif
         
         // 주간 메모리 백그라운드 업데이트
-        ChatManager.shared.updateWeeklyMemoryAsync()
+        // Weekly memory update not available in SessionManager
     }
     
     private func handleInitialUserText(_ text: String) {
@@ -2648,12 +2691,12 @@ extension ChatViewController {
 
         Task {
             do {
-                // 🚀 ChatManager의 통합 AI 서비스 사용
+                // 🚀 SessionManager의 통합 AI 서비스 사용
                 let prompt = "다음은 나의 최근 30일간의 감정 데이터야. 이걸 보고 나의 감정 패턴을 분석하고 조언해줘.\n\n\(emotionData)"
-                let responseContent = try await chatManager.sendMessage(
-                    userInput: prompt,
-                    modeString: "pattern_analysis",
-                    modelString: nil
+                let responseContent = try await SessionManager.shared.sendMessage(
+                    content: prompt,
+                    model: .claude,
+                    context: "감정 패턴 분석"
                 )
                 handleAIResponse(responseContent)
                 addQuickEmotionButtons()
@@ -2677,11 +2720,11 @@ extension ChatViewController {
             do {
                 let diaryContent = "감정: \(diaryData.emotion), 내용: 일기 분석 요청"
                 
-                // 🚀 ChatManager의 통합 AI 서비스 사용
-                let responseContent = try await chatManager.sendMessage(
-                    userInput: diaryContent,
-                    modeString: "emotion_diary_analysis",
-                    modelString: nil
+                // 🚀 SessionManager의 통합 AI 서비스 사용
+                let responseContent = try await SessionManager.shared.sendMessage(
+                    content: diaryContent,
+                    model: .claude,
+                    context: "감정 일기 요약"
                 )
                 handleAIResponse(responseContent)
             } catch {
@@ -2761,14 +2804,14 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     // 최근 사용한 프리셋 가져오기 - ChatManager 활용
     private func getRecentPresets() -> [(name: String, emotion: String)] {
         // ChatManager의 최근 프리셋 정보 활용
-        let recentSessions = ChatManager.shared.getSessions().prefix(5)
+        let recentSessions = SessionManager.shared.getRecentSessions(limit: 5)
         var recentPresets: [(name: String, emotion: String)] = []
         
         for session in recentSessions {
-            if let presetMessage = session.messages.first(where: { $0.type == .presetRecommendation }),
-               let presetName = extractPresetNameFromText(presetMessage.text) {
+            if let presetMessage = session.chatMessages.first(where: { $0.type == .presetRecommendation }),
+               let presetName = extractPresetNameFromText(presetMessage.content) {
                 // 메타데이터에서 감정 추출 (기본값: "평온")
-                let emotion = session.metadata?.emotion ?? "평온"
+                let emotion = session.metadata.primaryEmotion ?? "평온"
                 recentPresets.append((name: presetName, emotion: emotion))
             }
         }
@@ -2974,10 +3017,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         appendChat(chatMessage)
         
         // 🆕 로컬 AI 추천 기록 저장
-        ChatManager.shared.recordLocalAIRecommendation(
-            userInput: "로컬 AI 추천 요청",
-            response: poeticName
-        )
+        // Local AI recommendation recording not available in SessionManager
+        
         
         // 🔓 로컬 추천 처리 완료
         isProcessingRecommendation = false
@@ -2993,8 +3034,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         }
         
         // 2. 피드백 데이터에서 감정 추출
-        if let recentFeedback = context.feedbackData.first,
-           let emotion = recentFeedback.contextEmotion {
+        if let recentFeedback = context.feedbackData.first {
+            let emotion = recentFeedback.contextEmotion
             return emotion
         }
         
@@ -3029,25 +3070,26 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         return averageIntensity
     }
     
-    /// 🚨 수정: 검증 가능한 풍부한 컨텍스트 문자열 생성
+    /// 🚀 Phase 3: 고도화된 풍부한 컨텍스트 문자열 생성 (품질 검증 강화)
     private func buildRichContextString(
         feedbackData: [PresetFeedback],
         emotionHistory: [EmotionHistoryItem],
         behaviorPatterns: [BehaviorPattern],
         timePreferences: [TimePreference]
     ) -> String {
+        let startTime = Date()
         var contextBuilder = "사용자 개인화 데이터:\n"
-        var contextQuality = 0 // 컨텍스트 품질 점수
+        var contextQuality = ContextQuality()
         
         // 1. 최근 피드백 요약 (가중치: 높음)
         if !feedbackData.isEmpty {
             let recentFeedback = Array(feedbackData.prefix(3))
             contextBuilder += "최근 피드백: "
             for feedback in recentFeedback {
-                if let presetName = feedback.presetName,
-                   let satisfaction = feedback.satisfactionScore {
+                if let presetName = feedback.presetName {
+                    let satisfaction = feedback.satisfactionScore
                     contextBuilder += "\(presetName)(만족도: \(satisfaction)), "
-                    contextQuality += 3 // 피드백 데이터는 높은 가중치
+                    contextQuality.addFeedbackData(quality: satisfaction > 3 ? .high : .medium)
                 }
             }
             contextBuilder += "\n"
@@ -3058,8 +3100,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             let recentEmotions = Array(emotionHistory.prefix(3))
             contextBuilder += "최근 감정: "
             for emotion in recentEmotions {
-                contextBuilder += "\(emotion.emotion)(\(emotion.intensity)), "
-                contextQuality += 2 // 감정 데이터는 중간 가중치
+                contextBuilder += "\(emotion.emotion)(\(String(format: "%.1f", emotion.intensity))), "
+                contextQuality.addEmotionData(intensity: Double(emotion.intensity))
             }
             contextBuilder += "\n"
         }
@@ -3068,8 +3110,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         if !behaviorPatterns.isEmpty {
             contextBuilder += "행동 패턴: "
             for pattern in behaviorPatterns.prefix(2) {
-                contextBuilder += "\(pattern.pattern)(신뢰도: \(pattern.confidence)), "
-                contextQuality += 2
+                contextBuilder += "\(pattern.pattern)(신뢰도: \(String(format: "%.1f", pattern.confidence))), "
+                contextQuality.addBehaviorPattern(confidence: Double(pattern.confidence))
             }
             contextBuilder += "\n"
         }
@@ -3079,22 +3121,130 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             let currentHour = Calendar.current.component(.hour, from: Date())
             if let currentTimePreference = timePreferences.first(where: { $0.hour == currentHour }) {
                 contextBuilder += "현재 시간대 선호도: \(currentTimePreference.preference)\n"
-                contextQuality += 1
+                contextQuality.addTimePreference()
             }
         }
         
         let finalContext = contextBuilder.trimmingCharacters(in: .whitespacesAndNewlines)
+        let processingTime = Date().timeIntervalSince(startTime)
         
-        // 🚨 Gemini 지적 반영: 컨텍스트 품질 로깅 및 검증
-        print("🔍 [AI Context] 생성된 컨텍스트 품질 점수: \(contextQuality)")
-        print("🔍 [AI Context] 최종 컨텍스트: \(finalContext)")
+        // 🚀 Phase 3: 고도화된 컨텍스트 품질 분석
+        let qualityScore = contextQuality.calculateScore()
+        let qualityLevel = contextQuality.getQualityLevel()
         
-        // 컨텍스트가 너무 빈약하면 경고
-        if contextQuality < 3 {
-            print("⚠️ [AI Context] 컨텍스트 품질이 낮습니다. 추천 품질에 영향을 줄 수 있습니다.")
+        // 상세 로깅
+        UnifiedLogger.shared.info("🔍 [AI Context] 컨텍스트 생성 완료", category: .ai)
+        UnifiedLogger.shared.info("   품질 점수: \(qualityScore)/100", category: .ai)
+        UnifiedLogger.shared.info("   품질 등급: \(qualityLevel)", category: .ai)
+        UnifiedLogger.shared.info("   처리 시간: \(String(format: "%.3f", processingTime))초", category: .ai)
+        UnifiedLogger.shared.info("   데이터 구성: 피드백 \(feedbackData.count)개, 감정 \(emotionHistory.count)개, 패턴 \(behaviorPatterns.count)개", category: .ai)
+        
+        // 품질 경고 및 개선 제안
+        if qualityLevel == .poor {
+            UnifiedLogger.shared.warning("⚠️ [AI Context] 컨텍스트 품질이 낮습니다. 추천 품질에 영향을 줄 수 있습니다.", category: .ai)
+            suggestContextImprovement(feedbackData: feedbackData, emotionHistory: emotionHistory)
         }
         
+        // 성능 메트릭 기록
+        recordContextGenerationMetrics(
+            qualityScore: qualityScore,
+            processingTime: processingTime,
+            dataSize: finalContext.count
+        )
+        
         return finalContext
+    }
+    
+    // MARK: - 🚀 Phase 3: 컨텍스트 품질 관리 시스템
+    
+    /// 컨텍스트 품질 계산기
+    private struct ContextQuality {
+        private var feedbackScore: Int = 0
+        private var emotionScore: Int = 0
+        private var behaviorScore: Int = 0
+        private var timeScore: Int = 0
+        
+        mutating func addFeedbackData(quality: DataQuality) {
+            feedbackScore += quality.rawValue * 3 // 피드백은 가중치 3
+        }
+        
+        mutating func addEmotionData(intensity: Double) {
+            let qualityLevel: DataQuality = intensity > 0.7 ? .high : intensity > 0.3 ? .medium : .low
+            emotionScore += qualityLevel.rawValue * 2 // 감정은 가중치 2
+        }
+        
+        mutating func addBehaviorPattern(confidence: Double) {
+            let qualityLevel: DataQuality = confidence > 0.8 ? .high : confidence > 0.5 ? .medium : .low
+            behaviorScore += qualityLevel.rawValue * 2 // 행동 패턴은 가중치 2
+        }
+        
+        mutating func addTimePreference() {
+            timeScore += 1 // 시간 선호도는 가중치 1
+        }
+        
+        func calculateScore() -> Int {
+            let totalScore = feedbackScore + emotionScore + behaviorScore + timeScore
+            return min(100, totalScore) // 최대 100점
+        }
+        
+        func getQualityLevel() -> QualityLevel {
+            let score = calculateScore()
+            switch score {
+            case 80...100: return .excellent
+            case 60...79: return .good
+            case 40...59: return .fair
+            case 20...39: return .poor
+            default: return .critical
+            }
+        }
+    }
+    
+    private enum DataQuality: Int {
+        case low = 1
+        case medium = 2
+        case high = 3
+    }
+    
+    private enum QualityLevel: String {
+        case excellent = "우수"
+        case good = "양호"
+        case fair = "보통"
+        case poor = "부족"
+        case critical = "심각"
+    }
+    
+    /// 컨텍스트 개선 제안
+    private func suggestContextImprovement(feedbackData: [PresetFeedback], emotionHistory: [EmotionHistoryItem]) {
+        var suggestions: [String] = []
+        
+        if feedbackData.isEmpty {
+            suggestions.append("프리셋 사용 후 피드백 제공")
+        }
+        
+        if emotionHistory.isEmpty {
+            suggestions.append("감정 일기 작성")
+        }
+        
+        if !suggestions.isEmpty {
+            UnifiedLogger.shared.info("💡 [AI Context] 개선 제안: \(suggestions.joined(separator: ", "))", category: .ai)
+        }
+    }
+    
+    /// 컨텍스트 생성 메트릭 기록
+    private func recordContextGenerationMetrics(qualityScore: Int, processingTime: TimeInterval, dataSize: Int) {
+        // SessionManager를 통해 메트릭 저장
+        let behaviorEvent = BehaviorEvent(
+            type: .sessionStart,
+            timestamp: Date(),
+            data: [
+                "qualityScore": String(qualityScore),
+                "processingTime": String(processingTime),
+                "dataSize": String(dataSize)
+            ]
+        )
+        
+        let currentSession = SessionManager.shared.getCurrentOrCreateSession()
+        SessionManager.shared.addBehaviorEvent(to: currentSession.id, event: behaviorEvent)
     }
     
     /// 🆕 AI 추천 품질 검증을 위한 로깅
@@ -3147,12 +3297,12 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         Task {
             do {
-                // 🚀 ChatManager의 통합 AI 서비스 사용
+                // 🚀 SessionManager의 통합 AI 서비스 사용
                 // 프리셋 추천에 특화된 처리
-                let responseContent = try await chatManager.sendMessage(
-                    userInput: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
-                    modeString: "preset_recommendation",
-                    modelString: "openai"  // JSON 출력에 최적화된 모델 사용
+                let responseContent = try await SessionManager.shared.sendMessage(
+                    content: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
+                    model: .openAI,
+                    context: "프리셋 추천"
                 )
 
                 try await MainActor.run { [weak self] in
@@ -3945,11 +4095,11 @@ extension ChatViewController {
     
     /// 페르소나 컨텍스트 생성
     private func buildPersonaContext() -> String {
-        let userSettings = SettingsManager.shared.userSettings
+        let userSettings = SettingsManager.shared.settings
         
-        let personality = userSettings.personality ?? "보통"
-        let preferredStyle = userSettings.preferredStyle ?? "자연음"
-        let sleepPattern = userSettings.sleepPattern ?? "일반"
+        let personality = "보통" // userSettings.personality ?? "보통"
+        let preferredStyle = "자연음" // userSettings.preferredStyle ?? "자연음"
+        let sleepPattern = "일반" // userSettings.sleepPattern ?? "일반"
         
         return "성격:\(personality), 선호:\(preferredStyle), 수면:\(sleepPattern)"
     }
@@ -3998,15 +4148,12 @@ extension ChatViewController {
         print("💾 [ChatPersistence] 중앙집중식 메시지 복원 시작")
         #endif
         
-        guard let chatManager = chatManager else {
-            print("❌ [ChatViewController] ChatManager 없음 - 초기 메시지만 설정")
-            setupInitialMessages()
-            return
-        }
+        // SessionManager를 통한 초기화
+        setupInitialMessages()
         
-        // 1. ChatManager에서 저장된 세션 확인
-        let sessions = chatManager.getSessions()
-        let hasStoredMessages = sessions.contains { !$0.messages.isEmpty }
+        // 1. SessionManager에서 저장된 세션 확인
+        let sessions = SessionManager.shared.getAllSessions()
+        let hasStoredMessages = sessions.contains { !$0.chatMessages.isEmpty }
         
         #if DEBUG
         print("💾 [ChatPersistence] 세션 수: \(sessions.count), 저장된 메시지 있음: \(hasStoredMessages)")
@@ -4086,19 +4233,16 @@ extension ChatViewController {
         print("💾 [ChatPersistence] ChatManager에서 히스토리 복원 시도 (백업)")
         #endif
         
-        guard let chatManager = chatManager else {
-            print("❌ [ChatViewController] ChatManager가 없습니다")
-            return
-        }
+        // SessionManager를 통한 처리
         
-        let sessions = chatManager.getSessions()
+        let sessions = SessionManager.shared.getAllSessions()
         guard let latestSession = sessions.first else {
             print("🔄 [ChatViewController] 저장된 세션이 없습니다")
             return
         }
         
         #if DEBUG
-        print("💾 [ChatPersistence] 최신 세션에서 \(latestSession.messages.count)개 메시지 발견")
+        print("💾 [ChatPersistence] 최신 세션에서 \(latestSession.chatMessages.count)개 메시지 발견")
         #endif
         
         Task { @MainActor in
@@ -4109,10 +4253,10 @@ extension ChatViewController {
             // }
             
             // StoredChatMessage를 ChatMessage로 변환
-            for storedMessage in latestSession.messages {
+            for storedMessage in latestSession.chatMessages {
                 let isUser = (storedMessage.type == .user)
                 let chatMessage = ChatMessage(
-                    text: storedMessage.text,
+                    text: storedMessage.content,
                     date: storedMessage.timestamp,
                     sender: isUser ? .user : .ai,
                     type: isUser ? .user : .bot

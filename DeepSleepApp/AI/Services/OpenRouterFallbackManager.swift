@@ -7,12 +7,64 @@
 
 import Foundation
 
-/// 간단한 OpenRouter 무료/테스트 모델 폴백 매니저
-/// - 베타 기간: 무료 모델 우선 순차 시도
+/// 🚀 Phase 3: 고도화된 OpenRouter 무료/테스트 모델 폴백 매니저
+/// - 지능형 모델 선택: 성공률 기반 동적 순서 조정
+/// - 성능 모니터링: 응답 시간 및 성공률 추적
+/// - 캐싱 시스템: 동일 요청 응답 캐싱으로 성능 향상
 /// - 목표: 한국어 대화, 프리셋 추천 파싱, JSON 생성 안정성
 final class OpenRouterFallbackManager {
     static let shared = OpenRouterFallbackManager()
-    private init() {}
+    
+    // MARK: - 🚀 Phase 3: 성능 모니터링 시스템
+    public struct ModelPerformance {
+        var successCount: Int = 0
+        var failureCount: Int = 0
+        var totalResponseTime: TimeInterval = 0
+        var lastUsed: Date = Date.distantPast
+        
+        var successRate: Double {
+            let total = successCount + failureCount
+            return total > 0 ? Double(successCount) / Double(total) : 0.0
+        }
+        
+        var averageResponseTime: TimeInterval {
+            return successCount > 0 ? totalResponseTime / Double(successCount) : 0.0
+        }
+    }
+    
+    private var modelPerformance: [String: ModelPerformance] = [:]
+    private let performanceQueue = DispatchQueue(label: "com.deepsleep.openrouter.performance", attributes: .concurrent)
+    
+    // MARK: - 🧠 Phase 3: 지능형 캐싱 시스템
+    private struct CacheKey: Hashable {
+        let content: String
+        let mode: AIMode
+        
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(content.prefix(100)) // 처음 100자만 해시에 사용
+            hasher.combine(mode)
+        }
+    }
+    
+    private struct CacheEntry {
+        let response: String
+        let timestamp: Date
+        let model: String
+    }
+    
+    private var responseCache: [CacheKey: CacheEntry] = [:]
+    private let cacheQueue = DispatchQueue(label: "com.deepsleep.openrouter.cache", attributes: .concurrent)
+    private let cacheExpirationTime: TimeInterval = 300 // 5분
+    
+    private init() {
+        // 성능 데이터 로드
+        loadPerformanceData()
+        
+        // 주기적 캐시 정리 (10분마다)
+        Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { _ in
+            self.cleanupExpiredCache()
+        }
+    }
 
     // 🎯 통합 무료 모델 리스트 (지능순 + 한국어 대화 + JSON 파싱 최적화)
     // 웹 검색 결과 기반으로 성능 순서 재배치 (2025년 8월 기준)
@@ -68,42 +120,109 @@ final class OpenRouterFallbackManager {
         }
     }
 
-    /// OpenRouter 호출 (순차 폴백) - 통합된 무료 모델 리스트 사용
+    /// 🚀 Phase 3: 고도화된 지능형 OpenRouter 호출 (성능 최적화 + 적응형 타임아웃)
     func sendMessageWithFallback(content: String, mode: AIMode) async throws -> String {
+        let cacheKey = CacheKey(content: content, mode: mode)
+        
+        // 1. 캐시 확인
+        if let cachedResponse = getCachedResponse(for: cacheKey) {
+            print("⚡ [OpenRouterFallback] 캐시 히트! 모델: \(cachedResponse.model)")
+            return cachedResponse.response
+        }
+        
+        // 2. 성능 기반 모델 순서 조정 (상위 5개 모델만 우선 시도)
+        let optimizedModels = getOptimizedModelOrder()
+        let priorityModels = Array(optimizedModels.prefix(5)) // 상위 5개 우선
+        let fallbackModels = Array(optimizedModels.dropFirst(5)) // 나머지는 폴백
+        
         var tried: [String] = []
         var lastError: Error?
 
-        print("🚀 [OpenRouterFallback] 폴백 시스템 시작 - 총 \(unifiedFreeModels.count)개 모델 대기")
+        print("🚀 [OpenRouterFallback] 고도화된 폴백 시스템 시작")
+        print("   우선 모델: \(priorityModels.count)개, 폴백 모델: \(fallbackModels.count)개")
         
-        for (index, model) in unifiedFreeModels.enumerated() {
+        // 3. 우선 모델들 시도 (짧은 타임아웃)
+        for (index, model) in priorityModels.enumerated() {
             do {
-                print("🎯 [OpenRouterFallback] 모델 #\(index + 1) 시도: \(model)")
+                let startTime = Date()
+                let performance = getModelPerformance(model)
+                let adaptiveTimeout = calculateAdaptiveTimeout(for: model, performance: performance, isPriority: true)
+                
+                print("🎯 [OpenRouterFallback] 우선 모델 #\(index + 1) 시도: \(model)")
+                print("   성공률: \(String(format: "%.1f", performance.successRate * 100))%, 평균응답: \(String(format: "%.1f", performance.averageResponseTime))초")
                 
                 let prefixed = systemPromptPrefix(for: mode) + "\n\n" + content
-                let output = try await callOpenRouter(model: model, userContent: prefixed)
+                let output = try await withTimeout(seconds: adaptiveTimeout) { [self] in
+                    try await callOpenRouter(model: model, userContent: prefixed)
+                }
                 
-                print("✅ [OpenRouterFallback] 성공! 모델: \(model) (시도 #\(index + 1))")
+                let responseTime = Date().timeIntervalSince(startTime)
+                
+                // 성공 기록
+                recordModelSuccess(model: model, responseTime: responseTime)
+                
+                // 캐시에 저장
+                cacheResponse(for: cacheKey, response: output, model: model)
+                
+                print("✅ [OpenRouterFallback] 우선 모델 성공! \(model) (응답시간: \(String(format: "%.2f", responseTime))초)")
                 if tried.count > 0 {
-                    print("🔄 [OpenRouterFallback] 폴백 완료 - 실패한 모델: \(tried.count)개, 성공 모델: \(model)")
+                    print("🔄 [OpenRouterFallback] 폴백 완료 - 실패한 모델: \(tried.count)개")
                 }
                 return output
                 
             } catch {
                 tried.append(model)
                 lastError = error
-                print("❌ [OpenRouterFallback] \(model) 실패: \(error.localizedDescription)")
                 
-                // 처음 몇 개 모델 실패 시 더 자세한 로그
-                if index < 5 {
-                    print("🔍 [OpenRouterFallback] 상세 오류: \(error)")
-                }
+                // 실패 기록
+                recordModelFailure(model: model, error: error)
                 
-                // 다음 모델로 폴백 시도
-                if index < unifiedFreeModels.count - 1 {
-                    print("🔄 [OpenRouterFallback] 다음 모델로 폴백 시도... (\(index + 2)/\(unifiedFreeModels.count))")
-                }
+                print("❌ [OpenRouterFallback] 우선 모델 실패: \(model) - \(error.localizedDescription)")
                 
                 continue
+            }
+        }
+        
+        // 4. 우선 모델들이 모두 실패한 경우, 폴백 모델들 시도 (긴 타임아웃)
+        if !fallbackModels.isEmpty {
+            print("🔄 [OpenRouterFallback] 우선 모델 실패, 폴백 모델들 시도 시작")
+            
+            for (index, model) in fallbackModels.enumerated() {
+                do {
+                    let startTime = Date()
+                    let performance = getModelPerformance(model)
+                    let adaptiveTimeout = calculateAdaptiveTimeout(for: model, performance: performance, isPriority: false)
+                    
+                    print("🎯 [OpenRouterFallback] 폴백 모델 #\(index + 1) 시도: \(model)")
+                    
+                    let prefixed = systemPromptPrefix(for: mode) + "\n\n" + content
+                    let output = try await withTimeout(seconds: adaptiveTimeout) { [self] in
+                        try await callOpenRouter(model: model, userContent: prefixed)
+                    }
+                    
+                    let responseTime = Date().timeIntervalSince(startTime)
+                    
+                    // 성공 기록
+                    recordModelSuccess(model: model, responseTime: responseTime)
+                    
+                    // 캐시에 저장
+                    cacheResponse(for: cacheKey, response: output, model: model)
+                    
+                    print("✅ [OpenRouterFallback] 폴백 모델 성공! \(model) (응답시간: \(String(format: "%.2f", responseTime))초)")
+                    print("🔄 [OpenRouterFallback] 총 실패한 모델: \(tried.count)개")
+                    return output
+                    
+                } catch {
+                    tried.append(model)
+                    lastError = error
+                    
+                    // 실패 기록
+                    recordModelFailure(model: model, error: error)
+                    
+                    print("❌ [OpenRouterFallback] 폴백 모델 실패: \(model) - \(error.localizedDescription)")
+                    
+                    continue
+                }
             }
         }
         
@@ -155,5 +274,199 @@ final class OpenRouterFallbackManager {
         }
         return content
     }
+    
+    // MARK: - 🚀 Phase 3: 성능 모니터링 및 최적화 메서드
+    
+    /// 성능 기반 모델 순서 최적화
+    private func getOptimizedModelOrder() -> [String] {
+        return performanceQueue.sync {
+            return unifiedFreeModels.sorted { model1, model2 in
+                let perf1 = modelPerformance[model1] ?? ModelPerformance()
+                let perf2 = modelPerformance[model2] ?? ModelPerformance()
+                
+                // 1차: 성공률 (높은 순)
+                if abs(perf1.successRate - perf2.successRate) > 0.1 {
+                    return perf1.successRate > perf2.successRate
+                }
+                
+                // 2차: 평균 응답 시간 (빠른 순)
+                if abs(perf1.averageResponseTime - perf2.averageResponseTime) > 1.0 {
+                    return perf1.averageResponseTime < perf2.averageResponseTime
+                }
+                
+                // 3차: 최근 사용 시간 (최근 순)
+                return perf1.lastUsed > perf2.lastUsed
+            }
+        }
+    }
+    
+    /// 모델 성공 기록
+    private func recordModelSuccess(model: String, responseTime: TimeInterval) {
+        performanceQueue.async(flags: .barrier) {
+            var performance = self.modelPerformance[model] ?? ModelPerformance()
+            performance.successCount += 1
+            performance.totalResponseTime += responseTime
+            performance.lastUsed = Date()
+            self.modelPerformance[model] = performance
+            
+            // 성능 데이터 저장
+            self.savePerformanceData()
+        }
+    }
+    
+    /// 모델 실패 기록
+    private func recordModelFailure(model: String, error: Error) {
+        performanceQueue.async(flags: .barrier) {
+            var performance = self.modelPerformance[model] ?? ModelPerformance()
+            performance.failureCount += 1
+            performance.lastUsed = Date()
+            self.modelPerformance[model] = performance
+            
+            // 성능 데이터 저장
+            self.savePerformanceData()
+        }
+    }
+    
+    /// 모델 성능 조회
+    private func getModelPerformance(_ model: String) -> ModelPerformance {
+        return performanceQueue.sync {
+            return modelPerformance[model] ?? ModelPerformance()
+        }
+    }
+    
+    // MARK: - 🧠 Phase 3: 캐싱 시스템
+    
+    /// 캐시된 응답 조회
+    private func getCachedResponse(for key: CacheKey) -> CacheEntry? {
+        return cacheQueue.sync {
+            guard let entry = responseCache[key] else { return nil }
+            
+            // 만료 확인
+            if Date().timeIntervalSince(entry.timestamp) > cacheExpirationTime {
+                responseCache.removeValue(forKey: key)
+                return nil
+            }
+            
+            return entry
+        }
+    }
+    
+    /// 응답 캐싱
+    private func cacheResponse(for key: CacheKey, response: String, model: String) {
+        cacheQueue.async(flags: .barrier) {
+            let entry = CacheEntry(response: response, timestamp: Date(), model: model)
+            self.responseCache[key] = entry
+        }
+    }
+    
+    /// 만료된 캐시 정리
+    private func cleanupExpiredCache() {
+        cacheQueue.async(flags: .barrier) {
+            let now = Date()
+            self.responseCache = self.responseCache.filter { _, entry in
+                now.timeIntervalSince(entry.timestamp) <= self.cacheExpirationTime
+            }
+            print("🧹 [OpenRouterFallback] 캐시 정리 완료 - 현재 캐시 항목: \(self.responseCache.count)개")
+        }
+    }
+    
+    // MARK: - 💾 Phase 3: 성능 데이터 영속화
+    
+    /// 성능 데이터 저장
+    private func savePerformanceData() {
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        
+        let performanceFile = documentsPath.appendingPathComponent("openrouter_performance.json")
+        
+        do {
+            let data = try JSONEncoder().encode(modelPerformance)
+            try data.write(to: performanceFile)
+        } catch {
+            print("❌ [OpenRouterFallback] 성능 데이터 저장 실패: \(error)")
+        }
+    }
+    
+    /// 성능 데이터 로드
+    private func loadPerformanceData() {
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        
+        let performanceFile = documentsPath.appendingPathComponent("openrouter_performance.json")
+        
+        do {
+            let data = try Data(contentsOf: performanceFile)
+            modelPerformance = try JSONDecoder().decode([String: ModelPerformance].self, from: data)
+            print("✅ [OpenRouterFallback] 성능 데이터 로드 완료 - \(modelPerformance.count)개 모델")
+        } catch {
+            print("ℹ️ [OpenRouterFallback] 성능 데이터 로드 실패 (첫 실행일 수 있음): \(error)")
+            modelPerformance = [:]
+        }
+    }
+    
+    // MARK: - 📊 Phase 3: 성능 통계 조회 (디버깅용)
+    
+    /// 성능 통계 출력
+    func printPerformanceStats() {
+        performanceQueue.sync {
+            print("\n📊 [OpenRouterFallback] 모델 성능 통계:")
+            print(String(repeating: "=", count: 60))
+            
+            let sortedModels = modelPerformance.sorted { $0.value.successRate > $1.value.successRate }
+            
+            for (model, performance) in sortedModels.prefix(10) {
+                let successRate = String(format: "%.1f%%", performance.successRate * 100)
+                let avgTime = String(format: "%.2fs", performance.averageResponseTime)
+                let total = performance.successCount + performance.failureCount
+                
+                print("🎯 \(model)")
+                print("   성공률: \(successRate) (\(performance.successCount)/\(total))")
+                print("   평균 응답시간: \(avgTime)")
+                print("   마지막 사용: \(performance.lastUsed)")
+                print("")
+            }
+            
+            print("💾 캐시 항목: \(responseCache.count)개")
+            print(String(repeating: "=", count: 60))
+        }
+    }
+    
+    // MARK: - 🚀 Phase 3: 성능 최적화 추가 메서드들
+    
+    /// 적응형 타임아웃 계산
+    private func calculateAdaptiveTimeout(for model: String, performance: ModelPerformance, isPriority: Bool) -> TimeInterval {
+        let baseTimeout: TimeInterval = isPriority ? 15.0 : 30.0 // 우선 모델은 짧은 타임아웃
+        
+        // 성능 기반 조정
+        if performance.successCount > 0 {
+            let avgResponseTime = performance.averageResponseTime
+            let adjustedTimeout = max(baseTimeout, avgResponseTime * 2.0) // 평균 응답시간의 2배
+            return min(adjustedTimeout, isPriority ? 20.0 : 45.0) // 최대 제한
+        }
+        
+        return baseTimeout
+    }
+    
+    /// 타임아웃 래퍼 함수
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw AIServiceError.timeoutError
+            }
+            
+            guard let result = try await group.next() else {
+                throw AIServiceError.timeoutError
+            }
+            
+            group.cancelAll()
+            return result
+        }
+    }
 }
+
+// MARK: - 🚀 Phase 3: ModelPerformance Codable 지원
+extension OpenRouterFallbackManager.ModelPerformance: Codable {}
 

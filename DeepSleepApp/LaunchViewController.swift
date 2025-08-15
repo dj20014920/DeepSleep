@@ -165,7 +165,7 @@ class LaunchViewController: UIViewController {
             
             // 🧹 피드백 데이터 자동 정리 (백그라운드에서 실행)
             if #available(iOS 17.0, *) {
-                await FeedbackManager.shared.performStartupCleanup()
+                SessionManager.shared.cleanupOldSessions()
             }
             
             #if DEBUG

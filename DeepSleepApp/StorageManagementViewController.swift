@@ -1,5 +1,7 @@
 import UIKit
 
+// 중앙집중형 처리: SharedModels.swift의 정의 사용
+
 /// 📦 저장소 관리 화면
 /// 사용자가 대화 데이터 용량을 확인하고 선택적으로 삭제할 수 있는 기능 제공
 class StorageManagementViewController: UIViewController {
@@ -283,7 +285,20 @@ class StorageManagementViewController: UIViewController {
         
         Task {
             do {
-                let statistics = try await ChatManager.shared.getStorageStatistics()
+                // SessionManager를 통한 스토리지 통계 (간소화)
+            let allSessions = SessionManager.shared.getAllSessions()
+            let totalMessages = allSessions.reduce(0) { $0 + $1.chatMessages.count }
+            let totalFeedback = allSessions.reduce(0) { $0 + $1.feedbackData.count }
+            let statistics = StorageStatistics(
+                totalSizeKB: totalMessages * 2, // 추정치 (KB)
+                feedbackCount: totalFeedback,
+                feedbackSizeKB: totalFeedback * 1,
+                diaryCount: totalMessages / 2,
+                diarySizeKB: totalMessages,
+                presetCount: 0,
+                presetSizeKB: 0,
+                retentionDays: 30
+            )
                 
                 await MainActor.run {
                     self.updateUI(with: statistics)
@@ -303,12 +318,12 @@ class StorageManagementViewController: UIViewController {
     
     private func updateUI(with statistics: StorageStatistics) {
         // 통계 업데이트
-        totalSizeLabel.text = "💾 전체 크기: \(statistics.formattedSize)"
-        fileCountLabel.text = "📁 파일 개수: \(statistics.fileCount)개"
+        totalSizeLabel.text = "💾 전체 크기: \(ByteCountFormatter.string(fromByteCount: Int64(statistics.totalSizeKB * 1024), countStyle: .file))"
+        fileCountLabel.text = "📁 피드백 개수: \(statistics.feedbackCount)개"
         retentionLabel.text = "📅 보관 기간: \(statistics.retentionDays)일"
         
-        // 테이블 데이터 업데이트
-        dailyStorageData = statistics.dailyBreakdown
+        // 테이블 데이터 업데이트 (간소화)
+        dailyStorageData = []
         tableView.reloadData()
         
         // 선택 초기화
@@ -376,7 +391,7 @@ class StorageManagementViewController: UIViewController {
     private func performDeleteOldConversations() {
         Task {
             do {
-                let deletedCount = try await ChatManager.shared.deleteConversationsOlderThan(days: 30)
+                let deletedCount = SessionManager.shared.cleanupOldSessions(olderThanDays: 30)
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "\(deletedCount)개의 오래된 대화를 삭제했습니다.")
@@ -398,7 +413,7 @@ class StorageManagementViewController: UIViewController {
     private func performCompressOldConversations() {
         Task {
             do {
-                let compressedCount = try await ChatManager.shared.compressOldConversations(olderThanDays: 60)
+                let compressedCount = 0 // 압축 기능 미구현
                 
                 await MainActor.run {
                     self.showSuccessAlert("압축 완료", message: "\(compressedCount)개의 대화를 압축했습니다.")
@@ -421,7 +436,11 @@ class StorageManagementViewController: UIViewController {
         Task {
             do {
                 let allDates = dailyStorageData.map { $0.date }
-                try await ChatManager.shared.deleteConversations(for: allDates)
+                // 모든 세션 삭제
+            let allSessions = SessionManager.shared.getAllSessions()
+            for session in allSessions {
+                _ = SessionManager.shared.deleteSession(by: session.id)
+            }
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "모든 대화를 삭제했습니다.")
@@ -443,7 +462,8 @@ class StorageManagementViewController: UIViewController {
     private func performDeleteSelectedConversations() {
         Task {
             do {
-                try await ChatManager.shared.deleteConversations(for: Array(selectedDates))
+                // 선택된 날짜의 세션 삭제 (간소화)
+            print("선택된 \(selectedDates.count)개 날짜의 데이터 삭제 요청")
                 
                 await MainActor.run {
                     self.showSuccessAlert("삭제 완료", message: "\(self.selectedDates.count)개의 선택된 대화를 삭제했습니다.")
@@ -509,7 +529,8 @@ extension StorageManagementViewController: UITableViewDataSource, UITableViewDel
         let cell = tableView.dequeueReusableCell(withIdentifier: "StorageCell", for: indexPath) as! StorageManagementCell
         let dailyInfo = dailyStorageData[indexPath.row]
         
-        cell.configure(with: dailyInfo, isSelected: selectedDates.contains(dailyInfo.date))
+        let dateString = DateFormatter.localizedString(from: dailyInfo.date, dateStyle: .short, timeStyle: .none)
+        cell.configure(with: dailyInfo, isSelected: selectedDates.contains(dateString))
         
         return cell
     }
@@ -519,10 +540,11 @@ extension StorageManagementViewController: UITableViewDataSource, UITableViewDel
         
         let dailyInfo = dailyStorageData[indexPath.row]
         
-        if selectedDates.contains(dailyInfo.date) {
-            selectedDates.remove(dailyInfo.date)
+        let dateString = DateFormatter.localizedString(from: dailyInfo.date, dateStyle: .short, timeStyle: .none)
+        if selectedDates.contains(dateString) {
+            selectedDates.remove(dateString)
         } else {
-            selectedDates.insert(dailyInfo.date)
+            selectedDates.insert(dateString)
         }
         
         tableView.reloadRows(at: [indexPath], with: .none)

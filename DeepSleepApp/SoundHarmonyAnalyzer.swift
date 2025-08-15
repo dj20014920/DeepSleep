@@ -485,11 +485,11 @@ class SoundHarmonyAnalyzer {
         return sqrt(variance) // 표준편차 반환
     }
     
-    private func getPersonalizedWeights() async -> PersonalizedHarmonyLearner.HarmonyWeights {
+    private func getPersonalizedWeights() async -> HarmonyWeights {
         if #available(iOS 18.0, *) {
             return await PersonalizedHarmonyLearner.shared.harmonyWeights
         } else {
-            return PersonalizedHarmonyLearner.HarmonyWeights.default
+            return HarmonyWeights.default
         }
     }
     

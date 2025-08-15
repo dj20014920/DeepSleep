@@ -64,6 +64,7 @@ public final class UnifiedLogger {
         case battery = "🔋 Battery"
         case storage = "💽 Storage"
         case appLifecycle = "🔄 AppLifecycle"
+        case coreData = "🗃️ CoreData"
         
         var prefix: String {
             return "[\(rawValue)]"

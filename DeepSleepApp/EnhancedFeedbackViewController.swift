@@ -459,15 +459,24 @@ class EnhancedFeedbackViewController: UIViewController {
             let finalEnvironmentContext = self.environmentContext
             
             return PresetFeedback(
-                presetId: self.presetId?.uuidString ?? "",
-                sessionId: self.sessionId?.uuidString ?? "",
+                id: UUID(),
                 timestamp: Date(),
-                quantitative: feedbackData.quantitative,
+                presetName: self.presetId?.uuidString ?? "",
+                contextEmotion: self.currentEmotion?.rawValue ?? "평온",
+                contextTime: Int16(Calendar.current.component(.hour, from: Date())),
+                recommendedVolumes: [],
+                recommendedVersions: [],
+                finalVolumes: [],
+                listeningDuration: Date().timeIntervalSince(startTime),
+                wasSkipped: false,
+                wasSaved: true,
+                userSatisfaction: Int(feedbackData.overallSatisfaction),
+                comment: adjustmentTextView.text,
                 qualitative: qualitativeFeedback,
                 context: context,
-                            deviceContext: finalDeviceContext,
-            environmentContext: finalEnvironmentContext,
-                userEmotion: self.currentEmotion
+                deviceContext: finalDeviceContext,
+                environmentContext: finalEnvironmentContext,
+                userEmotion: self.currentEmotion?.rawValue
             )
         } else {
             // iOS 17 미만 버전에서는 알림만 표시

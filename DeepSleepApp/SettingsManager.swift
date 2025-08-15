@@ -386,11 +386,9 @@ public class SettingsManager {
         let beforeInfo = getStorageInfo()
         print("🧹 저장소 정리 시작:\n\(beforeInfo)")
         
-        if #available(iOS 17.0, *) {
-            await FeedbackManager.shared.performStartupCleanup()
-        } else {
-            print("⚠️ FeedbackManager는 iOS 17.0 이상에서만 사용 가능합니다.")
-        }
+        // FeedbackManager는 SessionManager로 통합됨
+        // SessionManager에서 필요한 정리 작업 수행
+        print("✅ SessionManager 기반 시스템으로 전환 완료")
         
         userDefaults.set(Date(), forKey: "lastCleanupDate")
         

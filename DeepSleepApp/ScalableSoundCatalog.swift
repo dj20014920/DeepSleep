@@ -824,13 +824,13 @@ class ScalableSoundCatalog {
         
         guard let profile = userProfile,
               let metric = profile.soundPatterns.individualSoundMetrics.first(where: { 
-                  $0.key.lowercased().contains(categoryId) 
-              })?.value else {
+                  $0.soundName.lowercased().contains(categoryId) 
+              }) else {
             return baseVolume
         }
         
         // 개인 선호도와 기본 볼륨의 가중 평균
-        return (baseVolume * 0.7 + metric.averageVolume * 0.3)
+        return (baseVolume * 0.7 + metric.preferredVolume * 0.3)
     }
 }
 

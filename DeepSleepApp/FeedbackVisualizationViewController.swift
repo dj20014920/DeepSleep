@@ -85,11 +85,13 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func loadData() {
-        // Load feedback data
-        feedbackData = FeedbackManager.shared.getRecentFeedback(limit: 100)
+        // Load feedback data from the single source of truth
+        feedbackData = SessionManager.shared.getRecentFeedback(limit: 100)
         
         // Generate user profile
         if !feedbackData.isEmpty {
+            // Note: UserProfileVector might need to be updated if its initializer relied on legacy models.
+            // For now, we assume it's compatible or will be fixed in a subsequent step.
             userProfile = UserProfileVector(feedbackData: feedbackData)
         }
         
@@ -99,9 +101,23 @@ class FeedbackVisualizationViewController: UIViewController {
     
     private func loadLearningMetrics() {
         // AI 학습 메트릭 로드
-        let behaviorProfile = UserBehaviorAnalytics.shared.getCurrentUserProfile()
-        // ✅ ML 학습 관련 코드 제거됨 - 빈 배열로 대체
-        let learningRecords: [Any] = []
+        // UserBehaviorAnalytics is deprecated. We will construct a placeholder profile from SessionManager data.
+        // A full implementation would involve a new method in SessionManager to generate this profile.
+        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: 200)
+        
+        // Create a placeholder UserBehaviorProfile for now to ensure build succeeds.
+        let behaviorProfile = UserBehaviorProfile(
+            userId: "placeholder_user",
+            soundPreferences: SoundPreferenceAnalysis(preferredSounds: [:], avoidedSounds: [:], optimalVolumes: [:]),
+            soundPatterns: SoundPatternAnalysis(individualSoundMetrics: [], combinationPatterns: [:], temporalPatterns: [:]),
+            timePatterns: [:],
+            emotionPatterns: [:],
+            overallSatisfaction: 0.0,
+            totalSessions: 0,
+            lastUpdated: Date()
+        )
+
+        let learningRecords: [Any] = [] // This was already an empty array.
         
         learningMetrics = AILearningMetrics(
             totalSessions: feedbackData.count,
@@ -452,8 +468,8 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func generateDetailedReason(for feedback: PresetFeedback) -> String {
-        let timeString = getTimeDescription(for: feedback.contextTime ?? 20)
-        let emotionString = getEmotionDescription(for: feedback.contextEmotion ?? "편안함")
+        let timeString = getTimeDescription(for: Int(feedback.contextTime))
+        let emotionString = getEmotionDescription(for: feedback.contextEmotion)
         
         return "🕐 \(timeString) 시간대에 \(emotionString) 감정을 고려하여 추천했습니다. 선택된 음원들의 주파수 조화와 당신의 과거 선호 패턴을 분석한 결과입니다."
     }

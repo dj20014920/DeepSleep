@@ -912,7 +912,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = ChatManager.shared.getRecentContext()
+        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
         
         var promptContent = """
         📅 날짜: \(selectedDateString)
@@ -1006,12 +1006,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             let promptContent = await self.buildComprehensivePrompt()
             
             do {
-                // 🤖 ChatManager.sendMessage로 전체 할일 조언 호출 (통합 아키텍처)
-                let advice = try await ChatManager.shared.sendMessage(
-                    userInput: promptContent,
-                    modeString: "task_advice",
-                    modelString: "claude"  // 종합적인 조언에 최적화
+                // 🤖 UnifiedAIServiceImpl로 전체 할일 조언 호출 (통합 아키텍처)
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: promptContent,
+                    model: .claude,
+                    mode: .taskAdvice,
+                    context: AIContext(userId: "todo_user", sessionId: "task_advice"),
+                    tokenConfig: nil
                 )
+                let advice = aiResponse.content
                 
                 await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
@@ -1078,7 +1081,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = ChatManager.shared.getRecentContext()
+        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
         
         var promptContent = """
         📅 날짜: \(selectedDateString)
@@ -1159,7 +1162,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = ChatManager.shared.getRecentContext()
+        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
         
         var promptContent = """
         🎯 할 일 상세 분석:
@@ -1257,7 +1260,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         
         // 주간 컨텍스트
-        let weeklyContext = ChatManager.shared.getRecentContext()
+        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
         
         var promptContent = """
         🎯 할 일 상세 분석:
@@ -1312,12 +1315,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             let promptContent = await self.buildIndividualTodoPrompt(for: todo)
             
             do {
-                // 🤖 ChatManager.sendMessage로 개별 할일 조언 호출 (통합 아키텍처)
-                let advice = try await ChatManager.shared.sendMessage(
-                    userInput: promptContent,
-                    modeString: "task_advice",
-                    modelString: "claude"  // 상세한 조언에 최적화
+                // 🤖 UnifiedAIServiceImpl로 개별 할일 조언 호출 (통합 아키텍처)
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: promptContent,
+                    model: .claude,
+                    mode: .taskAdvice,
+                    context: AIContext(userId: "todo_user", sessionId: "individual_task_advice"),
+                    tokenConfig: nil
                 )
+                let advice = aiResponse.content
                 
                 await MainActor.run {
                     // 🔧 로딩 오버레이 숨기기
@@ -1433,9 +1439,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             let todoTitles = todosForDate.map { $0.title }
             
             do {
-                // 🤖 ChatManager.sendMessage로 날짜별 AI 조언 호출 (통합 아키텍처)
-                let advice = try await ChatManager.shared.sendMessage(
-                    userInput: """
+                // 🤖 UnifiedAIServiceImpl로 날짜별 AI 조언 호출 (통합 아키텍처)
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: """
                     다음 할 일 목록에 대한 실용적인 조언을 제공해주세요:
                     
                     할 일 목록: \(todoTitles.joined(separator: ", "))
@@ -1446,9 +1452,12 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     - 효율적인 수행 방법 제안
                     - 3-4문장 이내로 작성
                     """,
-                    modeString: "task_advice",
-                    modelString: "claude"  // 상세한 조언에 최적화
+                    model: .claude,
+                    mode: .taskAdvice,
+                    context: AIContext(userId: "todo_user", sessionId: "daily_task_advice"),
+                    tokenConfig: nil
                 )
+                let advice = aiResponse.content
                 
                 await MainActor.run {
                     self.hideLoadingOverlay()
@@ -1494,12 +1503,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         Task {
             do {
-                // 🤖 ChatManager.sendMessage로 AI 작업 추천 호출 (통합 아키텍처)
-                let suggestion = try await ChatManager.shared.sendMessage(
-                    userInput: promptContent,
-                    modeString: "task_advice",
-                    modelString: "claude"  // 창의적인 작업 제안에 최적화
+                // 🤖 UnifiedAIServiceImpl로 AI 작업 추천 호출 (통합 아키텍처)
+                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: promptContent,
+                    model: .claude,
+                    mode: .taskAdvice,
+                    context: AIContext(userId: "todo_user", sessionId: "task_suggestion"),
+                    tokenConfig: nil
                 )
+                let suggestion = aiResponse.content
                 
                 await MainActor.run {
                     // AI가 제안한 작업을 파싱하고 목록에 추가하는 로직 (향후 구현 예매)

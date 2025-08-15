@@ -106,13 +106,15 @@ struct UserProfileVector {
             satisfactionCount += 1
             
             // 시간 분석
-            if let contextTime = feedback.contextTime, contextTime >= 0 && contextTime < 24 {
+            let contextTime = Int(feedback.contextTime)
+            if contextTime >= 0 && contextTime < 24 {
                 timeScores[contextTime] += Double(satisfaction)
                 timeCounts[contextTime] += 1
             }
             
             // 감정 분석
-            if let emotion = feedback.contextEmotion {
+            let emotion = feedback.contextEmotion
+            if !emotion.isEmpty {
                 emotionScores[emotion, default: 0.0] += satisfaction
                 emotionCounts[emotion, default: 0] += 1
             }
@@ -162,7 +164,7 @@ struct UserProfileVector {
     }
 }
 
-struct HarmonyWeights {}
+// HarmonyWeights는 SharedModels.swift에 정의됨
 
 // MARK: - Models Namespace & Types
 
