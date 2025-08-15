@@ -1,5 +1,13 @@
 # 🧠 DeepSleep AI 컨텍스트 관리 시스템 로드맵
 
+## 🆕 2025-08-15 업데이트 (채팅 저장·정렬·보안 강화)
+- 💬 채팅 정렬 고정: 사용자 메시지=오른쪽, AI=왼쪽. `.text` 타입도 sender 기준으로 렌더링.
+- 🧹 JSON 노출 차단: AI 응답은 `parseAIResponse()`로 우선 JSON 키(message/response/text/content)에서 본문 추출 → 정규식/이스케이프 정리 → 보안 살균 순으로 처리. 원문 JSON 버블 노출 방지.
+- 🧱 이중 저장 제거: `SessionManager.sendMessage()` 호출부는 `saveMessages: false`로 통일. 실제 저장은 `appendChat()` 단일 경로에서만 수행(Single Writer).
+- 🧷 타입/역할 정규화: 저장 시 `role`은 ai→assistant로 표준화, `.text`는 sender에 따라 `.user/.bot/.system`으로 보정.
+- 🚫 비영구: `.loading` 메시지는 영구 저장하지 않음(재진입 시 로딩 버블 미등장).
+- 🔁 중복 제거: 복원 시 인접(≤5초)·동일 sender·동일 텍스트 메시지 자동 제거로 과거 이중 저장 노이즈 제거.
+
 ## 📋 개요
 
 이 문서는 DeepSleep 앱의 **장기 비전**으로서 AI 컨텍스트 관리 시스템의 전체 아이디어와 구현 계획을 담고 있습니다. 
@@ -120,7 +128,6 @@ func getSystemPrompt() -> String {
 3. **계층 3 (장기 기억)**: 사용자 지정 '핵심 기억' UI/UX 개발 필요
 
 이제 안정적인 기반 위에서 이러한 고급 AI 컨텍스트 관리 기능들을 단계적으로 구현할 수 있습니다.
-```
 
 ## 🎯 기대 효과
 
@@ -243,6 +250,16 @@ class TokenOptimizer {
 ```
 
 ## ⚠️ 주의사항 및 고려사항
+
+### 🔐 악용 리스크와 대응(2025-08-15)
+- 프롬프트 인젝션/JSON 인젝션
+  - 대응: 50,000자 초과 JSON 거부, 우선순위 키 추출, 정규식·이스케이프 정리, `InputValidationManager(.aiResponse)` 살균.
+- 과금 유도 시나리오(과도한 외부 AI 호출 유발)
+  - 대응: UsageLimitManager 일일 한도, 무료·로컬 우선 라우팅, 캐싱/폴백, 화면 재진입 시 자동 재호출 금지(로드만 수행).
+- 저장소 오염/용량 공격
+  - 대응: `.loading` 미저장, 중복 제거, 메시지 페이지네이션(20개), JSON 크기 상한.
+- 키/설정 탈취 시도
+  - 대응: Secrets.xcconfig+Info.plist 간접 로드, 깃 제외, 로그에 민감 정보 미출력.
 
 ### 기술적 고려사항
 1. **토큰 제한:** AI 모델별 컨텍스트 길이 제한 고려

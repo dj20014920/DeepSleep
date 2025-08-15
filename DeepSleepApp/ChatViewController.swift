@@ -244,16 +244,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
                     model: selectedModel,
-                    context: nil
+                    context: nil,
+                    saveMessages: false
                 )
                 
                 // 메인 스레드에서 UI 업데이트
                 await MainActor.run {
                     self.showLoading(false)
                     let parsedResponse = self.parseAIResponse(response)
-                    // SessionManager.sendMessage에서 이미 메시지를 저장하므로 중복 저장 방지
-                    // 대신 메시지 목록을 새로고침
-                    self.loadSessionManagerMessages()
+                    // ✅ 저장과 UI 갱신은 여기서만 수행
+                    self.appendChat(ChatMessage(text: parsedResponse, date: Date(), sender: .ai, type: .bot))
                     UnifiedLogger.shared.info("SessionManager 통합 AI 응답 완료", category: .ai)
                     completion(parsedResponse)
                 }
@@ -470,13 +470,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 let response = try await SessionManager.shared.sendMessage(
                     content: diary.content,
                     model: selectedModel,
-                    context: "감정 일기 분석"
+                    context: "감정 일기 분석",
+                    saveMessages: false
                 )
                 
-                // SessionManager에 메시지 기록 및 UI 업데이트
+                // SessionManager 저장은 비활성화했으므로, 여기서만 UI/저장 처리
                 await MainActor.run {
                     self.removeLastLoadingMessage()
-                    self.addBotMessage(response)
+                    self.handleAIResponse(response)
                     
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -528,7 +529,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
                     model: selectedModel,
-                    context: nil
+                    context: nil,
+                    saveMessages: false
                 )
                 
                                 handleAIResponse(response)
@@ -584,16 +586,35 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
             
             // 2. SessionManager를 통한 영속성 처리 (중앙집중형)
             do {
+                // ✅ 로딩 메시지는 영속 저장하지 않음
+                guard message.type != .loading else {
+                    self.tableView.reloadData()
+                    self.scrollToBottom()
+                    return
+                }
                 let currentSession = sessionManager.getCurrentOrCreateSession()
+                // 역할 문자열 정규화: .ai → "assistant"
+                let roleString: String = (message.sender == .ai) ? "assistant" : message.sender.rawValue
+                // 타입 보정: .text → 보낸이 기반으로 user/bot/system 매핑
+                let normalizedType: ChatMessageType = {
+                    if message.type == .text {
+                        switch message.sender {
+                        case .user: return .user
+                        case .ai: return .bot
+                        case .system: return .system
+                        }
+                    }
+                    return message.type
+                }()
                 let storedMessage = StoredChatMessage(
                     id: UUID().uuidString,
-                    timestamp: Date(),
-                    role: message.sender.rawValue,
+                    timestamp: message.date,
+                    role: roleString,
                     content: message.text ?? "",
-                    type: message.type
+                    type: normalizedType
                 )
                 try sessionManager.addChatMessage(to: currentSession.id, message: storedMessage)
-                print("✅ [ChatViewController] 메시지 추가 및 즉시 저장 완료 - Type: \(message.type), Sender: \(message.sender)")
+                print("✅ [ChatViewController] 메시지 추가 및 즉시 저장 완료 - Type: \(normalizedType), Sender: \(message.sender)")
             } catch {
                 print("❌ [ChatViewController] SessionManager 메시지 저장 실패: \(error)")
             }
@@ -815,33 +836,38 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     private func loadSessionManagerMessages() {
         // SessionManager의 메시지를 로컬 배열에 동기화
         let storedMessages = sessionManager.getRecentChatMessages(limit: 100)
-        messages = storedMessages.map { storedMessage in
+        var mapped = storedMessages.map { storedMessage in
             // role 변환: "assistant" → .ai, "user" → .user
             let sender: MessageSender = {
                 switch storedMessage.role {
-                case "assistant":
-                    return .ai
-                case "user":
-                    return .user
-                case "system":
-                    return .system
-                default:
-                    return .user
+                case "assistant": return .ai
+                case "user": return .user
+                case "system": return .system
+                default: return .user
                 }
             }()
-            
-            return ChatMessage(
-                text: storedMessage.content,
-                sender: sender,
-                type: storedMessage.type
-            )
+            // 타입 보정: .text → 역할 기반으로 매핑
+            let fixedType: ChatMessageType = {
+                if storedMessage.type == .text {
+                    switch sender {
+                    case .user: return .user
+                    case .ai: return .bot
+                    case .system: return .system
+                    }
+                }
+                return storedMessage.type
+            }()
+            // AI 응답은 재진입 시 JSON 원문이 남아있을 수 있으므로 정제
+            let finalText: String = (sender == .ai) ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            return ChatMessage(text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
-        
+        // 과거 이중 저장으로 인한 인접 중복 제거
+        mapped = deduplicateMessages(mapped)
+        messages = mapped
         DispatchQueue.main.async {
             self.tableView.reloadData()
             self.scrollToBottom()
         }
-        
         UnifiedLogger.shared.debug("SessionManager에서 \(messages.count)개 메시지 로드 완료", category: .chat)
     }
     
@@ -878,32 +904,28 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         #endif
         
         // 1. SessionManager에서 최근 메시지 가져오기 (초기 로드는 100개)
-        let stored = sessionManager.getRecentChatMessages(limit: 100)  // 최근 100개 메시지
+        let stored = sessionManager.getRecentChatMessages(limit: 100)
         
-        // 2. StoredChatMessage를 ChatMessage로 변환하여 전체 캐시에 저장
-        allMessagesCache = stored.map { storedMessage in
-            // role 변환: "assistant" → .ai, "user" → .user
+        // 2. StoredChatMessage → ChatMessage 매핑 (역할/타입 보정 + AI 텍스트 정제)
+        var mapped = stored.map { storedMessage in
             let sender: MessageSender = {
-                switch storedMessage.role {
-                case "assistant":
-                    return .ai
-                case "user":
-                    return .user
-                case "system":
-                    return .system
-                default:
-                    return .user
-                }
+                switch storedMessage.role { case "assistant": return .ai; case "user": return .user; case "system": return .system; default: return .user }
             }()
-            
-            return ChatMessage(
-                text: storedMessage.content,
-                sender: sender,
-                type: storedMessage.type
-            )
+            let fixedType: ChatMessageType = {
+                if storedMessage.type == .text {
+                    switch sender { case .user: return .user; case .ai: return .bot; case .system: return .system }
+                }
+                return storedMessage.type
+            }()
+            let finalText = (sender == .ai) ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            return ChatMessage(text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
         
-        // 3. 초기 페이지 설정 (최근 pageSize개만 표시)
+        // 3. 인접 중복 제거 (과거 이중 저장 대응)
+        mapped = deduplicateMessages(mapped)
+        allMessagesCache = mapped
+        
+        // 4. 초기 페이지 설정 (최근 pageSize개만 표시)
         currentPage = 0
         let initialCount = min(pageSize, allMessagesCache.count)
         messages = Array(allMessagesCache.suffix(initialCount))
@@ -913,13 +935,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         print("💾 [ChatPersistence] 전체 \(allMessagesCache.count)개 중 \(messages.count)개 메시지 UI에 표시")
         #endif
         
-        // 4. 테이블뷰 리로드 및 하단으로 스크롤
+        // 5. 테이블뷰 리로드 및 하단으로 스크롤
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.tableView.reloadData()
-            if !self.messages.isEmpty {
-                self.scrollToBottom(animated: false)
-            }
+            if !self.messages.isEmpty { self.scrollToBottom(animated: false) }
         }
     }
     
@@ -2720,7 +2740,8 @@ extension ChatViewController {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: selectedModel,
-                    context: "감정 패턴 분석"
+                    context: "감정 패턴 분석",
+                    saveMessages: false
                 )
                 handleAIResponse(responseContent)
                 addQuickEmotionButtons()
@@ -2749,7 +2770,8 @@ extension ChatViewController {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: diaryContent,
                     model: selectedModel,
-                    context: "감정 일기 요약"
+                    context: "감정 일기 요약",
+                    saveMessages: false
                 )
                 handleAIResponse(responseContent)
             } catch {
@@ -2788,6 +2810,23 @@ extension ChatViewController {
                 self?.tableView.reloadData()
             }
         }
+    }
+    
+    /// 인접한 동일 텍스트/보낸이 메시지를 제거하여 과거 이중 저장으로 인한 중복 표시를 방지
+    private func deduplicateMessages(_ list: [ChatMessage]) -> [ChatMessage] {
+        var result: [ChatMessage] = []
+        for msg in list {
+            if let last = result.last,
+               last.sender == msg.sender,
+               (last.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == (msg.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines) {
+                // 타임스탬프가 매우 근접(5초 이내)이면 중복으로 간주
+                if abs(last.date.timeIntervalSince1970 - msg.date.timeIntervalSince1970) <= 5 {
+                    continue
+                }
+            }
+            result.append(msg)
+        }
+        return result
     }
 }
 
@@ -3327,7 +3366,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
                     model: .openAI,
-                    context: "프리셋 추천"
+                    context: "프리셋 추천",
+                    saveMessages: false
                 )
 
                 try await MainActor.run { [weak self] in

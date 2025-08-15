@@ -364,6 +364,8 @@
 		E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
 		E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
+		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
+		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -382,6 +384,8 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
+				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,
+				E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */,
 				E09CD6E02E45E048007C133E /* .gitignore */,
 				E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */,
 				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,

@@ -430,7 +430,12 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         case .error:
             configureBotMessage(message.text ?? "") // 에러 메시지도 봇 스타일로 표시
         case .text:
-            configureBotMessage(message.text ?? "")
+            // ✅ 저장 시 .text로 들어오는 경우, 보낸이 기준으로 좌/우 정렬
+            if isUserMessage {
+                configureUserMessage(message.text ?? "")
+            } else {
+                configureBotMessage(message.text ?? "")
+            }
         }
         
         // 로딩 상태에 따른 애니메이션 처리

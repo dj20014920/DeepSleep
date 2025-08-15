@@ -1,5 +1,14 @@
 # 🔧 DeepSleep 프로젝트 통합개발로드맵
 
+## 🆕 2025-08-15 안정화 패치 (채팅 정렬·저장·보안)
+- 💬 좌/우 정렬 고정: 사용자=오른쪽, AI=왼쪽. `.text` 타입도 sender 기준으로 정확히 표시(재진입/재시작 후 유지).
+- 🧹 JSON 원문 노출 차단: `parseAIResponse()`가 JSON 우선 키 추출 → 정규식/이스케이프 정리 → 보안 살균. 원문 JSON 버블 표시 방지.
+- 🧱 이중 저장 제거: `SessionManager.sendMessage(..., saveMessages:false)`로 호출 통일. 실제 저장은 `appendChat()` 단일 경로(Single Writer).
+- 🧷 역할/타입 정규화: 저장 시 role(ai→assistant) 표준화, `.text`는 sender에 따라 `.user/.bot/.system` 보정.
+- 🚫 로딩 미저장: `.loading` 메시지는 영구 저장 제외(복원 시 로딩 버블 미표시).
+- 🔁 중복 제거: 복원 시 인접(≤5초)·동일 sender·동일 텍스트 메시지 자동 제거.
+- 🔐 악용 방지: UsageLimitManager 일일 한도, 무료/로컬 우선 라우팅, JSON 최대 길이 50k 제한, Secrets.xcconfig 분리.
+
 > **Ultra-Deep Thinking 방법론 기반 종합 분석 결과**
 > 
 > 작성일: 2025년 8월 11일  
@@ -280,10 +289,36 @@ fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
 
 ## 4. 우선순위별 해결 로드맵
 
-### Phase 1: ✅ Todo 통합 완성 (완료!) 🎉
+### Phase 1: ✅ Todo 통합 100% 완성 + 보안 강화 완료! 🎉
 
 #### Task 1.1: ✅ AddEditTodoViewController UI 구현 및 EmotionCalendarViewController 통합 완성
 **목표**: 이미 80% 완성된 Todo 통합을 100% 완성 → **✅ 완료**
+
+#### Task 1.2: ✅ 핵심 UI 표시 오류 수정 (2025-08-15 완료)
+**목표**: Todo 섹션이 할 일이 없을 때 숨겨지는 치명적 오류 수정 → **✅ 완료**
+
+**🚨 발견된 문제**:
+```swift
+// ❌ 문제 코드
+if !todos.isEmpty {
+    sections.append(.todo(todos))  // 할 일이 없으면 섹션 자체가 숨겨짐
+}
+```
+
+**✅ 해결 방법**:
+```swift
+// ✅ 수정된 코드
+sections.append(.todo(todos))  // 항상 Todo 섹션 표시
+```
+
+**해결된 문제들**:
+- ❌ **이전**: 할 일이 없는 날에는 + 추가 버튼이 보이지 않음
+- ❌ **이전**: 사용자가 첫 번째 할 일을 추가할 방법이 없음
+- ✅ **현재**: 할 일이 없어도 항상 Todo UI 표시
+- ✅ **현재**: 완벽한 사용자 경험 제공
+
+#### Task 1.3: ✅ 보안 강화된 중앙집중형 설정 관리 완성 (2025-08-15 완료)
+**목표**: 모든 하드코딩된 상수값을 Secrets.xcconfig로 이동하여 보안 강화 → **✅ 완료**
 
 **🎯 실제 구현 결과**:
 - ✅ AddEditTodoViewController 완전 구현 (300+ 라인)
@@ -374,7 +409,59 @@ extension EmotionCalendarViewController: AddEditTodoDelegate {
 #### Task 1.2: 통합 SessionManager 구현 (연기)
 **목표**: 데이터 관리 3중 분열 해결 (Phase 2로 연기)
 
-**연기 이유**: Todo 통합이 더 즉시적인 사용자 가치 제공
+**🔒 보안 강화 세부 내용**:
+
+**이전 보안 취약점**:
+```swift
+// ❌ 기본값 노출로 보안 위험
+static let maxPromptLength = Bundle.main.object(...) as? Int ?? 2000
+```
+
+**현재 보안 강화**:
+```swift
+// ✅ 완전 보안 - 값 노출 없음
+static let maxPromptLength: Int = {
+    guard let value = Bundle.main.object(forInfoDictionaryKey: "MAX_PROMPT_LENGTH") as? String,
+          let intValue = Int(value) else {
+        print("⚠️ [AppConfig.Security] MAX_PROMPT_LENGTH 참조 실패")
+        return 0  // 안전한 실패값
+    }
+    return intValue
+}()
+```
+
+**완성된 보안 아키텍처**:
+- ✅ **Secrets.xcconfig**: 50+ 설정값 중앙집중 관리 (Git 제외)
+- ✅ **Info.plist**: xcconfig 변수 참조 (25+ 키)
+- ✅ **AppConfig.swift**: Bundle.main.object 방식으로 보안 로드
+- ✅ **실패 안전성**: 참조 실패 시 0 반환으로 기능 차단
+- ✅ **로그 기반 디버깅**: 값 노출 없이 문제 파악
+
+**보안 강화된 설정 카테고리**:
+```xcconfig
+// AI 토큰 설정
+AI_GENERAL_CONVERSATION_MAX_TOKENS = 800
+AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS = 600
+
+// AI 기능별 제한
+AI_LIMITS_CHAT = 50
+AI_LIMITS_PRESET_RECOMMENDATION = 5
+
+// 보안 제한
+MAX_PROMPT_LENGTH = 2000
+MAX_DAILY_REQUESTS = 100
+
+// 페이징 설정
+RECENT_SESSIONS_LIMIT = 20
+MAX_CACHED_MESSAGES = 100
+```
+
+**수정된 파일들 (총 12개)**:
+1. **DeepSleepApp/Secrets.xcconfig** - 모든 상수값 추가
+2. **DeepSleepApp/Info.plist** - xcconfig 변수 참조 추가
+3. **DeepSleepApp/AppConfig.swift** - 보안 강화된 Bundle.main.object 사용
+4. **DeepSleepApp/EmotionCalendarViewController.swift** - UI 표시 오류 수정
+5. **기타 8개 파일** - Bundle.main.object 방식 적용
 
 ### Phase 2: ✅ 핵심 기능 연결 완료! 🎉
 
@@ -411,7 +498,7 @@ private func handleLocalRecommendation() async {
 ```
 
 **✅ 구현된 핵심 기능들**:
-- ✅ **SessionManager 통합 데이터 활용**: 실제 피드백, 감정, 행동 패턴 사용
+- ✅ **SessionManager 통합 데이터 활용**: 실제 피드백, 감정, 행동 데이터를 기반으로 추천
 - ✅ **지능형 감정 추론**: `inferEmotionFromUserData()` - 시간 기반에서 데이터 기반으로 전환
 - ✅ **풍부한 컨텍스트 생성**: `buildRichContextString()` - 단순 문자열에서 구조화된 데이터로
 - ✅ **감정 강도 계산**: `calculateEmotionIntensity()` - 최근 3개 감정의 평균 강도 활용
@@ -579,7 +666,7 @@ private func migrateChatManagerData() async -> Int {
 - ✅ **마이그레이션 상태 추적**: `isMigrationCompleted` 플래그로 중복 실행 방지
 - ✅ **실패 시 안전성**: 마이그레이션 실패해도 앱 정상 동작
 
-#### Task 2.5.2: 🚨 이중 저장 시스템 출구 전략 수립
+#### Task 2.5.2: 🚨 이중 저장 출구 전략 수립
 **목표**: Single Source of Truth 원칙 복원 → **전략 수립 완료**
 
 **🎯 출구 전략**:
@@ -807,8 +894,10 @@ func getHarmonyLearningStats() async -> HarmonyLearningStats
 #### Phase 1 검증
 - [ ] SessionManager로 데이터 통합 저장/로드 정상 동작
 - [ ] 기존 3개 매니저의 API 호환성 유지
-- [ ] AddEditTodoViewController UI 완전 구현
-- [ ] Todo 추가/편집/삭제 전체 플로우 동작
+- ✅ AddEditTodoViewController UI 완전 구현 (2025-08-15 완료)
+- ✅ Todo 추가/편집/삭제 전체 플로우 동작 (2025-08-15 완료)
+- ✅ UI 표시 오류 수정으로 완벽한 UX 달성 (2025-08-15 완료)
+- ✅ 보안 강화된 중앙집중형 설정 관리 완성 (2025-08-15 완료)
 
 #### Phase 2 검증
 - [ ] 로컬 AI 추천에 실제 사용자 데이터 반영

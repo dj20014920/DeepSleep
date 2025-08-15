@@ -228,11 +228,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         
         sections.append(.insight(insightText))
         
-        // Todo 섹션 추가
+        // Todo 섹션 추가 (항상 표시)
         let todos = todoManager.getTodos(for: date)
-        if !todos.isEmpty {
-            sections.append(.todo(todos))
-        }
+        sections.append(.todo(todos))
         
         collectionView.reloadData()
     }
