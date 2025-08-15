@@ -480,8 +480,8 @@ class UsageAnalyticsViewController: UIViewController {
     
     private func loadAnalyticsData() {
         // SessionManager에서 실제 데이터 로드
-        let sessions = SessionManager.shared.getRecentSessions(limit: 50)
-        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: 50)
+        let sessions = SessionManager.shared.getRecentSessions(limit: AppConfig.Pagination.usageAnalyticsSessionLimit)
+        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: AppConfig.Pagination.usageAnalyticsSessionLimit)
         
         if !sessions.isEmpty {
             analyticsData = createAnalyticsDataFromSessions(sessions, behaviorEvents: behaviorEvents)

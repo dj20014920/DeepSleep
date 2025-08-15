@@ -803,7 +803,7 @@ final class SoundManager {
 
     /// 추천 타입 결정 (SessionManager 통합)
     @MainActor private func determineRecommendationType() -> FeedbackPromptViewController.RecommendationType {
-        let recentFeedback = SessionManager.shared.getRecentFeedback(limit: 5)
+        let recentFeedback = SessionManager.shared.getRecentFeedback(limit: AppConfig.Pagination.recentFeedbackForRecommendationLimit)
 
         // PresetFeedback에 recommendationSource가 없으므로 기본값 사용
         // 추후 모델 업데이트 시 개선 예정

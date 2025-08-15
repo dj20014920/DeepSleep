@@ -124,8 +124,8 @@ public enum EmotionAnalysisServiceError: LocalizedError {
 
 // MARK: - Constants
 public struct EmotionAnalysisServiceConstants {
-    public static let maxRetryAttempts = 3
-    public static let retryDelay: TimeInterval = 1.0
-    public static let maxTokens = 1000
-    public static let temperature = 0.7
+    public static let maxRetryAttempts = AppConfig.Network.maxRetryAttempts
+    public static let retryDelay: TimeInterval = AppConfig.Network.retryDelay
+    public static let maxTokens = AppConfig.AITokens.generalConversationMaxTokens
+    public static let temperature = AppConfig.AITokens.generalConversationTemperature
 } 

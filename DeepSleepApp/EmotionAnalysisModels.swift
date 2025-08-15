@@ -122,10 +122,10 @@ struct EmotionAnalysisConfig {
     let maxTokens: Int
     
     static let `default` = EmotionAnalysisConfig(
-        maxHistoryItems: 50,
-        maxMessageLength: 1000,
-        aiTemperature: 0.7,
-        maxTokens: 1000
+        maxHistoryItems: AppConfig.Pagination.recentMessagesLimit,
+        maxMessageLength: AppConfig.Security.maxPromptLength,
+        aiTemperature: AppConfig.AITokens.generalConversationTemperature,
+        maxTokens: AppConfig.AITokens.generalConversationMaxTokens
     )
 }
 

@@ -86,7 +86,7 @@ class FeedbackVisualizationViewController: UIViewController {
     
     private func loadData() {
         // Load feedback data from the single source of truth
-        feedbackData = SessionManager.shared.getRecentFeedback(limit: 100)
+        feedbackData = SessionManager.shared.getRecentFeedback(limit: AppConfig.Pagination.feedbackVisualizationLimit)
         
         // Generate user profile
         if !feedbackData.isEmpty {
@@ -103,7 +103,7 @@ class FeedbackVisualizationViewController: UIViewController {
         // AI 학습 메트릭 로드
         // UserBehaviorAnalytics is deprecated. We will construct a placeholder profile from SessionManager data.
         // A full implementation would involve a new method in SessionManager to generate this profile.
-        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: 200)
+        let behaviorEvents = SessionManager.shared.getRecentBehaviorEvents(limit: AppConfig.Pagination.behaviorEventsAnalysisLimit)
         
         // Create a placeholder UserBehaviorProfile for now to ensure build succeeds.
         let behaviorProfile = UserBehaviorProfile(

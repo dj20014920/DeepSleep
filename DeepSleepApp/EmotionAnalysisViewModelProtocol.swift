@@ -66,9 +66,9 @@ public enum EmotionAnalysisViewModelError: LocalizedError {
 
 // MARK: - Constants
 public struct EmotionAnalysisViewModelConstants {
-    public static let maxRetryAttempts = 3
-    public static let retryDelay: TimeInterval = 1.0
-    public static let maxMessageLength = 1000
+    public static let maxRetryAttempts = AppConfig.Network.maxRetryAttempts
+    public static let retryDelay: TimeInterval = AppConfig.Network.retryDelay
+    public static let maxMessageLength = AppConfig.Security.maxPromptLength
     public static let maxHistoryItems = 50
 }
 

@@ -56,19 +56,44 @@ public enum AIMode: String, CaseIterable, Codable {
     var recommendedTokenConfig: TokenConfiguration {
         switch self {
         case .generalConversation:
-            return TokenConfiguration(maxTokens: 150, temperature: 0.7)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_GENERAL_CONVERSATION_MAX_TOKENS") as? Int ?? 800,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_GENERAL_CONVERSATION_TEMPERATURE") as? Double ?? 0.7
+            )
         case .emotionDiaryAnalysis:
-            return TokenConfiguration(maxTokens: 200, temperature: 0.6, responseFormat: .text)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS") as? Int ?? 600,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_EMOTION_DIARY_ANALYSIS_TEMPERATURE") as? Double ?? 0.6,
+                responseFormat: .text
+            )
         case .taskAdvice:
-            return TokenConfiguration(maxTokens: 180, temperature: 0.5)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_TASK_ADVICE_MAX_TOKENS") as? Int ?? 500,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_TASK_ADVICE_TEMPERATURE") as? Double ?? 0.5
+            )
         case .presetRecommendation:
-            return TokenConfiguration(maxTokens: 100, temperature: 0.4, responseFormat: .json)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_PRESET_RECOMMENDATION_MAX_TOKENS") as? Int ?? 300,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_PRESET_RECOMMENDATION_TEMPERATURE") as? Double ?? 0.4,
+                responseFormat: .json
+            )
         case .monthlyStatistics:
-            return TokenConfiguration(maxTokens: 250, temperature: 0.3, responseFormat: .json)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_MONTHLY_STATISTICS_MAX_TOKENS") as? Int ?? 600,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_MONTHLY_STATISTICS_TEMPERATURE") as? Double ?? 0.3,
+                responseFormat: .json
+            )
         case .fortuneTelling:
-            return TokenConfiguration(maxTokens: 120, temperature: 0.8)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_FORTUNE_TELLING_MAX_TOKENS") as? Int ?? 400,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_FORTUNE_TELLING_TEMPERATURE") as? Double ?? 0.8
+            )
         case .emotionAnalysis:
-            return TokenConfiguration(maxTokens: 120, temperature: 0.4, responseFormat: .json)
+            return TokenConfiguration(
+                maxTokens: Bundle.main.object(forInfoDictionaryKey: "AI_EMOTION_ANALYSIS_MAX_TOKENS") as? Int ?? 300,
+                temperature: Bundle.main.object(forInfoDictionaryKey: "AI_EMOTION_ANALYSIS_TEMPERATURE") as? Double ?? 0.4,
+                responseFormat: .json
+            )
         }
     }
 }

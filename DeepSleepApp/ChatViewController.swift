@@ -240,9 +240,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         // 비동기 작업으로 AI 서비스 호출
         Task {
             do {
+                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
-                    model: .claude,
+                    model: selectedModel,
                     context: nil
                 )
                 
@@ -465,9 +466,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         
         Task {
             do {
+                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
                 let response = try await SessionManager.shared.sendMessage(
                     content: diary.content,
-                    model: .claude,
+                    model: selectedModel,
                     context: "감정 일기 분석"
                 )
                 
@@ -522,9 +524,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
                 let aiMode = determineAIModeFromContext()
                 print("🎯 [ChatViewController] 현재 컨텍스트: '\(chatContext.displayName)' → AI 모드: \(aiMode.rawValue)")
                 
+                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
-                    model: .claude,
+                    model: selectedModel,
                     context: nil
                 )
                 
@@ -843,6 +846,26 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
     }
     
     // MARK: - 🎯 유틸리티 함수들 (통합)
+    
+    /// AIModelType을 AIModel로 변환
+    private func mapAIModelTypeToAIModel(_ modelType: AIModelType) -> AIModel {
+        switch modelType {
+        case .claude35:
+            return .claude
+        case .gpt4:
+            return .openAI
+        case .gemini:
+            return .gemini
+        case .naver:
+            return .naver
+        case .onDevice:
+            return .freeModel
+        case .freeModel:
+            return .freeModel
+        case .testModel:
+            return .freeModel
+        }
+    }
     
     // Note: These functions moved to CompilerFixStubs.swift to avoid duplication
     
@@ -2693,9 +2716,10 @@ extension ChatViewController {
             do {
                 // 🚀 SessionManager의 통합 AI 서비스 사용
                 let prompt = "다음은 나의 최근 30일간의 감정 데이터야. 이걸 보고 나의 감정 패턴을 분석하고 조언해줘.\n\n\(emotionData)"
+                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: prompt,
-                    model: .claude,
+                    model: selectedModel,
                     context: "감정 패턴 분석"
                 )
                 handleAIResponse(responseContent)
@@ -2721,9 +2745,10 @@ extension ChatViewController {
                 let diaryContent = "감정: \(diaryData.emotion), 내용: 일기 분석 요청"
                 
                 // 🚀 SessionManager의 통합 AI 서비스 사용
+                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: diaryContent,
-                    model: .claude,
+                    model: selectedModel,
                     context: "감정 일기 요약"
                 )
                 handleAIResponse(responseContent)
@@ -4354,7 +4379,7 @@ extension ChatViewController: ModelSwitchingDelegate {
     /// 🔄 모델 선택 버튼 업데이트
     private func updateModelSelectorButton() {
         // TODO: 임시 주석 처리
-        let currentModel = AIModelType.claude35 // modelSwitchingManager.currentModel
+        let currentModel = SettingsManager.shared.selectedLLM // 사용자가 선택한 모델 사용
         
         modelSelectorButton.setTitle("🤖 \(currentModel.displayName)", for: .normal)
         modelSelectorButton.backgroundColor = .systemBlue.withAlphaComponent(0.1)
@@ -4377,6 +4402,15 @@ extension ChatViewController: ModelSwitchingDelegate {
         case .onDevice:
             modelSelectorButton.setTitleColor(.systemPurple, for: .normal)
             modelSelectorButton.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
+        case .freeModel:
+            modelSelectorButton.setTitleColor(.systemTeal, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemTeal.cgColor
+        case .naver:
+            modelSelectorButton.setTitleColor(.systemRed, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemRed.cgColor
+        case .testModel:
+            modelSelectorButton.setTitleColor(.systemGray, for: .normal)
+            modelSelectorButton.layer.borderColor = UIColor.systemGray.cgColor
         }
     }
     
@@ -4394,17 +4428,20 @@ extension ChatViewController: ModelSwitchingDelegate {
         )
         
         // 각 모델에 대한 액션 추가
-        for modelType in [AIModelType.claude35, .gpt4, .gemini, .onDevice] {
-            // TODO: 임시 주석 처리
-            // let characteristics = modelSwitchingManager.getModelCharacteristics(modelType)
-            let isCurrentModel = false // modelType == modelSwitchingManager.currentModel
+        for modelType in [AIModelType.claude35, .gpt4, .gemini, .freeModel] {
+            let isCurrentModel = modelType == SettingsManager.shared.selectedLLM // 현재 선택된 모델과 비교
             
+            let modelName = modelType.displayName
             let action = UIAlertAction(
-                title: "\(characteristics.name)\(isCurrentModel ? " ✓" : "")",
+                title: "\(modelName)\(isCurrentModel ? " ✓" : "")",
                 style: isCurrentModel ? .cancel : .default
             ) { _ in
-                Task {
-                    await self.switchToModel(modelType)
+                // 모델 선택 저장
+                SettingsManager.shared.selectedLLM = modelType
+                
+                // UI 업데이트
+                DispatchQueue.main.async {
+                    self.updateModelSelectorButton()
                 }
             }
             
@@ -4460,7 +4497,7 @@ extension ChatViewController: ModelSwitchingDelegate {
                 type: mapToContextMessageType(message.type),
                 importance: calculateMessageImportance(message),
                 detectedEmotion: extractEmotionFromMessage(message),
-                modelUsed: .claude35 // modelSwitchingManager.currentModel
+                modelUsed: SettingsManager.shared.selectedLLM // 실제 사용된 모델
             )
             
             // TODO: 임시 주석 처리
@@ -4480,7 +4517,7 @@ extension ChatViewController: ModelSwitchingDelegate {
                 type: mapToContextMessageType(message.type),
                 importance: calculateMessageImportance(message),
                 detectedEmotion: extractEmotionFromMessage(message),
-                modelUsed: .claude35 // modelSwitchingManager.currentModel
+                modelUsed: SettingsManager.shared.selectedLLM // 실제 사용된 모델
             )
             
             // TODO: 임시 주석 처리

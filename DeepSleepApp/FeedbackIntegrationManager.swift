@@ -53,7 +53,7 @@ class FeedbackIntegrationManager: ObservableObject {
             print("🧠 [FeedbackIntegration] 증분 학습 시작...")
             
             // 1. 최근 피드백 데이터 수집
-            let recentSessions = sessionManager.getRecentSessions(limit: 50)
+            let recentSessions = sessionManager.getRecentSessions(limit: AppConfig.Pagination.feedbackIntegrationSessionLimit)
             let recentFeedback = recentSessions.flatMap { $0.feedbackData }
             
             // 2. 사용자 프로필 업데이트
@@ -210,7 +210,7 @@ class FeedbackIntegrationManager: ObservableObject {
     /// 학습 상태 조회
     @MainActor
     func getLearningStatus() async -> LearningStatus {
-        let recentSessions = sessionManager.getRecentSessions(limit: 10)
+        let recentSessions = sessionManager.getRecentSessions(limit: AppConfig.Pagination.learningStatusSessionLimit)
         let recentFeedbackCount = recentSessions.flatMap { $0.feedbackData }.count
         let allFeedback = recentSessions.flatMap { $0.feedbackData }
         let averageSatisfaction = allFeedback.isEmpty ? 0.0 : Float(allFeedback.map { $0.userSatisfaction }.reduce(0, +)) / Float(allFeedback.count)
@@ -227,7 +227,7 @@ class FeedbackIntegrationManager: ObservableObject {
     /// 현재 사용자 프로필 조회
     @MainActor
     func getCurrentUserProfile() async -> UserProfileVector? {
-        let recentSessions = sessionManager.getRecentSessions(limit: 50)
+        let recentSessions = sessionManager.getRecentSessions(limit: AppConfig.Pagination.userProfileSessionLimit)
         let recentFeedback = recentSessions.flatMap { $0.feedbackData }
         guard !recentFeedback.isEmpty else { return nil }
         
@@ -237,7 +237,7 @@ class FeedbackIntegrationManager: ObservableObject {
     /// 피드백 시각화 데이터 생성
     @MainActor
     func generateVisualizationData() async -> FeedbackVisualizationData {
-        let recentSessions = sessionManager.getRecentSessions(limit: 100)
+        let recentSessions = sessionManager.getRecentSessions(limit: AppConfig.Pagination.visualizationDataSessionLimit)
         let recentFeedback = recentSessions.flatMap { $0.feedbackData }
         let userProfile = await getCurrentUserProfile()
         
@@ -308,7 +308,7 @@ class FeedbackIntegrationManager: ObservableObject {
     }
     
     private func generateLearningProgress() async -> AILearningMetrics {
-        let recentSessions = sessionManager.getRecentSessions(limit: 50)
+        let recentSessions = sessionManager.getRecentSessions(limit: AppConfig.Pagination.learningProgressSessionLimit)
         let recentFeedback = recentSessions.flatMap { $0.feedbackData }
         let accuracy = calculateRecommendationAccuracy(from: recentFeedback)
         let averageSatisfaction = recentFeedback.isEmpty ? 0.0 : Float(recentFeedback.map { $0.userSatisfaction }.reduce(0, +)) / Float(recentFeedback.count)

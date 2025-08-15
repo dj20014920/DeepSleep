@@ -658,8 +658,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         switch model {
         case .claude:
             // Claude는 길고 상세한 답변에 강함
+            let claudeBonus = Bundle.main.object(forInfoDictionaryKey: "AI_CLAUDE_MAX_TOKENS_BONUS") as? Int ?? 100
+            let claudeLimit = Bundle.main.object(forInfoDictionaryKey: "AI_CLAUDE_MAX_TOKENS_LIMIT") as? Int ?? 1000
             optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens + 50, 300),  // 최대 50토큰 추가
+                maxTokens: min(config.maxTokens + claudeBonus, claudeLimit),
                 temperature: config.temperature,
                 topP: config.topP,
                 frequencyPenalty: config.frequencyPenalty,
@@ -669,10 +671,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .openAI:
             // OpenAI는 구조화된 출력에 강함
+            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_OPENAI_TEMPERATURE_ADJUSTMENT") as? Double ?? -0.1
+            let topP = Bundle.main.object(forInfoDictionaryKey: "AI_OPENAI_TOP_P") as? Double ?? 0.9
             optimizedConfig = TokenConfiguration(
                 maxTokens: config.maxTokens,
-                temperature: max(config.temperature - 0.1, 0.0),  // 더 일관된 출력
-                topP: 0.9,  // 더 집중된 응답
+                temperature: max(config.temperature + tempAdjustment, 0.0),  // 더 일관된 출력
+                topP: topP,  // 더 집중된 응답
                 frequencyPenalty: config.frequencyPenalty ?? 0.0,
                 presencePenalty: config.presencePenalty ?? 0.0,
                 responseFormat: config.responseFormat
@@ -680,9 +684,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .gemini:
             // Gemini는 빠르고 효율적인 응답에 강함
+            let geminiLimit = Bundle.main.object(forInfoDictionaryKey: "AI_GEMINI_MAX_TOKENS_LIMIT") as? Int ?? 800
+            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_GEMINI_TEMPERATURE_ADJUSTMENT") as? Double ?? 0.1
             optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens, 200),  // 간결한 답변 유도
-                temperature: config.temperature + 0.1,  // 약간 더 창의적
+                maxTokens: min(config.maxTokens, geminiLimit),  // 간결한 답변 유도하되 충분한 길이 허용
+                temperature: config.temperature + tempAdjustment,  // 약간 더 창의적
                 topP: config.topP,
                 frequencyPenalty: config.frequencyPenalty,
                 presencePenalty: config.presencePenalty,
@@ -691,19 +697,24 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .naver:
             // Naver는 한국어에 특화됨
+            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_NAVER_TEMPERATURE_ADJUSTMENT") as? Double ?? 0.05
+            let topP = Bundle.main.object(forInfoDictionaryKey: "AI_NAVER_TOP_P") as? Double ?? 0.85
             optimizedConfig = TokenConfiguration(
                 maxTokens: config.maxTokens,
-                temperature: config.temperature + 0.05,  // 살짝 더 자연스럽게
-                topP: config.topP ?? 0.85,  // 한국어 특성 반영
+                temperature: config.temperature + tempAdjustment,  // 살짝 더 자연스럽게
+                topP: config.topP ?? topP,  // 한국어 특성 반영
                 frequencyPenalty: config.frequencyPenalty,
                 presencePenalty: config.presencePenalty,
                 responseFormat: config.responseFormat
             )
         case .freeModel:
             // 통합 무료 모델은 안정적 JSON/텍스트 위주로 보수적으로 설정
+            let freeModelLimit = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_MAX_TOKENS_LIMIT") as? Int ?? 600
+            let tempMin = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_TEMPERATURE_MIN") as? Double ?? 0.2
+            let tempMax = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_TEMPERATURE_MAX") as? Double ?? 0.6
             optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens, 180),
-                temperature: min(max(config.temperature, 0.2), 0.6),
+                maxTokens: min(config.maxTokens, freeModelLimit),  // 무료 모델도 충분한 길이 허용
+                temperature: min(max(config.temperature, tempMin), tempMax),
                 topP: config.topP ?? 0.9,
                 frequencyPenalty: config.frequencyPenalty ?? 0.0,
                 presencePenalty: config.presencePenalty ?? 0.0,
@@ -715,9 +726,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         switch mode {
         case .emotionAnalysis, .presetRecommendation:
             // JSON 출력이 필요한 모드
+            let jsonTempMax = Bundle.main.object(forInfoDictionaryKey: "AI_JSON_MODE_TEMPERATURE_MAX") as? Double ?? 0.3
             optimizedConfig = TokenConfiguration(
                 maxTokens: optimizedConfig.maxTokens,
-                temperature: min(optimizedConfig.temperature, 0.3),  // 더 정확한 출력
+                temperature: min(optimizedConfig.temperature, jsonTempMax),  // 더 정확한 출력
                 topP: optimizedConfig.topP,
                 frequencyPenalty: optimizedConfig.frequencyPenalty,
                 presencePenalty: optimizedConfig.presencePenalty,
@@ -726,9 +738,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             
         case .fortuneTelling:
             // 창의적인 답변이 필요한 모드  
+            let creativeTempBonus = Bundle.main.object(forInfoDictionaryKey: "AI_CREATIVE_MODE_TEMPERATURE_BONUS") as? Double ?? 0.2
+            let creativeTempMax = Bundle.main.object(forInfoDictionaryKey: "AI_CREATIVE_MODE_TEMPERATURE_MAX") as? Double ?? 1.0
             optimizedConfig = TokenConfiguration(
                 maxTokens: optimizedConfig.maxTokens,
-                temperature: min(optimizedConfig.temperature + 0.2, 1.0),  // 더 창의적
+                temperature: min(optimizedConfig.temperature + creativeTempBonus, creativeTempMax),  // 더 창의적
                 topP: optimizedConfig.topP,
                 frequencyPenalty: optimizedConfig.frequencyPenalty,
                 presencePenalty: optimizedConfig.presencePenalty,

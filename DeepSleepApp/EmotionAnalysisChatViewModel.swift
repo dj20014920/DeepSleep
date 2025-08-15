@@ -286,7 +286,7 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
 // MARK: - Constants
 private extension EmotionAnalysisChatViewModel {
     enum Constants {
-        static let maxRetryAttempts = 3
-        static let retryDelay: TimeInterval = 1.0
+        static let maxRetryAttempts = AppConfig.Network.maxRetryAttempts
+        static let retryDelay: TimeInterval = AppConfig.Network.retryDelay
     }
 } 

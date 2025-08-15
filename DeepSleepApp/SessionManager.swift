@@ -486,7 +486,7 @@ public class SessionManager {
     /// ChatManager 호환성: 최근 메시지 조회 (성능 최적화)
     public func getRecentChatMessages(limit: Int = 100) -> [StoredChatMessage] {
         let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)] // 오래된 메시지가 먼저 (채팅 순서)
         request.fetchLimit = limit
         
         // 성능 최적화: 세션 관계 미리 페칭
@@ -663,7 +663,7 @@ public class SessionManager {
     
     /// 로컬 AI 추천을 위한 풍부한 컨텍스트 생성
     public func buildRichContextForLocalAI() -> LocalAIContext {
-        let recentSessions = getRecentSessions(limit: 20)
+        let recentSessions = getRecentSessions(limit: AppConfig.Pagination.richContextSessionLimit)
         
         // 1. 피드백 데이터 추출
         let feedbackData = recentSessions.flatMap { $0.feedbackData }

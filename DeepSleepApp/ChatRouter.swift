@@ -76,7 +76,7 @@ enum ChatRouter {
 extension ChatRouter {
     static func debugInfo() -> String {
         let hasCache = false // 캐시 제거로 인해 항상 false
-        let messageCount = SessionManager.shared.getRecentChatMessages(limit: 100).count
+        let messageCount = SessionManager.shared.getRecentChatMessages(limit: AppConfig.Pagination.recentMessagesLimit).count
         
         return """
         🔍 [ChatRouter 디버그 정보]
