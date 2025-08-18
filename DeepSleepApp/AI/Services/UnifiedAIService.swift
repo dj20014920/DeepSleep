@@ -18,8 +18,9 @@ public protocol UnifiedAIService {
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration?
-    ) async throws -> AIResponse
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String?
+) async throws -> AIResponse
     
     /// 스트리밍 응답을 위한 메시지 전송
     func sendMessageStream(

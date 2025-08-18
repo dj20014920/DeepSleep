@@ -44,8 +44,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     ) -> Bool {
         
         // 🔍 원격 로깅 시작
-        UnifiedLogger.shared.info("앱 시작됨 - \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")", category: .appLifecycle)
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        UnifiedLogger.shared.info("앱 시작됨 - \(currentVersion)", category: .appLifecycle)
         UnifiedLogger.shared.logMemoryUsage("앱 시작 시")
+        
+        // 🧹 앱 버전 변경 감지 시 시스템 프롬프트 캐시 무효화 (8/18 정책)
+        let lastSeenKey = "app_version_last_seen"
+        let lastSeenVersion = UserDefaults.standard.string(forKey: lastSeenKey)
+        if lastSeenVersion == nil || lastSeenVersion != currentVersion {
+            AIContextManager.shared.clearCache(reason: .appVersionUpdated, caller: "AppDelegate")
+            UserDefaults.standard.set(currentVersion, forKey: lastSeenKey)
+            UnifiedLogger.shared.info("앱 버전 변경 감지 → 캐시 무효화 수행", category: .appLifecycle)
+        }
         
         // 🔐 API 키 보안 검증 실행
         EnvironmentConfig.shared.performSecurityCheck()

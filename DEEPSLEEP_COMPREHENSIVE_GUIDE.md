@@ -171,6 +171,11 @@
 
 *더 상세한 기술적 구현 계획 및 작업 지시는 `AI_CONTEXT_MANAGEMENT_ROADMAP.md` 문서를 참조하십시오.*
 
+> 중요 정정: 해시와 컨텍스트의 역할 완전 분리 (2025-08-18 최종)
+- 페르소나 시그니처 해시(Persona Signature Hash)는 캐시/무효화용 내부 식별자이며 외부 AI로는 전혀 전송되지 않습니다.
+- 외부 AI에 제공되는 것은 온디바이스 PII 필터링을 거친 ‘비식별 서술형 컨텍스트’입니다(예: “이 사용자는 30대이며 차분한 톤을 선호합니다”).
+- 왜 이렇게 하나요? 해시는 AI가 의미를 해석할 수 없기 때문입니다. 개인화는 의미 있는 서술형 정보로만 가능합니다. 본 가이드는 이 원칙을 전제합니다.
+
 ---
 
 ---
@@ -1742,6 +1747,43 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 *Todo 통합 상태: ✅ 100% 완성*  
 *보안 강화 상태: ✅ 100% 완성*  
 *빌드 상태: ✅ BUILD SUCCEEDED*
+
+---
+
+## 🆕 2025-08-18 빌드 안정화 패치 요약 (컴파일 오류 전면 해소)
+
+이번 스프린트에서 다음과 같은 핵심 빌드 안정화 작업을 수행하여 iPhone 16 Pro 시뮬레이터 대상 Debug 구성에서 BUILD SUCCEEDED를 달성했습니다.
+
+1) 중복 타입 선언/문법 오류 정리
+- AI/Context/ContextMetrics.swift: 중복 선언 및 문법 오류 제거
+- AI/Optimization/TokenOptimizer.swift: 중복 블록 제거 및 구문 수정
+- AI/Memory/MemoryManager.swift: 중복 enum( MemoryTier ), struct( CoreMemory ), class( MemoryManager ) 선언 정리 및 단일 정의로 통합
+
+2) 잘못된 API 사용 수정
+- UserBasicInfoViewController.swift: AIContextManager.shared.clearCache 호출에 누락된 매개변수 보완
+  - 수정: clearCache(reason: .personaChanged, caller: "UserBasicInfo")
+- DailySummaryViewController.swift: 존재하지 않는 AIMode.dailySummary 사용을 AIMode.generalConversation으로 대체
+
+3) UnifiedAIServiceImpl.swift 품질 개선 및 문법 오류 정정
+- 잘못된 하이픈(-)을 화살표 연산자(->)로 교정하여 함수 시그니처 컴파일 오류 제거
+- 누락된 assembledPrompt 전달 보완, attemptFallback 시그니처 정합화
+- AIMode 케이스 명칭 일원화: 예) .diaryAnalysis → .emotionDiaryAnalysis, .todoAdvice → .taskAdvice, .fortune → .fortuneTelling, .monthlyReport → .monthlyStatistics 등
+
+4) 빌드 결과
+- 다수 경고는 잔존하나, 컴파일 차원의 Blocking Error는 제거됨
+- 대상: platform=iOS Simulator, name=iPhone 16 Pro, OS=latest
+
+5) 후속 권장 작업(경고 정리 및 안정성 향상)
+- 약한(weak) IBOutlet에 강한 인스턴스를 대입하는 코드 정리 (FeedbackVisualizationViewController)
+- 불필요한 #available 체크 제거, 도달 불가 분기/기본절 return 미사용 변수 정리
+- Swift 6 모드에서의 동시성 관련 캡쳐 변수 경고 정리(ZeroTokenAPIChecker 등)
+- UsageLimitManager, ChatRouter 등 경고 다건 파일 순차 정리
+
+6) 정책/설계 정합성 확인
+- AIMode는 AI/Services/AIServiceTypes.swift 내 케이스를 단일 진실의 원천으로 유지하며, 신규 모드 추가 시 본 enum만 갱신하도록 표준화
+- AIContextManager의 캐시 유효시간(TTL)은 3시간으로 일원화 (문서/코드 동기화)
+
+해당 변경으로 전체 빌드 파이프라인이 정상화되었으며, 이후에는 경고 정리 및 테스트 자동화 보강을 권장합니다.
 
 ---
 

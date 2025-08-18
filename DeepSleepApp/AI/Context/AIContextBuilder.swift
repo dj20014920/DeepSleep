@@ -1,5 +1,4 @@
 import Foundation
-import Foundation
 
 public struct AssembledPrompt {
     public let text: String
@@ -27,13 +26,13 @@ public final class AIContextBuilder {
 
     private init() {}
 
-    public func buildPrompt(for mode: AIContextMode,
+    public func buildPrompt(for mode: AIMode,
                             personaSignature: String,
                             recentMessages: [ChatMessageLite],
                             coreMemorySummary: String?,
                             currentUserMessage: String) -> AssembledPrompt {
 
-        // 1) 시스템 프롬프트 (캐시)
+// 1) 시스템 프롬프트 (캐시)
         let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: personaSignature) {
             self.generateDefaultSystemPrompt(mode: mode)
         }
@@ -94,119 +93,13 @@ public final class AIContextBuilder {
     }
 
     // 기본 시스템 프롬프트(PII 노출 방지: 페르소나 시그니처 원문 미포함)
-    private func generateDefaultSystemPrompt(mode: AIContextMode) -> String {
+    private func generateDefaultSystemPrompt(mode: AIMode) -> String {
         """
         당신은 DeepSleep 앱의 수면 도우미입니다.
         - 한국어로 간결하고 친절하게 답변하세요.
         - JSON이 필요한 경우, 올바른 스키마와 이스케이프를 준수하세요.
         - 개인정보를 요구하거나 저장하지 마세요.
         - 현재 모드: \(mode.rawValue)
-        - 안전/윤리 가이드를 준수하세요.
-        """
-    }
-}
-public struct AssembledPrompt {
-    public let text: String
-    public let qualityScore: Int
-    public let tokenEstimate: Int
-    public let segmentsIncluded: [String]
-}
-
-public struct ChatMessageLite: Codable {
-    public let role: String   // "user" | "assistant" | "system"
-    public let content: String
-    public let createdAt: Date
-
-    public init(role: String, content: String, createdAt: Date = Date()) {
-        self.role = role
-        self.content = content
-        self.createdAt = createdAt
-    }
-}
-
-public final class AIContextBuilder {
-    public static let shared = AIContextBuilder()
-    private let optimizer = TokenOptimizer.shared
-    private let metrics = ContextMetrics.shared
-
-    private init() {}
-
-    public func buildPrompt(for mode: AIMode,
-                            personaSignature: String,
-                            recentMessages: [ChatMessageLite],
-                            coreMemorySummary: String?,
-                            currentUserMessage: String) -> AssembledPrompt {
-
-        // 1) 시스템 프롬프트 (캐시)
-        let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: personaSignature) {
-            self.generateDefaultSystemPrompt(personaSignature: personaSignature, mode: mode)
-        }
-
-        // 2) 핵심 기억 요약
-        let memoryBlock: String? = {
-            guard let s = coreMemorySummary, s.isEmpty == false else { return nil }
-            return "## 핵심기억 요약\n\(s)"
-        }()
-
-        // 3) 최근 n턴(본문만)
-        let recentPlain: [String] = recentMessages.map { "\($0.role): \($0.content)" }
-
-        // 4) 토큰 예산
-        let budget = optimizer.maxTokens(for: mode)
-        let memoryText = memoryBlock ?? ""
-        let fit = optimizer.fitRecentMessages(systemPrompt: systemPrompt,
-                                              memories: memoryBlock,
-                                              recentMessages: recentPlain,
-                                              userInput: currentUserMessage,
-                                              budget: budget)
-
-        // 포함된 최근 대화만 사용
-        let includedRecent = fit.included.joined(separator: "\n")
-
-        // 5) 최종 프롬프트 조립
-        var parts: [String] = []
-        parts.append("### System\n\(systemPrompt)")
-        if let mem = memoryBlock {
-            parts.append("### Memory\n\(mem)")
-        }
-        if !includedRecent.isEmpty {
-            parts.append("### Recent\n\(includedRecent)")
-        }
-        parts.append("### User\n\(currentUserMessage)")
-        let final = parts.joined(separator: "\n\n")
-
-        // 6) 품질 점수(간단한 휴리스틱)
-        var quality = 0
-        if !systemPrompt.isEmpty { quality += 40 }
-        if memoryBlock != nil { quality += 20 }
-        quality += min(30, fit.included.count * 3) // 최근 메시지 포함 수에 비례
-        quality += 10 // 현재 입력 존재
-        quality = min(100, quality)
-
-        let estimate = optimizer.estimateTokens(for: final)
-        metrics.logQualityScore(quality)
-        metrics.logTokenEstimate(estimate)
-
-        return AssembledPrompt(text: final,
-                               qualityScore: quality,
-                               tokenEstimate: estimate,
-                               segmentsIncluded: [
-                                   "system",
-                                   memoryBlock == nil ? "memory:none" : "memory:summary",
-                                   "recent:\(fit.included.count)",
-                                   "user:1"
-                               ])
-    }
-
-    // 필요시 교체 가능한 기본 시스템 프롬프트
-    private func generateDefaultSystemPrompt(personaSignature: String, mode: AIMode) -> String {
-        """
-        당신은 DeepSleep 앱의 수면 도우미입니다.
-        - 한국어로 간결하고 친절하게 답변하세요.
-        - JSON이 필요한 경우, 올바른 스키마와 이스케이프를 준수하세요.
-        - 개인정보를 요구하거나 저장하지 마세요.
-        - 현재 모드: \(mode.rawValue)
-        - 페르소나 시그니처: \(personaSignature)
         - 안전/윤리 가이드를 준수하세요.
         """
     }

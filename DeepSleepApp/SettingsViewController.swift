@@ -235,6 +235,10 @@ class SettingsViewController: UIViewController {
         SettingsManager.shared.selectedLLM = selectedAIModel
         userInfo.saveToUserDefaults()
         
+        // 이벤트 기반 캐시 무효화 (8/18 정책)
+        AIContextManager.shared.clearCache(reason: .personaChanged, caller: "SettingsVC.save")
+        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsVC.save")
+        
         // 저장 완료 알림
         showSaveConfirmation()
     }
@@ -263,6 +267,8 @@ extension SettingsViewController {
             self?.selectedAIModel = selectedModel
             SettingsManager.shared.selectedLLM = selectedModel
             self?.updateAIModelDisplay()
+            // 모델 변경 시 캐시 무효화
+            AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsVC.modelSelect")
         }
         
         let navController = UINavigationController(rootViewController: modelSelectionVC)
@@ -274,6 +280,8 @@ extension SettingsViewController {
         basicInfoVC.userInfo = userInfo
         basicInfoVC.onInfoUpdated = { [weak self] updatedInfo in
             self?.userInfo = updatedInfo
+            // 페르소나/기본 정보 변경 시 캐시 무효화
+            AIContextManager.shared.clearCache(reason: .personaChanged, caller: "SettingsVC.userInfo")
         }
         navigationController?.pushViewController(basicInfoVC, animated: true)
     }

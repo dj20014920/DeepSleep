@@ -136,8 +136,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration?
-    ) async throws -> AIResponse {
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String? = nil
+) async throws -> AIResponse {
         
         // 1. 보안 검증
         let validationResult = securityManager.validateAndSanitizeInput(content, userId: context?.userId ?? "unknown")
@@ -147,9 +148,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             throw AIServiceError.unauthorized
         case .flagged(let reason, let cleanInput):
             print("⚠️ [UnifiedAIService] 입력이 플래그됨: \(reason)")
-            return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig)
+return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig, assembledPrompt)
         case .approved(let cleanInput):
-            return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig)
+            return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig, assembledPrompt)
         }
     }
     
@@ -159,8 +160,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         _ model: AIModel,
         _ mode: AIMode,
         _ context: AIContext?,
-        _ tokenConfig: TokenConfiguration?
-    ) async throws -> AIResponse {
+        _ tokenConfig: TokenConfiguration?,
+        _ assembledPrompt: String?
+) async throws -> AIResponse {
         
         let startTime = Date()
         let selectedModel = getSelectedModel(preferredModel: model)
@@ -181,7 +183,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 model: finalModel,
                 mode: mode,
                 context: context,
-                tokenConfig: optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: finalModel, mode: mode)
+                tokenConfig: optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: finalModel, mode: mode),
+                assembledPrompt: assembledPrompt
             )
             
             // 출력 보안 검증
@@ -191,7 +194,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             case .blocked(let reason):
                 print("🚫 [UnifiedAIService] 출력이 차단됨: \(reason)")
                 // fallback 시도
-                return try await attemptFallback(content, originalModel: finalModel, mode: mode, context: context, tokenConfig: tokenConfig)
+                return try await attemptFallback(content, originalModel: finalModel, mode: mode, context: context, tokenConfig: tokenConfig, assembledPrompt: assembledPrompt)
                 
             case .approved:
                 let processingTime = Date().timeIntervalSince(startTime)
@@ -203,7 +206,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             print("❌ [UnifiedAIService] \(finalModel.rawValue) 실패: \(error.localizedDescription)")
             
             // fallback 시도
-            return try await attemptFallback(content, originalModel: finalModel, mode: mode, context: context, tokenConfig: tokenConfig)
+            return try await attemptFallback(content, originalModel: finalModel, mode: mode, context: context, tokenConfig: tokenConfig, assembledPrompt: assembledPrompt)
         }
     }
     
@@ -214,36 +217,41 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration
-    ) async throws -> AIResponse {
+        tokenConfig: TokenConfiguration,
+        assembledPrompt: String?
+) async throws -> AIResponse {
         
         // 🎨 모드별 맞춤형 시스템 프롬프트 생성
-        let systemPrompt = generateOptimizedSystemPrompt(for: mode, model: model)
+        let systemPrompt = assembledPrompt == nil ? generateOptimizedSystemPrompt(for: mode, model: model) : ""
         
         switch model {
         case .claude:
             guard let service = claudeService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            let body = assembledPrompt ?? content
+            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
         case .openAI:
             guard let service = openAIService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            let body = assembledPrompt ?? content
+            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
         case .gemini:
             guard let service = geminiService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            let body = assembledPrompt ?? content
+            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
         case .naver:
             guard let service = naverService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            return try await service.sendMessage(content: content, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            let body = assembledPrompt ?? content
+            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
             
         case .freeModel:
             print("🎁 [UnifiedAIService] 무료 모델 폴백 시스템 호출 - 모드: \(mode)")
@@ -252,8 +260,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 print("❌ [UnifiedAIService] freeModelService가 nil입니다!")
                 throw AIServiceError.modelUnavailable(model: model)
             }
+            let body = assembledPrompt ?? "\(systemPrompt)\n\n사용자: \(content)"
             let response = try await freeService.sendMessageWithFallback(
-                content: "\(systemPrompt)\n\n사용자: \(content)",
+                content: body,
                 mode: mode
             )
             
@@ -289,7 +298,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         originalModel: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration?
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String?
     ) async throws -> AIResponse {
         
         // 원본 모델을 제외한 fallback 순서 생성
@@ -312,7 +322,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     model: fallbackModel,
                     mode: mode,
                     context: context,
-                    tokenConfig: tokenConfig ?? mode.recommendedTokenConfig
+                    tokenConfig: tokenConfig ?? mode.recommendedTokenConfig,
+                    assembledPrompt: assembledPrompt
                 )
                 
                 // fallback 성공 알림 ([] 형식으로 구분)
@@ -487,17 +498,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // MARK: - 🎯 누락된 핵심 함수들 구현
     
     /// 모드별 최적 AI 모델 추천
-    private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 모드별 AI 모델 매핑 (특정 모드는 최적 모델 사용, 일반 대화는 사용자 설정 따름)
+private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
+        // 모드별 AI 모델 매핑 (특정 모드는 최적 모델 사용, 일반 대화는 사용자 설정 존중)
         let optimalModelMapping: [AIMode: AIModel] = [
-            // DeepSleep 앱의 주요 기능별 최적 모델
-            .generalConversation: userPreferred,                                               // 일반 대화: 사용자 설정 존중
-            .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,   // 감정 일기 분석: Claude (깊은 공감)
-            .taskAdvice: availableModels.contains(.gemini) ? .gemini : .freeModel,            // 할일 조언: Gemini (빠른 응답)
-            .presetRecommendation: availableModels.contains(.openAI) ? .openAI : .freeModel,   // 프리셋 추천: OpenAI (JSON 생성)
-            .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,     // 월간 통계: Gemini (데이터 분석)
-            .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,          // 운세: Naver (한국 정서)
-            .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel        // 감정 분석: OpenAI (구조화된 출력)
+            .generalConversation: userPreferred,
+            .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,
+            .taskAdvice: availableModels.contains(.gemini) ? .gemini : .freeModel,
+            .presetRecommendation: availableModels.contains(.openAI) ? .openAI : .freeModel,
+            .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,
+            .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,
+            .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel
         ]
         
         // 매핑된 모델이 있고 사용 가능한 경우

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Represents a single correction or definition taught by the user.
 /// This structure is `Codable` to allow for easy saving/loading to/from a file.
@@ -13,6 +14,70 @@ struct UserDefinedRule: Codable, Hashable, Identifiable {
         self.userInput = userInput
         self.correctedMeaning = correctedMeaning
         self.timestamp = Date()
+    }
+}
+
+// MARK: - Persona Signature (캐시/무효화 전용 해시)
+extension UserRulesManager {
+    /// 페르소나/설정/환경을 요약하여 생성하는 해시 지문.
+    /// - 목적: 캐시 키/무효화 트리거 전용. 외부 LLM에 절대 전달하지 않음.
+    /// - 원칙: 온디바이스에서 간단 PII 필터링을 적용하고 의미 보존형 특성만 요약에 사용.
+    public func personaSignature() -> String {
+        // 1) 원천 데이터 안전 수집
+        let settings = UserSettingsModel.loadFromUserDefaults()
+        let selectedLLM = SettingsManager.shared.selectedLLM
+        let locale = Locale.current.identifier
+
+        // 2) 의미 보존형 특성 요약 (PII 제거 후)
+        var traits: [String] = []
+        if let age = settings.age, age > 0 { traits.append("age:\(age)") }
+        if !settings.conversationTones.isEmpty {
+            let tones = settings.conversationTones.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
+            traits.append("tones:\(tones)")
+        }
+        if !settings.personalityTraits.isEmpty {
+            let pers = settings.personalityTraits.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
+            traits.append("traits:\(pers)")
+        }
+        if !settings.personalityDescription.isEmpty {
+            // 길이 과다 방지: 앞부분만 사용
+            let desc = String(sanitizePII(settings.personalityDescription).prefix(64))
+            if !desc.isEmpty { traits.append("desc:\(desc)") }
+        }
+        if !settings.musicPreferences.isEmpty {
+            let music = settings.musicPreferences.prefix(3).map { $0.rawValue }.joined(separator: ",")
+            traits.append("music:\(music)")
+        }
+
+        // 사용자 정의 규칙(요약)
+        let rulesDigest = getAllRules().prefix(10)
+            .map { "\(sanitizePII($0.userInput))=>\(sanitizePII($0.correctedMeaning))" }
+            .joined(separator: "|")
+        if !rulesDigest.isEmpty { traits.append("rules:\(rulesDigest)") }
+
+        // 3) 환경 정보 추가
+        traits.append("llm:\(selectedLLM.rawValue)")
+        traits.append("locale:\(locale)")
+
+        // 4) 결합 후 SHA-256 해시
+        let joined = traits.joined(separator: ";")
+        return sha256(joined)
+    }
+
+    // 간단 PII 필터: 이메일/전화번호 패턴 제거(마스킹)
+    private func sanitizePII(_ s: String) -> String {
+        var out = s
+        let emailPattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        out = out.replacingOccurrences(of: emailPattern, with: "[이메일]", options: .regularExpression)
+        let phonePattern = "(\\+?\\d{1,3}[ -]?)?(\\d{2,4}[ -]?){2,3}\\d{2,4}"
+        out = out.replacingOccurrences(of: phonePattern, with: "[전화]", options: .regularExpression)
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func sha256(_ text: String) -> String {
+        let data = Data(text.utf8)
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 

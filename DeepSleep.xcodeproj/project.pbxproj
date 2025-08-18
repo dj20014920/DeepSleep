@@ -126,7 +126,6 @@
 		E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0852E33ACB3002F75E6 /* InsightCell.swift */; };
 		E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B32E33ACB3002F75E6 /* EmotionAnalysisService.swift */; };
 		E084F1F12E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0DF2E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift */; };
-		E084F1F22E33ACB3002F75E6 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0902E33ACB3002F75E6 /* AIContextManager.swift */; };
 		E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0502E33ACB3002F75E6 /* AICallLogger.swift */; };
 		E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0872E33ACB3002F75E6 /* TodoListCell.swift */; };
 		E084F1F52E33ACB3002F75E6 /* ChatBubbleCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F09D2E33ACB3002F75E6 /* ChatBubbleCell.swift */; };
@@ -181,6 +180,15 @@
 		E09CD6ED2E4B0D93007C133E /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */; };
 		E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */; };
 		E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */; };
+		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
+		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
+		E0E7BCA62E53664B00FF7073 /* ContextMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC9A2E53664B00FF7073 /* ContextMetrics.swift */; };
+		E0E7BCA72E53664B00FF7073 /* TokenOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC9E2E53664B00FF7073 /* TokenOptimizer.swift */; };
+		E0E7BCA82E53664B00FF7073 /* AIContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */; };
+		E0E7BCA92E53664B00FF7073 /* ContextEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC992E53664B00FF7073 /* ContextEvents.swift */; };
+		E0E7BCAA2E53664B00FF7073 /* AIResponseParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA02E53664B00FF7073 /* AIResponseParser.swift */; };
+		E0E7BCAB2E53664B00FF7073 /* MemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC9C2E53664B00FF7073 /* MemoryManager.swift */; };
+		E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -245,7 +253,6 @@
 		E084F08A2E33ACB3002F75E6 /* PersonaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaSettingsView.swift; sourceTree = "<group>"; };
 		E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditTodoViewController.swift; sourceTree = "<group>"; };
 		E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedPresetCatalog.swift; sourceTree = "<group>"; };
-		E084F0902E33ACB3002F75E6 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
 		E084F0912E33ACB3002F75E6 /* AISecurityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISecurityManager.swift; sourceTree = "<group>"; };
 		E084F0922E33ACB3002F75E6 /* AIUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageManager.swift; sourceTree = "<group>"; };
 		E084F0932E33ACB3002F75E6 /* AnalysisInitExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisInitExtensions.swift; sourceTree = "<group>"; };
@@ -366,6 +373,15 @@
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
+		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
+		E0E7BC982E53664B00FF7073 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
+		E0E7BC992E53664B00FF7073 /* ContextEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextEvents.swift; sourceTree = "<group>"; };
+		E0E7BC9A2E53664B00FF7073 /* ContextMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMetrics.swift; sourceTree = "<group>"; };
+		E0E7BC9C2E53664B00FF7073 /* MemoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryManager.swift; sourceTree = "<group>"; };
+		E0E7BC9E2E53664B00FF7073 /* TokenOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenOptimizer.swift; sourceTree = "<group>"; };
+		E0E7BCA02E53664B00FF7073 /* AIResponseParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponseParser.swift; sourceTree = "<group>"; };
+		E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetInteractionSummarizer.swift; sourceTree = "<group>"; };
+		E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummaryViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -449,6 +465,11 @@
 		E084F05C2E33ACB3002F75E6 /* AI */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BC9B2E53664B00FF7073 /* Context */,
+				E0E7BC9D2E53664B00FF7073 /* Memory */,
+				E0E7BC9F2E53664B00FF7073 /* Optimization */,
+				E0E7BCA12E53664B00FF7073 /* Parsing */,
+				E0E7BCA32E53664B00FF7073 /* Summarization */,
 				E084F04F2E33ACB3002F75E6 /* ErrorHandler */,
 				E084F0512E33ACB3002F75E6 /* Logging */,
 				E084F0592E33ACB3002F75E6 /* Services */,
@@ -558,6 +579,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */,
 				E09CD6E82E49DB04007C133E /* SessionManager.swift */,
 				E09CD6E62E466707007C133E /* Utils */,
 				E09CD6E32E4666D4007C133E /* LogConfiguration.swift */,
@@ -577,7 +599,6 @@
 				E084F08B2E33ACB3002F75E6 /* Views */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
 				E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */,
-				E084F0902E33ACB3002F75E6 /* AIContextManager.swift */,
 				E084F0912E33ACB3002F75E6 /* AISecurityManager.swift */,
 				E084F0922E33ACB3002F75E6 /* AIUsageManager.swift */,
 				E084F0932E33ACB3002F75E6 /* AnalysisInitExtensions.swift */,
@@ -700,6 +721,49 @@
 				E09CD6E52E466707007C133E /* MemoryProfiler.swift */,
 			);
 			path = Utils;
+			sourceTree = "<group>";
+		};
+		E0E7BC9B2E53664B00FF7073 /* Context */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */,
+				E0E7BC982E53664B00FF7073 /* AIContextManager.swift */,
+				E0E7BC992E53664B00FF7073 /* ContextEvents.swift */,
+				E0E7BC9A2E53664B00FF7073 /* ContextMetrics.swift */,
+			);
+			path = Context;
+			sourceTree = "<group>";
+		};
+		E0E7BC9D2E53664B00FF7073 /* Memory */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BC9C2E53664B00FF7073 /* MemoryManager.swift */,
+			);
+			path = Memory;
+			sourceTree = "<group>";
+		};
+		E0E7BC9F2E53664B00FF7073 /* Optimization */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BC9E2E53664B00FF7073 /* TokenOptimizer.swift */,
+			);
+			path = Optimization;
+			sourceTree = "<group>";
+		};
+		E0E7BCA12E53664B00FF7073 /* Parsing */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCA02E53664B00FF7073 /* AIResponseParser.swift */,
+			);
+			path = Parsing;
+			sourceTree = "<group>";
+		};
+		E0E7BCA32E53664B00FF7073 /* Summarization */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */,
+			);
+			path = Summarization;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -861,6 +925,14 @@
 				E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */,
 				E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */,
 				E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */,
+				E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */,
+				E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */,
+				E0E7BCA62E53664B00FF7073 /* ContextMetrics.swift in Sources */,
+				E0E7BCA72E53664B00FF7073 /* TokenOptimizer.swift in Sources */,
+				E0E7BCA82E53664B00FF7073 /* AIContextBuilder.swift in Sources */,
+				E0E7BCA92E53664B00FF7073 /* ContextEvents.swift in Sources */,
+				E0E7BCAA2E53664B00FF7073 /* AIResponseParser.swift in Sources */,
+				E0E7BCAB2E53664B00FF7073 /* MemoryManager.swift in Sources */,
 				E084F1AC2E33ACB3002F75E6 /* TokenTracker.swift in Sources */,
 				E084F1AD2E33ACB3002F75E6 /* CoreDataModels.swift in Sources */,
 				E084F1AE2E33ACB3002F75E6 /* GeminiAPIService.swift in Sources */,
@@ -938,6 +1010,7 @@
 				E084F1F22E33ACB3002F75E6 /* AIContextManager.swift in Sources */,
 				E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */,
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
+				E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */,
 				E084F1F52E33ACB3002F75E6 /* ChatBubbleCell.swift in Sources */,
 				E084F1F62E33ACB3002F75E6 /* ChatViewController.swift in Sources */,
 				E084F1F72E33ACB3002F75E6 /* SecurityConfig.swift in Sources */,

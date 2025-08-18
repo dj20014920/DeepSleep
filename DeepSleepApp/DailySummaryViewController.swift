@@ -244,7 +244,7 @@ class DailySummaryViewController: UIViewController {
                 let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
                     content: prompt,
                     model: .claude, // 깊은 분석을 위해 Claude 사용
-                    mode: .dailySummary,
+                    mode: .generalConversation,
                     context: AIContext(userId: "daily_summary_user", sessionId: "daily_summary_\(selectedDate.timeIntervalSince1970)"),
                     tokenConfig: nil
                 )

@@ -1036,12 +1036,25 @@ extension SessionManager {
         
         do {
             // UnifiedAIServiceImpl을 통한 실제 AI 호출
+            // 🎯 컨텍스트 조립 (A/B/C 계층 일원화)
+            let recent = getRecentChatMessages(limit: 10).map { ChatMessageLite(role: $0.role == "assistant" ? "assistant" : ($0.role == "system" ? "system" : "user"), content: $0.content, createdAt: $0.timestamp) }
+            let personaSignature = UserRulesManager.shared.personaSignature() // 페르소나/언어/톤 해시 등
+            let coreSummary = MemoryManager.shared.getMemorySummary(maxItems: 10)
+            let assembled = AIContextBuilder.shared.buildPrompt(
+                for: .generalConversation,
+                personaSignature: personaSignature,
+                recentMessages: recent,
+                coreMemorySummary: coreSummary.isEmpty ? nil : coreSummary,
+                currentUserMessage: content
+            )
+
             let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
                 content: content,
                 model: model,
                 mode: .generalConversation,
                 context: nil,
-                tokenConfig: nil
+                tokenConfig: nil,
+                assembledPrompt: assembled.text
             )
             let response = aiResponse.content
             
