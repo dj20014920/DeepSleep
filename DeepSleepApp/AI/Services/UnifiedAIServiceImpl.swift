@@ -140,18 +140,31 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String? = nil
 ) async throws -> AIResponse {
         
+        // 0. 일일 사용량 한도 체크 (통합 진입점에서 강제)
+        let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+        guard usage.canUse else {
+            // 사용량 초과 알림 (100%)은 내부에서 게시되며, 여기서는 즉시 차단
+            throw AIServiceError.configurationError("USAGE_LIMIT_EXCEEDED: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
+        }
+        
         // 1. 보안 검증
         let validationResult = securityManager.validateAndSanitizeInput(content, userId: context?.userId ?? "unknown")
         
+        let cleaned: String
         switch validationResult {
-        case .rejected(let reason):
+        case .rejected(_):
             throw AIServiceError.unauthorized
         case .flagged(let reason, let cleanInput):
             print("⚠️ [UnifiedAIService] 입력이 플래그됨: \(reason)")
-return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig, assembledPrompt)
+            cleaned = cleanInput
         case .approved(let cleanInput):
-            return try await sendMessageInternal(cleanInput, model, mode, context, tokenConfig, assembledPrompt)
+            cleaned = cleanInput
         }
+        
+        // 2. 실제 호출 (성공 시에만 사용량 증가)
+        let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt)
+        UsageLimitManager.shared.incrementUsage(for: mode)
+        return response
     }
     
     /// 내부 메시지 전송 로직 (보안 검증 후)
@@ -530,17 +543,29 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let basePrompt = getBaseSystemPromptForMode(mode)
         let modelSpecificOptimization = getModelSpecificOptimization(for: model)
         
-        return """
-        \(basePrompt)
+        // 페르소나 시그니처 구성 (외부 전송 금지, 캐시 키로만 사용)
+        let selectedModel = settingsManager.selectedLLM.rawValue
+        let memorySummaryFP: String = {
+            let summary = MemoryManager.shared.getMemorySummary(maxItems: 5)
+            return summary.isEmpty ? "none" : String(summary.hashValue)
+        }()
+        let personaSignature = "mode=\(mode.rawValue)|model=\(selectedModel)|mem=\(memorySummaryFP)"
         
-        \(modelSpecificOptimization)
-        
-        중요한 지침:
-        - 한국어로 자연스럽고 친근하게 응답하세요
-        - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
-        - 실용적이고 도움이 되는 조언을 제공하세요
-        - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
-        """
+        // 3시간 TTL 캐시 활용
+        let prompt = contextManager.getSystemPrompt(personaSignature: personaSignature) {
+            return """
+            \(basePrompt)
+            
+            \(modelSpecificOptimization)
+            
+            중요한 지침:
+            - 한국어로 자연스럽고 친근하게 응답하세요
+            - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
+            - 실용적이고 도움이 되는 조언을 제공하세요
+            - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
+            """
+        }
+        return prompt
     }
     
     /// 모드별 기본 시스템 프롬프트

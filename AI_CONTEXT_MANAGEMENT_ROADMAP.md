@@ -1,5 +1,39 @@
 # 🧠 DeepSleep AI 컨텍스트 관리 시스템 로드맵
 
+## 🆕 2025-08-19 업데이트 (컨텍스트/한도/UX 정합 · 빌드 안정화)
+
+이번 업데이트는 컨텍스트 캐시의 실제 적용, AIMode/시그니처 정합성, 사용량 한도 정책 통일, 채팅버블 UX 개선을 반영합니다.
+
+1) 시스템 프롬프트 캐시 적용 및 키 설계
+- UnifiedAIServiceImpl에서 AIContextManager.getSystemPrompt(personaSignature:generator:) 사용으로 3시간 TTL 캐시 활성화
+- personaSignature = mode.rawValue + 선택 모델 + 핵심 기억 요약 해시(내부 캐시 키 전용)
+- 외부 LLM에는 비식별 서술형 컨텍스트만 전달(해시 자체 전송 금지) 원칙 재확인
+
+2) AIMode 및 호출 시그니처 정합성
+- AIServiceTypes.swift의 AIMode를 단일 진실의 원천으로 유지하고, 과거 임시 케이스 명칭 전면 정규화
+- DailySummaryViewController 등 호출부에서 존재하지 않는 케이스 사용 금지, 유효 케이스로 치환 완료
+
+3) UsageLimitManager 정책 통일(하드코딩 제거)
+- 제한값은 Secrets.xcconfig → Info.plist → Bundle 경로로만 로드, 기본 하드코딩 값 완전 제거
+- 누락 시 0(비활성)로 간주, incrementUsage에서 80%/100% Notification 발행(토스트/Alert 연동 지점 표준화)
+
+4) 채팅버블 길게누르기 UX(모든 버블 대상)
+- 모든 채팅 메시지(사용자/AI)에서 길게 누르면: 기억하기/복사하기/공유하기
+- iOS 16+: UIEditMenuInteraction + UIActivityViewController(카카오톡 등 네이티브 공유 시트)
+- iOS 15 이하: UIMenuController에 동일 메뉴 제공
+- 기억하기 실행 → MemoryManager.addMemory → AIContextManager.clearCache(reason: .coreMemoryUpdated) 연동 확인
+
+5) 빌드 안정화 및 중복 선언 정리
+- MemoryManager.swift 중복 선언 단일화 및 문법 오류 정리
+- UnifiedAIServiceImpl.swift의 잘못된 문법(하이픈 → 화살표) 및 누락 인자 보완
+
+6) 다음 단계 권장(단기)
+- 캐시 적중률/무효화 사유 로깅 지표 추가로 가시성 강화
+- 경고 정리: 약한 참조 대입, 불필요 #available, 미사용 변수/도달 불가 코드 제거
+- 통합 테스트: 동일 세션 내 캐시 HIT, 캐시 무효화 이벤트 발생 시 MISS, 한도 경고/차단 UI까지 일련 플로우 검증
+
+---
+
 ## 🆕 2025-08-18 업데이트 (빌드 안정화 및 컨텍스트 정합성)
 
 이번 업데이트에서는 컨텍스트 관리 정책을 코드와 문서 전반에 일치시키고, 캐시 무효화/모드 정의 체계를 명확히 했습니다.

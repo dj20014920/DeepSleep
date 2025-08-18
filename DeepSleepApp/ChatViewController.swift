@@ -28,11 +28,6 @@ struct AIResponseData: Codable {
 
 // SharedCore 타입들을 직접 사용 (typealias 제거)
 
-// MARK: - AI Teaching Delegate Protocol
-protocol AITeachingDelegate: AnyObject {
-    func didCreateNewRule(userInput: String, correctedMeaning: String)
-    func didSaveTeaching(text: String, for persona: String)
-}
 
 // MARK: - Session Feedback Model (이제 CompilerFixStubs.swift에서 정의됨)
 
@@ -63,7 +58,7 @@ struct EnhancedSessionMetrics {
 
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
-class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeachingDelegate {
+class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
@@ -771,12 +766,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         ]
     }
     
-    /// AI 티칭 뷰를 표시합니다
-    private func presentAITeachingView(with message: String) {
-        print("AI 티칭 뷰 표시: \(message)")
-        // TODO: 실제 AI 티칭 뷰 구현
-    }
-    
     // MARK: - 🐛 Debug Methods
     
     private func debugCheckFeedbackStatus() {
@@ -807,18 +796,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate, AITeach
         } else {
             print("Learning system requires iOS 17.0+")
         }
-    }
-    
-    // MARK: - 🤖 AITeachingDelegate Implementation
-    
-    func didCreateNewRule(userInput: String, correctedMeaning: String) {
-        print("새 규칙 생성: \(userInput) -> \(correctedMeaning)")
-        // TODO: 실제 규칙 생성 로직 구현
-    }
-    
-    func didSaveTeaching(text: String, for persona: String) {
-        print("티칭 저장: \(text) for \(persona)")
-        // TODO: 실제 티칭 저장 로직 구현
     }
     
     // MARK: - 💾 채팅 기록 저장/불러오기 (통합)
@@ -2958,21 +2935,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let isUserMessage = (message.sender == .user)
         // 메시지 셀 구성
         
-        var originalUserInput: String?
-        if !isUserMessage && indexPath.row > 0 {
-            // AI 메시지일 경우, 바로 이전의 사용자 메시지를 '가르치기'를 위한 원본으로 간주합니다.
-            let previousMessage = messages[indexPath.row - 1]
-            if previousMessage.sender == .user {
-                originalUserInput = previousMessage.text
-            }
-        }
-        
-        cell.configure(with: message, isUserMessage: isUserMessage, originalUserMessage: originalUserInput)
-        
-        // "가르치기" 액션 핸들러 설정
-        cell.teachAction = { [weak self] originalMessageToTeach in
-            self?.presentAITeachingView(with: originalMessageToTeach)
-        }
+        // 길게 누르기 메뉴(기억/복사/공유)는 셀 내부에서 처리하므로 별도 설정 불필요
+        cell.configure(with: message, isUserMessage: isUserMessage)
         
         return cell
     }
@@ -3860,11 +3824,6 @@ extension ChatViewController {
     */
 }
 
-// MARK: - AITeachingDelegate Implementation
-extension ChatViewController {
-    // AITeachingDelegate는 이미 ChatViewController 클래스에서 구현됨
-    // 중복 정의 방지를 위해 이 extension은 제거됨
-}
 
 // MARK: - Helper Functions (Removed - were outside class scope)
 

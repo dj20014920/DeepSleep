@@ -8,6 +8,11 @@
 
 import Foundation
 
+public extension Notification.Name {
+    static let aiUsageLimitWarning = Notification.Name("aiUsageLimitWarning")
+    static let aiUsageLimitReached = Notification.Name("aiUsageLimitReached")
+}
+
 /// 🛡️ AI 사용량 제한 관리자 (Secrets.xcconfig 연동)
 /// 
 /// **목적**: 모든 AI 기능의 일일 사용량을 중앙에서 관리하여 API 비용 제어
@@ -51,7 +56,7 @@ public class UsageLimitManager {
         checkAndResetIfNewDay()
         
         let limitKey = getLimitKeyForMode(mode)
-        let dailyLimit = cachedLimits[limitKey] ?? getDefaultLimit(for: mode)
+        let dailyLimit = cachedLimits[limitKey] ?? 0
         let currentUsage = getCurrentUsage(for: mode)
         let canUse = currentUsage < dailyLimit
         
@@ -69,11 +74,10 @@ public class UsageLimitManager {
         
         let usageKey = getUsageKeyForMode(mode)
         let currentUsage = UserDefaults.standard.integer(forKey: usageKey)
-        UserDefaults.standard.set(currentUsage + 1, forKey: usageKey)
+        let newUsage = currentUsage + 1
+        UserDefaults.standard.set(newUsage, forKey: usageKey)
         
-        #if DEBUG
-        // 사용량 증가
-        #endif
+        notifyIfThresholdReached(mode: mode, currentUsage: newUsage)
     }
     
     /// 전체 AI 사용량 현황 조회 (설정 화면용)
@@ -85,7 +89,7 @@ public class UsageLimitManager {
         
         for mode in AIMode.allCases {
             let limitKey = getLimitKeyForMode(mode)
-            let dailyLimit = cachedLimits[limitKey] ?? getDefaultLimit(for: mode)
+            let dailyLimit = cachedLimits[limitKey] ?? 0
             let currentUsage = getCurrentUsage(for: mode)
             status[mode] = (currentUsage: currentUsage, dailyLimit: dailyLimit)
         }
@@ -97,63 +101,38 @@ public class UsageLimitManager {
     
     /// Bundle에서 Secrets.xcconfig의 제한값 로드
     private func loadLimitsFromBundle() {
-        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "xcconfig") else {
-            print("⚠️ [UsageLimitManager] Secrets.xcconfig 파일을 찾을 수 없습니다. 기본값 사용.")
-            loadDefaultLimits()
-            return
-        }
+        // Info.plist에 매핑된 키에서 안전하게 로드 (Secrets.xcconfig -> Info.plist -> Bundle)
+        var loaded: [String: Int] = [:]
+        let keys = [
+            "DAILY_CHAT_LIMIT",
+            "DAILY_PRESET_RECOMMENDATION_LIMIT",
+            "DAILY_DIARY_ANALYSIS_LIMIT",
+            "DAILY_TODO_ADVICE_LIMIT",
+            "DAILY_FORTUNE_LIMIT",
+            "DAILY_EMOTION_ANALYSIS_LIMIT",
+            "DAILY_MONTHLY_STATISTICS_LIMIT"
+        ]
         
-        do {
-            let content = try String(contentsOfFile: path)
-            parseLimitsFromContent(content)
-            print("✅ [UsageLimitManager] Secrets.xcconfig에서 제한값 로드 완료")
-        } catch {
-            print("❌ [UsageLimitManager] Secrets.xcconfig 읽기 실패: \\(error). 기본값 사용.")
-            loadDefaultLimits()
-        }
-    }
-    
-    /// xcconfig 내용에서 제한값 파싱
-    private func parseLimitsFromContent(_ content: String) {
-        let lines = content.components(separatedBy: .newlines)
-        
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            // 주석이나 빈 줄 건너뛰기
-            if trimmed.isEmpty || trimmed.hasPrefix("//") { continue }
-            
-            // KEY = VALUE 형식 파싱
-            let components = trimmed.components(separatedBy: " = ")
-            if components.count == 2 {
-                let key = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                let valueString = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                if key.hasPrefix("DAILY_") && key.hasSuffix("_LIMIT") {
-                    if let value = Int(valueString) {
-                        cachedLimits[key] = value
-                        #if DEBUG
-                        print("📊 [UsageLimitManager] \\(key) = \\(value) 로드됨")
-                        #endif
-                    }
-                }
+        for key in keys {
+            if let value = Bundle.main.object(forInfoDictionaryKey: key) as? String, let intVal = Int(value) {
+                loaded[key] = intVal
+            } else if let intVal = Bundle.main.object(forInfoDictionaryKey: key) as? Int {
+                loaded[key] = intVal
             }
         }
+        
+        // 백업 하드코딩 없이, 구성 누락 시 0으로만 처리
+        cachedLimits = loaded
+        if loaded.isEmpty {
+            print("⚠️ [UsageLimitManager] Info.plist 매핑에서 제한값을 찾지 못했습니다. 모든 제한값을 0으로 간주합니다.")
+        } else {
+            print("✅ [UsageLimitManager] Info.plist 매핑에서 제한값 로드 완료")
+        }
     }
     
-    /// 기본 제한값 로드 (xcconfig 읽기 실패 시 백업)
-    private func loadDefaultLimits() {
-        cachedLimits = [
-            "DAILY_CHAT_LIMIT": 50,
-            "DAILY_PRESET_RECOMMENDATION_LIMIT": 5,
-            "DAILY_DIARY_ANALYSIS_LIMIT": 5,
-            "DAILY_TODO_ADVICE_LIMIT": 5,
-            "DAILY_FORTUNE_LIMIT": 1,
-            "DAILY_EMOTION_ANALYSIS_LIMIT": 10,
-            "DAILY_MONTHLY_STATISTICS_LIMIT": 2
-        ]
-        print("🔄 [UsageLimitManager] 기본 제한값 사용")
-    }
+    // (제거됨) xcconfig 직접 파싱 로직은 사용하지 않습니다. 모든 제한값은 Info.plist 매핑을 통해서만 로드합니다.
+    
+    // (제거됨) 하드코딩된 기본 제한값은 사용하지 않습니다. 모든 제한값은 Info.plist 매핑을 통해 설정되어야 합니다.
     
     /// AIMode를 제한값 키로 변환
     private func getLimitKeyForMode(_ mode: AIMode) -> String {
@@ -186,16 +165,26 @@ public class UsageLimitManager {
         return UserDefaults.standard.integer(forKey: usageKey)
     }
     
-    /// 기본 제한값 반환 (캐시에 없을 때)
-    private func getDefaultLimit(for mode: AIMode) -> Int {
-        switch mode {
-        case .generalConversation: return 50
-        case .emotionDiaryAnalysis: return 5
-        case .taskAdvice: return 5
-        case .presetRecommendation: return 5
-        case .monthlyStatistics: return 2
-        case .fortuneTelling: return 1
-        case .emotionAnalysis: return 10
+    
+    // MARK: - 알림 게시 (80% / 100%)
+    private func notifyIfThresholdReached(mode: AIMode, currentUsage: Int) {
+        let limitKey = getLimitKeyForMode(mode)
+        let dailyLimit = cachedLimits[limitKey] ?? 0
+        guard dailyLimit > 0 else { return }
+        let ratio = Double(currentUsage) / Double(dailyLimit)
+        let center = NotificationCenter.default
+        if ratio >= 1.0 {
+            center.post(name: .aiUsageLimitReached, object: nil, userInfo: [
+                "mode": mode.rawValue,
+                "current": currentUsage,
+                "limit": dailyLimit
+            ])
+        } else if ratio >= 0.8 {
+            center.post(name: .aiUsageLimitWarning, object: nil, userInfo: [
+                "mode": mode.rawValue,
+                "current": currentUsage,
+                "limit": dailyLimit
+            ])
         }
     }
     

@@ -1750,6 +1750,44 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 
 ---
 
+## 🆕 2025-08-19 업데이트 (빌드/문서 정합 · 사용성 개선)
+
+이번 업데이트는 중복 선언 정리, 캐시/한도 정책 코드-문서 동기화, 채팅버블 길게누르기 UX 개선을 포함합니다.
+
+1) 빌드 안정화 및 중복/문법 정리
+- 중복 선언 정리: MemoryManager.swift 내 중복 enum/struct/class 단일화, 기타 Swift 파일의 중복 타입/블록 제거
+- 잘못된 문법 교정: UnifiedAIServiceImpl.swift 내 잘못된 하이픈(-)을 화살표(->)로 교체, 누락된 인자/시그니처 불일치 수정
+- AIMode 정규화: AIServiceTypes.swift의 AIMode를 SSOT로 채택하여 과거 임시 케이스 명칭 전면 교정
+- DailySummaryViewController: 존재하지 않는 AIMode.dailySummary 사용 → .generalConversation로 수정
+
+2) 시스템 프롬프트 캐시 실제 적용(3시간 TTL)
+- UnifiedAIServiceImpl.generateOptimizedSystemPrompt에서 AIContextManager.getSystemPrompt(personaSignature:generator:) 사용
+- personaSignature = 모드 + 선택 모델 + 핵심기억요약 해시(내부 캐시 키 전용, 외부 전송 없음)
+- 무료모델 경로에서도 동일한 systemPrompt 포함하여 body 구성
+
+3) UsageLimitManager 정책 정리(하드코딩 기본값 전면 제거)
+- 제한값 로드는 Secrets.xcconfig → Info.plist 매핑 → Bundle 경로만 사용
+- getDefaultLimit 제거, 누락 시 0으로 간주(해당 기능 비활성)
+- incrementUsage 시 80%/100% 임계 알림(Notification.Name.aiUsageLimitWarning/Reached) 발행
+
+4) 채팅버블 길게 누르기 메뉴 전면 개선(모든 채팅 메시지 대상)
+- 모든 버블(사용자/AI)에서 길게 누르면 “기억하기/복사하기/공유하기” 제공
+- iOS 16+: UIEditMenuInteraction + UIActivityViewController(네이티브 공유 시트, 카카오톡 등 노출)
+- iOS 15 이하: UIMenuController 경로에도 동일 메뉴 제공
+- “기억하기” 실행 시 MemoryManager 연동 및 캐시 무효화 흐름 유지
+
+5) 빌드 상태 및 남은 경고
+- 상태: BUILD SUCCEEDED (Debug, iPhone 16 Pro Simulator)
+- 남은 항목: 경고 정리(약한 참조 대입, 불필요 가용성 체크, 미사용 변수 등) 순차 해소 권장
+
+체크리스트
+- [ ] 동일 모드/설정/핵심기억 상태에서 캐시 HIT 로그 확인
+- [ ] 모델/사용자정보/핵심기억 변경 시 캐시 MISS로 재계산
+- [ ] 일일 한도 80%/100% 도달 시 알림 수신 및 UI 토스트/Alert 표시
+- [ ] 모든 버블 길게누르기 → 기억/복사/공유 메뉴 정상 노출 및 동작
+
+---
+
 ## 🆕 2025-08-18 빌드 안정화 패치 요약 (컴파일 오류 전면 해소)
 
 이번 스프린트에서 다음과 같은 핵심 빌드 안정화 작업을 수행하여 iPhone 16 Pro 시뮬레이터 대상 Debug 구성에서 BUILD SUCCEEDED를 달성했습니다.

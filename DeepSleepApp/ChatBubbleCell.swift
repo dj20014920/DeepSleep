@@ -202,8 +202,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     private var continueAction: (() -> Void)?
     
     // ✅ 가르치기 액션을 위한 클로저 추가
-    var teachAction: ((String) -> Void)?
-    private var originalUserMessageForTeachable: String?
+    // teachAction 제거됨(미사용)
+    // private var originalUserMessageForTeachable: String?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -333,13 +333,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     }
     
     @objc private func handleLongPress(gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began,
-              let isUser = (leadingConstraint.isActive == false && trailingConstraint.isActive == true) ? true : false,
-              !isUser, // AI 메시지인 경우에만 메뉴 표시
-              let originalUserMessage = originalUserMessageForTeachable, // 가르칠 원본 메시지가 있을 때만
-              !originalUserMessage.isEmpty
-        else { return }
+        guard gesture.state == .began else { return }
         
+        // 모든 채팅 버블(사용자/AI)에서 길게 누르기 메뉴 제공
         becomeFirstResponder()
         
         // iOS 16+ 방식: UIEditMenuInteraction 사용
@@ -353,19 +349,35 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             )
             interaction.presentEditMenu(with: configuration)
         } else {
-            // iOS 15 이하 방식: UIMenuController 사용
-            let teachMenuItem = UIMenuItem(title: "가르치기", action: #selector(teachTapped))
-            let copyMenuItem = UIMenuItem(title: "복사하기", action: #selector(copyTapped))
+            // iOS 15 이하 방식: UIMenuController 사용 (기억하기/복사하기/공유하기)
+            let rememberItem = UIMenuItem(title: "기억하기", action: #selector(rememberTapped))
+            let copyItem = UIMenuItem(title: "복사하기", action: #selector(copyTapped))
+            let shareItem = UIMenuItem(title: "공유하기", action: #selector(shareTapped))
             
-            UIMenuController.shared.menuItems = [teachMenuItem, copyMenuItem]
+            UIMenuController.shared.menuItems = [rememberItem, copyItem, shareItem]
             UIMenuController.shared.showMenu(from: bubbleView, rect: bubbleView.bounds)
         }
     }
 
-    @objc private func teachTapped() {
-        guard let originalUserMessage = originalUserMessageForTeachable else { return }
-        teachAction?(originalUserMessage)
+    @objc private func rememberTapped() {
+        guard let text = messageLabel.text, !text.isEmpty else { return }
+        if MemoryManager.shared.canAddMemory() {
+            _ = MemoryManager.shared.addMemory(text, importance: 3)
+        } else {
+            NotificationCenter.default.post(name: .aiUsageLimitWarning, object: nil, userInfo: ["mode": "coreMemory", "current": 0, "limit": MemoryTier.free.slotLimit])
+        }
         resignFirstResponder()
+    }
+    
+    @objc private func shareTapped() {
+        guard let vc = findViewController() else { return }
+        let text = messageLabel.text ?? ""
+        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let pop = activityVC.popoverPresentationController {
+            pop.sourceView = bubbleView
+            pop.sourceRect = bubbleView.bounds
+        }
+        vc.present(activityVC, animated: true)
     }
 
     @objc private func copyTapped() {
@@ -378,12 +390,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     }
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        return action == #selector(copyTapped) || action == #selector(teachTapped)
+        return action == #selector(copyTapped) || action == #selector(rememberTapped) || action == #selector(shareTapped)
     }
     
     func configure(with message: ChatMessage, isUserMessage: Bool, originalUserMessage: String? = nil) {
-        // "가르치기" 컨텍스트 저장
-        self.originalUserMessageForTeachable = originalUserMessage
+        // "가르치기" 컨텍스트는 더 이상 사용하지 않음
         
         // 메시지 타입에 따라 UI 분기
         switch message.type {
@@ -1128,12 +1139,16 @@ extension ChatBubbleCell {
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {
         var actions: [UIAction] = []
         
-        // 가르치기 액션 추가
-        if let originalUserMessage = originalUserMessageForTeachable, !originalUserMessage.isEmpty {
-            let teachAction = UIAction(title: "가르치기", image: UIImage(systemName: "brain.head.profile")) { [weak self] _ in
-                self?.teachTapped()
+        // 기억하기 액션 추가 (길게 눌러 핵심 기억 저장)
+        if let text = messageLabel.text, !text.isEmpty {
+            let rememberAction = UIAction(title: "기억하기", image: UIImage(systemName: "star")) { _ in
+                if MemoryManager.shared.canAddMemory() {
+                    _ = MemoryManager.shared.addMemory(text, importance: 3)
+                } else {
+                    NotificationCenter.default.post(name: .aiUsageLimitWarning, object: nil, userInfo: ["mode": "coreMemory", "current": 0, "limit": MemoryTier.free.slotLimit])
+                }
             }
-            actions.append(teachAction)
+            actions.append(rememberAction)
         }
         
         // 복사하기 액션 추가
@@ -1141,6 +1156,19 @@ extension ChatBubbleCell {
             self?.copyTapped()
         }
         actions.append(copyAction)
+        
+        // 공유하기 액션 추가 (iOS 네이티브 공유 시트)
+        let shareAction = UIAction(title: "공유하기", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
+            guard let self = self, let vc = self.findViewController() else { return }
+            let text = self.messageLabel.text ?? ""
+            let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+            if let pop = activityVC.popoverPresentationController {
+                pop.sourceView = self.bubbleView
+                pop.sourceRect = self.bubbleView.bounds
+            }
+            vc.present(activityVC, animated: true)
+        }
+        actions.append(shareAction)
         
         return UIMenu(children: actions)
     }
