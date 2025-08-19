@@ -51,6 +51,11 @@ public struct UsageStats: Codable {
     }
 }
 
+// MARK: - Notifications
+public extension Notification.Name {
+    static let aiModelChanged = Notification.Name("aiModelChanged")
+}
+
 public class SettingsManager {
     public static let shared = SettingsManager()
     private let userDefaults = UserDefaults.standard
@@ -101,6 +106,15 @@ public class SettingsManager {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
             userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
         }
+    }
+    
+    /// 모델 변경을 단일 진입점에서 원자적으로 처리 (저장 → 컨텍스트 무효화 → 알림)
+    func updateSelectedModelAtomically(_ model: AIModelType) {
+        let previous = selectedLLM
+        guard previous != model else { return }
+        selectedLLM = model
+        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsManager.updateSelectedModelAtomically")
+        NotificationCenter.default.post(name: .aiModelChanged, object: nil, userInfo: ["from": previous.rawValue, "to": model.rawValue])
     }
     
     /// (iOS 18+) 온디바이스 AI 모델을 우선적으로 사용할지 여부를 결정합니다.

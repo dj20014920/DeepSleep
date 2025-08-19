@@ -189,6 +189,7 @@
 		E0E7BCAA2E53664B00FF7073 /* AIResponseParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA02E53664B00FF7073 /* AIResponseParser.swift */; };
 		E0E7BCAB2E53664B00FF7073 /* MemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC9C2E53664B00FF7073 /* MemoryManager.swift */; };
 		E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */; };
+		E0E7BCB32E54706A00FF7073 /* ConfigReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -382,6 +383,7 @@
 		E0E7BCA02E53664B00FF7073 /* AIResponseParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponseParser.swift; sourceTree = "<group>"; };
 		E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetInteractionSummarizer.swift; sourceTree = "<group>"; };
 		E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummaryViewController.swift; sourceTree = "<group>"; };
+		E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigReader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -579,6 +581,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCB22E54706A00FF7073 /* Config */,
 				E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */,
 				E09CD6E82E49DB04007C133E /* SessionManager.swift */,
 				E09CD6E62E466707007C133E /* Utils */,
@@ -766,6 +769,14 @@
 			path = Summarization;
 			sourceTree = "<group>";
 		};
+		E0E7BCB22E54706A00FF7073 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -901,6 +912,7 @@
 				E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */,
 				E084F1922E33ACB3002F75E6 /* LegacyChatViewController.swift in Sources */,
 				E084F1932E33ACB3002F75E6 /* PersonaMemoryManager.swift in Sources */,
+				E0E7BCB32E54706A00FF7073 /* ConfigReader.swift in Sources */,
 				E084F1942E33ACB3002F75E6 /* TypingIndicatorCell.swift in Sources */,
 				E084F1952E33ACB3002F75E6 /* UserRulesManager.swift in Sources */,
 				E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */,
@@ -1007,7 +1019,6 @@
 				E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */,
 				E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */,
 				E084F1F12E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift in Sources */,
-				E084F1F22E33ACB3002F75E6 /* AIContextManager.swift in Sources */,
 				E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */,
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
 				E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */,

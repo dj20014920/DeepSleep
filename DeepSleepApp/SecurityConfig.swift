@@ -20,127 +20,113 @@ class SecurityConfig {
     /// 사용자가 AI에게 보낼 수 있는 메시지의 최대 글자 수
     /// 프롬프트 인젝션 공격 방지 목적
     var maxPromptLength: Int {
-        return getConfigValue("MAX_PROMPT_LENGTH", defaultValue: 2000)
+        return readInt("MAX_PROMPT_LENGTH")
     }
     
     /// 사용자가 하루에 AI에게 보낼 수 있는 최대 메시지 횟수
     /// API 비용 및 남용 방지 목적
     var maxDailyRequests: Int {
-        return getConfigValue("MAX_DAILY_REQUESTS", defaultValue: 100)
+        return readInt("MAX_DAILY_REQUESTS")
     }
     
     /// 하나의 대화 세션에서 주고받을 수 있는 최대 턴 수
     /// (사용자 메시지 + AI 응답 = 1턴)
     /// 메모리 및 컨텍스트 관리 목적
     var maxConversationTurns: Int {
-        return getConfigValue("MAX_CONVERSATION_TURNS", defaultValue: 200)
+        return readInt("MAX_CONVERSATION_TURNS")
     }
     
-    /// 레이트 리미팅 활성화 여부
+    /// 레이트 리미팅 활성화 여부 (누락 시 false)
     var isRateLimitEnabled: Bool {
-        return getBoolConfigValue("RATE_LIMIT_ENABLED", defaultValue: true)
+        return readBool("RATE_LIMIT_ENABLED")
     }
     
-    /// 디버그 모드 활성화 여부
+    /// 디버그 모드 활성화 여부 (누락 시 false)
     var isDebugMode: Bool {
-        return getBoolConfigValue("DEBUG_MODE", defaultValue: false)
+        return readBool("DEBUG_MODE")
     }
     
-    /// 상세 로깅 활성화 여부
+    /// 상세 로깅 활성화 여부 (누락 시 false)
     var isVerboseLogging: Bool {
-        return getBoolConfigValue("VERBOSE_LOGGING", defaultValue: false)
+        return readBool("VERBOSE_LOGGING")
     }
     
-    /// 모의 AI 응답 사용 여부
+    /// 모의 AI 응답 사용 여부 (누락 시 false)
     var isMockAIResponses: Bool {
-        return getBoolConfigValue("MOCK_AI_RESPONSES", defaultValue: false)
+        return readBool("MOCK_AI_RESPONSES")
     }
     
     // MARK: - 🤖 AI 기능별 일일 제한
     
     /// 일반 채팅 일일 제한 횟수
     var dailyChatLimit: Int {
-        return getConfigValue("DAILY_CHAT_LIMIT", defaultValue: 50)
+        return readInt("DAILY_CHAT_LIMIT")
     }
     
     /// 프리셋 추천 일일 제한 횟수
     var dailyPresetRecommendationLimit: Int {
-        return getConfigValue("DAILY_PRESET_RECOMMENDATION_LIMIT", defaultValue: 5)
+        return readInt("DAILY_PRESET_RECOMMENDATION_LIMIT")
     }
     
     /// 일기 분석 일일 제한 횟수
     var dailyDiaryAnalysisLimit: Int {
-        return getConfigValue("DAILY_DIARY_ANALYSIS_LIMIT", defaultValue: 5)
+        return readInt("DAILY_DIARY_ANALYSIS_LIMIT")
     }
     
     /// 패턴 분석 일일 제한 횟수
     var dailyPatternAnalysisLimit: Int {
-        return getConfigValue("DAILY_PATTERN_ANALYSIS_LIMIT", defaultValue: 3)
+        return readInt("DAILY_PATTERN_ANALYSIS_LIMIT")
     }
     
     /// 할일 조언 일일 제한 횟수
     var dailyTodoAdviceLimit: Int {
-        return getConfigValue("DAILY_TODO_ADVICE_LIMIT", defaultValue: 5)
+        return readInt("DAILY_TODO_ADVICE_LIMIT")
     }
     
     /// 운세 일일 제한 횟수
     var dailyFortuneLimit: Int {
-        return getConfigValue("DAILY_FORTUNE_LIMIT", defaultValue: 1)
+        return readInt("DAILY_FORTUNE_LIMIT")
     }
     
     // MARK: - 📝 사용자 경험 제한
     
     /// 하루 최대 일기 작성 수
     var maxDiaryEntriesPerDay: Int {
-        return getConfigValue("MAX_DIARY_ENTRIES_PER_DAY", defaultValue: 10)
+        return readInt("MAX_DIARY_ENTRIES_PER_DAY")
     }
     
     /// 최대 할일 개수
     var maxTodoItems: Int {
-        return getConfigValue("MAX_TODO_ITEMS", defaultValue: 100)
+        return readInt("MAX_TODO_ITEMS")
     }
     
     /// 하루 최대 감정 기록 수
     var maxEmotionEntriesPerDay: Int {
-        return getConfigValue("MAX_EMOTION_ENTRIES_PER_DAY", defaultValue: 20)
+        return readInt("MAX_EMOTION_ENTRIES_PER_DAY")
     }
     
     /// 채팅 기록 보관 일수
     var maxChatHistoryDays: Int {
-        return getConfigValue("MAX_CHAT_HISTORY_DAYS", defaultValue: 30)
+        return readInt("MAX_CHAT_HISTORY_DAYS")
     }
     
     /// 분석 기록 보관 일수
     var maxAnalysisHistoryDays: Int {
-        return getConfigValue("MAX_ANALYSIS_HISTORY_DAYS", defaultValue: 90)
+        return readInt("MAX_ANALYSIS_HISTORY_DAYS")
     }
     
-    // MARK: - 🛠️ Private Helper Methods
+    // MARK: - 🛠️ Private Helper Methods (ConfigReader 기반, fail-closed)
     
-    private func getConfigValue(_ key: String, defaultValue: Int) -> Int {
-        guard let stringValue = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-              let intValue = Int(stringValue) else {
-            print("⚠️ [SecurityConfig] \(key) 설정을 찾을 수 없음. 기본값 \(defaultValue) 사용")
-            return defaultValue
-        }
-        return intValue
+    private func readInt(_ key: String) -> Int {
+        if let v = ConfigReader.int(key) { return v }
+        print("⚠️ [SecurityConfig] \(key) 누락 — 0(비활성) 처리")
+        return 0
     }
     
-    private func getBoolConfigValue(_ key: String, defaultValue: Bool) -> Bool {
-        guard let stringValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
-            print("⚠️ [SecurityConfig] \(key) 설정을 찾을 수 없음. 기본값 \(defaultValue) 사용")
-            return defaultValue
-        }
-        
-        switch stringValue.uppercased() {
-        case "YES", "TRUE", "1":
-            return true
-        case "NO", "FALSE", "0":
-            return false
-        default:
-            print("⚠️ [SecurityConfig] \(key) 값이 올바르지 않음: \(stringValue). 기본값 \(defaultValue) 사용")
-            return defaultValue
-        }
+    private func readBool(_ key: String) -> Bool {
+        if let v = ConfigReader.bool(key) { return v }
+        print("⚠️ [SecurityConfig] \(key) 누락 — false 처리")
+        return false
     }
     
     // MARK: - 📊 설정 정보 출력

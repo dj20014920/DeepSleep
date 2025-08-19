@@ -11,27 +11,27 @@ public class EnvironmentConfig {
     
     /// 🔑 Gemini API 키
     public var geminiApiKey: String {
-        return Bundle.main.object(forInfoDictionaryKey: "GEMINI_API_KEY") as? String ?? ""
+        return ConfigReader.string("GEMINI_API_KEY") ?? ""
     }
 
     /// 🔑 Claude API 키
     public var claudeApiKey: String {
-        return Bundle.main.object(forInfoDictionaryKey: "CLAUDE_API_KEY") as? String ?? ""
+        return ConfigReader.string("CLAUDE_API_KEY") ?? ""
     }
     
     /// 🔑 Naver Cloud Platform API 키
     public var naverCloudApiKey: String {
-        return Bundle.main.object(forInfoDictionaryKey: "NAVER_CLOUD_API_KEY") as? String ?? ""
+        return ConfigReader.string("NAVER_CLOUD_API_KEY") ?? ""
     }
     
     /// 🔑 Naver Cloud Platform API Secret
     public var naverCloudApiSecret: String {
-        return Bundle.main.object(forInfoDictionaryKey: "NAVER_CLOUD_API_SECRET") as? String ?? ""
+        return ConfigReader.string("NAVER_CLOUD_API_SECRET") ?? ""
     }
     
     /// 🔑 OpenAI API 키
     public var openAIApiKey: String {
-        return Bundle.main.object(forInfoDictionaryKey: "OPEN_AI_4oMINI_API_KEY") as? String ?? ""
+        return ConfigReader.string("OPEN_AI_4oMINI_API_KEY") ?? ""
     }
     
     // MARK: - Security Checks

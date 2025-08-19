@@ -36,7 +36,7 @@ class APIKeyManager {
     
     /// Secrets.xcconfig에서 API 키 로드
     private func loadAPIKey(for key: String) -> String? {
-        guard let apiKey = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+        guard let apiKey = ConfigReader.string(key) else {
             print("⚠️ [APIKeyManager] \(key) 키를 찾을 수 없습니다.")
             return nil
         }

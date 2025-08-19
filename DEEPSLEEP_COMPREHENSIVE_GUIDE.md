@@ -19,6 +19,41 @@
 
 ## 1. 프로젝트 개요
 
+### 🆕 2025-08-19 업데이트 요약 (중앙집중형 스트리밍, DRY 정합)
+- 스트리밍 API 인터페이스를 중앙집중형 assembledPrompt 입력 방식으로 확장(UnifiedAIService/Impl). 일반 호출과 동일한 경로를 사용하여 DRY/KISS/SOLID 원칙을 강화했습니다.
+- 앱 코드 전역에서 스트리밍 호출부(sendMessageStream) 점검 결과, 현재 직접 호출 없음. 향후 스트리밍 도입 시 SessionManager→AIContextBuilder→assembledPrompt→UnifiedAIService(동일 인터페이스) 경로만 사용합니다.
+- 사용량 한도/설정 로딩은 Secrets.xcconfig → Info.plist → Bundle 참조로만 허용. 하드코딩/강제주입 제거 계획을 확정(다음 단계에서 ConfigReader 유틸로 일원화 예정).
+- 모델 전환 시스템은 AIModelSelectionViewController 기반 단일 진입점으로 통합 예정(설정 변경→서비스 갱신→AIContextManager.clearCache(reason:.modelChanged) 원자 흐름 보장).
+- ZeroTokenAPIChecker 동시성 경고(미래 Swift 6 오류 승격 위험) 해결 계획 수립: Actor/AsyncStream 기반 안전 재작성 및 단위 테스트 추가 예정.
+
+#### 🧪 동시 점검 결과(2025-08-19) 및 스프린트 플랜
+무엇을 어떻게 점검했는가
+- 전역 소스 스캔: TODO/FIXME/stub/unimplemented/fatalError/assertionFailure 등 신호 전수 검색
+- 전체 빌드: DeepSleep 스킴을 iPhone 16 Pro 시뮬레이터 대상으로 클린 빌드(경고·잠재 결함 수집)
+- 결과: 빌드는 성공(오류 없음). 다수 경고와 TODO/Stub 확인
+
+핵심 발견사항(상용화 우선순위)
+- Must-fix: CompilerFixStubs/ChatBubbleCell Stub 제거 또는 실구현, 모델 전환 시스템 주석 제거 및 단일 진입점 통합, ZeroTokenAPIChecker 동시성 안전화, weak IBOutlet 즉시 해제 패턴 제거, @MainActor 격리 위반 수정
+- Should-fix: UnifiedAIServiceImpl 메트릭 TODO를 ContextMetrics로 흡수, MemoryOptimizationManager 최소 정책, EnhancedSoundRecommendationEngine Stub 범위 축소/정의, ClaudeAPIService TODO 정리, Deprecated/논리 경고 정리
+- Nice-to-have: 불필요 init(coder:) fatalError 제거, 미사용 변수/항상 true/false 분기 제거, Info/Config 경고 로깅 정책 통일
+
+로드맵 정합성
+- 스트리밍 assembledPrompt: 인터페이스/구현 통일(완료)
+- 캐시 무효화: 모델/설정/버전 변경 연결 유지, 페르소나/핵심 기억 요약 변화 트리거 재검증 예정
+- 메트릭: ContextMetrics로 일원화 계획 유지
+- 퍼즈 테스트: 스트리밍 파서 경로 커버리지 확장 예정
+
+권장 수정 순서(스프린트)
+1) ZeroTokenAPIChecker 동시성 리팩터링(Actor/AsyncStream)
+2) weak IBOutlet 즉시 해제 버그 수정(코드 UI 일관화)
+3) CompilerFixStubs/ChatBubbleCell Stub 제거 또는 실구현
+4) UnifiedAIServiceImpl 메트릭(ContextMetrics 연동)
+5) MemoryOptimizationManager 최소 정책
+6) Deprecated/불필요 분기/Dead code 정리
+
+상위 원칙(항상 준수)
+- DRY/중복 금지 · 두더지 잡기 금지 · KISS/YAGNI/SOLID 엄수
+
 ### 1.1 프로젝트 목적
 **DeepSleep**은 AI 기반 수면 분석 및 개선 iOS 앱입니다.
 
@@ -1752,7 +1787,7 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 
 ## 🆕 2025-08-19 업데이트 (빌드/문서 정합 · 사용성 개선)
 
-이번 업데이트는 중복 선언 정리, 캐시/한도 정책 코드-문서 동기화, 채팅버블 길게누르기 UX 개선을 포함합니다.
+이번 업데이트는 중복 선언 정리, 캐시/한도 정책 코드-문서 동기화, 채팅버블 길게누르기 UX 개선, 구성 접근 보안 일원화(ConfigReader), 모델 전환 단일 진입점 확립을 포함합니다.
 
 1) 빌드 안정화 및 중복/문법 정리
 - 중복 선언 정리: MemoryManager.swift 내 중복 enum/struct/class 단일화, 기타 Swift 파일의 중복 타입/블록 제거
@@ -1769,6 +1804,16 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 - 제한값 로드는 Secrets.xcconfig → Info.plist 매핑 → Bundle 경로만 사용
 - getDefaultLimit 제거, 누락 시 0으로 간주(해당 기능 비활성)
 - incrementUsage 시 80%/100% 임계 알림(Notification.Name.aiUsageLimitWarning/Reached) 발행
+
+4) 구성 접근 보안 일원화(ConfigReader 도입)
+- AppConfig, SecurityConfig, UsageLimitManager 등 주요 지점에서 Bundle 직접 접근 제거 → ConfigReader로 통일
+- 기본값 강제 주입(?? 패턴) 제거: 민감/정책 값은 누락 시 0/false 등 안전 실패로 처리하고 로그만 남김
+- DRY/KISS/보안 원칙 준수: 값 자체는 로그에 노출하지 않음
+
+5) 모델 전환 단일 진입점 확립 및 원자적 캐시 무효화
+- SettingsManager.updateSelectedModelAtomically(model) 추가: 저장→AIContextManager.clearCache(reason:.modelChanged)→알림(aiModelChanged) 순으로 원자 처리
+- AIModelSelectionViewController의 확인 버튼이 위 단일 진입점만 호출하도록 통일
+- 이후 UnifiedAIServiceImpl/화면단은 aiModelChanged 알림을 구독하여 파이프라인 갱신
 
 4) 채팅버블 길게 누르기 메뉴 전면 개선(모든 채팅 메시지 대상)
 - 모든 버블(사용자/AI)에서 길게 누르면 “기억하기/복사하기/공유하기” 제공

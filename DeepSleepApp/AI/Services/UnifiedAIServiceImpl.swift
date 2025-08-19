@@ -30,13 +30,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // 무료 모델 서비스 (OpenRouter)
     private var freeModelService: OpenRouterFallbackManager?
     
+    private var modelChangedObserver: Any?
+    
     private init() {
         initializeServices()
+        modelChangedObserver = NotificationCenter.default.addObserver(forName: .aiModelChanged, object: nil, queue: .main) { [weak self] note in
+            self?.handleModelChanged(notification: note)
+        }
     }
     
     // MARK: - 🔑 API 키 관리
     
-    /// API 키를 Bundle에서 안전하게 조회
+    /// API 키를 구성에서 안전하게 조회
     private func getAPIKey(for model: AIModel) -> String? {
         let keyName: String
         
@@ -53,9 +58,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             keyName = "OPENROUTER_API_KEY"
         }
         
-        guard let apiKey = Bundle.main.object(forInfoDictionaryKey: keyName) as? String,
-              !apiKey.isEmpty,
-              !apiKey.hasPrefix("$(") else {
+        guard let apiKey = ConfigReader.string(keyName),
+              !apiKey.isEmpty else {
             return nil
         }
         
@@ -63,6 +67,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     }
     
     
+    deinit {
+        if let obs = modelChangedObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+    }
     
     // MARK: - 🔧 서비스 초기화
     
@@ -402,6 +411,17 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         return finalModel
     }
     
+    // MARK: - 🔔 모델 변경 알림 처리
+    
+    private func handleModelChanged(notification: Notification) {
+        let from = (notification.userInfo?["from"] as? String) ?? "unknown"
+        let to = (notification.userInfo?["to"] as? String) ?? "unknown"
+        print("🔔 [UnifiedAIService] aiModelChanged: \(from) → \(to). 컨텍스트 캐시 무효화 및 파이프라인 점검")
+        // 컨텍스트 캐시 무효화는 SettingsManager에서 이미 수행하지만, 이중 안전망으로 한 번 더 보장 가능
+        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "UnifiedAIServiceImpl")
+        // 필요 시 모델별 세션 상태 초기화/메트릭 리셋 등을 여기에 추가 가능
+    }
+    
     /// LLMServiceType을 AIModel로 변환
     private func mapLLMServiceTypeToAIModel(_ llmType: LLMServiceType) -> AIModel? {
         switch llmType {
@@ -448,27 +468,30 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration?
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String? = nil
     ) -> AsyncThrowingStream<AIStreamResponse, Error> {
+        // 중앙집중형 assembledPrompt 경로를 우선 사용한다.
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    // 일반 응답을 스트리밍 형태로 변환 (임시 구현)
+                    // 현재는 단일 청크로 전달하지만, 서비스별 네이티브 스트리밍을 도입해도 인터페이스는 유지된다.
                     let response = try await sendMessage(
                         content: content,
                         model: model,
                         mode: mode,
                         context: context,
-                        tokenConfig: tokenConfig
+                        tokenConfig: tokenConfig,
+                        assembledPrompt: assembledPrompt
                     )
-                    
+
                     let streamResponse = AIStreamResponse(
                         id: response.id,
                         delta: response.content,
                         isComplete: true,
                         metadata: StreamMetadata(tokenCount: response.usage.totalTokens, timestamp: Date())
                     )
-                    
+
                     continuation.yield(streamResponse)
                     continuation.finish()
                 } catch {
@@ -693,96 +716,150 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         switch model {
         case .claude:
             // Claude는 길고 상세한 답변에 강함
-            let claudeBonus = Bundle.main.object(forInfoDictionaryKey: "AI_CLAUDE_MAX_TOKENS_BONUS") as? Int ?? 100
-            let claudeLimit = Bundle.main.object(forInfoDictionaryKey: "AI_CLAUDE_MAX_TOKENS_LIMIT") as? Int ?? 1000
-            optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens + claudeBonus, claudeLimit),
-                temperature: config.temperature,
-                topP: config.topP,
-                frequencyPenalty: config.frequencyPenalty,
-                presencePenalty: config.presencePenalty,
-                responseFormat: config.responseFormat
-            )
+            if let claudeBonus = ConfigReader.int("AI_CLAUDE_MAX_TOKENS_BONUS"),
+               let claudeLimit = ConfigReader.int("AI_CLAUDE_MAX_TOKENS_LIMIT") {
+                optimizedConfig = TokenConfiguration(
+                    maxTokens: min(config.maxTokens + claudeBonus, claudeLimit),
+                    temperature: config.temperature,
+                    topP: config.topP,
+                    frequencyPenalty: config.frequencyPenalty,
+                    presencePenalty: config.presencePenalty,
+                    responseFormat: config.responseFormat
+                )
+            } else {
+                optimizedConfig = config
+            }
             
         case .openAI:
             // OpenAI는 구조화된 출력에 강함
-            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_OPENAI_TEMPERATURE_ADJUSTMENT") as? Double ?? -0.1
-            let topP = Bundle.main.object(forInfoDictionaryKey: "AI_OPENAI_TOP_P") as? Double ?? 0.9
-            optimizedConfig = TokenConfiguration(
-                maxTokens: config.maxTokens,
-                temperature: max(config.temperature + tempAdjustment, 0.0),  // 더 일관된 출력
-                topP: topP,  // 더 집중된 응답
-                frequencyPenalty: config.frequencyPenalty ?? 0.0,
-                presencePenalty: config.presencePenalty ?? 0.0,
-                responseFormat: config.responseFormat
-            )
+            var newConfig = config
+            if let tempAdjustment = ConfigReader.double("AI_OPENAI_TEMPERATURE_ADJUSTMENT") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: max(newConfig.temperature + tempAdjustment, 0.0),
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            if let topP = ConfigReader.double("AI_OPENAI_TOP_P") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: newConfig.temperature,
+                    topP: topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            optimizedConfig = newConfig
             
         case .gemini:
             // Gemini는 빠르고 효율적인 응답에 강함
-            let geminiLimit = Bundle.main.object(forInfoDictionaryKey: "AI_GEMINI_MAX_TOKENS_LIMIT") as? Int ?? 800
-            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_GEMINI_TEMPERATURE_ADJUSTMENT") as? Double ?? 0.1
-            optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens, geminiLimit),  // 간결한 답변 유도하되 충분한 길이 허용
-                temperature: config.temperature + tempAdjustment,  // 약간 더 창의적
-                topP: config.topP,
-                frequencyPenalty: config.frequencyPenalty,
-                presencePenalty: config.presencePenalty,
-                responseFormat: config.responseFormat
-            )
+            var newConfig = config
+            if let geminiLimit = ConfigReader.int("AI_GEMINI_MAX_TOKENS_LIMIT") {
+                newConfig = TokenConfiguration(
+                    maxTokens: min(newConfig.maxTokens, geminiLimit),
+                    temperature: newConfig.temperature,
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            if let tempAdjustment = ConfigReader.double("AI_GEMINI_TEMPERATURE_ADJUSTMENT") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: newConfig.temperature + tempAdjustment,
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            optimizedConfig = newConfig
             
         case .naver:
             // Naver는 한국어에 특화됨
-            let tempAdjustment = Bundle.main.object(forInfoDictionaryKey: "AI_NAVER_TEMPERATURE_ADJUSTMENT") as? Double ?? 0.05
-            let topP = Bundle.main.object(forInfoDictionaryKey: "AI_NAVER_TOP_P") as? Double ?? 0.85
-            optimizedConfig = TokenConfiguration(
-                maxTokens: config.maxTokens,
-                temperature: config.temperature + tempAdjustment,  // 살짝 더 자연스럽게
-                topP: config.topP ?? topP,  // 한국어 특성 반영
-                frequencyPenalty: config.frequencyPenalty,
-                presencePenalty: config.presencePenalty,
-                responseFormat: config.responseFormat
-            )
+            var newConfig = config
+            if let tempAdjustment = ConfigReader.double("AI_NAVER_TEMPERATURE_ADJUSTMENT") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: newConfig.temperature + tempAdjustment,
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            if let topP = ConfigReader.double("AI_NAVER_TOP_P") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: newConfig.temperature,
+                    topP: topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            optimizedConfig = newConfig
         case .freeModel:
             // 통합 무료 모델은 안정적 JSON/텍스트 위주로 보수적으로 설정
-            let freeModelLimit = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_MAX_TOKENS_LIMIT") as? Int ?? 600
-            let tempMin = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_TEMPERATURE_MIN") as? Double ?? 0.2
-            let tempMax = Bundle.main.object(forInfoDictionaryKey: "AI_FREE_MODEL_TEMPERATURE_MAX") as? Double ?? 0.6
-            optimizedConfig = TokenConfiguration(
-                maxTokens: min(config.maxTokens, freeModelLimit),  // 무료 모델도 충분한 길이 허용
-                temperature: min(max(config.temperature, tempMin), tempMax),
-                topP: config.topP ?? 0.9,
-                frequencyPenalty: config.frequencyPenalty ?? 0.0,
-                presencePenalty: config.presencePenalty ?? 0.0,
-                responseFormat: config.responseFormat
-            )
+            var newConfig = config
+            if let freeModelLimit = ConfigReader.int("AI_FREE_MODEL_MAX_TOKENS_LIMIT") {
+                newConfig = TokenConfiguration(
+                    maxTokens: min(newConfig.maxTokens, freeModelLimit),
+                    temperature: newConfig.temperature,
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            // 온도 범위는 구성값이 있을 때만 적용
+            if let tempMin = ConfigReader.double("AI_FREE_MODEL_TEMPERATURE_MIN"),
+               let tempMax = ConfigReader.double("AI_FREE_MODEL_TEMPERATURE_MAX") {
+                newConfig = TokenConfiguration(
+                    maxTokens: newConfig.maxTokens,
+                    temperature: min(max(newConfig.temperature, tempMin), tempMax),
+                    topP: newConfig.topP,
+                    frequencyPenalty: newConfig.frequencyPenalty,
+                    presencePenalty: newConfig.presencePenalty,
+                    responseFormat: newConfig.responseFormat
+                )
+            }
+            optimizedConfig = newConfig
         }
         
         // 모드별 추가 최적화
         switch mode {
         case .emotionAnalysis, .presetRecommendation:
             // JSON 출력이 필요한 모드
-            let jsonTempMax = Bundle.main.object(forInfoDictionaryKey: "AI_JSON_MODE_TEMPERATURE_MAX") as? Double ?? 0.3
-            optimizedConfig = TokenConfiguration(
-                maxTokens: optimizedConfig.maxTokens,
-                temperature: min(optimizedConfig.temperature, jsonTempMax),  // 더 정확한 출력
-                topP: optimizedConfig.topP,
-                frequencyPenalty: optimizedConfig.frequencyPenalty,
-                presencePenalty: optimizedConfig.presencePenalty,
-                responseFormat: .json
-            )
+            if let jsonTempMax = ConfigReader.double("AI_JSON_MODE_TEMPERATURE_MAX") {
+                optimizedConfig = TokenConfiguration(
+                    maxTokens: optimizedConfig.maxTokens,
+                    temperature: min(optimizedConfig.temperature, jsonTempMax),
+                    topP: optimizedConfig.topP,
+                    frequencyPenalty: optimizedConfig.frequencyPenalty,
+                    presencePenalty: optimizedConfig.presencePenalty,
+                    responseFormat: .json
+                )
+            }
             
         case .fortuneTelling:
             // 창의적인 답변이 필요한 모드  
-            let creativeTempBonus = Bundle.main.object(forInfoDictionaryKey: "AI_CREATIVE_MODE_TEMPERATURE_BONUS") as? Double ?? 0.2
-            let creativeTempMax = Bundle.main.object(forInfoDictionaryKey: "AI_CREATIVE_MODE_TEMPERATURE_MAX") as? Double ?? 1.0
-            optimizedConfig = TokenConfiguration(
-                maxTokens: optimizedConfig.maxTokens,
-                temperature: min(optimizedConfig.temperature + creativeTempBonus, creativeTempMax),  // 더 창의적
-                topP: optimizedConfig.topP,
-                frequencyPenalty: optimizedConfig.frequencyPenalty,
-                presencePenalty: optimizedConfig.presencePenalty,
-                responseFormat: optimizedConfig.responseFormat
-            )
+            if let creativeTempBonus = ConfigReader.double("AI_CREATIVE_MODE_TEMPERATURE_BONUS"),
+               let creativeTempMax = ConfigReader.double("AI_CREATIVE_MODE_TEMPERATURE_MAX") {
+                optimizedConfig = TokenConfiguration(
+                    maxTokens: optimizedConfig.maxTokens,
+                    temperature: min(optimizedConfig.temperature + creativeTempBonus, creativeTempMax),
+                    topP: optimizedConfig.topP,
+                    frequencyPenalty: optimizedConfig.frequencyPenalty,
+                    presencePenalty: optimizedConfig.presencePenalty,
+                    responseFormat: optimizedConfig.responseFormat
+                )
+            }
             
         default:
             break

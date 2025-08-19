@@ -28,7 +28,8 @@ public protocol UnifiedAIService {
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
-        tokenConfig: TokenConfiguration?
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String?
     ) -> AsyncThrowingStream<AIStreamResponse, Error>
     
     /// 모델별 사용량 확인

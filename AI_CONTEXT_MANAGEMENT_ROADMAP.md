@@ -2,7 +2,7 @@
 
 ## 🆕 2025-08-19 업데이트 (컨텍스트/한도/UX 정합 · 빌드 안정화)
 
-이번 업데이트는 컨텍스트 캐시의 실제 적용, AIMode/시그니처 정합성, 사용량 한도 정책 통일, 채팅버블 UX 개선을 반영합니다.
+이번 업데이트는 컨텍스트 캐시의 실제 적용, AIMode/시그니처 정합성, 사용량 한도 정책 통일, 채팅버블 UX 개선, 스트리밍 API의 중앙집중형 호출 일관화 적용, 구성 접근 보안 일원화(ConfigReader), 모델 전환 단일 진입점 확립을 반영합니다.
 
 1) 시스템 프롬프트 캐시 적용 및 키 설계
 - UnifiedAIServiceImpl에서 AIContextManager.getSystemPrompt(personaSignature:generator:) 사용으로 3시간 TTL 캐시 활성화
@@ -17,6 +17,14 @@
 - 제한값은 Secrets.xcconfig → Info.plist → Bundle 경로로만 로드, 기본 하드코딩 값 완전 제거
 - 누락 시 0(비활성)로 간주, incrementUsage에서 80%/100% Notification 발행(토스트/Alert 연동 지점 표준화)
 
+4) 구성 접근 보안 일원화(ConfigReader)
+- 보안/설정 값 접근은 ConfigReader로 단일화(민감 값 로그 미노출, 기본값 강제 주입 제거)
+- AppConfig/SecurityConfig/UsageLimitManager 등 핵심 지점 리팩터링 완료
+
+5) 모델 전환 단일 진입점 + 캐시 무효화 원자 흐름
+- SettingsManager.updateSelectedModelAtomically(model): 저장 → AIContextManager.clearCache(reason:.modelSelectionChanged) → Notification.Name.aiModelChanged 방송
+- AIModelSelectionViewController는 이 단일 진입점만 호출하도록 통일
+
 4) 채팅버블 길게누르기 UX(모든 버블 대상)
 - 모든 채팅 메시지(사용자/AI)에서 길게 누르면: 기억하기/복사하기/공유하기
 - iOS 16+: UIEditMenuInteraction + UIActivityViewController(카카오톡 등 네이티브 공유 시트)
@@ -27,10 +35,59 @@
 - MemoryManager.swift 중복 선언 단일화 및 문법 오류 정리
 - UnifiedAIServiceImpl.swift의 잘못된 문법(하이픈 → 화살표) 및 누락 인자 보완
 
-6) 다음 단계 권장(단기)
+6) 스트리밍 API 중앙집중화(assembledPrompt 지원)
+- UnifiedAIService.sendMessageStream(...)에 assembledPrompt 파라미터 추가(프로토콜/구현 동시 반영)
+- UnifiedAIServiceImpl.sendMessageStream(...)은 내부적으로 sendMessage(...)와 동일한 중앙집중형 assembledPrompt 경로를 우선 사용하도록 통일
+- 앱 코드(DeepSleepApp/*) 내 스트리밍 호출부 점검 결과: 현재 직접 호출 없음(향후 도입 시 동일 경로로만 사용 명시)
+
+7) 다음 단계 권장(단기)
 - 캐시 적중률/무효화 사유 로깅 지표 추가로 가시성 강화
 - 경고 정리: 약한 참조 대입, 불필요 #available, 미사용 변수/도달 불가 코드 제거
 - 통합 테스트: 동일 세션 내 캐시 HIT, 캐시 무효화 이벤트 발생 시 MISS, 한도 경고/차단 UI까지 일련 플로우 검증
+
+### 🧪 2025-08-19 점검 결과 및 스프린트 플랜(추가)
+
+무엇을 어떻게 점검했는가
+- 전역 소스 스캔: TODO/FIXME/stub/unimplemented/fatalError/assertionFailure 등 신호를 전수 검색
+- 전체 빌드: DeepSleep 스킴을 iPhone 16 Pro 시뮬레이터 대상으로 클린 빌드해 경고·잠재 결함 수집
+- 결과: 빌드는 성공(오류 없음). 다수의 경고와 TODO/Stub를 확인
+
+핵심 발견사항(상용화 관점 우선순위)
+- Must-fix(출시 전 해소 권장)
+  1) CompilerFixStubs 및 Stub 코드 잔존: CompilerFixStubs.swift, ChatBubbleCell.swift 내 Stub 존재 → 실제 구현 대체 또는 삭제
+  2) 모델 전환 시스템 미구현 표식: ChatViewController 내 “모델 전환 시스템 통합 예정/임시 주석” → AIModelSelectionViewController 기반 단일 진입점으로 통합, Settings→UnifiedAIServiceImpl→AIContextManager.clearCache(reason:.modelChanged) 일원화. 스트리밍도 assembledPrompt로 통일(완료)
+  3) ZeroTokenAPIChecker 동시성 경고: captured var(hasResumed) 변이/참조 → Actor/AsyncStream/CheckedContinuation 패턴으로 안전 재작성
+  4) weak IBOutlet에 즉시 인스턴스 할당: FeedbackVisualizationViewController 등 → 코드 기반 강한 참조 프로퍼티로 전환(스토리보드 미사용 정책에 부합)
+  5) @MainActor 싱글톤 접근의 격리 위반: Performance/Battery/Memory Manager 호출부 정리
+- Should-fix(가급적 빠른 시점)
+  6) UnifiedAIServiceImpl 메트릭 TODO: ContextMetrics 연동으로 요청/응답/실패·p95·성공률 수집
+  7) MemoryOptimizationManager: LRU/나이 기반 정리, 이미지 캐시 압축, 온디바이스 모델 언로드 훅(백그라운드/메모리 워닝)
+  8) EnhancedSoundRecommendationEngine Stub: UserProfileVector 최소 스키마 정의 또는 제거(YAGNI)
+  9) ClaudeAPIService TODO: 제품 범위 밖이면 제거, 필요 시 UnifiedAIServiceImpl 생성 값 주입
+  10) Deprecated/논리 경고: UIColorExtensions 불필요 #available, CoreData isIndexed, UIApplication.shared.windows 등 최신 API로 정리
+- Nice-to-have(기술부채/정돈)
+  11) 불필요 ‘init(coder:) has not been implemented’ fatalError 제거(@available(*, unavailable) 등)
+  12) 미사용 변수/항상 true/false 분기 제거
+  13) Info/Config 키 누락 대비 경고 로그 정책 통일(Config 접근 유틸 공통화)
+
+로드맵 정합성 체크(8/18 결정사항 연계)
+- 스트리밍 assembledPrompt: 인터페이스 확장·구현 통일(완료)
+- 캐시 무효화 트리거: 모델/설정/앱 버전 변경 연결 검증, 페르소나/핵심 기억 요약 변화 트리거 재검증 예정
+- 메트릭 일원화: TODO 잔존 → ContextMetrics로 흡수 예정
+- 퍼즈 테스트: 스트리밍 파서 경로 커버리지 확장 예정
+
+권장 수정 순서(짧은 스프린트 플랜)
+1) ZeroTokenAPIChecker 동시성 안전 리팩터링(Actor/AsyncStream)
+2) FeedbackVisualizationViewController weak IBOutlet 즉시 해제 버그 수정(코드 UI 일관화)
+3) CompilerFixStubs/ChatBubbleCell Stub 제거 또는 실구현 이관
+4) UnifiedAIServiceImpl 메트릭 TODO 구현(ContextMetrics 연동)
+5) MemoryOptimizationManager 최소 정책 구현
+6) Deprecated/불필요 분기/Dead code 정리
+
+상위 원칙(반드시 준수)
+- 비슷한 로직의 중복 금지(DRY)
+- 두더지 잡기식 개별 오류 수정 금지(근본 원인 해결)
+- KISS/YAGNI/SOLID 준수(단순·필요·확장 가능한 설계)
 
 ---
 

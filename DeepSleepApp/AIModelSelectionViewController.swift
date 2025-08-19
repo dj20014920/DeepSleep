@@ -252,6 +252,8 @@ class AIModelSelectionViewController: UIViewController {
     }
     
     @objc private func confirmButtonTapped() {
+        // 단일 진입점으로 모델 변경 처리
+        SettingsManager.shared.updateSelectedModelAtomically(currentSelectedModel)
         onModelSelected?(currentSelectedModel)
         dismiss(animated: true)
     }

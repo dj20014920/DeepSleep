@@ -114,9 +114,7 @@ public class UsageLimitManager {
         ]
         
         for key in keys {
-            if let value = Bundle.main.object(forInfoDictionaryKey: key) as? String, let intVal = Int(value) {
-                loaded[key] = intVal
-            } else if let intVal = Bundle.main.object(forInfoDictionaryKey: key) as? Int {
+            if let intVal = readInt(key) {
                 loaded[key] = intVal
             }
         }
@@ -124,10 +122,23 @@ public class UsageLimitManager {
         // 백업 하드코딩 없이, 구성 누락 시 0으로만 처리
         cachedLimits = loaded
         if loaded.isEmpty {
-            print("⚠️ [UsageLimitManager] Info.plist 매핑에서 제한값을 찾지 못했습니다. 모든 제한값을 0으로 간주합니다.")
+            print("⚠️ [UsageLimitManager] Info.plist/xcconfig 매핑에서 제한값을 찾지 못했습니다. 모든 제한값을 0으로 간주합니다.")
         } else {
-            print("✅ [UsageLimitManager] Info.plist 매핑에서 제한값 로드 완료")
+            print("✅ [UsageLimitManager] 구성에서 제한값 로드 완료")
         }
+    }
+    
+    /// Info.plist 매핑에서 Int 값 안전 로드 (ConfigReader 비의존 로컬 헬퍼)
+    private func readInt(_ key: String) -> Int? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else { return nil }
+        if let s = raw as? String {
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("$(") { return nil }
+            return Int(trimmed)
+        }
+        if let n = raw as? NSNumber { return n.intValue }
+        if let i = raw as? Int { return i }
+        return nil
     }
     
     // (제거됨) xcconfig 직접 파싱 로직은 사용하지 않습니다. 모든 제한값은 Info.plist 매핑을 통해서만 로드합니다.

@@ -12,10 +12,7 @@ public final class AIContextManager {
 
     // 기본 TTL: 3시간(10800초). Info.plist(또는 xcconfig 매핑)에서 "AI_SYSTEM_PROMPT_CACHE_TTL" 값을 우선 사용
     private lazy var cacheTTL: TimeInterval = {
-        if let s = Bundle.main.object(forInfoDictionaryKey: "AI_SYSTEM_PROMPT_CACHE_TTL") as? String,
-           let v = TimeInterval(s) {
-            return v
-        }
+        if let v = ConfigReader.double("AI_SYSTEM_PROMPT_CACHE_TTL") { return v }
         return 10800
     }()
 
