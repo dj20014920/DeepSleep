@@ -55,7 +55,7 @@
 핵심 발견사항(상용화 관점 우선순위)
 - Must-fix(출시 전 해소 권장)
   1) CompilerFixStubs 및 Stub 코드 잔존: CompilerFixStubs.swift, ChatBubbleCell.swift 내 Stub 존재 → 실제 구현 대체 또는 삭제
-  2) 모델 전환 시스템 미구현 표식: ChatViewController 내 “모델 전환 시스템 통합 예정/임시 주석” → AIModelSelectionViewController 기반 단일 진입점으로 통합, Settings→UnifiedAIServiceImpl→AIContextManager.clearCache(reason:.modelChanged) 일원화. 스트리밍도 assembledPrompt로 통일(완료)
+  2) 모델 전환 시스템 미구현 표식: ChatViewController 내 “모델 전환 시스템 통합 예정/임시 주석” → AIModelSelectionViewController 기반 단일 진입점으로 통합, Settings→UnifiedAIServiceImpl→AIContextManager.clearCache(reason:.modelSelectionChanged) 일원화. 스트리밍도 assembledPrompt로 통일(완료)
   3) ZeroTokenAPIChecker 동시성 경고: captured var(hasResumed) 변이/참조 → Actor/AsyncStream/CheckedContinuation 패턴으로 안전 재작성
   4) weak IBOutlet에 즉시 인스턴스 할당: FeedbackVisualizationViewController 등 → 코드 기반 강한 참조 프로퍼티로 전환(스토리보드 미사용 정책에 부합)
   5) @MainActor 싱글톤 접근의 격리 위반: Performance/Battery/Memory Manager 호출부 정리

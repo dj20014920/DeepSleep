@@ -23,8 +23,9 @@
 - 스트리밍 API 인터페이스를 중앙집중형 assembledPrompt 입력 방식으로 확장(UnifiedAIService/Impl). 일반 호출과 동일한 경로를 사용하여 DRY/KISS/SOLID 원칙을 강화했습니다.
 - 앱 코드 전역에서 스트리밍 호출부(sendMessageStream) 점검 결과, 현재 직접 호출 없음. 향후 스트리밍 도입 시 SessionManager→AIContextBuilder→assembledPrompt→UnifiedAIService(동일 인터페이스) 경로만 사용합니다.
 - 사용량 한도/설정 로딩은 Secrets.xcconfig → Info.plist → Bundle 참조로만 허용. 하드코딩/강제주입 제거 계획을 확정(다음 단계에서 ConfigReader 유틸로 일원화 예정).
-- 모델 전환 시스템은 AIModelSelectionViewController 기반 단일 진입점으로 통합 예정(설정 변경→서비스 갱신→AIContextManager.clearCache(reason:.modelChanged) 원자 흐름 보장).
+- 모델 전환 시스템은 AIModelSelectionViewController 기반 단일 진입점으로 통합 예정(설정 변경→서비스 갱신→AIContextManager.clearCache(reason:.modelSelectionChanged) 원자 흐름 보장).
 - ZeroTokenAPIChecker 동시성 경고(미래 Swift 6 오류 승격 위험) 해결 계획 수립: Actor/AsyncStream 기반 안전 재작성 및 단위 테스트 추가 예정.
+- 개인정보 보호 정책 정합화: Persona Signature Hash는 내부 캐시 무효화 식별자(외부 전송 금지)로만 사용하고, 외부 AI에는 PII 필터링을 거친 Anonymized Descriptive Context(예: “이 사용자는 30대입니다”)만 전달합니다. 해시값 자체는 개인화를 위한 의미를 가지지 않습니다.
 
 #### 🧪 동시 점검 결과(2025-08-19) 및 스프린트 플랜
 무엇을 어떻게 점검했는가
