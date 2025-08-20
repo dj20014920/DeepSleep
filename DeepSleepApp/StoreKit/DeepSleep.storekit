@@ -1,0 +1,60 @@
+{
+  "identifier" : "com.deepsleep.storekit.config",
+  "subscriptionGroups" : [
+    {
+      "id" : "primary",
+      "name" : "DeepSleep Premium"
+    }
+  ],
+  "products" : [
+    {
+      "id" : "com.deepsleep.premium.monthly",
+      "type" : "Auto-Renewable Subscription",
+      "referenceName" : "Premium Monthly",
+      "subscription" : {
+        "group" : "primary",
+        "duration" : "P1M",
+        "introductoryOffer" : {
+          "mode" : "FREE_TRIAL",
+          "period" : "P7D",
+          "eligibility" : "FIRST_TIME_IN_GROUP"
+        }
+      },
+      "prices" : [
+        { "currency" : "KRW", "value" : 6500 },
+        { "currency" : "USD", "value" : 4.99 }
+      ]
+    },
+    {
+      "id" : "com.deepsleep.premium.yearly",
+      "type" : "Auto-Renewable Subscription",
+      "referenceName" : "Premium Yearly",
+      "subscription" : {
+        "group" : "primary",
+        "duration" : "P1Y",
+        "introductoryOffer" : {
+          "mode" : "FREE_TRIAL",
+          "period" : "P7D",
+          "eligibility" : "FIRST_TIME_IN_GROUP"
+        }
+      },
+      "prices" : [
+        { "currency" : "KRW", "value" : 65000 },
+        { "currency" : "USD", "value" : 49.99 }
+      ]
+    }
+  ],
+  "scenes" : [
+    {
+      "name" : "Trial → Convert → Refund → Expire",
+      "actions" : [
+        { "type" : "BEGIN_TRIAL", "productID" : "com.deepsleep.premium.monthly" },
+        { "type" : "ELAPSE_TIME", "duration" : "P7D" },
+        { "type" : "RENEW" },
+        { "type" : "REFUND_LATEST_RENEWAL" },
+        { "type" : "ELAPSE_TIME", "duration" : "P1M" }
+      ]
+    }
+  ]
+}
+

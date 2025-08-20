@@ -196,6 +196,12 @@
 		E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */; };
 		E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */; };
 		E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */; };
+		E0E7BCC62E561C8100FF7073 /* EntitlementUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC52E561C8100FF7073 /* EntitlementUI.swift */; };
+		E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */; };
+		E0E7BCCB2E561E3300FF7073 /* KSTDatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */; };
+		E0E7BCCE2E561E4A00FF7073 /* DeepSleep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */; };
+		E0E7BCD02E561E7000FF7073 /* StoreKitSubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */; };
+		E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -398,6 +404,12 @@
 		E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementGate.swift; sourceTree = "<group>"; };
 		E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallPresenter.swift; sourceTree = "<group>"; };
 		E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStatusCenter.swift; sourceTree = "<group>"; };
+		E0E7BCC52E561C8100FF7073 /* EntitlementUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementUI.swift; sourceTree = "<group>"; };
+		E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
+		E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KSTDatePolicy.swift; sourceTree = "<group>"; };
+		E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
+		E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitSubscriptionManager.swift; sourceTree = "<group>"; };
+		E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumBadgeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -578,6 +590,7 @@
 		E084F0882E33ACB3002F75E6 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */,
 				E084F0852E33ACB3002F75E6 /* InsightCell.swift */,
 				E084F0862E33ACB3002F75E6 /* ToastManager.swift */,
 				E084F0872E33ACB3002F75E6 /* TodoListCell.swift */,
@@ -597,6 +610,8 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCCD2E561E4A00FF7073 /* StoreKit */,
+				E0E7BCC92E561E3300FF7073 /* Core */,
 				E0E7BCBB2E561B2D00FF7073 /* Paywall */,
 				E0E7BCB52E5591CA00FF7073 /* Subscription */,
 				E0E7BCB22E54706A00FF7073 /* Config */,
@@ -798,6 +813,7 @@
 		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */,
 				E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */,
 				E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */,
 				E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */,
@@ -810,9 +826,27 @@
 		E0E7BCBB2E561B2D00FF7073 /* Paywall */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCC52E561C8100FF7073 /* EntitlementUI.swift */,
 				E0E7BCBA2E561B2D00FF7073 /* PaywallViewController.swift */,
 			);
 			path = Paywall;
+			sourceTree = "<group>";
+		};
+		E0E7BCC92E561E3300FF7073 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */,
+				E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		E0E7BCCD2E561E4A00FF7073 /* StoreKit */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */,
+			);
+			path = StoreKit;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -888,6 +922,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E084F29F2E33AE9B002F75E6 /* 고양이.mp3 in Resources */,
+				E0E7BCCE2E561E4A00FF7073 /* DeepSleep.storekit in Resources */,
 				E084F2A02E33AE9B002F75E6 /* 바람.mp3 in Resources */,
 				E084F2A12E33AE9B002F75E6 /* 바람2.mp3 in Resources */,
 				E084F2A22E33AE9B002F75E6 /* 발걸음-눈.mp3 in Resources */,
@@ -998,6 +1033,8 @@
 				E084F1B62E33ACB3002F75E6 /* SettingsSectionView.swift in Sources */,
 				E084F1B72E33ACB3002F75E6 /* EmotionResponseManager.swift in Sources */,
 				E084F1B82E33ACB3002F75E6 /* FeedbackPromptViewController.swift in Sources */,
+				E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */,
+				E0E7BCCB2E561E3300FF7073 /* KSTDatePolicy.swift in Sources */,
 				E084F1B92E33ACB3002F75E6 /* SharedModels.swift in Sources */,
 				E084F1BA2E33ACB3002F75E6 /* SettingsManager.swift in Sources */,
 				E084F1BB2E33ACB3002F75E6 /* UserSettingsModel.swift in Sources */,
@@ -1014,6 +1051,7 @@
 				E084F1C52E33ACB3002F75E6 /* EnhancedFeedbackViewController.swift in Sources */,
 				E084F1C62E33ACB3002F75E6 /* AppDelegate.swift in Sources */,
 				E084F1C72E33ACB3002F75E6 /* EmotionDiaryViewController.swift in Sources */,
+				E0E7BCD02E561E7000FF7073 /* StoreKitSubscriptionManager.swift in Sources */,
 				E084F1C82E33ACB3002F75E6 /* TimerViewController.swift in Sources */,
 				E084F1C92E33ACB3002F75E6 /* EnvironmentConfig.swift in Sources */,
 				E084F1CA2E33ACB3002F75E6 /* RemoteLogger.swift in Sources */,
@@ -1056,6 +1094,7 @@
 				E084F1EC2E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift in Sources */,
 				E084F1ED2E33ACB3002F75E6 /* EmotionAnalysisInputView.swift in Sources */,
 				E084F1EE2E33ACB3002F75E6 /* ScalableSoundCatalog.swift in Sources */,
+				E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */,
 				E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */,
 				E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */,
 				E084F1F12E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift in Sources */,
@@ -1074,6 +1113,7 @@
 				E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */,
 				E084F1FB2E33ACB3002F75E6 /* HealthKitManager.swift in Sources */,
 				E084F1FC2E33ACB3002F75E6 /* OpenAIAPIService.swift in Sources */,
+				E0E7BCC62E561C8100FF7073 /* EntitlementUI.swift in Sources */,
 				E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */,
 				E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */,
 				E084F2002E33ACB3002F75E6 /* ConsoleLogger.swift in Sources */,

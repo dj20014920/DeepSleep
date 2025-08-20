@@ -21,6 +21,9 @@ public final class PaywallViewController: UIViewController {
     /// 7일 무료체험 남은 일수 (Trial 대상인 경우에만 설정)
     public var trialDaysRemaining: Int? { didSet { updateUI() } }
 
+    // 옵저버 토큰
+    private var subscriptionObserver: NSObjectProtocol?
+
     // MARK: - UI
     private let titleLabel: UILabel = {
         let l = UILabel()
@@ -86,12 +89,25 @@ public final class PaywallViewController: UIViewController {
     }()
 
     // MARK: - Lifecycle
-    public override func viewDidLoad() {
+public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         configureLayout()
         bind()
         updateUI()
+        // 구독 상태 변경 시 자동 반영/닫힘 처리
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            // 프리미엄 활성화 시 자동 닫기
+            if SubscriptionStatusCenter.shared.isPremium {
+                self.dismiss(animated: true)
+            } else {
+                // 가격/Trial 정보 갱신 시도
+                self.refreshPricesIfNeeded()
+            }
+        }
+        // 최초 진입 시 가격/Trial 갱신 시도
+        refreshPricesIfNeeded()
     }
 
     private func bind() {
@@ -139,6 +155,10 @@ public final class PaywallViewController: UIViewController {
     }
 
     private func updateUI() {
+        // 비어있으면 가격 로딩 시도
+        if monthlyDisplayPrice == nil || yearlyDisplayPrice == nil {
+            refreshPricesIfNeeded()
+        }
         var priceText: [String] = []
         if let m = monthlyDisplayPrice { priceText.append("월간: \(m)") }
         if let y = yearlyDisplayPrice { priceText.append("연간: \(y)") }
@@ -149,12 +169,58 @@ public final class PaywallViewController: UIViewController {
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
         } else {
             trialBadgeLabel.isHidden = true
+    }
+
+    private func refreshPricesIfNeeded() {
+        Task { @MainActor in
+            // 제품 로드 후 표시가/Trial 갱신
+            await StoreKitSubscriptionManager.shared.loadProducts()
+            if self.monthlyDisplayPrice == nil {
+                self.monthlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
+            }
+            if self.yearlyDisplayPrice == nil {
+                self.yearlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
+            }
+            if self.trialDaysRemaining == nil {
+                // 월/연 중 하나라도 trial 대상이면 7로 표기(가장 관대한 표기)
+                let m = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
+                let y = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
+                self.trialDaysRemaining = m ?? y
+            }
         }
     }
 
+    deinit {
+        if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
+    }
+}
+
     // MARK: - Actions
-    @objc private func didTapMonthly() { delegate?.paywallDidRequestPurchaseMonthly(self) }
-    @objc private func didTapYearly() { delegate?.paywallDidRequestPurchaseYearly(self) }
-    @objc private func didTapRestore() { delegate?.paywallDidRequestRestore(self) }
-    @objc private func didTapClose() { delegate?.paywallDidClose(self) }
+    @objc private func didTapMonthly() {
+        if let d = delegate { d.paywallDidRequestPurchaseMonthly(self); return }
+        // 기본 동작: StoreKit2 구매 진행
+        Task { @MainActor in
+            do {
+                try await StoreKitSubscriptionManager.shared.purchase(.monthly)
+            } catch {
+                // 필요시 사용자 알림 추가 가능
+            }
+        }
+    }
+    @objc private func didTapYearly() {
+        if let d = delegate { d.paywallDidRequestPurchaseYearly(self); return }
+        Task { @MainActor in
+            do {
+                try await StoreKitSubscriptionManager.shared.purchase(.yearly)
+            } catch {
+            }
+        }
+    }
+    @objc private func didTapRestore() {
+        if let d = delegate { d.paywallDidRequestRestore(self); return }
+        Task {
+            await StoreKitSubscriptionManager.shared.restore()
+        }
+    }
+    @objc private func didTapClose() { delegate?.paywallDidClose(self); dismiss(animated: true) }
 }

@@ -328,3 +328,45 @@ Phase 4: 정합성/심사 대응
 - 장애/심사 대응: PAYWALL_ENABLED 임시 비활성화로 무료 동작 롤백, IAP 플로우 진입 차단
 - Mock: SubscriptionManager(Mock)는 DEBUG 전용, Release/AdHoc에서는 제외
 
+---
+
+# 2025-08-20 업데이트 로그 (정책 고정 사항 반영 + 코드 결선)
+
+변경 요약(파일/경로 정확 표기)
+- 추가: DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift
+  - StoreKit2 제품 로드/구매/복원/트랜잭션 스트림 구독, SubscriptionStatusCenter.shared로 isPremium 상태 브로드캐스트
+- 추가: DeepSleepApp/Core/FeatureFlags.swift
+  - IAP_ENABLED/PAYWALL_ENABLED/MONTHLY_STATS_STRICT_WINDOW 등 런타임 토글 진입점
+- 추가: DeepSleepApp/Core/KSTDatePolicy.swift
+  - isKSTMonday00(now:) 제공 (KST 월요일 00:00 창 검증)
+- 추가: DeepSleepApp/UI/PremiumBadgeView.swift
+  - 메인 상단 중앙 D-N 배지(무지개 번쩍임) 구현
+- 추가: DeepSleepApp/StoreKit/DeepSleep.storekit
+  - 구독 그룹 primary, 월간/연간 + 7일 Intro(그룹 1회) 시나리오 포함. 스킴 Run > Options에 연결 필요
+- 변경: DeepSleepApp/AI/UsageLimitManager.swift
+  - 등급별/공통 키 모두 지원하도록 해석 로직 개선
+    • 무료/프리미엄 분기: DAILY_CHAT_LIMIT_FREE/DAILY_CHAT_LIMIT_PREMIUM 우선
+    • 공통/대체 키: DAILY_CHAT_LIMIT, AI_LIMITS_CHAT 폴백
+    • 주간 1회 제한은 기존 KST 앵커 로직 유지
+
+Secrets.xcconfig 경로 고정(중요)
+- 사용 경로: DeepSleepApp/Secrets.xcconfig (스킴/빌드 설정에 연결됨)
+- Config/Secrets.xcconfig는 사용하지 않음. 혼선 방지를 위해 프로젝트 참조에서 제거 권장
+
+결선 작업 체크리스트(이 스프린트에서 완료 예정)
+- [ ] PaywallViewController ↔ StoreKitSubscriptionManager 결선
+  • PaywallVC 델리게이트에서 purchase(.monthly/.yearly), restore() 호출
+  • 구매/복원 성공 시 SubscriptionStatusCenter 변경 → Notification.subscriptionStatusChanged 수신하여 UI 갱신 및 배지 업데이트
+- [ ] PaywallPresenter 가격/Trial 정보 주입
+  • StoreKitSubscriptionManager.displayPrice(.monthly/.yearly)로 표시가, trialDaysRemaining(.monthly/.yearly)로 D-표시
+- [ ] EntitlementGate와 UsageLimitManager 연계 검증
+  • 프리미엄/Trial → 제한 상향 또는 무시, 무료 → xcconfig 기반 일일 한도 적용
+- [ ] DeepSleepApp/StoreKit/DeepSleep.storekit 스킴 연결 점검 (Run > Options)
+- [ ] IOS_GUIDE.md Must-fix 항목 중 IAP 미구현 리스크 항목 “StoreKit2 구현됨(기본 흐름)”으로 상태 갱신
+
+릴리즈 노트 문구 가이드(스토어 메타데이터 동기화)
+- 7일 무료체험(동일 구독 그룹 1회) / 연간은 월 대비 약 20% 할인
+- 무료 사용자는 Gemini 2.0 Flash‑Lite 모델 고정, 프리미엄/체험은 상향 한도 적용
+- 월간 통계는 대한민국 표준시(KST) 기준 월요일 00:00에 주 1회만 실행 가능
+
+---

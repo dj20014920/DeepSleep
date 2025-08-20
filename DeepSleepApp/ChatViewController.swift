@@ -508,16 +508,24 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     // MARK: - 💬 메시지 전송 처리 (리팩토링 완료)
     
-    @objc func sendButtonTapped() {
+@objc func sendButtonTapped() {
         print("🔵 [ChatViewController] sendButtonTapped() 호출됨")
-        guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { 
+        guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
             print("🔴 [ChatViewController] 입력 텍스트가 비어있음")
-            return 
+            return
         }
-        
+
+        // 중앙 게이트로 무료/유료 분기 (무료 한도 초과 시 페이월 표시)
+        let (canChat, reason) = EntitlementGate.canAccess(.chat)
+        if !canChat {
+            print("🛑 [ChatViewController] Chat 게이트 차단 - reason: \(reason)")
+            EntitlementUI.require(.chat, from: self)
+            return
+        }
+
         print("🔵 [ChatViewController] 입력 텍스트: '\(text)'")
         inputTextField.text = ""
-        
+
         // 🚀 새로운 AI 응답 처리 함수 호출
         fetchAIResponse(for: text)
         print("🔵 [ChatViewController] fetchAIResponse 호출 완료")

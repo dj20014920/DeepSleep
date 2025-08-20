@@ -55,8 +55,7 @@ public class UsageLimitManager {
     public func canUseAIFeature(_ mode: AIMode) -> (canUse: Bool, currentUsage: Int, dailyLimit: Int) {
         checkAndResetIfNewDay()
         
-        let limitKey = getLimitKeyForMode(mode)
-        let dailyLimit = cachedLimits[limitKey] ?? 0
+        let dailyLimit = resolvedDailyLimit(for: mode)
         let currentUsage = getCurrentUsage(for: mode)
         let canUse = currentUsage < dailyLimit
         
@@ -99,18 +98,25 @@ public class UsageLimitManager {
     
     // MARK: - 🔧 내부 구현
     
-    /// Bundle에서 Secrets.xcconfig의 제한값 로드
+    /// Bundle에서 Secrets.xcconfig의 제한값 로드(초기 스냅샷)
     private func loadLimitsFromBundle() {
         // Info.plist에 매핑된 키에서 안전하게 로드 (Secrets.xcconfig -> Info.plist -> Bundle)
         var loaded: [String: Int] = [:]
         let keys = [
+            // 공통 키(구버전/권장)
             "DAILY_CHAT_LIMIT",
             "DAILY_PRESET_RECOMMENDATION_LIMIT",
             "DAILY_DIARY_ANALYSIS_LIMIT",
             "DAILY_TODO_ADVICE_LIMIT",
             "DAILY_FORTUNE_LIMIT",
             "DAILY_EMOTION_ANALYSIS_LIMIT",
-            "DAILY_MONTHLY_STATISTICS_LIMIT"
+            "DAILY_MONTHLY_STATISTICS_LIMIT",
+            // 등급별 키(사용자 보유 파일 호환)
+            "DAILY_CHAT_LIMIT_FREE",
+            "DAILY_CHAT_LIMIT_PREMIUM",
+            "DAILY_CLAUDE_LIMIT_FREE",
+            "DAILY_CLAUDE_LIMIT_PREMIUM",
+            "DAILY_PATTERN_ANALYSIS_LIMIT"
         ]
         
         for key in keys {
@@ -119,12 +125,11 @@ public class UsageLimitManager {
             }
         }
         
-        // 백업 하드코딩 없이, 구성 누락 시 0으로만 처리
-        cachedLimits = loaded
+        cachedLimits = loaded // 참고용 캐시(정확한 조회는 resolvedDailyLimit가 수행)
         if loaded.isEmpty {
             print("⚠️ [UsageLimitManager] Info.plist/xcconfig 매핑에서 제한값을 찾지 못했습니다. 모든 제한값을 0으로 간주합니다.")
         } else {
-            print("✅ [UsageLimitManager] 구성에서 제한값 로드 완료")
+            print("✅ [UsageLimitManager] 구성에서 제한값 로드 완료 (키 \(loaded.keys.count)개)")
         }
     }
     
@@ -145,24 +150,38 @@ public class UsageLimitManager {
     
     // (제거됨) 하드코딩된 기본 제한값은 사용하지 않습니다. 모든 제한값은 Info.plist 매핑을 통해 설정되어야 합니다.
     
-    /// AIMode를 제한값 키로 변환
-    private func getLimitKeyForMode(_ mode: AIMode) -> String {
+    /// 주어진 모드에 대해 우선순위 키 목록을 반환(등급별/공통 키 모두 지원)
+    private func limitKeyCandidates(for mode: AIMode, isPremium: Bool) -> [String] {
         switch mode {
         case .generalConversation:
-            return "DAILY_CHAT_LIMIT"
+            return isPremium
+            ? ["DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT"]
+            : ["DAILY_CHAT_LIMIT_FREE", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT"]
         case .emotionDiaryAnalysis:
-            return "DAILY_DIARY_ANALYSIS_LIMIT"
+            return ["DAILY_DIARY_ANALYSIS_LIMIT", "AI_LIMITS_DIARY_ANALYSIS"]
         case .taskAdvice:
-            return "DAILY_TODO_ADVICE_LIMIT"
+            return ["DAILY_TODO_ADVICE_LIMIT", "AI_LIMITS_TODO_ADVICE"]
         case .presetRecommendation:
-            return "DAILY_PRESET_RECOMMENDATION_LIMIT"
+            return ["DAILY_PRESET_RECOMMENDATION_LIMIT", "AI_LIMITS_PRESET_RECOMMENDATION"]
         case .monthlyStatistics:
-            return "DAILY_MONTHLY_STATISTICS_LIMIT"
+            // 일일 제한 키는 더 이상 사용하지 않지만, 하위 호환을 위해 0으로 유지
+            return ["DAILY_MONTHLY_STATISTICS_LIMIT", "AI_LIMITS_MONTHLY_STATISTICS"]
         case .fortuneTelling:
-            return "DAILY_FORTUNE_LIMIT"
+            return ["DAILY_FORTUNE_LIMIT", "AI_LIMITS_FORTUNE"]
         case .emotionAnalysis:
-            return "DAILY_EMOTION_ANALYSIS_LIMIT"
+            return ["DAILY_EMOTION_ANALYSIS_LIMIT", "AI_LIMITS_EMOTION_ANALYSIS"]
         }
+    }
+    
+    /// xcconfig/Info.plist에서 우선순위에 따라 제한값을 조회
+    private func resolvedDailyLimit(for mode: AIMode) -> Int {
+        let premium = SubscriptionStatusCenter.shared.isPremium
+        let candidates = limitKeyCandidates(for: mode, isPremium: premium)
+        for key in candidates {
+            if let v = readInt(key) { return max(0, v) }
+            if let cached = cachedLimits[key] { return max(0, cached) }
+        }
+        return 0
     }
     
     /// AIMode를 사용량 키로 변환 (UserDefaults용)

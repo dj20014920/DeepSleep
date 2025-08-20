@@ -633,6 +633,25 @@ func loadSecureData<T: Codable>(_ type: T.Type, forKey key: String) -> T?
 
 ## 5. 설정 및 구성
 
+### 5.0 In‑App Purchase(StoreKit2) 통합 스냅샷 — 2025‑08‑20
+- 생성된 핵심 파일/경로
+  - DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift: StoreKit2 제품 로드/구매/복원/트랜잭션 업데이트 → SubscriptionStatusCenter.isPremium 브로드캐스트
+  - DeepSleepApp/StoreKit/DeepSleep.storekit: 구독 그룹 primary, 월간/연간 + 7일 Intro(그룹 1회) 테스트 씬 포함
+  - DeepSleepApp/Core/KSTDatePolicy.swift: KST 월요일 00:00 판정 유틸
+  - DeepSleepApp/UI/PremiumBadgeView.swift: D‑남은일수 배지(무지개 효과)
+  - DeepSleepApp/Core/FeatureFlags.swift: IAP_ENABLED, PAYWALL_ENABLED, MONTHLY_STATS_STRICT_WINDOW
+- 기존 컴포넌트와의 연결 지점
+  - PaywallViewController: 델리게이트에서 StoreKitSubscriptionManager.purchase(.monthly/.yearly), restore() 호출 → 성공 시 닫기 + UI 갱신
+  - PaywallPresenter: 표시 가격/Trial 남은일수 주입에 StoreKitSubscriptionManager.displayPrice / trialDaysRemaining 활용
+  - EntitlementGate: SubscriptionStatusCenter.shared.isPremium을 1차 판단으로 사용, 무료 시 UsageLimitManager 일일 한도 적용
+  - ChatViewController: EntitlementUI.require(.chat, from:)로 진입부 게이트 처리(이미 적용)
+- 스킴 설정
+  - Xcode > Product > Scheme > Edit Scheme > Run > Options > StoreKit Configuration: DeepSleepApp/StoreKit/DeepSleep.storekit 선택
+- 정책 반영(사용자 확정)
+  - 7일 무료체험은 동일 구독 그룹 내 1회만 제공, 연간은 월 대비 약 20% 할인
+  - 무료는 Gemini 2.0 Flash‑Lite 고정, 프리미엄/Trial은 상향 한도(UsageLimitManager)
+  - 월간 통계는 KST 월요일 00:00 주 1회 제한, UI 버튼 노출/활성도 동일 정책 적용
+
 ### 5.1 Secrets.xcconfig (핵심 설정 파일)
 **위치**: `/DeepSleepApp/Secrets.xcconfig`
 
