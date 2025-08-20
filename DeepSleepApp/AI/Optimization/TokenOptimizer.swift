@@ -18,27 +18,21 @@ public final class TokenOptimizer {
     }
 
     public func maxTokens(for mode: AIMode) -> Int {
-        func readInt(_ key: String, default d: Int) -> Int {
-            if let s = Bundle.main.object(forInfoDictionaryKey: key) as? String, let v = Int(s) {
-                return v
-            }
-            return d
-        }
         switch mode {
         case .generalConversation:
-            return readInt("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 800)
+            return ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 800) ?? 800
         case .presetRecommendation:
-            return readInt("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 300)
+            return ConfigReader.int("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 300) ?? 300
         case .emotionDiaryAnalysis:
-            return readInt("AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS", default: 600)
+            return ConfigReader.int("AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS", default: 600) ?? 600
         case .monthlyStatistics:
-            return readInt("AI_MONTHLY_STATISTICS_MAX_TOKENS", default: 600)
+            return ConfigReader.int("AI_MONTHLY_STATISTICS_MAX_TOKENS", default: 600) ?? 600
         case .taskAdvice:
-            return readInt("AI_TASK_ADVICE_MAX_TOKENS", default: 500)
+            return ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 500) ?? 500
         case .fortuneTelling:
-            return readInt("AI_FORTUNE_TELLING_MAX_TOKENS", default: 400)
+            return ConfigReader.int("AI_FORTUNE_TELLING_MAX_TOKENS", default: 400) ?? 400
         case .emotionAnalysis:
-            return readInt("AI_EMOTION_ANALYSIS_MAX_TOKENS", default: 300)
+            return ConfigReader.int("AI_EMOTION_ANALYSIS_MAX_TOKENS", default: 300) ?? 300
         }
     }
 

@@ -32,9 +32,27 @@ public final class AIContextBuilder {
                             coreMemorySummary: String?,
                             currentUserMessage: String) -> AssembledPrompt {
 
+        print("🏗️ [AIContextBuilder] Building prompt:")
+        print("   - Mode: \(mode.rawValue)")
+        print("   - PersonaSignature: \(String(personaSignature.prefix(16)))...")
+        print("   - Recent messages count: \(recentMessages.count)")
+        print("   - Core memory summary: \(coreMemorySummary != nil ? "Present (\(coreMemorySummary!.count) chars)" : "None")")
+        print("   - Current message: \(currentUserMessage.prefix(100))...")
+
 // 1) 시스템 프롬프트 (캐시)
         let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: personaSignature) {
-            self.generateDefaultSystemPrompt(mode: mode)
+            // UserSettingsModel에서 AI 컨텍스트 생성
+            let userSettings = UserSettingsModel.loadFromUserDefaults()
+            let userContext = userSettings.generateAIContext()
+            
+            // 기본 시스템 프롬프트에 사용자 컨텍스트 추가
+            let basePrompt = self.generateDefaultSystemPrompt(mode: mode)
+            let fullPrompt = basePrompt + "\n\n" + userContext
+            
+            print("🎯 [AIContextBuilder] Generated system prompt with user context (length: \(fullPrompt.count))")
+            print("👤 [AIContextBuilder] User context included: \(userContext.prefix(200))...")
+            
+            return fullPrompt
         }
 
         // 2) 핵심 기억 요약

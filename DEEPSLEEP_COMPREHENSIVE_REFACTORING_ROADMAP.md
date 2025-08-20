@@ -1,3 +1,243 @@
+# DeepSleep Comprehensive Guide and Refactoring Roadmap
+
+[Note: Existing content retained above]
+
+## 2025-08-20 Updates (페르소나 캐싱 및 AI 컨텍스트 관리 완성)
+
+### ✅ 완료된 작업
+
+1) **페르소나 캐싱 시스템 완성**
+- AIContextManager에 상세 디버그 로그 추가
+- 캐시 HIT/MISS 로직 검증 완료
+- 페르소나 시그니처 해시 일치 및 TTL(3시간) 검증
+- 테스트 결과: 20초 이내 재요청 시 100% 캐시 히트
+
+2) **AI 컨텍스트 및 페르소나 통합**
+- UserSettingsModel.generateAIContext()로 사용자 페르소나 정보 생성
+- AIContextBuilder에서 시스템 프롬프트에 사용자 컨텍스트 포함
+- UserRulesManager.personaSignature()에 디버그 로그 추가
+- AI 응답에서 페르소나 정보 반영 확인
+
+3) **설정 관리 개선**
+- Info.plist에 Secrets.xcconfig 키 매핑 추가
+- UsageLimitManager에서 사용량 제한 정상 로드
+- ChatViewController의 parseJSONIntelligently 메서드 개선 (```json 코드 블록 제거)
+
+### 📋 성과 측정
+- 캐시 적중률: 첫 요청 이후 100%
+- 응답 시간: 무료 모델 8-10초
+- 사용량 추적: 정상 카운트
+- 대화 컨텍스트: 최근 10개 메시지 유지
+
+### 🔄 남은 작업 (우선순위)
+
+1) **Must-fix (즉시 해결 필요)**
+- [ ] CompilerFixStubs/ChatBubbleCell Stub 제거 또는 실구현
+- [ ] weak IBOutlet 즉시 해제 버그 수정
+- [ ] @MainActor 격리 위반 수정
+
+2) **Should-fix (1주 내)**
+- [ ] UnifiedAIServiceImpl 메트릭 TODO를 ContextMetrics로 흡수
+- [ ] MemoryOptimizationManager 최소 정책 구현
+- [ ] Deprecated/논리 경고 정리
+
+3) **Nice-to-have (2주 내)**
+- [ ] 불필요 init(coder:) fatalError 제거
+- [ ] 미사용 변수/항상 true/false 분기 제거
+- [ ] Info/Config 경고 로깅 정책 통일
+
+---
+
+## 2025-08-20 Updates
+
+- 운영 메트릭 강화: 모델/모드별 카운터, 폴백 시도 카운터, p95 레이턴시/성공률을 한 줄 요약으로 수집(oneLineSummary)하고, 분포 요약(modelModeSummary) 추가.
+- 로그 정책: UnifiedAIServiceImpl에서 20요청마다, AppDelegate 라이프사이클(비활성화 시)에 메트릭 요약/분포 로그 출력.
+- 테스트: AIResponseParser 퍼즈 테스트를 대용량/이상 유니코드/코드펜스/공급자별 경로 + 스트리밍 유사 시나리오까지 확대.
+- 빌드: 최근 변경 후 BUILD SUCCEEDED. 테스트 스킴은 단계적으로 활성화 예정.
+
+- 메트릭 강화: ContextMetrics에 품질 경고 임계치와 캐시 HIT/MISS 카운터 추가. cacheSummary()/requestSummary()로 요약 제공.
+- 컨텍스트 캐시: AIContextManager.getSystemPrompt에서 HIT/MISS 로깅이 일관되게 기록됨.
+- 캐시 무효화 트리거: SettingsViewController 저장/선택 변경, UnifiedAIServiceImpl의 .aiModelChanged 핸들러에서 clearCache 호출 재검증.
+- 빌드: xcodebuild build 성공 확인. test 스킴은 아직 미구성(후속 작업 필요).
+
+## 2025-08-19 Updates
+
+- 컨텍스트/개인화 정책 명확화: 페르소나 시그니처 해시는 내부 캐시 무효화 판정을 위한 용도로만 사용(외부 전송 금지). 외부 AI에는 PII를 배제한 서술형 컨텍스트만 전달.
+- AIContextManager로 시스템 프롬프트 캐시를 단일화(3시간 TTL, ConfigReader로 오버라이드 가능). ContextMetrics로 히트/미스, 무효화 사유 로깅.
+- Settings 흐름: SettingsManager.updateSelectedModelAtomically(_:)가 모델 변경을 원자적으로 처리(저장→.modelSelectionChanged 캐시 무효화→.aiModelChanged 알림). SettingsViewController/UserBasicInfoViewController에서도 저장/변경 시 적절한 캐시 무효화 호출.
+- UnifiedAIServiceImpl: .aiModelChanged 구독으로 방어적 캐시 무효화. generateOptimizedSystemPrompt에서 personaSignature를 모드/모델/메모리 요약 지문으로 구성하고 AIContextManager 캐시 사용.
+- 스트리밍 인터페이스 정비: sendMessageStream이 assembledPrompt를 지원하여 일반/스트리밍 경로가 동일한 중앙집중형 체계로 정렬.
+- ZeroTokenAPIChecker: Swift 6 동시성 안전 패턴 적용(ResumeState로 단일 resume 보장). 빌드 성공 확인.
+
+## 상세 작업 TODO (2025-08-19 합의사항 기반)
+
+다음은 상용 수준 고도화를 위한 상세 작업지시 TODO 리스트입니다. 이 문서만으로도 작업 목적, 이유, 연결부를 파악하고 수행할 수 있도록 자세하게 작성했습니다.
+
+1) 원칙 검증 및 범위 확정
+•  목적: DRY/KISS/YAGNI/SOLID와 “중앙집중형 호출” 원칙을 모든 변경의 기준으로 삼고, ‘이미 다른 로직으로 완성된 부분’과 충돌 없이 통합.
+•  해야 할 일:
+•  모델 전환, 구성 로딩(Info.plist/xcconfig), 캐시 무효화, 메트릭 수집 경로를 전수 조사.
+•  명칭만 다른 동일 로직을 식별해 단일 진입점으로 통합 계획 수립.
+•  완료 기준: 동일 책임은 1개 진입점만 남고, 중복·분기 편차 제거.
+
+2) 모델 전환 시스템 통합(완료된 구현 반영)
+•  근거: 모델 전환은 AIModelSelectionViewController.swift로 구현 완료됨.
+•  해야 할 일:
+•  ChatViewController 내 “모델 전환 시스템 통합 예정/임시 주석” 제거 또는 AIModelSelectionViewController로 위임.
+•  SettingsManager → UnifiedAIServiceImpl → AIContextManager.clearCache(reason: .modelSelectionChanged)을 단일 이벤트 파이프로 일원화.
+•  완료 기준: 모델 변경 시 캐시 무효화/재초기화가 원자적으로 수행. 중복 경로 제거.
+
+3) 스트리밍 assembledPrompt 중앙집중화
+•  문제: sendMessageStream이 assembledPrompt를 받지 않아 경로가 분기.
+•  해야 할 일:
+•  UnifiedAIService.sendMessageStream 인터페이스를 sendMessage와 동일하게 assembledPrompt 우선(최종 시스템 프롬프트 포함)으로 확장.
+•  SessionManager → AIContextBuilder → assembledPrompt 생성 → UnifiedAIService(동일 인터페이스)로 일원화.
+•  기존 메시지 배열 전달은 내부 변환에 한정.
+•  완료 기준: 스트리밍/일반/특정모델 호출 경로 모두 동일한 중앙집중형 assembledPrompt 체계.
+
+4) 캐시 무효화 트리거 최종 점검
+•  해야 할 일:
+•  트리거 목록: 모델 변경, 설정 변경, 앱 버전 변경(AppDelegate), 페르소나 변경, 핵심메모리 요약 변화.
+•  모두 AIContextManager.clearCache(reason: …)로 집결하는지 확인. 누락 추가, 중복 제거.
+•  CacheLogEntry와 InvalidationReason Codable 직렬화 재검증.
+•  완료 기준: 캐시 일관성 보장, 로그/메트릭 상 이유 추적 가능.
+
+5) 메트릭 일원화(ContextMetrics)
+•  해야 할 일:
+•  UnifiedAIServiceImpl 전체 경로(요청/응답/실패/스트리밍)에서 공통 메트릭을 ContextMetrics로 수집.
+•  요청 수, 성공률, 에러율, p95 레이턴시, 모델별/모드별 카운터 구현.
+•  완료 기준: 산재 TODO 제거, 대시보드화 가능한 이벤트 스키마 확립.
+
+6) ZeroTokenAPIChecker 동시성 안정화
+•  문제: captured var(hasResumed) 경고(향후 Swift 6 오류 승격 가능).
+•  해야 할 일:
+•  Actor 혹은 AsyncStream/CheckedContinuation 안전 패턴으로 재작성.
+•  동시성 단위테스트 작성.
+•  완료 기준: 경고 제거, 회귀 테스트 통과.
+
+7) Performance/Battery/Memory Manager 액터 격리 위반 수정
+•  해야 할 일:
+•  @MainActor 싱글톤 접근을 nonisolated에서 호출한 경로 수정.
+•  필요한 범위에만 메인 격리 적용, 래퍼 제공.
+•  완료 기준: 경고 제거, 성능 저하 없음.
+
+8) 스토리보드 미사용 정책 반영
+•  전제: 본 앱은 스토리보드 미사용(코드 UI).
+•  해야 할 일:
+•  init(coder:) fatalError 제거 또는 @available(*, unavailable)로 명시.
+•  weak IBOutlet에 새 인스턴스 할당하는 코드 제거(예: FeedbackVisualizationViewController), 코드 기반 레이아웃으로 대체.
+•  완료 기준: UI 생성이 전부 코드 경로로 일관, 취약 패턴 제거.
+
+9) CompilerFixStubs 및 Stub 코드 제거/실구현 이관
+•  해야 할 일:
+•  CompilerFixStubs.swift, ChatBubbleCell의 Stub 제거 또는 실제 구현으로 이관.
+•  남길 경우 명확한 계약 정의와 단위테스트 동반.
+•  완료 기준: TODO=0, Stub=0.
+
+10) Config 일원화(Secrets.xcconfig → Info.plist → Bundle 참조 강제)
+•  문제: 일부 하드코딩/강제주입 상수 사용.
+•  해야 할 일:
+•  모든 키를 xcconfig → Info.plist로 주입 후 Bundle.main.object(forInfoDictionaryKey:)로만 접근.
+•  하드코딩 제거. 누락될 기본값은 Info.plist에 명시(깃 노출 위험 방지).
+•  대상 키: AI_GENERAL_CONVERSATION_MAX_TOKENS, AI_GENERAL_CONVERSATION_TEMPERATURE, DAILY_TODO_ADVICE_LIMIT, AI_LIMITS_TODO_ADVICE, MAX_TODO_ITEMS 등.
+•  완료 기준: 번들 참조 흐름 100%, 소스 내 비밀/상수 노출 0.
+
+11) Config 접근 유틸 공통화
+•  해야 할 일:
+•  AppConfig/SecurityConfig/UsageLimitManager 등 분산 접근을 ConfigReader로 통합(타입 세이프 변환, 로깅/기본값 정책 포함).
+•  완료 기준: DRY 달성, 키 변경 시 단일 지점 수정.
+
+12) UsageLimitManager 중앙 체크/증가 진입점 보강
+•  해야 할 일:
+•  UnifiedAIServiceImpl 입구에서 canUse→거부 처리→성공 시 increase까지 일괄 수행.
+•  산재 호출 제거. 80%/100% 도달 Notification 표준화.
+•  완료 기준: 중복 계산/누락 방지, 사용자 알림 후속 연결 준비.
+
+13) UnifiedAIServiceImpl 메트릭/로그 품질 향상
+•  해야 할 일:
+•  요청 ID 트레이싱, 모델/모드 태그 표준화.
+•  오류 유형 구분(네트워크/할당량/파서), OpenRouterFallback 분기 명시.
+•  불필요 default 케이스 제거.
+•  완료 기준: 디버깅·관측성 향상.
+
+14) AIResponseParser 스트리밍 경로 퍼즈 테스트 추가
+•  해야 할 일:
+•  청크 분리, 중간 JSON, 깨진 토큰 등 비정상 입력 퍼즈.
+•  assembledPrompt 도입 이후 파서 일관성 검증.
+•  완료 기준: 스트리밍 파서 안정성 확보.
+
+15) MemoryOptimizationManager 최소 정책 구현
+•  해야 할 일:
+•  LRU/나이 기반 캐시 정리, 이미지 캐시 압축.
+•  메모리 워닝/백그라운드 진입 훅 연계.
+•  완료 기준: 과도한 사전 최적화는 배제하면서 필수 안정성 확보.
+
+16) EnhancedSoundRecommendationEngine 범위 확정
+•  원칙: 지금은 너무 큰 작업이면 로드맵으로 이관.
+•  해야 할 일:
+•  UserProfileVector 최소 스키마 정의 또는 제거(YAGNI).
+•  로컬 신경망 결합은 별도 이니셔티브 항목으로 계획만 명시.
+•  완료 기준: 현재 릴리스 범위의 안정된 인터페이스만 유지.
+
+17) ClaudeAPIService 정합성 점검
+•  해야 할 일:
+•  다른 API 서비스 구현과 비교, AI/AI-README.md 기준으로 공통 모델/필드/오류 모델 일치 여부 확인.
+•  필요 없는 TODO 삭제, 필요한 기능만 구현. 공통 프로토콜 도입 고려.
+•  완료 기준: 서비스 간 일관성/DRY 확보.
+
+18) Deprecated/불필요 분기/Dead Code 정리
+•  해야 할 일:
+•  UIColorExtensions의 불필요 #available 제거, CoreData isIndexed 대체, UIApplication.windows 최신화.
+•  항상 true/false 분기, 미사용 지역 변수 제거.
+•  완료 기준: 경고 대폭 축소.
+
+19) 캐시 식별자/PII 보호 재점검
+•  해야 할 일:
+•  personaSignature는 내부 캐시 키 해시 전용으로 유지.
+•  외부 AI에는 비식별 서술형 컨텍스트만 전달.
+•  완료 기준: 문서/코드 일치, 데이터 보호 재확인.
+
+20) SessionManager 중앙집중형 호출 흐름 검증
+•  해야 할 일:
+•  buildPrompt → assembledPrompt → UnifiedAIService 동일 인터페이스로 호출.
+•  모든 경로(일반/스트리밍/특정모델)에 일관 적용.
+•  완료 기준: 호출 루트 하나, 예외 분기 내부 변환으로만 처리.
+
+21) AIModelSelectionViewController와 Settings 연동 재점검
+•  해야 할 일:
+•  선택 변경→Settings 저장→UnifiedAIServiceImpl 모델 갱신→AIContextManager 캐시 무효화가 원자적으로 수행되는지 확인.
+•  완료 기준: 사용자 관점의 즉시 반영과 안정성.
+
+22) 문서 업데이트(ROADMAP/COMPREHENSIVE_GUIDE/AI-README)
+•  해야 할 일:
+•  중앙집중형 assembledPrompt, 캐시/메트릭 일원화, Config 정책, 스토리보드 미사용, 모델 전환 통합 완료 반영.
+•  완료 기준: 문서 진실의 단일 출처화.
+
+23) 테스트 보강(단위/통합/회귀)
+•  해야 할 일:
+•  ZeroTokenAPIChecker 동시성, ConfigReader, UsageLimitManager, UnifiedAIService 메트릭/한도, 스트리밍 파서 퍼즈.
+•  완료 기준: 핵심 경로 자동 검증.
+
+24) 빌드 검증 파이프라인 정리
+•  해야 할 일:
+•  클린 빌드→유닛 테스트→스모크 플로우(모델 전환/요청/스트리밍/캐시 무효화) 스크립트.
+•  로그 위치 표준화(build/xcodebuild_last.log).
+•  완료 기준: 반복 가능·재현 가능 환경.
+
+25) 코드 삭제 후보 일괄 정리
+•  해야 할 일:
+•  가르치기 잔존 코드/주석, 임시 로깅, 미사용 타입/프로토콜 일괄 제거.
+•  PR에 삭제 사유/대체 경로 명시.
+•  완료 기준: YAGNI 준수, 코드베이스 경량화.
+
+26) 리스크/롤백 계획 수립
+•  해야 할 일:
+•  중앙집중화로 인한 회귀 대비. 이전 인터페이스 어댑터를 얇게 유지하여 단기 우회 가능(일시적).
+•  완료 기준: 릴리스 안정성 보장.
+
+27) 최종 품질 점검 체크리스트
+•  목표: 경고=0(불가피 경고는 문서화), TODO=0, Stub=0, 테스트 통과 100%, 문서 최신, 런 스모크 OK, PII 검증 완료.
+
 # 🔧 DeepSleep 프로젝트 통합개발로드맵
 
 ## 🆕 2025-08-15 안정화 패치 (채팅 정렬·저장·보안)

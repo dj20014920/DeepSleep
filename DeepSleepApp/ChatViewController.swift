@@ -291,8 +291,25 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     /// 🎯 지능형 JSON 파싱 - 다양한 키 구조 지원 (보안 강화)
     private func parseJSONIntelligently(_ response: String) -> String? {
+        var trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // ```json 블록 처리
+        if trimmed.hasPrefix("```json") && trimmed.hasSuffix("```") {
+            trimmed = trimmed
+                .replacingOccurrences(of: "```json\n", with: "")
+                .replacingOccurrences(of: "\n```", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if trimmed.hasPrefix("```") && trimmed.hasSuffix("```") {
+            // 일반 코드 블록 처리
+            trimmed = trimmed
+                .replacingOccurrences(of: "```\n", with: "")
+                .replacingOccurrences(of: "\n```", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
         // JSON 형식 확인
-        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("{") && trimmed.hasSuffix("}") else {
             return nil
         }
@@ -1165,6 +1182,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         
         // ✅ 세션 시작 시간 기록
         sessionStartTime = Date()
+        
+        // 🎯 기능 온보딩 Alert (최초 1회)
+        showOnboardingAlertIfNeeded()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -1206,6 +1226,84 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         
         sessionStartTime = nil
+    }
+    
+    // MARK: - 🎯 기능 온보딩 Alert
+    
+    private func showOnboardingAlertIfNeeded() {
+        // UserDefaults에서 온보딩 표시 여부 확인
+        let hasShownOnboarding = UserDefaults.standard.bool(forKey: "HasShownChatOnboarding")
+        
+        guard !hasShownOnboarding else { return }
+        
+        // 온보딩 Alert 생성
+        let alert = UIAlertController(
+            title: "🌟 대나무숲에 오신 것을 환영합니다!",
+            message: """
+            대나무숲은 당신의 마음을 이해하고 공감하는 AI 친구입니다.
+            
+            ✨ 주요 기능:
+            
+            1️⃣ 페르소나 설정
+            나만의 AI 친구를 만들어보세요! 설정 > AI 페르소나에서 성격과 대화 스타일을 선택할 수 있습니다.
+            
+            2️⃣ 핵심 기억 관리
+            중요한 대화는 길게 눌러 '핵심 기억'으로 저장하세요. AI가 당신을 더 잘 기억하고 이해할 수 있게 됩니다.
+            
+            3️⃣ 맞춤형 사운드 추천
+            현재 감정과 상황에 맞는 수면 사운드를 AI가 추천해드립니다.
+            
+            💡 Tip: 대화를 나눌수록 AI가 당신을 더 잘 이해하게 됩니다!
+            """,
+            preferredStyle: .alert
+        )
+        
+        // 페르소나 설정하러 가기 버튼
+        alert.addAction(UIAlertAction(title: "페르소나 설정하기", style: .default) { _ in
+            // 설정 화면으로 이동
+            self.navigateToPersonaSettings()
+            // 온보딩 표시 완료 플래그 설정
+            UserDefaults.standard.set(true, forKey: "HasShownChatOnboarding")
+        })
+        
+        // 나중에 하기 버튼
+        alert.addAction(UIAlertAction(title: "나중에 설정하기", style: .cancel) { _ in
+            // 온보딩 표시 완료 플래그 설정
+            UserDefaults.standard.set(true, forKey: "HasShownChatOnboarding")
+            
+            // 안내 메시지 추가
+            let guideMessage = ChatMessage(
+                text: "💡 언제든지 설정 > AI 페르소나에서 나만의 AI 친구를 만들 수 있어요!",
+                sender: .ai,
+                type: .system
+            )
+            self.appendChat(guideMessage)
+        })
+        
+        // Alert 표시
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.present(alert, animated: true)
+        }
+    }
+    
+    /// 페르소나 설정 화면으로 이동
+    private func navigateToPersonaSettings() {
+        // SettingsViewController 생성 (Storyboard 확인 후 직접 생성)
+        let settingsVC = SettingsViewController()
+        
+        // 설정 화면으로 이동
+        navigationController?.pushViewController(settingsVC, animated: true)
+        
+        // 이동 후 안내 메시지 표시를 위한 딜레이
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // 설정 화면에 진입 후 AI 페르소나 설정 안내
+            let guideMessage = ChatMessage(
+                text: "💡 설정 화면에서 '🌳 대나무숲 친구 설정' 섹션을 눌러 AI 페르소나를 설정할 수 있어요!",
+                sender: .ai,
+                type: .system
+            )
+            self?.appendChat(guideMessage)
+        }
     }
     
     // MARK: - 🔧 Enhanced Gesture Recognition System

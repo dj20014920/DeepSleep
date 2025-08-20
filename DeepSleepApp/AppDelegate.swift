@@ -60,8 +60,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 🔐 API 키 보안 검증 실행
         EnvironmentConfig.shared.performSecurityCheck()
         
+        // 초기 메트릭 요약 로그 출력
+        let summary = ContextMetrics.shared.oneLineSummary()
+        UnifiedLogger.shared.info("\(summary)", category: .appLifecycle)
+        
         // 🚀 성능 관리 시스템 초기화 (최우선 - 다른 시스템들이 성능 관리자에 의존할 수 있음)
         PerformanceSystemBootstrap.shared.initializePerformanceSystem()
+        
+        // 💎 구독 시스템 초기화 및 MemoryManager 티어 설정
+        initializeSubscriptionSystem()
         
         // 💯 완전 토큰 소모 제로 API 체크
         performZeroTokenAPICheck()
@@ -100,6 +107,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         return true
     }
 
+    // MARK: - Subscription System
+    
+    /// 구독 시스템 초기화 및 MemoryManager 티어 설정
+    private func initializeSubscriptionSystem() {
+        // 구독 상태 확인 및 MemoryManager 티어 설정
+        SubscriptionManager.shared.checkSubscriptionStatus { [weak self] isSubscribed in
+            let tier = isSubscribed ? "Premium" : "Free"
+            UnifiedLogger.shared.info("💎 구독 상태 확인 완료: \(tier)", category: .appLifecycle)
+            
+            // 구독 상태가 변경되었을 때 알림 처리
+            NotificationCenter.default.addObserver(
+                forName: .subscriptionStatusChanged,
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let userInfo = notification.userInfo,
+                   let isSubscribed = userInfo["isSubscribed"] as? Bool {
+                    let newTier = isSubscribed ? "Premium" : "Free"
+                    UnifiedLogger.shared.info("💎 구독 상태 변경됨: \(newTier)", category: .appLifecycle)
+                }
+            }
+        }
+        
+        // SubscriptionManager는 초기화 시 자동으로 MemoryManager.setTier()를 호출함
+        _ = SubscriptionManager.shared
+    }
+    
     // MARK: - Notification Authorization & Handling
     func requestNotificationAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
@@ -165,6 +199,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 🎯 SessionManager 디스크 동기화 (메모리 → 디스크)
         SessionManager.shared.flush()
         UnifiedLogger.shared.info("SessionManager 데이터 플러시 완료", category: .appLifecycle)
+
+        // 메트릭 요약 추가 로그
+        let metricsLine = ContextMetrics.shared.oneLineSummary()
+        let modelModeLine = ContextMetrics.shared.modelModeSummary()
+        UnifiedLogger.shared.info("\(metricsLine)", category: .appLifecycle)
+        UnifiedLogger.shared.info("\(modelModeLine)", category: .appLifecycle)
         
         // Core Data 저장
         saveContext()
@@ -382,7 +422,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 1단계: 즉시 빠른 체크
         // 타입 접근성 문제로 임시 주석 처리
         // let (hasValidKeys, networkOK, recommendedAPI) = ZeroTokenAPIChecker.shared.quickZeroTokenCheck()
-        let (hasValidKeys, networkOK, recommendedAPI): (Bool, Bool, String?) = (true, true, "gemini")
+        let hasValidKeys: Bool = {
+            return (
+                (ConfigReader.string("GEMINI_API_KEY")?.isEmpty == false) ||
+                (ConfigReader.string("OPEN_AI_4oMINI_API_KEY")?.isEmpty == false) ||
+                (ConfigReader.string("CLAUDE_API_KEY")?.isEmpty == false) ||
+                (ConfigReader.string("NAVER_CLOUD_API_KEY")?.isEmpty == false) ||
+                (ConfigReader.string("OPENROUTER_API_KEY")?.isEmpty == false)
+            )
+        }()
+        let recommendedAPI: String? = hasValidKeys ? "gemini" : nil
         
         if hasValidKeys {
             print("✅ [즉시 결과] API 사용 준비 완료!")
@@ -392,12 +441,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             
             // 2단계: 백그라운드에서 상세 분석 (메인 UI 방해 안함)
             Task {
-                do {
-                    await ZeroTokenAPIChecker.shared.performZeroTokenCheck()
-                    print("🎉 [최종 완료] 모든 상태 확인 완료 (토큰 소모 0개)")
-                } catch {
-                    print("⚠️ [네트워크 체크] 일부 확인 실패하지만 API 키는 정상: \(error.localizedDescription)")
-                }
+                await ZeroTokenAPIChecker.shared.performZeroTokenCheck()
+                print("🎉 [최종 완료] 모든 상태 확인 완료 (토큰 소모 0개)")
             }
         } else {
             print("⚠️ [즉시 결과] API 키 설정이 필요합니다")

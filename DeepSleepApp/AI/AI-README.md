@@ -130,6 +130,12 @@ let response = try await aiService.sendMessage(
 
 ## 🧪 테스트
 
+### Local build/test smoke
+- scripts/dev_build_test_smoke.sh: Clean build and unit tests for DeepSleep scheme targeting iPhone 16 Pro simulator (Debug).
+
+### Parser tests
+- Fuzz coverage: malformed JSON, weird Unicode, code fences, provider-specific paths, and streaming-like scenarios (partial chunks, out-of-order, mid-stream termination).
+
 ```swift
 // 빠른 연결 테스트
 let testUtil = UnifiedAIServiceTests()

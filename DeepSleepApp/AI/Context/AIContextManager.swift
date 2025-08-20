@@ -20,19 +20,40 @@ public final class AIContextManager {
 
     // personaSignature는 페르소나/언어/톤/모드 등의 설정을 해시한 문자열 사용을 권장
     public func getSystemPrompt(personaSignature: String, generator: () -> String) -> String {
+        print("🔍 [AIContextManager] getSystemPrompt called with personaSignature: \(String(personaSignature.prefix(16)))...")
+        
         // 읽기 경로
         if let cached = queue.sync(execute: { cachedSystemPrompt }) {
             let age = Date().timeIntervalSince(cached.timestamp)
+            print("📦 [AIContextManager] Cache found:")
+            print("   - Cached personaHash: \(String(cached.personaHash.prefix(16)))...")
+            print("   - Current personaSignature: \(String(personaSignature.prefix(16)))...")
+            print("   - Cache age: \(age) seconds")
+            print("   - Cache TTL: \(cacheTTL) seconds")
+            print("   - Hash match: \(cached.personaHash == personaSignature)")
+            print("   - Age valid: \(age < cacheTTL)")
+            
             if cached.personaHash == personaSignature, age < cacheTTL {
                 metrics.logCache(event: .hit, reason: .none, age: age)
+                print("✅ [AIContextManager] Cache HIT! Returning cached prompt (length: \(cached.prompt.count))")
+                print("📝 Cached prompt preview: \(String(cached.prompt.prefix(200)))...")
                 return cached.prompt
+            } else {
+                print("⚠️ [AIContextManager] Cache invalid - persona changed or expired")
             }
+        } else {
+            print("🚫 [AIContextManager] No cache found")
         }
 
         // 미스 또는 만료 → 갱신
+        print("🔄 [AIContextManager] Generating new prompt...")
         let newPrompt = generator()
+        print("📝 [AIContextManager] New prompt generated (length: \(newPrompt.count))")
+        print("📝 New prompt preview: \(String(newPrompt.prefix(200)))...")
+        
         queue.async(flags: .barrier) { [weak self] in
             self?.cachedSystemPrompt = (newPrompt, Date(), personaSignature)
+            print("💾 [AIContextManager] Cache updated with new prompt and personaSignature: \(String(personaSignature.prefix(16)))...")
         }
         metrics.logCache(event: .miss, reason: .expiredOrPersonaChanged, age: nil)
         return newPrompt
@@ -40,7 +61,11 @@ public final class AIContextManager {
 
     // 이벤트 기반 캐시 무효화
     public func clearCache(reason: InvalidationReason, caller: String? = nil) {
+        print("🗑️ [AIContextManager] Clearing cache - reason: \(reason), caller: \(caller ?? "unknown")")
         queue.async(flags: .barrier) { [weak self] in
+            if let cached = self?.cachedSystemPrompt {
+                print("🗑️ [AIContextManager] Clearing existing cache with personaHash: \(String(cached.personaHash.prefix(16)))...")
+            }
             self?.cachedSystemPrompt = nil
         }
         metrics.logInvalidation(reason: reason, caller: caller)

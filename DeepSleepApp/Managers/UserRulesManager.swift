@@ -23,10 +23,22 @@ extension UserRulesManager {
     /// - 목적: 캐시 키/무효화 트리거 전용. 외부 LLM에 절대 전달하지 않음.
     /// - 원칙: 온디바이스에서 간단 PII 필터링을 적용하고 의미 보존형 특성만 요약에 사용.
     public func personaSignature() -> String {
+        print("🆔 [UserRulesManager] Generating personaSignature...")
+        
         // 1) 원천 데이터 안전 수집
         let settings = UserSettingsModel.loadFromUserDefaults()
         let selectedLLM = SettingsManager.shared.selectedLLM
         let locale = Locale.current.identifier
+        
+        print("👤 [UserRulesManager] Settings loaded:")
+        print("   - Nickname: \(settings.nickname.isEmpty ? "empty" : settings.nickname)")
+        print("   - Age: \(settings.age ?? 0)")
+        print("   - Personality desc: \(settings.personalityDescription.isEmpty ? "empty" : "\(settings.personalityDescription.count) chars")")
+        print("   - Personality traits: \(settings.personalityTraits)")
+        print("   - Conversation tones: \(settings.conversationTones)")
+        print("   - Music preferences: \(settings.musicPreferences.map { $0.rawValue })")
+        print("   - LLM: \(selectedLLM.rawValue)")
+        print("   - Locale: \(locale)")
 
         // 2) 의미 보존형 특성 요약 (PII 제거 후)
         var traits: [String] = []
@@ -61,7 +73,13 @@ extension UserRulesManager {
 
         // 4) 결합 후 SHA-256 해시
         let joined = traits.joined(separator: ";")
-        return sha256(joined)
+        let hash = sha256(joined)
+        
+        print("🔐 [UserRulesManager] PersonaSignature generated:")
+        print("   - Traits combined: \(joined.prefix(200))...")
+        print("   - SHA256 hash: \(String(hash.prefix(32)))...")
+        
+        return hash
     }
 
     // 간단 PII 필터: 이메일/전화번호 패턴 제거(마스킹)

@@ -137,6 +137,22 @@
 	<key>MAX_CONVERSATION_TURNS</key>
 	<string>$(MAX_CONVERSATION_TURNS)</string>
 	
+	<!-- AI 일일 사용량 제한 설정 -->
+	<key>DAILY_CHAT_LIMIT</key>
+	<string>$(DAILY_CHAT_LIMIT_FREE)</string>
+	<key>DAILY_PRESET_RECOMMENDATION_LIMIT</key>
+	<string>$(DAILY_PRESET_RECOMMENDATION_LIMIT)</string>
+	<key>DAILY_DIARY_ANALYSIS_LIMIT</key>
+	<string>$(DAILY_DIARY_ANALYSIS_LIMIT)</string>
+	<key>DAILY_TODO_ADVICE_LIMIT</key>
+	<string>$(DAILY_TODO_ADVICE_LIMIT)</string>
+	<key>DAILY_FORTUNE_LIMIT</key>
+	<string>$(DAILY_FORTUNE_LIMIT)</string>
+	<key>DAILY_EMOTION_ANALYSIS_LIMIT</key>
+	<string>$(AI_LIMITS_EMOTION_ANALYSIS)</string>
+	<key>DAILY_MONTHLY_STATISTICS_LIMIT</key>
+	<string>$(DAILY_MONTHLY_STATISTICS_LIMIT)</string>
+	
 	<!-- 사용자 데이터 제한 -->
 	<key>MAX_DIARY_ENTRIES_PER_DAY</key>
 	<string>$(MAX_DIARY_ENTRIES_PER_DAY)</string>

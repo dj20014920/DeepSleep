@@ -190,6 +190,7 @@
 		E0E7BCAB2E53664B00FF7073 /* MemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC9C2E53664B00FF7073 /* MemoryManager.swift */; };
 		E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */; };
 		E0E7BCB32E54706A00FF7073 /* ConfigReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */; };
+		E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -384,6 +385,7 @@
 		E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetInteractionSummarizer.swift; sourceTree = "<group>"; };
 		E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummaryViewController.swift; sourceTree = "<group>"; };
 		E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigReader.swift; sourceTree = "<group>"; };
+		E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -581,6 +583,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCB52E5591CA00FF7073 /* Subscription */,
 				E0E7BCB22E54706A00FF7073 /* Config */,
 				E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */,
 				E09CD6E82E49DB04007C133E /* SessionManager.swift */,
@@ -777,6 +780,14 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */,
+			);
+			path = Subscription;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -953,6 +964,7 @@
 				E084F1B12E33ACB3002F75E6 /* ViewController.swift in Sources */,
 				E084F1B22E33ACB3002F75E6 /* AppConfig.swift in Sources */,
 				E084F1B32E33ACB3002F75E6 /* Models.swift in Sources */,
+				E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */,
 				E084F1B42E33ACB3002F75E6 /* UIColorExtensions.swift in Sources */,
 				E084F1B52E33ACB3002F75E6 /* ToastManager.swift in Sources */,
 				E084F1B62E33ACB3002F75E6 /* SettingsSectionView.swift in Sources */,

@@ -229,7 +229,7 @@ public class ZeroTokenAPIChecker {
         print("   📝 참고: 연결 테스트는 로컬 네트워크 상태만 확인하며 API 토큰을 전혀 사용하지 않습니다")
     }
     
-    // MARK: - DNS 조회 (완전 토큰 소모 없음) - 단순화된 버전
+    // MARK: - DNS 조회 (완전 토큰 소모 없음) - Swift 6 동시성 안전 버전
     private func checkDNSResolution(domain: String) async -> (Bool, TimeInterval?) {
         let startTime = Date()
         
@@ -245,39 +245,51 @@ public class ZeroTokenAPIChecker {
             
             let connection = NWConnection(host: host, port: 80, using: parameters)
             
-            var hasResumed = false
+            // Swift 6 동시성 안전: 상태 추적을 위한 동기화된 접근자
+            let resumeState = ResumeState()
             
             connection.stateUpdateHandler = { state in
-                guard !hasResumed else { return }
-                
-                switch state {
-                case .ready:
-                    let resolutionTime = Date().timeIntervalSince(startTime)
-                    hasResumed = true
-                    connection.cancel()
-                    continuation.resume(returning: (true, resolutionTime))
-                case .failed(let error):
-                    // 연결이 실패해도 DNS 조회는 성공했을 수 있음
-                    print("   🔍 \\(domain): 연결 시도 실패하지만 DNS는 작동 중 (\\(error.localizedDescription))")
-                    let resolutionTime = Date().timeIntervalSince(startTime)
-                    hasResumed = true
-                    connection.cancel()
-                    // DNS가 작동했다고 간주 (도메인이 존재함을 의미)
-                    continuation.resume(returning: (true, resolutionTime))
-                default:
-                    break
+                resumeState.performOnce {
+                    switch state {
+                    case .ready:
+                        let resolutionTime = Date().timeIntervalSince(startTime)
+                        connection.cancel()
+                        continuation.resume(returning: (true, resolutionTime))
+                    case .failed(_):
+                        // 연결이 실패해도 DNS 조회는 성공했을 수 있음 (도메인이 존재함을 의미)
+                        let resolutionTime = Date().timeIntervalSince(startTime)
+                        connection.cancel()
+                        continuation.resume(returning: (true, resolutionTime))
+                    default:
+                        break
+                    }
                 }
             }
             
             connection.start(queue: queue)
             
-            // 3초 타임아웃으로 단축
+            // 3초 타임아웃
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                guard !hasResumed else { return }
-                hasResumed = true
-                connection.cancel()
-                continuation.resume(returning: (false, nil))
+                resumeState.performOnce {
+                    connection.cancel()
+                    continuation.resume(returning: (false, nil))
+                }
             }
+        }
+    }
+    
+    // MARK: - Swift 6 동시성 안전한 상태 관리
+    private final class ResumeState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var hasResumed = false
+        
+        func performOnce(_ action: () -> Void) {
+            lock.lock()
+            defer { lock.unlock() }
+            
+            guard !hasResumed else { return }
+            hasResumed = true
+            action()
         }
     }
     

@@ -31,6 +31,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private var freeModelService: OpenRouterFallbackManager?
     
     private var modelChangedObserver: Any?
+    private var requestCounter: Int = 0
     
     private init() {
         initializeServices()
@@ -101,7 +102,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         
         // OpenRouter 무료 모델 서비스 초기화 (API 키 검증)
-        if let openRouterKey = getAPIKey(for: .freeModel) {
+        if getAPIKey(for: .freeModel) != nil {
             freeModelService = OpenRouterFallbackManager.shared
             // OpenRouter 무료 모델 서비스 초기화됨
         } else {
@@ -148,11 +149,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         tokenConfig: TokenConfiguration?,
         assembledPrompt: String? = nil
 ) async throws -> AIResponse {
+        let reqId = UUID().uuidString
+        ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
+        let overallStart = Date()
+        
+        // 주기적 메트릭 요약 로그 (20요청마다)
+        requestCounter += 1
+        if requestCounter % 20 == 0 {
+            emitMetricsSummaryLog()
+        }
         
         // 0. 일일 사용량 한도 체크 (통합 진입점에서 강제)
         let usage = UsageLimitManager.shared.canUseAIFeature(mode)
         guard usage.canUse else {
-            // 사용량 초과 알림 (100%)은 내부에서 게시되며, 여기서는 즉시 차단
+            ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
             throw AIServiceError.configurationError("USAGE_LIMIT_EXCEEDED: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
         }
         
@@ -162,6 +172,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let cleaned: String
         switch validationResult {
         case .rejected(_):
+            ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
             throw AIServiceError.unauthorized
         case .flagged(let reason, let cleanInput):
             print("⚠️ [UnifiedAIService] 입력이 플래그됨: \(reason)")
@@ -170,10 +181,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             cleaned = cleanInput
         }
         
-        // 2. 실제 호출 (성공 시에만 사용량 증가)
-        let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt)
-        UsageLimitManager.shared.incrementUsage(for: mode)
-        return response
+        do {
+            // 2. 실제 호출 (성공 시에만 사용량 증가)
+            let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt)
+            UsageLimitManager.shared.incrementUsage(for: mode)
+            ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: true, duration: Date().timeIntervalSince(overallStart))
+            return response
+        } catch {
+            ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
+            throw error
+        }
     }
     
     /// 내부 메시지 전송 로직 (보안 검증 후)
@@ -335,7 +352,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         print("📋 [UnifiedAIService] Fallback 순서: \(availableFallbacks.map { $0.rawValue }.joined(separator: " → "))")
         
         // 각 fallback 모델을 순서대로 시도
-        for (index, fallbackModel) in availableFallbacks.enumerated() {
+            for (index, fallbackModel) in availableFallbacks.enumerated() {
+                ContextMetrics.shared.logFallbackTried(from: originalModel.rawValue, to: fallbackModel.rawValue)
             do {
                 print("🔄 [UnifiedAIService] Fallback \(index + 1)/\(availableFallbacks.count): \(fallbackModel.rawValue) 시도")
                 
@@ -650,9 +668,6 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             - JSON 형식으로 구조화된 분석 결과 제공
             - 객관적이고 정확한 분석에 집중
             """
-            
-        default:
-            return "당신은 DeepSleep 앱의 도움이 되는 AI 어시스턴트입니다. 사용자의 요청에 최선을 다해 응답하세요."
         }
     }
     
@@ -872,6 +887,14 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
 // MARK: - 📊 확장
 
 extension UnifiedAIServiceImpl {
+    
+    /// 메트릭 요약 로그 출력
+    func emitMetricsSummaryLog() {
+        let line = ContextMetrics.shared.oneLineSummary()
+        let dist = ContextMetrics.shared.modelModeSummary()
+        print("📈 [Metrics] \(line)")
+        print("📊 [Metrics] \(dist)")
+    }
     
     /// 전체 시스템 상태 보고서 생성
     func generateSystemStatusReport() -> String {
