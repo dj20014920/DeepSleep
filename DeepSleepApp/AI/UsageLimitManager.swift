@@ -27,7 +27,8 @@ public class UsageLimitManager {
     // MARK: - 싱글톤
     public static let shared = UsageLimitManager()
     private init() {
-        loadLimitsFromBundle()
+        // 지연 로딩으로 변경: 초기화 시 번들 접근을 하지 않음 (안정성/디버깅 개선)
+        // 제한값은 resolvedDailyLimit 호출 시 필요한 키만 즉시 조회합니다.
         startDailyResetTimer()
     }
     
@@ -98,7 +99,8 @@ public class UsageLimitManager {
     // MARK: - 🔧 내부 구현
     
     /// Bundle에서 Secrets.xcconfig의 제한값 로드(초기 스냅샷)
-    private func loadLimitsFromBundle() {
+    @discardableResult
+    private func loadLimitsFromBundle() -> [String: Int] {
         // Info.plist에 매핑된 키에서 안전하게 로드 (Secrets.xcconfig -> Info.plist -> Bundle)
         var loaded: [String: Int] = [:]
         let keys = [
@@ -126,10 +128,15 @@ public class UsageLimitManager {
         
         cachedLimits = loaded // 참고용 캐시(정확한 조회는 resolvedDailyLimit가 수행)
         if loaded.isEmpty {
+            #if DEBUG
             print("⚠️ [UsageLimitManager] Info.plist/xcconfig 매핑에서 제한값을 찾지 못했습니다. 모든 제한값을 0으로 간주합니다.")
+            #endif
         } else {
+            #if DEBUG
             print("✅ [UsageLimitManager] 구성에서 제한값 로드 완료 (키 \(loaded.keys.count)개)")
+            #endif
         }
+        return loaded
     }
     
     /// Info.plist 매핑에서 Int 값 안전 로드 (ConfigReader 비의존 로컬 헬퍼)
@@ -176,9 +183,20 @@ public class UsageLimitManager {
     private func resolvedDailyLimit(for mode: AIMode) -> Int {
         let premium = SubscriptionStatusCenter.shared.isPremium
         let candidates = limitKeyCandidates(for: mode, isPremium: premium)
+        // 1) 번들에서 직접 조회 (가장 신선한 값)
         for key in candidates {
             if let v = readInt(key) { return max(0, v) }
-            if let cached = cachedLimits[key] { return max(0, cached) }
+        }
+        // 2) 캐시에 없다면 한 번만 로드 시도 (지연 로딩)
+        if cachedLimits.isEmpty {
+            let loaded = loadLimitsFromBundle()
+            for key in candidates {
+                if let cached = loaded[key] { return max(0, cached) }
+            }
+        } else {
+            for key in candidates {
+                if let cached = cachedLimits[key] { return max(0, cached) }
+            }
         }
         return 0
     }

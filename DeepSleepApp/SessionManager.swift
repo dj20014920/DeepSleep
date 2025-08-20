@@ -486,14 +486,18 @@ public class SessionManager {
     /// ChatManager 호환성: 최근 메시지 조회 (성능 최적화)
     public func getRecentChatMessages(limit: Int = 100) -> [StoredChatMessage] {
         let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)] // 오래된 메시지가 먼저 (채팅 순서)
+        // 최신 메시지를 우선 가져온 뒤, 표시용으로만 시간순으로 정렬
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.fetchLimit = limit
         
         // 성능 최적화: 세션 관계 미리 페칭
         request.relationshipKeyPathsForPrefetching = ["session"]
         
         do {
-            let messageEntities = try context.fetch(request)
+            // 1) 최신 N개를 가져옴 (내림차순)
+            let fetched = try context.fetch(request)
+            // 2) 반환 전 시간순(오름차순)으로 재정렬하여 컨텍스트가 자연스럽게 이어지도록 함
+            let messageEntities = fetched.sorted { ($0.timestamp ?? Date()) < ($1.timestamp ?? Date()) }
             return messageEntities.map { entity in
                 StoredChatMessage(
                     id: entity.id.uuidString,
@@ -958,6 +962,55 @@ public class SessionManager {
         // 시간대별 선호도 분석 로직
         return []
     }
+    
+    /// 사용자 8턴 + AI 8턴으로 균형 있게 최신순 16개를 생성
+    static func buildBalancedRecent(_ raw: [StoredChatMessage], userMax: Int, assistantMax: Int) -> [ChatMessageLite] {
+        // 최신 메시지를 우선 고려하기 위해 역순(최신부터)로 순회
+        let sortedDesc = raw.sorted { $0.timestamp > $1.timestamp }
+        var pickedUser: [StoredChatMessage] = []
+        var pickedAssistant: [StoredChatMessage] = []
+        for m in sortedDesc {
+            if m.role == "user" {
+                if pickedUser.count < userMax { pickedUser.append(m) }
+            } else if m.role == "assistant" {
+                if pickedAssistant.count < assistantMax { pickedAssistant.append(m) }
+            }
+            if pickedUser.count >= userMax && pickedAssistant.count >= assistantMax { break }
+        }
+        // 병합 후 최신순으로 정렬
+        let merged = (pickedUser + pickedAssistant).sorted { $0.timestamp > $1.timestamp }
+        // ChatMessageLite로 변환 (최신순 그대로 유지)
+        return merged.map { m in
+            ChatMessageLite(
+                role: m.role == "assistant" ? "assistant" : (m.role == "system" ? "system" : "user"),
+                content: m.content,
+                createdAt: m.timestamp
+            )
+        }
+    }
+}
+
+private extension SessionManager {
+    /// 최근 대화를 기반으로 경량 요약을 생성합니다. (개인정보/토큰 최소화)
+    /// - Note: 최신순 상위 16개(사용자/AI 합계)를 한 문단으로 압축
+    static func summarizeRecent(_ recent: [ChatMessageLite]) -> String {
+        guard !recent.isEmpty else { return "" }
+        // 최신순으로 정렬되어 온 입력을 상정하고 상위 16개만 사용
+        let top = Array(recent.prefix(16))
+        var bullets: [String] = []
+        for item in top {
+            let role = (item.role == "assistant") ? "AI" : (item.role == "system" ? "시스템" : "사용자")
+            let text = item.content
+                .replacingOccurrences(of: "\n", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { continue }
+            // 너무 긴 문장은 축약
+            let trimmed = text.count > 80 ? String(text.prefix(80)) + "…" : text
+            bullets.append("- \(role): \(trimmed)")
+        }
+        let joined = bullets.joined(separator: "\n")
+        return joined.isEmpty ? "" : "최근 대화 요약:\n" + joined
+    }
 }
 
 // MARK: - Data Models
@@ -1037,14 +1090,23 @@ extension SessionManager {
         do {
             // UnifiedAIServiceImpl을 통한 실제 AI 호출
             // 🎯 컨텍스트 조립 (A/B/C 계층 일원화)
-            let recent = getRecentChatMessages(limit: 10).map { ChatMessageLite(role: $0.role == "assistant" ? "assistant" : ($0.role == "system" ? "system" : "user"), content: $0.content, createdAt: $0.timestamp) }
+            // 최근 대화에서 사용자 8턴 + AI 8턴으로 균형 있게 추출하고, 최신순으로 포함
+            let rawMessages = getRecentChatMessages(limit: 60)
+            let recent: [ChatMessageLite] = Self.buildBalancedRecent(rawMessages, userMax: 8, assistantMax: 8)
+            
             let personaSignature = UserRulesManager.shared.personaSignature() // 페르소나/언어/톤 해시 등
             let coreSummary = MemoryManager.shared.getMemorySummary(maxItems: 10)
+            // 코어 메모리가 비어있으면 최근 대화(균형 16턴)로 경량 요약 생성
+            let effectiveSummary: String? = {
+                if !coreSummary.isEmpty { return coreSummary }
+                let summary = Self.summarizeRecent(recent)
+                return summary.isEmpty ? nil : summary
+            }()
             let assembled = AIContextBuilder.shared.buildPrompt(
                 for: .generalConversation,
                 personaSignature: personaSignature,
-                recentMessages: recent,
-                coreMemorySummary: coreSummary.isEmpty ? nil : coreSummary,
+                recentMessages: recent, // 최신순 16턴 (사용자8+AI8)
+                coreMemorySummary: effectiveSummary,
                 currentUserMessage: content
             )
 
