@@ -191,6 +191,11 @@
 		E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */; };
 		E0E7BCB32E54706A00FF7073 /* ConfigReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */; };
 		E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */; };
+		E0E7BCBC2E561B2D00FF7073 /* PaywallViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBA2E561B2D00FF7073 /* PaywallViewController.swift */; };
+		E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */; };
+		E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */; };
+		E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */; };
+		E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -387,6 +392,12 @@
 		E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigReader.swift; sourceTree = "<group>"; };
 		E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IOS_GUIDE.md; sourceTree = "<group>"; };
+		E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IOS_IAP_ROADMAP.md; sourceTree = "<group>"; };
+		E0E7BCBA2E561B2D00FF7073 /* PaywallViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallViewController.swift; sourceTree = "<group>"; };
+		E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeature.swift; sourceTree = "<group>"; };
+		E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementGate.swift; sourceTree = "<group>"; };
+		E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallPresenter.swift; sourceTree = "<group>"; };
+		E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStatusCenter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -405,6 +416,7 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
 				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,
 				E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */,
@@ -585,6 +597,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCBB2E561B2D00FF7073 /* Paywall */,
 				E0E7BCB52E5591CA00FF7073 /* Subscription */,
 				E0E7BCB22E54706A00FF7073 /* Config */,
 				E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */,
@@ -785,9 +798,21 @@
 		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */,
+				E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */,
+				E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */,
+				E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */,
 				E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */,
 			);
 			path = Subscription;
+			sourceTree = "<group>";
+		};
+		E0E7BCBB2E561B2D00FF7073 /* Paywall */ = {
+			isa = PBXGroup;
+			children = (
+				E0E7BCBA2E561B2D00FF7073 /* PaywallViewController.swift */,
+			);
+			path = Paywall;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -909,6 +934,7 @@
 				E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */,
 				E084F1812E33ACB3002F75E6 /* ChatRouter.swift in Sources */,
 				E084F1822E33ACB3002F75E6 /* UsageAnalyticsViewController.swift in Sources */,
+				E0E7BCBC2E561B2D00FF7073 /* PaywallViewController.swift in Sources */,
 				E084F1832E33ACB3002F75E6 /* ClaudeAPIService.swift in Sources */,
 				E084F1842E33ACB3002F75E6 /* UserDefaults+Extensions.swift in Sources */,
 				E084F1852E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift in Sources */,
@@ -1039,6 +1065,10 @@
 				E084F1F52E33ACB3002F75E6 /* ChatBubbleCell.swift in Sources */,
 				E084F1F62E33ACB3002F75E6 /* ChatViewController.swift in Sources */,
 				E084F1F72E33ACB3002F75E6 /* SecurityConfig.swift in Sources */,
+				E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */,
+				E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */,
+				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
+				E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */,
 				E084F1F82E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift in Sources */,
 				E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */,
 				E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */,

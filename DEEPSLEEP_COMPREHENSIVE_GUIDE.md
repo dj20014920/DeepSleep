@@ -1,5 +1,7 @@
 # 🌙 DeepSleep AI - 종합 프로젝트 가이드
 
+> iOS 구독/IAP 요약: 프리미엄 월간/연간(동일 그룹) + 7일 무료체험(그룹 1회). 무료=Gemini 2.0 Flash‑Lite 고정, 프리미엄/Trial=한도 해제/상향. 최소 iOS 17.0. 자세한 설계/작업 순서는 IOS_IAP_ROADMAP.md를 참조하세요.
+
 
 ---
 

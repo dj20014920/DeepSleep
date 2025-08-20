@@ -258,7 +258,75 @@ public class UsageLimitManager {
 // MARK: - 🔍 디버깅 및 관리 확장
 
 extension UsageLimitManager {
-    
+
+    // MARK: - 주간 1회 제한 (대한민국 KST 월요일 00:00 기준)
+    public enum WeekAnchor {
+        case kstMonday
+    }
+
+    /// 주간 제한 가능 여부 확인
+    /// - Parameters:
+    ///   - anchor: 주간 앵커(지금은 KST 월요일 00:00만 지원)
+    ///   - key: 기능 키(예: "monthly_statistics")
+    /// - Returns: (canUse, remaining, resetAt)
+    public func canUseWeeklyLimitedFeature(anchor: WeekAnchor, key: String) -> (canUse: Bool, remaining: Int, resetAt: Date) {
+        let now = Date()
+        let (weekId, resetAt) = currentWeekIdAndResetTime(anchor: anchor, now: now)
+        let usageKey = weeklyUsageKey(key: key, weekId: weekId)
+        let used = UserDefaults.standard.integer(forKey: usageKey)
+        let limit = 1
+        let canUse = used < limit
+        // 역행 방지: lastSeenClock 저장 및 비교
+        let lastSeenKey = weeklyLastSeenKey(key: key)
+        if let lastSeen = UserDefaults.standard.object(forKey: lastSeenKey) as? TimeInterval {
+            if now.timeIntervalSince1970 + 1 < lastSeen { // 과거로 이동한 경우
+                return (false, max(0, limit - used), resetAt)
+            }
+        }
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastSeenKey)
+        return (canUse, max(0, limit - used), resetAt)
+    }
+
+    /// 주간 제한 사용 증가(성공 시 호출)
+    public func incrementWeeklyLimitedFeature(anchor: WeekAnchor, key: String) {
+        let now = Date()
+        let (weekId, _) = currentWeekIdAndResetTime(anchor: anchor, now: now)
+        let usageKey = weeklyUsageKey(key: key, weekId: weekId)
+        let used = UserDefaults.standard.integer(forKey: usageKey)
+        UserDefaults.standard.set(used + 1, forKey: usageKey)
+        let lastSeenKey = weeklyLastSeenKey(key: key)
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastSeenKey)
+    }
+
+    // MARK: - 내부 유틸(주간 앵커)
+    private func currentWeekIdAndResetTime(anchor: WeekAnchor, now: Date) -> (String, Date) {
+        switch anchor {
+        case .kstMonday:
+            // 대한민국 표준시(KST, UTC+9) 기준
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 9 * 3600)!
+            // 해당 주의 월요일 00:00
+            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+            let weekStart = calendar.date(from: comps) ?? now
+            // 다음 주 월요일 00:00 = 리셋 시각
+            let nextWeekStart = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? now
+            let weekId = {
+                let year = comps.yearForWeekOfYear ?? 0
+                let week = comps.weekOfYear ?? 0
+                return String(format: "%04d-W%02d-KST", year, week)
+            }()
+            return (weekId, nextWeekStart)
+        }
+    }
+
+    private func weeklyUsageKey(key: String, weekId: String) -> String {
+        return "weekly_usage_\(key)_\(weekId)"
+    }
+
+    private func weeklyLastSeenKey(key: String) -> String {
+        return "weekly_lastSeen_\(key)"
+    }
+
     /// 개발자 전용: 모든 사용량 데이터 출력
     public func printAllUsageData() {
         #if DEBUG
