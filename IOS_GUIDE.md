@@ -8,6 +8,11 @@ IAP 상태 업데이트(2025-08-20)
 - 기존: In‑App Purchase 미구현(모의 구독 사용) 리스크
 - 현재: StoreKit2 기본 플로우 연결됨(제품 로드/구매/복원/트랜잭션 스트림/권리 방송), Paywall ↔ StoreKit 결선 완료
 - 남은 사항: 환불/만료 UI 안내, 전역 화면의 구독 상태 옵저버 적용, .storekit QA 시나리오 실행, PrivacyManifest/Info 키 최종 점검
+- 관련 파일(싱크 지점):
+  • DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift, SubscriptionStatusCenter.swift
+  • DeepSleepApp/Paywall/PaywallViewController.swift, Paywall/EntitlementUI.swift, Subscription/AppFeature.swift, Subscription/EntitlementGate.swift
+  • DeepSleepApp/AI/UsageLimitManager.swift, Core/FeatureFlags.swift, Core/KSTDatePolicy.swift
+  • DeepSleepApp/StoreKit/DeepSleep.storekit, Secrets.xcconfig (DeepSleepApp/Secrets.xcconfig)
 
 In‑App Purchase 미구현(모의 구독 사용) 리스크 • 근거(지침 3.1.1, 2.3.1): 기능 잠금 해제/유료 티어(프리미엄)를 제공하면 반드시 IAP(StoreKit2) 사용이 필요. 현재 Subscription/SubscriptionManager.swift는 Mock(“구독 구매/복원/무료체험” 시뮬레이션)이며 실제 결제 흐름이 아님. • 확인 파일: DeepSleepApp/Subscription/SubscriptionManager.swift (mock 구매/복원/체험 로직, UserDefaults로 상태 저장). • 조치: • 옵션 A(권장): StoreKit2로 실제 자동갱신 구독 구현(구독 제품 등록, 영수증 검증, 복원 처리). • 옵션 B(임시 대안): App Store 제출 빌드에서 “구독/복원/무료체험 UI/문구/기능” 전부 제거(또는 전부 무료 동작). Mock 결제 흐름이 남아 있으면 “현혹/오해 소지”로 거절될 수 있음(2.3.1). • 메타데이터에도 “구독/체험” 관련 문구 제거 또는 실제 구독 구현 후 반영.
 

@@ -36,14 +36,15 @@
   • 관련 코드: DeepSleepApp/UI/PremiumBadgeView.swift
 - [O] 문서 동기화(로드맵/종합 가이드) — 2025-08-20 완료
   • 관련 문서: IOS_IAP_ROADMAP.md, DEEPSLEEP_COMPREHENSIVE_GUIDE.md
-- [∙] EntitlementUI에서 가격/Trial 자동 주입(현재 Paywall 측 자동 로딩으로 대체 동작) — 대체 구현(진행 중)
-  • 계획: EntitlementUI.require 호출 시 StoreKitSubscriptionManager에서 가격/Trial 조회 후 PaywallPresenter로 전달
+- [O] EntitlementUI에서 가격/Trial 자동 주입 — 대체 구현 완료
+  • 현재 구현: Paywall 측에서 StoreKitSubscriptionManager로부터 가격/Trial을 자동 로딩하여 주입(EntitlementUI 단계의 별도 주입 불필요)
+  • 메모: EntitlementUI.require 시 별도 주입은 YAGNI로 보류(필요 시에만 추가)
   • 관련 코드: DeepSleepApp/Paywall/EntitlementUI.swift, PaywallPresenter, StoreKitSubscriptionManager
 - [∙] 구독 상태 변경 전역 UI 반영(메인/설정/분석 화면) — 부분 완료(Paywall 자동 dismiss)
   • 계획: 주요 화면별 subscriptionStatusChanged 옵저버 추가 및 버튼/배지/문구 갱신
 - [X] 환불/만료 시 안내/다운그레이드 UI — 미구현
   • 계획: refreshEntitlements에서 환불/만료 상태 세분화 → UI 토스트/배지 반영
-- [X] IOS_GUIDE.md 심사 체크리스트 업데이트(IAP 상태, Trial 1회, 롤백, Privacy/Info 키) — 미구현
+- [O] IOS_GUIDE.md 심사 체크리스트 업데이트(IAP 상태, Trial 1회, 롤백, Privacy/Info 키) — 2025-08-20 반영됨
   • 계획: Must-fix 항목 상태 조정 및 체크리스트 추가
 - [X] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 미수행
   • 계획: 체크리스트화 후 수기/자동 테스트 수행
@@ -87,9 +88,9 @@
 - 정적 검증: 타입/컴파일·린트·의존성·플래그 상태 일치 확인
 - 동적 검증: .storekit 샌드박스 시나리오(월/연/Trial/복원/환불/유예/오프라인)
 - 문서 검증: 본 로드맵과 실제 코드 차이점 diff 문서화, 사용자 스펙(한국/KST/20%할인/7일 체험 1회) 재확인
-- UsageLimitManager.swift: 일일 한도 중앙관리(Info.plist 매핑). 현재 구독 상태와의 연동은 없음
-- ChatViewController 등: 유료 기능(대화/분석 등) 사용 시 한도 체크만 수행, 구독 체크 훅 없음
-- IOS_GUIDE.md: Must-fix로 IAP 미구현 명시. 제출 빌드에서 모의 결제 흔적 제거 또는 StoreKit2 구현 요구
+- UsageLimitManager.swift: 일일 한도 중앙관리(Info.plist 매핑). 프리미엄 여부는 SubscriptionStatusCenter 기반으로 resolvedDailyLimit에서 반영됨
+- ChatViewController 등: 주요 진입점에서 EntitlementGate.canAccess 적용(차단 시 Paywall 표시), 한도 체크는 UsageLimitManager로 단일화
+- IOS_GUIDE.md: IAP 상태 ‘StoreKit2 기본 플로우 연결됨’으로 갱신 완료
 
 핵심 결정 사항
 - 옵션 A(권장): StoreKit2 자동갱신 구독(월/년) 도입, 영수증 검증은 클라이언트 우선 + 서버(Optional)
@@ -318,9 +319,10 @@ Phase 4: 정합성/심사 대응
 - 프리미엄 사운드팩/오프라인 캐시: 현재 범위 제외(후속)
 
 ## 월간 통계 → 주간 1회 제한 설계(월요일 00:00 기준)
-- DAILY_MONTHLY_STATISTICS_LIMIT(일일) 제거, WEEKLY_MONTHLY_STATISTICS_LIMIT = 1로 대체(Secrets.xcconfig/Info.plist 매핑)
-- 주간 앵커: 사용자의 지역 달력 기준 월요일 00:00
-- 역행 방지: UserDefaults에 lastExecutionWeekAnchor(예: 2025-W35)와 lastSeenWallClock 저장
+- 현재 코드: xcconfig의 WEEKLY_* 키를 직접 사용하지 않으며, 코드 유틸(WeekAnchor.kstMonday)로 주간 앵커를 계산하여 관리
+- 정책 표기: UI/툴팁·문서에서는 “주 1회, 월요일 00:00에 초기화”를 명확히 안내하되, 구현은 코드 유틸 중심(DRY/KISS)
+- 주간 앵커: 사용자의 지역 또는 KST 정책에 맞는 캘린더 기준 월요일 00:00(본 앱은 KST 고정 정책 섹션 참고)
+- 역행 방지: UserDefaults에 lastExecutionWeekAnchor(예: 2025-W35[-KST])와 lastSeenWallClock 저장
   - 현재 시각이 lastSeen보다 과거로 이동한 경우 카운트/리셋 금지
   - 주간 경계(월요일 00:00)를 넘어갈 때만 0으로 리셋
 - 한계: 완전한 시간 변조 방지는 서버 시간 필요. 후속 단계에서 영수증 signedDate/서버 시간을 신뢰 소스로 병합
@@ -347,7 +349,7 @@ Phase 4: 정합성/심사 대응
 - Trial 비대상 사용자: Paywall에서 "첫 구독자에게 제공되는 7일 무료체험" 안내로 카피 대체(배지 숨김) [사용자 결정사항]
 
 ## 월간 통계 → 주간 1회 제한(대한민국 KST 기준 월요일 00:00)
-- DAILY_MONTHLY_STATISTICS_LIMIT(일일) 제거, WEEKLY_MONTHLY_STATISTICS_LIMIT = 1로 대체(Secrets.xcconfig/Info.plist 매핑) [사용자 결정사항]
+- 현재 코드: WEEKLY_* 구성 키는 사용하지 않음. KSTDatePolicy + UsageLimitManager 내 주간 유틸로 계산/관리(DRY/KISS)
 - 주간 앵커: 대한민국 표준시(KST) 기준 월요일 00:00 고정 [사용자 결정사항]
 - 역행 방지: UserDefaults에 lastExecutionWeekAnchor(예: 2025-W35-KST)와 lastSeenWallClock 저장
   - 현재 시각이 lastSeen보다 과거로 이동하면 카운트/리셋 금지
@@ -395,16 +397,16 @@ Secrets.xcconfig 경로 고정(중요)
 - 사용 경로: DeepSleepApp/Secrets.xcconfig (스킴/빌드 설정에 연결됨)
 - Config/Secrets.xcconfig는 사용하지 않음. 혼선 방지를 위해 프로젝트 참조에서 제거 권장
 
-결선 작업 체크리스트(이 스프린트에서 완료 예정)
-- [ ] PaywallViewController ↔ StoreKitSubscriptionManager 결선
-  • PaywallVC 델리게이트에서 purchase(.monthly/.yearly), restore() 호출
-  • 구매/복원 성공 시 SubscriptionStatusCenter 변경 → Notification.subscriptionStatusChanged 수신하여 UI 갱신 및 배지 업데이트
-- [ ] PaywallPresenter 가격/Trial 정보 주입
-  • StoreKitSubscriptionManager.displayPrice(.monthly/.yearly)로 표시가, trialDaysRemaining(.monthly/.yearly)로 D-표시
-- [ ] EntitlementGate와 UsageLimitManager 연계 검증
-  • 프리미엄/Trial → 제한 상향 또는 무시, 무료 → xcconfig 기반 일일 한도 적용
-- [ ] DeepSleepApp/StoreKit/DeepSleep.storekit 스킴 연결 점검 (Run > Options)
-- [ ] IOS_GUIDE.md Must-fix 항목 중 IAP 미구현 리스크 항목 “StoreKit2 구현됨(기본 흐름)”으로 상태 갱신
+결선 작업 체크리스트(이 스프린트 상태)
+- [O] PaywallViewController ↔ StoreKitSubscriptionManager 결선
+  • PaywallVC 기본 동작/델리게이트에서 purchase(.monthly/.yearly), restore() 호출
+  • 구매/복원 성공 시 SubscriptionStatusCenter 변경 → Notification.subscriptionStatusChanged 수신하여 Paywall 자동 dismiss 및 UI 갱신
+- [O] PaywallPresenter 가격/Trial 정보 주입 — 대체 구현 완료
+  • 현재는 Paywall 측 자동 로딩으로 대체. Presenter 주입은 YAGNI로 보류
+- [O] EntitlementGate와 UsageLimitManager 연계(구조 반영)
+  • 프리미엄/Trial → resolvedDailyLimit에서 상향/무시 반영, 무료 → xcconfig 기반 일일 한도 적용
+- [O] DeepSleepApp/StoreKit/DeepSleep.storekit 스킴 연결 점검 (Run > Options)
+- [O] IOS_GUIDE.md 상태 갱신: “StoreKit2 구현됨(기본 흐름)” 반영
 
 릴리즈 노트 문구 가이드(스토어 메타데이터 동기화)
 - 7일 무료체험(동일 구독 그룹 1회) / 연간은 월 대비 약 20% 할인
