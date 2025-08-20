@@ -3,6 +3,7 @@ import UIKit
 import Combine
 
 class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDelegate, UITextFieldDelegate {
+    private var subscriptionObserver: NSObjectProtocol?
     
     // MARK: - Properties
     private var viewModel: EmotionAnalysisViewModelProtocol!
@@ -35,6 +36,12 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         setupKeyboardHandling()
         setupSwipeGestures()
         setupBindings()
+        
+        // 구독 상태 옵저버
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.updateUIForSubscriptionStatus()
+        }
+        updateUIForSubscriptionStatus()
         
         // 초기 분석 수행
         Task {
@@ -195,8 +202,9 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     }
     
     private func setLoading(_ isLoading: Bool) {
-        sendButton.isEnabled = !isLoading
-        inputTextField.isEnabled = !isLoading
+        let (canUse, _) = EntitlementGate.canAccess(.diaryAnalysis)
+        sendButton.isEnabled = !isLoading && canUse
+        inputTextField.isEnabled = canUse
     }
     
     private func handleError(_ error: Error) {
@@ -240,7 +248,14 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         return true
     }
     
+    private func updateUIForSubscriptionStatus() {
+        let (can, _) = EntitlementGate.canAccess(.diaryAnalysis)
+        sendButton?.isEnabled = can
+        inputTextField?.isEnabled = can
+    }
+    
     deinit {
+        if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
         NotificationCenter.default.removeObserver(self)
     }
 }

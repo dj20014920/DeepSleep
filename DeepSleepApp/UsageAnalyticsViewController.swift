@@ -3,6 +3,7 @@ import UIKit
 /// 📊 사용 패턴 분석 화면 (SessionManager 기반)
 /// SessionManager에서 실제 사용자 데이터를 가져와 분석 결과를 표시
 class UsageAnalyticsViewController: UIViewController {
+    private var subscriptionObserver: NSObjectProtocol?
     
     // MARK: - UI Components
     
@@ -69,6 +70,11 @@ class UsageAnalyticsViewController: UIViewController {
         setupConstraints()
         loadAnalyticsData()
         createAnalyticsSections()
+        
+        // 구독 상태 옵저버 등록: 프리미엄 상태 변화 시 표기 갱신
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.reloadAnalyticsUI()
+        }
     }
     
     // MARK: - Setup Methods
@@ -255,6 +261,12 @@ class UsageAnalyticsViewController: UIViewController {
     }
     
     // MARK: - Helper Methods
+    
+    private func reloadAnalyticsUI() {
+        // 간단히 스택을 비우고 다시 구성 (YAGNI: 최소 구현)
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        createAnalyticsSections()
+    }
     
     private func createAnalyticsCard(title: String, subtitle: String) -> UIView {
         let cardView = UIView()

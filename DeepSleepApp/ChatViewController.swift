@@ -59,6 +59,7 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
+    private var subscriptionObserver: NSObjectProtocol?
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
@@ -102,6 +103,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var currentPage = 0
     private var isLoadingMessages = false
     private var hasMoreMessages = true
+
+    // 구독 상태에 따른 UI 갱신
+    private func updateUIForSubscriptionStatus() {
+        let (canAccess, _) = EntitlementGate.canAccess(.chat)
+        sendButton.isEnabled = canAccess
+        inputTextField.isEnabled = canAccess
+    }
     private var displayMessages: [ChatMessage] = []
     private var allMessagesCache: [ChatMessage] = []
     
@@ -163,8 +171,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var initialPanLocation: CGPoint = .zero
     private var isPerformingBackGesture: Bool = false
     
-    // MARK: - 🚀 통합된 AI 분기 시스템 (로컬/외부 자동 선택)
-    
+// MARK: - 🚀 통합된 AI 분기 시스템 (로컬/외부 자동 선택)
+
     /// 지능형 AI 라우팅 - 입력에 따라 로컬 또는 외부 AI 자동 선택
     private func routeAIRequest(message: String, completion: @escaping (String?) -> Void) {
         // 1. 입력 복잡도 분석
@@ -1178,6 +1186,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 배경색 설정
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "대나무숲"
+        
+        // 구독 상태 옵저버 등록 및 초기 UI 반영
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.updateUIForSubscriptionStatus()
+        }
+        updateUIForSubscriptionStatus()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -1991,6 +2005,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     deinit {
+        if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
         NotificationCenter.default.removeObserver(self)
         cleanup()
     }

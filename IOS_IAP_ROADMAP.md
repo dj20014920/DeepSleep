@@ -43,11 +43,13 @@
 - [∙] 구독 상태 변경 전역 UI 반영(메인/설정/분석 화면) — 부분 완료(Paywall 자동 dismiss)
   • 계획: 주요 화면별 subscriptionStatusChanged 옵저버 추가 및 버튼/배지/문구 갱신
 - [X] 환불/만료 시 안내/다운그레이드 UI — 미구현
+  • 설계 초안: 아래 “환불/만료 UX 세분화 설계(초안)” 섹션 참조
   • 계획: refreshEntitlements에서 환불/만료 상태 세분화 → UI 토스트/배지 반영
 - [O] IOS_GUIDE.md 심사 체크리스트 업데이트(IAP 상태, Trial 1회, 롤백, Privacy/Info 키) — 2025-08-20 반영됨
   • 계획: Must-fix 항목 상태 조정 및 체크리스트 추가
-- [X] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 미수행
-  • 계획: 체크리스트화 후 수기/자동 테스트 수행
+- [∙] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 체크리스트 문서 생성 완료, 실행 미수행
+  • 문서: STOREKIT_QA_CHECKLIST.md
+  • 계획: 체크리스트에 따라 수기/자동 테스트 수행 후 결과 기록
 - [X] PrivacyManifest.json 및 Info.plist 필수 키 점검(Background Audio, ATT 필요 시) — 미확인
   • 계획: 최소 템플릿 추가 및 Info 키 정합성 점검
 
@@ -407,6 +409,50 @@ Secrets.xcconfig 경로 고정(중요)
   • 프리미엄/Trial → resolvedDailyLimit에서 상향/무시 반영, 무료 → xcconfig 기반 일일 한도 적용
 - [O] DeepSleepApp/StoreKit/DeepSleep.storekit 스킴 연결 점검 (Run > Options)
 - [O] IOS_GUIDE.md 상태 갱신: “StoreKit2 구현됨(기본 흐름)” 반영
+
+환불/만료 UX 세분화 설계(초안)
+- 목표: 환불/만료/유예 상태에 따라 사용자 혼란 없이 자연스러운 상태 전환/안내 제공
+- 단일 판단 소스: StoreKit2 Transaction 상태(SubscriptionStatusCenter가 요약)
+- 상태 모델(예시):
+  • active(paid/trial), gracePeriod, refunded(graceUntil=paidAt+30d), expired
+- UX 정책:
+  • refunded: “환불 처리되었습니다. 결제일로부터 30일간 프리미엄이 유지되며 이후 무료로 전환됩니다.” 토스트/설정 배지
+  • expired: “구독이 만료되었습니다. 계속 이용하려면 구독을 갱신하세요.” Paywall 자연 유도
+  • gracePeriod: “결제 재시도 중입니다. 기존 혜택이 유지됩니다.” 설정 배지
+- UI 반영 지점:
+  • Paywall: 상태 변화 시 자동 dismiss/표시
+  • 설정 화면: 상태/만료일/안내 배지
+  • 메인/분석: 프리미엄 UI 요소 활성/비활성
+- 구현 계획(요약):
+  1) SubscriptionStatusCenter: 상태 enum 확장(above) 및 상태 전파(Notification)
+  2) Paywall/설정/메인 화면: subscriptionStatusChanged 옵저버에서 상태별 카피/표시 로직 반영
+  3) UsageLimitManager: 프리미엄 판단은 isPremium로만, 환불/유예/만료 텍스트는 UI 계층에서 처리(DRY)
+
+전역 화면별 subscriptionStatusChanged 옵저버 적용 계획(파일/라인 가이드)
+- 공통 규칙
+  • 적용 위치: 각 화면의 viewDidLoad 말미 또는 viewWillAppear에서 등록, deinit에서 해제
+  • 메인 스레드 보장: NotificationCenter 콜백에서 @MainActor 또는 DispatchQueue.main 보장
+  • 처리 내용: 배지/버튼/문구/게이트 평가 결과를 즉시 갱신(updateUI() 호출)
+- 대상 화면 및 가이드
+  1) DeepSleepApp/ChatViewController.swift
+     • viewDidLoad 하단: subscriptionStatusChanged 옵저버 추가 → { self.updateUI(); }
+     • updateUI 내: EntitlementGate.canAccess(AppFeature.chatUnlimited) 결과로 입력창/전송 버튼 활성/비활성
+  2) DeepSleepApp/SettingsViewController.swift
+     • viewDidLoad 하단: 옵저버 추가 → { self.updateSubscriptionBadge(); }
+     • 설정 배지: isPremium/만료일/유예/환불 카피 반영(상태 문자열 포맷터 유틸 활용 예정)
+  3) DeepSleepApp/EmotionAnalysisChatViewController.swift (또는 해당 분석 메인 화면)
+     • viewDidLoad 하단: 옵저버 추가 → { self.updateUI(); }
+     • 분석 실행 버튼/제한 문구 갱신: EntitlementGate + UsageLimitManager 상태 기반
+  4) DeepSleepApp/UsageAnalyticsViewController.swift
+     • viewDidLoad 하단: 옵저버 추가 → { self.reloadData(); }
+     • 프리미엄 시 한도 표기 상향/무제한 텍스트 반영
+  5) DeepSleepApp/PresetListViewController.swift
+     • viewDidLoad 하단: 옵저버 추가 → { self.updateUI(); }
+     • 프리미엄 프리셋/사운드 잠금 해제 시 UI 즉시 반영
+- 구현 노트
+  • 옵저버 토큰은 화면 프로퍼티로 보관(private var subscriptionObserver: NSObjectProtocol?)
+  • deinit에서 토큰 해제(if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) })
+  • 기존 PaywallViewController 구현 패턴을 그대로 재사용하여 DRY 유지
 
 릴리즈 노트 문구 가이드(스토어 메타데이터 동기화)
 - 7일 무료체험(동일 구독 그룹 1회) / 연간은 월 대비 약 20% 할인

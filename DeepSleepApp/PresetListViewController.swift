@@ -125,6 +125,7 @@ class PresetTableViewCell: UITableViewCell {
 }
 
 class PresetListViewController: UITableViewController {
+    private var subscriptionObserver: NSObjectProtocol?
     var presets: [SoundPreset] = []
     var onPresetSelected: ((SoundPreset) -> Void)?
     
@@ -144,6 +145,11 @@ class PresetListViewController: UITableViewController {
         setupNavigationBar()
         loadPresets()
         loadFavorites()
+        
+        // 구독 상태 옵저버 등록: 프리미엄 프리셋 잠금 해제 즉시 반영
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.tableView.reloadData()
+        }
     }
     
     private func setupNavigationBar() {

@@ -4,6 +4,7 @@ import SwiftUI
 /// 🛠️ 사용자 설정 화면
 /// AI 모델 선택, 개인정보, 앱 설정 등을 관리하는 메인 설정 화면
 class SettingsViewController: UIViewController {
+    private var subscriptionObserver: NSObjectProtocol?
     
     // MARK: - UI Components
     
@@ -29,6 +30,11 @@ class SettingsViewController: UIViewController {
         setupUI()
         setupNavigationBar()
         loadCurrentSettings()
+        // 구독 상태 옵저버 등록
+        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.updateSubscriptionBadge()
+        }
+        updateSubscriptionBadge()
     }
     
     // MARK: - Setup Methods
@@ -226,6 +232,12 @@ class SettingsViewController: UIViewController {
     private func updateAIModelDisplay() {
         // AI 모델 섹션의 첫 번째 항목 업데이트
         aiModelSection.updateItem(at: 0, subtitle: selectedAIModel.displayName)
+    }
+
+    private func updateSubscriptionBadge() {
+        // YAGNI: 간단한 구현 — 상단 제목에 프리미엄 상태만 표시
+        let premium = SubscriptionStatusCenter.shared.isPremium
+        self.title = premium ? "설정 · 프리미엄" : "설정"
     }
     
     // MARK: - Action Methods
