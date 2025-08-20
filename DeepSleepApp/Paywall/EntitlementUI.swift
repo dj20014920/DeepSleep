@@ -14,11 +14,19 @@ public enum EntitlementUI {
                                delegate: PaywallViewControllerDelegate? = nil) -> Bool {
         let (can, _) = EntitlementGate.canAccess(feature)
         if can { return true }
-        PaywallPresenter.present(from: host,
-                                 monthlyPrice: monthlyPrice,
-                                 yearlyPrice: yearlyPrice,
-                                 trialDaysRemaining: trialDaysRemaining,
-                                 delegate: delegate)
+        // 가격/Trial이 미전달이면 StoreKit에서 조회 후 주입하여 Paywall 표시
+        Task { @MainActor in
+            await StoreKitSubscriptionManager.shared.loadProducts()
+            let mPrice = monthlyPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
+            let yPrice = yearlyPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
+            let trial = trialDaysRemaining ?? (StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
+                                               ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly))
+            PaywallPresenter.present(from: host,
+                                     monthlyPrice: mPrice,
+                                     yearlyPrice: yPrice,
+                                     trialDaysRemaining: trial,
+                                     delegate: delegate)
+        }
         return false
     }
 }

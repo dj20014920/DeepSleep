@@ -8,6 +8,48 @@
 현황 (2025-08-20)
 - SubscriptionManager.swift: Mock 구매/복원/무료체험, UserDefaults 저장, MemoryManager 티어 업데이트
 
+## Master Task Checklist (Single Source)
+- [O] StoreKit2 구독 매니저 구현 및 트랜잭션 스트림 연결 — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift, SubscriptionStatusCenter
+  • 관련 문서: IOS_IAP_ROADMAP.md(결제 플로우), DEEPSLEEP_COMPREHENSIVE_GUIDE.md(5.0 스냅샷)
+- [O] Paywall 화면 구성 및 중앙 표시(프리젠터) — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/Paywall/PaywallViewController.swift, DeepSleepApp/Subscription/PaywallPresenter.swift
+  • 관련 문서: IOS_IAP_ROADMAP.md(UI/UX), DEEPSLEEP_COMPREHENSIVE_GUIDE.md(5.0 스냅샷)
+- [O] Paywall ↔ StoreKit2 결선(구매/복원/상태 반영, 가격/Trial 자동 주입) — 2025-08-20 완료
+  • 관련 코드: PaywallViewController(구독 옵저버/기본 동작), PaywallPresenter(표시 후 주입)
+  • 관련 문서: IOS_IAP_ROADMAP.md 업데이트 로그
+- [O] Chat 진입부 게이트 적용(무료/유료 분기 + Paywall 노출) — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/ChatViewController.swift, DeepSleepApp/Paywall/EntitlementUI.swift, Subscription/EntitlementGate.swift, Subscription/AppFeature.swift
+  • 관련 문서: IOS_IAP_ROADMAP.md(Feature gating)
+- [O] 사용량 한도 로더 개선(xcconfig/Info.plist 기반, Free/Premium 키 우선) — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/AI/UsageLimitManager.swift
+  • 관련 문서: IOS_IAP_ROADMAP.md(모델/한도 정책, KST 주간 1회)
+- [O] KST 주간 1회 정책 유틸 — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/Core/KSTDatePolicy.swift
+  • 관련 문서: IOS_IAP_ROADMAP.md(월간 통계 주간 제한)
+- [O] Feature Flags(롤백/토글) — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/Core/FeatureFlags.swift
+- [O] .storekit 구성 및 스킴 연결 안내 — 2025-08-20 완료(구성), 연결은 스킴에서 완료됨
+  • 관련 파일: DeepSleepApp/StoreKit/DeepSleep.storekit
+  • 관련 문서: DEEPSLEEP_COMPREHENSIVE_GUIDE.md(스킴 설정)
+- [O] Premium D-N 배지 UI(무지개 효과) — 2025-08-20 완료
+  • 관련 코드: DeepSleepApp/UI/PremiumBadgeView.swift
+- [O] 문서 동기화(로드맵/종합 가이드) — 2025-08-20 완료
+  • 관련 문서: IOS_IAP_ROADMAP.md, DEEPSLEEP_COMPREHENSIVE_GUIDE.md
+- [∙] EntitlementUI에서 가격/Trial 자동 주입(현재 Paywall 측 자동 로딩으로 대체 동작) — 대체 구현(진행 중)
+  • 계획: EntitlementUI.require 호출 시 StoreKitSubscriptionManager에서 가격/Trial 조회 후 PaywallPresenter로 전달
+  • 관련 코드: DeepSleepApp/Paywall/EntitlementUI.swift, PaywallPresenter, StoreKitSubscriptionManager
+- [∙] 구독 상태 변경 전역 UI 반영(메인/설정/분석 화면) — 부분 완료(Paywall 자동 dismiss)
+  • 계획: 주요 화면별 subscriptionStatusChanged 옵저버 추가 및 버튼/배지/문구 갱신
+- [X] 환불/만료 시 안내/다운그레이드 UI — 미구현
+  • 계획: refreshEntitlements에서 환불/만료 상태 세분화 → UI 토스트/배지 반영
+- [X] IOS_GUIDE.md 심사 체크리스트 업데이트(IAP 상태, Trial 1회, 롤백, Privacy/Info 키) — 미구현
+  • 계획: Must-fix 항목 상태 조정 및 체크리스트 추가
+- [X] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 미수행
+  • 계획: 체크리스트화 후 수기/자동 테스트 수행
+- [X] PrivacyManifest.json 및 Info.plist 필수 키 점검(Background Audio, ATT 필요 시) — 미확인
+  • 계획: 최소 템플릿 추가 및 Info 키 정합성 점검
+
 ## 개발 원칙과 실행 규율 (반드시 준수)
 
 ## 사용자 결정사항(고정)

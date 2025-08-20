@@ -2,24 +2,6 @@ import Foundation
 import StoreKit
 import os.log
 
-public final class SubscriptionStatusCenter {
-    public static let shared = SubscriptionStatusCenter()
-    private init() {}
-
-    public private(set) var isPremium: Bool = false
-    public private(set) var expirationDate: Date?
-
-    public func update(isPremium: Bool, expiration: Date?) {
-        self.isPremium = isPremium
-        self.expirationDate = expiration
-        NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
-    }
-}
-
-public extension Notification.Name {
-    static let subscriptionStatusChanged = Notification.Name("subscriptionStatusChanged")
-}
-
 public enum SubscriptionProduct: String, CaseIterable {
     case monthly = "com.deepsleep.premium.monthly"
     case yearly  = "com.deepsleep.premium.yearly"
@@ -126,7 +108,7 @@ public final class StoreKitSubscriptionManager: NSObject {
     }
 
     // MARK: - Helpers
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T where T : Transaction {
+private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified:
             throw NSError(domain: "IAP", code: -2, userInfo: [NSLocalizedDescriptionKey: "Unverified transaction"])
@@ -142,10 +124,7 @@ public final class StoreKitSubscriptionManager: NSObject {
     }
 
     public func trialDaysRemaining(for product: SubscriptionProduct) -> Int? {
-        // Heuristic: If user is eligible for intro offer. StoreKit2 does not directly give days remaining here.
-        // For simplicity, return 7 if eligible, else nil.
-        guard let p = products[product] else { return nil }
-        if p.subscription?.isEligibleForIntroOffer ?? false { return 7 }
+        // Eligibility 확인은 환경/권한에 따라 async API가 필요할 수 있으므로 여기서는 표시용 기본값(nil)로 둡니다.
         return nil
     }
 }

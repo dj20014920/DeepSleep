@@ -4,6 +4,11 @@
 
 A. Must-fix: 제출 전 반드시 보완
 
+IAP 상태 업데이트(2025-08-20)
+- 기존: In‑App Purchase 미구현(모의 구독 사용) 리스크
+- 현재: StoreKit2 기본 플로우 연결됨(제품 로드/구매/복원/트랜잭션 스트림/권리 방송), Paywall ↔ StoreKit 결선 완료
+- 남은 사항: 환불/만료 UI 안내, 전역 화면의 구독 상태 옵저버 적용, .storekit QA 시나리오 실행, PrivacyManifest/Info 키 최종 점검
+
 In‑App Purchase 미구현(모의 구독 사용) 리스크 • 근거(지침 3.1.1, 2.3.1): 기능 잠금 해제/유료 티어(프리미엄)를 제공하면 반드시 IAP(StoreKit2) 사용이 필요. 현재 Subscription/SubscriptionManager.swift는 Mock(“구독 구매/복원/무료체험” 시뮬레이션)이며 실제 결제 흐름이 아님. • 확인 파일: DeepSleepApp/Subscription/SubscriptionManager.swift (mock 구매/복원/체험 로직, UserDefaults로 상태 저장). • 조치: • 옵션 A(권장): StoreKit2로 실제 자동갱신 구독 구현(구독 제품 등록, 영수증 검증, 복원 처리). • 옵션 B(임시 대안): App Store 제출 빌드에서 “구독/복원/무료체험 UI/문구/기능” 전부 제거(또는 전부 무료 동작). Mock 결제 흐름이 남아 있으면 “현혹/오해 소지”로 거절될 수 있음(2.3.1). • 메타데이터에도 “구독/체험” 관련 문구 제거 또는 실제 구독 구현 후 반영.
 
 Info.plist 권한/설명 문자열 미비 • 근거(지침 5.1.1, 2.5): 민감 데이터 접근/기능 사용 시 정확한 설명 문자열 요구. • 현재 상태: Info.plist에 NSHealthShareUsageDescription/NSHealthUpdateUsageDescription 등 개인 정보 사용 설명 키가 없음. HealthKit 기능은 코드상 “임시 비활성화”지만(HealthKitManager.swift), 향후 활성화 시 필수. • 조치: • HealthKit 실제 사용 시: NSHealthShareUsageDescription, NSHealthUpdateUsageDescription 추가(“앱이 어떤 건강 데이터를 왜 읽고/쓰는지”). • ATT 사용 시(코드에 AppTrackingTransparency 참조 흔적 존재): NSUserTrackingUsageDescription 추가 또는 ATT 호출 제거(사용 안 할 경우). • 마이크/카메라/사진/위치 사용 안 함이 맞는지 재확인. 사용 시 각 NS…UsageDescription 필수.
@@ -49,6 +54,26 @@ Notification 사용자 흐름 개선 • 첫 실행 시 알림 권한 요청 맥
 D. 코드/파일별 구체적 점검 스냅샷 • Info.plist: 다수의 설정 키/비밀은 xcconfig→Info.plist로 주입(좋음). 그러나 NS…UsageDescription(Health/Tracking 등) 없음, UIBackgroundModes 없음. • DeepSleep.entitlements: HealthKit 키 주석 처리(사실상 비어있음). 실제 Capabilities “Off” 확인 필요. • AppDelegate.swift: • AVAudioSession playback 설정/원격 제어 시작 → UIBackgroundModes=audio 필요. • 알림 권한 요청/로컬 알림 스케줄 사용(OK). 프로모션 없음. • Core Data fatalError 제거(우아한 폴백/알림/로깅 구현됨) – 지침 친화적. • HealthKitManager.swift: • “개발자 계정 부족으로 임시 비활성화” 주석/Mock 데이터 경로. 실제 배포 시 HealthKit 사용 전면 재검토(권한/설명/엔타이틀먼트/데이터 처리 고지/면책). • SubscriptionManager.swift: • Mock 결제/복원/무료 체험(위험). App Store 빌드에서 제거 또는 StoreKit2로 교체 필요. • InputValidationManager.swift, SecureStorageManager.swift: • 입력 검증/살균, Keychain 저장 등 보안 관점 양호. 로그 민감정보 노출 금지 계속 준수 필요.
 
 E. 심사 항목 매핑(핵심만) • 1.4.x(신체/의료): 건강 조언 면책 고지·의사 상담 권고 필수. • 2.3.x(정확한 메타데이터): 스토어 설명/스크린샷/미리보기와 실제 기능 일치(구독/HealthKit/AI 기능). • 2.4.2(전원/자원): Background Audio 사용 시 Info.plist 선언, 과도한 리소스 소모 방지. • 2.5(공개 API/현재 OS): 공개 API만 사용. WebKit 대체 엔진 없음(OK). • 3.1.1(IAP): 모의 결제 금지. 실제 StoreKit2 또는 유료기능 제거. • 4.5.4(푸시): 프로모션 푸시 금지, 옵트아웃 제공. • 5.1(개인정보): 개인정보처리방침 노출, 데이터 최소화, ATT/HealthKit 등 설명·동의.
+
+IAP/App Review 체크리스트(2025-08-20)
+- 결제 흐름
+  - [ ] StoreKit Configuration 파일 연결됨 (Run > Options) — DeepSleepApp/StoreKit/DeepSleep.storekit
+  - [ ] 월간/연간 제품 노출 및 현지화 표시가(Product.displayPrice)
+  - [ ] 7일 Intro Offer 표기, 동일 그룹 1회 정책 카피 반영
+  - [ ] 복원 버튼(AppStore.sync) 동작 및 설정 화면 복원 경로
+- 권리/게이트/한도
+  - [ ] SubscriptionStatusCenter 연동으로 권리 변경 즉시 반영
+  - [ ] EntitlementGate.canAccess 적용(차단 시 Paywall 자연 노출)
+  - [ ] 무료=Gemini 고정, Trial/프리미엄=상향 한도(UsageLimitManager)
+  - [ ] 월간 통계: KST 월요일 00:00 주 1회 제한, UI 노출/활성 동기
+- 정책/문구/자산
+  - [ ] 연간은 월 대비 ~20% 할인 문구 일관성(앱/스토어)
+  - [ ] 의료/건강 면책 고지 위치 명확(해당 화면/설정)
+  - [ ] 개인정보처리방침/이용약관/문의 링크 노출
+- 시스템/설정
+  - [ ] Info.plist: UIBackgroundModes=audio, (ATT 사용 시) NSUserTrackingUsageDescription
+  - [ ] PrivacyManifest.json 최소 템플릿(tracking=false 등)
+  - [ ] .gitignore에 Secrets.xcconfig 포함, 실제 키 미커밋
 
 F. 권장 작업 순서(빠른 합격 목적)
 

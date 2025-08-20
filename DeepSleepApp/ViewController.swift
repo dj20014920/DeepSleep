@@ -5,7 +5,10 @@ import MediaPlayer
 class ViewController: UIViewController {
     
     let instanceUUID = UUID().uuidString // 각 인스턴스에 고유 ID 부여
-
+    
+    // 구독 UI 바인더/배지
+    private var subscriptionBinder: SubscriptionUIBinder?
+    private var trialBadgeLabel: UILabel?
     
     // MARK: - Properties (13개 카테고리로 업데이트)
     
@@ -80,6 +83,9 @@ class ViewController: UIViewController {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         configureNavBar()
         
+        // 상단 Trial 배지(필요 시만 표시)
+        setupTrialBadge()
+        
         // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
         setupBasicSliderUI()
         
@@ -141,6 +147,30 @@ class ViewController: UIViewController {
         }
         
         // 지연 초기화 완료
+    }
+    
+    private func setupTrialBadge() {
+        let badge = UILabel()
+        badge.translatesAutoresizingMaskIntoConstraints = false
+        badge.isHidden = true
+        badge.backgroundColor = .clear
+        view.addSubview(badge)
+        NSLayoutConstraint.activate([
+            badge.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            badge.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            badge.heightAnchor.constraint(equalToConstant: 22),
+            badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 140)
+        ])
+        self.trialBadgeLabel = badge
+        
+        // 구독 상태 바인딩: 사운드 탭(메인)에서만 배지 갱신
+        subscriptionBinder = SubscriptionUIBinder.attach(to: self) { [weak self] isPremium in
+            guard let self, let label = self.trialBadgeLabel else { return }
+            let days = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
+                ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
+            SubscriptionUIStyleHelper.setBadge(label, isPremium: isPremium, daysRemaining: days)
+            SubscriptionUIStyleHelper.crossfade(label)
+        }
     }
     
     /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)

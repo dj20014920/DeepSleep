@@ -169,6 +169,7 @@ public override func viewDidLoad() {
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
         } else {
             trialBadgeLabel.isHidden = true
+        }
     }
 
     private func refreshPricesIfNeeded() {
@@ -193,7 +194,6 @@ public override func viewDidLoad() {
     deinit {
         if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
     }
-}
 
     // MARK: - Actions
     @objc private func didTapMonthly() {
@@ -207,6 +207,7 @@ public override func viewDidLoad() {
             }
         }
     }
+
     @objc private func didTapYearly() {
         if let d = delegate { d.paywallDidRequestPurchaseYearly(self); return }
         Task { @MainActor in
@@ -216,11 +217,16 @@ public override func viewDidLoad() {
             }
         }
     }
+
     @objc private func didTapRestore() {
         if let d = delegate { d.paywallDidRequestRestore(self); return }
         Task {
             await StoreKitSubscriptionManager.shared.restore()
         }
     }
-    @objc private func didTapClose() { delegate?.paywallDidClose(self); dismiss(animated: true) }
+
+    @objc private func didTapClose() {
+        delegate?.paywallDidClose(self)
+        dismiss(animated: true)
+    }
 }

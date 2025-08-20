@@ -87,8 +87,7 @@ public class UsageLimitManager {
         var status: [AIMode: (currentUsage: Int, dailyLimit: Int)] = [:]
         
         for mode in AIMode.allCases {
-            let limitKey = getLimitKeyForMode(mode)
-            let dailyLimit = cachedLimits[limitKey] ?? 0
+            let dailyLimit = resolvedDailyLimit(for: mode)
             let currentUsage = getCurrentUsage(for: mode)
             status[mode] = (currentUsage: currentUsage, dailyLimit: dailyLimit)
         }
@@ -198,8 +197,7 @@ public class UsageLimitManager {
     
     // MARK: - 알림 게시 (80% / 100%)
     private func notifyIfThresholdReached(mode: AIMode, currentUsage: Int) {
-        let limitKey = getLimitKeyForMode(mode)
-        let dailyLimit = cachedLimits[limitKey] ?? 0
+        let dailyLimit = resolvedDailyLimit(for: mode)
         guard dailyLimit > 0 else { return }
         let ratio = Double(currentUsage) / Double(dailyLimit)
         let center = NotificationCenter.default

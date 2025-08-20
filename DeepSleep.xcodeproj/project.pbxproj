@@ -202,6 +202,7 @@
 		E0E7BCCE2E561E4A00FF7073 /* DeepSleep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */; };
 		E0E7BCD02E561E7000FF7073 /* StoreKitSubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */; };
 		E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */; };
+		E0E7BCD62E56252800FF7073 /* SubscriptionUIBinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -410,6 +411,7 @@
 		E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
 		E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitSubscriptionManager.swift; sourceTree = "<group>"; };
 		E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumBadgeView.swift; sourceTree = "<group>"; };
+		E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUIBinder.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -835,6 +837,7 @@
 		E0E7BCC92E561E3300FF7073 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */,
 				E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */,
 				E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */,
 			);
@@ -1083,6 +1086,7 @@
 				E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */,
 				E084F1E52E33ACB3002F75E6 /* AIServiceTypes.swift in Sources */,
 				E084F1E62E33ACB3002F75E6 /* EmotionAnalysisChatViewModel.swift in Sources */,
+				E0E7BCD62E56252800FF7073 /* SubscriptionUIBinder.swift in Sources */,
 				E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */,
 				E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */,
 				E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */,

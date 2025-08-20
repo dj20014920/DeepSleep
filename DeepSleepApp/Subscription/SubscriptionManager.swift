@@ -1,8 +1,9 @@
+#if DEBUG
 import Foundation
 
 /// 구독 관리자 (Mock)
 /// 실제 IAP 구현 전까지 사용할 테스트용 구독 관리자
-/// TODO: 실제 StoreKit2 구현으로 교체 필요
+/// TODO: 실제 StoreKit2 구현으로 교체 필요(Release에서는 제외)
 public final class SubscriptionManager {
     
     // MARK: - Singleton
@@ -189,7 +190,4 @@ public final class SubscriptionManager {
 
 // MARK: - Notifications
 
-public extension Notification.Name {
-    /// 구독 상태 변경 알림
-    static let subscriptionStatusChanged = Notification.Name("subscriptionStatusChanged")
-}
+#endif
