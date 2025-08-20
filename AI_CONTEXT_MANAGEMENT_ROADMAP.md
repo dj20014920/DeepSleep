@@ -48,6 +48,22 @@
 
 ### 🔄 남은 작업 (우선순위)
 
+### 🆕 2025-08-20 추가: 컨텍스트 윈도우/요약/캐시 최종 정책 확정
+- 단기 기억(최근 대화) 정책을 다음과 같이 확정함.
+  - 포함 개수: 최신 16턴(사용자 8 + AI 8) 균형 선별
+  - 정렬: 최종 프롬프트 내 포함 순서는 최신순(가장 최근 발화가 상단)으로 유지하여 즉시성 강화
+  - 선별 로직: SessionManager.buildBalancedRecent(raw, userMax: 8, assistantMax: 8)
+- 핵심 기억 요약(fallback) 정책
+  - MemoryManager.getMemorySummary()가 비어있으면 summarizeRecent(recent)로 경량 요약 생성
+  - 요약 포맷: 역할 라벨(User/AI) + 키 문장, 최신순 상위 16개만 압축
+- 시스템 프롬프트 캐시(페르소나) 정책
+  - AIContextManager.getSystemPrompt(personaSignature:generator:) 캐시 TTL=3시간(기본 10800초)
+  - personaSignature가 동일하면 100% 캐시 HIT, 모델을 바꾸면 시그니처가 달라져 최초 1회 MISS 후 HIT
+- 토큰 예산/상한 정책
+  - AIContextBuilder.fitRecentMessages는 TokenOptimizer.maxTokens(for:) 예산 내에서만 최근 대화 포함
+  - 모델 호출 레벨에서 TokenConfiguration.maxTokens를 API에 전달함(OpenAI: max_tokens, Gemini: maxOutputTokens, Claude: max_tokens)
+  - 기본값: AI_GENERAL_CONVERSATION_MAX_TOKENS=800 (Secrets.xcconfig→Info.plist로 주입 가능)
+
 **Must-fix (즉시 해결 필요)**
 - [ ] CompilerFixStubs/ChatBubbleCell Stub 제거 또는 실구현
 - [ ] weak IBOutlet 즉시 해제 버그 수정
