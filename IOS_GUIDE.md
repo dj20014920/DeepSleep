@@ -67,3 +67,431 @@ AI 전송 전 필터 최종점검: • UnifiedAIServiceImpl 외부 전송 직전
 불확실성/주의점 • ATT 실사용 여부: 코드에 흔적이 있으나 실제 호출/노출 경로를 전부 열람하지는 않았음. 빌드 플래그/조건부 분기 확인 권장. • HealthKit: 현재 비활성 경로지만, 스토어 메타데이터/스크린샷에 HealthKit 연동을 암시하지 않도록 주의. • 배터리/발열: 장시간 오디오 재생 앱 특성상 리뷰어가 전원 효율을 유심히 봄. 오디오 엔진/샘플 레이트/믹싱 옵션 과도 사용 방지 점검 권장.
 
 마지막 점검 체크리스트(출시 전 최종) • IAP: Mock 결제 전면 제거 또는 StoreKit2 구현 완료 • Info.plist: UIBackgroundModes(audio), 필요한 NS…UsageDescription(ATT/HealthKit 등) 반영 • 앱 내: 개인정보처리방침/문의/면책 고지/알림 옵트아웃 경로 • PrivacyManifest.json 추가 • 메타데이터: 실제 기능과 정확히 일치(“구독/HealthKit/무료체험” 문구/이미지 불일치 제거) • 로그/분석: PII 미포함 확인
+
+---
+
+## 🔒 프록시 서버 구축 가이드 (상용화 필수)
+
+### 🎯 프록시 서버 필요성
+
+#### 현재 아키텍처의 치명적 보안 위험
+**문제점:**
+- API 키가 앱 바이너리에 포함됨 (Secrets.xcconfig → 컴파일 시 앱에 내장)
+- 리버스 엔지니어링으로 API 키 탈취 가능
+- 악의적 사용자의 무제한 API 남용 → **수만 달러 비용 폭탄 위험**
+
+**해결책:**
+- 프록시 서버를 통한 API 키 안전 보관
+- 앱 → 프록시 서버 → AI 서비스 구조로 변경
+- 서버에서 사용량 제한 및 모니터링
+
+### 🏗️ 프록시 서버 아키텍처
+
+#### 1단계: 기본 프록시 서버 (필수)
+```
+[iOS 앱] → [프록시 서버] → [Claude/OpenAI/Gemini/Naver API]
+```
+
+**핵심 기능:**
+- API 키 안전 보관 (환경변수/시크릿 관리)
+- AI 요청 중계 및 응답 전달
+- 기본적인 요청 검증 및 로깅
+
+#### 2단계: 사용량 관리 서버 (권장)
+```
+[iOS 앱] → [프록시 서버] ← [데이터베이스]
+                ↓
+        [AI 서비스들]
+```
+
+**추가 기능:**
+- 사용자별 사용량 추적
+- 실시간 제한 적용
+- 사용 통계 수집
+
+#### 3단계: 완전한 관리 시스템 (고도화)
+```
+[iOS 앱] → [프록시 서버] ← [데이터베이스]
+                ↓              ↓
+        [AI 서비스들]    [관리자 콘솔]
+                ↓
+        [신고 처리 시스템]
+```
+
+**고급 기능:**
+- 웹 기반 관리자 대시보드
+- 사용자 신고 처리
+- 실시간 모니터링 및 알림
+
+### 💻 기술 스택 권장사항
+
+#### 백엔드 프레임워크
+**Node.js + Express (권장)**
+```javascript
+// 장점: 빠른 개발, JSON 처리 우수, 비동기 처리
+// 단점: 대용량 처리 시 성능 한계
+```
+
+**Python + FastAPI (대안)**
+```python
+# 장점: AI/ML 생태계 친화적, 타입 힌트 지원
+# 단점: Node.js 대비 약간 느림
+```
+
+**Go + Gin (고성능 필요 시)**
+```go
+// 장점: 높은 성능, 낮은 메모리 사용
+// 단점: 개발 속도 상대적으로 느림
+```
+
+#### 클라우드 플랫폼
+**AWS (권장)**
+- EC2 (서버) + RDS (데이터베이스) + CloudWatch (모니터링)
+- 월 예상 비용: $30-80
+
+**Google Cloud Platform**
+- Compute Engine + Cloud SQL + Cloud Monitoring
+- 월 예상 비용: $25-70
+
+**Vercel/Railway (간단한 시작)**
+- 서버리스 함수 기반
+- 월 예상 비용: $20-50
+
+### 🔧 구현 단계별 가이드
+
+#### Phase 1: 기본 프록시 서버 (1-2주)
+
+**1. 서버 설정**
+```javascript
+// server.js (Node.js + Express 예시)
+const express = require('express');
+const axios = require('axios');
+const app = express();
+
+app.use(express.json());
+
+// API 키 환경변수로 관리
+const API_KEYS = {
+  claude: process.env.CLAUDE_API_KEY,
+  openai: process.env.OPENAI_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
+  naver: process.env.NAVER_API_KEY
+};
+
+// Claude API 프록시
+app.post('/api/claude', async (req, res) => {
+  try {
+    const response = await axios.post('https://api.anthropic.com/v1/messages', 
+      req.body, {
+        headers: {
+          'Authorization': `Bearer ${API_KEYS.claude}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'API 요청 실패' });
+  }
+});
+
+app.listen(3000);
+```
+
+**2. iOS 앱 수정**
+```swift
+// UnifiedAIServiceImpl.swift 수정
+class UnifiedAIServiceImpl {
+    private let proxyBaseURL = "https://your-proxy-server.com/api"
+    
+    func sendToClaude(message: String) async throws -> String {
+        let url = URL(string: "\(proxyBaseURL)/claude")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["message": message]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        // 응답 처리...
+    }
+}
+```
+
+**3. 보안 설정**
+- HTTPS 필수 (Let's Encrypt 무료 SSL)
+- CORS 설정으로 앱에서만 접근 허용
+- Rate Limiting 적용
+
+#### Phase 2: 사용량 관리 (2-3주)
+
+**1. 데이터베이스 스키마**
+```sql
+-- 사용자 테이블
+CREATE TABLE users (
+    id VARCHAR(255) PRIMARY KEY,
+    subscription_tier ENUM('free', 'premium'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 사용량 추적 테이블
+CREATE TABLE usage_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(255),
+    ai_model VARCHAR(50),
+    feature VARCHAR(50),
+    tokens_used INT,
+    cost_usd DECIMAL(10,6),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_date (user_id, created_at)
+);
+
+-- 일일 사용량 집계 테이블
+CREATE TABLE daily_usage (
+    user_id VARCHAR(255),
+    date DATE,
+    ai_model VARCHAR(50),
+    feature VARCHAR(50),
+    total_requests INT,
+    total_tokens INT,
+    total_cost DECIMAL(10,6),
+    PRIMARY KEY (user_id, date, ai_model, feature)
+);
+```
+
+**2. 사용량 제한 로직**
+```javascript
+// 사용량 체크 미들웨어
+async function checkUsageLimit(req, res, next) {
+    const { userId, aiModel, feature } = req.body;
+    
+    // 오늘 사용량 조회
+    const today = new Date().toISOString().split('T')[0];
+    const usage = await db.query(`
+        SELECT total_requests 
+        FROM daily_usage 
+        WHERE user_id = ? AND date = ? AND ai_model = ? AND feature = ?
+    `, [userId, today, aiModel, feature]);
+    
+    // 제한 확인
+    const limit = await getUserLimit(userId, aiModel, feature);
+    if (usage.total_requests >= limit) {
+        return res.status(429).json({ 
+            error: '일일 사용량 초과',
+            limit: limit,
+            used: usage.total_requests
+        });
+    }
+    
+    next();
+}
+```
+
+**3. 비용 추적**
+```javascript
+// 비용 계산 및 기록
+async function logUsage(userId, aiModel, feature, tokensUsed) {
+    const costPerToken = getCostPerToken(aiModel);
+    const totalCost = tokensUsed * costPerToken;
+    
+    await db.query(`
+        INSERT INTO usage_logs (user_id, ai_model, feature, tokens_used, cost_usd)
+        VALUES (?, ?, ?, ?, ?)
+    `, [userId, aiModel, feature, tokensUsed, totalCost]);
+    
+    // 일일 집계 업데이트
+    await updateDailyUsage(userId, aiModel, feature, 1, tokensUsed, totalCost);
+}
+```
+
+#### Phase 3: 관리자 콘솔 (3-4주)
+
+**1. 대시보드 기능**
+- 실시간 사용량 모니터링
+- 비용 추적 및 예산 알림
+- 사용자별 사용 패턴 분석
+- API 응답 시간 모니터링
+
+**2. 신고 처리 시스템**
+```javascript
+// 신고 접수 API
+app.post('/api/report', async (req, res) => {
+    const { userId, reportType, content, aiResponse } = req.body;
+    
+    await db.query(`
+        INSERT INTO reports (user_id, type, content, ai_response, status)
+        VALUES (?, ?, ?, ?, 'pending')
+    `, [userId, reportType, content, aiResponse]);
+    
+    // 관리자에게 알림 발송
+    await sendAdminNotification('새로운 신고가 접수되었습니다.');
+    
+    res.json({ success: true });
+});
+```
+
+### 📊 비용 및 성능 예상
+
+#### 서버 비용 (월간)
+**소규모 (1,000명 사용자)**
+- 서버: AWS EC2 t3.micro ($10)
+- 데이터베이스: RDS t3.micro ($15)
+- 트래픽: CloudFront + 데이터 전송 ($5)
+- **총합: $30/월**
+
+**중간 규모 (10,000명 사용자)**
+- 서버: AWS EC2 t3.small ($20)
+- 데이터베이스: RDS t3.small ($25)
+- 트래픽 및 스토리지 ($15)
+- **총합: $60/월**
+
+#### 성능 지표
+- **응답 시간**: 기존 대비 +100-200ms (프록시 오버헤드)
+- **가용성**: 99.9% (로드밸런서 + 헬스체크)
+- **처리량**: 초당 100-500 요청 처리 가능
+
+### 🔐 보안 고려사항
+
+#### 1. API 키 관리
+```bash
+# 환경변수로 관리 (절대 코드에 하드코딩 금지)
+export CLAUDE_API_KEY="sk-ant-api03-..."
+export OPENAI_API_KEY="sk-..."
+export GEMINI_API_KEY="AIza..."
+export NAVER_API_KEY="nv-..."
+```
+
+#### 2. 접근 제어
+```javascript
+// JWT 토큰 기반 인증
+const jwt = require('jsonwebtoken');
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.sendStatus(401);
+    }
+    
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+}
+```
+
+#### 3. 입력 검증
+```javascript
+// 요청 데이터 검증
+const { body, validationResult } = require('express-validator');
+
+app.post('/api/claude', [
+    body('message').isLength({ min: 1, max: 2000 }).trim().escape(),
+    body('userId').isUUID(),
+    body('feature').isIn(['chat', 'diary', 'todo', 'preset'])
+], (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    // 처리 로직...
+});
+```
+
+### 🚀 배포 및 운영
+
+#### 1. CI/CD 파이프라인
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy to AWS
+        run: |
+          # Docker 빌드 및 배포
+          docker build -t deepsleep-proxy .
+          docker push $ECR_REGISTRY/deepsleep-proxy:latest
+```
+
+#### 2. 모니터링 설정
+```javascript
+// 헬스체크 엔드포인트
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// 메트릭 수집
+const prometheus = require('prom-client');
+const httpRequestDuration = new prometheus.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code']
+});
+```
+
+### ⚠️ 주의사항 및 위험 요소
+
+#### 1. 단일 장애점 (SPOF)
+**위험**: 프록시 서버 다운 시 앱 전체 기능 마비
+**대응**: 
+- 로드밸런서 + 다중 서버 구성
+- 헬스체크 및 자동 복구
+- 클라이언트 사이드 재시도 로직
+
+#### 2. 레이턴시 증가
+**위험**: 프록시 경유로 인한 응답 지연
+**대응**:
+- 서버 지역 최적화 (한국 리전 사용)
+- 캐싱 전략 적용
+- Keep-alive 연결 유지
+
+#### 3. 비용 급증
+**위험**: 예상보다 높은 서버 운영비
+**대응**:
+- 오토스케일링 설정
+- 비용 알림 설정
+- 사용량 기반 최적화
+
+### 📋 구현 체크리스트
+
+#### Phase 1 (기본 프록시)
+- [ ] 서버 환경 구축 (AWS/GCP)
+- [ ] API 프록시 엔드포인트 구현
+- [ ] HTTPS 설정 및 보안 강화
+- [ ] iOS 앱 API 호출 경로 변경
+- [ ] 기본 로깅 및 모니터링
+
+#### Phase 2 (사용량 관리)
+- [ ] 데이터베이스 설계 및 구축
+- [ ] 사용량 추적 로직 구현
+- [ ] 제한 초과 시 처리 로직
+- [ ] 비용 계산 및 기록 시스템
+
+#### Phase 3 (관리 콘솔)
+- [ ] 웹 기반 대시보드 구현
+- [ ] 신고 처리 시스템
+- [ ] 실시간 알림 시스템
+- [ ] 데이터 분석 및 리포팅
+
+### 🎯 결론
+
+프록시 서버는 **상용화를 위한 필수 인프라**입니다. API 키 보안 위험을 해결하고, 사용량을 체계적으로 관리하며, 향후 확장성을 확보하는 핵심 요소입니다.
+
+**권장 접근법:**
+1. **즉시 시작**: Phase 1 기본 프록시 서버 구축
+2. **단계적 확장**: 사용자 증가에 따라 Phase 2, 3 순차 구현
+3. **지속적 모니터링**: 비용과 성능을 실시간으로 추적
+
+초기 투자 비용($30-60/월)은 API 키 탈취로 인한 잠재적 손실(수만 달러)을 방지하는 **필수적인 보험**입니다.
