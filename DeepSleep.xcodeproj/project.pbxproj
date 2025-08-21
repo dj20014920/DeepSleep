@@ -16,6 +16,7 @@
 		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
 		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
 		E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */; };
+		E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
 		E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */; };
 		E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */; };
@@ -221,6 +222,7 @@
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
 		E068E3612E5715BA00CA54A0 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = DeepSleep.storekit; path = DeepSleepApp/StoreKit/DeepSleep.storekit; sourceTree = "<group>"; };
+		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
@@ -524,6 +526,7 @@
 		E084F0602E33ACB3002F75E6 /* Chat */ = {
 			isa = PBXGroup;
 			children = (
+				E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */,
 				E084F05D2E33ACB3002F75E6 /* ChatSettingsViewController.swift */,
 				E084F05E2E33ACB3002F75E6 /* LegacyChatViewController.swift */,
 				E084F05F2E33ACB3002F75E6 /* TypingIndicatorCell.swift */,
@@ -1044,6 +1047,7 @@
 				E084F1AF2E33ACB3002F75E6 /* PersonaSettingsView.swift in Sources */,
 				E084F1B02E33ACB3002F75E6 /* SoundHarmonyAnalyzer.swift in Sources */,
 				E084F1B12E33ACB3002F75E6 /* ViewController.swift in Sources */,
+				E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */,
 				E084F1B22E33ACB3002F75E6 /* AppConfig.swift in Sources */,
 				E084F1B32E33ACB3002F75E6 /* Models.swift in Sources */,
 				E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */,

@@ -227,14 +227,14 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
         // 성능 최적화 도구 정리
         performanceOptimizer.cleanup()
         
-        // 사용자에게 위험 상태 알림
+        /* 사용자에게 위험 상태 알림
         NotificationCenter.default.post(
             name: NSNotification.Name("CriticalPerformanceDetected"),
             object: nil,
             userInfo: ["timestamp": Date()]
         )
         
-        UnifiedLogger.shared.critical("위험 성능 상태 - 응급 최적화 실행", category: .performance)
+        UnifiedLogger.shared.critical("위험 성능 상태 - 응급 최적화 실행", category: .performance)*/
     }
     
     // MARK: - Event Handlers

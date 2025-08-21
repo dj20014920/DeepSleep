@@ -93,14 +93,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
-        // Called as the scene transitions from the foreground to the background.
-        // Use this method to save data, release shared resources, and store enough scene-specific state information
-        // to restore the scene back to its current state.
-        
-        // 📱 백그라운드 진입 시 채팅 기록 저장
-        print("💾 [SceneDelegate] 백그라운드 진입 시 채팅 기록 보존 (ChatManager 자동 관리)")
-        
-        
+        // Keep chat requests running smoothly in background
+        print("💾 [SceneDelegate] 백그라운드 진입 - ChatRequestCenter 유지 및 복구 대비")
     }
     
     // MARK: - 노티피케이션 처리
