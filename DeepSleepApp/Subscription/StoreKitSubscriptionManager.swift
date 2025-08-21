@@ -30,6 +30,9 @@ public final class StoreKitSubscriptionManager: NSObject {
         }
     }
 
+    /// 과거 구독 거래 내역 존재 여부(최소 정책 판단에 사용)
+    private var hasAnySubscriptionHistory: Bool = false
+
     /// 현재 메모리에 필요한 상품이 모두 로드되었는지
     public var hasAllRequiredProducts: Bool {
         SubscriptionProduct.allCases.allSatisfy { products[$0] != nil }
@@ -37,6 +40,11 @@ public final class StoreKitSubscriptionManager: NSObject {
 
     /// 특정 상품이 로드되었는지
     public func hasProduct(_ product: SubscriptionProduct) -> Bool { products[product] != nil }
+
+    /// 첫 구독자 무료 체험 가능 여부(최소 정책): 과거 거래가 전무하면 eligible
+    public var isTrialEligible: Bool {
+        return !hasAnySubscriptionHistory
+    }
 
     private override init() {
         super.init()
@@ -147,10 +155,13 @@ public final class StoreKitSubscriptionManager: NSObject {
             Calendar.current.date(byAdding: .day, value: 30, to: purchaseDate) ?? purchaseDate
         }
 
+        var observedAnyTransactions = false
         for await result in Transaction.currentEntitlements {
             do {
                 let transaction = try checkVerified(result)
                 guard let _ = SubscriptionProduct(rawValue: transaction.productID) else { continue }
+
+                observedAnyTransactions = true
 
                 if let _ = transaction.revocationDate {
                     // 환불됨
@@ -180,6 +191,8 @@ public final class StoreKitSubscriptionManager: NSObject {
                 logger.error("Entitlement verification failed: \(error.localizedDescription)")
             }
         }
+        // 관찰된 거래가 하나라도 있으면 과거 구독 이력이 있다고 간주(최소 정책)
+        self.hasAnySubscriptionHistory = observedAnyTransactions
 
         // 상태 결정 우선순위: refunded grace > active > expired > free
         if let grace = refundedGraceUntil, Date() < grace {

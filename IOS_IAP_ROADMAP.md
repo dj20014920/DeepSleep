@@ -363,6 +363,14 @@ Phase 4: 정합성/심사 대응
 ---
 
 ## 정책 업데이트 요약(사용자 확정 반영)
+
+### Trial Eligibility 최소 정책(2025-08-21)
+- 중앙 진입점: StoreKitSubscriptionManager.isTrialEligible
+- 판별 기준(최소): 앱 번들 구독 상품군에 대해 과거 거래가 단 하나도 관찰되지 않으면 eligible(true)
+- 반영 범위:
+  - Paywall: trialDaysRemaining 정보가 없더라도 isTrialEligible을 활용해 무료체험 안내 카피 분기
+  - Badge/기타: 활성 trial이 있을 때만 D-n 표기. 활성 trial이 없으면 Free/Pro만 표기 유지
+- 확장 계획: 서버 검증 또는 Intro Offer 자격 API를 사용할 때도 동일 진입점만 보완(DRY)
 - 월간/연간 구독 모두 7일 무료체험(Intro Offer) 표기. 단, 동일 구독 그룹 내 단 1회 제공(이중 혜택 불가)
 - 초기 릴리스는 StoreKit2 로컬 검증만 사용(서버 검증은 후속 단계)
 - 무료 사용자는 Gemini 고정 + 무료 한도, 프리미엄/Trial 사용자는 한도 해제 또는 상향(Secrets.xcconfig 값에 따름)

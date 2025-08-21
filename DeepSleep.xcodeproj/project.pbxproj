@@ -40,7 +40,6 @@
 		E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */; };
 		E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1022E33ACB3002F75E6 /* ViewController+EmotionSelector.swift */; };
 		E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F32E33ACB3002F75E6 /* StubViewControllers.swift */; };
-		E084F1922E33ACB3002F75E6 /* LegacyChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F05E2E33ACB3002F75E6 /* LegacyChatViewController.swift */; };
 		E084F1932E33ACB3002F75E6 /* PersonaMemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0612E33ACB3002F75E6 /* PersonaMemoryManager.swift */; };
 		E084F1942E33ACB3002F75E6 /* TypingIndicatorCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F05F2E33ACB3002F75E6 /* TypingIndicatorCell.swift */; };
 		E084F1952E33ACB3002F75E6 /* UserRulesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0632E33ACB3002F75E6 /* UserRulesManager.swift */; };
@@ -236,7 +235,6 @@
 		E084F05A2E33ACB3002F75E6 /* AI-README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "AI-README.md"; sourceTree = "<group>"; };
 		E084F05B2E33ACB3002F75E6 /* UsageLimitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageLimitManager.swift; sourceTree = "<group>"; };
 		E084F05D2E33ACB3002F75E6 /* ChatSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSettingsViewController.swift; sourceTree = "<group>"; };
-		E084F05E2E33ACB3002F75E6 /* LegacyChatViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyChatViewController.swift; sourceTree = "<group>"; };
 		E084F05F2E33ACB3002F75E6 /* TypingIndicatorCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingIndicatorCell.swift; sourceTree = "<group>"; };
 		E084F0612E33ACB3002F75E6 /* PersonaMemoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaMemoryManager.swift; sourceTree = "<group>"; };
 		E084F0622E33ACB3002F75E6 /* UsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageManager.swift; sourceTree = "<group>"; };
@@ -528,7 +526,6 @@
 			children = (
 				E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */,
 				E084F05D2E33ACB3002F75E6 /* ChatSettingsViewController.swift */,
-				E084F05E2E33ACB3002F75E6 /* LegacyChatViewController.swift */,
 				E084F05F2E33ACB3002F75E6 /* TypingIndicatorCell.swift */,
 			);
 			path = Chat;
@@ -1006,7 +1003,6 @@
 				E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */,
 				E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */,
 				E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */,
-				E084F1922E33ACB3002F75E6 /* LegacyChatViewController.swift in Sources */,
 				E084F1932E33ACB3002F75E6 /* PersonaMemoryManager.swift in Sources */,
 				E0E7BCB32E54706A00FF7073 /* ConfigReader.swift in Sources */,
 				E084F1942E33ACB3002F75E6 /* TypingIndicatorCell.swift in Sources */,

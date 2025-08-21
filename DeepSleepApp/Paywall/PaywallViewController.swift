@@ -177,7 +177,8 @@ public override func viewDidLoad() {
             descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true)
         } else {
             trialBadgeLabel.isHidden = true
-            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: false)
+            let eligible = StoreKitSubscriptionManager.shared.isTrialEligible
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible)
         }
 
         // 제품 로딩 상태에 따라 버튼 활성화
