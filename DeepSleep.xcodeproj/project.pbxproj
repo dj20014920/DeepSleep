@@ -220,6 +220,7 @@
 		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
+		E068E3612E5715BA00CA54A0 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = DeepSleep.storekit; path = DeepSleepApp/StoreKit/DeepSleep.storekit; sourceTree = "<group>"; };
 		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
@@ -438,6 +439,7 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
+				E068E3612E5715BA00CA54A0 /* DeepSleep.storekit */,
 				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
 				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,

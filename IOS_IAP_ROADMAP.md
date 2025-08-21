@@ -2,6 +2,26 @@
 
 ---
 
+⚠️ **중요 사전 요구사항 (2025-08-21 확인)**
+**Apple Developer Program 가입 필수**
+- 현재 상태: 무료 개발자 계정 사용 중
+- 필요 조치: Apple Developer Program 가입 (연 $99 또는 ₩129,000)
+- 가입 후 가능한 기능:
+  - StoreKit 테스트 (시뮬레이터에서 .storekit 파일 사용)
+  - App Store Connect 접근
+  - Sandbox 테스터 생성 및 테스트
+  - TestFlight 배포
+  - 실제 App Store 출시
+
+### 현재 코드 상태
+- ✅ StoreKit 2 구현 완료 (StoreKitSubscriptionManager)
+- ✅ Paywall UI 구현 완료
+- ✅ 구독 상태 관리 시스템 구현 완료
+- ✅ .storekit 테스트 파일 준비 완료
+- ❌ 실제 테스트 불가 (Apple Developer Program 미가입)
+
+---
+
 2025-08-21 문서 업데이트: 정책 모음집(Policy Hub) 반영
 - 설정 화면 정책 접근 경로를 단일 허브로 일원화: “정책 모음집(Privacy/Terms/구독관리/면책)”.
 - 코드 경로: SettingsViewController.swift (항목 교체), DeepSleepApp/Settings/PolicyHubViewController.swift (신규).

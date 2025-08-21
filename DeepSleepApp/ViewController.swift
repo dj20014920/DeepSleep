@@ -8,7 +8,7 @@ class ViewController: UIViewController {
     
     // 구독 UI 바인더/배지
     private var subscriptionBinder: SubscriptionUIBinder?
-    private var trialBadgeLabel: UILabel?
+    private var subscriptionBadge: PremiumBadgeView?
     // 해시태그 버튼 레퍼런스(정렬용)
     var hashtagButtonRef: UIButton?
     
@@ -153,60 +153,52 @@ class ViewController: UIViewController {
     
     private func setupTrialBadge() {
         // 구독 상태 변경 수신 유지 - 네비게이션 바 배지 업데이트에 사용
-        subscriptionBinder = SubscriptionUIBinder.attach(to: self) { [weak self] isPremium in
-            self?.updateNavBarTrialBadge(isPremium: isPremium)
+        subscriptionBinder = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
+            self?.updateSubscriptionBadge()
         }
+        setupNavBarSubscriptionBadge()
     }
     
-    private func setupNavBarTrialBadge() {
-        // 네비게이션 바 중앙에 배지 설정
-        let badge = UILabel()
-        badge.font = .systemFont(ofSize: 14, weight: .semibold)
-        badge.textColor = .white
-        badge.backgroundColor = UIColor.systemPink
-        badge.layer.cornerRadius = 14
-        badge.clipsToBounds = true
-        badge.textAlignment = .center
+    private func setupNavBarSubscriptionBadge() {
+        // 네비게이션 바 중앙에 강화된 배지 설정
+        let badge = PremiumBadgeView()
+        badge.translatesAutoresizingMaskIntoConstraints = false
         badge.isUserInteractionEnabled = true
         
         // 패딩을 위한 컨테이너 뷰
         let container = UIView()
         container.addSubview(badge)
-        badge.translatesAutoresizingMaskIntoConstraints = false
+        
         NSLayoutConstraint.activate([
-            badge.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            badge.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            badge.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            badge.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
-            badge.heightAnchor.constraint(equalToConstant: 28)
+            badge.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            badge.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            badge.topAnchor.constraint(equalTo: container.topAnchor),
+            badge.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            badge.heightAnchor.constraint(equalToConstant: 32),
+            badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 80)
         ])
         
         // 탭 제스처 추가
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(presentSubscriptionTierSelection))
         badge.addGestureRecognizer(tapGesture)
         
-        self.trialBadgeLabel = badge
+        self.subscriptionBadge = badge
         navigationItem.titleView = container
         
         // 초기 상태 업데이트
-        updateNavBarTrialBadge(isPremium: SubscriptionStatusCenter.shared.isPremium)
+        updateSubscriptionBadge()
     }
     
-    private func updateNavBarTrialBadge(isPremium: Bool) {
-        guard let badge = trialBadgeLabel else { return }
+    private func updateSubscriptionBadge() {
+        guard let badge = subscriptionBadge else { return }
         
         // 사운드 탭에서만 표시
         let isSoundTab = (tabBarController?.selectedIndex == 0) || (tabBarController == nil)
         
-        if !isPremium && isSoundTab {
-            let days = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
-                ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
-            
-            if let d = days, d >= 0 {
-                badge.text = "  D-\(d) | 7일 무료체험  "
-            } else {
-                badge.text = "  7일 무료체험  "
-            }
+        if isSoundTab {
+            // 구독 상태에 따른 배지 업데이트
+            let badgeState = PremiumBadgeView.determineBadgeState()
+            badge.updateState(badgeState)
             badge.isHidden = false
             navigationItem.titleView?.isHidden = false
         } else {
@@ -263,7 +255,7 @@ class ViewController: UIViewController {
         }
         
         // 네비게이션 바 배지 업데이트
-        updateNavBarTrialBadge(isPremium: SubscriptionStatusCenter.shared.isPremium)
+        updateSubscriptionBadge()
         
         updateAudioModeButtonTitle() // 오디오 모드 버튼 제목 업데이트
     }
@@ -367,8 +359,7 @@ class ViewController: UIViewController {
         navigationItem.leftBarButtonItems = [timerItem]
         navigationItem.rightBarButtonItems = [saveItem, presetItem]
         
-        // 중앙: Trial 배지 (비프리미엄 사용자에게만 표시)
-        setupNavBarTrialBadge()
+        // 중앙: 구독 배지는 setupTrialBadge()에서 설정됨
     }
     
     private func setupNotifications() {

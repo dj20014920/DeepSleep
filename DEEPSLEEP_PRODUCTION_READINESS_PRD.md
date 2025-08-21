@@ -110,10 +110,13 @@ DeepSleep 프로젝트의 종합 검증 결과, 핵심 아키텍처와 기능은
 
 ### **Issue #6: Privacy Manifest 완성**
 **요구사항**:
-- [ ] PrivacyInfo.xcprivacy 완성
+- [x] PrivacyInfo.xcprivacy 완성 (2025-08-21 완료)
 - [ ] 데이터 수집 정책 명시
 - [ ] 서드파티 SDK 데이터 사용 선언
 - [ ] 2025년 앱스토어 요구사항 100% 준수
+- [ ] **Apple Developer Program 가입** (테스트 및 출시를 위해 필수)
+  - 현재: 무료 계정으로 코드만 구현 완료
+  - 필요: 연 $99 결제 후 실제 테스트 진행
 
 ---
 

@@ -115,6 +115,12 @@ public override func viewDidLoad() {
         yearlyButton.addTarget(self, action: #selector(didTapYearly), for: .touchUpInside)
         restoreButton.addTarget(self, action: #selector(didTapRestore), for: .touchUpInside)
         closeButton.addTarget(self, action: #selector(didTapClose), for: .touchUpInside)
+
+        // 초기에는 제품이 로드될 때까지 구매 버튼 비활성화
+        updatePurchaseButtonsEnabled()
+
+        // 제품 갱신 알림 수신하여 버튼 상태/가격 라벨 갱신
+        NotificationCenter.default.addObserver(self, selector: #selector(productsUpdated), name: .iapProductsUpdated, object: nil)
     }
 
     private func configureLayout() {
@@ -173,6 +179,9 @@ public override func viewDidLoad() {
             trialBadgeLabel.isHidden = true
             descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: false)
         }
+
+        // 제품 로딩 상태에 따라 버튼 활성화
+        updatePurchaseButtonsEnabled()
     }
 
     private func refreshPricesIfNeeded() {
@@ -191,40 +200,78 @@ public override func viewDidLoad() {
                 let y = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
                 self.trialDaysRemaining = m ?? y
             }
+            // 제품 로드 이후 버튼 상태 갱신
+            self.updatePurchaseButtonsEnabled()
         }
     }
 
     deinit {
         if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
+        NotificationCenter.default.removeObserver(self, name: .iapProductsUpdated, object: nil)
     }
 
     // MARK: - Actions
+
+    private func updatePurchaseButtonsEnabled() {
+        let hasMonthly = StoreKitSubscriptionManager.shared.hasProduct(.monthly)
+        let hasYearly = StoreKitSubscriptionManager.shared.hasProduct(.yearly)
+        let enabled = hasMonthly || hasYearly
+        monthlyButton.isEnabled = hasMonthly
+        yearlyButton.isEnabled = hasYearly
+        // 복원은 항상 가능
+        restoreButton.isEnabled = true
+        // 가격 라벨이 없고 제품도 없으면 로딩 유도 텍스트
+        if !enabled && (monthlyDisplayPrice == nil && yearlyDisplayPrice == nil) {
+            priceLabel.text = "상품 정보를 불러오는 중..."
+        }
+    }
+
+    @objc private func productsUpdated() {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in self?.productsUpdated() }
+            return
+        }
+        // 제품이 갱신되면 가격/버튼 상태 갱신
+        self.monthlyDisplayPrice = self.monthlyDisplayPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
+        self.yearlyDisplayPrice = self.yearlyDisplayPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
+        updatePurchaseButtonsEnabled()
+    }
     @objc private func didTapMonthly() {
+        print("[Paywall] Monthly button tapped")
         if let d = delegate { d.paywallDidRequestPurchaseMonthly(self); return }
         // 기본 동작: StoreKit2 구매 진행
         Task { @MainActor in
             do {
+                // 제품이 비어있을 수 있으므로 한 번 더 로드 시도 후 진행
+                await StoreKitSubscriptionManager.shared.loadProducts()
                 try await StoreKitSubscriptionManager.shared.purchase(.monthly)
+                print("[Paywall] Monthly purchase flow initiated")
             } catch {
-                // 필요시 사용자 알림 추가 가능
+                print("[Paywall][Error] Monthly purchase failed: \(error.localizedDescription)")
             }
         }
     }
 
     @objc private func didTapYearly() {
+        print("[Paywall] Yearly button tapped")
         if let d = delegate { d.paywallDidRequestPurchaseYearly(self); return }
         Task { @MainActor in
             do {
+                await StoreKitSubscriptionManager.shared.loadProducts()
                 try await StoreKitSubscriptionManager.shared.purchase(.yearly)
+                print("[Paywall] Yearly purchase flow initiated")
             } catch {
+                print("[Paywall][Error] Yearly purchase failed: \(error.localizedDescription)")
             }
         }
     }
 
     @objc private func didTapRestore() {
+        print("[Paywall] Restore button tapped")
         if let d = delegate { d.paywallDidRequestRestore(self); return }
         Task {
             await StoreKitSubscriptionManager.shared.restore()
+            print("[Paywall] Restore flow initiated")
         }
     }
 

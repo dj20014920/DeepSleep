@@ -2,6 +2,35 @@
 
 ---
 
+⚠️ **필수 사전 준비사항 (2025-08-21 기준)**
+
+### Apple Developer Program 가입 상태
+- **현재 상태**: 무료 개발자 계정
+- **필요한 작업**: Apple Developer Program 가입 필수
+- **비용**: 연 $99 (한국: ₩129,000)
+- **가입 링크**: https://developer.apple.com/programs/
+
+### 가입 후 진행 가능한 작업
+1. **StoreKit 테스트**
+   - 시뮬레이터에서 .storekit 파일을 통한 로컬 테스트
+   - 실기기에서 Sandbox 테스터 계정으로 테스트
+2. **App Store Connect 설정**
+   - 앱 등록 및 메타데이터 입력
+   - 인앱 구매 상품 등록
+3. **TestFlight 배포**
+   - 내부/외부 베타 테스트
+4. **App Store 심사 및 출시**
+
+### 현재까지 완료된 작업
+- ✅ StoreKit 2 기반 구독 시스템 전체 구현
+- ✅ PaywallViewController UI 구현
+- ✅ SubscriptionStatusCenter 상태 관리
+- ✅ DeepSleep.storekit 테스트 설정 파일 생성
+- ✅ 월간/연간 구독 상품 정의 (com.deepsleep.premium.monthly/yearly)
+- ✅ 7일 무료 체험 설정
+
+---
+
 2025-08-21 업데이트: 정책 허브 텍스트 내장 + Privacy Manifest 반영
 - 설정 > 앱 정보 > 정책 모음집: 개인정보/약관/구독관리/면책을 앱 내 텍스트로 직접 표시(외부 URL 불필요). 구독 관리는 iOS 설정 딥링크 유지.
 - 파일/경로: DeepSleepApp/Settings/PolicyHubViewController.swift (텍스트 내장), Privacy/PrivacyInfo.xcprivacy 추가(추적=false, 민감 API 미사용 기본 템플릿).
