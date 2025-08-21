@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 앱이 사용자 추적을 수행하지 않음을 선언 -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- 추적 도메인 없음 -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- 수집하는 데이터 타입 없음(필요 시 실제 사용 데이터로 보강) -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- 민감 API 접근 없음(필요 시 실제 사용 API 및 사유 추가) -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>
+

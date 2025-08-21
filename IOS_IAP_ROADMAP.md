@@ -1,3 +1,13 @@
+
+
+---
+
+2025-08-21 문서 업데이트: 정책 모음집(Policy Hub) 반영
+- 설정 화면 정책 접근 경로를 단일 허브로 일원화: “정책 모음집(Privacy/Terms/구독관리/면책)”.
+- 코드 경로: SettingsViewController.swift (항목 교체), DeepSleepApp/Settings/PolicyHubViewController.swift (신규).
+- 심사 대응: 개인정보/약관 링크는 앱 내에서 쉽게 접근 가능해야 하며, 구독 관리는 설정 앱 딥링크 제공.
+- 원칙 준수: DRY(정책 링크 산재 금지), KISS(단일 허브), YAGNI(불필요 항목 추가 보류), SOLID(책임 분리).
+
 # IAP 도입 로드맵 (무료/유료 분기 + 실제 결제 플로우)
 
 목표
@@ -9,6 +19,12 @@
 - SubscriptionManager.swift: Mock 구매/복원/무료체험, UserDefaults 저장, MemoryManager 티어 업데이트
 
 ## Master Task Checklist (Single Source)
+- [O] Policy Hub: 앱 내 텍스트 표시 전환 (외부 URL 불요) — 2025-08-21 완료
+  • 관련 코드: DeepSleepApp/PolicyHubViewController.swift (privacy/terms 텍스트 내장, 구독 관리는 iOS 설정 딥링크 유지)
+  • 심사 메모: 앱 내에서 쉽게 접근 가능하면 URL 필수 아님. 메타데이터 문구와 일치 유지
+- [O] Privacy Manifest 추가 — 2025-08-21 완료
+  • 파일/경로: DeepSleepApp/Privacy/PrivacyInfo.xcprivacy (NSPrivacyTracking=false, 수집/민감 API 기본 비사용)
+  • 주의: Xcode Target > Build Phases > Copy Bundle Resources 포함 확인
 - [O] StoreKit2 구독 매니저 구현 및 트랜잭션 스트림 연결 — 2025-08-20 완료
   • 관련 코드: DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift, SubscriptionStatusCenter
   • 관련 문서: IOS_IAP_ROADMAP.md(결제 플로우), DEEPSLEEP_COMPREHENSIVE_GUIDE.md(5.0 스냅샷)
@@ -40,14 +56,19 @@
   • 현재 구현: Paywall 측에서 StoreKitSubscriptionManager로부터 가격/Trial을 자동 로딩하여 주입(EntitlementUI 단계의 별도 주입 불필요)
   • 메모: EntitlementUI.require 시 별도 주입은 YAGNI로 보류(필요 시에만 추가)
   • 관련 코드: DeepSleepApp/Paywall/EntitlementUI.swift, PaywallPresenter, StoreKitSubscriptionManager
-- [∙] 구독 상태 변경 전역 UI 반영(메인/설정/분석 화면) — 부분 완료(Paywall 자동 dismiss)
+- [O] 구독 상태 변경 전역 UI 반영(메인/설정/분석/프리셋/챗) — 2025-08-21 적용 완료(SubscriptionUIBinder 패턴)
+  • 관련 코드: ChatViewController, SettingsViewController, EmotionAnalysisChatViewController, UsageAnalyticsViewController, PresetListViewController — SubscriptionUIBinder.attach 사용
   • 계획: 주요 화면별 subscriptionStatusChanged 옵저버 추가 및 버튼/배지/문구 갱신
-- [X] 환불/만료 시 안내/다운그레이드 UI — 미구현
+- [O] 환불/만료/유예 상태 모델/기본 UX — 2025-08-21 1차 반영(상태 enum/문구/설정 타이틀)
+  • 상태 enum 추가: SubscriptionLifecycleState(active/grace/refunded/expired/free)
+  • 상태 갱신: StoreKitSubscriptionManager.refreshEntitlements()에서 환불(구매일+30일 유지)/만료/활성 판정
+  • UI 반영: SettingsViewController 타이틀을 SubscriptionUIMessageFormatter로 상태별 문구 표기
+  • 후속: 각 화면 배지/토스트 세부 카피 확대는 필요 시 점진 반영(YAGNI)
   • 설계 초안: 아래 “환불/만료 UX 세분화 설계(초안)” 섹션 참조
   • 계획: refreshEntitlements에서 환불/만료 상태 세분화 → UI 토스트/배지 반영
 - [O] IOS_GUIDE.md 심사 체크리스트 업데이트(IAP 상태, Trial 1회, 롤백, Privacy/Info 키) — 2025-08-20 반영됨
   • 계획: Must-fix 항목 상태 조정 및 체크리스트 추가
-- [∙] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 체크리스트 문서 생성 완료, 실행 미수행
+- [∙] .storekit 기반 QA 시나리오 수립/수행(Trial→Convert→Refund→Expire, Re-subscribe no-trial, 지역별 가격, 오프라인/복원) — 체크리스트 문서 존재, 실행/기록 진행 필요
   • 문서: STOREKIT_QA_CHECKLIST.md
   • 계획: 체크리스트에 따라 수기/자동 테스트 수행 후 결과 기록
 - [X] PrivacyManifest.json 및 Info.plist 필수 키 점검(Background Audio, ATT 필요 시) — 미확인
@@ -132,7 +153,9 @@
 - Info.plist: UIBackgroundModes=audio 추가(별도 Must-fix), NSUserTrackingUsageDescription(ATT 사용 시), HealthKit 사용 시 설명키
 - PrivacyManifest.json: 최소 템플릿 추가 (tracking=false 등)
 
-단계별 작업 목록
+단계별 작업 목록 (업데이트 2025-08-21)
+- 상태: Policy Hub 텍스트 내장, Privacy Manifest, 상태 enum/UX, 전역 옵저버 패턴 — 완료
+- 남은 핵심: .storekit QA 실행/기록, PolicyHub 텍스트 최종 문구 확정(필요 시)
 Phase 0: 안전가드 (당장 제출 급한 경우)
 - [옵션 B] Mock UI/코드 비활성 플래그(빌드 설정)로 제출 빌드에서 구독/복원/체험 숨김
 - App Store 메타데이터에서 관련 문구/이미지 제거
@@ -163,6 +186,11 @@ Phase 4: 정합성/심사 대응
 - [ ] 스크린샷/설명 정합성 점검
 
 테스트 계획
+
+실행 가이드(.storekit)
+- Xcode > Scheme > Run > Options: StoreKit Configuration = DeepSleepApp/StoreKit/DeepSleep.storekit 설정
+- 시뮬레이터/실기기에서 실행 후 Paywall 진입 → 가격/Trial 배지 확인
+- 상세 시나리오와 체크 포인트는 STOREKIT_QA_CHECKLIST.md 참고
 - 샌드박스 계정 준비, Xcode StoreKit Configuration(.storekit) 파일로 로컬 시뮬레이션
 - 시나리오: 신규 구매, 복원, 만료/환불(테스트 가능 범위), 오프라인 복귀, 재설치 후 복원
 - 게이트 동작: 무료 사용자가 한도 도달 시 Paywall, 유료 사용자는 무제한/상향
@@ -376,6 +404,22 @@ Phase 4: 정합성/심사 대응
 
 ---
 
+# 2025-08-21 업데이트 로그 (구현 완료 사항)
+
+## 주요 구현 완료
+- ✅ StoreKit2 무한 루프 버그 수정 (Transaction.updates 백그라운드 Task.detached 처리)
+- ✅ 네비게이션 바 중앙 Trial 배지 구현 (navigationItem.titleView 활용)
+- ✅ SubscriptionTierSelectionViewController 완성 (Free/Pro/Max 티어 선택 UI)
+- ✅ PaywallViewController → StoreKit 결제 플로우 정상 연결
+- ✅ SubscriptionUIBinder를 통한 전역 UI 상태 관리 완성
+- ✅ 설정 화면 타이틀 고정 ("설정" 유지, 프로모션 문구 제거)
+
+## 배지 UI 최종 사양
+- 위치: 네비게이션 바 중앙 (navigationItem.titleView)
+- 표시 조건: 비프리미엄 + 사운드 탭에서만
+- 스타일: systemPink 배경, 둥글게 처리 (cornerRadius: 14)
+- 터치 동작: SubscriptionTierSelectionViewController 오픈
+
 # 2025-08-20 업데이트 로그 (정책 고정 사항 반영 + 코드 결선)
 
 변경 요약(파일/경로 정확 표기)
@@ -400,7 +444,7 @@ Secrets.xcconfig 경로 고정(중요)
 - Config/Secrets.xcconfig는 사용하지 않음. 혼선 방지를 위해 프로젝트 참조에서 제거 권장
 
 결선 작업 체크리스트(이 스프린트 상태)
-- [O] PaywallViewController ↔ StoreKitSubscriptionManager 결선
+- [✅] PaywallViewController ↔ StoreKitSubscriptionManager 결선
   • PaywallVC 기본 동작/델리게이트에서 purchase(.monthly/.yearly), restore() 호출
   • 구매/복원 성공 시 SubscriptionStatusCenter 변경 → Notification.subscriptionStatusChanged 수신하여 Paywall 자동 dismiss 및 UI 갱신
 - [O] PaywallPresenter 가격/Trial 정보 주입 — 대체 구현 완료

@@ -3,7 +3,6 @@ import UIKit
 import Combine
 
 class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDelegate, UITextFieldDelegate {
-    private var subscriptionObserver: NSObjectProtocol?
     
     // MARK: - Properties
     private var viewModel: EmotionAnalysisViewModelProtocol!
@@ -37,8 +36,8 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         setupSwipeGestures()
         setupBindings()
         
-        // 구독 상태 옵저버
-        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+        // 구독 상태 바인딩 (중앙형 패턴)
+        _ = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
             self?.updateUIForSubscriptionStatus()
         }
         updateUIForSubscriptionStatus()
@@ -254,10 +253,6 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
         inputTextField?.isEnabled = can
     }
     
-    deinit {
-        if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
-        NotificationCenter.default.removeObserver(self)
-    }
 }
 
 // MARK: - UITableViewDataSource

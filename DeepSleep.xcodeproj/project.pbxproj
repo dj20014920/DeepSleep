@@ -15,6 +15,7 @@
 		E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */; };
 		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
 		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
+		E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
 		E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */; };
 		E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AC2E33ACB3002F75E6 /* DiaryWriteViewController.swift */; };
@@ -203,6 +204,9 @@
 		E0E7BCD02E561E7000FF7073 /* StoreKitSubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */; };
 		E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */; };
 		E0E7BCD62E56252800FF7073 /* SubscriptionUIBinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */; };
+		E0E7BCD92E56E41800FF7073 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */; };
+		E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */; };
+		E0E7BCDD2E56E4CC00FF7073 /* PolicyHubViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -215,6 +219,7 @@
 		E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSelectionViewController.swift; sourceTree = "<group>"; };
 		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
+		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
 		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
@@ -412,6 +417,9 @@
 		E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitSubscriptionManager.swift; sourceTree = "<group>"; };
 		E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumBadgeView.swift; sourceTree = "<group>"; };
 		E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUIBinder.swift; sourceTree = "<group>"; };
+		E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUIMessageFormatter.swift; sourceTree = "<group>"; };
+		E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyHubViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -612,6 +620,8 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */,
+				E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */,
 				E0E7BCCD2E561E4A00FF7073 /* StoreKit */,
 				E0E7BCC92E561E3300FF7073 /* Core */,
 				E0E7BCBB2E561B2D00FF7073 /* Paywall */,
@@ -815,6 +825,8 @@
 		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */,
+				E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */,
 				E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */,
 				E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */,
 				E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */,
@@ -942,6 +954,7 @@
 				E084F2AB2E33AE9B002F75E6 /* 시냇물.mp3 in Resources */,
 				E084F2AC2E33AE9B002F75E6 /* 연필.mp3 in Resources */,
 				E084F2AD2E33AE9B002F75E6 /* 우주.mp3 in Resources */,
+				E0E7BCD92E56E41800FF7073 /* PrivacyInfo.xcprivacy in Resources */,
 				E084F2AE2E33AE9B002F75E6 /* 쿨링팬.mp3 in Resources */,
 				E084F2AF2E33AE9B002F75E6 /* 키보드1.mp3 in Resources */,
 				E084F2B02E33AE9B002F75E6 /* 키보드2.mp3 in Resources */,
@@ -984,6 +997,7 @@
 				E084F18B2E33ACB3002F75E6 /* EmotionCalendarViewController.swift in Sources */,
 				E084F18C2E33ACB3002F75E6 /* ViewController+PlaybackControls.swift in Sources */,
 				E084F18D2E33ACB3002F75E6 /* EmotionAnalyzer.swift in Sources */,
+				E0E7BCDD2E56E4CC00FF7073 /* PolicyHubViewController.swift in Sources */,
 				E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */,
 				E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */,
 				E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */,
@@ -1094,6 +1108,7 @@
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,
 				E084F1EA2E33ACB3002F75E6 /* EmotionInputViewController.swift in Sources */,
+				E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */,
 				E084F1EB2E33ACB3002F75E6 /* SoundManager.swift in Sources */,
 				E084F1EC2E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift in Sources */,
 				E084F1ED2E33ACB3002F75E6 /* EmotionAnalysisInputView.swift in Sources */,
@@ -1111,6 +1126,7 @@
 				E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */,
 				E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */,
 				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
+				E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */,
 				E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */,
 				E084F1F82E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift in Sources */,
 				E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */,

@@ -1,3 +1,34 @@
+
+
+---
+
+2025-08-21 업데이트: 정책 허브 텍스트 내장 + Privacy Manifest 반영
+- 설정 > 앱 정보 > 정책 모음집: 개인정보/약관/구독관리/면책을 앱 내 텍스트로 직접 표시(외부 URL 불필요). 구독 관리는 iOS 설정 딥링크 유지.
+- 파일/경로: DeepSleepApp/Settings/PolicyHubViewController.swift (텍스트 내장), Privacy/PrivacyInfo.xcprivacy 추가(추적=false, 민감 API 미사용 기본 템플릿).
+- 심사 메모: 정책은 앱 내에서 쉽게 접근 가능하면 URL 필수 아님(단, 제출 시 메타데이터와 문구 일치 필요). 구독 관리는 설정 앱 딥링크 권장.
+
+2025-08-21 업데이트: .storekit 실행 요령 추가
+- Xcode > Scheme > Run > Options: StoreKit Configuration = DeepSleepApp/StoreKit/DeepSleep.storekit로 설정
+- 앱 실행 후 Paywall 화면에서 월/연/Trial/복원 흐름 점검
+- 상세 시나리오와 체크 포인트는 STOREKIT_QA_CHECKLIST.md 참고
+
+
+
+---
+
+2025-08-21 업데이트: 설정 화면 정책 모음집(Policy Hub) 도입
+- 설정 > 앱 정보 섹션에 “정책 모음집” 항목을 추가했습니다.
+- 포함 항목: 개인정보처리방침, 이용약관, iOS 구독 관리(설정 앱 딥링크), 건강/의학적 조언 면책 고지.
+- 파일/경로: DeepSleepApp/Settings/PolicyHubViewController.swift, SettingsViewController.swift (항목명 교체 및 네비게이션).
+- 문구 원칙: KISS/DRY/YAGNI/SOLID를 준수하여 단일 허브로 정책 접근 경로 일원화.
+
+사용자 액션 경로
+- 설정 → 앱 정보 → 정책 모음집 → 각 정책 항목 진입
+
+향후 조치
+- 실제 정책 URL(privacy, terms) 확정 시 PolicyHubViewController 내 placeholder URL 교체.
+- 필요 시 면책 고지 추가 세부 항목(수면 데이터/건강 데이터 관련 고지) 분리 가능.
+
 아래는 App Store 심사 지침(2025-06-09 최신) 대비 실제 코드/설정(DeepSleep) 정밀 점검 결과입니다. Must-fix(출시 전), Should-fix(1주 내), Nice-to-have(권장)로 우선순위를 명확히 구분했습니다. 각 항목은 실제 파일/코드 위치와 함께 “왜(심사 조항)”, “무엇을” 보강해야 하는지로 요약합니다.
 
 요약 결론 • 출시 전 필수(Must-fix): 6건 • 1주 내 권장(Should-fix): 7건 • 권장(Nice-to-have): 6건 • 전반적으로 개인정보/권한 고지와 결제 모델(모의 구독) 정합성, Background Audio 선언, Privacy Manifest 부재가 핵심 리스크입니다.
@@ -60,25 +91,25 @@ D. 코드/파일별 구체적 점검 스냅샷 • Info.plist: 다수의 설정 
 
 E. 심사 항목 매핑(핵심만) • 1.4.x(신체/의료): 건강 조언 면책 고지·의사 상담 권고 필수. • 2.3.x(정확한 메타데이터): 스토어 설명/스크린샷/미리보기와 실제 기능 일치(구독/HealthKit/AI 기능). • 2.4.2(전원/자원): Background Audio 사용 시 Info.plist 선언, 과도한 리소스 소모 방지. • 2.5(공개 API/현재 OS): 공개 API만 사용. WebKit 대체 엔진 없음(OK). • 3.1.1(IAP): 모의 결제 금지. 실제 StoreKit2 또는 유료기능 제거. • 4.5.4(푸시): 프로모션 푸시 금지, 옵트아웃 제공. • 5.1(개인정보): 개인정보처리방침 노출, 데이터 최소화, ATT/HealthKit 등 설명·동의.
 
-IAP/App Review 체크리스트(2025-08-20)
+IAP/App Review 체크리스트(2025-08-21 업데이트)
 - 결제 흐름
-  - [ ] StoreKit Configuration 파일 연결됨 (Run > Options) — DeepSleepApp/StoreKit/DeepSleep.storekit
-  - [ ] 월간/연간 제품 노출 및 현지화 표시가(Product.displayPrice)
-  - [ ] 7일 Intro Offer 표기, 동일 그룹 1회 정책 카피 반영
-  - [ ] 복원 버튼(AppStore.sync) 동작 및 설정 화면 복원 경로
+  - [✅] StoreKit Configuration 파일 연결됨 (Run > Options) — DeepSleepApp/StoreKit/DeepSleep.storekit
+  - [✅] 월간/연간 제품 노출 및 현지화 표시가(Product.displayPrice)
+  - [✅] 7일 Intro Offer 표기, 동일 그룹 1회 정책 카피 반영
+  - [✅] 복원 버튼(AppStore.sync) 동작 및 설정 화면 복원 경로
 - 권리/게이트/한도
-  - [ ] SubscriptionStatusCenter 연동으로 권리 변경 즉시 반영
-  - [ ] EntitlementGate.canAccess 적용(차단 시 Paywall 자연 노출)
-  - [ ] 무료=Gemini 고정, Trial/프리미엄=상향 한도(UsageLimitManager)
-  - [ ] 월간 통계: KST 월요일 00:00 주 1회 제한, UI 노출/활성 동기
+  - [✅] SubscriptionStatusCenter 연동으로 권리 변경 즉시 반영
+  - [✅] EntitlementGate.canAccess 적용(차단 시 Paywall 자연 노출)
+  - [✅] 무료=Gemini 고정, Trial/프리미엄=상향 한도(UsageLimitManager)
+  - [✅] 월간 통계: KST 월요일 00:00 주 1회 제한, UI 노출/활성 동기
 - 정책/문구/자산
-  - [ ] 연간은 월 대비 ~20% 할인 문구 일관성(앱/스토어)
+  - [✅] 연간은 월 대비 ~20% 할인 문구 일관성(앱/스토어)
   - [ ] 의료/건강 면책 고지 위치 명확(해당 화면/설정)
-  - [ ] 개인정보처리방침/이용약관/문의 링크 노출
+  - [✅] 개인정보처리방침/이용약관/문의 링크 노출 (PolicyHubViewController)
 - 시스템/설정
   - [ ] Info.plist: UIBackgroundModes=audio, (ATT 사용 시) NSUserTrackingUsageDescription
-  - [ ] PrivacyManifest.json 최소 템플릿(tracking=false 등)
-  - [ ] .gitignore에 Secrets.xcconfig 포함, 실제 키 미커밋
+  - [✅] PrivacyManifest.json 최소 템플릿(tracking=false 등) - PrivacyInfo.xcprivacy 추가됨
+  - [✅] .gitignore에 Secrets.xcconfig 포함, 실제 키 미커밋
 
 F. 권장 작업 순서(빠른 합격 목적)
 

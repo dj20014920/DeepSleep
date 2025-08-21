@@ -4,7 +4,7 @@ import SwiftUI
 /// 🛠️ 사용자 설정 화면
 /// AI 모델 선택, 개인정보, 앱 설정 등을 관리하는 메인 설정 화면
 class SettingsViewController: UIViewController {
-    private var subscriptionObserver: NSObjectProtocol?
+    // 구독 상태는 SubscriptionUIBinder로 바인딩하여 DRY 유지
     
     // MARK: - UI Components
     
@@ -30,8 +30,8 @@ class SettingsViewController: UIViewController {
         setupUI()
         setupNavigationBar()
         loadCurrentSettings()
-        // 구독 상태 옵저버 등록
-        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+        // 구독 상태 바인딩(전역 통일 패턴)
+        _ = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
             self?.updateSubscriptionBadge()
         }
         updateSubscriptionBadge()
@@ -184,11 +184,11 @@ class SettingsViewController: UIViewController {
         ))
         
         aboutSection.addItem(SettingsItem(
-            title: "개인정보 처리방침",
-            subtitle: "데이터 보호 정책",
+            title: "📚 정책 모음집",
+            subtitle: "개인정보/이용약관/구독 관리/면책 고지",
             type: .navigation,
             action: { [weak self] in
-                self?.showPrivacyPolicy()
+                self?.showPolicyHub()
             }
         ))
     }
@@ -235,9 +235,9 @@ class SettingsViewController: UIViewController {
     }
 
     private func updateSubscriptionBadge() {
-        // YAGNI: 간단한 구현 — 상단 제목에 프리미엄 상태만 표시
-        let premium = SubscriptionStatusCenter.shared.isPremium
-        self.title = premium ? "설정 · 프리미엄" : "설정"
+        // 요청사항: 상단 타이틀은 항상 "설정"으로 고정하고, 프로모션/상태 문구는 표시하지 않는다.
+        self.title = "설정"
+        // 상태 배지는 섹션 내부에서 필요 시 별도 라벨로 처리(YAGNI). 네비게이션 타이틀에는 반영하지 않음.
     }
     
     // MARK: - Action Methods
@@ -323,9 +323,9 @@ extension SettingsViewController {
         navigationController?.pushViewController(feedbackVC, animated: true)
     }
     
-    private func showPrivacyPolicy() {
-        let privacyVC = PrivacyPolicyViewController()
-        navigationController?.pushViewController(privacyVC, animated: true)
+    private func showPolicyHub() {
+        let hubVC = PolicyHubViewController()
+        navigationController?.pushViewController(hubVC, animated: true)
     }
 }
 

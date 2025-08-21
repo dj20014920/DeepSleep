@@ -59,7 +59,6 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
-    private var subscriptionObserver: NSObjectProtocol?
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
@@ -1187,8 +1186,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "대나무숲"
         
-        // 구독 상태 옵저버 등록 및 초기 UI 반영
-        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+        // 구독 상태 바인딩 (중앙형 패턴)
+        _ = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
             self?.updateUIForSubscriptionStatus()
         }
         updateUIForSubscriptionStatus()
@@ -2005,7 +2004,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     deinit {
-        if let token = subscriptionObserver { NotificationCenter.default.removeObserver(token) }
         NotificationCenter.default.removeObserver(self)
         cleanup()
     }

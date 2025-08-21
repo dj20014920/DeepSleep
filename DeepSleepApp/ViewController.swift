@@ -9,6 +9,8 @@ class ViewController: UIViewController {
     // 구독 UI 바인더/배지
     private var subscriptionBinder: SubscriptionUIBinder?
     private var trialBadgeLabel: UILabel?
+    // 해시태그 버튼 레퍼런스(정렬용)
+    var hashtagButtonRef: UIButton?
     
     // MARK: - Properties (13개 카테고리로 업데이트)
     
@@ -83,7 +85,7 @@ class ViewController: UIViewController {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         configureNavBar()
         
-        // 상단 Trial 배지(필요 시만 표시)
+        // Trial 배지 제거됨 - 구독 상태 수신은 유지
         setupTrialBadge()
         
         // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
@@ -150,27 +152,81 @@ class ViewController: UIViewController {
     }
     
     private func setupTrialBadge() {
-        let badge = UILabel()
-        badge.translatesAutoresizingMaskIntoConstraints = false
-        badge.isHidden = true
-        badge.backgroundColor = .clear
-        view.addSubview(badge)
-        NSLayoutConstraint.activate([
-            badge.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            badge.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            badge.heightAnchor.constraint(equalToConstant: 22),
-            badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 140)
-        ])
-        self.trialBadgeLabel = badge
-        
-        // 구독 상태 바인딩: 사운드 탭(메인)에서만 배지 갱신
+        // 구독 상태 변경 수신 유지 - 네비게이션 바 배지 업데이트에 사용
         subscriptionBinder = SubscriptionUIBinder.attach(to: self) { [weak self] isPremium in
-            guard let self, let label = self.trialBadgeLabel else { return }
+            self?.updateNavBarTrialBadge(isPremium: isPremium)
+        }
+    }
+    
+    private func setupNavBarTrialBadge() {
+        // 네비게이션 바 중앙에 배지 설정
+        let badge = UILabel()
+        badge.font = .systemFont(ofSize: 14, weight: .semibold)
+        badge.textColor = .white
+        badge.backgroundColor = UIColor.systemPink
+        badge.layer.cornerRadius = 14
+        badge.clipsToBounds = true
+        badge.textAlignment = .center
+        badge.isUserInteractionEnabled = true
+        
+        // 패딩을 위한 컨테이너 뷰
+        let container = UIView()
+        container.addSubview(badge)
+        badge.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            badge.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+            badge.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            badge.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            badge.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+            badge.heightAnchor.constraint(equalToConstant: 28)
+        ])
+        
+        // 탭 제스처 추가
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(presentSubscriptionTierSelection))
+        badge.addGestureRecognizer(tapGesture)
+        
+        self.trialBadgeLabel = badge
+        navigationItem.titleView = container
+        
+        // 초기 상태 업데이트
+        updateNavBarTrialBadge(isPremium: SubscriptionStatusCenter.shared.isPremium)
+    }
+    
+    private func updateNavBarTrialBadge(isPremium: Bool) {
+        guard let badge = trialBadgeLabel else { return }
+        
+        // 사운드 탭에서만 표시
+        let isSoundTab = (tabBarController?.selectedIndex == 0) || (tabBarController == nil)
+        
+        if !isPremium && isSoundTab {
             let days = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
                 ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
-            SubscriptionUIStyleHelper.setBadge(label, isPremium: isPremium, daysRemaining: days)
-            SubscriptionUIStyleHelper.crossfade(label)
+            
+            if let d = days, d >= 0 {
+                badge.text = "  D-\(d) | 7일 무료체험  "
+            } else {
+                badge.text = "  7일 무료체험  "
+            }
+            badge.isHidden = false
+            navigationItem.titleView?.isHidden = false
+        } else {
+            badge.isHidden = true
+            navigationItem.titleView?.isHidden = true
         }
+    }
+    
+    @objc private func presentSubscriptionTierSelection() {
+        // 햅틱 피드백
+        provideLightHapticFeedback()
+        
+        #if DEBUG
+        print("🎯 Trial badge tapped - presenting subscription tier selection")
+        #endif
+        
+        let tierVC = SubscriptionTierSelectionViewController()
+        let nav = UINavigationController(rootViewController: tierVC)
+        nav.modalPresentationStyle = .formSheet
+        present(nav, animated: true)
     }
     
     /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)
@@ -205,6 +261,9 @@ class ViewController: UIViewController {
         if hasCompletedInitialSetup {
             updatePresetBlocks()
         }
+        
+        // 네비게이션 바 배지 업데이트
+        updateNavBarTrialBadge(isPremium: SubscriptionStatusCenter.shared.isPremium)
         
         updateAudioModeButtonTitle() // 오디오 모드 버튼 제목 업데이트
     }
@@ -307,6 +366,9 @@ class ViewController: UIViewController {
         
         navigationItem.leftBarButtonItems = [timerItem]
         navigationItem.rightBarButtonItems = [saveItem, presetItem]
+        
+        // 중앙: Trial 배지 (비프리미엄 사용자에게만 표시)
+        setupNavBarTrialBadge()
     }
     
     private func setupNotifications() {

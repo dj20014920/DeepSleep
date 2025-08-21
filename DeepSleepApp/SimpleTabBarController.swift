@@ -25,6 +25,23 @@ class SimpleTabBarController: UITabBarController {
         // 스와이프 제스처 설정 (선택사항)
         setupSwipeGestures()
         
+        // 구독 상태에 따라 탭바 스타일을 즉시 반영
+        _ = SubscriptionUIBinder.attach(to: self) { [weak self] isPremium in
+            guard let self = self else { return }
+            let selectedColor: UIColor = isPremium ? .systemYellow : .systemBlue
+            self.tabBar.tintColor = selectedColor
+            if #available(iOS 15.0, *) {
+                let appearance = UITabBarAppearance()
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = UIColor.systemBackground
+                appearance.stackedLayoutAppearance.selected.iconColor = selectedColor
+                appearance.inlineLayoutAppearance.selected.iconColor = selectedColor
+                appearance.compactInlineLayoutAppearance.selected.iconColor = selectedColor
+                self.tabBar.standardAppearance = appearance
+                self.tabBar.scrollEdgeAppearance = appearance
+            }
+        }
+        
         print("✅ [SimpleTabBar] 초기화 완료 - 안정적인 기본 UITabBarController 사용")
     }
     

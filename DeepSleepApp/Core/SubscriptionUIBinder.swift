@@ -80,18 +80,23 @@ public struct SubscriptionUIStyleHelper {
             label.isHidden = true
             return
         }
+        
+        // 무료 상태: 배지 표시
+        label.isHidden = false
+        label.font = .systemFont(ofSize: 14, weight: .semibold)
+        label.textColor = .white
+        label.backgroundColor = UIColor.systemPink
+        label.layer.cornerRadius = 14
+        label.clipsToBounds = true
+        label.textAlignment = .center
+        
+        // 내부 패딩을 위한 여백 설정
+        label.layer.sublayerTransform = CATransform3DMakeTranslation(8, 0, 0)
+        
         if let d = daysRemaining, d >= 0 {
-            label.isHidden = false
-            label.text = "D-\(d)  |  7일 무료체험"
-            label.font = .systemFont(ofSize: 13, weight: .semibold)
-            label.textColor = .white
-            label.backgroundColor = UIColor.systemPink
-            label.layer.cornerRadius = 11
-            label.clipsToBounds = true
-            label.textAlignment = .center
+            label.text = "  D-\(d) | 7일 무료체험  "
         } else {
-            // Trial 대상 아님: 배지 숨김(문구만 유지 가능)
-            label.isHidden = true
+            label.text = "  7일 무료체험  "
         }
     }
 

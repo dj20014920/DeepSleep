@@ -1,6 +1,8 @@
 # 🌙 DeepSleep AI - 종합 프로젝트 가이드
 
 > iOS 구독/IAP 요약: 프리미엄 월간/연간(동일 그룹) + 7일 무료체험(그룹 1회). 무료=Gemini 2.0 Flash‑Lite 고정, 프리미엄/Trial=한도 해제/상향. 최소 iOS 17.0. 자세한 설계/작업 순서는 IOS_IAP_ROADMAP.md를 참조하세요.
+> 
+> **2025-08-21 구현 완료**: StoreKit2 결제 플로우 정상 연결, PaywallViewController 통합, Trial 배지 UI 구현, SubscriptionUIBinder 패턴으로 전역 상태 관리 완성
 
 
 ---
@@ -640,7 +642,11 @@ func loadSecureData<T: Codable>(_ type: T.Type, forKey key: String) -> T?
 
 ## 5. 설정 및 구성
 
-### 5.0 In‑App Purchase(StoreKit2) 통합 스냅샷 — 2025‑08‑20
+### 5.0 In‑App Purchase(StoreKit2) 통합 스냅샷 — 2025‑08‑21
+- 신규: SubscriptionLifecycleState 도입(active/grace/refunded/expired/free), SubscriptionStatusCenter.state 단일 소스
+- StoreKitSubscriptionManager가 환불(구매일+30일 유지), 만료, 활성 상태를 판정하여 상태를 갱신
+- SettingsViewController가 SubscriptionUIMessageFormatter로 상태별 문구를 표기(타이틀)
+- Policy Hub: 개인정보/약관은 앱 내 텍스트로 표시, 구독 관리는 iOS 설정 딥링크 유지
 - 생성된 핵심 파일/경로
   - DeepSleepApp/Subscription/StoreKitSubscriptionManager.swift: StoreKit2 제품 로드/구매/복원/트랜잭션 업데이트 → SubscriptionStatusCenter.isPremium 브로드캐스트
   - DeepSleepApp/StoreKit/DeepSleep.storekit: 구독 그룹 primary, 월간/연간 + 7일 Intro(그룹 1회) 테스트 씬 포함

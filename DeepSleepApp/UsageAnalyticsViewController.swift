@@ -3,7 +3,6 @@ import UIKit
 /// 📊 사용 패턴 분석 화면 (SessionManager 기반)
 /// SessionManager에서 실제 사용자 데이터를 가져와 분석 결과를 표시
 class UsageAnalyticsViewController: UIViewController {
-    private var subscriptionObserver: NSObjectProtocol?
     
     // MARK: - UI Components
     
@@ -71,8 +70,8 @@ class UsageAnalyticsViewController: UIViewController {
         loadAnalyticsData()
         createAnalyticsSections()
         
-        // 구독 상태 옵저버 등록: 프리미엄 상태 변화 시 표기 갱신
-        subscriptionObserver = NotificationCenter.default.addObserver(forName: .subscriptionStatusChanged, object: nil, queue: .main) { [weak self] _ in
+        // 구독 상태 바인딩 (중앙형 패턴)
+        _ = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
             self?.reloadAnalyticsUI()
         }
     }

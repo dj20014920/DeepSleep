@@ -22,7 +22,10 @@ public final class StoreKitSubscriptionManager: NSObject {
 
     // MARK: - Bootstrap
     private func bootstrap() async {
-        await listenForTransactions()
+        // 트랜잭션 리스너를 백그라운드에서 실행 (무한 루프 방지)
+        Task.detached { [weak self] in
+            await self?.listenForTransactions()
+        }
         await refreshEntitlements()
         await loadProducts()
     }
@@ -37,7 +40,9 @@ public final class StoreKitSubscriptionManager: NSObject {
                 if let key = SubscriptionProduct(rawValue: product.id) { dict[key] = product }
             }
             self.products = dict
-            logger.debug("Loaded products: \(self.products.keys.map { $0.rawValue }.joined(separator: ", "))")
+            if !dict.isEmpty {
+                logger.debug("Loaded products: \(self.products.keys.map { $0.rawValue }.joined(separator: ", "))")
+            }
         } catch {
             logger.error("Failed to load products: \(error.localizedDescription)")
         }
@@ -76,26 +81,77 @@ public final class StoreKitSubscriptionManager: NSObject {
 
     // MARK: - Entitlements
     public func refreshEntitlements() async {
-        var isPremium = false
-        var expiration: Date?
+        var premium = false
+        var latestExpiration: Date?
+        var refundedGraceUntil: Date?
+        var anyExpiredAt: Date?
+
+        // 정책: 환불 시 결제일로부터 30일간 프리미엄 유지
+        func computeRefundGrace(until purchaseDate: Date) -> Date {
+            Calendar.current.date(byAdding: .day, value: 30, to: purchaseDate) ?? purchaseDate
+        }
 
         for await result in Transaction.currentEntitlements {
             do {
                 let transaction = try checkVerified(result)
-                guard transaction.revocationDate == nil else { continue }
-                if let _ = SubscriptionProduct(rawValue: transaction.productID) {
-                    isPremium = true
-                    if let date = transaction.expirationDate { expiration = max(expiration ?? date, date) }
+                guard let _ = SubscriptionProduct(rawValue: transaction.productID) else { continue }
+
+                if let _ = transaction.revocationDate {
+                    // 환불됨
+                    let purchaseAt = transaction.purchaseDate
+                    let grace = computeRefundGrace(until: purchaseAt)
+                    // graceUntil 중 최장치 선택
+                    if let cur = refundedGraceUntil {
+                        refundedGraceUntil = max(cur, grace)
+                    } else {
+                        refundedGraceUntil = grace
+                    }
+                } else {
+                    // 정상 활성/만료 판단
+                    if let exp = transaction.expirationDate {
+                        latestExpiration = max(latestExpiration ?? exp, exp)
+                        if exp > Date() {
+                            premium = true
+                        } else {
+                            anyExpiredAt = max(anyExpiredAt ?? exp, exp)
+                        }
+                    } else {
+                        // 비소모성/무기한인 경우로 간주(여기서는 프리미엄 활성 처리)
+                        premium = true
+                    }
                 }
             } catch {
-                logger.error("Entitlement verification failed: \(error.localizedDescription)")
+                logger.error("Entitlement verification failed: \\(error.localizedDescription)")
             }
         }
-        SubscriptionStatusCenter.shared.update(isPremium: isPremium, expiration: expiration)
+
+        // 상태 결정 우선순위: refunded grace > active > expired > free
+        if let grace = refundedGraceUntil, Date() < grace {
+            await MainActor.run {
+                SubscriptionStatusCenter.shared.update(state: .refunded(graceUntil: grace))
+            }
+            return
+        }
+        if premium {
+            await MainActor.run {
+                SubscriptionStatusCenter.shared.update(state: .active(premiumUntil: latestExpiration))
+            }
+            return
+        }
+        if let expiredAt = anyExpiredAt ?? latestExpiration {
+            await MainActor.run {
+                SubscriptionStatusCenter.shared.update(state: .expired(expiredAt: expiredAt))
+            }
+            return
+        }
+        await MainActor.run {
+            SubscriptionStatusCenter.shared.update(state: .free)
+        }
     }
 
     // MARK: - Transaction Updates
     private func listenForTransactions() async {
+        // 단일 스트림만 사용하여 중복 방지
         for await update in Transaction.updates {
             do {
                 let transaction = try checkVerified(update)

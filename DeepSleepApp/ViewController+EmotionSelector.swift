@@ -23,6 +23,8 @@ extension ViewController {
         hashtagButton.accessibilityHint = "AI와 대화하며 나의 감정을 표현해보세요"
 
         view.addSubview(hashtagButton)
+        // 정렬 참조를 위해 저장
+        self.hashtagButtonRef = hashtagButton
 
         NSLayoutConstraint.activate([
             hashtagButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),

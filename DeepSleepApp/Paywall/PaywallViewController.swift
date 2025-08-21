@@ -164,11 +164,14 @@ public override func viewDidLoad() {
         if let y = yearlyDisplayPrice { priceText.append("연간: \(y)") }
         priceLabel.text = priceText.joined(separator: "\n")
 
+        // Trial 배지 및 설명 카피(중앙 포맷터 사용)
         if let days = trialDaysRemaining, days >= 0 {
             trialBadgeLabel.isHidden = false
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true)
         } else {
             trialBadgeLabel.isHidden = true
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: false)
         }
     }
 
