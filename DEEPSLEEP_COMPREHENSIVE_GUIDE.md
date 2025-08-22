@@ -806,6 +806,15 @@ ARCHITECTURE_IMPROVEMENTS_NEEDED.md
 2. 필요 시 프레임워크 재추가
 3. iOS Deployment Target 버전 확인
 
+#### 7.1.3 Missing symbol/Target Membership 오류
+**증상**: 'Cannot find "playAllTapped"/"pauseAllTapped"/"toggleTrack"/"updatePlayButtonStates" in scope' (발생 위치: ViewController+SliderControls.swift, ViewController+Utilities.swift), 또는 'Cannot find "EmotionAnalyzer" in scope' (발생 위치: EmotionInputViewController.swift)
+**원인**: 해당 심볼들이 정의된 파일이 타겟의 Compile Sources에 포함되지 않았거나 Target Membership이 체크되어 있지 않음. 예: ViewController+PlaybackControls.swift, EmotionAnalyzer.swift.
+**해결법**:
+1. Project navigator에서 파일을 클릭 → File Inspector → Target Membership에서 DeepSleep 타겟 체크
+2. 또는 Target → Build Phases → Compile Sources에 두 파일이 포함되어 있는지 확인하고 없으면 추가
+3. Product → Clean Build Folder(⌘⇧K) 후 Build(⌘B)로 클린 빌드
+**근거(원칙)**: KISS/DRY/SSoT. '누락된 심볼'은 종종 '파일이 빌드에 포함되지 않음'의 증상입니다. 소스 재정의나 임시 스텁 추가 대신 프로젝트 구성을 바로잡아 근본 원인을 해결합니다.
+
 ### 7.2 런타임 오류
 
 #### 7.2.1 AI 호출 실패

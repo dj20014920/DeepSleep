@@ -1,6 +1,22 @@
 import Foundation
 import UserNotifications
 
+// MARK: - UserSettings Model
+public struct UserSettings: Codable {
+    var dailyEmotionLimit: Int = 5
+    var enableAIRecommendations: Bool = true
+    var preferredLLMService: String = "claude"
+    var maxTokensPerRequest: Int = 1000
+    var temperatureSetting: Float = 0.7
+    var dailyPresetLimit: Int = 10
+    var enableNotifications: Bool = true
+    var selectedTheme: String = "auto"
+    var soundQuality: String = "high"
+    var autoSave: Bool = true
+    
+    public init() {}
+}
+
 // MARK: - UsageStats 타입 정의 (임시)
 public struct UsageStats: Codable {
     let date: String
@@ -273,6 +289,24 @@ public class SettingsManager {
             let date2 = preset2.lastUsed ?? preset2.createdDate
             return date1 > date2
         }
+    }
+    
+    // 편의 메서드: 프리셋 ID로 조회
+    func getSoundPreset(id: UUID) -> SoundPreset? {
+        return loadSoundPresets().first { $0.id == id }
+    }
+    
+    // 편의 메서드: 문자열 ID(또는 이름)로 조회
+    func getSoundPresetByStringId(_ idString: String) -> SoundPreset? {
+        if let uuid = UUID(uuidString: idString) {
+            return getSoundPreset(id: uuid)
+        }
+        let presets = loadSoundPresets()
+        if let match = presets.first(where: { $0.id.uuidString == idString }) {
+            return match
+        }
+        // Fallback: 일부 호출부에서 이름을 전달할 수 있음
+        return presets.first(where: { $0.name == idString })
     }
     
     // ✅ 프리셋의 날짜만 업데이트하여 '최근 사용'으로 만드는 함수

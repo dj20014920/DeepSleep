@@ -176,8 +176,13 @@ public override func viewDidLoad() {
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
             descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true)
         } else {
-            trialBadgeLabel.isHidden = true
             let eligible = StoreKitSubscriptionManager.shared.isTrialEligible
+            if eligible {
+                trialBadgeLabel.isHidden = false
+                trialBadgeLabel.text = "7일 무료체험"
+            } else {
+                trialBadgeLabel.isHidden = true
+            }
             descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible)
         }
 

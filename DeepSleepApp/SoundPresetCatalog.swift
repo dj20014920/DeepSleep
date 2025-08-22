@@ -174,6 +174,24 @@ class Random {
 /// 최신 연구(2024-2025) 기반으로 설계된 사운드 치료 시스템
 class SoundPresetCatalog {
     
+    // Singleton instance
+    static let shared = SoundPresetCatalog()
+    
+    // Instance presets generated from catalog combinations
+    var presets: [SoundPreset] {
+        return SoundPresetCatalog.expandedCombinationPresets.map { name, volumes in
+            SoundPreset(
+                name: name,
+                volumes: volumes,
+                selectedVersions: SoundPresetCatalog.defaultVersions,
+                emotion: nil,
+                isAIGenerated: false,
+                description: nil,
+                scientificBasis: nil
+            )
+        }
+    }
+    
     // MARK: - 🆕 동적 카테고리 설정
     static var categoryCount: Int {
         return SoundManager.shared.categoryCount
@@ -2419,7 +2437,7 @@ struct ExpectedOutcome {
     let estimatedDuration: TimeInterval
 }
 
-public struct ProcessingMetadata: Codable {
+public struct ProcessingMetadata: Codable, Equatable {
     public let modelVersion: String
     public let processingTime: TimeInterval
     public let featureCount: Int

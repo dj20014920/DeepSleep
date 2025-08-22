@@ -111,27 +111,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     /// 구독 시스템 초기화 및 MemoryManager 티어 설정
     private func initializeSubscriptionSystem() {
-        // 구독 상태 확인 및 MemoryManager 티어 설정
-        SubscriptionManager.shared.checkSubscriptionStatus { [weak self] isSubscribed in
-            let tier = isSubscribed ? "Premium" : "Free"
-            UnifiedLogger.shared.info("💎 구독 상태 확인 완료: \(tier)", category: .appLifecycle)
-            
-            // 구독 상태가 변경되었을 때 알림 처리
-            NotificationCenter.default.addObserver(
-                forName: .subscriptionStatusChanged,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let userInfo = notification.userInfo,
-                   let isSubscribed = userInfo["isSubscribed"] as? Bool {
-                    let newTier = isSubscribed ? "Premium" : "Free"
-                    UnifiedLogger.shared.info("💎 구독 상태 변경됨: \(newTier)", category: .appLifecycle)
-                }
-            }
+        // 실제 StoreKit2 기반 초기화: 제품 로드 및 권리 상태 새로고침
+        Task {
+            await StoreKitSubscriptionManager.shared.loadProducts()
+            await StoreKitSubscriptionManager.shared.refreshEntitlements()
         }
-        
-        // SubscriptionManager는 초기화 시 자동으로 MemoryManager.setTier()를 호출함
-        _ = SubscriptionManager.shared
+
+        // 구독 상태 변경 브로드캐스트 수신 → 메모리 티어 및 로깅 반영
+        NotificationCenter.default.addObserver(
+            forName: .subscriptionStatusChanged,
+            object: nil,
+            queue: .main
+        ) { _ in
+            let isPremium = SubscriptionStatusCenter.shared.isPremium
+            let tier: MemoryTier = isPremium ? .premium : .free
+            MemoryManager.shared.setTier(tier)
+            let tierText = isPremium ? "Premium" : "Free"
+            UnifiedLogger.shared.info("💎 구독 상태 변경됨: \(tierText)", category: .appLifecycle)
+        }
     }
     
     // MARK: - Notification Authorization & Handling

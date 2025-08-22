@@ -33,10 +33,6 @@
 		E084F1872E33ACB3002F75E6 /* APIConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0942E33ACB3002F75E6 /* APIConnectionValidator.swift */; };
 		E084F1882E33ACB3002F75E6 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0822E33ACB3002F75E6 /* HapticManager.swift */; };
 		E084F1892E33ACB3002F75E6 /* EmotionDiaryViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BE2E33ACB3002F75E6 /* EmotionDiaryViewController+TableView.swift */; };
-		E084F18A2E33ACB3002F75E6 /* EmotionAnalysisService_backup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B42E33ACB3002F75E6 /* EmotionAnalysisService_backup.swift */; };
-		E084F18B2E33ACB3002F75E6 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B82E33ACB3002F75E6 /* EmotionCalendarViewController.swift */; };
-		E084F18C2E33ACB3002F75E6 /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1032E33ACB3002F75E6 /* ViewController+PlaybackControls.swift */; };
-		E084F18D2E33ACB3002F75E6 /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */; };
 		E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */; };
 		E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1022E33ACB3002F75E6 /* ViewController+EmotionSelector.swift */; };
 		E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F32E33ACB3002F75E6 /* StubViewControllers.swift */; };
@@ -46,7 +42,6 @@
 		E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A12E33ACB3002F75E6 /* CommonUtilities.swift */; };
 		E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0952E33ACB3002F75E6 /* APIHealthChecker.swift */; };
 		E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FC2E33ACB3002F75E6 /* UserBasicInfoViewController.swift */; };
-		E084F1992E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B52E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift */; };
 		E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BD2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift */; };
 		E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F52E33ACB3002F75E6 /* TodaysFortuneViewController.swift */; };
 		E084F19C2E33ACB3002F75E6 /* AIUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0922E33ACB3002F75E6 /* AIUsageManager.swift */; };
@@ -58,7 +53,6 @@
 		E084F1A42E33ACB3002F75E6 /* InputValidationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0682E33ACB3002F75E6 /* InputValidationManager.swift */; };
 		E084F1A52E33ACB3002F75E6 /* LRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D72E33ACB3002F75E6 /* LRUCache.swift */; };
 		E084F1A62E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0C92E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift */; };
-		E084F1A72E33ACB3002F75E6 /* ModuleFixHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0DB2E33ACB3002F75E6 /* ModuleFixHeader.swift */; };
 		E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */; };
 		E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D52E33ACB3002F75E6 /* LaunchViewController.swift */; };
 		E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EB2E33ACB3002F75E6 /* SharedCore.swift */; };
@@ -122,7 +116,6 @@
 		E084F1EA2E33ACB3002F75E6 /* EmotionInputViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BF2E33ACB3002F75E6 /* EmotionInputViewController.swift */; };
 		E084F1EB2E33ACB3002F75E6 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F02E33ACB3002F75E6 /* SoundManager.swift */; };
 		E084F1EC2E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0C82E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift */; };
-		E084F1ED2E33ACB3002F75E6 /* EmotionAnalysisInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B02E33ACB3002F75E6 /* EmotionAnalysisInputView.swift */; };
 		E084F1EE2E33ACB3002F75E6 /* ScalableSoundCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0E42E33ACB3002F75E6 /* ScalableSoundCatalog.swift */; };
 		E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0852E33ACB3002F75E6 /* InsightCell.swift */; };
 		E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B32E33ACB3002F75E6 /* EmotionAnalysisService.swift */; };
@@ -172,6 +165,7 @@
 		E084F2BB2E33AE9B002F75E6 /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */; };
 		E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D22E33B2CC002F75E6 /* FSCalendar */; };
 		E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D52E33B2ED002F75E6 /* GoogleGenerativeAI */; };
+		E0899C7F2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */; };
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
@@ -200,13 +194,14 @@
 		E0E7BCC62E561C8100FF7073 /* EntitlementUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC52E561C8100FF7073 /* EntitlementUI.swift */; };
 		E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */; };
 		E0E7BCCB2E561E3300FF7073 /* KSTDatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */; };
-		E0E7BCCE2E561E4A00FF7073 /* DeepSleep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */; };
 		E0E7BCD02E561E7000FF7073 /* StoreKitSubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */; };
 		E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */; };
 		E0E7BCD62E56252800FF7073 /* SubscriptionUIBinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */; };
 		E0E7BCD92E56E41800FF7073 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */; };
 		E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */; };
 		E0E7BCDD2E56E4CC00FF7073 /* PolicyHubViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */; };
+E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1032E33ACB3002F75E6 /* ViewController+PlaybackControls.swift */; };
+		E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -220,7 +215,6 @@
 		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
-		E068E3612E5715BA00CA54A0 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = DeepSleep.storekit; path = DeepSleepApp/StoreKit/DeepSleep.storekit; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
@@ -302,8 +296,6 @@
 		E084F0B12E33ACB3002F75E6 /* EmotionAnalysisModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisModels.swift; sourceTree = "<group>"; };
 		E084F0B22E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisQuickActionView.swift; sourceTree = "<group>"; };
 		E084F0B32E33ACB3002F75E6 /* EmotionAnalysisService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisService.swift; sourceTree = "<group>"; };
-		E084F0B42E33ACB3002F75E6 /* EmotionAnalysisService_backup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisService_backup.swift; sourceTree = "<group>"; };
-		E084F0B52E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
 		E084F0B62E33ACB3002F75E6 /* EmotionAnalysisViewModelProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisViewModelProtocol.swift; sourceTree = "<group>"; };
 		E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalyzer.swift; sourceTree = "<group>"; };
 		E084F0B82E33ACB3002F75E6 /* EmotionCalendarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionCalendarViewController.swift; sourceTree = "<group>"; };
@@ -338,7 +330,6 @@
 		E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryOptimizationManager.swift; sourceTree = "<group>"; };
 		E084F0D92E33ACB3002F75E6 /* MessageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageStore.swift; sourceTree = "<group>"; };
 		E084F0DA2E33ACB3002F75E6 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		E084F0DB2E33ACB3002F75E6 /* ModuleFixHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleFixHeader.swift; sourceTree = "<group>"; };
 		E084F0DC2E33ACB3002F75E6 /* naver.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = naver.xcconfig; sourceTree = "<group>"; };
 		E084F0DE2E33ACB3002F75E6 /* PerformanceOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceOptimizer.swift; sourceTree = "<group>"; };
 		E084F0DF2E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalizedHarmonyLearner.swift; sourceTree = "<group>"; };
@@ -382,6 +373,7 @@
 		E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeroTokenAPIChecker.swift; sourceTree = "<group>"; };
 		E084F1182E33ACB3002F75E6 /* README 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README 2.md"; sourceTree = "<group>"; };
 		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
+		E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -414,7 +406,6 @@
 		E0E7BCC52E561C8100FF7073 /* EntitlementUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementUI.swift; sourceTree = "<group>"; };
 		E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
 		E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KSTDatePolicy.swift; sourceTree = "<group>"; };
-		E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
 		E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitSubscriptionManager.swift; sourceTree = "<group>"; };
 		E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumBadgeView.swift; sourceTree = "<group>"; };
 		E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUIBinder.swift; sourceTree = "<group>"; };
@@ -439,7 +430,6 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
-				E068E3612E5715BA00CA54A0 /* DeepSleep.storekit */,
 				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
 				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,
@@ -622,6 +612,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */,
 				E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */,
 				E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */,
 				E0E7BCCD2E561E4A00FF7073 /* StoreKit */,
@@ -678,8 +669,6 @@
 				E084F0B12E33ACB3002F75E6 /* EmotionAnalysisModels.swift */,
 				E084F0B22E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift */,
 				E084F0B32E33ACB3002F75E6 /* EmotionAnalysisService.swift */,
-				E084F0B42E33ACB3002F75E6 /* EmotionAnalysisService_backup.swift */,
-				E084F0B52E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift */,
 				E084F0B62E33ACB3002F75E6 /* EmotionAnalysisViewModelProtocol.swift */,
 				E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */,
 				E084F0B82E33ACB3002F75E6 /* EmotionCalendarViewController.swift */,
@@ -713,8 +702,6 @@
 				E084F0D72E33ACB3002F75E6 /* LRUCache.swift */,
 				E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */,
 				E084F0D92E33ACB3002F75E6 /* MessageStore.swift */,
-				E084F0DA2E33ACB3002F75E6 /* Models.swift */,
-				E084F0DB2E33ACB3002F75E6 /* ModuleFixHeader.swift */,
 				E084F0DC2E33ACB3002F75E6 /* naver.xcconfig */,
 				E084F0DE2E33ACB3002F75E6 /* PerformanceOptimizer.swift */,
 				E084F0DF2E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift */,
@@ -730,6 +717,7 @@
 				E084F0EA2E33ACB3002F75E6 /* SettingsViewController.swift */,
 				E084F0EB2E33ACB3002F75E6 /* SharedCore.swift */,
 				E084F0EC2E33ACB3002F75E6 /* SharedModels.swift */,
+				E084F0DA2E33ACB3002F75E6 /* Models.swift */,
 				E084F0ED2E33ACB3002F75E6 /* SoundCatalogManager.swift */,
 				E084F0EE2E33ACB3002F75E6 /* SoundFilterManager.swift */,
 				E084F0EF2E33ACB3002F75E6 /* SoundHarmonyAnalyzer.swift */,
@@ -861,7 +849,6 @@
 		E0E7BCCD2E561E4A00FF7073 /* StoreKit */ = {
 			isa = PBXGroup;
 			children = (
-				E0E7BCCC2E561E4A00FF7073 /* DeepSleep.storekit */,
 			);
 			path = StoreKit;
 			sourceTree = "<group>";
@@ -939,7 +926,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E084F29F2E33AE9B002F75E6 /* 고양이.mp3 in Resources */,
-				E0E7BCCE2E561E4A00FF7073 /* DeepSleep.storekit in Resources */,
 				E084F2A02E33AE9B002F75E6 /* 바람.mp3 in Resources */,
 				E084F2A12E33AE9B002F75E6 /* 바람2.mp3 in Resources */,
 				E084F2A22E33AE9B002F75E6 /* 발걸음-눈.mp3 in Resources */,
@@ -995,10 +981,6 @@
 				E084F1872E33ACB3002F75E6 /* APIConnectionValidator.swift in Sources */,
 				E084F1882E33ACB3002F75E6 /* HapticManager.swift in Sources */,
 				E084F1892E33ACB3002F75E6 /* EmotionDiaryViewController+TableView.swift in Sources */,
-				E084F18A2E33ACB3002F75E6 /* EmotionAnalysisService_backup.swift in Sources */,
-				E084F18B2E33ACB3002F75E6 /* EmotionCalendarViewController.swift in Sources */,
-				E084F18C2E33ACB3002F75E6 /* ViewController+PlaybackControls.swift in Sources */,
-				E084F18D2E33ACB3002F75E6 /* EmotionAnalyzer.swift in Sources */,
 				E0E7BCDD2E56E4CC00FF7073 /* PolicyHubViewController.swift in Sources */,
 				E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */,
 				E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */,
@@ -1011,7 +993,6 @@
 				E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */,
 				E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */,
 				E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */,
-				E084F1992E33ACB3002F75E6 /* EmotionAnalysisServiceProtocol.swift in Sources */,
 				E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */,
 				E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */,
 				E01798142E35FF71002F178C /* UnifiedLogger.swift in Sources */,
@@ -1025,7 +1006,6 @@
 				E084F1A42E33ACB3002F75E6 /* InputValidationManager.swift in Sources */,
 				E084F1A52E33ACB3002F75E6 /* LRUCache.swift in Sources */,
 				E084F1A62E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift in Sources */,
-				E084F1A72E33ACB3002F75E6 /* ModuleFixHeader.swift in Sources */,
 				E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */,
 				E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */,
 				E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */,
@@ -1065,6 +1045,7 @@
 				E084F1C02E33ACB3002F75E6 /* forceSyncMainViewControllerPreset.swift in Sources */,
 				E084F1C12E33ACB3002F75E6 /* ViewController+Utilities.swift in Sources */,
 				E084F1C22E33ACB3002F75E6 /* ViewController+SliderControls.swift in Sources */,
+				E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */,
 				E084F1C32E33ACB3002F75E6 /* ViewController+PresetBlocks.swift in Sources */,
 				E084F1C42E33ACB3002F75E6 /* UIDesignSystem.swift in Sources */,
 				E084F1C52E33ACB3002F75E6 /* EnhancedFeedbackViewController.swift in Sources */,
@@ -1110,10 +1091,10 @@
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,
 				E084F1EA2E33ACB3002F75E6 /* EmotionInputViewController.swift in Sources */,
+				E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */,
 				E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */,
 				E084F1EB2E33ACB3002F75E6 /* SoundManager.swift in Sources */,
 				E084F1EC2E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift in Sources */,
-				E084F1ED2E33ACB3002F75E6 /* EmotionAnalysisInputView.swift in Sources */,
 				E084F1EE2E33ACB3002F75E6 /* ScalableSoundCatalog.swift in Sources */,
 				E0E7BCD22E561E8200FF7073 /* PremiumBadgeView.swift in Sources */,
 				E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */,
@@ -1142,6 +1123,7 @@
 				E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */,
 				E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */,
 				E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */,
+				E0899C7F2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift in Sources */,
 				E084F2012E33ACB3002F75E6 /* EmotionAnalysisChatViewController.swift in Sources */,
 				E084F2022E33ACB3002F75E6 /* PresetSharingManager.swift in Sources */,
 				E084F2032E33ACB3002F75E6 /* EditDiaryViewController.swift in Sources */,

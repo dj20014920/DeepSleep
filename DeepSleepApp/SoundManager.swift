@@ -953,7 +953,7 @@ final class SoundManager {
 
     /// 프리셋 적용 (볼륨 설정 + 재생 시작)
     func applyPreset(presetId: String, volumes: [Float], completion: @escaping (Bool) -> Void) {
-        guard let preset = PresetManager.shared.getPreset(id: presetId) else {
+        guard let preset = SettingsManager.shared.getSoundPresetByStringId(presetId) else {
             completion(false)
             return
         }

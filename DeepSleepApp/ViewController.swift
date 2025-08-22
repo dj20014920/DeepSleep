@@ -102,7 +102,7 @@ class ViewController: UIViewController {
             // SoundPresetCatalog 카테고리 로드됨
             
             // 마이그레이션 실행 (백그라운드)
-            PresetManager.shared.migrateLegacyPresetsIfNeeded()
+LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
             
             await MainActor.run { [weak self] in
                 self?.setupKeyboardNotifications()
@@ -235,7 +235,7 @@ class ViewController: UIViewController {
     // MARK: - 프리셋 마이그레이션
     private func migratePresets() {
         // 통합된 프리셋 마이그레이션 (12개 → 11개 + 버전 정보 추가)
-        PresetManager.shared.migrateLegacyPresetsIfNeeded()
+LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         
         print("✅ 프리셋 마이그레이션 완료")
     }

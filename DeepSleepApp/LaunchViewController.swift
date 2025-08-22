@@ -152,7 +152,7 @@ class LaunchViewController: UIViewController {
             #endif
             
             // 프리셋 마이그레이션 사전 실행
-            PresetManager.shared.migrateLegacyPresetsIfNeeded()
+            LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
             
             // 사운드 매니저 초기화
             _ = SoundManager.shared

@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Feedback Context (SSoT for feedback-related context passed into learner)
+struct FeedbackContext {
+    let environment: [String: Any]
+    let device: [String: Any]
+    let timeOfDay: String
+    let emotion: String?
+}
+
 /// 🤖 외부 AI 기반 조화 분석 시스템
 /// ChatManager.sendMessage를 통해 4개 외부 모델 + 로컬 온디바이스로 조화 분석 수행
 @MainActor

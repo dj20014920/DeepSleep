@@ -51,7 +51,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../DeepSleepApp/StoreKit/DeepSleep.storekit">
+         identifier = "../../DeepSleepApp/StoreKit/DeepSleepNoTrial.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction

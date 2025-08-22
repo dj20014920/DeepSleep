@@ -2,6 +2,24 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-22 Updates (Build Stabilization & SSoT for Emotion Analysis)
+
+- Fixed missing symbol build errors by adding previously unreferenced source files to the target:
+  - ViewController+PlaybackControls.swift (defines playAllTapped, pauseAllTapped, toggleTrack, updatePlayButtonStates)
+  - EmotionAnalyzer.swift (used by EmotionInputViewController for on-device text/emoji analysis via NaturalLanguage)
+- Rationale (KISS/DRY/SSoT):
+  - Avoid hacky redefinitions or duplicating function stubs; include the actual source of truth in the build.
+  - Maintain a single source of truth for emotion-analysis types; remove or unify duplicate declarations (EmotionAnalysisServiceProtocol, EmotionAnalysisResult, RecommendationResult, EmotionAnalysisServiceSoundComponent, and define FeedbackContext).
+- Actioned steps:
+  1) Updated Xcode target Build Phases → Compile Sources to include both files (and verified Target Membership).
+  2) Audited target membership for related emotion-analysis files.
+  3) Planned consolidation of duplicated types into a single EmotionAnalysisModels.swift; duplicates scheduled for removal.
+- Verification:
+  - Clean build succeeded after inclusion; 'Cannot find ... in scope' errors resolved.
+- Follow-ups:
+  - Complete the model/protocol consolidation pass and remove duplicates.
+  - Repo-wide audit to ensure no shadow or duplicate type definitions remain.
+
 ## 2025-08-20 Updates (페르소나 캐싱 및 AI 컨텍스트 관리 완성)
 
 ### ✅ 완료된 작업

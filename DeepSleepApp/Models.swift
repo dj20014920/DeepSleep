@@ -303,6 +303,18 @@ public struct SoundPreset: Codable, Equatable {
     }
 }
 
+extension SoundPreset {
+    static func createDefault() -> SoundPreset {
+        return SoundPreset(
+            name: "기본 프리셋",
+            volumes: Array(repeating: 30.0, count: max(1, SoundPresetCatalog.categoryCount)),
+            emotion: "기본",
+            isAIGenerated: false,
+            description: "기본 사운드 프리셋"
+        )
+    }
+}
+
 // PresetFeedback는 SessionDataModels.swift에서 정의됨
 
 // MARK: - Recommended Preset Model
@@ -350,9 +362,49 @@ public struct RecommendationResponse: Codable {
     }
 }
 
+public struct EnhancedRecommendationResponse: Codable, Equatable {
+    public let presetName: String
+    public let volumes: [Float]
+    public let versions: [Int]
+    public let reason: String?
+}
+
+extension EnhancedRecommendationResponse {
+    func toRecommendationResponse() -> RecommendationResponse {
+        return RecommendationResponse(
+            title: self.presetName,
+            description: self.reason ?? "AI 추천 프리셋",
+            soundIds: Array(0..<self.volumes.count).map { "sound_\($0)" },
+            presetId: UUID().uuidString
+        )
+    }
+}
+
+// MARK: - Preset Recommendation Response (used by ChatViewController)
+public struct PresetRecommendationResponse {
+    public let volumes: [Float]
+    public let presetName: String
+    public let selectedVersions: [Int]?
+    public let reasoning: String?
+    
+    public init(volumes: [Float], presetName: String, selectedVersions: [Int]? = nil, reasoning: String? = nil) {
+        self.volumes = volumes
+        self.presetName = presetName
+        self.selectedVersions = selectedVersions
+        self.reasoning = reasoning
+    }
+}
+
 struct DiaryContext {
     let content: String
     let emotion: String?
+}
+
+extension DiaryContext {
+    init(from diary: EmotionDiary) {
+        self.content = diary.userMessage
+        self.emotion = diary.selectedEmotion
+    }
 }
 
 public struct UserProfile: Codable {
@@ -360,6 +412,83 @@ public struct UserProfile: Codable {
     
     public init(userId: String) {
         self.userId = userId
+    }
+}
+
+// MARK: - User Profile Vector (moved from stubs)
+struct UserProfileVector {
+    var soundPreferences: [Float]
+    var timePreferences: [Float]
+    var averageSatisfaction: Float
+    var emotionPreferences: [String: Float]
+    var usagePatterns: [String: Float]
+    
+    init() {
+        self.soundPreferences = Array(repeating: 0.5, count: SoundPresetCatalog.categoryCount)
+        self.timePreferences = Array(repeating: 0.1, count: 24)
+        self.averageSatisfaction = 0.5
+        self.emotionPreferences = [:]
+        self.usagePatterns = [:]
+    }
+    
+    init(feedbackData: [PresetFeedback]) {
+        self.init()
+        if feedbackData.isEmpty { return }
+        var timeScores = Array(repeating: 0.0, count: 24)
+        var timeCounts = Array(repeating: 0, count: 24)
+        var emotionScores: [String: Float] = [:]
+        var emotionCounts: [String: Int] = [:]
+        var totalSatisfaction: Float = 0.0
+        var satisfactionCount = 0
+        for feedback in feedbackData {
+            let satisfaction = feedback.satisfactionScore
+            totalSatisfaction += satisfaction
+            satisfactionCount += 1
+            let contextTime = Int(feedback.contextTime)
+            if contextTime >= 0 && contextTime < 24 {
+                timeScores[contextTime] += Double(satisfaction)
+                timeCounts[contextTime] += 1
+            }
+            let emotion = feedback.contextEmotion
+            if !emotion.isEmpty {
+                emotionScores[emotion, default: 0.0] += satisfaction
+                emotionCounts[emotion, default: 0] += 1
+            }
+        }
+        let calculatedAvgSatisfaction = satisfactionCount > 0 ? totalSatisfaction / Float(satisfactionCount) : 0.5
+        let calculatedTimePreferences = timeScores.enumerated().map { index, score in
+            return timeCounts[index] > 0 ? Float(score / Double(timeCounts[index])) : 0.1
+        }
+        let calculatedSoundPreferences = Array(repeating: calculatedAvgSatisfaction, count: SoundPresetCatalog.categoryCount)
+        var normalizedEmotionPreferences: [String: Float] = [:]
+        for (emotion, score) in emotionScores {
+            if let count = emotionCounts[emotion], count > 0 {
+                normalizedEmotionPreferences[emotion] = score / Float(count)
+            }
+        }
+        let calculatedUsagePatterns: [String: Float]
+        if feedbackData.isEmpty {
+            calculatedUsagePatterns = [
+                "avgDuration": 0.0,
+                "completionRate": 0.0,
+                "skipRate": 0.0
+            ]
+        } else {
+            calculatedUsagePatterns = [
+                "avgDuration": Float(feedbackData.compactMap { $0.listeningDuration }.reduce(0, +)) / Float(feedbackData.count),
+                "completionRate": Float(feedbackData.filter { $0.wasSaved == true }.count) / Float(feedbackData.count),
+                "skipRate": Float(feedbackData.filter { $0.wasSkipped == true }.count) / Float(feedbackData.count)
+            ]
+        }
+        self.averageSatisfaction = calculatedAvgSatisfaction
+        self.timePreferences = calculatedTimePreferences
+        self.soundPreferences = calculatedSoundPreferences
+        self.emotionPreferences = normalizedEmotionPreferences
+        self.usagePatterns = calculatedUsagePatterns
+    }
+    
+    func toFeatureVector() -> [Float] {
+        return soundPreferences + timePreferences + [averageSatisfaction] + Array(emotionPreferences.values) + Array(usagePatterns.values)
     }
 }
 

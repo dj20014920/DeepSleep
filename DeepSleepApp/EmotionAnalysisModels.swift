@@ -1,6 +1,9 @@
 import Foundation
 import UIKit
 
+// MARK: - EmotionAnalysis module SSoT
+// Protocol and shared result types are declared in EmotionAnalysisServiceProtocol.swift to avoid duplication.
+
 // MARK: - EmotionAnalysisModels Namespace
 public enum EmotionAnalysisModels {
     // MARK: - Analysis Response Models

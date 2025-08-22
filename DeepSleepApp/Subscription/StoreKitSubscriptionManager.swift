@@ -68,7 +68,23 @@ public final class StoreKitSubscriptionManager: NSObject {
     }
 
     // MARK: - Load Products
+    private var isLoadingProducts = false
+    private var loadAttempts = 0
+    private let maxLoadAttempts = 3
+    
     public func loadProducts() async {
+        // 동시 호출 방지(스팸 루프 차단)
+        if isLoadingProducts { return }
+        
+        // 최대 시도 횟수 제한
+        if loadAttempts >= self.maxLoadAttempts {
+            logger.warning("[IAP] Product loading stopped after \(self.maxLoadAttempts) attempts")
+            return
+        }
+        
+        isLoadingProducts = true
+        loadAttempts += 1
+        defer { isLoadingProducts = false }
         do {
             let ids = Set(SubscriptionProduct.allCases.map { $0.rawValue })
             logger.debug("[IAP] Requesting products for IDs: \(ids.joined(separator: ", "))")
@@ -96,6 +112,12 @@ public final class StoreKitSubscriptionManager: NSObject {
             let missingIds = ids.subtracting(foundIds)
             if !missingIds.isEmpty {
                 logger.warning("[IAP] Missing products: \(missingIds.joined(separator: ", "))")
+                // 시뮬레이터 환경에서 0개가 지속되면, StoreKit 설정 문제 가능성 안내 로그
+                #if targetEnvironment(simulator)
+                if dict.isEmpty {
+                    logger.error("[IAP] Simulator returned 0 products. 확인사항: (1) Scheme > Run > Options 에서 DeepSleep.storekit 선택, (2) 대상 스킴/타깃 일치, (3) In-App Purchase capability 추가, (4) Xcode StoreKit 테스트 리셋 후 재빌드")
+                }
+                #endif
             }
             
             self.products = dict
@@ -249,8 +271,10 @@ private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
     }
 
     public func trialDaysRemaining(for product: SubscriptionProduct) -> Int? {
-        // Eligibility 확인은 환경/권한에 따라 async API가 필요할 수 있으므로 여기서는 표시용 기본값(nil)로 둡니다.
-        return nil
+        // 정책: 첫 구독자 대상 7일 무료체험 제공. 사전 노출 목적의 표시값.
+        // 실제 구매 후 남은 일수 계산은 트랜잭션 기반으로 별도 처리 가능하나,
+        // 현재는 구매 전 안내 단계에서 항상 7일을 노출합니다(eligible 한 경우).
+        return isTrialEligible ? 7 : nil
     }
 }
 

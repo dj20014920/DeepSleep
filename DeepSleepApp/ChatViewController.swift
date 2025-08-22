@@ -3463,7 +3463,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                         }
                     AIUsageManager.shared.recordUsage(for: .presetRecommendation)
                 } else {
-                        throw "Empty response from AI" // 에러 케이스로 전달
+throw JSONParsingError.invalidJSON // 에러 케이스로 전달
                     }
                     self?.isProcessingRecommendation = false
                 }

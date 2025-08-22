@@ -613,7 +613,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
     private func getBaseSystemPromptForMode(_ mode: AIMode) -> String {
         switch mode {
         case .generalConversation:
-            return "당신은 DeepSleep 앱의 친근하고 지능적인 AI 어시스턴트입니다. 사용자와 자연스럽고 도움이 되는 대화를 나누세요."
+            return "당신은 우리 앱의 친근하고 지능적인 AI 어시스턴트입니다. 사용자와 자연스럽고 도움이 되는 대화를 나누세요."
             
         case .emotionDiaryAnalysis:
             return """
