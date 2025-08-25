@@ -2,6 +2,69 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-25 Updates (스토리지 관리·알림·내보내기·보존 정책 정리)
+
+이번 업데이트는 저장소 관리 화면과 알림 설정, 채팅 내보내기 보안, 삭제 UX의 일관성을 코드와 문서에 반영합니다. AI 컨텍스트/캐시 로드맵과 충돌 없이, 사용자 데이터 보존·보호 정책과 개인정보 보호 원칙을 강화하는 변경입니다.
+
+핵심 변경 요약
+- 대화 재개(ResumeConversationForDate): 저장소 관리 화면의 날짜행에서 "이어서 대화"를 누르면 해당 날짜 세션을 로드하여 ChatViewController로 진입합니다. 네비게이션 계층(AppDelegate/SceneDelegate)에서 Notification(Name: ResumeConversationForDate)을 구독하고, ChatRouter를 통해 ChatViewController를 생성합니다. 해당 날짜에 대화가 없으면 안내 Alert를 표시합니다.
+- 즐겨찾기 상한(무료 3개 / 프리미엄·트라이얼 10개):
+  - SettingsManager.favoriteDates(Set<yyyy-MM-dd>)를 단일 진실의 원천으로 유지.
+  - SubscriptionStatusCenter.isPremium 변화를 구독하여 상한 초과 시 자동 정리(오래된 항목부터) 및 토스트 안내.
+  - 저장소 관리 상단에 상한 배지(예: 2/3, 7/10) 표시. 필요 시 자세히(모달/툴팁) 확장 가능.
+- 알림 설정 "1시간 전" 토글:
+  - SettingsManager.notificationsTodoOneHourBeforeEnabled(Boolean) 추가 및 변경 시 Notification 방송.
+  - NotificationSettings 화면에 스위치(UI) 추가. 켜면 CentralNotificationScheduler/TodoManager가 모든 해당 Todo에 대해 "마감 1시간 전" 알림을 예약, 끄면 해제. 마스터 알림 스위치와 정합성 유지.
+- 채팅 내보내기(텍스트 전용, PII 마스킹):
+  - ChatViewController 네비게이션바에 "내보내기" 버튼 추가.
+  - 최근 메시지를 사용자(나) / 모델(모델) 교대로 텍스트-only로 빌드하여 공유 시트(UIActivityViewController) 띄움.
+  - SettingsManager.maskPIIForExport()로 전화/이메일 등 민감 패턴을 마스킹. SettingsManager.exportUserDataSanitized()가 기본값으로 사용되도록 정리.
+- 삭제 UX 강화 및 버튼 정리:
+  - "전체 삭제"는 2단계 확인(첫 경고 → 최종 파괴 확인)으로 오작동 방지.
+  - 수동 "60일 삭제" 버튼은 제거. 기존 "30일 삭제" 버튼은 "선택한 날짜 삭제"로 재용도화(다중 선택 후 삭제)하여 사용자가 명시적으로 지정.
+- 압축 UI/경로 제거(또는 비표시):
+  - 기존 압축 관련 UI/코드는 유지보수 대상에서 제외하고, 자동 보존/삭제 정책(30/60일, 최근 7일 보호, 즐겨찾기 제외)에 일치하도록 정리.
+- 보존 정책 문구 정비(레이블/도움말):
+  - 자동 삭제: 30일/60일 정책, 최근 7일 보호창, 즐겨찾기 제외를 명시. 수동 60일 삭제 버튼은 제거되었음을 반영.
+
+검증 체크리스트(8/25)
+- [x] 저장소 관리 → 이어서 대화: 해당 날짜 세션 열림, 미존재 시 Alert.
+- [x] 즐겨찾기 상한: 무료=3, Pro/Trial=10, 구독 변경 시 초과분 정리 및 토스트.
+- [x] 알림: "1시간 전" 토글 On → 예약, Off → 해제. 마스터 스위치와 정합.
+- [x] 내보내기: 공유 시트 노출, 텍스트-only, PII 마스킹 적용.
+- [x] 삭제: 전체 삭제 2단계 확인. 60일 삭제 버튼 제거. 선택 삭제 정상 동작.
+- [x] 압축 UI 비노출. 보존 정책 레이블 최신화.
+
+후속 추천(옵션)
+- 선택 삭제에도 즐겨찾기/최근 7일 보호 예외를 적용할지(삭제 제외 or 경고) 결정.
+- 즐겨찾기 상한 배지 옆 "자세히" 버튼으로 무료/프리미엄 안내 및 초과 시 정리 정책 설명 모달 제공.
+- 내보내기 전 경로 전수 스캔(검색/검증) 요청 시, 모든 경로에 maskPIIForExport/exportUserDataSanitized 강제 적용 보장.
+
+### 2025-08-25 추가 업데이트: 보호 배지/상단 배지/내보내기 자동 검사
+
+- 보호 조건 표기 강화: 저장소 관리 테이블 셀에 보호 배지(🛡)를 노출하여 보호 대상임을 즉시 인지 가능하게 개선. 즐겨/최근/요일 보호 조건을 조합해 "🛡 즐겨·최근·요일" 형태로 표시합니다.
+- 보존 정책 고정 텍스트 상단 배지화: 저장소 관리 화면 상단 통계 섹션에 "🔒 최근 N일 보호"/"⭐ 즐겨찾기 제외" 배지를 추가해 핵심 정책을 한눈에 안내합니다(N=SettingsManager.protectedDaysWindow).
+- 내보내기 전수 스캔 자동화 스크립트: UIActivityViewController 경로의 텍스트 공유가 SettingsManager.maskPIIForExport 또는 exportUserDataSanitized를 반드시 거치도록 스크립트 기반 정적 점검을 추가합니다.
+
+검증 체크리스트(8/25 추가)
+- [x] 보호 배지: 즐겨/최근/요일 조건에 따라 배지 텍스트가 올바르게 조합되는지 확인.
+- [x] 상단 배지: 보호일수/즐겨 제외 안내가 보이고, 구독 상한 배지와 충돌하지 않는지 확인.
+- [x] 자동 스캔: 아래 스크립트를 실행해 위반 시 실패(exit 1)하는지 확인.
+
+실행 방법(로컬/CI)
+- 로컬: 아래 명령을 실행합니다.
+```bash path=null start=null
+bash scripts/verify_export_pii.sh
+```
+- CI: GitHub Actions 등에서 빌드 전 단계에 위 스크립트를 호출하세요. 위반 발생 시 워크플로우가 실패하도록 유지합니다.
+
+샘플(통과 사례)
+```swift path=null start=null
+let message = "사용자 메모: \(raw)"
+let safe = SettingsManager.shared.maskPIIForExport(message)
+let vc = UIActivityViewController(activityItems: [safe], applicationActivities: nil)
+```
+
 ## 2025-08-23 Updates (컨텍스트/캐시 최신 정책 확정)
 
 이번 업데이트는 실제 코드베이스와 완전히 동기화된 컨텍스트·캐시 정책을 문서에 반영합니다. 핵심은 단일 진입점(SessionManager), 조립의 중앙화(AIContextBuilder), 3시간 TTL의 시스템 프롬프트 캐시(AIContextManager), 그리고 명확한 무효화 트리거입니다.

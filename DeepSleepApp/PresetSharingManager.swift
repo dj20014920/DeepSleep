@@ -576,8 +576,10 @@ class PresetSharingManager {
             (이 코드는 24시간 후 만료됩니다)
             """
             
+            // 공유 텍스트에 PII 마스킹 적용
+            let safeMessage = SettingsManager.shared.maskPIIForExport(message)
             let activityVC = UIActivityViewController(
-                activityItems: [message],
+                activityItems: [safeMessage],
                 applicationActivities: nil
             )
             

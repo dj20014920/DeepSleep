@@ -2,6 +2,29 @@
 
 ---
 
+## 2025-08-25 업데이트 로그 (알림 설정 UX/옵트아웃)
+- 설정 > 앱 설정 > 알림 설정 화면을 실제 구현했습니다.
+  • 항목: 전체 알림 허용, 타이머 알림, 할 일 미리 알림 스위치 제공
+  • 동작: 전체/개별 스위치 변경 시 즉시 영속화(UserDefaults), 상태 브로드캐스트(Notification.notificationSettingsChanged)
+  • 권한: 미허용/미결정 상태에서 켜면 권한 요청 후 "설정으로 이동" 안내 제공
+  • 안전: 스위치 OFF 시 관련 알림만 안전 취소(타이머 1건, 할 일은 ID 별 제거) – 다른 알림에는 영향 없음(DRY)
+  • 중앙화: 모든 스케줄링은 CentralNotificationScheduler로 단일화, 해당 스케줄러가 사용자 설정을 재검증
+- 사용자 결정사항 반영
+  • 알림은 수면을 방해하지 않도록 최소 사용 및 명확한 목적 고지
+  • 앱 내 옵트아웃 경로 제공(설정 화면 + iOS 설정 이동 버튼)
+- 코드 변경 요약
+  • SettingsManager: notificationsMasterEnabled/TimerEnabled/TodoEnabled 3개 플래그 추가 + notificationSettingsChanged 노티 추가
+  • CentralNotificationScheduler: 스케줄링 전 사용자 플래그 확인(마스터/개별)
+  • NotificationSettingsViewController: 스텁 → 실제 구현(스택 뷰 UI, 권한 안내, 시스템 설정 이동)
+- 심사 체크리스트 업데이트 메모
+  • "알림 안내/옵트아웃 경로" 항목 충족. 정책 허브와 문서에는 기존 원칙 유지.
+
+## 2025-08-25 업데이트 로그 (스토리지 압축/내보내기/피드백)
+- 스토리지 압축: 30일 이전 세션을 요약 메시지 1건으로 압축(SessionManager.compressOldSessions). UI에서 실행 시 통계 갱신 및 Chat 화면에 변경사항 브로드캐스트.
+- 삭제 정책: 60일 이전 삭제(SessionManager.cleanupOldSessions). 보호 요일/서버 시간 병합은 추후(YAGNI).
+- 내보내기 보안: SettingsManager.exportUserDataSanitized 추가. 이메일/전화/카드번호 등 PII 마스킹 후 내보내기.
+- 개발자 피드백: FeedbackViewController를 실제 메일 작성 화면으로 구현(MFMailComposeViewController). 기본 본문에 앱/기기 정보 자동 포함, 메일 앱 미설치 시 mailto로 폴백.
+
 ⚠️ **중요 사전 요구사항 (2025-08-21 확인)**
 **Apple Developer Program 가입 필수**
 - 현재 상태: 무료 개발자 계정 사용 중

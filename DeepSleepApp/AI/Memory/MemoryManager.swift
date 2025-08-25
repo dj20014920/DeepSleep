@@ -85,6 +85,15 @@ public final class MemoryManager {
         queue.sync { memories.sorted { $0.createdAt < $1.createdAt } }
     }
 
+    /// 모든 핵심 기억을 초기화 (보안/개인정보 보호 목적)
+    public func resetAll() {
+        queue.async(flags: .barrier) { [weak self] in
+            self?.memories.removeAll()
+        }
+        queue.sync(flags: .barrier) {}
+        AIContextManager.shared.clearCache(reason: .coreMemoryUpdated, caller: "MemoryManager.resetAll")
+    }
+
     // 간단 요약: 중요도/시간 순으로 상위 N개를 합성(실제 서비스에서는 경량 모델 호출 가능)
     public func getMemorySummary(maxItems: Int = 10) -> String {
         let items = queue.sync {

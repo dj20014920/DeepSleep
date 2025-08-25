@@ -2,6 +2,42 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-25 Updates (스토리지·알림·내보내기·보존 정책·UX)
+
+What changed where
+- StorageManagementViewController.swift
+  - 날짜행에 즐겨찾기 토글(상한: 무료 3 / Pro·Trial 10) 및 "이어서 대화" 버튼.
+  - "60일 삭제" 버튼 제거. "30일 삭제" → "선택한 날짜 삭제"로 재용도화.
+  - 전체 삭제 2단계 확인(Alert → Destructive Confirm).
+  - 상단 즐겨찾기 상한 배지 노출(현재/최대). 미세설명(툴팁/모달) 확장 여지.
+- AppDelegate/SceneDelegate
+  - Notification.Name("ResumeConversationForDate") 구독 → ChatRouter로 ChatViewController 표시.
+- ChatViewController.swift
+  - 내보내기 버튼 추가(텍스트-only, 사용자=나 / 모델=모델 라벨링). SettingsManager.maskPIIForExport로 PII 마스킹.
+  - resumeSessionId가 주어지면 해당 날짜 세션을 로드하여 초기 표시. 존재하지 않으면 Alert.
+- SettingsManager.swift
+  - favoriteDates(Set<yyyy-MM-dd>), notificationsTodoOneHourBeforeEnabled(Bool) 추가/정비.
+  - exportUserDataSanitized 기본 사용. maskPIIForExport() 제공.
+- NotificationSettingsViewController (StubViewControllers.swift 내)
+  - "1시간 전" 스위치 추가 및 상태 저장/방송.
+- CentralNotificationScheduler.swift, TodoManager.swift
+  - 1시간 전 알림 예약/취소 경로 연동.
+- 기타
+  - 압축 UI/경로 제거(또는 비노출). 보존 정책 텍스트 최신화.
+
+Verification checklist
+- [ ] 이어서 대화: 저장소 관리 → 해당 날짜 진입, 미존재 시 Alert.
+- [ ] 즐겨찾기 상한: 무료=3, Pro/Trial=10. 구독 변경 시 초과분 정리 + 토스트.
+- [ ] 알림(1시간 전): 스위치 On→예약, Off→취소. 마스터와 정합.
+- [ ] 내보내기: 텍스트-only + PII 마스킹.
+- [ ] 삭제 UX: 전체 삭제 2단계, 선택 삭제 정상 동작, 60일 삭제 버튼 제거됨.
+- [ ] 압축 UI 비노출, 보존 정책 레이블 최신.
+
+Backlog/Next
+- 선택 삭제에도 즐겨찾기/최근 7일 보호 적용(삭제 제외 또는 경고) 여부 결정.
+- 즐겨찾기 상한 배지 옆 "자세히" 버튼으로 상향 정책 및 정리 로직 안내.
+- 내보내기 전 경로 전수 스캔(검색/검증)으로 PII 마스킹 강제 적용 재확인.
+
 ## 2025-08-23 Updates (멀티-메시지·저장정책·동기저장·문서정합)
 
 본 섹션은 2025-08-23에 적용된 변경점을 파일 기준으로 상세 기록하고, 검증/회귀 체크리스트 및 남은 과제를 정의합니다.

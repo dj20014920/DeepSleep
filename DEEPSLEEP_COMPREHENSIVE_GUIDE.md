@@ -19,6 +19,57 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-25 업데이트: 저장소 관리·즐겨찾기 상한·대화 재개·알림(1시간 전)·내보내기(PII)
+
+요약
+- 저장소 관리: 날짜별 행에 즐겨찾기 토글과 "이어서 대화" 버튼. 이어서 대화는 해당 날짜 세션을 로드하여 ChatViewController로 진입. 해당 날짜에 대화가 없으면 Alert 안내.
+- 즐겨찾기 상한: 무료 3개, 프리미엄/트라이얼 10개. 구독 상태 변경 시 초과분 자동 정리(오래된 항목부터) + 토스트. 상단 배지에 현재/최대 표시.
+- 알림 설정: "1시간 전" 스위치 추가(SettingsManager.notificationsTodoOneHourBeforeEnabled). 켜면 CentralNotificationScheduler/TodoManager가 마감 1시간 전 알림 예약, 끄면 일괄 취소. 마스터 스위치와 정합 유지.
+- 채팅 내보내기: ChatViewController 우상단 "내보내기" 버튼 추가. 최근 메시지를 사용자(나)/모델(모델) 교대로 텍스트-only로 빌드해 공유 시트 노출. SettingsManager.maskPIIForExport로 PII 마스킹 기본 적용. SettingsManager.exportUserDataSanitized 기본 사용.
+- 삭제 UX: "전체 삭제" 2단계 확인. "60일 삭제" 버튼 제거. "30일 삭제" 버튼은 "선택한 날짜 삭제"로 재용도화(멀티 선택 삭제).
+- 압축 UI 숨김/제거: 자동 30/60일 보존 정책 및 최근 7일 보호, 즐겨찾기 제외 원칙에 맞춰 경로 정리.
+- 보존 정책 레이블: 30일/60일 자동 삭제, 최근 7일 보호창, 즐겨찾기 제외를 명확히 표기(수동 60일 삭제 버튼 제거 반영).
+
+빠른 테스트 방법
+- 이어서 대화: 저장소 관리 → 날짜행 → "이어서 대화" 탭 → 해당 날짜 대화가 로드되는지 확인. 미존재 시 Alert 확인.
+- 즐겨찾기 상한: 무료 상태에서 4개 이상 즐겨찾기 시도 → 3개로 정리 및 토스트. 프리미엄 전환 후 10개까지 확장 확인. 다시 무료로 복귀 시 초과분 정리 확인.
+- 알림(1시간 전): 스위치 On → 향후 마감 Todo에 1시간 전 알림 예약, Off → 예약 취소. 마스터 스위치 Off 시 전체 비활성 확인.
+- 내보내기: 채팅 화면 우상단 → 내보내기 → 공유 시트 등장, 텍스트-only, 전화/이메일 마스킹 확인.
+- 삭제 UX: 전체 삭제 → 2단계 확인 플로우 노출. 선택 삭제 → 여러 날짜 선택 후 삭제 정상 처리.
+
+관련 주요 파일
+- StorageManagementViewController.swift: 즐겨찾기 토글, 이어서 대화 버튼, 선택 삭제 UI/로직
+- ChatViewController.swift: 내보내기, 세션 재개(resumeSessionId) 로딩
+- SettingsManager.swift: favoriteDates, notificationsTodoOneHourBeforeEnabled, maskPIIForExport/exportUserDataSanitized
+- CentralNotificationScheduler.swift, TodoManager.swift: "1시간 전" 예약/취소 연동
+- StubViewControllers.swift(NotificationSettingsViewController): "1시간 전" 스위치 UI/핸들러
+- AppDelegate/SceneDelegate: ResumeConversationForDate 관찰 및 라우팅
+
+#### 추가 보강(2025-08-25): 보호 표기/상단 배지/CI 스캔
+- 보호 조건 표기 강화: 저장소 관리 셀에 보호 배지(🛡) 노출. 즐겨/최근/요일을 조합해 "🛡 즐겨·최근·요일"로 표기(즐겨찾기 별표와 병행).
+- 보존 정책 상단 배지: 통계 섹션 상단에 "🔒 최근 N일 보호"와 "⭐ 즐겨찾기 제외" 배지 고정 노출.
+- 내보내기 전수 스캔: UIActivityViewController를 통한 텍스트 공유 경로는 반드시 SettingsManager.maskPIIForExport 또는 exportUserDataSanitized로 마스킹 후 전달.
+
+로컬/CI 검증 방법
+```bash path=null start=null
+bash scripts/verify_export_pii.sh
+```
+- 위반 시 비정상 종료(exit 1)하며, 다음 패턴 중 하나가 근처(앞뒤 40줄)에서 발견되어야 통과합니다:
+  - maskPIIForExport( ... )
+  - exportUserDataSanitized( ... )
+  - sanitizePII( ... )
+  - 또는 테스트 전용 우회 주석: // PII_OK
+
+샘플(권장 패턴)
+```swift path=null start=null
+var lines: [String] = []
+for m in messages { /* ... */ }
+let exportText = SettingsManager.shared.maskPIIForExport(lines.joined(separator: "\n"))
+let vc = UIActivityViewController(activityItems: [exportText], applicationActivities: nil)
+```
+
+다음 섹션은 2025-08-23의 멀티-메시지/저장정책/동기저장 업데이트입니다.
+
 ### 🆕 2025-08-23 업데이트: 멀티-메시지 전환, 저장 정책 개편, 동기 저장, 문서/코드 SSoT 정합
 
 본 업데이트는 모든 호출 경로에서 역할 기반 멀티-메시지(system/assistant/user) 구조 지원과 저장 정책(환영/안내/퀵액션/프리셋 원문 비저장, 요약 저장), ChatRequestCenter→SessionManager 동기 저장, 그리고 가이드/로드맵 동기화를 포함합니다.

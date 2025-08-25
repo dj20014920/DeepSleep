@@ -413,8 +413,10 @@ extension ViewController {
     }
     
     private func shareContent(_ content: String) {
+        // 모든 공유 텍스트는 PII 마스킹 적용
+        let masked = SettingsManager.shared.maskPIIForExport(content)
         let activityVC = UIActivityViewController(
-            activityItems: [content],
+            activityItems: [masked],
             applicationActivities: nil
         )
         

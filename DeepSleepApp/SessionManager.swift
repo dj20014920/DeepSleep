@@ -308,17 +308,32 @@ public class SessionManager {
     
     /// 오래된 세션들 정리 (30일 이상)
     public func cleanupOldSessions(olderThanDays days: Int = 30) -> Int {
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let now = SettingsManager.shared.currentDate()
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
+        let recentProtectionDays = SettingsManager.shared.protectedDaysWindow
+        let protectionStart = Calendar.current.date(byAdding: .day, value: -recentProtectionDays, to: now) ?? now
         
         let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
         request.predicate = NSPredicate(format: "createdAt < %@", cutoffDate as NSDate)
         
         do {
             let oldSessions = try context.fetch(request)
-            let deletedCount = oldSessions.count
+            var deletedCount = 0
             
+            let protectedWeekdays = SettingsManager.shared.protectedWeekdays
+            let favoriteDates = SettingsManager.shared.favoriteDates
             for session in oldSessions {
+                // 1) 최근 보호 기간 내 세션은 제외
+                if session.createdAt >= protectionStart { continue }
+                // 2) 즐겨찾기 날짜(yyyy-MM-dd)면 완전 보호
+                let dateKey = SettingsManager.shared.dateKey(for: session.createdAt)
+                if favoriteDates.contains(dateKey) { continue }
+                // 3) 보호 요일 제외
+                let weekday = Calendar.current.component(.weekday, from: session.createdAt)
+                if protectedWeekdays.contains(weekday) { continue }
+                
                 context.delete(session)
+                deletedCount += 1
                 
                 // 캐시에서도 제거
                 cacheQueue.async(flags: .barrier) {
@@ -334,6 +349,61 @@ public class SessionManager {
             print("❌ [SessionManager] 오래된 세션 정리 실패: \(error)")
             return 0
         }
+    }
+    
+    /// 오래된 세션을 요약 메시지 1건으로 압축합니다. (피드백/행동 데이터는 유지)
+    /// - Parameter olderThanDays: 이 일수보다 오래된 세션에 대해 압축을 수행합니다. 기본 60일.
+    /// - Returns: 압축된 세션 개수
+    public func compressOldSessions(olderThanDays days: Int = 60) -> Int {
+        let now = SettingsManager.shared.currentDate()
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
+        let recentProtectionDays = SettingsManager.shared.protectedDaysWindow
+        let protectionStart = Calendar.current.date(byAdding: .day, value: -recentProtectionDays, to: now) ?? now
+        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "createdAt < %@", cutoffDate as NSDate)
+        var compressedCount = 0
+        do {
+            let oldSessions = try context.fetch(request)
+            let protectedWeekdays = SettingsManager.shared.protectedWeekdays
+            let favoriteDates = SettingsManager.shared.favoriteDates
+            for session in oldSessions {
+                // 보호 기간 내 세션 제외
+                if session.createdAt >= protectionStart { continue }
+                // 즐겨찾기 날짜(yyyy-MM-dd) 제외 (요약/압축도 하지 않음)
+                let dateKey = SettingsManager.shared.dateKey(for: session.createdAt)
+                if favoriteDates.contains(dateKey) { continue }
+                // 보호 요일 제외
+                let weekday = Calendar.current.component(.weekday, from: session.createdAt)
+                if protectedWeekdays.contains(weekday) { continue }
+                
+                // 기존 채팅 메시지 수집
+                let messageEntities = (session.chatMessages?.allObjects as? [StoredChatMessageEntity]) ?? []
+                // 메시지가 매우 적으면 압축 필요 없음
+                if messageEntities.count <= 3 { continue }
+                // 최신순으로 정렬 후 경량 메시지 구성
+                let sorted = messageEntities.sorted { ($0.timestamp) > ($1.timestamp) }
+                let recentLite: [ChatMessageLite] = sorted.map { ChatMessageLite(role: $0.role, content: $0.content, createdAt: $0.timestamp) }
+                // 요약 생성 (파일 내부 전용 유틸)
+                let summary = SessionManager.summarizeRecent(recentLite)
+                // 기존 메시지 제거
+                for m in messageEntities { context.delete(m) }
+                // 요약 메시지 1건 추가
+                let summaryEntity = StoredChatMessageEntity(context: context)
+                summaryEntity.id = UUID()
+                summaryEntity.timestamp = now
+                summaryEntity.role = "system"
+                summaryEntity.content = summary.isEmpty ? "이전 대화가 요약되었습니다." : summary
+                summaryEntity.session = session
+                // 세션 활동 시간 업데이트(압축 시각 유지)
+                session.lastActivityAt = session.lastActivityAt
+                compressedCount += 1
+            }
+            try? saveContext()
+            print("📦 [SessionManager] 세션 압축 완료: \(compressedCount)개 (기준: \(days)일)")
+        } catch {
+            print("❌ [SessionManager] 세션 압축 실패: \(error)")
+        }
+        return compressedCount
     }
     
     // MARK: - 데이터 추가 API (기존 매니저들과의 호환성)
@@ -509,6 +579,29 @@ public class SessionManager {
             }
         } catch {
             print("❌ [SessionManager] 최근 메시지 조회 실패: \(error)")
+            return []
+        }
+    }
+    
+    /// 특정 세션의 모든 채팅 메시지 조회 (시간순)
+    public func getChatMessages(forSessionId sessionId: String, limit: Int? = nil) -> [StoredChatMessage] {
+        let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)]
+        request.predicate = NSPredicate(format: "session.id == %@", sessionId as CVarArg)
+        if let limit = limit { request.fetchLimit = limit }
+        do {
+            let fetched = try context.fetch(request)
+            return fetched.map { entity in
+                StoredChatMessage(
+                    id: entity.id.uuidString,
+                    timestamp: entity.timestamp ?? Date(),
+                    role: entity.role ?? "user",
+                    content: entity.content ?? "",
+                    type: .text
+                )
+            }
+        } catch {
+            print("❌ [SessionManager] 세션별 메시지 조회 실패: \(error)")
             return []
         }
     }
@@ -913,7 +1006,7 @@ public class SessionManager {
     }
     
     /// 특정 날짜의 세션을 찾거나 새로 생성
-    private func findOrCreateSessionForDate(_ date: Date) -> String {
+    public func findOrCreateSessionForDate(_ date: Date) -> String {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!

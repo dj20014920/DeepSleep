@@ -62,6 +62,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
+    
+    /// 특정 세션을 불러와 이어서 대화하기 위한 ID (옵션)
+    var resumeSessionId: String?
     var initialUserText: String?
     var diaryContext: DiaryContext?
     var emotionPatternData: String?
@@ -1130,6 +1133,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 🎯 중앙집중식 메시지 복원 - 하나의 메서드만 호출
         restoreAndInitializeMessages()
         
+        // 이어서 대화하기: 특정 세션 메시지로 교체 로드
+        if let sessionId = resumeSessionId {
+            loadMessagesForSession(sessionId: sessionId)
+        }
+        
         // 📊 메모리 사용량 체크
         #if DEBUG
         MemoryProfiler.shared.logMemoryUsage(context: "loadSavedMessages 완료")
@@ -2103,6 +2111,40 @@ extension ChatViewController {
         }
     }
     
+    /// 특정 세션의 메시지를 불러와 UI에 표시
+    private func loadMessagesForSession(sessionId: String) {
+        let stored = sessionManager.getChatMessages(forSessionId: sessionId)
+        var mapped = stored.map { storedMessage in
+            let sender: MessageSender = {
+                switch storedMessage.role {
+                case "assistant": return .ai
+                case "user": return .user
+                case "system": return .system
+                default: return .user
+                }
+            }()
+            let fixedType: ChatMessageType = {
+                if storedMessage.type == .text {
+                    switch sender {
+                    case .user: return .user
+                    case .ai: return .bot
+                    case .system: return .system
+                    }
+                }
+                return storedMessage.type
+            }()
+            let finalText = (sender == .ai) ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            return ChatMessage(text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
+        }
+        mapped = deduplicateMessages(mapped)
+        messages = mapped
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+            self.scrollToBottom(animated: false)
+        }
+        UnifiedLogger.shared.debug("특정 세션(\(sessionId))에서 \(messages.count)개 메시지 로드", category: .chat)
+    }
+    
     /// 기존 UserDefaults 채팅 기록을 ChatManager로 마이그레이션
     private func migrateOldChatHistory() {
         UnifiedLogger.shared.debug("기존 채팅 기록 마이그레이션 시작", category: .cache)
@@ -2194,6 +2236,10 @@ extension ChatViewController {
     private func setupNavigationBar() {
         // 네비게이션 바 표시 설정
         navigationController?.setNavigationBarHidden(false, animated: false)
+        
+        // 공유/내보내기 버튼 추가
+        let exportItem = UIBarButtonItem(title: "내보내기", style: .plain, target: self, action: #selector(exportChatTapped))
+        navigationItem.rightBarButtonItem = exportItem
         
         // 뒤로가기 버튼 설정
         if navigationController?.viewControllers.count ?? 0 > 1 {
@@ -2716,6 +2762,27 @@ extension ChatViewController {
             inputContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             inputContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
+    }
+    
+    @objc private func exportChatTapped() {
+        // 현재 화면의 메시지 배열을 기반으로 텍스트-only 내보내기 (PII 마스킹 적용)
+        var lines: [String] = []
+        for m in messages {
+            guard m.type != .loading else { continue }
+            guard let text = m.text, !text.isEmpty else { continue }
+            switch m.sender {
+            case .user:
+                lines.append("나: " + SettingsManager.shared.maskPIIForExport(text))
+            case .ai:
+                lines.append("모델: " + SettingsManager.shared.maskPIIForExport(text))
+            case .system:
+                continue // 시스템/컨텍스트 정보는 포함하지 않음
+            }
+        }
+        let exportText = lines.joined(separator: "\n")
+        let vc = UIActivityViewController(activityItems: [exportText], applicationActivities: nil)
+        vc.excludedActivityTypes = [.assignToContact, .saveToCameraRoll, .postToFacebook, .postToTwitter]
+        present(vc, animated: true)
     }
     
     private func setupInitialMessages() {

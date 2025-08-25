@@ -40,7 +40,6 @@ enum TodoManagerError: LocalizedError {
 class TodoManager {
     static let shared = TodoManager()
     private let todosKey = "todoItems"
-    private let notificationCenter = UNUserNotificationCenter.current()
     private let eventStore = EKEventStore()
 
     private init() {
@@ -294,67 +293,16 @@ class TodoManager {
 
     // MARK: - Notification Scheduling
     private func scheduleNotification(for todo: TodoItem) {
-        guard !todo.isCompleted else {
-            removeNotification(for: todo)
-            return
-        }
-
-        let content = UNMutableNotificationContent()
-        content.title = "할 일 미리 알림 ⏰"
-        content.sound = .default
-        content.userInfo = ["todoID": todo.id.uuidString]
-        
-        // 알림 시간 계산
-        let notificationTime: Date
-        let calendar = Calendar.current
-        
-        // 마감일 1시간 전으로 알림 설정
-        guard let oneHourBefore = calendar.date(byAdding: .hour, value: -1, to: todo.dueDate) else { return }
-        notificationTime = oneHourBefore
-        
-        if let endDate = todo.endDate {
-            // 여러 날 일정인 경우
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateStyle = .short
-            let endDateString = dateFormatter.string(from: endDate)
-            content.body = "'\(todo.title)' 시작 1시간 전입니다! (~\(endDateString))"
-        } else {
-            // 하루 일정인 경우
-            content.body = "'\(todo.title)' 마감 1시간 전입니다!"
-        }
-        
-        if notificationTime <= Date() {
-            print("🔔 알림 스케줄링 건너뜀: 알림 시간(\(notificationTime))이 이미 지남 (할 일: \(todo.title))")
-            return
-        }
-
-        let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: notificationTime)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
-
-        let request = UNNotificationRequest(identifier: todo.id.uuidString, content: content, trigger: trigger)
-
-        notificationCenter.add(request) { error in
-            if let error = error {
-                print("🔔 알림 스케줄링 오류 (\(todo.title)): \(error.localizedDescription)")
-            } else {
-                print("🔔 알림 스케줄링 성공: \(todo.title) (ID: \(todo.id.uuidString)) at \(notificationTime)")
-            }
-        }
+        CentralNotificationScheduler.shared.scheduleTodoNotification(for: todo)
     }
 
     private func removeNotification(for todo: TodoItem) {
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [todo.id.uuidString])
-        print("🔔 예정된 알림 제거: \(todo.title) (ID: \(todo.id.uuidString))")
+        CentralNotificationScheduler.shared.cancelTodoNotification(id: todo.id)
     }
     
     func rescheduleAllNotifications() {
         let todos = loadTodos()
-        notificationCenter.removeAllPendingNotificationRequests()
-        print("🔔 모든 예정된 알림 초기화 후 재스케줄링 시작")
-        for todo in todos {
-            scheduleNotification(for: todo)
-        }
-        print("🔔 모든 알림 재스케줄링 완료")
+        CentralNotificationScheduler.shared.rescheduleTodos(todos)
     }
 
     // MARK: - EventKit Interaction Methods

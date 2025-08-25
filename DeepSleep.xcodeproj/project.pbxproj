@@ -166,6 +166,7 @@
 		E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D22E33B2CC002F75E6 /* FSCalendar */; };
 		E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D52E33B2ED002F75E6 /* GoogleGenerativeAI */; };
 		E0899C7F2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */; };
+		E0899C892E5CB6FE006AD307 /* CentralNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */; };
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
@@ -375,6 +376,8 @@
 		E084F1182E33ACB3002F75E6 /* README 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README 2.md"; sourceTree = "<group>"; };
 		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
 		E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
+		E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md; sourceTree = "<group>"; };
+		E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentralNotificationScheduler.swift; sourceTree = "<group>"; };
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -432,6 +435,7 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
+				E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */,
 				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
 				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,
@@ -614,6 +618,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */,
 				E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */,
 				E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */,
 				E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */,
@@ -1115,6 +1120,7 @@
 				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
 				E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */,
 				E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */,
+				E0899C892E5CB6FE006AD307 /* CentralNotificationScheduler.swift in Sources */,
 				E084F1F82E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift in Sources */,
 				E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */,
 				E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */,
@@ -1280,6 +1286,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1290,7 +1297,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 			};
 			name = Debug;
 		};
@@ -1304,6 +1310,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1314,7 +1321,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 			};
 			name = Release;
 		};

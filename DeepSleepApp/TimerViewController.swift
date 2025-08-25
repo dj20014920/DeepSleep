@@ -102,7 +102,7 @@ class TimerViewController: UIViewController {
         setupUI()
         setupTargets()
         setupAudioSession()
-        requestNotificationPermission()
+        CentralNotificationScheduler.shared.requestAuthorizationIfNeeded(presenting: self)
         
         // 앱 생명주기 관찰
         NotificationCenter.default.addObserver(
@@ -142,30 +142,6 @@ class TimerViewController: UIViewController {
         }
     }
     
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if !granted {
-                DispatchQueue.main.async {
-                    self.showNotificationPermissionAlert()
-                }
-            }
-        }
-    }
-    
-    private func showNotificationPermissionAlert() {
-        let alert = UIAlertController(
-            title: "알림 권한 필요",
-            message: "타이머 종료 시 알림을 받으려면 알림 권한이 필요합니다.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "설정으로 이동", style: .default) { _ in
-            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(settingsUrl)
-            }
-        })
-        alert.addAction(UIAlertAction(title: "나중에", style: .cancel))
-        present(alert, animated: true)
-    }
     
     private func setupTargets() {
         modeControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
@@ -423,23 +399,7 @@ class TimerViewController: UIViewController {
     // MARK: –– 알림 처리
     
     private func scheduleNotification(at date: Date) {
-        let content = UNMutableNotificationContent()
-        content.title = "EmoZleep 타이머 완료"
-        content.body = "설정하신 시간이 되었습니다. 사운드가 꺼집니다."
-        content.sound = .default
-        content.badge = 1
-        
-        let interval = max(1, date.timeIntervalSinceNow)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let request = UNNotificationRequest(identifier: "DeepSleep.timer", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("알림 스케줄링 실패: \(error)")
-            } else {
-                print("알림 스케줄링 성공: \(date)")
-            }
-        }
+        CentralNotificationScheduler.shared.scheduleTimerNotification(endDate: date)
         
         // iPhone 기본 알람 추가 제안 (예약 모드일 때만)
         if modeControl.selectedSegmentIndex == 1 {
@@ -542,7 +502,7 @@ class TimerViewController: UIViewController {
     }
     
     private func cancelNotification() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["DeepSleep.timer"])
+        CentralNotificationScheduler.shared.cancelTimerNotification()
     }
     
     // MARK: –– 상태 저장/복원

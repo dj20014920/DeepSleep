@@ -70,6 +70,7 @@ public struct UsageStats: Codable {
 // MARK: - Notifications
 public extension Notification.Name {
     static let aiModelChanged = Notification.Name("aiModelChanged")
+    static let notificationSettingsChanged = Notification.Name("notificationSettingsChanged")
 }
 
 public class SettingsManager {
@@ -86,6 +87,16 @@ public class SettingsManager {
         static let onboardingCompleted = "onboardingCompleted"
         static let selectedSoundVersions = "selectedSoundVersions"
         static let selectedLLM = "selectedLLM"
+        // Notification preferences
+        static let notificationsMasterEnabled = "notificationsMasterEnabled"
+        static let notificationsTimerEnabled = "notificationsTimerEnabled"
+        static let notificationsTodoEnabled = "notificationsTodoEnabled"
+        static let notificationsTodoOneHourBeforeEnabled = "notificationsTodoOneHourBeforeEnabled"
+        // Time and retention controls
+        static let serverTimeOffsetSeconds = "serverTimeOffsetSeconds"
+        static let protectedWeekdays = "protectedWeekdays"
+        static let protectedDaysWindow = "protectedDaysWindow"
+        static let favoriteDates = "favoriteDates" // yyyy-MM-dd 문자열 세트
     }
     
     private init() {
@@ -144,6 +155,149 @@ public class SettingsManager {
         set {
             userDefaults.set(newValue, forKey: "useOnDeviceModel")
         }
+    }
+    
+    // MARK: - Notification Preferences
+    var notificationsMasterEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.notificationsMasterEnabled) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: Keys.notificationsMasterEnabled)
+        }
+        set {
+            userDefaults.set(newValue, forKey: Keys.notificationsMasterEnabled)
+            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "master", "value": newValue])
+        }
+    }
+    
+    var notificationsTimerEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.notificationsTimerEnabled) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: Keys.notificationsTimerEnabled)
+        }
+        set {
+            userDefaults.set(newValue, forKey: Keys.notificationsTimerEnabled)
+            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "timer", "value": newValue])
+        }
+    }
+    
+    var notificationsTodoEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.notificationsTodoEnabled) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: Keys.notificationsTodoEnabled)
+        }
+        set {
+            userDefaults.set(newValue, forKey: Keys.notificationsTodoEnabled)
+            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "todo", "value": newValue])
+        }
+    }
+    
+    /// 할 일 1시간 전 알림 사용 여부
+    var notificationsTodoOneHourBeforeEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.notificationsTodoOneHourBeforeEnabled) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: Keys.notificationsTodoOneHourBeforeEnabled)
+        }
+        set {
+            userDefaults.set(newValue, forKey: Keys.notificationsTodoOneHourBeforeEnabled)
+            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "todo1h", "value": newValue])
+        }
+    }
+    
+    // MARK: - Time Source (Server time merge)
+    /// 서버 시간이 제공될 경우 오프셋을 계산하여 현재 시간을 보정합니다.
+    func setServerTime(nowServer: Date, nowDevice: Date = Date()) {
+        let offset = nowServer.timeIntervalSince(nowDevice)
+        userDefaults.set(offset, forKey: Keys.serverTimeOffsetSeconds)
+    }
+    
+    /// 보정된 현재 시간(서버 오프셋 반영)
+    func currentDate() -> Date {
+        let offset = userDefaults.double(forKey: Keys.serverTimeOffsetSeconds)
+        return Date().addingTimeInterval(offset)
+    }
+    
+    // MARK: - Protected Weekdays (Retention exceptions)
+    /// 보호 요일(요일 번호: 1=일요일 ... 7=토요일). 해당 요일의 세션은 압축/삭제에서 제외됩니다.
+    var protectedWeekdays: Set<Int> {
+        get {
+            let arr = userDefaults.array(forKey: Keys.protectedWeekdays) as? [Int] ?? []
+            return Set(arr)
+        }
+        set {
+            let arr = Array(newValue).sorted()
+            userDefaults.set(arr, forKey: Keys.protectedWeekdays)
+        }
+    }
+    
+    // MARK: - Protection Window (recent days)
+    /// 최근 N일 보호 기간. 이 기간 내 생성된 세션은 압축/삭제 대상에서 제외됩니다.
+    var protectedDaysWindow: Int {
+        get {
+            let value = userDefaults.integer(forKey: Keys.protectedDaysWindow)
+            return value == 0 ? 7 : value // 기본값 7일
+        }
+        set {
+            let clamped = max(0, min(newValue, 365))
+            userDefaults.set(clamped, forKey: Keys.protectedDaysWindow)
+        }
+    }
+    
+    // MARK: - Favorite Dates (삭제 방지)
+    /// 특정 "날짜(yyyy-MM-dd)"를 즐겨찾기로 지정하여 30일 이후에도 삭제되지 않도록 합니다.
+    var favoriteDates: Set<String> {
+        get {
+            let arr = userDefaults.array(forKey: Keys.favoriteDates) as? [String] ?? []
+            return Set(arr)
+        }
+        set {
+            userDefaults.set(Array(newValue).sorted(), forKey: Keys.favoriteDates)
+        }
+    }
+    
+    /// 날짜를 yyyy-MM-dd 키로 변환
+    func dateKey(for date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f.string(from: date)
+    }
+    
+    /// 해당 날짜가 즐겨찾기(삭제 방지)인지 여부
+    func isFavorite(date: Date) -> Bool {
+        favoriteDates.contains(dateKey(for: date))
+    }
+    
+    /// 현재 플랜의 상한(cap)에 맞춰 즐겨찾기 날짜 수를 강제합니다.
+    /// - Returns: 제거된 즐겨찾기 날짜 수
+    @discardableResult
+    func enforceFavoriteCap(cap: Int) -> Int {
+        var current = favoriteDates
+        guard current.count > cap else { return 0 }
+        
+        // yyyy-MM-dd → Date 파싱
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        
+        // 날짜 기준 오래된 순으로 정렬 후 최신 cap만 유지
+        let sorted = current.compactMap { key -> (String, Date)? in
+            if let d = f.date(from: key) { return (key, d) }
+            return nil
+        }.sorted { $0.1 < $1.1 }
+        
+        let toKeep = Set(sorted.suffix(cap).map { $0.0 })
+        let removed = current.subtracting(toKeep)
+        
+        favoriteDates = toKeep
+        return removed.count
     }
     
     // MARK: - User Settings
@@ -516,13 +670,55 @@ public class SettingsManager {
     }
     
     func exportUserData() -> [String: Any] {
+        // 기본 내보내기는 개인정보 최소화를 적용한 안전 버전으로 처리합니다.
+        return exportUserDataSanitized()
+    }
+    
+    /// PII 최소화를 적용한 안전한 내보내기
+    func exportUserDataSanitized() -> [String: Any] {
+        let diaries = loadEmotionDiary().map { diary in
+            return [
+                "id": diary.id.uuidString,
+                "date": diary.date,
+                "selectedEmotion": diary.selectedEmotion,
+                // 사용자 입력/응답은 마스킹 처리
+                "userMessage": sanitizePII(in: diary.userMessage),
+                "aiResponse": sanitizePII(in: diary.aiResponse)
+            ] as [String: Any]
+        }
+        let presets = loadSoundPresets().map { preset in
+            return [
+                "id": preset.id.uuidString,
+                "name": sanitizePII(in: preset.name),
+                "volumes": preset.volumes,
+                "emotion": preset.emotion as Any,
+                "createdDate": preset.createdDate
+            ] as [String: Any]
+        }
         return [
             "settings": settings,
-            "emotionDiary": loadEmotionDiary(),
-            "soundPresets": loadSoundPresets(),
+            "emotionDiary": diaries,
+            "soundPresets": presets,
             "usageStats": getAllStats(),
             "exportDate": Date()
         ]
+    }
+    
+    // 간단한 PII 마스킹 (이메일/전화/카드번호)
+    private func sanitizePII(in text: String) -> String {
+        var result = text
+        // 이메일
+        result = result.replacingOccurrences(of: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", with: "[REDACTED_EMAIL]", options: .regularExpression)
+        // 한국 전화번호
+        result = result.replacingOccurrences(of: "01[0-9]-?\\d{4}-?\\d{4}", with: "[REDACTED_PHONE]", options: .regularExpression)
+        // 카드번호
+        result = result.replacingOccurrences(of: "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b", with: "[REDACTED_CARD]", options: .regularExpression)
+        return result
+    }
+    
+    /// 공개 API: 내보내기/공유 등의 텍스트에 대해 PII 마스킹 적용
+    public func maskPIIForExport(_ text: String) -> String {
+        return sanitizePII(in: text)
     }
     
     func canWriteDiaryToday() -> Bool {

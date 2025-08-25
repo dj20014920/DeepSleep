@@ -362,8 +362,9 @@ class TodaysFortuneViewController: UIViewController {
         guard let fortune = currentFortune else { return }
         
         let shareText = generateShareText(fortune: fortune)
+        let masked = SettingsManager.shared.maskPIIForExport(shareText)
         let activityController = UIActivityViewController(
-            activityItems: [shareText],
+            activityItems: [masked],
             applicationActivities: nil
         )
         

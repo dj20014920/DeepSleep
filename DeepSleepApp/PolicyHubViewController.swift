@@ -8,6 +8,7 @@ final class PolicyHubViewController: UITableViewController {
         case terms
         case subscriptionManagement
         case medicalDisclaimer
+        case dataRetentionPolicy
         
         var title: String {
             switch self {
@@ -15,6 +16,7 @@ final class PolicyHubViewController: UITableViewController {
             case .terms: return "이용약관"
             case .subscriptionManagement: return "구독 관리 (iOS 설정으로 이동)"
             case .medicalDisclaimer: return "건강/의학적 조언 면책 고지"
+            case .dataRetentionPolicy: return "데이터 보존·자동 정리 정책"
             }
         }
         
@@ -24,6 +26,7 @@ final class PolicyHubViewController: UITableViewController {
             case .terms: return "서비스 이용 조건 및 사용자 권리/의무"
             case .subscriptionManagement: return "App Store 구독 관리 화면으로 이동"
             case .medicalDisclaimer: return "본 앱은 의학적 진단/치료를 대체하지 않습니다"
+            case .dataRetentionPolicy: return "30일 압축 / 60일 삭제 · 보호 요일 · 알림 옵트아웃"
             }
         }
     }
@@ -91,6 +94,30 @@ final class PolicyHubViewController: UITableViewController {
     
     private let subscriptionsURL = URL(string: "https://apps.apple.com/account/subscriptions")!
     
+    private let dataRetentionText: String = """
+    [데이터 보존 및 자동 정리 정책]
+    
+    DeepSleep은 사용자 경험과 성능 최적화를 위해 다음과 같은 보존 정책을 적용합니다.
+    
+    1) 보존/정리 주기
+       - 30일이 지난 대화 세션: 요약 메시지 1건으로 압축합니다(핵심 맥락만 보존).
+       - 60일이 지난 대화 세션: 완전 삭제합니다(복구 불가).
+    
+    2) 보호 요일(예외)
+       - 선택된 보호 요일에 생성된 세션은 압축/삭제 대상에서 제외될 수 있습니다.
+       - 보호 요일은 추후 설정에서 관리할 수 있도록 확장 예정입니다.
+    
+    3) 시간 기준
+       - 기본적으로 기기 시간을 사용합니다. 서버 시간이 제공되는 경우 오프셋을 반영하여 왜곡을 방지합니다.
+    
+    4) 알림 사용 목적과 옵트아웃
+       - 알림은 타이머 종료/할 일 리마인더처럼 목적이 분명한 경우에만 사용합니다.
+       - 설정 > 알림 설정에서 전체/개별 알림을 끌 수 있으며, iOS 설정 앱으로 이동하여 권한을 변경할 수 있습니다.
+    
+    5) 개인정보 보호
+       - 외부 공유/내보내기 시에는 이메일/전화/카드번호 등 PII를 마스킹하여 내보낼 수 있습니다.
+    """
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "정책 모음집"
@@ -126,6 +153,8 @@ final class PolicyHubViewController: UITableViewController {
             UIApplication.shared.open(subscriptionsURL, options: [:], completionHandler: nil)
         case .medicalDisclaimer:
             showMedicalDisclaimer()
+        case .dataRetentionPolicy:
+            presentText(title: "데이터 보존/정리 정책", text: dataRetentionText)
         }
     }
     

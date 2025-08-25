@@ -376,8 +376,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     
     @objc private func shareTapped() {
         guard let vc = findViewController() else { return }
-        let text = messageLabel.text ?? ""
-        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        let rawText = messageLabel.text ?? ""
+        let masked = SettingsManager.shared.maskPIIForExport(rawText)
+        let activityVC = UIActivityViewController(activityItems: [masked], applicationActivities: nil)
         if let pop = activityVC.popoverPresentationController {
             pop.sourceView = bubbleView
             pop.sourceRect = bubbleView.bounds
@@ -1165,8 +1166,9 @@ extension ChatBubbleCell {
         // 공유하기 액션 추가 (iOS 네이티브 공유 시트)
         let shareAction = UIAction(title: "공유하기", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
             guard let self = self, let vc = self.findViewController() else { return }
-            let text = self.messageLabel.text ?? ""
-            let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+            let rawText = self.messageLabel.text ?? ""
+            let masked = SettingsManager.shared.maskPIIForExport(rawText)
+            let activityVC = UIActivityViewController(activityItems: [masked], applicationActivities: nil)
             if let pop = activityVC.popoverPresentationController {
                 pop.sourceView = self.bubbleView
                 pop.sourceRect = self.bubbleView.bounds

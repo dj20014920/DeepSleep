@@ -128,20 +128,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             MemoryManager.shared.setTier(tier)
             let tierText = isPremium ? "Premium" : "Free"
             UnifiedLogger.shared.info("💎 구독 상태 변경됨: \(tierText)", category: .appLifecycle)
+            
+            // ✅ 즐겨찾기 날짜 상한 적용 (프리미엄/트라이얼: 10, 무료: 3)
+            let cap = isPremium ? 10 : 3
+            let removed = SettingsManager.shared.enforceFavoriteCap(cap: cap)
+            if removed > 0 {
+                if !isPremium {
+                    ToastManager.shared.showWarning(message: "무료 플랜으로 전환되어 즐겨찾기 최대 3개만 유지됩니다. \(removed)개가 해제되었습니다.")
+                } else {
+                    ToastManager.shared.showToast(message: "즐겨찾기 제한(\(cap)개)에 맞춰 \(removed)개가 정리되었습니다.")
+                }
+            }
         }
     }
     
     // MARK: - Notification Authorization & Handling
     func requestNotificationAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("🔔 알림 권한 허용됨")
-            } else if let error = error {
-                print("🔔 알림 권한 요청 오류: \(error.localizedDescription)")
-            } else {
-                print("🔔 알림 권한 거부됨")
-            }
-        }
+        CentralNotificationScheduler.shared.requestAuthorizationIfNeeded()
     }
     
     // 앱이 foreground에 있을 때 알림을 수신하면 호출됨
