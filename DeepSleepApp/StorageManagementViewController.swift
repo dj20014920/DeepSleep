@@ -2,6 +2,59 @@ import UIKit
 
 // 중앙집중형 처리: SharedModels.swift의 정의 사용
 
+// MARK: - Neumorphism helpers
+fileprivate final class PillLabel: UILabel {
+    private let insets = UIEdgeInsets(top: 5, left: 10, bottom: 5, right: 10)
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.inset(by: insets))
+    }
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width + insets.left + insets.right,
+                      height: size.height + insets.top + insets.bottom)
+    }
+}
+
+fileprivate extension UIView {
+    func applyNeumorphicContainer(cornerRadius: CGFloat = 16, baseColor: UIColor? = nil) {
+        let color = baseColor ?? UIColor.systemBackground
+        backgroundColor = color
+        layer.cornerRadius = cornerRadius
+        layer.masksToBounds = false
+        // Remove existing custom sublayers
+        layer.sublayers?.removeAll(where: { $0.name == "neumo.dark" || $0.name == "neumo.light" })
+        
+        // Dark shadow
+        let dark = CALayer()
+        dark.name = "neumo.dark"
+        dark.frame = bounds
+        dark.backgroundColor = color.cgColor
+        dark.shadowColor = UIColor.black.withAlphaComponent(0.16).cgColor
+        dark.shadowOffset = CGSize(width: 6, height: 6)
+        dark.shadowRadius = 10
+        dark.shadowOpacity = 1
+        dark.cornerRadius = cornerRadius
+        dark.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
+        layer.insertSublayer(dark, at: 0)
+        
+        // Light highlight
+        let light = CALayer()
+        light.name = "neumo.light"
+        light.frame = bounds
+        light.backgroundColor = color.cgColor
+        light.shadowColor = UIColor.white.withAlphaComponent(0.9).cgColor
+        light.shadowOffset = CGSize(width: -6, height: -6)
+        light.shadowRadius = 10
+        light.shadowOpacity = 1
+        light.cornerRadius = cornerRadius
+        light.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
+        layer.insertSublayer(light, above: dark)
+        
+        layer.shouldRasterize = true
+        layer.rasterizationScale = UIScreen.main.scale
+    }
+}
+
 /// 📦 저장소 관리 화면
 /// 사용자가 대화 데이터 용량을 확인하고 선택적으로 삭제할 수 있는 기능 제공
 class StorageManagementViewController: UIViewController {
@@ -41,11 +94,21 @@ class StorageManagementViewController: UIViewController {
         loadStorageStatistics()
     }
     
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // 갱신 시 컨테이너에 뉴모피즘 섀도우 재적용(프레임 반영)
+        statisticsContainerView.applyNeumorphicContainer(cornerRadius: 16)
+        quickCleanupContainerView.applyNeumorphicContainer(cornerRadius: 16)
+    }
+    
     // MARK: - UI Setup
     
     private func setupUI() {
         title = "저장소 관리"
-        view.backgroundColor = .systemBackground
+        // 뉴모피즘 느낌의 밝은 배경
+        view.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.systemGray6 : UIColor(red: 0.93, green: 0.95, blue: 0.98, alpha: 1)
+        }
         
         // 네비게이션 바 설정
         setupNavigationBar()
@@ -86,131 +149,108 @@ class StorageManagementViewController: UIViewController {
     }
     
     private func setupStatisticsSection() {
-        statisticsContainerView.backgroundColor = .secondarySystemBackground
-        statisticsContainerView.layer.cornerRadius = 12
         statisticsContainerView.translatesAutoresizingMaskIntoConstraints = false
+        statisticsContainerView.applyNeumorphicContainer(cornerRadius: 16)
         
         // 제목
         let titleLabel = UILabel()
         titleLabel.text = "📊 저장소 현황"
         titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .label
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 통계 라벨들
         totalSizeLabel.font = .systemFont(ofSize: 16)
         totalSizeLabel.textColor = .label
-        totalSizeLabel.translatesAutoresizingMaskIntoConstraints = false
         
         fileCountLabel.font = .systemFont(ofSize: 16)
         fileCountLabel.textColor = .label
-        fileCountLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        retentionLabel.font = .systemFont(ofSize: 16)
+        retentionLabel.font = .systemFont(ofSize: 14)
         retentionLabel.textColor = .secondaryLabel
-        retentionLabel.translatesAutoresizingMaskIntoConstraints = false
+        retentionLabel.numberOfLines = 0
+        retentionLabel.lineBreakMode = .byWordWrapping
         
         // 새로고침 버튼
         refreshButton.setTitle("🔄 새로고침", for: .normal)
         refreshButton.setTitleColor(.systemBlue, for: .normal)
         refreshButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
         refreshButton.addTarget(self, action: #selector(refreshButtonTapped), for: .touchUpInside)
-        refreshButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        statisticsContainerView.addSubview(titleLabel)
-        statisticsContainerView.addSubview(totalSizeLabel)
-        statisticsContainerView.addSubview(fileCountLabel)
-        statisticsContainerView.addSubview(retentionLabel)
-        statisticsContainerView.addSubview(refreshButton)
         
         // 정책 배지(상단 고정): 최근 N일 보호, 즐겨찾기 제외
         let protectionDays = SettingsManager.shared.protectedDaysWindow
-        let policyRecentBadge = UILabel()
+        let policyRecentBadge = PillLabel()
         policyRecentBadge.text = "🔒 최근 \(protectionDays)일 보호"
         policyRecentBadge.font = .systemFont(ofSize: 12, weight: .semibold)
         policyRecentBadge.textColor = .white
         policyRecentBadge.backgroundColor = .systemBlue
-        policyRecentBadge.layer.cornerRadius = 6
+        policyRecentBadge.layer.cornerRadius = 10
         policyRecentBadge.clipsToBounds = true
-        policyRecentBadge.textAlignment = .center
-        policyRecentBadge.translatesAutoresizingMaskIntoConstraints = false
         
-        let policyFavoriteBadge = UILabel()
+        let policyFavoriteBadge = PillLabel()
         policyFavoriteBadge.text = "⭐ 즐겨찾기 제외"
         policyFavoriteBadge.font = .systemFont(ofSize: 12, weight: .semibold)
         policyFavoriteBadge.textColor = .white
         policyFavoriteBadge.backgroundColor = .systemOrange
-        policyFavoriteBadge.layer.cornerRadius = 6
+        policyFavoriteBadge.layer.cornerRadius = 10
         policyFavoriteBadge.clipsToBounds = true
-        policyFavoriteBadge.textAlignment = .center
-        policyFavoriteBadge.translatesAutoresizingMaskIntoConstraints = false
         
-        statisticsContainerView.addSubview(policyRecentBadge)
-        statisticsContainerView.addSubview(policyFavoriteBadge)
+        let policyRow = UIStackView(arrangedSubviews: [policyRecentBadge, policyFavoriteBadge])
+        policyRow.axis = .horizontal
+        policyRow.spacing = 8
+        policyRow.alignment = .leading
+        policyRow.distribution = .fillProportionally
         
-        // ⭐️ 즐겨찾기 상한 배지 + 자세히 버튼
+        // 즐겨찾기 상한 + 자세히
         let capBadge = UILabel()
         capBadge.text = "⭐️ 즐겨찾기 상한: 무료 3개 · 프리미엄/트라이얼 10개"
         capBadge.font = .systemFont(ofSize: 13, weight: .semibold)
         capBadge.textColor = .systemYellow
-        capBadge.translatesAutoresizingMaskIntoConstraints = false
-        statisticsContainerView.addSubview(capBadge)
+        capBadge.numberOfLines = 2
+        capBadge.adjustsFontSizeToFitWidth = true
+        capBadge.minimumScaleFactor = 0.85
         
         let capInfoButton = UIButton(type: .system)
         capInfoButton.setTitle("자세히", for: .normal)
         capInfoButton.setTitleColor(.systemBlue, for: .normal)
         capInfoButton.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         capInfoButton.addTarget(self, action: #selector(showFavoriteCapInfo), for: .touchUpInside)
-        capInfoButton.translatesAutoresizingMaskIntoConstraints = false
-        statisticsContainerView.addSubview(capInfoButton)
+        
+        let capRow = UIStackView(arrangedSubviews: [capBadge, capInfoButton])
+        capRow.axis = .horizontal
+        capRow.spacing = 8
+        capRow.alignment = .fill
+        capRow.distribution = .fill
+        
+        let statsStack = UIStackView(arrangedSubviews: [titleLabel, totalSizeLabel, fileCountLabel, retentionLabel, policyRow, capRow])
+        statsStack.axis = .vertical
+        statsStack.spacing = 8
+        statsStack.alignment = .leading
+        statsStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        statisticsContainerView.addSubview(statsStack)
+        statisticsContainerView.addSubview(refreshButton)
         
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 16),
-            titleLabel.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
+            statsStack.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 16),
+            statsStack.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
+            statsStack.trailingAnchor.constraint(lessThanOrEqualTo: statisticsContainerView.trailingAnchor, constant: -16),
             
-            totalSizeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-            totalSizeLabel.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            
-            fileCountLabel.topAnchor.constraint(equalTo: totalSizeLabel.bottomAnchor, constant: 8),
-            fileCountLabel.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            
-            retentionLabel.topAnchor.constraint(equalTo: fileCountLabel.bottomAnchor, constant: 8),
-            retentionLabel.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            
-            policyRecentBadge.topAnchor.constraint(equalTo: retentionLabel.bottomAnchor, constant: 6),
-            policyRecentBadge.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            policyRecentBadge.heightAnchor.constraint(equalToConstant: 22),
-            
-            policyFavoriteBadge.centerYAnchor.constraint(equalTo: policyRecentBadge.centerYAnchor),
-            policyFavoriteBadge.leadingAnchor.constraint(equalTo: policyRecentBadge.trailingAnchor, constant: 8),
-            policyFavoriteBadge.heightAnchor.constraint(equalToConstant: 22),
-            policyFavoriteBadge.trailingAnchor.constraint(lessThanOrEqualTo: statisticsContainerView.trailingAnchor, constant: -16),
-            
-            capBadge.topAnchor.constraint(equalTo: policyRecentBadge.bottomAnchor, constant: 6),
-            capBadge.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            
-            capInfoButton.centerYAnchor.constraint(equalTo: capBadge.centerYAnchor),
-            capInfoButton.leadingAnchor.constraint(equalTo: capBadge.trailingAnchor, constant: 8),
-            capInfoButton.trailingAnchor.constraint(lessThanOrEqualTo: statisticsContainerView.trailingAnchor, constant: -16),
-            
-            refreshButton.topAnchor.constraint(equalTo: titleLabel.topAnchor),
+            refreshButton.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 12),
             refreshButton.trailingAnchor.constraint(equalTo: statisticsContainerView.trailingAnchor, constant: -16),
             
-            capInfoButton.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16)
+            statsStack.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16)
         ])
     }
     
     private func setupQuickCleanupSection() {
-        quickCleanupContainerView.backgroundColor = .secondarySystemBackground
-        quickCleanupContainerView.layer.cornerRadius = 12
         quickCleanupContainerView.translatesAutoresizingMaskIntoConstraints = false
+        quickCleanupContainerView.applyNeumorphicContainer(cornerRadius: 16)
         
         // 제목
         let titleLabel = UILabel()
         titleLabel.text = "🧹 빠른 정리"
         titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .label
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 버튼들 설정
         setupCleanupButton(compressButton, title: "🗑️ 선택한 날짜 삭제", color: .systemBlue)
@@ -220,35 +260,39 @@ class StorageManagementViewController: UIViewController {
         compressButton.addTarget(self, action: #selector(compressOldConversationsTapped), for: .touchUpInside)
         deleteAllButton.addTarget(self, action: #selector(deleteAllConversationsTapped), for: .touchUpInside)
         
-        quickCleanupContainerView.addSubview(titleLabel)
-        quickCleanupContainerView.addSubview(compressButton)
-        quickCleanupContainerView.addSubview(deleteAllButton)
+        let stack = UIStackView(arrangedSubviews: [titleLabel, compressButton, deleteAllButton])
+        stack.axis = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        
+        quickCleanupContainerView.addSubview(stack)
         
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: quickCleanupContainerView.topAnchor, constant: 16),
-            titleLabel.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
+            stack.topAnchor.constraint(equalTo: quickCleanupContainerView.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: -16),
             
-            compressButton.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-            compressButton.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
-            compressButton.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
-            compressButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            deleteAllButton.topAnchor.constraint(equalTo: compressButton.bottomAnchor, constant: 8),
-            deleteAllButton.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
-            deleteAllButton.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
-            deleteAllButton.heightAnchor.constraint(equalToConstant: 44),
-            deleteAllButton.bottomAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: -16)
+            compressButton.heightAnchor.constraint(equalToConstant: 48),
+            deleteAllButton.heightAnchor.constraint(equalToConstant: 48)
         ])
     }
     
     private func setupCleanupButton(_ button: UIButton, title: String, color: UIColor) {
         button.setTitle(title, for: .normal)
         button.setTitleColor(color, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        button.backgroundColor = color.withAlphaComponent(0.1)
-        button.layer.cornerRadius = 8
-        button.layer.borderWidth = 1
-        button.layer.borderColor = color.withAlphaComponent(0.3).cgColor
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        button.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.systemGray6 : UIColor(red: 0.94, green: 0.96, blue: 0.99, alpha: 1)
+        }
+        button.layer.cornerRadius = 14
+        button.layer.masksToBounds = false
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        // Neumorphic soft shadow (raised button)
+        button.layer.shadowColor = UIColor.black.withAlphaComponent(0.12).cgColor
+        button.layer.shadowOpacity = 1
+        button.layer.shadowOffset = CGSize(width: 4, height: 4)
+        button.layer.shadowRadius = 8
         button.translatesAutoresizingMaskIntoConstraints = false
     }
     
