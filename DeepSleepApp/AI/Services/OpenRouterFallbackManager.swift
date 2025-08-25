@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 
 /// 🚀 Phase 3: 고도화된 OpenRouter 무료/테스트 모델 폴백 매니저
 /// - 지능형 모델 선택: 성공률 기반 동적 순서 조정
@@ -36,22 +39,17 @@ final class OpenRouterFallbackManager {
     private let performanceQueue = DispatchQueue(label: "com.deepsleep.openrouter.performance", attributes: .concurrent)
     
     // MARK: - 🧠 Phase 3: 지능형 캐싱 시스템
+    // v2: 충돌 방지형 캐시 키 (고정 길이 해시 시그니처)
     private struct CacheKey: Hashable {
-        let content: String
-        let mode: AIMode
-        
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(content.prefix(100)) // 처음 100자만 해시에 사용
-            hasher.combine(mode)
-        }
+        let signature: String // 예: v2|mode|P:xxxx|S:xxxx|H:xxxx|U:xxxxxxxxxxxx
     }
-    
+
     private struct CacheEntry {
         let response: String
         let timestamp: Date
         let model: String
     }
-    
+
     private var responseCache: [CacheKey: CacheEntry] = [:]
     private let cacheQueue = DispatchQueue(label: "com.deepsleep.openrouter.cache", attributes: .concurrent)
     private let cacheExpirationTime: TimeInterval = 300 // 5분
@@ -128,7 +126,7 @@ final class OpenRouterFallbackManager {
 
     /// 🚀 Phase 3: 고도화된 지능형 OpenRouter 호출 (성능 최적화 + 적응형 타임아웃)
     func sendMessageWithFallback(content: String, mode: AIMode) async throws -> String {
-        let cacheKey = CacheKey(content: content, mode: mode)
+        let cacheKey = CacheKey(signature: buildCacheSignatureForSingle(content: content, mode: mode))
         
         // 1. 캐시 확인
         if let cachedResponse = getCachedResponse(for: cacheKey) {
@@ -249,9 +247,8 @@ final class OpenRouterFallbackManager {
             finalMessages.insert(ORMessage(role: "system", content: systemPromptPrefix(for: mode)), at: 0)
         }
 
-        // 캐시 키 구성: 역할:내용을 합쳐서 생성 (길이 제한 적용)
-        let keyString = finalMessages.map { "\($0.role):\($0.content)" }.joined(separator: "\n")
-        let cacheKey = CacheKey(content: String(keyString.prefix(800)), mode: mode)
+        // 캐시 키 구성 (v2): 시스템/히스토리/최신 사용자 발화 해시 기반
+        let cacheKey = CacheKey(signature: buildCacheSignatureForMessages(finalMessages, mode: mode))
 
         if let cachedResponse = getCachedResponse(for: cacheKey) {
             print("⚡ [OpenRouterFallback] 캐시 히트! 모델: \(cachedResponse.model)")
@@ -567,6 +564,38 @@ final class OpenRouterFallbackManager {
         }
         
         return baseTimeout
+    }
+
+    // MARK: - 🔐 v2 캐시 시그니처 빌더 (DRY)
+    private func normalize(_ s: String) -> String {
+        return s.replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\u{0000}", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    private func sha256(_ s: String) -> String {
+        guard let data = s.data(using: .utf8) else { return "0" }
+        #if canImport(CryptoKit)
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+        #else
+        // FNV-1a 64-bit as fallback
+        var hash: UInt64 = 0xcbf29ce484222325
+        for b in data { hash = (hash ^ UInt64(b)) &* 0x100000001b3 }
+        return String(format: "%016llx", hash)
+        #endif
+    }
+    private func buildCacheSignatureForSingle(content: String, mode: AIMode) -> String {
+        let sys = systemPromptPrefix(for: mode)
+        let usr = normalize(content)
+        let sig = "v2|\(mode.rawValue)|S:\(sha256(sys).prefix(8))|U:\(sha256(usr).prefix(12))"
+        return sig
+    }
+    private func buildCacheSignatureForMessages(_ messages: [ORMessage], mode: AIMode) -> String {
+        let sys = messages.first(where: { $0.role.lowercased() == "system" })?.content ?? ""
+        let lastUser = messages.last(where: { $0.role.lowercased() == "user" })?.content ?? ""
+        let recent = Array(messages.suffix(16)).map { "\($0.role.lowercased()):\(normalize($0.content))" }.joined(separator: "\n")
+        let sig = "v2|\(mode.rawValue)|S:\(sha256(sys).prefix(8))|H:\(sha256(recent).prefix(8))|U:\(sha256(lastUser).prefix(12))"
+        return sig
     }
     
     /// 타임아웃 래퍼 함수

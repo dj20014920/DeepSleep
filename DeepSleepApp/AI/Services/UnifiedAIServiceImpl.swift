@@ -621,7 +621,13 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             let summary = MemoryManager.shared.getMemorySummary(maxItems: 5)
             return summary.isEmpty ? "none" : String(summary.hashValue)
         }()
-        let personaSignature = "mode=\(mode.rawValue)|model=\(selectedModel)|mem=\(memorySummaryFP)"
+        // DRY: 중앙 유틸로 통일
+        let personaSignature = AIContextSignature.build(
+            personaSignature: UserRulesManager.shared.personaSignature(),
+            mode: mode,
+            model: model,
+            memorySummaryFP: memorySummaryFP
+        )
         
         // 3시간 TTL 캐시 활용
         let prompt = contextManager.getSystemPrompt(personaSignature: personaSignature) {

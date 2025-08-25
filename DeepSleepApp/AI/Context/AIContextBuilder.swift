@@ -40,7 +40,21 @@ public final class AIContextBuilder {
         print("   - Current message: \(currentUserMessage.prefix(100))...")
 
 // 1) 시스템 프롬프트 (캐시)
-        let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: personaSignature) {
+        // DRY: 중앙 유틸 기반 시그니처로 캐시 키 통일
+        let selectedModel = SettingsManager.shared.selectedLLM
+        let modelUnified = AIContextSignature.mapModel(from: selectedModel)
+        let memorySummaryFP: String? = {
+            let s = MemoryManager.shared.getMemorySummary(maxItems: 5)
+            return s.isEmpty ? nil : String(s.hashValue)
+        }()
+        let unifiedSignature = AIContextSignature.build(
+            personaSignature: UserRulesManager.shared.personaSignature(),
+            mode: mode,
+            model: modelUnified,
+            memorySummaryFP: memorySummaryFP
+        )
+        
+        let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: unifiedSignature) {
             // UserSettingsModel에서 AI 컨텍스트 생성
             let userSettings = UserSettingsModel.loadFromUserDefaults()
             let userContext = userSettings.generateAIContext()
@@ -117,7 +131,7 @@ public final class AIContextBuilder {
         - 한국어로 간결하고 친절하게 답변하세요.
         - JSON이 필요한 경우, 올바른 스키마와 이스케이프를 준수하세요.
         - 개인정보를 외부에 저장하지 마세요. 단, 앱 내부 세션 범위에서는 직전 대화 흐름을 이해하고 자연스럽게 이어가세요.
-        - "기억하지 못한다", "대화는 각각 별개다"와 같은 메타발화는 하지 마세요. 필요한 경우 최근 메시지를 간단히 요약해 연결감을 유지하세요.
+        - 최근 메시지를 간단히 요약해 연결감을 유지하세요.
         - 현재 모드: \(mode.rawValue)
         - 안전/윤리 가이드를 준수하세요.
         """

@@ -17,19 +17,31 @@ public final class AIResponseParser {
         // 50k 문자 상한 (보안/성능)
         let capped = String(raw.prefix(50_000))
 
-        // 1) JSON 시도
-        if let data = capped.data(using: .utf8),
+        // 0) 코드펜스 제거(가벼운 전처리)
+        let defenced = stripCodeFences(capped)
+
+        // 1) 전체 JSON 시도
+        if let data = defenced.data(using: .utf8),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let common = self.parseCommon(obj) {
-                return sanitize(common)
-            }
-            if let specific = self.parseByProvider(obj, provider: provider) {
-                return sanitize(specific)
-            }
+            if let common = self.parseCommon(obj) { return sanitize(common) }
+            if let specific = self.parseByProvider(obj, provider: provider) { return sanitize(specific) }
         }
 
-        // 2) 코드펜스/마크다운 제거 + 폴백
-        return sanitize(stripCodeFences(capped))
+        // 2) 혼합 출력(텍스트 + JSON)에서 첫 JSON 객체만 추출 후 재시도
+        if let jsonSlice = extractFirstJSONObjectString(defenced) {
+            if let data = jsonSlice.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let common = self.parseCommon(obj) { return sanitize(common) }
+                if let specific = self.parseByProvider(obj, provider: provider) { return sanitize(specific) }
+            } else {
+                print("❌ [AIResponseParser] JSON slice 파싱 실패")
+            }
+        } else {
+            print("ℹ️ [AIResponseParser] JSON 객체 미검출 - 혼합 출력 아님")
+        }
+
+        // 3) 폴백: 코드펜스/마크다운 제거 후 반환
+        return sanitize(defenced)
     }
 
     // 공통 키 우선
@@ -108,5 +120,35 @@ public final class AIResponseParser {
             lines.removeLast()
         }
         return lines.joined(separator: "\n")
+    }
+
+    // 혼합 출력에서 첫 번째 JSON 객체 서브스트링을 찾아 반환
+    func extractFirstJSONObjectString(_ s: String) -> String? {
+        let scalars = Array(s.unicodeScalars)
+        guard let startIdx = scalars.firstIndex(where: { $0 == "{" }) else { return nil }
+        var i = startIdx
+        var depth = 0
+        var inString = false
+        var escaped = false
+        while i < scalars.count {
+            let ch = scalars[i]
+            if inString {
+                if escaped { escaped = false }
+                else if ch == "\\" { escaped = true }
+                else if ch == "\"" { inString = false }
+            } else {
+                if ch == "\"" { inString = true }
+                else if ch == "{" { depth += 1 }
+                else if ch == "}" {
+                    depth -= 1
+                    if depth == 0 {
+                        let slice = String(String.UnicodeScalarView(scalars[startIdx...i]))
+                        return slice
+                    }
+                }
+            }
+            i += 1
+        }
+        return nil
     }
 }

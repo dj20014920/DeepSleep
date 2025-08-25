@@ -7,21 +7,21 @@
 본 섹션은 2025-08-23에 적용된 변경점을 파일 기준으로 상세 기록하고, 검증/회귀 체크리스트 및 남은 과제를 정의합니다.
 
 1) 파일별 변경내역 (What changed where)
+- AIResponseParser.swift
+  - 혼합 출력(JSON + 텍스트)에서 첫 JSON 객체 슬라이스 추출 기능 추가.
+  - 중앙 파서 단일 진입점으로 정렬, 공급자별 경로 유지. 파싱 실패/미검출 최소 로그 추가.
 - OpenRouterFallbackManager.swift
-  - ORMessage / ORRequest / ORResponse 구조 정의, sendMessageWithFallback(messages:) 추가, callOpenRouter(model:messages:) 네이티브 멀티-메시지 지원.
-  - 캐시 키: 역할:내용 시퀀스로 구성(길이 제한 포함) → 캐시 정확도 향상.
+  - v2 해시 서명 캐시 키로 충돌 근본 제거. 단일/멀티 메시지 동일 빌더 사용.
 - UnifiedAIServiceImpl.swift
-  - freeModel 분기: 시스템 프롬프트 + recent(균형 16턴) + 현재 user 입력을 ORMessage로 조합해 OpenRouter로 전송. TokenUsage 추정 및 메타정보 부가.
-  - getOptimalModelForMode, optimizeTokenConfigForModel 등 기존 최적화 함수 유지.
+  - AIContextSignature 기반 시그니처 생성 사용(Builder와 통일).
 - AIContextBuilder.swift
-  - generateDefaultSystemPrompt에 개인정보 외부저장 금지/세션 내 흐름 유지/메타발화 금지 명시.
-  - buildPrompt는 recent(ChatMessageLite) 기반으로 역할을 보존해 텍스트 조립.
+  - AIContextSignature 유틸 사용으로 캐시 키 통일.
 - AIContextManager.swift
   - 캐시 TTL=3시간 유지, 로깅 확장.
 - ChatRequestCenter.swift
   - 저장 책임 제거(Single Writer: SessionManager만 저장). 멱등성(dedupKey: SHA256(sessionId|mode|model|content))과 큐 관리에 집중. in-flight/완료 키 디스크 지속화.
 - ChatViewController.swift
-  - appendChat 경로에서 system/preset/퀵액션/옵션류 영구 저장 스킵. JSON 파서 보강.
+  - 중앙 파서 사용으로 자체 JSON 파서 deprecated 처리(호출 제거). DRY/KISS 강화.
 - MessageStore.swift
   - 초기 환영 메시지 비영구 저장(isPersistent=false) + saveToDisk 시 필터링, 디스크 저장소 오염 방지.
 - SessionManager.swift

@@ -201,7 +201,8 @@
 		E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */; };
 		E0E7BCDD2E56E4CC00FF7073 /* PolicyHubViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */; };
 E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1032E33ACB3002F75E6 /* ViewController+PlaybackControls.swift */; };
-		E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */; };
+E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */; };
+E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -385,7 +386,8 @@ E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ 
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
-		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
+E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
+E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
 		E0E7BC982E53664B00FF7073 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
 		E0E7BC992E53664B00FF7073 /* ContextEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextEvents.swift; sourceTree = "<group>"; };
 		E0E7BC9A2E53664B00FF7073 /* ContextMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMetrics.swift; sourceTree = "<group>"; };
@@ -765,6 +767,7 @@ E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ 
 			isa = PBXGroup;
 			children = (
 				E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */,
+				E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */,
 				E0E7BC982E53664B00FF7073 /* AIContextManager.swift */,
 				E0E7BC992E53664B00FF7073 /* ContextEvents.swift */,
 				E0E7BC9A2E53664B00FF7073 /* ContextMetrics.swift */,
@@ -1014,6 +1017,7 @@ E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ 
 				E0E7BCA62E53664B00FF7073 /* ContextMetrics.swift in Sources */,
 				E0E7BCA72E53664B00FF7073 /* TokenOptimizer.swift in Sources */,
 				E0E7BCA82E53664B00FF7073 /* AIContextBuilder.swift in Sources */,
+				E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */,
 				E0E7BCA92E53664B00FF7073 /* ContextEvents.swift in Sources */,
 				E0E7BCAA2E53664B00FF7073 /* AIResponseParser.swift in Sources */,
 				E0E7BCAB2E53664B00FF7073 /* MemoryManager.swift in Sources */,
