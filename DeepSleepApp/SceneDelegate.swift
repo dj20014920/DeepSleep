@@ -302,13 +302,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func setupAIServices() {
         print("🚀 [SceneDelegate] AI 서비스 초기화 시작")
         
-        // 1. 기존 UnifiedAIServiceImpl 초기화 (이미 충분히 완성됨)
-        let _ = UnifiedAIServiceImpl.shared
-        print("✅ [SceneDelegate] UnifiedAIServiceImpl 초기화 완료")
-        
-        // 2. ChatManager 초기화 (AI 서비스와 연동)
+        // 1. SessionManager 초기화 (AI 서비스는 내부에서 필요 시 초기화)
         let _ = SessionManager.shared
-        print("✅ [SceneDelegate] ChatManager 초기화 완료")
+        print("✅ [SceneDelegate] SessionManager 초기화 완료")
         
         // 3. SessionManager 초기화 (통합 데이터 관리)
         let _ = SessionManager.shared

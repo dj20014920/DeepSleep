@@ -260,37 +260,46 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String?
 ) async throws -> AIResponse {
         
-        // 🎨 모드별 맞춤형 시스템 프롬프트 생성
-        let systemPrompt = assembledPrompt == nil ? generateOptimizedSystemPrompt(for: mode, model: model) : ""
+        // 🎨 모드별 맞춤형 시스템 프롬프트 생성 + assembledPrompt 병합
+        var systemPrompt = generateOptimizedSystemPrompt(for: mode, model: model)
+        if let assembled = assembledPrompt, !assembled.isEmpty {
+            systemPrompt += "\n\n" + assembled
+        }
+        
+        // 멀티-메시지 구성: 시스템 + 최근 대화 + 현재 사용자 입력
+        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
+        if let history = context?.conversationHistory, !history.isEmpty {
+            let recent = Array(history.suffix(16))
+            for turn in recent {
+                roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+            }
+        }
+        roleMessages.append(RoleMessage(role: .user, content: content))
         
         switch model {
         case .claude:
             guard let service = claudeService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            let body = assembledPrompt ?? content
-            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            return try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
             
         case .openAI:
             guard let service = openAIService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            let body = assembledPrompt ?? content
-            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            return try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
             
         case .gemini:
             guard let service = geminiService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            let body = assembledPrompt ?? content
-            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            return try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
             
         case .naver:
             guard let service = naverService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            let body = assembledPrompt ?? content
-            return try await service.sendMessage(content: body, systemPrompt: systemPrompt, mode: mode, tokenConfig: tokenConfig)
+            return try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
             
         case .freeModel:
             print("🎁 [UnifiedAIService] 무료 모델 폴백 시스템 호출 - 모드: \(mode)")
@@ -299,28 +308,50 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 print("❌ [UnifiedAIService] freeModelService가 nil입니다!")
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            let body = assembledPrompt ?? "\(systemPrompt)\n\n사용자: \(content)"
-            let response = try await freeService.sendMessageWithFallback(
-                content: body,
+            
+            // 멀티-메시지 구성: 시스템 + (대화 이력 또는 assembledPrompt) + 현재 사용자 입력
+            var sysPrompt = generateOptimizedSystemPrompt(for: mode, model: model)
+            if let assembled = assembledPrompt, !assembled.isEmpty {
+                sysPrompt += "\n\n" + assembled
+            }
+            var messages: [OpenRouterFallbackManager.ORMessage] = [
+                .init(role: "system", content: sysPrompt)
+            ]
+            
+            if let history = context?.conversationHistory, !history.isEmpty {
+                let recent = Array(history.suffix(16)) // 최근 16개만 포함
+                for turn in recent {
+                    messages.append(.init(role: turn.role.rawValue, content: turn.content))
+                }
+            }
+            // 최신 사용자 입력 추가
+            messages.append(.init(role: "user", content: content))
+            
+            let responseText = try await freeService.sendMessageWithFallback(
+                messages: messages,
                 mode: mode
             )
+            
+            let promptChars = messages.reduce(0) { $0 + $1.content.count }
+            let promptTokensEst = promptChars / 4
+            let completionTokensEst = responseText.count / 4
             
             // 문자열 응답을 AIResponse로 변환
             return AIResponse(
                 id: UUID().uuidString,
                 model: model,
                 mode: mode,
-                content: response,
+                content: responseText,
                 metadata: ResponseMetadata(
                     emotionAnalysis: nil,
                     recommendations: nil,
                     confidenceScore: 0.8,
-                    additionalInfo: ["source": "OpenRouter"]
+                    additionalInfo: ["source": "OpenRouter", "message_count": messages.count]
                 ),
                 usage: TokenUsage(
-                    promptTokens: content.count / 4, // 대략적인 추정
-                    completionTokens: response.count / 4,
-                    totalTokens: (content.count + response.count) / 4,
+                    promptTokens: promptTokensEst,
+                    completionTokens: completionTokensEst,
+                    totalTokens: promptTokensEst + completionTokensEst,
                     estimatedCost: 0.0 // 무료
                 ),
                 timestamp: Date(),
@@ -604,6 +635,8 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
             - 실용적이고 도움이 되는 조언을 제공하세요
             - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
+            - 개인정보를 외부에 저장하지 마세요. 세션 내 제공된 대화 히스토리를 바탕으로 맥락을 이어가세요.
+            - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 범위에서 자연스럽게 이어가세요.
             """
         }
         return prompt

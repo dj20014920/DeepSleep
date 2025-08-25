@@ -19,6 +19,45 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-23 업데이트: 멀티-메시지 전환, 저장 정책 개편, 동기 저장, 문서/코드 SSoT 정합
+
+본 업데이트는 모든 호출 경로에서 역할 기반 멀티-메시지(system/assistant/user) 구조 지원과 저장 정책(환영/안내/퀵액션/프리셋 원문 비저장, 요약 저장), ChatRequestCenter→SessionManager 동기 저장, 그리고 가이드/로드맵 동기화를 포함합니다.
+
+변경 요약(파일별)
+- DeepSleepApp/AI/Services/OpenRouterFallbackManager.swift
+  - ORMessage 구조체 도입 및 멀티-메시지 전송 API 추가(sendMessageWithFallback(messages:)).
+  - 캐시 키를 역할:내용 시퀀스로 구성하여 문맥 캐싱 정확도 향상.
+- DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift
+  - freeModel 경로에서 시스템 프롬프트 + (컨텍스트/히스토리) + 사용자 메시지를 ORMessage 배열로 구성해 OpenRouter로 전송.
+  - 모델별 시스템 최적화 지침(getModelSpecificOptimization) 유지.
+- DeepSleepApp/AI/Context/AIContextBuilder.swift
+  - 시스템 프롬프트 보강: “외부 저장 금지 + 세션 내 흐름 유지”, “기억 못한다/대화 별개” 메타발화 금지 명시.
+  - AssembledPrompt를 유지하되, recent를 role 포함 형태(ChatMessageLite)로 처리.
+- DeepSleepApp/AI/Context/AIContextManager.swift
+  - 3시간 TTL 캐시 유지, 디버깅 로그 확장.
+- DeepSleepApp/Chat/ChatRequestCenter.swift
+  - 사용자/AI 메시지 저장은 수행하지 않음 (SessionManager가 단일 경로로 처리)
+  - 멱등성 강화: sessionId+mode+model+content 기반 dedupKey, in-flight/완료 키 집합 디스크 지속화
+- DeepSleepApp/ChatViewController.swift
+  - appendChat 중앙 경로에서 system/preset/quick-action 옵션류 저장 스킵.
+  - JSON 원문 노출 방지 파서 강화(parseAIResponse / parseJSONIntelligently).
+- DeepSleepApp/MessageStore.swift
+  - 초기 환영(system) 메시지 영구 저장 제외(isPersistent=false, saveToDisk 필터링)
+  - 쓰기 경로 Deprecated + DEBUG assertion: saveMessage/saveSystemMessage 개발 중 사용 차단 (SessionManager 경유만 허용)
+- DeepSleepApp/SessionManager.swift
+  - buildBalancedRecent(user 8/assistant 8) 제공 및 중앙 sendMessage에서 recent 조립.
+
+검증 체크리스트
+- UnifiedAIServiceImpl.freeModel 경로가 ORMessage 배열을 사용해 호출되는지 로그에서 확인.
+- 환영/안내/퀵액션/프리셋 원문이 디스크에 저장되지 않음(MessageStore.saveToDisk 필터) 확인.
+- ChatRequestCenter 경로로 보낸 메시지가 SessionManager.getRecentChatMessages에 반영되는지 확인.
+- JSON 응답 버블에 원문이 아닌 정제된 텍스트만 표시되는지 확인.
+
+남은 이슈/다음 단계
+- 기타 공급자(Claude/OpenAI/Gemini/Naver)도 멀티-메시지 인터페이스를 네이티브로 수용하도록 확장(현재는 system+user 2메시지 구성으로 충분).
+- 프리셋 플로우 요약 저장을 더 풍부한 메타와 함께 확장할지 검토(현재는 간단 요약 문장).
+- 경고 정리 및 테스트 보강(ROADMAP 2025-08-23 단락 참조).
+
 ---
 
 ## 1. 프로젝트 개요
@@ -316,22 +355,23 @@
 
 ## 4. 주요 컴포넌트 상세
 
-### 4.1 ChatManager.swift
-**역할**: 모든 AI 호출의 중앙 허브
+### 4.1 SessionManager.sendMessage() — 중앙 AI 호출
+**역할**: 모든 외부 AI 호출의 단일 진입점 (ChatManager 완전 통합)
 
 ```swift
-// 핵심 메서드
-func sendMessage(
-    prompt: String, 
-    aiMode: AIMode = .generalConversation
-) async throws -> AIResponse
+// 핵심 메서드 (오버로드)
+public func sendMessage(
+    content: String,
+    model: AIModel = .claude,
+    mode: AIMode,
+    saveMessages: Bool = true
+) async throws -> String
 ```
 
-**주요 기능:**
-- UsageLimitManager 통합으로 사용량 제한 체크
-- UnifiedAIServiceImpl을 통한 4개 외부 AI 연동
-- 자동 fallback 및 오류 처리
-- 성공 시 사용량 증가 처리
+**핵심 동작:**
+- 사용량 제한 검사 → AIContextBuilder로 assembled prompt 구성 → UnifiedAIServiceImpl 내부 호출(외부 직접 호출 금지) → 응답 보안 검증 → 저장 정책에 따라 SessionManager가 사용자/AI 메시지 저장(saveMessages: true일 때만)
+- JSON/프리셋 등 모드별 정책 지원
+- DRY/KISS: UI/VM/서비스 어디서든 SessionManager만 호출
 
 ### 4.2 🎉 Todo 통합 시스템 (2025-08-11 완성)
 
@@ -483,8 +523,10 @@ private func buildMinimalContextForAI() -> String {
 - ✅ **감정 컨텍스트 통합**: SessionManager의 실제 감정 히스토리 활용
 - ✅ **토큰 효율성**: 200토큰 제한 내에서 풍부한 개인화 정보 제공
 
-### 4.4 UnifiedAIServiceImpl.swift (730라인)
-**역할**: 4개 외부 AI 모델의 통합 서비스
+### 4.4 UnifiedAIServiceImpl.swift (내부 서비스)
+**역할**: 4개 외부 AI 모델의 통합 서비스 (SessionManager 내부에서만 사용)
+
+> 외부에서 직접 호출/초기화 금지: 앱 코드 전역은 반드시 SessionManager.sendMessage()를 통해서만 AI를 호출합니다.
 
 **지원 AI 모델(저렴한 순으로 호출):**
 1. **Claude Haiku 3.5** (우선순위 4)
@@ -496,7 +538,8 @@ private func buildMinimalContextForAI() -> String {
 - getAPIKey() 메서드로 안전한 API 키 로드(.gitignore+Secrets.xcconfig+Info를 이용한 분산/보안시스템)
 - 모델별 특화된 요청 형식 처리
 - 종합적인 오류 처리 및 재시도 로직
-- AICallLogger를 통한 상세 로깅
+- ContextMetrics를 통한 모델/모드별 메트릭 요약
+- SessionManager로부터 assembledPrompt/대화 이력(AIContext) 입력을 받아 처리
 
 ### 4.3 UsageLimitManager.swift (292라인)
 **역할**: AI 기능별 일일 사용량 제한 관리
@@ -987,7 +1030,7 @@ func getHarmonyLearningStats() async -> HarmonyLearningStats
     - 에너지 레벨 실시간 추정
     - `generatePersonalizedPrompt()` - 핵심 개인화 함수
 
-3. **ChatManager.swift** - 세션 관리
+3. **SessionManager.swift** - 세션 관리
     - **메모리 캐시 + 디스크 저장** 이중화
     - **동시 접근 안전성** (concurrent queue)
     - 세션별 메타데이터 관리
@@ -1830,6 +1873,13 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 ---
 
 ## 🆕 2025-08-20 업데이트 (페르소나 캐싱 및 AI 컨텍스트 관리 완성)
+
+### ✅ 2025-08-22 사용자 결정 방안(요약)
+- 모든 모델에 멀티-메시지 역할 구조 적용(system/recent/user)
+- 시스템 프롬프트 보강: 외부 저장 금지 + 세션 내 흐름 유지, "기억 못한다" 메타발화 금지
+- 저장 정책: 환영/안내/퀵액션/프리셋추천 원문 비저장, 프리셋 요약만 저장
+- ChatRequestCenter 경로도 SessionManager에 동기 저장
+- recent 품질 개선: 본대화 위주(사용자/AI), 환영/중복 최소화
 
 ### ✅ 주요 완료 작업
 

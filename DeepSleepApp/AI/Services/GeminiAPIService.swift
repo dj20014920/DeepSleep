@@ -58,6 +58,25 @@ class GeminiAPIService {
         )
     }
     
+    /// 멀티-메시지 전송 (역할 기반)
+    func sendMessages(
+        messages: [RoleMessage],
+        mode: AIMode,
+        tokenConfig: TokenConfiguration
+    ) async throws -> AIResponse {
+        let startTime = Date()
+        print("💎 [Gemini] 멀티-메시지 전송 시작 - 모드: \(mode.rawValue), 메시지: \(messages.count)개")
+        let requestBody = buildGeminiRequest(messages: messages, tokenConfig: tokenConfig)
+        let responseData = try await performAPIRequest(requestBody: requestBody)
+        let geminiResponse = try parseGeminiResponse(responseData)
+        let processingTime = Date().timeIntervalSince(startTime)
+        return convertToAIResponse(
+            geminiResponse: geminiResponse,
+            mode: mode,
+            processingTime: processingTime
+        )
+    }
+    
     // MARK: - 🔧 Gemini API 요청 구성
     
     private func buildGeminiRequest(
@@ -112,6 +131,56 @@ class GeminiAPIService {
                 "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
                 "threshold": "BLOCK_MEDIUM_AND_ABOVE"
             ]
+        ]
+        
+        return requestBody
+    }
+    
+    /// 멀티-메시지용 요청 구성 (Gemini v1beta: contents + systemInstruction)
+    private func buildGeminiRequest(
+        messages: [RoleMessage],
+        tokenConfig: TokenConfiguration
+    ) -> [String: Any] {
+        let systemCombined = messages.filter { $0.role == .system }.map { $0.content }.joined(separator: "\n\n")
+        let nonSystem = messages.filter { $0.role != .system }
+        
+        // Gemini는 user/model 역할을 사용
+        let contents: [[String: Any]] = nonSystem.map { m in
+            let role = (m.role == .assistant) ? "model" : "user"
+            return [
+                "role": role,
+                "parts": [["text": m.content]]
+            ]
+        }
+        
+        var requestBody: [String: Any] = [
+            "contents": contents,
+            "generationConfig": [
+                "temperature": tokenConfig.temperature,
+                "maxOutputTokens": tokenConfig.maxTokens,
+                "candidateCount": 1
+            ]
+        ]
+        
+        if !systemCombined.isEmpty {
+            requestBody["systemInstruction"] = [
+                "parts": [["text": systemCombined]]
+            ]
+        }
+        
+        if let topP = tokenConfig.topP {
+            if var config = requestBody["generationConfig"] as? [String: Any] {
+                config["topP"] = topP
+                requestBody["generationConfig"] = config
+            }
+        }
+        
+        // 안전 설정 (동일하게 적용)
+        requestBody["safetySettings"] = [
+            ["category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"],
+            ["category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"],
+            ["category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"],
+            ["category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"]
         ]
         
         return requestBody

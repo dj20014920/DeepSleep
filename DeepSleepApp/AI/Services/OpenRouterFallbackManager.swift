@@ -120,6 +120,12 @@ final class OpenRouterFallbackManager {
         }
     }
 
+    // MARK: - OpenRouter Chat Payload Types
+    struct ORMessage: Codable { let role: String; let content: String }
+    private struct ORRequest: Codable { let model: String; let messages: [ORMessage] }
+    private struct ORChoice: Codable { let message: ORMessage }
+    private struct ORResponse: Codable { let choices: [ORChoice]? }
+
     /// 🚀 Phase 3: 고도화된 지능형 OpenRouter 호출 (성능 최적화 + 적응형 타임아웃)
     func sendMessageWithFallback(content: String, mode: AIMode) async throws -> String {
         let cacheKey = CacheKey(content: content, mode: mode)
@@ -231,10 +237,91 @@ final class OpenRouterFallbackManager {
         throw AIServiceError.allModelsFailed(tried)
     }
 
-    private struct ORMessage: Codable { let role: String; let content: String }
-    private struct ORRequest: Codable { let model: String; let messages: [ORMessage] }
-    private struct ORChoice: Codable { let message: ORMessage }
-    private struct ORResponse: Codable { let choices: [ORChoice]? }
+    /// 멀티-메시지 버전: 역할 분리된 메시지 배열을 입력으로 받아 폴백 수행
+    func sendMessageWithFallback(messages: [ORMessage], mode: AIMode) async throws -> String {
+        // 시스템 프롬프트 프리픽스 주입(없으면 추가, 있으면 결합)
+        var finalMessages = messages
+        if let sysIdx = finalMessages.firstIndex(where: { $0.role.lowercased() == "system" }) {
+            let prefix = systemPromptPrefix(for: mode)
+            let merged = ORMessage(role: "system", content: prefix + "\n\n" + finalMessages[sysIdx].content)
+            finalMessages[sysIdx] = merged
+        } else {
+            finalMessages.insert(ORMessage(role: "system", content: systemPromptPrefix(for: mode)), at: 0)
+        }
+
+        // 캐시 키 구성: 역할:내용을 합쳐서 생성 (길이 제한 적용)
+        let keyString = finalMessages.map { "\($0.role):\($0.content)" }.joined(separator: "\n")
+        let cacheKey = CacheKey(content: String(keyString.prefix(800)), mode: mode)
+
+        if let cachedResponse = getCachedResponse(for: cacheKey) {
+            print("⚡ [OpenRouterFallback] 캐시 히트! 모델: \(cachedResponse.model)")
+            return cachedResponse.response
+        }
+
+        // 모델 순서 계산
+        let optimizedModels = getOptimizedModelOrder()
+        let priorityModels = Array(optimizedModels.prefix(5))
+        let fallbackModels = Array(optimizedModels.dropFirst(5))
+        var tried: [String] = []
+        var lastError: Error?
+
+        print("🚀 [OpenRouterFallback] (멀티) 폴백 시스템 시작")
+        print("   우선 모델: \(priorityModels.count)개, 폴백 모델: \(fallbackModels.count)개")
+
+        // 우선 모델 시도
+        for (index, model) in priorityModels.enumerated() {
+            do {
+                let startTime = Date()
+                let performance = getModelPerformance(model)
+                let adaptiveTimeout = calculateAdaptiveTimeout(for: model, performance: performance, isPriority: true)
+
+                print("🎯 [OpenRouterFallback] (멀티) 우선 모델 #\(index + 1) 시도: \(model)")
+                let output = try await withTimeout(seconds: adaptiveTimeout) { [self] in
+                    try await callOpenRouter(model: model, messages: finalMessages)
+                }
+                let responseTime = Date().timeIntervalSince(startTime)
+                recordModelSuccess(model: model, responseTime: responseTime)
+                cacheResponse(for: cacheKey, response: output, model: model)
+                print("✅ [OpenRouterFallback] (멀티) 우선 모델 성공! \(model) (\(String(format: "%.2f", responseTime))초)")
+                return output
+            } catch {
+                tried.append(model)
+                lastError = error
+                recordModelFailure(model: model, error: error)
+                print("❌ [OpenRouterFallback] (멀티) 우선 모델 실패: \(model) - \(error.localizedDescription)")
+                continue
+            }
+        }
+
+        // 폴백 모델 시도
+        for (index, model) in fallbackModels.enumerated() {
+            do {
+                let startTime = Date()
+                let performance = getModelPerformance(model)
+                let adaptiveTimeout = calculateAdaptiveTimeout(for: model, performance: performance, isPriority: false)
+
+                print("🎯 [OpenRouterFallback] (멀티) 폴백 모델 #\(index + 1) 시도: \(model)")
+                let output = try await withTimeout(seconds: adaptiveTimeout) { [self] in
+                    try await callOpenRouter(model: model, messages: finalMessages)
+                }
+                let responseTime = Date().timeIntervalSince(startTime)
+                recordModelSuccess(model: model, responseTime: responseTime)
+                cacheResponse(for: cacheKey, response: output, model: model)
+                print("✅ [OpenRouterFallback] (멀티) 폴백 모델 성공! \(model) (\(String(format: "%.2f", responseTime))초)")
+                return output
+            } catch {
+                tried.append(model)
+                lastError = error
+                recordModelFailure(model: model, error: error)
+                print("❌ [OpenRouterFallback] (멀티) 폴백 모델 실패: \(model) - \(error.localizedDescription)")
+                continue
+            }
+        }
+
+        print("💥 [OpenRouterFallback] (멀티) 모든 \(tried.count)개 모델 실패")
+        print("🔍 [OpenRouterFallback] 시도한 모델들: \(tried.joined(separator: ", "))")
+        throw AIServiceError.allModelsFailed(tried)
+    }
 
     private func callOpenRouter(model: String, userContent: String) async throws -> String {
         guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
@@ -257,6 +344,43 @@ final class OpenRouterFallbackManager {
         let body = ORRequest(model: model, messages: [
             ORMessage(role: "user", content: userContent)
         ])
+        req.httpBody = try JSONEncoder().encode(body)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse else { throw AIServiceError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else {
+            if let text = String(data: data, encoding: .utf8) {
+                throw AIServiceError.apiError(http.statusCode, text)
+            } else {
+                throw AIServiceError.httpError(http.statusCode)
+            }
+        }
+        let decoded = try JSONDecoder().decode(ORResponse.self, from: data)
+        guard let content = decoded.choices?.first?.message.content, !content.isEmpty else {
+            throw AIServiceError.invalidResponse
+        }
+        return content
+    }
+
+    /// OpenRouter 호출 (멀티-메시지)
+    private func callOpenRouter(model: String, messages: [ORMessage]) async throws -> String {
+        guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
+            throw AIServiceError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "OPENROUTER_API_KEY") as? String, !apiKey.isEmpty else {
+            throw AIServiceError.configurationError("OPENROUTER_API_KEY 누락")
+        }
+        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if let referer = Bundle.main.bundleIdentifier {
+            req.setValue(referer, forHTTPHeaderField: "HTTP-Referer")
+            req.setValue("DeepSleep", forHTTPHeaderField: "X-Title")
+        }
+
+        let body = ORRequest(model: model, messages: messages)
         req.httpBody = try JSONEncoder().encode(body)
 
         let (data, resp) = try await URLSession.shared.data(for: req)

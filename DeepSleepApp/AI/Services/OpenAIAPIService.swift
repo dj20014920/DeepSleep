@@ -59,6 +59,29 @@ class OpenAIAPIService {
         )
     }
     
+    /// 멀티-메시지 전송 (역할 기반)
+    func sendMessages(
+        messages: [RoleMessage],
+        mode: AIMode,
+        tokenConfig: TokenConfiguration
+    ) async throws -> AIResponse {
+        let startTime = Date()
+        print("🧠 [OpenAI] 멀티-메시지 전송 시작 - 모드: \(mode.rawValue), 메시지: \(messages.count)개")
+        let requestBody = buildOpenAIRequest(
+            messages: messages,
+            tokenConfig: tokenConfig,
+            mode: mode
+        )
+        let responseData = try await performAPIRequest(requestBody: requestBody)
+        let openAIResponse = try parseOpenAIResponse(responseData)
+        let processingTime = Date().timeIntervalSince(startTime)
+        return convertToAIResponse(
+            openAIResponse: openAIResponse,
+            mode: mode,
+            processingTime: processingTime
+        )
+    }
+    
     // MARK: - 🔧 OpenAI API 요청 구성
     
     private func buildOpenAIRequest(
@@ -102,6 +125,37 @@ class OpenAIAPIService {
             requestBody["response_format"] = buildResponseFormat(responseFormat)
         }
         
+        return requestBody
+    }
+    
+    /// 멀티-메시지용 요청 구성
+    private func buildOpenAIRequest(
+        messages: [RoleMessage],
+        tokenConfig: TokenConfiguration,
+        mode: AIMode
+    ) -> [String: Any] {
+        var requestBody: [String: Any] = [
+            "model": defaultModel,
+            "max_tokens": tokenConfig.maxTokens,
+            "temperature": tokenConfig.temperature
+        ]
+        
+        // 메시지 매핑 (OpenAI는 messages 배열 내 system 역할을 허용)
+        let mapped: [[String: Any]] = messages.map { msg in
+            return [
+                "role": msg.role.rawValue,
+                "content": msg.content
+            ]
+        }
+        requestBody["messages"] = mapped
+        
+        if let topP = tokenConfig.topP { requestBody["top_p"] = topP }
+        if let frequencyPenalty = tokenConfig.frequencyPenalty { requestBody["frequency_penalty"] = frequencyPenalty }
+        if let presencePenalty = tokenConfig.presencePenalty { requestBody["presence_penalty"] = presencePenalty }
+        
+        if shouldUseStructuredOutput(for: mode), let responseFormat = tokenConfig.responseFormat {
+            requestBody["response_format"] = buildResponseFormat(responseFormat)
+        }
         return requestBody
     }
     

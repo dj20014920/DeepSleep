@@ -82,14 +82,7 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
         let message = (isUser: isUser, message: content)
         chatHistory.append(message)
         
-        // 메시지 저장
-        Task {
-            do {
-                try await MessageStore.shared.saveMessage(content: content, isUser: isUser)
-            } catch {
-                handleError(error)
-            }
-        }
+        // 저장은 SessionManager 정책에 위임되므로 뷰모델에서 직접 저장하지 않습니다 (DRY).
         
         // 메시지 캐시 업데이트
         let pageNumber = chatHistory.count / ViewConstants.pageSize

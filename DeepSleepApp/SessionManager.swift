@@ -1071,63 +1071,90 @@ extension SessionManager {
         context: String? = nil,
         saveMessages: Bool = true
     ) async throws -> String {
+        // 하위 호환: 모드 정보가 없는 호출은 일반 대화로 처리
+        return try await sendMessage(
+            content: content,
+            model: model,
+            mode: .generalConversation,
+            saveMessages: saveMessages
+        )
+    }
+    
+    /// 모드 기반 중앙집중형 AI 호출(저장 정책 및 멀티-메시지 컨텍스트 일원화)
+    public func sendMessage(
+        content: String,
+        model: AIModel = .claude,
+        mode: AIMode,
+        saveMessages: Bool = true
+    ) async throws -> String {
+        print("🎯 [SessionManager] 중앙집중 AI 호출 - 모델: \(model.rawValue), 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
         
-        print("🎯 [SessionManager] 중앙집중 AI 호출 - 모델: \(model.rawValue), 내용: \(content.prefix(50))...")
-        
+        // 1) 사용자 메시지 저장(정책 적용)
         if saveMessages {
-            // 사용자 메시지 저장
             let currentSessionId = getCurrentSessionId()
+            let toSaveUser = summarizeIfNeeded(role: "user", content: content, mode: mode)
             let userMessage = StoredChatMessage(
                 id: UUID().uuidString,
                 timestamp: Date(),
                 role: "user",
-                content: content,
+                content: toSaveUser,
                 type: .text
             )
             addChatMessageSafely(to: currentSessionId, message: userMessage)
         }
         
         do {
-            // UnifiedAIServiceImpl을 통한 실제 AI 호출
-            // 🎯 컨텍스트 조립 (A/B/C 계층 일원화)
-            // 최근 대화에서 사용자 8턴 + AI 8턴으로 균형 있게 추출하고, 최신순으로 포함
+            // 2) 최근 대화(사용자 8/AI 8) 균형 구성 → 컨텍스트 조립
             let rawMessages = getRecentChatMessages(limit: 60)
             let recent: [ChatMessageLite] = Self.buildBalancedRecent(rawMessages, userMax: 8, assistantMax: 8)
             
-            let personaSignature = UserRulesManager.shared.personaSignature() // 페르소나/언어/톤 해시 등
+            let personaSignature = UserRulesManager.shared.personaSignature()
             let coreSummary = MemoryManager.shared.getMemorySummary(maxItems: 10)
-            // 코어 메모리가 비어있으면 최근 대화(균형 16턴)로 경량 요약 생성
             let effectiveSummary: String? = {
                 if !coreSummary.isEmpty { return coreSummary }
                 let summary = Self.summarizeRecent(recent)
                 return summary.isEmpty ? nil : summary
             }()
             let assembled = AIContextBuilder.shared.buildPrompt(
-                for: .generalConversation,
+                for: mode,
                 personaSignature: personaSignature,
-                recentMessages: recent, // 최신순 16턴 (사용자8+AI8)
+                recentMessages: recent,
                 coreMemorySummary: effectiveSummary,
                 currentUserMessage: content
             )
-
+            
+            // 멀티-메시지 경로를 위한 역할 기반 히스토리 구성
+            let historyTurns: [AIConversationTurn] = recent.map { lite in
+                AIConversationTurn(role: Role(rawValue: lite.role) ?? .user, content: lite.content, timestamp: lite.createdAt)
+            }
+            let aiContext = AIContext(
+                userId: "user_\(getCurrentSessionId())",
+                sessionId: getCurrentSessionId(),
+                conversationHistory: historyTurns,
+                userPreferences: nil,
+                environmentContext: nil
+            )
+            
+            // 3) 통합 서비스 호출(모드 전달)
             let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
                 content: content,
                 model: model,
-                mode: .generalConversation,
-                context: nil,
+                mode: mode,
+                context: aiContext,
                 tokenConfig: nil,
                 assembledPrompt: assembled.text
             )
             let response = aiResponse.content
             
+            // 4) AI 응답 저장(정책 적용)
             if saveMessages {
-                // AI 응답 저장
                 let currentSessionId = getCurrentSessionId()
+                let toSaveAI = summarizeIfNeeded(role: "assistant", content: response, mode: mode)
                 let aiMessage = StoredChatMessage(
                     id: UUID().uuidString,
                     timestamp: Date(),
                     role: "assistant",
-                    content: response,
+                    content: toSaveAI,
                     type: .text
                 )
                 addChatMessageSafely(to: currentSessionId, message: aiMessage)
@@ -1140,7 +1167,6 @@ extension SessionManager {
             print("❌ [SessionManager] AI 호출 실패: \(error.localizedDescription)")
             
             if saveMessages {
-                // 에러 메시지도 저장
                 let currentSessionId = getCurrentSessionId()
                 let errorMessage = StoredChatMessage(
                     id: UUID().uuidString,
@@ -1153,6 +1179,20 @@ extension SessionManager {
             }
             
             throw error
+        }
+    }
+    
+    /// 저장 정책: 프리셋 모드에서 요약 저장, 그 외 원문 저장
+    private func summarizeIfNeeded(role: String, content: String, mode: AIMode) -> String {
+        switch mode {
+        case .presetRecommendation:
+            if role == "user" {
+                return PresetInteractionSummarizer.summarizeUserRequest(content)
+            } else {
+                return PresetInteractionSummarizer.summarizeAIResponse(presetName: nil)
+            }
+        default:
+            return content
         }
     }
     

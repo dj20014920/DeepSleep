@@ -2,6 +2,31 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-23 Updates (컨텍스트/캐시 최신 정책 확정)
+
+이번 업데이트는 실제 코드베이스와 완전히 동기화된 컨텍스트·캐시 정책을 문서에 반영합니다. 핵심은 단일 진입점(SessionManager), 조립의 중앙화(AIContextBuilder), 3시간 TTL의 시스템 프롬프트 캐시(AIContextManager), 그리고 명확한 무효화 트리거입니다.
+
+- 단일 진입점: 모든 외부 AI 호출은 SessionManager.sendMessage(...) 경로만 허용됩니다. UnifiedAIServiceImpl에 대한 직접 호출은 금지(내부 전용)되었으며, sendMessageStream도 동일한 assembledPrompt 경로로 중앙집중화했습니다.
+- 컨텍스트 조립(assembledPrompt):
+  - 구성 순서: [시스템 프롬프트(캐시)] → [핵심 기억 요약(있으면)] → [최근 대화 16턴(사용자 8 + AI 8)] → [현재 입력]
+  - TokenOptimizer로 모델별 토큰 예산 내 적합화(시스템>기억>최근대화 우선순위 유지)
+- 시스템 프롬프트 캐시: AIContextManager.getSystemPrompt(personaSignature:generator:)
+  - TTL=3시간(10800초), ConfigReader로 오버라이드 가능
+  - personaSignature = 모드 + 선택 모델 + 핵심기억 요약 지문(해시). 외부 전송 금지, 내부 캐시 키 전용
+- 캐시 무효화 트리거 (코드 반영 완료)
+  - 모델 변경(SettingsManager.updateSelectedModelAtomically) → .modelSelectionChanged
+  - 페르소나/규칙 변경(PersonaMemoryManager, UserRulesManager.addRule) → .personaChanged / .userRulesChanged
+  - 핵심 기억 변경(MemoryManager) → .coreMemoryUpdated
+  - 앱 버전/환경 중요 변경 시 → .environmentChanged
+- 보안/PII: 외부 AI에는 비식별 서술형 컨텍스트만 전달. 페르소나 해시는 캐시 식별에만 사용되며 외부로 절대 전송하지 않습니다.
+- 메트릭/관측성: ContextMetrics가 요청 시작/종료, 모델/모드 분포, Fallback 시도, 캐시 HIT/MISS, 품질 점수 경고를 통합 수집합니다.
+
+검증 체크리스트(8/23)
+- [x] Settings/Persona/Rules 변경 시 AIContextManager.clearCache(reason: …) 호출 경로 존재
+- [x] SessionManager.buildBalancedRecent(raw, userMax:8, assistantMax:8) 적용
+- [x] UnifiedAIServiceImpl.generateOptimizedSystemPrompt → AIContextManager 캐시 사용
+- [x] sendMessageStream 경로도 assembledPrompt 우선 사용(인터페이스 정렬)
+
 ## 2025-08-20 Updates (페르소나 캐싱 및 AI 컨텍스트 관리 완성)
 
 ### ✅ 완료된 핵심 작업
@@ -28,7 +53,7 @@
 - **캐시 TTL**: 10800초 (3시간) 정상 작동
 - **응답 시간**: 무료 모델 8-10초
 - **사용량 추적**: 2/30 정상 카운트
-- **대화 컨텍스트**: 최근 10개 메시지 유지
+- **대화 컨텍스트**: 최근 16턴(사용자 8 + AI 8) 균형 유지
 
 ### 🔍 디버그 로그 개선 사항
 ```

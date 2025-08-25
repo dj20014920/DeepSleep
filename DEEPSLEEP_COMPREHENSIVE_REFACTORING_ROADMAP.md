@@ -2,7 +2,91 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-23 Updates (멀티-메시지·저장정책·동기저장·문서정합)
+
+본 섹션은 2025-08-23에 적용된 변경점을 파일 기준으로 상세 기록하고, 검증/회귀 체크리스트 및 남은 과제를 정의합니다.
+
+1) 파일별 변경내역 (What changed where)
+- OpenRouterFallbackManager.swift
+  - ORMessage / ORRequest / ORResponse 구조 정의, sendMessageWithFallback(messages:) 추가, callOpenRouter(model:messages:) 네이티브 멀티-메시지 지원.
+  - 캐시 키: 역할:내용 시퀀스로 구성(길이 제한 포함) → 캐시 정확도 향상.
+- UnifiedAIServiceImpl.swift
+  - freeModel 분기: 시스템 프롬프트 + recent(균형 16턴) + 현재 user 입력을 ORMessage로 조합해 OpenRouter로 전송. TokenUsage 추정 및 메타정보 부가.
+  - getOptimalModelForMode, optimizeTokenConfigForModel 등 기존 최적화 함수 유지.
+- AIContextBuilder.swift
+  - generateDefaultSystemPrompt에 개인정보 외부저장 금지/세션 내 흐름 유지/메타발화 금지 명시.
+  - buildPrompt는 recent(ChatMessageLite) 기반으로 역할을 보존해 텍스트 조립.
+- AIContextManager.swift
+  - 캐시 TTL=3시간 유지, 로깅 확장.
+- ChatRequestCenter.swift
+  - 저장 책임 제거(Single Writer: SessionManager만 저장). 멱등성(dedupKey: SHA256(sessionId|mode|model|content))과 큐 관리에 집중. in-flight/완료 키 디스크 지속화.
+- ChatViewController.swift
+  - appendChat 경로에서 system/preset/퀵액션/옵션류 영구 저장 스킵. JSON 파서 보강.
+- MessageStore.swift
+  - 초기 환영 메시지 비영구 저장(isPersistent=false) + saveToDisk 시 필터링, 디스크 저장소 오염 방지.
+- SessionManager.swift
+  - buildBalancedRecent(user 8/assistant 8) 구현과 recent 조회/조립 경로 활용.
+
+5) 설계 결정과 대안 비교 (2025-08-23)
+- 단일 진입점(SessionManager.sendMessage)
+  - 왜: DRY/SSoT/KISS. 컨트롤러/뷰모델/서비스 각층에서의 직접 호출과 분기(모델별/모드별)가 중복·불일치·캐시 무효화 누락을 초래. 중앙집중형으로 assembledPrompt 구성·사용량 한도·저장 정책·메트릭을 일원화.
+  - 어떻게: SessionManager 내부에서 AIContextBuilder로 프롬프트 조립 → UnifiedAIServiceImpl 호출 → 응답 보안검증 → 저장(saveMessages) 정책 적용. 외부 계층은 SessionManager만 호출.
+  - 대안/Trade-off: ChatManager 유지(레거시)안은 중복/불일치 지속. 직접 UnifiedAIServiceImpl 호출안은 캐시/한도/메트릭 누락 위험. 최종 결정은 SessionManager 단일화.
+- ChatRequestCenter(큐/멱등 전담)
+  - 왜: 저장 책임이 분산되면 이중 저장/순서 오류/회귀 발생. 큐는 안정성·재시도·백그라운드 지속만 담당.
+  - 어떻게: dedupKey = SHA256(sessionId|mode|model|content). in-flight 키와 completed 키(디스크 지속)로 재플레이/중복 완료 차단. 동일 키 pending 시 기존 id 재사용.
+  - 대안/Trade-off: UUID 기반은 재시작 시 중복 재실행을 막지 못하고, Swift hashValue는 프로세스마다 달라 불안정. SHA256 원문 기반으로 안정성 확보.
+- UnifiedAIServiceImpl 내부화
+  - 왜: 프롬프트 조립/한도/폴백/메트릭의 단일 경로 보장을 위해 서비스는 내부 전용이어야 함. 컨트롤러가 직접 호출하면 정책 우회 위험.
+  - 어떻게: 외부는 SessionManager만 사용. SceneDelegate 등에서 직접 초기화/호출 금지. 내부에서만 모델 가용성·폴백 순서·토큰 설정 최적화 실행.
+  - 대안/Trade-off: 외부 직접 호출은 단기 편의성 있으나 장기 유지보수 비용 급증. 내부화로 정책 일관성 보장.
+- MessageStore 쓰기 경로 Deprecation
+  - 왜: 저장 경로 우회로 인한 이중 저장/DRY 위반 방지. 저장은 Single Writer(SessionManager)만 수행.
+  - 어떻게: saveMessage/saveSystemMessage @available(*, deprecated) + DEBUG assertionFailure. 문서/가이드에 대체 경로 명시.
+  - 대안/Trade-off: 쓰기 유지 시 회귀 위험. 읽기 폴백은 SessionManager 기반 복원 완료로 제거.
+- 캐시/컨텍스트 정책(요약)
+  - 왜: 토큰/비용 최적화와 일관성 유지. 3시간 TTL은 일일 맥락·모델 변경 빈도와 비용 균형점.
+  - 어떻게: personaSignature(모드+모델+핵심요약 해시) 기반 AIContextManager 캐시. 무효화 트리거(모델/페르소나/규칙/핵심기억/환경) 표준화.
+  - 대안/Trade-off: 짧은 TTL은 비용↑/히트율↓, 긴 TTL은 반영 지연. 3시간으로 타협, 필요 시 ConfigReader로 조정.
+- 보안/PII 정책
+  - 외부 AI에는 비식별 서술형 컨텍스트만 전달, 해시는 절대 전송 금지. Input/Output Validation을 전 경로에서 적용.
+
+검증 포인트(요약)
+- 전역 검색으로 UnifiedAIServiceImpl.shared 직접 호출 0건 유지
+- MessageStore 저장 경로 사용 0건 유지(Deprecated assert로 개발 중 탐지)
+- ChatRequestCenter dedupKey 충돌/재시작 시 재실행 방지 확인
+- SessionManager 경로로만 저장/복원되는지 샘플 흐름 점검
+
+2) 마이그레이션/적용 절차 (How to apply)
+- 코드 업데이트 후, Info.plist의 OPENROUTER_API_KEY가 유효한지 확인.
+- iPhone 16 Pro 시뮬레이터 기준 xcodebuild로 빌드 검증.
+- ChatViewController에서 일반 대화 2~3회 수행하여, 로그 상 OpenRouter (멀티-메시지) 호출 확인.
+- MessageStore의 message_store.json에서 환영/system 메시지가 제외되었는지 확인.
+
+3) 검증/회귀 체크리스트
+- [ ] freeModel 경로가 sendMessageWithFallback(messages:)를 통해 호출되는지 출력 로그 확인
+- [ ] SessionManager.getRecentChatMessages가 ChatRequestCenter 경로 메시지까지 포함하는지 확인
+- [ ] system/preset/퀵액션/옵션류가 저장소에 남지 않는지 확인
+- [ ] parseAIResponse가 JSON 원문을 제거하고 텍스트 본문만 반환하는지 확인
+- [ ] 전역에서 UnifiedAIServiceImpl.shared 직접 호출이 없는지 확인(현재 0건)
+- [ ] MessageStore.saveMessage/saveSystemMessage 호출이 없는지 확인(Deprecated + DEBUG assert 활성)
+
+4) 남은 과제(Backlog)
+- [ ] 공급자 서비스(Claude/OpenAI/Gemini/Naver)도 멀티-메시지 입력을 네이티브로 지원하도록 확장(현재는 system+user 조합)
+- [ ] PresetInteractionSummarizer를 확장해 요약에 key-value 메타(선택)를 추가할지 검토
+- [ ] 경고 정리 및 테스트 보강(DeepSleepTests/… 확대)
+
 ## 2025-08-22 Updates (Build Stabilization & SSoT for Emotion Analysis)
+
+### ✅ 사용자 결정 방안(컨텍스트/저장/전달 형식)
+- 멀티-메시지 역할 구조 전환: 모든 모델(claude/openai/gemini/naver/free_model) 호출에서 시스템 프롬프트(system), 최근 대화(assistant/user), 현재 입력(user)을 역할 기반 메시지 배열로 전달한다.
+- 시스템 프롬프트 보강: 개인정보를 외부에 저장하지 않되, 앱 내부 세션 범위에서는 직전 대화 흐름을 이해하고 이어가도록 명시. "기억하지 못한다"는 메타발화 금지.
+- 저장 정책 개편:
+  - 환영/안내성 시스템 메시지(예: "안녕하세요! 오늘 하루는 어떠셨나요?")는 영구 저장하지 않는다.
+  - 프리셋 퀵액션과 프리셋 추천 결과는 원문 전체 저장 대신 요약만 저장: (사용자: 프리셋요청), (AI: 프리셋추천[프리셋명]).
+  - 일반 대화만 지속성 저장.
+- ChatRequestCenter → SessionManager 동기화: 백그라운드/비가시 상태의 대화도 SessionManager에 동등하게 저장하여 컨텍스트 누락을 방지한다.
+- recent 품질 개선: Recent 구성에서 시스템/환영/반복 텍스트를 제외하거나 가중치 낮춤(사용자/AI 본대화 위주 8/8 균형 유지).
 
 - Fixed missing symbol build errors by adding previously unreferenced source files to the target:
   - ViewController+PlaybackControls.swift (defines playAllTapped, pauseAllTapped, toggleTrack, updatePlayButtonStates)

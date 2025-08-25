@@ -276,7 +276,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     private func setupChatStyleConstraints() {
         // 기본 제약조건들 저장
         messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
-        applyButtonHeightConstraint = applyButton.heightAnchor.constraint(equalToConstant: 32)
+        // 고정 높이 대신 최소 높이로 설정하여 AutoLayout 경고 방지
+        applyButtonHeightConstraint = applyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
         messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
         applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
         optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16)

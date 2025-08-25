@@ -238,17 +238,16 @@ class DailySummaryViewController: UIViewController {
         따뜻하고 공감적인 톤으로 작성해주세요.
         """
         
-        // UnifiedAIServiceImpl을 통한 중앙집중형 AI 호출
+        // SessionManager를 통한 중앙집중형 AI 호출 (저장 안 함)
         Task {
             do {
-                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                let response = try await SessionManager.shared.sendMessage(
                     content: prompt,
-                    model: .claude, // 깊은 분석을 위해 Claude 사용
+                    model: .claude,
                     mode: .generalConversation,
-                    context: AIContext(userId: "daily_summary_user", sessionId: "daily_summary_\(selectedDate.timeIntervalSince1970)"),
-                    tokenConfig: nil
+                    saveMessages: false
                 )
-                completion(aiResponse.content)
+                completion(response)
             } catch {
                 print("❌ [DailySummaryViewController] AI 요약 생성 실패: \(error)")
                 completion(nil)

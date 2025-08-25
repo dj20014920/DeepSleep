@@ -58,6 +58,28 @@ class ClaudeAPIService {
         )
     }
     
+    /// 멀티-메시지 전송 (역할 기반)
+    func sendMessages(
+        messages: [RoleMessage],
+        mode: AIMode,
+        tokenConfig: TokenConfiguration
+    ) async throws -> AIResponse {
+        let startTime = Date()
+        print("🤖 [ClaudeAPI] 멀티-메시지 전송 시작 - 모드: \(mode.rawValue), 메시지: \(messages.count)개")
+        // Claude는 system을 별도 필드로, user/assistant만 messages에 포함
+        let systemCombined = messages.filter { $0.role == .system }.map { $0.content }.joined(separator: "\n\n")
+        let nonSystem = messages.filter { $0.role != .system }
+        let requestBody = buildClaudeRequest(messages: nonSystem, systemPrompt: systemCombined, tokenConfig: tokenConfig)
+        let responseData = try await performAPIRequest(requestBody: requestBody)
+        let claudeResponse = try parseClaudeResponse(responseData)
+        let processingTime = Date().timeIntervalSince(startTime)
+        return convertToAIResponse(
+            claudeResponse: claudeResponse,
+            mode: mode,
+            processingTime: processingTime
+        )
+    }
+    
     // MARK: - 🔧 Claude API 요청 구성
     
     private func buildClaudeRequest(
@@ -78,6 +100,27 @@ class ClaudeAPIService {
                     "content": content
                 ]
             ]
+        ]
+    }
+    
+    /// 멀티-메시지용 요청 구성 (Claude: system + messages)
+    private func buildClaudeRequest(
+        messages: [RoleMessage],
+        systemPrompt: String,
+        tokenConfig: TokenConfiguration
+    ) -> [String: Any] {
+        let mapped: [[String: Any]] = messages.map { m in
+            [
+                "role": m.role == .assistant ? "assistant" : "user",
+                "content": m.content
+            ]
+        }
+        return [
+            "model": defaultModel,
+            "max_tokens": tokenConfig.maxTokens,
+            "temperature": tokenConfig.temperature,
+            "system": systemPrompt,
+            "messages": mapped
         ]
     }
     

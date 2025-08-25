@@ -79,14 +79,12 @@ class PersonalizedHarmonyLearner: ObservableObject {
                 richContext: richContext
             )
             
-            let aiResponseObj = try await UnifiedAIServiceImpl.shared.sendMessage(
+            let aiResponse = try await SessionManager.shared.sendMessage(
                 content: analysisPrompt,
                 model: .claude,
                 mode: .emotionAnalysis,
-                context: nil,
-                tokenConfig: nil
+                saveMessages: false
             )
-            let aiResponse = aiResponseObj.content
             
             let processingTime = Date().timeIntervalSince(startTime)
             
@@ -304,14 +302,12 @@ class PersonalizedHarmonyLearner: ObservableObject {
         
         do {
             let predictionPrompt = buildHarmonyPredictionPrompt(combination)
-            let aiResponseObj = try await UnifiedAIServiceImpl.shared.sendMessage(
+            let aiResponse = try await SessionManager.shared.sendMessage(
                 content: predictionPrompt,
                 model: .gemini,
                 mode: .presetRecommendation,
-                context: nil,
-                tokenConfig: nil
+                saveMessages: false
             )
-            let aiResponse = aiResponseObj.content
             
             // AI 응답에서 점수 추출 (실제로는 더 정교한 파싱 필요)
             if let score = extractScoreFromResponse(aiResponse) {
@@ -429,14 +425,12 @@ class PersonalizedHarmonyLearner: ObservableObject {
                 적용 방법을 단계별로 알려주세요.
                 """
                 
-                let aiResponseObj = try await UnifiedAIServiceImpl.shared.sendMessage(
+                let aiResponse = try await SessionManager.shared.sendMessage(
                     content: applicationPrompt,
                     model: .claude,
                     mode: .taskAdvice,
-                    context: nil,
-                    tokenConfig: nil
+                    saveMessages: false
                 )
-                let aiResponse = aiResponseObj.content
                 
                 print("🤖 [PersonalizedHarmonyLearner] AI 적용 가이드: \(aiResponse.prefix(100))...")
                 
@@ -469,14 +463,12 @@ class PersonalizedHarmonyLearner: ObservableObject {
                 이것이 전체 조화도에 미치는 영향을 분석하고 대안을 제시해주세요.
                 """
                 
-                let aiResponseObj = try await UnifiedAIServiceImpl.shared.sendMessage(
+                let aiResponse = try await SessionManager.shared.sendMessage(
                     content: exclusionPrompt,
                     model: .gemini,
                     mode: .presetRecommendation,
-                    context: nil,
-                    tokenConfig: nil
+                    saveMessages: false
                 )
-                let aiResponse = aiResponseObj.content
                 
                 print("🤖 [PersonalizedHarmonyLearner] 사운드 제외 AI 분석: \(aiResponse.prefix(100))...")
                 
@@ -504,14 +496,12 @@ class PersonalizedHarmonyLearner: ObservableObject {
                 어떤 개선점을 적용해야 할까요?
                 """
                 
-                let aiResponseObj = try await UnifiedAIServiceImpl.shared.sendMessage(
+                let aiResponse = try await SessionManager.shared.sendMessage(
                     content: updatePrompt,
                     model: .claude,
                     mode: .emotionAnalysis,
-                    context: nil,
-                    tokenConfig: nil
+                    saveMessages: false
                 )
-                let aiResponse = aiResponseObj.content
                 
                 print("🤖 [PersonalizedHarmonyLearner] 사용자 모델 AI 업데이트: \(aiResponse.prefix(100))...")
                 

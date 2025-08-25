@@ -1439,17 +1439,16 @@ final class SoundManager {
 
         Task {
             do {
-                // 🤖 ChatManager.sendMessage로 프리셋 추천 호출 (통합 아키텍처)
-                let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+                // 🤖 SessionManager.sendMessage로 프리셋 추천 호출 (저장 안 함)
+                let response = try await SessionManager.shared.sendMessage(
                     content: contextPrompt,
                     model: .gemini,
                     mode: .presetRecommendation,
-                    context: nil,
-                    tokenConfig: nil
+                    saveMessages: false
                 )
                 
                 // JSON 파싱하여 SoundPreset 객체 생성
-                let preset = try parsePresetFromJSON(aiResponse.content, emotion: emotion)
+                let preset = try parsePresetFromJSON(response, emotion: emotion)
                 
                 await MainActor.run {
                     completion(preset)

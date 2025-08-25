@@ -129,6 +129,9 @@ class UserRulesManager {
         userRules.append(newRule)
         saveRules()
         
+        // 컨텍스트 캐시 무효화 (DRY/일관성)
+        AIContextManager.shared.clearCache(reason: .personaChanged, caller: "UserRulesManager.addRule")
+        
         // TODO: Integrate with FeedbackManager to queue this for upload.
         print("[UserRulesManager] Added new rule: '\(userInput)' -> '\(correctedMeaning)'. Total rules: \(userRules.count)")
     }

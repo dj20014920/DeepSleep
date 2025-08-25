@@ -295,6 +295,21 @@ public enum Role: String, Codable {
     case system = "system"
 }
 
+/// 공통 멀티-메시지 타입 (역할 기반)
+/// - 역할: user | assistant | system
+/// - ts: 메시지 생성 시각(옵션)
+public struct RoleMessage: Codable {
+    public let role: Role
+    public let content: String
+    public let ts: Date?
+    
+    public init(role: Role, content: String, ts: Date? = nil) {
+        self.role = role
+        self.content = content
+        self.ts = ts
+    }
+}
+
 /// 사용자 선호도
 public struct UserPreferences: Codable {
     let preferredModel: AIModel?

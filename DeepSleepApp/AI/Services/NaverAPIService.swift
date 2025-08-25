@@ -68,6 +68,35 @@ class NaverAPIService {
         )
     }
     
+    /// 멀티-메시지 전송 (역할 기반)
+    /// HyperCLOVA X는 다양한 메시지 역할 지원이 제한될 수 있어 안전하게 system + 합성 본문으로 전송
+    func sendMessages(
+        messages: [RoleMessage],
+        mode: AIMode,
+        tokenConfig: TokenConfiguration
+    ) async throws -> AIResponse {
+        let startTime = Date()
+        print("🔷 [Naver] 멀티-메시지 전송 시작 - 모드: \(mode.rawValue), 메시지: \(messages.count)개")
+        let composed = composeFromMessages(messages)
+        let response = try await sendMessage(
+            content: composed.body,
+            systemPrompt: composed.system,
+            mode: mode,
+            tokenConfig: tokenConfig
+        )
+        let processingTime = Date().timeIntervalSince(startTime)
+        return AIResponse(
+            id: response.id,
+            model: response.model,
+            mode: response.mode,
+            content: response.content,
+            metadata: response.metadata,
+            usage: response.usage,
+            timestamp: response.timestamp,
+            processingTime: Int(processingTime * 1000)
+        )
+    }
+    
     // MARK: - 🔧 Naver API 요청 구성
     
     private func buildNaverRequest(
@@ -104,6 +133,24 @@ class NaverAPIService {
         }
         
         return requestBody
+    }
+    
+    /// 역할 기반 메시지를 안전한 단일 문자열로 합성
+    private func composeFromMessages(_ messages: [RoleMessage]) -> (system: String, body: String) {
+        let systemCombined = messages.filter { $0.role == .system }.map { $0.content }.joined(separator: "\n\n")
+        let history = messages.filter { $0.role != .system }
+        var lines: [String] = []
+        for m in history {
+            let roleLabel: String
+            switch m.role {
+            case .user: roleLabel = "사용자"
+            case .assistant: roleLabel = "AI"
+            case .system: roleLabel = "시스템" // 여기 오지 않음
+            }
+            lines.append("- \(roleLabel): \(m.content)")
+        }
+        let body = lines.joined(separator: "\n")
+        return (system: systemCombined, body: body)
     }
     
     // MARK: - 🌐 API 요청 수행

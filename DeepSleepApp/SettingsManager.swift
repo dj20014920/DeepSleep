@@ -121,6 +121,8 @@ public class SettingsManager {
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
             userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
+            // 캐시 무효화: 모델 변경 시 시스템 프롬프트 재구성 필요
+            AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsManager.selectedLLM.set")
         }
     }
     

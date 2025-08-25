@@ -243,11 +243,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         Task {
             do {
                 let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                let aiMode = self.determineAIModeFromContext()
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
                     model: selectedModel,
-                    context: nil,
-                    saveMessages: false
+                    mode: aiMode,
+                    saveMessages: true
                 )
                 
                 // 메인 스레드에서 UI 업데이트
@@ -489,8 +490,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 let response = try await SessionManager.shared.sendMessage(
                     content: diary.content,
                     model: selectedModel,
-                    context: "감정 일기 분석",
-                    saveMessages: false
+                    mode: .emotionDiaryAnalysis,
+                    saveMessages: true
                 )
                 
                 // SessionManager 저장은 비활성화했으므로, 여기서만 UI/저장 처리
@@ -556,11 +557,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
                     model: selectedModel,
-                    context: nil,
-                    saveMessages: false
+                    mode: aiMode,
+                    saveMessages: true
                 )
                 
-                                handleAIResponse(response)
+                handleAIResponse(response)
                 print("✅ [ChatViewController] AI 응답 받음")
                 
             } catch {
@@ -611,42 +612,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             // 1. UI 메시지 배열에 추가
             self.messages.append(message)
             
-            // 2. SessionManager를 통한 영속성 처리 (중앙집중형)
-            do {
-                // ✅ 로딩 메시지는 영속 저장하지 않음
-                guard message.type != .loading else {
-                    self.tableView.reloadData()
-                    self.scrollToBottom()
-                    return
-                }
-                let currentSession = sessionManager.getCurrentOrCreateSession()
-                // 역할 문자열 정규화: .ai → "assistant"
-                let roleString: String = (message.sender == .ai) ? "assistant" : message.sender.rawValue
-                // 타입 보정: .text → 보낸이 기반으로 user/bot/system 매핑
-                let normalizedType: ChatMessageType = {
-                    if message.type == .text {
-                        switch message.sender {
-                        case .user: return .user
-                        case .ai: return .bot
-                        case .system: return .system
-                        }
-                    }
-                    return message.type
-                }()
-                let storedMessage = StoredChatMessage(
-                    id: UUID().uuidString,
-                    timestamp: message.date,
-                    role: roleString,
-                    content: message.text ?? "",
-                    type: normalizedType
-                )
-                try sessionManager.addChatMessage(to: currentSession.id, message: storedMessage)
-                print("✅ [ChatViewController] 메시지 추가 및 즉시 저장 완료 - Type: \(normalizedType), Sender: \(message.sender)")
-            } catch {
-                print("❌ [ChatViewController] SessionManager 메시지 저장 실패: \(error)")
-            }
-            
-            // 4. UI 업데이트
+            // 2. UI 업데이트만 수행 (저장은 SessionManager에서 일괄 처리)
             self.tableView.reloadData()
             self.scrollToBottom()
         }
@@ -2836,8 +2802,8 @@ extension ChatViewController {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: selectedModel,
-                    context: "감정 패턴 분석",
-                    saveMessages: false
+                    mode: .monthlyStatistics,
+                    saveMessages: true
                 )
                 handleAIResponse(responseContent)
                 addQuickEmotionButtons()
@@ -2866,8 +2832,8 @@ extension ChatViewController {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: diaryContent,
                     model: selectedModel,
-                    context: "감정 일기 요약",
-                    saveMessages: false
+                    mode: .emotionDiaryAnalysis,
+                    saveMessages: true
                 )
                 handleAIResponse(responseContent)
             } catch {
@@ -3449,8 +3415,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
                     model: .openAI,
-                    context: "프리셋 추천",
-                    saveMessages: false
+                    mode: .presetRecommendation,
+                    saveMessages: true
                 )
 
                 try await MainActor.run { [weak self] in
@@ -4315,60 +4281,6 @@ extension ChatViewController {
         #endif
     }
     
-    /// MessageStore와 ChatManager에서 이전 채팅들을 복원 - 앱 시작 시 호출
-    private func restoreChatHistoryFromStorage() {
-        #if DEBUG
-        print("💾 [ChatPersistence] 채팅 히스토리 복원 시작")
-        #endif
-        
-        Task {
-            do {
-                // MessageStore에서 최근 메시지들 로드 (최대 50개)
-                let storedMessages = try await MessageStore.shared.loadMessages(page: 0, pageSize: 50)
-                
-                #if DEBUG
-                print("💾 [ChatPersistence] MessageStore에서 \(storedMessages.count)개 메시지 로드됨")
-                #endif
-                
-                DispatchQueue.main.async {
-                    // 저장된 메시지가 있으면 기존 초기 메시지들 제거 - 제거 비활성화
-                    // 이미 restoreAndInitializeMessages에서 처리됨
-                    // if !storedMessages.isEmpty {
-                    //     self.messages.removeAll()
-                    // }
-                    
-                    // 저장된 메시지들을 ChatMessage로 변환하고 추가
-                    for storedMessage in storedMessages {
-                        let chatMessage = ChatMessage(
-                            text: storedMessage.content,
-                            date: Date(), // 시간 순서는 MessageStore가 관리
-                            sender: storedMessage.isUser ? .user : .ai,
-                            type: self.getMessageType(from: storedMessage.isUser)
-                        )
-                        
-                        // appendChat 대신 직접 추가 (이미 저장된 메시지이므로 재저장 방지)
-                        self.messages.append(chatMessage)
-                    }
-                    
-                    #if DEBUG
-                    print("💾 [ChatPersistence] \(self.messages.count)개 메시지 UI에 복원 완료")
-                    #endif
-                    
-                    // UI 업데이트
-                    self.tableView.reloadData()
-                    if !self.messages.isEmpty {
-                        self.scrollToBottom()
-                    }
-                }
-                
-            } catch {
-                print("❌ [ChatViewController] 채팅 히스토리 복원 실패: \(error)")
-                
-                // 실패 시 ChatManager에서 시도
-                self.restoreFromChatManager()
-            }
-        }
-    }
     
     /// ChatManager에서 채팅 히스토리 복원 - MessageStore 실패 시 백업 방법
     private func restoreFromChatManager() {

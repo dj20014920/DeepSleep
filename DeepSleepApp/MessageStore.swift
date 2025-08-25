@@ -32,8 +32,13 @@ final class MessageStore {
     ///   - isUser: 사용자 메시지 여부
     ///   - messageType: 메시지 타입 ("user", "bot", "system", "preset", "quickAction" 등)
     ///   - isPersistent: 지속적으로 유지할 메시지인지 (시스템 메시지 등)
+    /// DEPRECATED: SessionManager를 통해서만 메시지를 저장하세요. 이 메서드는 향후 제거됩니다.
+    @available(*, deprecated, message: "Use SessionManager.addChatMessageSafely via SessionManager.sendMessage. This write-path will be removed.")
     @discardableResult
     func saveMessage(content: String, isUser: Bool, messageType: String = "normal", isPersistent: Bool = false) -> UUID {
+        #if DEBUG
+        assertionFailure("[MessageStore] Deprecated write-path 사용: SessionManager.sendMessage를 사용하세요")
+        #endif
         let message = (
             id: UUID(),
             isUser: isUser,
@@ -48,7 +53,11 @@ final class MessageStore {
     }
     
     /// 🎯 시스템 메시지 전용 저장 함수 (항상 지속적)
+    @available(*, deprecated, message: "Use SessionManager for system messages storage as well.")
     func saveSystemMessage(content: String) {
+        #if DEBUG
+        assertionFailure("[MessageStore] Deprecated saveSystemMessage 사용: SessionManager를 사용하세요")
+        #endif
         _ = saveMessage(content: content, isUser: false, messageType: "system", isPersistent: true)
     }
     
@@ -143,7 +152,7 @@ final class MessageStore {
                 content: message,
                 timestamp: Date(),
                 messageType: "system",
-                isPersistent: true  // 시스템 메시지는 항상 지속성
+                isPersistent: false  // 환영 메시지는 비영구(디스크 비저장)
             )
             messages.append(systemMessage)
         }
@@ -158,7 +167,15 @@ final class MessageStore {
     private func saveToDisk() {
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
-        let arr = messages.map { StoredMessage(id: $0.id, isUser: $0.isUser, content: $0.content, timestamp: $0.timestamp, messageType: $0.messageType, isPersistent: $0.isPersistent) }
+        // 제외 정책: 초기 환영(system) 메시지는 비영구 저장 (디스크에 기록하지 않음)
+        let filtered = messages.filter { tuple in
+            // system 타입이면서 환영 메시지이며 isPersistent == false 인 경우만 제외
+            if tuple.messageType == "system", tuple.isPersistent == false, Self.isWelcomeMessage(tuple.content) {
+                return false
+            }
+            return true
+        }
+        let arr = filtered.map { StoredMessage(id: $0.id, isUser: $0.isUser, content: $0.content, timestamp: $0.timestamp, messageType: $0.messageType, isPersistent: $0.isPersistent) }
         do {
             let data = try enc.encode(arr)
             try data.write(to: storeURL, options: .atomic)
@@ -179,5 +196,13 @@ final class MessageStore {
         } catch {
             return false
         }
+    }
+    // 환영 메시지 식별 헬퍼
+    private static func isWelcomeMessage(_ content: String) -> Bool {
+        return [
+            "안녕하세요! 오늘 하루는 어떠셨나요?",
+            "편안한 휴식을 위해 도와드리겠습니다 ✨",
+            "아래 버튼을 눌러 맞춤형 사운드를 추천받아보세요!"
+        ].contains(content)
     }
 }

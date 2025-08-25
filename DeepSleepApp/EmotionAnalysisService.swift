@@ -25,15 +25,13 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 응답 생성
-            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+            // 🤖 SessionManager.sendMessage로 감정 분석 전문가 응답 생성 (저장 안 함)
+            let response = try await SessionManager.shared.sendMessage(
                 content: analysisRequest,
                 model: .claude,
                 mode: .emotionAnalysis,
-                context: nil,
-                tokenConfig: nil
+                saveMessages: false
             )
-            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),
@@ -119,15 +117,13 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 패턴 분석 생성
-            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+            // 🤖 SessionManager.sendMessage로 감정 분석 전문가 패턴 분석 생성 (저장 안 함)
+            let response = try await SessionManager.shared.sendMessage(
                 content: patternAnalysisRequest,
                 model: .claude,
-                mode: .emotionAnalysis, // 감정 분석 전문가 모드
-                context: nil,
-                tokenConfig: nil
+                mode: .emotionAnalysis,
+                saveMessages: false
             )
-            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),
@@ -203,16 +199,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
             """
         }
         
-        // 🤖 UnifiedAIServiceImpl.sendMessage로 감정 분석 전문가 응답 생성
-        let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+        // 🤖 SessionManager.sendMessage로 감정 분석 전문가 응답 생성 (저장 안 함)
+        let response = try await SessionManager.shared.sendMessage(
             content: contextualMessage,
             model: .claude,
-            mode: .emotionAnalysis, // 감정 분석 전문가 모드
-            context: nil,
-            tokenConfig: nil
+            mode: .emotionAnalysis,
+            saveMessages: false
         )
         
-        return aiResponse.content
+        return response
     }
     
     /// 빠른 팁 생성 (🤖 ChatManager.sendMessage 통합)
@@ -232,16 +227,15 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         - 공감과 격려가 포함된 따뜻한 톤
         """
         
-        // 🤖 UnifiedAIServiceImpl.sendMessage로 생산성 전문가 조언 생성
-        let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+        // 🤖 SessionManager.sendMessage로 생산성 전문가 조언 생성 (저장 안 함)
+        let response = try await SessionManager.shared.sendMessage(
             content: tipRequest,
             model: .claude,
-            mode: .taskAdvice, // 생산성 전문가 모드
-            context: nil,
-            tokenConfig: nil
+            mode: .taskAdvice,
+            saveMessages: false
         )
         
-        return aiResponse.content
+        return response
     }
     
     /// AI 추천 생성 (🤖 ChatManager.sendMessage 통합)
@@ -285,15 +279,13 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         """
         
         do {
-            // 🤖 UnifiedAIServiceImpl.sendMessage로 사운드 추천 전문가 응답 생성
-            let aiResponse = try await UnifiedAIServiceImpl.shared.sendMessage(
+            // 🤖 SessionManager.sendMessage로 사운드 추천 전문가 응답 생성 (저장 안 함)
+            let response = try await SessionManager.shared.sendMessage(
                 content: recommendationRequest,
                 model: .claude,
-                mode: .presetRecommendation, // 사운드 추천 전문가 모드
-                context: nil,
-                tokenConfig: nil
+                mode: .presetRecommendation,
+                saveMessages: false
             )
-            let response = aiResponse.content
             
             // JSON 응답 파싱 시도
             if let jsonData = response.data(using: String.Encoding.utf8),
