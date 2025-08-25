@@ -174,7 +174,7 @@ public override func viewDidLoad() {
         if let days = trialDaysRemaining, days >= 0 {
             trialBadgeLabel.isHidden = false
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
-            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true)
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true) + "\nPro에는 대나무숲 친구 선택 가능"
         } else {
             let eligible = StoreKitSubscriptionManager.shared.isTrialEligible
             if eligible {
@@ -183,7 +183,7 @@ public override func viewDidLoad() {
             } else {
                 trialBadgeLabel.isHidden = true
             }
-            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible)
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible) + "\nPro에는 대나무숲 친구 선택 가능"
         }
 
         // 제품 로딩 상태에 따라 버튼 활성화

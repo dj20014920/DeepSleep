@@ -23,6 +23,9 @@
 
 ### 현재까지 완료된 작업
 - ✅ StoreKit 2 기반 구독 시스템 전체 구현
+- ✅ 무료/유료 모델 게이팅 적용: 무료는 freeModel + gemini만 선택 가능, Pro/Trial은 전체 모델 선택 가능(testModel은 프로덕션 UI 비노출)
+- ✅ Paywall 카피에 “Pro에는 대나무숲 친구 선택 가능” 반영
+- ✅ 프리미엄 배지: Trial 상태는 5초 간격으로 “7일 무료체험”과 D-카운트다운 토글, Pro/Trial 무지개, Free 그레이스케일
 - ✅ PaywallViewController UI 구현
 - ✅ SubscriptionStatusCenter 상태 관리
 - ✅ DeepSleep.storekit 테스트 설정 파일 생성
@@ -119,6 +122,16 @@ Notification 사용자 흐름 개선 • 첫 실행 시 알림 권한 요청 맥
 D. 코드/파일별 구체적 점검 스냅샷 • Info.plist: 다수의 설정 키/비밀은 xcconfig→Info.plist로 주입(좋음). 그러나 NS…UsageDescription(Health/Tracking 등) 없음, UIBackgroundModes 없음. • DeepSleep.entitlements: HealthKit 키 주석 처리(사실상 비어있음). 실제 Capabilities “Off” 확인 필요. • AppDelegate.swift: • AVAudioSession playback 설정/원격 제어 시작 → UIBackgroundModes=audio 필요. • 알림 권한 요청/로컬 알림 스케줄 사용(OK). 프로모션 없음. • Core Data fatalError 제거(우아한 폴백/알림/로깅 구현됨) – 지침 친화적. • HealthKitManager.swift: • “개발자 계정 부족으로 임시 비활성화” 주석/Mock 데이터 경로. 실제 배포 시 HealthKit 사용 전면 재검토(권한/설명/엔타이틀먼트/데이터 처리 고지/면책). • SubscriptionManager.swift: • Mock 결제/복원/무료 체험(위험). App Store 빌드에서 제거 또는 StoreKit2로 교체 필요. • InputValidationManager.swift, SecureStorageManager.swift: • 입력 검증/살균, Keychain 저장 등 보안 관점 양호. 로그 민감정보 노출 금지 계속 준수 필요.
 
 E. 심사 항목 매핑(핵심만) • 1.4.x(신체/의료): 건강 조언 면책 고지·의사 상담 권고 필수. • 2.3.x(정확한 메타데이터): 스토어 설명/스크린샷/미리보기와 실제 기능 일치(구독/HealthKit/AI 기능). • 2.4.2(전원/자원): Background Audio 사용 시 Info.plist 선언, 과도한 리소스 소모 방지. • 2.5(공개 API/현재 OS): 공개 API만 사용. WebKit 대체 엔진 없음(OK). • 3.1.1(IAP): 모의 결제 금지. 실제 StoreKit2 또는 유료기능 제거. • 4.5.4(푸시): 프로모션 푸시 금지, 옵트아웃 제공. • 5.1(개인정보): 개인정보처리방침 노출, 데이터 최소화, ATT/HealthKit 등 설명·동의.
+
+IAP/App Review 체크리스트(2025-08-25 업데이트)
+- 모델 선택/게이팅
+  - [✅] 무료=freeModel+gemini만 선택 가능, Pro/Trial=전체 모델 선택 가능
+  - [✅] testModel은 프로덕션 UI 비노출
+  - [✅] 무료 모델 설명에 경고 문구(응답 지연/오류/한국어 부정확 가능성)
+- Paywall/카피
+  - [✅] “Pro에는 대나무숲 친구 선택 가능” 카피 반영
+- 배지
+  - [✅] Trial=5초 토글(“7일 무료체험” ↔ D-카운트다운), Pro/Trial 무지개, Free 그레이스케일
 
 IAP/App Review 체크리스트(2025-08-21 업데이트)
 - 결제 흐름

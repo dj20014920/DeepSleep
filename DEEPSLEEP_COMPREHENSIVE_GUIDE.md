@@ -1,8 +1,8 @@
 # 🌙 DeepSleep AI - 종합 프로젝트 가이드
 
-> iOS 구독/IAP 요약: 프리미엄 월간/연간(동일 그룹) + 7일 무료체험(그룹 1회). 무료=Gemini 2.0 Flash‑Lite 고정, 프리미엄/Trial=한도 해제/상향. 최소 iOS 17.0. 자세한 설계/작업 순서는 IOS_IAP_ROADMAP.md를 참조하세요.
+> iOS 구독/IAP 요약: 프리미엄 월간/연간(동일 그룹) + 7일 무료체험(그룹 1회). 무료는 freeModel + gemini만 선택 가능, 프리미엄/Trial은 전체 모델 선택 가능(testModel은 프로덕션 UI 비노출). 최소 iOS 17.0. 자세한 설계/작업 순서는 IOS_IAP_ROADMAP.md를 참조하세요.
 > 
-> **2025-08-21 구현 완료**: StoreKit2 결제 플로우 정상 연결, PaywallViewController 통합, Trial 배지 UI 구현, SubscriptionUIBinder 패턴으로 전역 상태 관리 완성
+> **2025-08-25 업데이트**: 모델 선택 게이팅(무료=freeModel+gemini, Pro/Trial=전체), Paywall 카피(“Pro에는 대나무숲 친구 선택 가능”), 프리미엄 배지(Trial 토글/D-카운트다운) 반영. 2025-08-21: StoreKit2 결제 플로우 정상 연결, PaywallViewController 통합, Trial 배지 UI, SubscriptionUIBinder 전역 상태 관리 완성
 
 
 ---

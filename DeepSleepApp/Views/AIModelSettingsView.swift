@@ -24,7 +24,14 @@ struct AIModelSettingsView: View {
                 
                 // 모델 카드들
                 VStack(spacing: 16) {
-                    ForEach(AIModelType.allCases, id: \.self) { model in
+                    // 구독 상태에 따른 모델 목록 제한 + "실험 친구" 제거
+                    let isPremium = SubscriptionStatusCenter.shared.isPremium
+                    let availableModels: [AIModelType] = {
+                        let all = AIModelType.allCases.filter { $0 != .testModel }
+                        if isPremium { return all }
+                        return all.filter { $0 == .freeModel || $0 == .gemini }
+                    }()
+                    ForEach(availableModels, id: \.self) { model in
                         ModelCard(
                             model: model,
                             isSelected: selectedModel == model,

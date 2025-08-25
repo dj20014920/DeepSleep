@@ -38,7 +38,7 @@ final class SubscriptionTierSelectionViewController: UIViewController {
         // Pro 카드 (현재 StoreKit 월/연과 매핑)
         stack.addArrangedSubview(makeTierCard(
             title: "Pro",
-            subtitle: "무제한 대화/상향 한도 • 월간/연간 선택",
+            subtitle: "무제한 대화/상향 한도 • 월간/연간 선택 • 대나무숲 친구 선택 가능",
             accent: .systemGreen,
             ctaTitle: "Pro 구독하기",
             action: #selector(openPaywall)

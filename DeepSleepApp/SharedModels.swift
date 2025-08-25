@@ -141,7 +141,7 @@ public enum AIModelType: String, CaseIterable, Sendable {
         case .gemini: return "창의적인 예술가"
         case .naver: return "따뜻한 한국 친구"
         case .onDevice: return "개인정보 보호 우선"
-        case .freeModel: return "무료로 만나는 똑똑한 친구"
+        case .freeModel: return "무료 모델입니다. 응답이 느리거나 오류가 발생할 수 있으며 한국어가 부정확할 수 있습니다."
         case .testModel: return "새로운 기능을 시험하는 모험가"
         }
     }

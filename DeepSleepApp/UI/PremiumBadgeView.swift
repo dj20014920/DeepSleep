@@ -16,6 +16,8 @@ public final class PremiumBadgeView: UIView {
     private var currentState: BadgeState = .free
     private var gradientColors: [UIColor] = []
     private var animationProgress: CGFloat = 0
+    private var toggleTimer: Timer?
+    private var showCountdown: Bool = true
     
     // MARK: - Initialization
     public override init(frame: CGRect) {
@@ -65,7 +67,7 @@ public final class PremiumBadgeView: UIView {
     public func updateState(_ state: BadgeState) {
         currentState = state
         
-        // Stop existing animations
+        // Stop existing animations only when 색상 팔레트가 바뀌는 경우
         stopAnimation()
         
         // Update text and colors based on state
@@ -73,18 +75,15 @@ public final class PremiumBadgeView: UIView {
         case .pro:
             label.text = "Pro"
             setupRainbowColors()
-            
+            stopTrialToggle()
         case .free:
             label.text = "Free"
             setupGrayscaleColors()
-            
-        case .trial(let days):
-            if days >= 0 {
-                label.text = "D-\(days) | 7일 무료체험"
-            } else {
-                label.text = "체험 만료"
-            }
-            setupRainbowColors()  // Trial uses rainbow like Pro
+            stopTrialToggle()
+        case .trial:
+            // Trial: 무지개 그라데이션 유지 + 5초 토글 시작
+            setupRainbowColors()
+            startTrialToggle()
         }
         
         // Apply initial gradient
@@ -97,24 +96,27 @@ public final class PremiumBadgeView: UIView {
     /// Determine current badge state from subscription center
     public static func determineBadgeState() -> BadgeState {
         let center = SubscriptionStatusCenter.shared
-        
-        // Check trial status first
-        if let monthlyDays = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly),
-           monthlyDays >= 0 {
-            return .trial(days: monthlyDays)
+        // trial/active 판단: 만료 예정일이 있고 7일 이내면 trial로 간주
+        switch center.state {
+        case .active(let premiumUntil), .gracePeriod(let premiumUntil):
+            if let until = premiumUntil, until > Date() {
+                let remaining = until.timeIntervalSinceNow
+                let sevenDays: TimeInterval = 7 * 24 * 60 * 60
+                if remaining <= sevenDays {
+                    let days = Int(ceil(remaining / (24 * 60 * 60)))
+                    return .trial(days: max(0, days))
+                }
+                return .pro
+            }
+            return center.isPremium ? .pro : .free
+        case .refunded(let graceUntil):
+            // 환불 유예도 프리미엄 취급
+            if graceUntil > Date() { return .pro } else { return .free }
+        case .expired:
+            return .free
+        case .free:
+            return .free
         }
-        
-        if let yearlyDays = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly),
-           yearlyDays >= 0 {
-            return .trial(days: yearlyDays)
-        }
-        
-        // Check premium status (includes refund grace period)
-        if center.isPremium {
-            return .pro
-        }
-        
-        return .free
     }
     
     // MARK: - Color Configurations
@@ -233,11 +235,11 @@ public final class PremiumBadgeView: UIView {
     // MARK: - Animations
     
     private func startAnimation() {
-        stopAnimation()
-        
         // Use CADisplayLink for buttery smooth 60fps animation
-        displayLink = CADisplayLink(target: self, selector: #selector(updateAnimation))
-        displayLink?.add(to: .main, forMode: .common)
+        if displayLink == nil {
+            displayLink = CADisplayLink(target: self, selector: #selector(updateAnimation))
+            displayLink?.add(to: .main, forMode: .common)
+        }
     }
     
     @objc private func updateAnimation() {
@@ -252,6 +254,52 @@ public final class PremiumBadgeView: UIView {
     private func stopAnimation() {
         displayLink?.invalidate()
         displayLink = nil
+    }
+    
+    // MARK: - Trial Toggle
+    private func startTrialToggle() {
+        stopTrialToggle()
+        showCountdown = true
+        toggleTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.updateTrialLabel()
+            self.showCountdown.toggle()
+        }
+        // 즉시 한 번 표시 업데이트
+        updateTrialLabel()
+    }
+    private func stopTrialToggle() {
+        toggleTimer?.invalidate()
+        toggleTimer = nil
+    }
+    private func updateTrialLabel() {
+        guard case .trial = currentState else { return }
+        if showCountdown, let until = trialExpirationDateWithin7Days() {
+            label.text = self.formatCountdown(to: until)
+        } else {
+            label.text = "7일 무료체험"
+        }
+        // 그라데이션은 유지, 텍스트만 교체 후 즉시 적용
+        updateGradientText()
+    }
+    private func trialExpirationDateWithin7Days() -> Date? {
+        switch SubscriptionStatusCenter.shared.state {
+        case .active(let until), .gracePeriod(let until):
+            guard let u = until, u > Date() else { return nil }
+            let sevenDays: TimeInterval = 7 * 24 * 60 * 60
+            if u.timeIntervalSinceNow <= sevenDays { return u }
+            return nil
+        default:
+            return nil
+        }
+    }
+    private func formatCountdown(to date: Date) -> String {
+        let now = Date()
+        let interval = max(0, Int(date.timeIntervalSince(now)))
+        let days = interval / (24 * 3600)
+        let hours = (interval % (24 * 3600)) / 3600
+        let minutes = (interval % 3600) / 60
+        return String(format: "D-%02d:%02d:%02d", days, hours, minutes)
     }
     
     deinit {

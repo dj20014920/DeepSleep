@@ -103,7 +103,7 @@
 - [사용자 결정사항] 최소 iOS 타겟: 17.0(StoreKit2 기준)
 - [사용자 결정사항] 환불 정책: 환불 감지 시에도 결제일로부터 1개월간 프리미엄 유지, 이후 무료 전환
 - [사용자 결정사항] 취소 정책: 체험/구독 취소 시 해당 기간 종료까지 프리미엄 유지 후 무료 전환
-- [사용자 결정사항] 모델 정책: 무료는 Gemini 2.0 Flash‑Lite 고정, 프리미엄/Trial은 모델 선택 허용
+- [사용자 결정사항] 모델 정책: 무료는 freeModel + gemini만 선택 가능, 프리미엄/Trial은 전체 모델 선택 허용 (testModel은 프로덕션 UI 비노출)
 - [사용자 결정사항] 월간 통계 사용: KST 기준 월요일 00:00에 초기화되는 주간 1회 제한, 소진 시 버튼 비활성+툴팁 명시
 - [사용자 결정사항] 메인 배지 UX: 상단 중앙 “D‑남은일수” 무지개 그라디언트 일렁임 + 대각선 하이라이트(성능 수칙 준수)
 - [사용자 결정사항] 플래그/롤백: IAP_ENABLED/PAYWALL_ENABLED/PREMIUM_LIMITS_ENABLED, 장애/심사 시 Paywall OFF로 무료 롤백
@@ -416,13 +416,13 @@ Phase 4: 정합성/심사 대응
 - 한계: 완전한 조작 방지는 서버 시간 필요(후속 단계에서 영수증 signedDate/서버 시간 병합)
 
 ## 모델/한도 정책 고정
-- 무료 사용자는 Gemini 2.0 Flash‑Lite 고정 + 무료 한도 적용 [사용자 결정사항]
+- 무료 사용자는 freeModel + gemini 제한적 선택 + 무료 한도 적용 [사용자 결정사항]
 - 프리미엄/Trial 사용자는 한도 해제 또는 상향(Secrets.xcconfig 등급별 키 적용: DAILY_*_FREE / DAILY_*_PREMIUM)
 - 등급 판단은 StoreKit2 권리(Entitlement)를 단일 소스로 삼고, EntitlementGate에서 중앙 분기(DRY)
 
 ## UI/UX 사양(페이월/배지)
-- Paywall: 월/연 토글, Product.displayPrice, 7일 Trial 배지/남은일수, 복원(AppStore.sync), "구독 관리" 딥링크
-- 메인 화면 상단 배지: 중앙 정렬 "D‑남은일수" 형태, 무지개 그라디언트 일렁임 + 대각선 하이라이트 애니메이션(성능 수칙 준수) [사용자 결정사항]
+- Paywall: 월/연 토글, Product.displayPrice, 7일 Trial 배지/남은일수, 복원(AppStore.sync), "구독 관리" 딥링크, 설명 카피에 "Pro에는 대나무숲 친구 선택 가능" 포함
+- 메인 화면 상단 배지: 중앙 정렬 "D‑남은일수" 형태, 무지개 그라디언트 일렁임 + 대각선 하이라이트 애니메이션(성능 수칙 준수) [사용자 결정사항] • Trial 상태에서는 5초 간격으로 "7일 무료체험"과 D‑카운트다운을 토글 표시
 - 설정: 구독 상태/만료·갱신일 표기, 복원, 정책 링크(개인정보/약관)
 
 ## 릴리즈/플래그/롤백
@@ -431,6 +431,17 @@ Phase 4: 정합성/심사 대응
 - Mock: SubscriptionManager(Mock)는 DEBUG 전용, Release/AdHoc에서는 제외
 
 ---
+
+## 2025-08-25 업데이트 로그 (AI 모델 선택 게이팅/카피/배지)
+- 모델 선택 게이팅: 무료는 freeModel + gemini만 선택 가능, Pro/Trial은 전체 모델 선택 가능. testModel은 프로덕션 UI에서 비노출
+  • 파일: DeepSleepApp/Views/AIModelSettingsView.swift, DeepSleepApp/AIModelSelectionViewController.swift
+- 무료 모델 설명 경고 업데이트: freeModel은 응답 지연/오류/한국어 부정확 가능성 안내
+  • 파일: DeepSleepApp/SharedModels.swift (AIModelType.freeModel.description)
+- Paywall 설명 카피에 "Pro에는 대나무숲 친구 선택 가능" 추가
+  • 파일: DeepSleepApp/Paywall/PaywallViewController.swift
+- 프리미엄 배지: Trial 상태 5초 토글("7일 무료체험" ↔ D-카운트다운), Pro/Trial 무지개 그라데이션, Free 그레이스케일
+  • 파일: DeepSleepApp/UI/PremiumBadgeView.swift
+- 선택 저장 경로 정리: SettingsManager.updateSelectedModelAtomically 사용, UserDefaults("selectedLLM") 키 일치
 
 # 2025-08-21 업데이트 로그 (구현 완료 사항)
 

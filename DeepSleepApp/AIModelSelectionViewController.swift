@@ -131,49 +131,42 @@ class AIModelSelectionViewController: UIViewController {
     }
     
     private func createModelCards() {
-        // AI 모델 정보
+        // AI 모델 정보 ("실험 친구"는 UI에서 제거)
         let models = [
             (
                 type: AIModelType.freeModel,
                 personality: "베타 테스터를 위한 무료 친구",
                 specialties: ["무료 이용", "다양한 AI 모델", "자동 전환", "한국어 지원"],
                 strengths: "여러 무료 AI 모델을 자동으로 전환하며 최적의 답변을 제공해요",
-                bestFor: "부담 없는 대화, 다양한 스타일 체험, 베타 테스트",
-            ),
-            (
-                type: AIModelType.testModel,
-                personality: "실험적이고 모험적인 성격",
-                specialties: ["최신 기능", "실험적 접근", "창의적 시도", "피드백 수집"],
-                strengths: "최신 AI 기술을 먼저 체험하고 새로운 기능을 테스트해요",
-                bestFor: "새로운 기능 체험, 실험적 대화, 피드백 제공",
+                bestFor: "부담 없는 대화, 다양한 스타일 체험, 베타 테스트"
             ),
             (
                 type: AIModelType.gemini,
                 personality: "자유롭고 창의적인 성격",
                 specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],
                 strengths: "독특하고 창의적인 시각으로 새로운 해결책을 제시해요",
-                bestFor: "창의적 고민, 예술적 영감, 색다른 관점",
+                bestFor: "창의적 고민, 예술적 영감, 색다른 관점"
             ),
             (
                 type: AIModelType.gpt4,
                 personality: "밝고 적극적인 성격",
                 specialties: ["빠른 분석", "실용적 조언", "목표 설정", "동기부여"],
                 strengths: "신속하고 명확한 답변으로 즉시 도움을 드려요",
-                bestFor: "빠른 상담, 일상 조언, 스트레스 해소",
+                bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
             ),
             (
                 type: AIModelType.naver,
                 personality: "정겨우면서도 현실적인 성격",
                 specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
                 strengths: "한국인의 정서와 문화를 깊이 이해하며 현실적인 조언을 드려요",
-                bestFor: "한국적 고민, 사회생활 조언, 인간관계 상담",
+                bestFor: "한국적 고민, 사회생활 조언, 인간관계 상담"
             ),
             (
                 type: AIModelType.claude35,
                 personality: "차분하고 사려깊은 성격",
                 specialties: ["깊이 있는 대화", "감정 분석", "창의적 문제해결", "윤리적 조언"],
                 strengths: "복잡한 감정을 세심하게 이해하고, 장문의 일기도 꼼꼼히 분석해요",
-                bestFor: "진지한 고민 상담, 감정 정리, 인생 조언",
+                bestFor: "진지한 고민 상담, 감정 정리, 인생 조언"
             )
         ]
         
@@ -188,7 +181,13 @@ class AIModelSelectionViewController: UIViewController {
             )
             card.isSelected = (modelInfo.type == currentSelectedModel)
             card.onTap = { [weak self] in
-                self?.selectModel(modelInfo.type)
+                guard let self = self else { return }
+                // 무료 사용자가 제한 모델을 탭하면 결제창으로 라우팅
+                if !self.isModelAllowed(modelInfo.type) {
+                    self.presentPaywall()
+                    return
+                }
+                self.selectModel(modelInfo.type)
             }
             
             modelCards.append(card)
@@ -234,6 +233,11 @@ class AIModelSelectionViewController: UIViewController {
     // MARK: - Actions
     
     private func selectModel(_ model: AIModelType) {
+        // 무료 사용자는 제한 모델 선택 불가 → 결제 유도
+        if !isModelAllowed(model) {
+            presentPaywall()
+            return
+        }
         // 모든 카드의 선택 상태 업데이트
         for card in modelCards {
             card.isSelected = (card.model == model)
@@ -260,6 +264,21 @@ class AIModelSelectionViewController: UIViewController {
     
     @objc private func closeButtonTapped() {
         dismiss(animated: true)
+    }
+    
+    // MARK: - Gating Helpers
+    private func isPremiumOrTrial() -> Bool {
+        return SubscriptionStatusCenter.shared.isPremium
+    }
+    private func isModelAllowed(_ model: AIModelType) -> Bool {
+        if isPremiumOrTrial() { return true }
+        return model == .freeModel || model == .gemini
+    }
+    private func presentPaywall() {
+        let paywall = PaywallViewController()
+        let nav = UINavigationController(rootViewController: paywall)
+        nav.modalPresentationStyle = .formSheet
+        present(nav, animated: true)
     }
 }
 
