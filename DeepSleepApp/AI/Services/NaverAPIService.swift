@@ -260,13 +260,15 @@ class NaverAPIService {
             "stop_reason": naverResponse.result.stopReason
         ]
         
-        // AI 필터 결과 추가
-        if let aiFilter = naverResponse.result.aiFilter {
-            additionalInfo["ai_filter"] = [
-                "groupName": aiFilter.groupName,
-                "name": aiFilter.name,
-                "score": aiFilter.score
-            ]
+        // AI 필터 결과 추가 (배열 지원)
+        if let aiFilters = naverResponse.result.aiFilter, !aiFilters.isEmpty {
+            additionalInfo["ai_filter"] = aiFilters.map { filter in
+                [
+                    "groupName": filter.groupName,
+                    "name": filter.name,
+                    "score": filter.score
+                ]
+            }
         }
         
         // 한국어 특화 신뢰도 점수 (Naver는 한국어에 강함)
@@ -354,7 +356,7 @@ struct NaverResult: Codable {
     let outputLength: Int?
     let stopReason: String
     let seed: Int?
-    let aiFilter: NaverAIFilter?
+    let aiFilter: [NaverAIFilter]? // 서버가 배열 또는 단일 객체로 제공되는 변종 모두 지원
     let requestId: String
     
     enum CodingKeys: String, CodingKey {
@@ -365,6 +367,34 @@ struct NaverResult: Codable {
         case seed
         case aiFilter = "aiFilter"
         case requestId = "requestId"
+    }
+    
+    init(message: NaverMessage, inputLength: Int?, outputLength: Int?, stopReason: String, seed: Int?, aiFilter: [NaverAIFilter]?, requestId: String) {
+        self.message = message
+        self.inputLength = inputLength
+        self.outputLength = outputLength
+        self.stopReason = stopReason
+        self.seed = seed
+        self.aiFilter = aiFilter
+        self.requestId = requestId
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.message = try container.decode(NaverMessage.self, forKey: .message)
+        self.inputLength = try container.decodeIfPresent(Int.self, forKey: .inputLength)
+        self.outputLength = try container.decodeIfPresent(Int.self, forKey: .outputLength)
+        self.stopReason = try container.decode(String.self, forKey: .stopReason)
+        self.seed = try container.decodeIfPresent(Int.self, forKey: .seed)
+        // aiFilter: 배열 또는 단일 객체 모두 지원
+        if let filters = try? container.decode([NaverAIFilter].self, forKey: .aiFilter) {
+            self.aiFilter = filters
+        } else if let single = try? container.decode(NaverAIFilter.self, forKey: .aiFilter) {
+            self.aiFilter = [single]
+        } else {
+            self.aiFilter = nil
+        }
+        self.requestId = try container.decode(String.self, forKey: .requestId)
     }
 }
 

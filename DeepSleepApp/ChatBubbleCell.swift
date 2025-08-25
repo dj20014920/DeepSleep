@@ -311,7 +311,6 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             loadingContainer.topAnchor.constraint(equalTo: bubbleView.topAnchor, constant: 8),
             loadingContainer.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 16),
             loadingContainer.widthAnchor.constraint(equalToConstant: 200),
-            loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
             
             gifCatView.leadingAnchor.constraint(equalTo: loadingContainer.leadingAnchor),
             gifCatView.topAnchor.constraint(equalTo: loadingContainer.topAnchor),
@@ -322,6 +321,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
             thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
         ])
+        
+        // 로딩 컨테이너 최소 높이(우선순위 낮춤)로 초기 계산 단계 경고 방지
+        let loadingMinHeight = loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
+        loadingMinHeight.priority = .defaultHigh // 750
+        loadingMinHeight.isActive = true
         
         thinkingLabel.numberOfLines = 1
         thinkingLabel.lineBreakMode = .byTruncatingTail

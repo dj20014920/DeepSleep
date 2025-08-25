@@ -24,8 +24,7 @@ public final class ContextMetrics {
 
     // 품질 경고 임계치 (기본 60, 설정값이 있으면 사용)
     private lazy var qualityWarnThreshold: Int = {
-        if let v = ConfigReader.int("AI_QUALITY_WARN_THRESHOLD") { return v }
-        return 60
+        return ConfigReader.int("AI_QUALITY_WARN_THRESHOLD", default: 60) ?? 60
     }()
 
     private init() {}

@@ -8,6 +8,12 @@ class MemoryProfiler {
     private let logger = Logger(subsystem: "com.deepsleep.app", category: "Memory")
     private var baselineMemory: Float = 0
     
+    // 경고 임계치(MB). Info.plist 키 MEMORY_WARN_THRESHOLD_MB가 있으면 사용, 없으면 200MB
+    private lazy var thresholdMB: Float = {
+        if let v = ConfigReader.double("MEMORY_WARN_THRESHOLD_MB") { return Float(v) }
+        return 200
+    }()
+    
     private init() {}
     
     /// 현재 앱의 메모리 사용량을 MB 단위로 반환
@@ -55,10 +61,10 @@ class MemoryProfiler {
         📊 메모리 사용량 [\(context)]:
         • 현재: \(String(format: "%.2f", current)) MB
         • 증가량: \(String(format: "%.2f", increase)) MB
-        • 50MB 제한 대비: \(String(format: "%.1f", (current/50.0)*100))%
+        • \(Int(thresholdMB))MB 제한 대비: \(String(format: "%.1f", (current/thresholdMB)*100))%
         """
         
-        if current < 50 {
+        if current < thresholdMB {
             logger.info("\(logMessage) ✅")
         } else {
             logger.warning("\(logMessage) ⚠️ 메모리 사용량 초과!")
@@ -70,7 +76,7 @@ class MemoryProfiler {
     /// 메모리 경고 체크
     func checkMemoryWarning() -> Bool {
         let current = getCurrentMemoryUsage()
-        return current > 50
+        return current > thresholdMB
     }
     
     /// 채팅 메시지 로드 시뮬레이션 테스트
@@ -181,15 +187,10 @@ extension MemoryProfiler {
         증가량: \(String(format: "%.2f", increase)) MB
         
         메모리 상태:
-        • 50MB 이하: \(current <= 50 ? "✅ 정상" : "⚠️ 초과")
-        • 40MB 이하 (권장): \(current <= 40 ? "✅ 양호" : "⚠️ 주의")
-        • 30MB 이하 (최적): \(current <= 30 ? "✅ 최적" : "❌ 개선 필요")
+        • 임계치(\(Int(thresholdMB))MB) 이하: \(current <= thresholdMB ? "✅ 정상" : "⚠️ 초과")
         
         권장사항:
-        \(current > 50 ? "• 페이지 크기 축소 권장" : "")
-        \(current > 40 ? "• 캐시 정리 주기 단축 권장" : "")
-        \(current > 30 ? "• 이미지 압축 강화 권장" : "")
-        \(current <= 30 ? "• 현재 설정 유지 권장" : "")
+        \(current > thresholdMB ? "• 페이지 크기 축소/캐시 정리 주기 단축/이미지 압축 강화 권장" : "• 현재 설정 유지 권장")
         ============================
         """
         
