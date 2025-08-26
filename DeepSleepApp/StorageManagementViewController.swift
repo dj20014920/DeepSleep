@@ -956,6 +956,18 @@ class StorageManagementCell: UITableViewCell {
         containerView.addSubview(sizeLabel)
         containerView.addSubview(messageCountLabel)
         
+        // 보호 배지 초기화 및 추가
+        protectionBadge.text = "🛡 보호"
+        protectionBadge.font = .systemFont(ofSize: 10, weight: .bold)
+        protectionBadge.textColor = .white
+        protectionBadge.backgroundColor = .systemTeal
+        protectionBadge.layer.cornerRadius = 8
+        protectionBadge.clipsToBounds = true
+        protectionBadge.textAlignment = .center
+        protectionBadge.translatesAutoresizingMaskIntoConstraints = false
+        protectionBadge.isHidden = true
+        containerView.addSubview(protectionBadge)
+        
         // 체크 버튼(선택 토글)
         checkButton.translatesAutoresizingMaskIntoConstraints = false
         checkButton.tintColor = .systemBlue
@@ -996,7 +1008,7 @@ class StorageManagementCell: UITableViewCell {
             // 메시지 카운트
             messageCountLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 4),
             messageCountLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 14),
-            messageCountLabel.trailingAnchor.constraint(lessThanOrEqualTo: protectionBadge.leadingAnchor, constant: -6),
+            messageCountLabel.trailingAnchor.constraint(lessThanOrEqualTo: checkButton.leadingAnchor, constant: -12),
             
             // 크기 라벨
             sizeLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -12),
@@ -1005,6 +1017,7 @@ class StorageManagementCell: UITableViewCell {
             // 보호 배지
             protectionBadge.centerYAnchor.constraint(equalTo: messageCountLabel.centerYAnchor),
             protectionBadge.trailingAnchor.constraint(lessThanOrEqualTo: favoriteButton.leadingAnchor, constant: -8),
+            protectionBadge.leadingAnchor.constraint(greaterThanOrEqualTo: messageCountLabel.trailingAnchor, constant: 6),
             protectionBadge.heightAnchor.constraint(equalToConstant: 18),
             protectionBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
             
