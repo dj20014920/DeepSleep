@@ -15,19 +15,6 @@ public enum PaywallPresenter {
         vc.modalPresentationStyle = .formSheet
         host.present(vc, animated: true)
 
-        // 표시 후 가격/Trial 자동 주입 (비동기)
-        Task { @MainActor in
-            await StoreKitSubscriptionManager.shared.loadProducts()
-            if vc.monthlyDisplayPrice == nil {
-                vc.monthlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
-            }
-            if vc.yearlyDisplayPrice == nil {
-                vc.yearlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
-            }
-            if vc.trialDaysRemaining == nil {
-                vc.trialDaysRemaining = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
-                    ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
-            }
-        }
+        // 가격/Trial은 Paywall 내부에서 자동 로딩됨
     }
 }

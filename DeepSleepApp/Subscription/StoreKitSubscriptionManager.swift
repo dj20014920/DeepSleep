@@ -3,8 +3,10 @@ import StoreKit
 import os.log
 
 public enum SubscriptionProduct: String, CaseIterable {
-    case monthly = "com.deepsleep.premium.monthly"
-    case yearly  = "com.deepsleep.premium.yearly"
+    case proMonthly = "com.emozleep.pro.monthly"
+    case proYearly  = "com.emozleep.pro.yearly"
+    case maxMonthly = "com.emozleep.max.monthly"
+    case maxYearly  = "com.emozleep.max.yearly"
 }
 
 public extension Notification.Name {

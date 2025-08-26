@@ -16,15 +16,12 @@ public enum EntitlementUI {
         if can { return true }
         // 가격/Trial이 미전달이면 StoreKit에서 조회 후 주입하여 Paywall 표시
         Task { @MainActor in
+            // 가격/Trial은 Paywall 내부에서 자동 로딩
             await StoreKitSubscriptionManager.shared.loadProducts()
-            let mPrice = monthlyPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
-            let yPrice = yearlyPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
-            let trial = trialDaysRemaining ?? (StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
-                                               ?? StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly))
             PaywallPresenter.present(from: host,
-                                     monthlyPrice: mPrice,
-                                     yearlyPrice: yPrice,
-                                     trialDaysRemaining: trial,
+                                     monthlyPrice: monthlyPrice,
+                                     yearlyPrice: yearlyPrice,
+                                     trialDaysRemaining: trialDaysRemaining,
                                      delegate: delegate)
         }
         return false

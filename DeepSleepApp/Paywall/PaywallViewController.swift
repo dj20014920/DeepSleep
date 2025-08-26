@@ -11,6 +11,15 @@ public protocol PaywallViewControllerDelegate: AnyObject {
 /// 실제 StoreKit 연동은 Manager에서 수행하고, 본 화면은 이벤트만 위임합니다.
 public final class PaywallViewController: UIViewController {
 
+    private enum Tier { case pro, max }
+    private var selectedTier: Tier = .pro { didSet { updatePricesForSelectedTier(); updatePurchaseButtonsEnabled() } }
+
+    // 가격 캐시(프로/맥스 × 월/연)
+    private var proMonthlyPriceCache: String?
+    private var proYearlyPriceCache: String?
+    private var maxMonthlyPriceCache: String?
+    private var maxYearlyPriceCache: String?
+
     // MARK: - Public
     public weak var delegate: PaywallViewControllerDelegate?
 
@@ -30,7 +39,7 @@ public final class PaywallViewController: UIViewController {
         l.textAlignment = .center
         l.font = .systemFont(ofSize: 22, weight: .bold)
         l.numberOfLines = 0
-        l.text = "DeepSleep 프리미엄"
+        l.text = "EmoZleep 프리미엄"
         return l
     }()
 
@@ -53,6 +62,12 @@ public final class PaywallViewController: UIViewController {
         l.numberOfLines = 0
         l.text = "체험 종료 후 자동으로 선택한 구독으로 갱신됩니다. 체험 중 언제든 취소하면 결제되지 않습니다."
         return l
+    }()
+
+    private let tierControl: UISegmentedControl = {
+        let s = UISegmentedControl(items: ["Pro", "Max"])
+        s.selectedSegmentIndex = 0
+        return s
     }()
 
     private let monthlyButton: UIButton = {
@@ -111,6 +126,7 @@ public override func viewDidLoad() {
     }
 
     private func bind() {
+        tierControl.addTarget(self, action: #selector(didChangeTier), for: .valueChanged)
         monthlyButton.addTarget(self, action: #selector(didTapMonthly), for: .touchUpInside)
         yearlyButton.addTarget(self, action: #selector(didTapYearly), for: .touchUpInside)
         restoreButton.addTarget(self, action: #selector(didTapRestore), for: .touchUpInside)
@@ -124,7 +140,7 @@ public override func viewDidLoad() {
     }
 
     private func configureLayout() {
-        [titleLabel, closeButton, trialBadgeLabel, descriptionLabel, priceLabel, monthlyButton, yearlyButton, restoreButton].forEach {
+        [titleLabel, closeButton, trialBadgeLabel, descriptionLabel, priceLabel, tierControl, monthlyButton, yearlyButton, restoreButton].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -149,7 +165,10 @@ public override func viewDidLoad() {
             priceLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             priceLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
 
-            monthlyButton.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 24),
+            tierControl.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 16),
+            tierControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+
+            monthlyButton.topAnchor.constraint(equalTo: tierControl.bottomAnchor, constant: 16),
             monthlyButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             yearlyButton.topAnchor.constraint(equalTo: monthlyButton.bottomAnchor, constant: 12),
@@ -194,17 +213,15 @@ public override func viewDidLoad() {
         Task { @MainActor in
             // 제품 로드 후 표시가/Trial 갱신
             await StoreKitSubscriptionManager.shared.loadProducts()
-            if self.monthlyDisplayPrice == nil {
-                self.monthlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
-            }
-            if self.yearlyDisplayPrice == nil {
-                self.yearlyDisplayPrice = StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
-            }
+            // 가격 캐시 채우기
+            self.proMonthlyPriceCache = StoreKitSubscriptionManager.shared.displayPrice(for: .proMonthly)
+            self.proYearlyPriceCache  = StoreKitSubscriptionManager.shared.displayPrice(for: .proYearly)
+            self.maxMonthlyPriceCache = StoreKitSubscriptionManager.shared.displayPrice(for: .maxMonthly)
+            self.maxYearlyPriceCache  = StoreKitSubscriptionManager.shared.displayPrice(for: .maxYearly)
+            // 현재 선택된 티어 기준 표시가 반영
+            self.updatePricesForSelectedTier()
             if self.trialDaysRemaining == nil {
-                // 월/연 중 하나라도 trial 대상이면 7로 표기(가장 관대한 표기)
-                let m = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .monthly)
-                let y = StoreKitSubscriptionManager.shared.trialDaysRemaining(for: .yearly)
-                self.trialDaysRemaining = m ?? y
+                self.trialDaysRemaining = StoreKitSubscriptionManager.shared.isTrialEligible ? 7 : nil
             }
             // 제품 로드 이후 버튼 상태 갱신
             self.updatePurchaseButtonsEnabled()
@@ -219,8 +236,16 @@ public override func viewDidLoad() {
     // MARK: - Actions
 
     private func updatePurchaseButtonsEnabled() {
-        let hasMonthly = StoreKitSubscriptionManager.shared.hasProduct(.monthly)
-        let hasYearly = StoreKitSubscriptionManager.shared.hasProduct(.yearly)
+        let hasMonthly: Bool
+        let hasYearly: Bool
+        switch selectedTier {
+        case .pro:
+            hasMonthly = StoreKitSubscriptionManager.shared.hasProduct(.proMonthly)
+            hasYearly  = StoreKitSubscriptionManager.shared.hasProduct(.proYearly)
+        case .max:
+            hasMonthly = StoreKitSubscriptionManager.shared.hasProduct(.maxMonthly)
+            hasYearly  = StoreKitSubscriptionManager.shared.hasProduct(.maxYearly)
+        }
         let enabled = hasMonthly || hasYearly
         monthlyButton.isEnabled = hasMonthly
         yearlyButton.isEnabled = hasYearly
@@ -238,8 +263,12 @@ public override func viewDidLoad() {
             return
         }
         // 제품이 갱신되면 가격/버튼 상태 갱신
-        self.monthlyDisplayPrice = self.monthlyDisplayPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .monthly)
-        self.yearlyDisplayPrice = self.yearlyDisplayPrice ?? StoreKitSubscriptionManager.shared.displayPrice(for: .yearly)
+        // 제품이 갱신되면 캐시를 갱신하고 현재 티어 표시 업데이트
+        self.proMonthlyPriceCache = StoreKitSubscriptionManager.shared.displayPrice(for: .proMonthly)
+        self.proYearlyPriceCache  = StoreKitSubscriptionManager.shared.displayPrice(for: .proYearly)
+        self.maxMonthlyPriceCache = StoreKitSubscriptionManager.shared.displayPrice(for: .maxMonthly)
+        self.maxYearlyPriceCache  = StoreKitSubscriptionManager.shared.displayPrice(for: .maxYearly)
+        self.updatePricesForSelectedTier()
         updatePurchaseButtonsEnabled()
     }
     @objc private func didTapMonthly() {
@@ -248,9 +277,13 @@ public override func viewDidLoad() {
         // 기본 동작: StoreKit2 구매 진행
         Task { @MainActor in
             do {
-                // 제품이 비어있을 수 있으므로 한 번 더 로드 시도 후 진행
                 await StoreKitSubscriptionManager.shared.loadProducts()
-                try await StoreKitSubscriptionManager.shared.purchase(.monthly)
+                switch selectedTier {
+                case .pro:
+                    try await StoreKitSubscriptionManager.shared.purchase(.proMonthly)
+                case .max:
+                    try await StoreKitSubscriptionManager.shared.purchase(.maxMonthly)
+                }
                 print("[Paywall] Monthly purchase flow initiated")
             } catch {
                 print("[Paywall][Error] Monthly purchase failed: \(error.localizedDescription)")
@@ -264,7 +297,12 @@ public override func viewDidLoad() {
         Task { @MainActor in
             do {
                 await StoreKitSubscriptionManager.shared.loadProducts()
-                try await StoreKitSubscriptionManager.shared.purchase(.yearly)
+                switch selectedTier {
+                case .pro:
+                    try await StoreKitSubscriptionManager.shared.purchase(.proYearly)
+                case .max:
+                    try await StoreKitSubscriptionManager.shared.purchase(.maxYearly)
+                }
                 print("[Paywall] Yearly purchase flow initiated")
             } catch {
                 print("[Paywall][Error] Yearly purchase failed: \(error.localizedDescription)")
@@ -284,5 +322,19 @@ public override func viewDidLoad() {
     @objc private func didTapClose() {
         delegate?.paywallDidClose(self)
         dismiss(animated: true)
+    }
+    @objc private func didChangeTier() {
+        selectedTier = (tierControl.selectedSegmentIndex == 0) ? .pro : .max
+    }
+
+    private func updatePricesForSelectedTier() {
+        switch selectedTier {
+        case .pro:
+            self.monthlyDisplayPrice = proMonthlyPriceCache
+            self.yearlyDisplayPrice  = proYearlyPriceCache
+        case .max:
+            self.monthlyDisplayPrice = maxMonthlyPriceCache
+            self.yearlyDisplayPrice  = maxYearlyPriceCache
+        }
     }
 }

@@ -1,0 +1,70 @@
+{
+  "identifier": "EmoZleep-StoreKit-Config",
+  "version": 1,
+  "subscriptionGroups": [
+    {
+      "id": "emozleep.premium",
+      "displayName": "EmoZleep Premium",
+      "eligibility": "once"
+    }
+  ],
+  "products": [
+    {
+      "id": "com.emozleep.pro.monthly",
+      "type": "Auto-Renewable Subscription",
+      "displayName": "EmoZleep Pro Monthly",
+      "familyShareable": false,
+      "subscriptionGroupID": "emozleep.premium",
+      "localizations": {
+        "ko-KR": { "name": "Pro 월간", "description": "7일 무료체험 후 자동 갱신" },
+        "en-US": { "name": "Pro Monthly", "description": "7-day free trial, auto-renewing" }
+      },
+      "introductoryOffer": { "mode": "free", "duration": "P1W" },
+      "price": 6600,
+      "currencyCode": "KRW"
+    },
+    {
+      "id": "com.emozleep.pro.yearly",
+      "type": "Auto-Renewable Subscription",
+      "displayName": "EmoZleep Pro Yearly",
+      "familyShareable": false,
+      "subscriptionGroupID": "emozleep.premium",
+      "localizations": {
+        "ko-KR": { "name": "Pro 연간", "description": "7일 무료체험 후 자동 갱신" },
+        "en-US": { "name": "Pro Yearly", "description": "7-day free trial, auto-renewing" }
+      },
+      "introductoryOffer": { "mode": "free", "duration": "P1W" },
+      "price": 66000,
+      "currencyCode": "KRW"
+    },
+    {
+      "id": "com.emozleep.max.monthly",
+      "type": "Auto-Renewable Subscription",
+      "displayName": "EmoZleep Max Monthly",
+      "familyShareable": false,
+      "subscriptionGroupID": "emozleep.premium",
+      "localizations": {
+        "ko-KR": { "name": "Max 월간", "description": "7일 무료체험 후 자동 갱신" },
+        "en-US": { "name": "Max Monthly", "description": "7-day free trial, auto-renewing" }
+      },
+      "introductoryOffer": { "mode": "free", "duration": "P1W" },
+      "price": 11000,
+      "currencyCode": "KRW"
+    },
+    {
+      "id": "com.emozleep.max.yearly",
+      "type": "Auto-Renewable Subscription",
+      "displayName": "EmoZleep Max Yearly",
+      "familyShareable": false,
+      "subscriptionGroupID": "emozleep.premium",
+      "localizations": {
+        "ko-KR": { "name": "Max 연간", "description": "7일 무료체험 후 자동 갱신" },
+        "en-US": { "name": "Max Yearly", "description": "7-day free trial, auto-renewing" }
+      },
+      "introductoryOffer": { "mode": "free", "duration": "P1W" },
+      "price": 99000,
+      "currencyCode": "KRW"
+    }
+  ]
+}
+

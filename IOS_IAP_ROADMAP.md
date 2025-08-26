@@ -2,6 +2,93 @@
 
 ---
 
+## 2025-08-26 마스터 블루프린트 업데이트 (결제/IAP 상용화 준비 확정)
+
+본 섹션은 지금 시점(2025-08-26) 기준으로 확정된 의사결정과 즉시 실행 계획, 검증 체크리스트를 한눈에 볼 수 있도록 정리한 상위 청사진입니다. 세부 구현/배경은 본문 각 장의 링크를 따릅니다.
+
+승인/고정 사항
+- 가격 티어: Pro 월 ₩6,600 / 연 ₩66,000, Max 월 ₩11,000 / 연 ₩99,000 (ASC 티어로 반영).
+- 출시 지역: 1차 대한민국(KR) 우선. 추후 일본(JP), 미국(US) 등 확장 전제(가격/세금/카피 현지화 계획 포함).
+- 로캘: 앱/스토어 카피 ko-KR 기본 + en-US 보조 제공(심사/글로벌 확장 대비 일관 유지).
+- 테스트 전략: Xcode StoreKit(.storekit) 로컬 환경 + 실기기 샌드박스 이중 검증.
+
+네이밍 명시
+- 앱 표시명: EmoZleep (코드네임/리포지토리: DeepSleep)
+- 구독 그룹 이름(ASC): EmoZleep Premium
+- Product ID 프리픽스: com.emozleep.*
+
+즉시 실행(이번 커밋 포함)
+1) StoreKit 구성 파일 신설(로컬 테스트)
+   - 경로: DeepSleepApp/StoreKit/DeepSleep.storekit
+   - 내용: 구독 그룹 EmoZleep Premium(그룹 1회 7일 Intro) + Pro/Max 2티어 × 월/연 4개 상품(com.emozleep.pro.monthly, com.emozleep.pro.yearly, com.emozleep.max.monthly, com.emozleep.max.yearly), KR 통화 우선. 
+   - 비고: .storekit는 Xcode에서 즉시 열어 가격/언어/스토어프론트 시뮬레이션 가능. 
+2) Xcode 스킴 수정
+   - 기존 DeepSleepNoTrial.storekit 참조 제거 → DeepSleep.storekit로 교체(시뮬레이터 제품 0건 문제 예방).
+3) 문서/코드 싱크
+   - 본 파일(로드맵) 상단에 본 섹션 신설. 아래 ‘ASC 체크리스트’/‘QA’ 최신화.
+
+App Store Connect(ASC) 설정 체크리스트(최소 구매 가능 상태 도달용)
+1) Agreements, Tax, Banking 유료 계약 완료
+2) 앱 내 구입(IAP)
+   - 구독 그룹 생성: EmoZleep Premium (Group ID 권장: emozleep.premium)
+   - 구독 상품 4개:
+     • com.emozleep.pro.monthly (Pro, 1개월)
+     • com.emozleep.pro.yearly (Pro, 1년)
+     • com.emozleep.max.monthly (Max, 1개월)
+     • com.emozleep.max.yearly (Max, 1년)
+   - Cleared for Sale 체크, 로캘(ko-KR 기본 + en-US), 표시명/설명/스크린샷(페이월 캡처) 입력
+   - Introductory Offer: Free Trial 7일(그룹 1회) 설정
+   - 앱 버전 메타데이터에 IAP 연결(심사 시 노출)
+3) 가격 및 사용 가능 여부
+   - 앱 자체 가격=무료, 국가=KR(1차)만 선택
+   - 세금 카테고리/세율 확인(구독형 디지털 서비스)
+
+QA/검증 체크리스트(로컬→샌드박스)
+- 로컬(.storekit): 제품 로드, 월/연 구매, 복원(AppStore.sync), Trial/만료/환불, Ask to Buy/중단구매/가격인상동의 시나리오
+- 샌드박스(실기기): StoreKit Configuration=None → Product.products(for:) 정상 로딩, 결제/복원/Trial 자격 판별/만료 반영
+- 전역 UI 반영: Notification.subscriptionStatusChanged 수신 후 Paywall 자동 닫힘/버튼/배지 갱신
+
+스토어 카피 초안(동일 그룹 1회 7일 체험 고지 일관)
+- ko-KR(요약): “7일 무료체험 후 자동 갱신. 언제든 취소 가능. 연간은 Pro 약 17%, Max 약 25% 절약.”
+- en-US(요약): “7-day free trial. Auto-renews. Cancel anytime. Yearly: Pro ~17% off, Max ~25% off.”
+
+심사 노트 템플릿(예시)
+- 테스트 경로: 앱 실행 → 챗 진입 → 무료 한도 소진 시 Paywall 표시 → 월/연 선택 → 결제 → 설정 화면에서 ‘구매 복원’ 확인
+- 샌드박스 계정: <review-sandbox@apple.com> / <password>
+- 구현 요약: StoreKit 2(구매/복원/트랜잭션 업데이트/환불 그레이스 30일), 그룹 1회 7일 Intro, IAP 게이팅(EntitlementGate)
+
+일정/책임(요지)
+- D0: .storekit 생성/스킴 수정/문서 최신화(본 커밋)
+- D0~D2: ASC IAP 등록/연결, 로컬·샌드박스 QA 완주
+- D3: 스토어 메타데이터/스크린샷 확정, 심사 제출
+
+참고: 상세 근거/배경은 아래 ‘2025-08-25…’ 이하 기존 로그와 “ASC 설정(초안)”, “테스트 계획”, “IAP/App Review 체크리스트” 절을 따릅니다.
+
+### 실행 상태 업데이트(2025-08-26 07:30 KST)
+- 현재 스킴에서 StoreKit Configuration는 DeepSleepApp/StoreKit/DeepSleep.storekit로 설정됨(완료).
+- 빌드/실행 결과 Paywall 가격/Trial 미표시, 로그:
+  ```
+  [IAP] Requesting products for IDs: com.deepsleep.premium.yearly, com.deepsleep.premium.monthly
+  [IAP] Running on Device - using App Store Connect
+  [IAP] Raw products returned: 0 items
+  [IAP] Missing products: com.deepsleep.premium.yearly, com.deepsleep.premium.monthly
+  ```
+- 진단
+  1) 디바이스 실행 시 런타임이 App Store Connect 경로를 사용 중 → .storekit가 무시되는 상태. 
+     (정식 .storekit 파일은 Xcode UI로 생성/저장해야 하며, 일시적으로 시뮬레이터에서 먼저 검증하는 것이 가장 안정적)
+  2) App Store Connect에 실제 구독 상품 미등록 상태이므로 서버 경로에서는 Product 0이 정상.
+- 조치
+  A) 단기(로컬): Xcode > File > New > StoreKit Configuration File로 DeepSleep.storekit를 ‘Xcode에서’ 재생성(구독 그룹/월·연/7일 Intro 포함) 후 스킴 저장. 우선 ‘시뮬레이터’에서 가격/Trial 배지 표시 확인 → 필요 시 실기기에서도 Xcode StoreKit Testing 동작 확인.
+  B) 병행(서버): App Store Connect에서 구독 그룹/상품 생성, Cleared for Sale, 7일 Intro(그룹 1회) 설정, 앱 버전에 IAP 연결. 샌드박스 계정으로 실기기 테스트.
+- ASC 체크리스트(제품 0건 대응)
+  - Product IDs 일치(com.emozleep.pro.monthly/yearly, com.emozleep.max.monthly/yearly)
+  - Cleared for Sale
+  - 로캘(ko-KR/en-US) 및 스크린샷 등록
+  - 앱 버전 메타데이터에 IAP 연결
+  - 상태가 유효(대기/승인)하고 그룹 1회 Trial 정책 적용
+
+---
+
 ## 2025-08-25 업데이트 로그 (알림 설정 UX/옵트아웃)
 - 설정 > 앱 설정 > 알림 설정 화면을 실제 구현했습니다.
   • 항목: 전체 알림 허용, 타이머 알림, 할 일 미리 알림 스위치 제공
@@ -175,7 +262,7 @@
 - ChatViewController 등 진입 시 게이트 평가 → 실패 시 Paywall 표시
 
 3) 결제 플로우(StoreKit2)
-- 제품 구성: com.deepsleep.premium.monthly, com.deepsleep.premium.yearly
+- 제품 구성: com.emozleep.pro.monthly, com.emozleep.pro.yearly, com.emozleep.max.monthly, com.emozleep.max.yearly
 - 구매: try await product.purchase() → Transaction 검증 → 상태 저장 → Notification 전파
 - 복원: await AppStore.sync() 후 Transaction.currentEntitlements 재평가
 - 영수증/검증:
@@ -263,8 +350,8 @@ Phase 4: 정합성/심사 대응
 ## 💰 구독 가격 책정 분석 보고서 (2025-08-20)
 
 ### 🎯 최종 결정 가격
-- **월간 구독**: ₩6,500 ($4.81)
-- **연간 구독**: ₩65,000 ($48.1) - 17% 할인 (2개월 무료)
+- Pro: 월 ₩6,600 / 연 ₩66,000 (연간 약 17% 할인)
+- Max: 월 ₩11,000 / 연 ₩99,000 (연간 약 25% 할인)
 
 ### 📊 가격 책정 근거
 
@@ -318,7 +405,7 @@ Phase 4: 정합성/심사 대응
 **경쟁사 가격 비교:**
 - Noisli: ₩2,900 (기본 사운드 앱)
 - Sleep Cycle: ₩4,900 (수면 추적)
-- **DeepSleep: ₩6,500** (AI 기반 개인화 서비스)
+- **EmoZleep Pro: ₩6,600** / EmoZleep Max: ₩11,000
 - Headspace: ₩7,900 (명상 앱)
 - Calm: ₩8,900 (프리미엄 웰니스)
 
@@ -351,7 +438,7 @@ Phase 4: 정합성/심사 대응
 
 #### 6. 가격 결정 이유
 
-**₩6,500 선택 근거:**
+**₩6,600(프로) 선택 근거:**
 
 1. **접근성 우선**: 초기 시장 진입을 위한 매력적 가격
 2. **최소 수익성 확보**: 14% 마진으로 기본적 지속가능성 보장
@@ -379,7 +466,7 @@ Phase 4: 정합성/심사 대응
 
 ### 🚀 결론
 
-₩6,500은 **공격적 시장 진입 전략**을 위한 가격입니다. 최소한의 수익성을 확보하면서도 높은 접근성을 제공하여 초기 사용자 확보에 집중하는 전략적 선택입니다. 
+₩6,600(프로)은 **공격적 시장 진입 전략**을 위한 가격입니다. 최소한의 수익성을 확보하면서도 높은 접근성을 제공하여 초기 사용자 확보에 집중하는 전략적 선택입니다. 
 
 프롬프트 캐싱 시스템과 프록시 서버 구축을 통해 비용 효율성과 보안을 동시에 확보하며, 실제 사용 데이터를 바탕으로 향후 가격 최적화를 진행할 예정입니다.
 
@@ -413,9 +500,9 @@ Phase 4: 정합성/심사 대응
 - 구체 가격/근거는 본 파일 하단의 "구독 가격 책정 분석 보고서" 및 IOS_GUIDE.md의 항목을 근거로 유지/보완
 
 ## App Store Connect 설정(초안)
-- Subscription Group 이름: DeepSleep Premium (ID: deepsleep.premium)
-- Product IDs: com.deepsleep.premium.monthly, com.deepsleep.premium.yearly
-- SKU 제안: deepsleep_month_001, deepsleep_year_001
+- Subscription Group 이름: EmoZleep Premium (ID 권장: emozleep.premium)
+- Product IDs: com.emozleep.pro.monthly, com.emozleep.pro.yearly, com.emozleep.max.monthly, com.emozleep.max.yearly
+- SKU 제안: emozleep_pro_month_001, emozleep_pro_year_001, emozleep_max_month_001, emozleep_max_year_001
 - 판매 지역: 대한민국(KR) 우선 출시, 이후 전 지역 확대 [사용자 결정사항]
 - 무료체험: 7일(월/연 모두 노출, 그룹 1회 제공) [사용자 결정사항]
 - 주요 통화: KRW, USD (기타 지역은 추후 티어 자동 매핑)
@@ -494,7 +581,7 @@ Phase 4: 정합성/심사 대응
 - 추가: DeepSleepApp/UI/PremiumBadgeView.swift
   - 메인 상단 중앙 D-N 배지(무지개 번쩍임) 구현
 - 추가: DeepSleepApp/StoreKit/DeepSleep.storekit
-  - 구독 그룹 primary, 월간/연간 + 7일 Intro(그룹 1회) 시나리오 포함. 스킴 Run > Options에 연결 필요
+  - 구독 그룹 primary, Pro/Max 월간/연간 + 7일 Intro(그룹 1회) 시나리오 포함. 스킴 Run > Options에 연결 필요
 - 변경: DeepSleepApp/AI/UsageLimitManager.swift
   - 등급별/공통 키 모두 지원하도록 해석 로직 개선
     • 무료/프리미엄 분기: DAILY_CHAT_LIMIT_FREE/DAILY_CHAT_LIMIT_PREMIUM 우선

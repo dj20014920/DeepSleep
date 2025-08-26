@@ -167,6 +167,7 @@
 		E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D52E33B2ED002F75E6 /* GoogleGenerativeAI */; };
 		E0899C7F2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */; };
 		E0899C892E5CB6FE006AD307 /* CentralNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */; };
+		E0899C8B2E5D996D006AD307 /* DeepSleep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */; };
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
@@ -378,6 +379,7 @@
 		E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
 		E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md; sourceTree = "<group>"; };
 		E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentralNotificationScheduler.swift; sourceTree = "<group>"; };
+		E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -857,6 +859,7 @@
 		E0E7BCCD2E561E4A00FF7073 /* StoreKit */ = {
 			isa = PBXGroup;
 			children = (
+				E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */,
 			);
 			path = StoreKit;
 			sourceTree = "<group>";
@@ -955,6 +958,7 @@
 				E084F2AF2E33AE9B002F75E6 /* 키보드1.mp3 in Resources */,
 				E084F2B02E33AE9B002F75E6 /* 키보드2.mp3 in Resources */,
 				E084F2B12E33AE9B002F75E6 /* 파도.mp3 in Resources */,
+				E0899C8B2E5D996D006AD307 /* DeepSleep.storekit in Resources */,
 				E084F2B22E33AE9B002F75E6 /* 파도2.mp3 in Resources */,
 				E084F2B32E33AE9B002F75E6 /* cat.gif in Resources */,
 				E084F2B62E33AE9B002F75E6 /* Assets.xcassets in Resources */,
@@ -1286,6 +1290,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EmoZleep;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1310,6 +1315,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EmoZleep;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
