@@ -15,6 +15,19 @@ fileprivate final class PillLabel: UILabel {
     }
 }
 
+fileprivate final class LargerHitButton: UIButton {
+    var minHitSize: CGSize = CGSize(width: 44, height: 44)
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        var bounds = self.bounds
+        let widthDelta = max(minHitSize.width - bounds.size.width, 0)
+        let heightDelta = max(minHitSize.height - bounds.size.height, 0)
+        if widthDelta > 0 || heightDelta > 0 {
+            bounds = bounds.insetBy(dx: -widthDelta/2, dy: -heightDelta/2)
+        }
+        return bounds.contains(point)
+    }
+}
+
 fileprivate extension UIView {
     func applyNeumorphicContainer(cornerRadius: CGFloat = 16, baseColor: UIColor? = nil) {
         let color = baseColor ?? UIColor.systemBackground
@@ -71,14 +84,18 @@ class StorageManagementViewController: UIViewController {
     private let retentionLabel = UILabel()
     private let refreshButton = UIButton()
     
-    // 빠른 정리 섹션
+    // 통계 카드 내부 스택
+    private let statsStack = UIStackView()
+    // 빠른 정리: 별도 카드로 분리
     private let quickCleanupContainerView = UIView()
+    private let quickStack = UIStackView()
     private let deleteOldButton = UIButton()
     private let compressButton = UIButton()
     private let deleteAllButton = UIButton()
     
     // 개별 관리 섹션
     private let tableView = UITableView()
+    private var tableHeightConstraint: NSLayoutConstraint?
     private var dailyStorageData: [DailyStorageInfo] = []
     private var selectedDates: Set<String> = []
     
@@ -99,6 +116,8 @@ class StorageManagementViewController: UIViewController {
         // 갱신 시 컨테이너에 뉴모피즘 섀도우 재적용(프레임 반영)
         statisticsContainerView.applyNeumorphicContainer(cornerRadius: 16)
         quickCleanupContainerView.applyNeumorphicContainer(cornerRadius: 16)
+        // 테이블 높이 자동 보정
+        adjustTableHeight()
     }
     
     // MARK: - UI Setup
@@ -116,7 +135,7 @@ class StorageManagementViewController: UIViewController {
         // 스크롤뷰 설정
         setupScrollView()
         
-        // 각 섹션 설정
+        // 각 섹션 설정 (통계 카드 + 빠른 정리 카드 분리)
         setupStatisticsSection()
         setupQuickCleanupSection()
         setupTableView()
@@ -138,6 +157,8 @@ class StorageManagementViewController: UIViewController {
         
         // 이어서 대화하기 노티 수신 (해당 날짜 세션으로 이동)
         NotificationCenter.default.addObserver(self, selector: #selector(handleResumeConversationForDate(_:)), name: Notification.Name("ResumeConversationForDate"), object: nil)
+        // 즐겨찾기 변경 노티 수신 → 즉시 재정렬/리로드
+        NotificationCenter.default.addObserver(self, selector: #selector(handleFavoriteDatesChanged), name: Notification.Name("FavoriteDatesChanged"), object: nil)
     }
     
     private func setupScrollView() {
@@ -152,11 +173,27 @@ class StorageManagementViewController: UIViewController {
         statisticsContainerView.translatesAutoresizingMaskIntoConstraints = false
         statisticsContainerView.applyNeumorphicContainer(cornerRadius: 16)
         
-        // 제목
-        let titleLabel = UILabel()
-        titleLabel.text = "📊 저장소 현황"
-        titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
-        titleLabel.textColor = .label
+        // 제목 + 정책 요약을 하나의 레이블로 결합
+        let protectionDays = SettingsManager.shared.protectedDaysWindow
+        let headerLabel = UILabel()
+        headerLabel.numberOfLines = 0
+        let titleText = "📊 저장소 현황"
+        let detailsText = "🔒 최근 \(protectionDays)일 보호 · ⭐ 즐겨찾기 제외 · 상한: 무료 3개/프리미엄·트라이얼 10개"
+        let headerAttr = NSMutableAttributedString(
+            string: titleText + "\n",
+            attributes: [
+                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: UIColor.label
+            ]
+        )
+        headerAttr.append(NSAttributedString(
+            string: detailsText,
+            attributes: [
+                .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+        ))
+        headerLabel.attributedText = headerAttr
         
         // 통계 라벨들
         totalSizeLabel.font = .systemFont(ofSize: 16)
@@ -169,63 +206,16 @@ class StorageManagementViewController: UIViewController {
         retentionLabel.textColor = .secondaryLabel
         retentionLabel.numberOfLines = 0
         retentionLabel.lineBreakMode = .byWordWrapping
+                
         
-        // 새로고침 버튼
-        refreshButton.setTitle("🔄 새로고침", for: .normal)
-        refreshButton.setTitleColor(.systemBlue, for: .normal)
-        refreshButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        refreshButton.addTarget(self, action: #selector(refreshButtonTapped), for: .touchUpInside)
-        
-        // 정책 배지(상단 고정): 최근 N일 보호, 즐겨찾기 제외
-        let protectionDays = SettingsManager.shared.protectedDaysWindow
-        let policyRecentBadge = PillLabel()
-        policyRecentBadge.text = "🔒 최근 \(protectionDays)일 보호"
-        policyRecentBadge.font = .systemFont(ofSize: 12, weight: .semibold)
-        policyRecentBadge.textColor = .white
-        policyRecentBadge.backgroundColor = .systemBlue
-        policyRecentBadge.layer.cornerRadius = 10
-        policyRecentBadge.clipsToBounds = true
-        
-        let policyFavoriteBadge = PillLabel()
-        policyFavoriteBadge.text = "⭐ 즐겨찾기 제외"
-        policyFavoriteBadge.font = .systemFont(ofSize: 12, weight: .semibold)
-        policyFavoriteBadge.textColor = .white
-        policyFavoriteBadge.backgroundColor = .systemOrange
-        policyFavoriteBadge.layer.cornerRadius = 10
-        policyFavoriteBadge.clipsToBounds = true
-        
-        let policyRow = UIStackView(arrangedSubviews: [policyRecentBadge, policyFavoriteBadge])
-        policyRow.axis = .horizontal
-        policyRow.spacing = 8
-        policyRow.alignment = .leading
-        policyRow.distribution = .fillProportionally
-        
-        // 즐겨찾기 상한 + 자세히
-        let capBadge = UILabel()
-        capBadge.text = "⭐️ 즐겨찾기 상한: 무료 3개 · 프리미엄/트라이얼 10개"
-        capBadge.font = .systemFont(ofSize: 13, weight: .semibold)
-        capBadge.textColor = .systemYellow
-        capBadge.numberOfLines = 2
-        capBadge.adjustsFontSizeToFitWidth = true
-        capBadge.minimumScaleFactor = 0.85
-        
-        let capInfoButton = UIButton(type: .system)
-        capInfoButton.setTitle("자세히", for: .normal)
-        capInfoButton.setTitleColor(.systemBlue, for: .normal)
-        capInfoButton.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
-        capInfoButton.addTarget(self, action: #selector(showFavoriteCapInfo), for: .touchUpInside)
-        
-        let capRow = UIStackView(arrangedSubviews: [capBadge, capInfoButton])
-        capRow.axis = .horizontal
-        capRow.spacing = 8
-        capRow.alignment = .fill
-        capRow.distribution = .fill
-        
-        let statsStack = UIStackView(arrangedSubviews: [titleLabel, totalSizeLabel, fileCountLabel, retentionLabel, policyRow, capRow])
+        // 상단 카드 내부 메인 스택 (프로퍼티)
         statsStack.axis = .vertical
         statsStack.spacing = 8
         statsStack.alignment = .leading
         statsStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        // 메인 스택에 구성 요소 추가 (빠른 정리는 별도 카드)
+        [headerLabel, totalSizeLabel, fileCountLabel, retentionLabel].forEach { statsStack.addArrangedSubview($0) }
         
         statisticsContainerView.addSubview(statsStack)
         statisticsContainerView.addSubview(refreshButton)
@@ -233,12 +223,9 @@ class StorageManagementViewController: UIViewController {
         NSLayoutConstraint.activate([
             statsStack.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 16),
             statsStack.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            statsStack.trailingAnchor.constraint(lessThanOrEqualTo: statisticsContainerView.trailingAnchor, constant: -16),
+            statsStack.trailingAnchor.constraint(equalTo: statisticsContainerView.trailingAnchor, constant: -16),
+            statsStack.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16),
             
-            refreshButton.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 12),
-            refreshButton.trailingAnchor.constraint(equalTo: statisticsContainerView.trailingAnchor, constant: -16),
-            
-            statsStack.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16)
         ])
     }
     
@@ -260,18 +247,23 @@ class StorageManagementViewController: UIViewController {
         compressButton.addTarget(self, action: #selector(compressOldConversationsTapped), for: .touchUpInside)
         deleteAllButton.addTarget(self, action: #selector(deleteAllConversationsTapped), for: .touchUpInside)
         
-        let stack = UIStackView(arrangedSubviews: [titleLabel, compressButton, deleteAllButton])
-        stack.axis = .vertical
-        stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        // 카드 내부 수직 스택
+        quickStack.axis = .vertical
+        quickStack.spacing = 12
+        quickStack.alignment = .fill
+        quickStack.translatesAutoresizingMaskIntoConstraints = false
         
-        quickCleanupContainerView.addSubview(stack)
+        quickStack.addArrangedSubview(titleLabel)
+        quickStack.addArrangedSubview(compressButton)
+        quickStack.addArrangedSubview(deleteAllButton)
+        
+        quickCleanupContainerView.addSubview(quickStack)
         
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: quickCleanupContainerView.topAnchor, constant: 16),
-            stack.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: -16),
+            quickStack.topAnchor.constraint(equalTo: quickCleanupContainerView.topAnchor, constant: 16),
+            quickStack.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
+            quickStack.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
+            quickStack.bottomAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: -16),
             
             compressButton.heightAnchor.constraint(equalToConstant: 48),
             deleteAllButton.heightAnchor.constraint(equalToConstant: 48)
@@ -300,9 +292,11 @@ class StorageManagementViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(StorageManagementCell.self, forCellReuseIdentifier: "StorageCell")
-        tableView.backgroundColor = .systemBackground
-        tableView.separatorStyle = .singleLine
+        tableView.backgroundColor = .clear  // 투명하게 변경
+        tableView.separatorStyle = .none  // 구분선 제거 (뉴모피즘 디자인)
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        // 중첩 스크롤 방지: 외부 UIScrollView에서 스크롤을 담당하므로 테이블 자체 스크롤 비활성화
+        tableView.isScrollEnabled = false
         
         // 헤더 뷰
         let headerView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 60))
@@ -332,6 +326,9 @@ class StorageManagementViewController: UIViewController {
         ])
         
         tableView.tableHeaderView = headerView
+        // 동적 높이 제약 추가 (컨텐츠 사이즈로 갱신)
+        tableHeightConstraint = tableView.heightAnchor.constraint(equalToConstant: 0)
+        tableHeightConstraint?.isActive = true
     }
     
     private func setupLayout() {
@@ -353,21 +350,20 @@ class StorageManagementViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
             
-            // 통계 섹션
+            // 통계 섹션 카드
             statisticsContainerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             statisticsContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             statisticsContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
-            // 빠른 정리 섹션
-            quickCleanupContainerView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 16),
+            // 빠른 정리 카드 (통계 카드 아래 확실히 분리)
+            quickCleanupContainerView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 20),
             quickCleanupContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             quickCleanupContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
-            // 테이블뷰
+            // 테이블뷰 (빠른 정리 카드 아래)
             tableView.topAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            tableView.heightAnchor.constraint(equalToConstant: 400), // 고정 높이
             tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
         ])
     }
@@ -401,6 +397,7 @@ class StorageManagementViewController: UIViewController {
                     self.updateUI(with: statistics)
                     self.isLoading = false
                     self.loadingIndicator.stopAnimating()
+                    self.adjustTableHeight()
                 }
                 
             } catch {
@@ -416,13 +413,19 @@ class StorageManagementViewController: UIViewController {
     private func updateUI(with statistics: StorageStatistics) {
         // 통계 업데이트
         totalSizeLabel.text = "💾 전체 크기: \(ByteCountFormatter.string(fromByteCount: Int64(statistics.totalSizeKB * 1024), countStyle: .file))"
-        fileCountLabel.text = "📁 피드백 개수: \(statistics.feedbackCount)개"
+        // 총 세션 수 / 일자 수 카운트
+        let allSessions = SessionManager.shared.getAllSessions()
+        let sessionCount = allSessions.count
+        // rebuild 전에 미리 그룹 수 계산
+        let uniqueDayCount = Set(allSessions.map { SettingsManager.shared.dateKey(for: $0.createdAt) }).count
+        fileCountLabel.text = "📁 총 세션: \(sessionCount) · 일자: \(uniqueDayCount)"
         let protectionDays = SettingsManager.shared.protectedDaysWindow
         retentionLabel.text = "📅 보관 정책: 30일 자동 삭제 · 즐겨찾기 날짜/보호 요일 제외 · 최근 \(protectionDays)일 보호"
         
-        // 테이블 데이터 업데이트 (간소화)
-        dailyStorageData = []
+        // 테이블 데이터 재구성 (세션 기준 일자 그룹화 + 즐겨찾기 우선 정렬)
+        rebuildDailyStorageData()
         tableView.reloadData()
+        adjustTableHeight()
         
         // 선택 초기화
         selectedDates.removeAll()
@@ -656,12 +659,95 @@ class StorageManagementViewController: UIViewController {
         }
     }
     
+    private func adjustTableHeight() {
+        // 컨텐츠 사이즈 기반 높이 갱신
+        DispatchQueue.main.async {
+            self.tableView.layoutIfNeeded()
+            let height = self.tableView.contentSize.height
+            if height > 0 {
+                self.tableHeightConstraint?.constant = height
+            }
+        }
+    }
+    
+    @objc private func handleFavoriteDatesChanged() {
+        rebuildDailyStorageData()
+        tableView.reloadData()
+        adjustTableHeight()
+    }
+    
+    private func toggleSelection(for date: Date) {
+        let key = SettingsManager.shared.dateKey(for: date)
+        if selectedDates.contains(key) {
+            selectedDates.remove(key)
+        } else {
+            selectedDates.insert(key)
+        }
+        updateDeleteButtonState()
+        // 성능을 위해 전체 리로드 대신 해당 행만 갱신할 수도 있으나, 단순화를 위해 리로드
+        tableView.reloadData()
+    }
+    
     private func updateDeleteButtonState() {
         if let headerView = tableView.tableHeaderView,
            let deleteButton = headerView.subviews.compactMap({ $0 as? UIButton }).first {
             deleteButton.isEnabled = !selectedDates.isEmpty
             deleteButton.alpha = selectedDates.isEmpty ? 0.5 : 1.0
         }
+    }
+    
+    // MARK: - Daily Data Builder
+    
+    /// 세션들을 일자별로 그룹화하여 DailyStorageInfo 배열을 구성합니다.
+    private func rebuildDailyStorageData() {
+        let sessions = SessionManager.shared.getAllSessions()
+        guard !sessions.isEmpty else {
+            dailyStorageData = []
+            return
+        }
+        
+        // yyyy-MM-dd 키 기준 그룹화
+        var grouped: [String: (date: Date, messages: Int, sessions: Int)] = [:]
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        
+        for s in sessions {
+            let key = SettingsManager.shared.dateKey(for: s.createdAt)
+            let date = f.date(from: key) ?? Calendar.current.startOfDay(for: s.createdAt)
+            let msgCount = s.chatMessages.count
+            if var bucket = grouped[key] {
+                bucket.messages += msgCount
+                bucket.sessions += 1
+                grouped[key] = bucket
+            } else {
+                grouped[key] = (date: date, messages: msgCount, sessions: 1)
+            }
+        }
+        
+        // DailyStorageInfo 구성 (크기 추정: 메시지당 2KB)
+        var result: [DailyStorageInfo] = []
+        result.reserveCapacity(grouped.count)
+        for (_, tuple) in grouped {
+            let totalKB = tuple.messages * 2
+            let info = DailyStorageInfo(
+                date: tuple.date,
+                totalSizeKB: totalKB,
+                feedbackSizeKB: 0,
+                diarySizeKB: 0,
+                presetSizeKB: 0,
+                itemCount: tuple.messages
+            )
+            result.append(info)
+        }
+        
+        // 정렬: 즐겨찾기 날짜(최신순) 먼저, 그 다음 일반 날짜(최신순)
+        let favKeys = SettingsManager.shared.favoriteDates
+        let favs = result.filter { favKeys.contains(SettingsManager.shared.dateKey(for: $0.date)) }
+            .sorted { $0.date > $1.date }
+        let normals = result.filter { !favKeys.contains(SettingsManager.shared.dateKey(for: $0.date)) }
+            .sorted { $0.date > $1.date }
+        dailyStorageData = favs + normals
     }
     
     // MARK: - Utility Methods
@@ -742,23 +828,25 @@ class StorageManagementViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         present(alert, animated: true)
     }
-    @objc private func handleResumeConversationForDate(_ notification: Notification) {
-        guard let date = notification.object as? Date else { return }
+    private func openReadOnlyPreview(for date: Date) {
         let startOfDay = Calendar.current.startOfDay(for: date)
         let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
         let sessions = SessionManager.shared.getAllSessions()
         let matches = sessions.filter { $0.createdAt >= startOfDay && $0.createdAt < endOfDay }
-        
         guard let target = matches.sorted(by: { $0.lastActivityAt > $1.lastActivityAt }).first else {
             let alert = UIAlertController(title: "대화 없음", message: "선택한 날짜에는 대화가 없습니다.", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "확인", style: .default))
             present(alert, animated: true)
             return
         }
-        
         let chatVC = ChatRouter.chatViewController()
         chatVC.resumeSessionId = target.id
         navigationController?.pushViewController(chatVC, animated: true)
+    }
+    
+    @objc private func handleResumeConversationForDate(_ notification: Notification) {
+        guard let date = notification.object as? Date else { return }
+        openReadOnlyPreview(for: date)
     }
 }
 
@@ -776,42 +864,58 @@ extension StorageManagementViewController: UITableViewDataSource, UITableViewDel
         
         let key = SettingsManager.shared.dateKey(for: dailyInfo.date)
         cell.configure(with: dailyInfo, isSelected: selectedDates.contains(key))
+        // 선택 토글 콜백 연결 (DRY: 하나의 토글 로직 재사용)
+        cell.onToggleSelect = { [weak self] date in
+            self?.toggleSelection(for: date)
+        }
         
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        
         let dailyInfo = dailyStorageData[indexPath.row]
-        let key = SettingsManager.shared.dateKey(for: dailyInfo.date)
-        
-        if selectedDates.contains(key) {
-            selectedDates.remove(key)
-        } else {
-            selectedDates.insert(key)
-        }
-        
-        tableView.reloadRows(at: [indexPath], with: .none)
-        updateDeleteButtonState()
+        // 날짜 탭 시 바로 읽기 전용 미리보기(해당 날짜의 최신 세션)로 이동
+        openReadOnlyPreview(for: dailyInfo.date)
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 70
+        return 86  // 뉴모피즘 디자인을 위한 증가된 높이
+    }
+    
+    // 스와이프 액션으로 선택/해제 지원
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let info = dailyStorageData[indexPath.row]
+        let key = SettingsManager.shared.dateKey(for: info.date)
+        let isSelected = selectedDates.contains(key)
+        let title = isSelected ? "선택 해제" : "선택"
+        let action = UIContextualAction(style: .normal, title: title) { [weak self] _, _, completion in
+            guard let self = self else { completion(false); return }
+            self.toggleSelection(for: info.date)
+            completion(true)
+        }
+        action.backgroundColor = isSelected ? .systemGray : .systemBlue
+        return UISwipeActionsConfiguration(actions: [action])
     }
 }
 
 // MARK: - Custom Cell
 
+
 class StorageManagementCell: UITableViewCell {
     
+    private let containerView = UIView()
     private let dateLabel = UILabel()
     private let sizeLabel = UILabel()
     private let messageCountLabel = UILabel()
-    private let checkmarkImageView = UIImageView()
+    private let checkButton = LargerHitButton(type: .system)
     private let favoriteButton = UIButton(type: .system)
     private let resumeButton = UIButton(type: .system)
     private let protectionBadge = UILabel()
+    
+    // 외부에서 주입되는 선택 토글 콜백
+    var onToggleSelect: ((Date) -> Void)?
+    private var currentDate: Date?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -824,109 +928,136 @@ class StorageManagementCell: UITableViewCell {
     }
     
     private func setupUI() {
+        // 뉴모피즘 컨테이너
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.systemGray6 : UIColor(red: 0.94, green: 0.96, blue: 0.99, alpha: 1)
+        }
+        containerView.layer.cornerRadius = 12
+        contentView.addSubview(containerView)
+        
         // 날짜 라벨
-        dateLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        dateLabel.font = .systemFont(ofSize: 17, weight: .semibold)
         dateLabel.textColor = .label
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 크기 라벨
-        sizeLabel.font = .systemFont(ofSize: 14)
+        sizeLabel.font = .systemFont(ofSize: 13, weight: .medium)
         sizeLabel.textColor = .systemBlue
         sizeLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 메시지 개수 라벨
-        messageCountLabel.font = .systemFont(ofSize: 14)
+        messageCountLabel.font = .systemFont(ofSize: 12)
         messageCountLabel.textColor = .secondaryLabel
         messageCountLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageCountLabel.numberOfLines = 1
         
-        // 체크마크
-        checkmarkImageView.image = UIImage(systemName: "circle")
-        checkmarkImageView.tintColor = .systemGray3
-        checkmarkImageView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(dateLabel)
+        containerView.addSubview(sizeLabel)
+        containerView.addSubview(messageCountLabel)
         
-        contentView.addSubview(dateLabel)
-        contentView.addSubview(sizeLabel)
-        contentView.addSubview(messageCountLabel)
-        contentView.addSubview(checkmarkImageView)
-        
-        // 보호 배지
-        protectionBadge.text = "🛡 보호"
-        protectionBadge.font = .systemFont(ofSize: 12, weight: .semibold)
-        protectionBadge.textColor = .white
-        protectionBadge.backgroundColor = .systemTeal
-        protectionBadge.layer.cornerRadius = 6
-        protectionBadge.clipsToBounds = true
-        protectionBadge.textAlignment = .center
-        protectionBadge.translatesAutoresizingMaskIntoConstraints = false
-        protectionBadge.isHidden = true
-        contentView.addSubview(protectionBadge)
+        // 체크 버튼(선택 토글)
+        checkButton.translatesAutoresizingMaskIntoConstraints = false
+        checkButton.tintColor = .systemBlue
+        (checkButton as? LargerHitButton)?.minHitSize = CGSize(width: 44, height: 44)
+        checkButton.addTarget(self, action: #selector(toggleSelectTapped), for: .touchUpInside)
+        containerView.addSubview(checkButton)
         
         // 즐겨찾기 버튼(⭐︎)
         favoriteButton.setTitle("☆", for: .normal)
         favoriteButton.setTitleColor(.systemYellow, for: .normal)
-        favoriteButton.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
+        favoriteButton.titleLabel?.font = .systemFont(ofSize: 24, weight: .medium)
         favoriteButton.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(favoriteButton)
+        containerView.addSubview(favoriteButton)
         
-        // 이어서 대화 버튼
-        resumeButton.setTitle("이어서 대화", for: .normal)
-        resumeButton.setTitleColor(.systemBlue, for: .normal)
-        resumeButton.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+        // 이어서 대화 버튼 - 최근 타입 버튼으로 변경
+        resumeButton.setTitle("최근", for: .normal)
+        resumeButton.setTitleColor(.white, for: .normal)
+        resumeButton.titleLabel?.font = .systemFont(ofSize: 11, weight: .bold)
+        resumeButton.backgroundColor = .systemBlue
+        resumeButton.layer.cornerRadius = 8
+        resumeButton.clipsToBounds = true
+        resumeButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
         resumeButton.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(resumeButton)
+        containerView.addSubview(resumeButton)
         
         NSLayoutConstraint.activate([
-            dateLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            dateLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            // 컨테이너 뷰
+            containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
             
-            sizeLabel.topAnchor.constraint(equalTo: dateLabel.topAnchor),
-            sizeLabel.trailingAnchor.constraint(equalTo: checkmarkImageView.leadingAnchor, constant: -12),
+            // 날짜 라벨
+            dateLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
+            dateLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 14),
+            dateLabel.trailingAnchor.constraint(lessThanOrEqualTo: favoriteButton.leadingAnchor, constant: -8),
             
+            // 메시지 카운트
             messageCountLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 4),
-            messageCountLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            messageCountLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 14),
+            messageCountLabel.trailingAnchor.constraint(lessThanOrEqualTo: protectionBadge.leadingAnchor, constant: -6),
             
+            // 크기 라벨
+            sizeLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -12),
+            sizeLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 14),
+            
+            // 보호 배지
             protectionBadge.centerYAnchor.constraint(equalTo: messageCountLabel.centerYAnchor),
-            protectionBadge.leadingAnchor.constraint(equalTo: messageCountLabel.trailingAnchor, constant: 8),
-            protectionBadge.heightAnchor.constraint(equalToConstant: 20),
-            protectionBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
+            protectionBadge.trailingAnchor.constraint(lessThanOrEqualTo: favoriteButton.leadingAnchor, constant: -8),
+            protectionBadge.heightAnchor.constraint(equalToConstant: 18),
+            protectionBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
             
-            messageCountLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+        // 최근 버튼
+        resumeButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -12),
+        resumeButton.trailingAnchor.constraint(equalTo: checkButton.leadingAnchor, constant: -12),
+        resumeButton.heightAnchor.constraint(equalToConstant: 20),
             
-            checkmarkImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            checkmarkImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            checkmarkImageView.widthAnchor.constraint(equalToConstant: 24),
-            checkmarkImageView.heightAnchor.constraint(equalToConstant: 24),
+            // 체크 버튼
+            checkButton.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            checkButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -14),
+            checkButton.widthAnchor.constraint(equalToConstant: 28),
+            checkButton.heightAnchor.constraint(equalToConstant: 28),
             
-            favoriteButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            favoriteButton.trailingAnchor.constraint(equalTo: checkmarkImageView.leadingAnchor, constant: -12),
-            
-            resumeButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            resumeButton.topAnchor.constraint(equalTo: messageCountLabel.bottomAnchor, constant: 4)
+            // 즐겨찾기 버튼
+            favoriteButton.centerYAnchor.constraint(equalTo: containerView.topAnchor, constant: 24),
+            favoriteButton.trailingAnchor.constraint(equalTo: checkButton.leadingAnchor, constant: -12),
+            favoriteButton.widthAnchor.constraint(equalToConstant: 32),
+            favoriteButton.heightAnchor.constraint(equalToConstant: 32)
         ])
     }
     
     func configure(with dailyInfo: DailyStorageInfo, isSelected: Bool) {
-        dateLabel.text = dailyInfo.displayDate
-        sizeLabel.text = dailyInfo.formattedSize
-        messageCountLabel.text = "💬 \(dailyInfo.messageCount)개 메시지, \(dailyInfo.conversationCount)개 대화"
+        // 뉴모피즘 그림자 효과 적용
+        containerView.layer.shadowColor = UIColor.black.cgColor
+        containerView.layer.shadowOpacity = isSelected ? 0.08 : 0.04
+        containerView.layer.shadowOffset = isSelected ? CGSize(width: 2, height: 2) : CGSize(width: 3, height: 3)
+        containerView.layer.shadowRadius = isSelected ? 4 : 6
         
-        checkmarkImageView.image = UIImage(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-        checkmarkImageView.tintColor = isSelected ? .systemBlue : .systemGray3
+        dateLabel.text = dailyInfo.displayDate
+        sizeLabel.text = "💾 " + dailyInfo.formattedSize
+        messageCountLabel.text = "\(dailyInfo.messageCount)개 메시지, \(dailyInfo.conversationCount)개 대화"
+        
+        let imgName = isSelected ? "checkmark.circle.fill" : "circle"
+        checkButton.setImage(UIImage(systemName: imgName), for: .normal)
+        checkButton.tintColor = isSelected ? .systemBlue : .systemGray4
         
         let key = SettingsManager.shared.dateKey(for: dailyInfo.date)
         let isFav = SettingsManager.shared.favoriteDates.contains(key)
         favoriteButton.setTitle(isFav ? "★" : "☆", for: .normal)
         
-        // 보호 배지 표시 여부 계산
-        // 보호 조건: 즐겨찾기 OR 최근 보호창 OR 보호 요일
-        // 라벨 조합: "🛡 즐겨·최근·요일" (해당되는 항목만 결합)
+        // 날짜 관련 계산 (DRY 원칙: 한 번만 계산)
         let cal = Calendar.current
         let todayStart = cal.startOfDay(for: SettingsManager.shared.currentDate())
         let dateStart = cal.startOfDay(for: dailyInfo.date)
-        let diff = cal.dateComponents([.day], from: dateStart, to: todayStart).day ?? Int.max
-        let isRecentProtected = diff >= 0 && diff < SettingsManager.shared.protectedDaysWindow
+        let daysDiff = cal.dateComponents([.day], from: dateStart, to: todayStart).day ?? Int.max
         let weekday = cal.component(.weekday, from: dailyInfo.date)
+        
+        // 보호 상태 판단
+        let isRecentProtected = daysDiff >= 0 && daysDiff < SettingsManager.shared.protectedDaysWindow
         let isWeekdayProtected = SettingsManager.shared.protectedWeekdays.contains(weekday)
+        
+        // 보호 배지 표시
         var tags: [String] = []
         if isFav { tags.append("즐겨") }
         if isRecentProtected { tags.append("최근") }
@@ -939,6 +1070,9 @@ class StorageManagementCell: UITableViewCell {
             protectionBadge.layoutIfNeeded()
         }
         
+        // 최근 버튼 표시/숨김 (7일 이내만)
+        resumeButton.isHidden = daysDiff > 7
+        
         // 액션 바인딩(중복 addTarget 방지 위해 제거 후 재추가)
         favoriteButton.removeTarget(nil, action: nil, for: .allEvents)
         resumeButton.removeTarget(nil, action: nil, for: .allEvents)
@@ -946,11 +1080,30 @@ class StorageManagementCell: UITableViewCell {
         favoriteButton.addTarget(self, action: #selector(toggleFavorite), for: .touchUpInside)
         resumeButton.addTarget(self, action: #selector(resumeConversation), for: .touchUpInside)
         
-        // tag에 날짜 타임스탬프를 보관하여 액션에서 식별
-        favoriteButton.tag = Int(dailyInfo.date.timeIntervalSince1970)
-        resumeButton.tag = Int(dailyInfo.date.timeIntervalSince1970)
+        // tag/상태 보관
+        let ts = Int(dailyInfo.date.timeIntervalSince1970)
+        favoriteButton.tag = ts
+        resumeButton.tag = ts
+        currentDate = dailyInfo.date
         
-        backgroundColor = isSelected ? .systemBlue.withAlphaComponent(0.1) : .systemBackground
+        // 선택 상태에 따른 컨테이너 배경색 조정
+        containerView.backgroundColor = UIColor { trait in
+            if isSelected {
+                return trait.userInterfaceStyle == .dark ? 
+                    UIColor.systemBlue.withAlphaComponent(0.15) : 
+                    UIColor.systemBlue.withAlphaComponent(0.08)
+            } else {
+                return trait.userInterfaceStyle == .dark ? 
+                    UIColor.systemGray6 : 
+                    UIColor(red: 0.94, green: 0.96, blue: 0.99, alpha: 1)
+            }
+        }
+        backgroundColor = .clear
+    }
+    
+    @objc private func toggleSelectTapped() {
+        guard let date = currentDate else { return }
+        onToggleSelect?(date)
     }
     
     @objc private func toggleFavorite(_ sender: UIButton) {
@@ -962,17 +1115,24 @@ class StorageManagementCell: UITableViewCell {
             favs.remove(key)
             SettingsManager.shared.favoriteDates = favs
             sender.setTitle("☆", for: .normal)
+            NotificationCenter.default.post(name: Notification.Name("FavoriteDatesChanged"), object: nil)
         } else {
             // 제한: 무료 3개, 프리미엄(또는 유예/체험 활성 포함) 10개
             let isPremium = SubscriptionStatusCenter.shared.isPremium
             let cap = isPremium ? 10 : 3
             if favs.count >= cap {
-                ToastManager.shared.showWarning(message: "즐겨찾기는 최대 \(cap)개까지 가능합니다.")
-                return
+                // 초과 시 자동 정리(오래된 항목부터)
+                let removed = SettingsManager.shared.enforceFavoriteCap(cap: cap)
+                if removed > 0 {
+                    ToastManager.shared.showWarning(message: "즐겨찾기 상한 초과로 \(removed)개가 자동 정리되었습니다.")
+                }
             }
+            // 현재 키 추가(상한 확인 후)
+            favs = SettingsManager.shared.favoriteDates
             favs.insert(key)
             SettingsManager.shared.favoriteDates = favs
             sender.setTitle("★", for: .normal)
+            NotificationCenter.default.post(name: Notification.Name("FavoriteDatesChanged"), object: nil)
         }
     }
     

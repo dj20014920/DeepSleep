@@ -67,6 +67,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     var resumeSessionId: String?
     var initialUserText: String?
     var diaryContext: DiaryContext?
+    
+    // Resume/Override session handling state
+    private var hasShownResumeAlert = false
+    private var didAdoptSessionOverride = false
+    private var overrideHintLabel: UILabel?
+    private var currentLoadedSessionId: String?
     var emotionPatternData: String?
     var onPresetApply: ((SoundPreset) -> Void)?
     private var sessionStartTime: Date?
@@ -528,6 +534,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             EntitlementUI.require(.chat, from: self)
             return
         }
+
+        // 사용자가 실제로 입력을 시작한 순간, resumeSessionId 또는 SettingsManager override를 적용
+        adoptOverrideSessionIfNeeded()
 
         print("🔵 [ChatViewController] 입력 텍스트: '\(text)'")
         inputTextField.text = ""
@@ -1136,6 +1145,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 이어서 대화하기: 특정 세션 메시지로 교체 로드
         if let sessionId = resumeSessionId {
             loadMessagesForSession(sessionId: sessionId)
+            // 재개 안내 알림
+            presentResumeInfoAlertIfNeeded()
+        } else if let overrideId = SettingsManager.shared.activeChatSessionOverrideId {
+            // 해시태그 진입 등에서 설정 레벨의 오버라이드가 지정된 경우에도 동일 처리
+            loadMessagesForSession(sessionId: overrideId)
+            resumeSessionId = overrideId
+            presentResumeInfoAlertIfNeeded()
         }
         
         // 📊 메모리 사용량 체크
@@ -2113,6 +2129,7 @@ extension ChatViewController {
     
     /// 특정 세션의 메시지를 불러와 UI에 표시
     private func loadMessagesForSession(sessionId: String) {
+        currentLoadedSessionId = sessionId
         let stored = sessionManager.getChatMessages(forSessionId: sessionId)
         var mapped = stored.map { storedMessage in
             let sender: MessageSender = {
@@ -2369,6 +2386,55 @@ extension ChatViewController {
     private func setupTargets() {
         sendButton.addTarget(self, action: #selector(sendButtonTapped), for: .touchUpInside)
         presetButton.addTarget(self, action: #selector(presetButtonTapped), for: .touchUpInside)
+        inputTextField.addTarget(self, action: #selector(handleUserTyping), for: .editingDidBegin)
+    }
+    
+    // MARK: - Resume/Override Handling
+    private func presentResumeInfoAlertIfNeeded() {
+        guard !hasShownResumeAlert else { return }
+        guard resumeSessionId != nil || SettingsManager.shared.activeChatSessionOverrideId != nil else { return }
+        hasShownResumeAlert = true
+        
+        let message = """
+        이 날짜의 대화 내용을 읽어볼 수 있어요.
+        이어서 대화를 시작하려면 메시지를 입력해 주세요.
+        
+        주의: 채팅을 시작하면 현재 채팅창의 기존 대화는 선택한 날짜의 대화로 완전히 덮어쓰기 됩니다.
+        """
+        let alert = UIAlertController(title: "읽기 전용 미리보기", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func adoptOverrideSessionIfNeeded() {
+        guard !didAdoptSessionOverride else { return }
+        let targetId = resumeSessionId ?? SettingsManager.shared.activeChatSessionOverrideId
+        guard let sessionId = targetId else { return }
+        
+        // 세션 존재 검증 후 오버라이드 적용
+        let exists = SessionManager.shared.getAllSessions().contains { $0.id == sessionId }
+        guard exists else { return }
+        
+        SettingsManager.shared.activeChatSessionOverrideId = sessionId
+        didAdoptSessionOverride = true
+        
+        // 기존 대화 내용을 선택된 세션의 메시지로 완전히 교체
+        if currentLoadedSessionId != sessionId {
+            loadMessagesForSession(sessionId: sessionId)
+        }
+        
+        // 힌트 라벨은 더 이상 필요하지 않으므로 숨김
+        if let hint = overrideHintLabel {
+            UIView.animate(withDuration: 0.25) {
+                hint.alpha = 0
+            } completion: { _ in
+                hint.removeFromSuperview()
+            }
+        }
+    }
+    
+    @objc private func handleUserTyping() {
+        adoptOverrideSessionIfNeeded()
     }
     
     // MARK: - 누락된 함수들 추가
@@ -2565,19 +2631,18 @@ extension ChatViewController {
         if let emotion = initialEmotion {
             title = "대나무숲 - 감정 분석"
             
-            let welcomeMessage = ChatMessage(
-                text: "💝 지금 \(emotion) 감정을 느끼고 계시는군요. 함께 이야기 나누어봐요 🌸",
-                sender: .ai,
-                type: .bot
-            )
-            appendChat(welcomeMessage)
+            // 상위 두 개 안내 버블을 하나로 통합
+            let combinedText = """
+            💝 지금 \(emotion) 감정을 느끼고 계시는군요. 함께 이야기 나누어봐요 🌸
             
-            let promptMessage = ChatMessage(
-                text: "어떤 일이 있으셨나요? 마음 편히 들려주세요 😊",
+            어떤 일이 있으셨나요? 마음 편히 들려주세요 😊
+            """
+            let combinedMessage = ChatMessage(
+                text: combinedText,
                 sender: .ai,
                 type: .bot
             )
-            appendChat(promptMessage)
+            appendChat(combinedMessage)
         }
     }
     
@@ -2585,12 +2650,13 @@ extension ChatViewController {
     private func setupMonthlyPatternContext() {
         title = "대나무숲 - 월간 감정 패턴"
         
-        let welcomeMessage = ChatMessage(
-            text: "📊 최근 한 달간의 감정 패턴을 분석해드릴게요 ✨",
-            sender: .ai,
-            type: .bot
-        )
-        appendChat(welcomeMessage)
+        // 안내와 프롬프트를 하나의 버블로 통합
+        let combinedIntro = """
+        📊 최근 한 달간의 감정 패턴을 분석해드릴게요 ✨
+        
+        이 패턴에 대해 궁금한 점이나 더 알고 싶은 부분이 있으시면 언제든 말씀해주세요! 💭
+        """
+        appendChat(ChatMessage(text: combinedIntro, sender: .ai, type: .bot))
         
         if let patternData = initialPatternData {
             let analysisMessage = ChatMessage(
@@ -2600,32 +2666,24 @@ extension ChatViewController {
             )
             appendChat(analysisMessage)
         }
-        
-        let promptMessage = ChatMessage(
-            text: "이 패턴에 대해 궁금한 점이나 더 알고 싶은 부분이 있으시면 언제든 말씀해주세요! 💭",
-            sender: .ai,
-            type: .bot
-        )
-        appendChat(promptMessage)
     }
     
     /// 피드백 분석 컨텍스트 설정
     private func setupFeedbackAnalysisContext() {
         title = "대나무숲 - 피드백 분석"
         
-        let welcomeMessage = ChatMessage(
-            text: "🎨 사운드 경험에 대한 피드백을 분석하고 개선점을 찾아보아요 ✨",
-            sender: .ai,
-            type: .bot
-        )
-        appendChat(welcomeMessage)
+        // 상위 두 개 안내 버블을 하나로 통합
+        let combinedText = """
+        🎨 사운드 경험에 대한 피드백을 분석하고 개선점을 찾아보아요 ✨
         
-        let promptMessage = ChatMessage(
-            text: "최근 사용하신 사운드는 어떠셨나요? 솔직한 의견을 들려주세요 😊",
+        최근 사용하신 사운드는 어떠셨나요? 솔직한 의견을 들려주세요 😊
+        """
+        let combinedMessage = ChatMessage(
+            text: combinedText,
             sender: .ai,
             type: .bot
         )
-        appendChat(promptMessage)
+        appendChat(combinedMessage)
     }
     
     /// 일반 컨텍스트 설정
@@ -2729,6 +2787,24 @@ extension ChatViewController {
         view.addSubview(tableView)
         view.addSubview(presetButton)
         view.addSubview(inputContainerView)
+        
+        // 덮어쓰기 안내 라벨 (재개 세션이 있을 때만 표시)
+        if resumeSessionId != nil || SettingsManager.shared.activeChatSessionOverrideId != nil {
+            let hint = UILabel()
+            hint.numberOfLines = 0
+            hint.textAlignment = .center
+            hint.font = .systemFont(ofSize: 12)
+            hint.textColor = .secondaryLabel
+            hint.translatesAutoresizingMaskIntoConstraints = false
+            hint.text = "채팅을 시작하면 현재 채팅창은 선택한 날짜의 대화로 완전히 덮어쓰기 됩니다."
+            self.overrideHintLabel = hint
+            view.addSubview(hint)
+            NSLayoutConstraint.activate([
+                hint.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                hint.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                hint.bottomAnchor.constraint(equalTo: inputContainerView.topAnchor, constant: -4)
+            ])
+        }
         
         // ✅ 화면 하단 로딩 시스템 제거됨
     }

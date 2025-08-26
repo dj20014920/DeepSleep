@@ -37,6 +37,12 @@ extension ViewController {
     @objc func hashtagTapped() {
         let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = nil
+        
+        // 설정 레벨에서 재개 세션이 지정되어 있으면 해당 세션으로 로드
+        if let overrideId = SettingsManager.shared.activeChatSessionOverrideId {
+            chatVC.resumeSessionId = overrideId
+        }
+        
         chatVC.onPresetApply = { [weak self] (preset: SoundPreset) in
             // AI 추천 프리셋 적용
             self?.applyPreset(

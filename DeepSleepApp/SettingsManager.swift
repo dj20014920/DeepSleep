@@ -97,6 +97,8 @@ public class SettingsManager {
         static let protectedWeekdays = "protectedWeekdays"
         static let protectedDaysWindow = "protectedDaysWindow"
         static let favoriteDates = "favoriteDates" // yyyy-MM-dd 문자열 세트
+        // Chat override
+        static let activeChatSessionOverrideId = "activeChatSessionOverrideId"
     }
     
     private init() {
@@ -259,6 +261,20 @@ public class SettingsManager {
         }
         set {
             userDefaults.set(Array(newValue).sorted(), forKey: Keys.favoriteDates)
+        }
+    }
+    
+    // MARK: - Chat 세션 덮어쓰기(Override)
+    /// 특정 세션 ID를 현재 채팅의 기준 세션으로 강제하는 오버라이드 ID입니다.
+    /// 설정되면 ChatViewController는 해당 세션의 히스토리를 로드하고, 이후 메시지 저장도 동일 세션으로 진행합니다.
+    var activeChatSessionOverrideId: String? {
+        get { userDefaults.string(forKey: Keys.activeChatSessionOverrideId) }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: Keys.activeChatSessionOverrideId)
+            } else {
+                userDefaults.removeObject(forKey: Keys.activeChatSessionOverrideId)
+            }
         }
     }
     

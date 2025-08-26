@@ -803,7 +803,10 @@ public struct DailyStorageInfo: Codable {
     
     // StorageManagementViewController 호환성을 위한 computed properties
     public var displayDate: String {
-        return DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .none)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "yyyy년 M월 d일 (EEE)"
+        return formatter.string(from: date)
     }
     
     public var formattedSize: String {

@@ -445,11 +445,17 @@ public class SessionManager {
     
     /// 채팅 메시지 추가 (호환성 유지 - 에러 무시)
     public func addChatMessageSafely(to sessionId: String, message: StoredChatMessage) {
+        let effectiveSessionId: String = {
+            if let overrideId = SettingsManager.shared.activeChatSessionOverrideId,
+               getSession(id: overrideId) != nil {
+                return overrideId
+            }
+            return sessionId
+        }()
         do {
-            try addChatMessage(to: sessionId, message: message)
+            try addChatMessage(to: effectiveSessionId, message: message)
         } catch {
             print("❌ [SessionManager] 메시지 추가 실패: \(error.localizedDescription)")
-            // 사용자에게 알림을 보내는 로직이 여기에 추가되어야 함
             NotificationCenter.default.post(
                 name: .sessionManagerError,
                 object: nil,
@@ -1146,6 +1152,11 @@ extension SessionManager {
     
     /// 현재 세션 ID 가져오기 (없으면 새로 생성)
     public func getCurrentSessionId() -> String {
+        // 오버라이드 세션이 설정되어 있으면 우선 사용
+        if let overrideId = SettingsManager.shared.activeChatSessionOverrideId,
+           getSession(id: overrideId) != nil {
+            return overrideId
+        }
         let currentSession = getCurrentOrCreateSession()
         return currentSession.id
     }
