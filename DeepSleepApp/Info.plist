@@ -54,6 +54,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
+	<!-- Export compliance: app does not use non-exempt encryption beyond iOS system APIs -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -273,5 +277,11 @@
 		<array>
 			<string>audio</string>
 		</array>
+
+		<!-- HealthKit purpose strings (required when HealthKit capability or APIs are present) -->
+		<key>NSHealthShareUsageDescription</key>
+		<string>This app reads Health data you allow (e.g., sleep analysis, mindful minutes) to personalize sleep guidance and track your progress. You control this in Health permissions.</string>
+		<key>NSHealthUpdateUsageDescription</key>
+		<string>This app writes Health data you allow (e.g., mindful minutes, sleep-related entries) to help track your routines. You can change this anytime in Health permissions.</string>
 	</dict>
 </plist>
