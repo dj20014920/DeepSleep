@@ -169,6 +169,7 @@
 		E0899C892E5CB6FE006AD307 /* CentralNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */; };
 		E0899C8B2E5D996D006AD307 /* DeepSleep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */; };
 		E0899C8E2E5EE505006AD307 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E0899C8D2E5EE505006AD307 /* GoogleMobileAds */; };
+		E0899C932E5EE8B1006AD307 /* AdsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C912E5EE8B1006AD307 /* AdsManager.swift */; };
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
@@ -381,6 +382,7 @@
 		E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md; sourceTree = "<group>"; };
 		E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentralNotificationScheduler.swift; sourceTree = "<group>"; };
 		E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
+		E0899C912E5EE8B1006AD307 /* AdsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsManager.swift; sourceTree = "<group>"; };
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -622,6 +624,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0899C922E5EE8B1006AD307 /* Ads */,
 				E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */,
 				E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */,
 				E0E7BCDC2E56E4CC00FF7073 /* PolicyHubViewController.swift */,
@@ -762,6 +765,14 @@
 		E084F1762E33ACB3002F75E6 /* Products */ = {
 			isa = PBXGroup;
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E0899C922E5EE8B1006AD307 /* Ads */ = {
+			isa = PBXGroup;
+			children = (
+				E0899C912E5EE8B1006AD307 /* AdsManager.swift */,
+			);
+			path = Ads;
 			sourceTree = "<group>";
 		};
 		E09CD6E62E466707007C133E /* Utils */ = {
@@ -969,7 +980,6 @@
 				E084F2B72E33AE9B002F75E6 /* gemini.xcconfig in Resources */,
 				E084F2B82E33AE9B002F75E6 /* gpt.xcconfig in Resources */,
 				E084F2BA2E33AE9B002F75E6 /* naver.xcconfig in Resources */,
-				E084F2BB2E33AE9B002F75E6 /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1050,6 +1060,7 @@
 				E084F1B72E33ACB3002F75E6 /* EmotionResponseManager.swift in Sources */,
 				E084F1B82E33ACB3002F75E6 /* FeedbackPromptViewController.swift in Sources */,
 				E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */,
+				E0899C932E5EE8B1006AD307 /* AdsManager.swift in Sources */,
 				E0E7BCCB2E561E3300FF7073 /* KSTDatePolicy.swift in Sources */,
 				E084F1B92E33ACB3002F75E6 /* SharedModels.swift in Sources */,
 				E084F1BA2E33ACB3002F75E6 /* SettingsManager.swift in Sources */,
@@ -1286,6 +1297,7 @@
 		};
 		A01B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1311,6 +1323,7 @@
 		};
 		A01C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

@@ -48,7 +48,7 @@ extension ViewController {
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 70),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: contentBottomAnchor()),
 
             containerView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
@@ -414,7 +414,7 @@ extension ViewController {
         
         view.addSubview(toastLabel)
         NSLayoutConstraint.activate([
-            toastLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            toastLabel.bottomAnchor.constraint(equalTo: contentBottomAnchor(), constant: -20),
             toastLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             toastLabel.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -40),
             toastLabel.heightAnchor.constraint(equalToConstant: 35)

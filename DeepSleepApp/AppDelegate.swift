@@ -88,6 +88,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         // 앱 시작 시 모든 알림 재스케줄링
         TodoManager.shared.rescheduleAllNotifications()
+
+        // AdMob SDK 초기화(가능한 경우). 실제 배너 로드는 뷰컨트롤러에서 처리.
+        AdsManager.shared.configureIfPossible()
         
         // MARK: - Fallback UI Setup
         // SceneDelegate가 iOS 13+에서 메인 UI를 처리하므로 여기서는 설정하지 않음

@@ -2,6 +2,30 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-27 Updates (AdMob/Secrets.xcconfig 통합 · Google Mobile Ads SDK 마이그레이션)
+
+What changed where
+- Ads/AdsManager.swift
+  - 최신 SDK로 마이그레이션: MobileAds.shared.start { _ in }, BannerView, Request() 사용
+  - currentOrientationAnchoredAdaptiveBanner(width:) 적용, 배너 높이 제약 로드 완료 시 반영
+  - 레거시 API(GADMobileAds.sharedInstance().start, GADBannerView, GADRequest, GADCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth) 제거
+- DeepSleepApp/Secrets.xcconfig
+  - ADMOB_APP_ID, ADMOB_BANNER_UNIT_ID 키 추가(개발용 Google 테스트 ID 설정). 출시 전 실제 ID로 교체 필요
+- DeepSleepApp/Info.plist
+  - GADApplicationIdentifier, ADMOB_BANNER_UNIT_ID가 각각 $(ADMOB_APP_ID), $(ADMOB_BANNER_UNIT_ID)로 매핑됨
+- DeepSleep.xcodeproj/project.pbxproj
+  - 타겟 Debug/Release Base Configuration을 Secrets.xcconfig로 통일
+
+Verification checklist
+- [ ] 스킴 실행 시 Google 테스트 배너가 정상 노출되는지(오류 로그 없음)
+- [ ] Target → Build Settings → Configuration Files에 Secrets.xcconfig 연결 확인(Debug/Release)
+- [ ] Info.plist의 GADApplicationIdentifier/ADMOB_BANNER_UNIT_ID 유효값 확인
+- [ ] 저장소 루트에 불필요한 Secrets/xcconfig 파일 부재 확인
+
+Risks / Next
+- Secrets.xcconfig는 앱 번들에 포함하지 않아도 됩니다. Copy Bundle Resources에 포함되어 있다면 제거 권장(보안/불필요 용량 방지)
+- 실제 배포 전 테스트 ID를 실키로 교체하고, Test Device 설정을 점검하세요
+
 ## 2025-08-25 Updates (스토리지·알림·내보내기·보존 정책·UX)
 
 What changed where

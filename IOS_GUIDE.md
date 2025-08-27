@@ -2,6 +2,33 @@
 
 ---
 
+### 2025-08-27 업데이트: AdMob 설정/검증 가이드
+
+개요
+- 광고/시크릿 설정은 DeepSleepApp/Secrets.xcconfig에서 관리하며, 타겟 Debug/Release의 Base Configuration으로 연결되어 있습니다.
+- Info.plist는 다음과 같이 xcconfig 변수를 참조합니다:
+  - GADApplicationIdentifier → $(ADMOB_APP_ID)
+  - ADMOB_BANNER_UNIT_ID → $(ADMOB_BANNER_UNIT_ID)
+- 개발 시에는 Google 테스트 ID를 사용하고, 배포 전 실키로 교체하십시오.
+
+설정 방법
+1) Secrets.xcconfig 편집
+   - 개발(테스트) 예시
+     - ADMOB_APP_ID = ca-app-pub-3940256099942544~1458002511
+     - ADMOB_BANNER_UNIT_ID = ca-app-pub-3940256099942544/2934735716
+   - 배포 전 실키로 교체(Secrets.xcconfig에서만 관리)
+2) Xcode 연결 확인
+   - Target → Build Settings → Configuration Files에서 Debug/Release 모두 Secrets.xcconfig 연결
+3) Info.plist 매핑 확인
+   - GADApplicationIdentifier, ADMOB_BANNER_UNIT_ID 키 존재 및 $(...) 형식으로 참조되는지 확인
+4) 런타임 검증
+   - 시뮬레이터/실기기에서 배너가 테스트 광고로 정상 표기되는지 확인
+   - 오류 발생 시 콘솔 로그에서 Google Mobile Ads 초기화/요청 에러 확인
+
+주의/권장
+- Secrets.xcconfig는 Git에 커밋하거나 앱 번들에 포함하지 않는 것을 권장합니다. 필요 시 Build Phases > Copy Bundle Resources에서 제외하세요.
+- 실키로 전환 시 테스트 디바이스 등록 및 광고 정책 준수를 확인하세요.
+
 ⚠️ **필수 사전 준비사항 (2025-08-21 기준)**
 
 ### Apple Developer Program 가입 상태

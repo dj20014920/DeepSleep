@@ -284,7 +284,7 @@ extension ViewController {
         
         NSLayoutConstraint.activate([
             toastLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            toastLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            toastLabel.bottomAnchor.constraint(equalTo: contentBottomAnchor(), constant: -20),
             toastLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
             toastLabel.heightAnchor.constraint(equalToConstant: 32)
         ])

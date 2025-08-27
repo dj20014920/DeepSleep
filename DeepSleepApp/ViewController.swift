@@ -11,6 +11,10 @@ class ViewController: UIViewController {
     private var subscriptionBadge: PremiumBadgeView?
     // 해시태그 버튼 레퍼런스(정렬용)
     var hashtagButtonRef: UIButton?
+
+    // AdMob 배너 호스트(탭바를 가리지 않고 그 위에 표시)
+    private var adsBannerContainer: BannerAdContainerView?
+    private var hasLoadedBannerOnce = false
     
     // MARK: - Properties (13개 카테고리로 업데이트)
     
@@ -87,6 +91,9 @@ class ViewController: UIViewController {
         
         // Trial 배지 제거됨 - 구독 상태 수신은 유지
         setupTrialBadge()
+
+        // 광고 배너 호스트(높이 0으로 시작, 탭바 바로 위에 고정)
+        setupAdsBannerContainer()
         
         // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
         setupBasicSliderUI()
@@ -280,6 +287,12 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         
         // 🆕 초기화 완료 플래그 설정
         hasCompletedInitialSetup = true
+
+        // 광고 배너는 화면 표시 후 1회만 로드(중복 로드 방지)
+        if !hasLoadedBannerOnce {
+            hasLoadedBannerOnce = true
+            adsBannerContainer?.loadBanner(in: self)
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -676,6 +689,24 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
             return true
         }
         return false
+    }
+    
+    // MARK: - 광고 배너 배치 및 콘텐츠 하단 앵커 제공
+    private func setupAdsBannerContainer() {
+        let banner = BannerAdContainerView()
+        banner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(banner)
+        NSLayoutConstraint.activate([
+            banner.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            banner.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+        self.adsBannerContainer = banner
+    }
+
+    /// 배너가 존재하면 그 상단을, 없으면 기본 안전영역 하단을 반환
+    internal func contentBottomAnchor() -> NSLayoutYAxisAnchor {
+        return adsBannerContainer?.topAnchor ?? view.safeAreaLayoutGuide.bottomAnchor
     }
     
     // MARK: - 오류 처리 및 복구

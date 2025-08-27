@@ -283,5 +283,11 @@
 		<string>This app reads Health data you allow (e.g., sleep analysis, mindful minutes) to personalize sleep guidance and track your progress. You control this in Health permissions.</string>
 		<key>NSHealthUpdateUsageDescription</key>
 		<string>This app writes Health data you allow (e.g., mindful minutes, sleep-related entries) to help track your routines. You can change this anytime in Health permissions.</string>
+
+		<!-- AdMob Configuration (values provided via Secrets.xcconfig) -->
+		<key>GADApplicationIdentifier</key>
+		<string>$(ADMOB_APP_ID)</string>
+		<key>ADMOB_BANNER_UNIT_ID</key>
+		<string>$(ADMOB_BANNER_UNIT_ID)</string>
 	</dict>
 </plist>

@@ -19,6 +19,38 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-27 업데이트: AdMob/Secrets.xcconfig 통합 및 광고 SDK 마이그레이션
+
+요약
+- 광고/시크릿 설정을 DeepSleepApp/Secrets.xcconfig 하나로 통일했습니다. 타겟 Debug/Release 모두 Base Configuration으로 연결 완료.
+- Info.plist는 다음 키를 Secrets.xcconfig 변수로부터 주입받습니다:
+  - GADApplicationIdentifier → $(ADMOB_APP_ID)
+  - ADMOB_BANNER_UNIT_ID → $(ADMOB_BANNER_UNIT_ID)
+- AdsManager.swift를 최신 Google Mobile Ads SDK에 맞게 마이그레이션했습니다:
+  - MobileAds.shared.start { _ in }로 초기화
+  - GADBannerView → BannerView로 대체, Request() 사용
+  - currentOrientationAnchoredAdaptiveBanner(width:)로 앵커형 적응 배너 사이즈 적용
+  - 배너 높이 제약을 로드 완료 시점에 업데이트
+- 개발 단계에서는 Google 테스트 ID를 Secrets.xcconfig에 설정해 사용 중입니다. 출시 전 실제 ID로 교체하세요.
+- DeepSleepApp 외부에 불필요한 비밀/설정 파일은 존재하지 않는 것을 확인했습니다.
+- 프로젝트/타겟 설정 모두 Secrets.xcconfig 기반으로 정리되었고 빌드 성공을 확인했습니다.
+
+영향 파일
+- DeepSleepApp/Ads/AdsManager.swift
+- DeepSleepApp/Secrets.xcconfig
+- DeepSleepApp/Info.plist
+- DeepSleep.xcodeproj/project.pbxproj (타겟 Debug/Release Base Configuration)
+
+검증 방법
+1) Xcode에서 Target → Build Settings → Configuration Files에 Debug/Release 모두 Secrets.xcconfig가 연결되어 있는지 확인
+2) 런타임에서 배너가 로드되는지 확인(개발 중 테스트 광고가 표시되어야 정상)
+3) Info.plist 유효값 확인: Bundle.main.object(forInfoDictionaryKey:)로 GADApplicationIdentifier/ADMOB_BANNER_UNIT_ID가 비어있지 않은지 점검
+4) 불필요한 비밀 파일이 저장소 상에 존재하지 않는지 재확인
+
+주의/권장 사항
+- Secrets.xcconfig는 Git에 커밋하지 마세요. 앱 번들(Resources)에 포함할 필요도 없습니다(필요 시 Build Phases > Copy Bundle Resources에서 제거 권장).
+- 실키 교체 시 테스트 디바이스 등록/테스트 광고 정책을 준수하세요.
+
 ### 🆕 2025-08-25 업데이트: 저장소 관리·즐겨찾기 상한·대화 재개·알림(1시간 전)·내보내기(PII)
 
 요약
