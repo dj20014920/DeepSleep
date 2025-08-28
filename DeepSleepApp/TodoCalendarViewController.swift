@@ -1009,7 +1009,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 // 🤖 SessionManager로 전체 할일 조언 호출 (저장 안 함)
                 let advice = try await SessionManager.shared.sendMessage(
                     content: promptContent,
-                    model: .claude,
+                    model: .openAI,
                     mode: .taskAdvice,
                     saveMessages: false
                 )
@@ -1327,7 +1327,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 // 🤖 SessionManager로 개별 할일 조언 호출 (저장 안 함)
                 let advice = try await SessionManager.shared.sendMessage(
                     content: promptContent,
-                    model: .claude,
+                    model: .openAI,
                     mode: .taskAdvice,
                     saveMessages: false
                 )
@@ -1459,7 +1459,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     - 효율적인 수행 방법 제안
                     - 3-4문장 이내로 작성
                     """,
-                    model: .claude,
+                    model: .openAI,
                     mode: .taskAdvice,
                     saveMessages: false
                 )
@@ -1511,7 +1511,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 // 🤖 SessionManager를 통해 AI 작업 추천 호출 (저장 안 함, 단일 경로)
                 let suggestion = try await SessionManager.shared.sendMessage(
                     content: promptContent,
-                    model: .claude,
+                    model: .openAI,
                     mode: .taskAdvice,
                     saveMessages: false
                 )
@@ -1748,7 +1748,7 @@ class SimpleAdviceViewController: UIViewController {
         buttonStackView.addArrangedSubview(copyButton)
         buttonStackView.addArrangedSubview(closeButton)
         
-        // 제약 조건 설정
+        // 제약 조건 설정 (UIScrollView 올바른 오토레이아웃: contentLayoutGuide/frameLayoutGuide 사용)
         NSLayoutConstraint.activate([
             // 컨테이너 뷰
             containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -1764,19 +1764,19 @@ class SimpleAdviceViewController: UIViewController {
             titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
             
-                         // 스크롤뷰
+             // 스크롤뷰
              scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
              scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
              scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
              scrollView.heightAnchor.constraint(lessThanOrEqualToConstant: 400), // 최대 높이 제한
              
-             // 조언 라벨
-             adviceLabel.topAnchor.constraint(equalTo: scrollView.topAnchor),
-             adviceLabel.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-             adviceLabel.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-             adviceLabel.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-             adviceLabel.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            
+             // 조언 라벨 (contentLayoutGuide에 맞춤)
+             adviceLabel.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+             adviceLabel.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+             adviceLabel.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+             adviceLabel.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+             adviceLabel.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+             
             // 버튼 스택뷰
             buttonStackView.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 20),
             buttonStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),

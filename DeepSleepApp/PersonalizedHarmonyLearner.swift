@@ -427,7 +427,7 @@ class PersonalizedHarmonyLearner: ObservableObject {
                 
                 let aiResponse = try await SessionManager.shared.sendMessage(
                     content: applicationPrompt,
-                    model: .claude,
+                    model: .openAI,
                     mode: .taskAdvice,
                     saveMessages: false
                 )

@@ -595,7 +595,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let optimalModelMapping: [AIMode: AIModel] = [
             .generalConversation: userPreferred,
             .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,
-            .taskAdvice: availableModels.contains(.gemini) ? .gemini : .freeModel,
+            .taskAdvice: availableModels.contains(.openAI) ? .openAI : .freeModel,
             .presetRecommendation: availableModels.contains(.openAI) ? .openAI : .freeModel,
             .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,
             .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,

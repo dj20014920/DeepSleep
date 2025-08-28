@@ -230,7 +230,7 @@ final class EmotionAnalysisService: EmotionAnalysisServiceProtocol {
         // 🤖 SessionManager.sendMessage로 생산성 전문가 조언 생성 (저장 안 함)
         let response = try await SessionManager.shared.sendMessage(
             content: tipRequest,
-            model: .claude,
+            model: .openAI,
             mode: .taskAdvice,
             saveMessages: false
         )
