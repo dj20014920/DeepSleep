@@ -14,8 +14,9 @@ import Foundation
 /// - 테스트 방안: Instruments의 CPU 프로파일러로 문자열 처리 성능 측정
 class GeminiAPIService {
     private let apiKey: String
-    private let baseURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-    private let defaultModel = "gemini-1.5-flash" // 2025년 기준 최신 모델
+    // Gemini 2.0 Flash-Lite 사용 (엔드포인트는 v1beta 유지)
+    private let baseURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"
+    private let defaultModel = "gemini-2.0-flash-lite"
     
     // MARK: - 초기화
     

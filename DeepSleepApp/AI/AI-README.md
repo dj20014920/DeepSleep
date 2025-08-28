@@ -76,15 +76,21 @@ let response = try await aiService.sendMessage(
 )
 ```
 
-### 프리셋 추천
+### 프리셋 추천 (외부 모델: 아이템 리스트 방식)
 ```swift
 let response = try await aiService.sendMessage(
-    content: "스트레스 해소에 좋은 음악을 추천해주세요",
-    model: .gemini,
+    content: "사용자 페르소나/최근 대화 기반으로 사운드 조합 추천",
+    model: .gemini, // Gemini 2.0 Flash-Lite 권장
     mode: .presetRecommendation,
-    context: context,
-    tokenConfig: TokenConfiguration(maxTokens: 100, responseFormat: .json)
+    context: context
 )
+// 모델은 아래 JSON 스키마로만 응답합니다
+// {
+//   "presetName": string?,
+//   "items": [ {"soundName": string, "versionName": string?, "volume": number(0..100)} ],
+//   "reason": string,
+//   "confidence": number(0..1)?
+// }
 ```
 
 ## 📊 시스템 플로우
@@ -112,14 +118,13 @@ let response = try await aiService.sendMessage(
 | 모델 | 특징 | 권장 사용 | 비용 |
 |------|------|-----------|------|
 | **🆕 통합 무료 모델** | **25개 모델 순차 폴백** | **베타 테스트, 대량 사용** | **무료** |
-| Claude Haiku 3.5      | 고품질, 한국어 우수  | 일기 분석, 깊은 대화   | $0.80/$4.00 (Prompt caching Write $1 / MTok  Read $0.08 / MTok)|
+| Claude Haiku 3.5      | 고품질, 한국어 우수  | 일기 분석, 깊은 대화   | $0.80/$4.00 |
 | OpenAI GPT-4o Mini    | 빠름, 구조화된 출력  | 할일 조언, 실용적 응답  | $0.15/$0.60 |
-| OpenAI GPT-5 nano     | 빠름, 구조화된 출력  | 프리셋 추천용(대화X)    | $$0.05/$0.40 | 
-| Gemini 2.0 Flash-Lite | 다국어, 안전 필터   | 창의적 응답           | $0.075/$0.30 |
+| Gemini 2.0 Flash-Lite | 다국어, 빠르고 저렴  | 프리셋 추천(아이템 리스트) | $~0.075/$~0.30 |
 | Naver (HCX-DASH-002)  | 한국어 특화        | 일반 대화, 한국 정서    | (1000토큰당)₩0.25/(1000토큰당)₩1 |
 ### 🎯 Fallback 우선순위 (비용 기준)
 1. **통합 무료 모델** (25개 모델 순차 시도)
-2. **Gemini 2.0 Flash-Lite** (가장 저렴한 유료 모델)
+2. **Gemini 2.0 Flash-Lite** (저렴/빠른 구조화 출력)
 3. **OpenAI GPT-4o Mini** (중간 비용, 안정성)
 4. **Naver HyperCLOVA X** (한국어 특화)
 5. **Claude Haiku 3.5** (최고 품질)

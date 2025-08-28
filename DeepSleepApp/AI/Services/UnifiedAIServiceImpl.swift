@@ -596,7 +596,8 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             .generalConversation: userPreferred,
             .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,
             .taskAdvice: availableModels.contains(.openAI) ? .openAI : .freeModel,
-            .presetRecommendation: availableModels.contains(.openAI) ? .openAI : .freeModel,
+            // 비용/가용성 기준: 프리셋 추천은 Gemini 우선, 실패 시 OpenAI로 폴백
+            .presetRecommendation: availableModels.contains(.gemini) ? .gemini : (availableModels.contains(.openAI) ? .openAI : .freeModel),
             .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,
             .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,
             .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel
@@ -688,6 +689,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             let catalogSummary = lines.joined(separator: "\n")
             return """
             당신은 DeepSleep 앱의 사운드 큐레이터입니다. 아래 지침에 따라 오직 JSON 오브젝트 한 개만 반환하세요.
+            (중요) 코드펜스(```), 주석, 설명, 불릿 등 JSON 외 텍스트는 절대 포함하지 마세요.
 
             [목표]
             - 사용자의 간략한 페르소나/최근 대화/감정 일기를 바탕으로, 앱 내 사운드들 중 어울리는 조합을 직접 선정합니다.
@@ -715,6 +717,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
 
             [주의]
             - 위 스키마를 준수하세요. JSON 외 텍스트 출력 금지.
+            - 코드펜스(```json 등), 마크다운, 추가 설명 금지. 순수 JSON만 반환.
             """
             
         case .monthlyStatistics:
