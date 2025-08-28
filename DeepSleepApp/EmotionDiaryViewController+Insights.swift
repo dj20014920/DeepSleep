@@ -351,30 +351,11 @@ extension EmotionDiaryViewController {
     // MARK: - Helper Methods
     
     internal func updateInsightScrollViewContentSize() {
-        guard let scrollView = self.insightStackView.superview as? UIScrollView,
-              let contentView = scrollView.subviews.first,
-              self.currentView == 2 else { return }
+        guard self.currentView == 2 else { return }
         
-        // 🔧 즉시 동기화 처리 - 비동기 제거
-        self.insightStackView.setNeedsLayout()
-        self.insightStackView.layoutIfNeeded()
-        
-        // 🔧 실제 프레임 기반 높이 계산
-        let actualHeight = self.calculateRealContentHeight()
-        
-        print("🔍 [인사이트 스크롤] 실제 계산된 높이: \(actualHeight)")
-        
-        // 🔧 동적 제약조건 업데이트
-        self.dynamicHeightConstraint?.constant = actualHeight
-        
-        // 🔧 즉시 레이아웃 업데이트
-        contentView.setNeedsLayout()
-        contentView.layoutIfNeeded()
-        
-        // 🔧 스크롤뷰 contentSize 즉시 업데이트
-        scrollView.contentSize = CGSize(width: scrollView.bounds.width, height: actualHeight)
-        
-        print("🔍 [인사이트 스크롤] 최종 contentSize: \(scrollView.contentSize)")
+        // Let Auto Layout drive the scrollView contentSize via contentLayoutGuide/bottom constraints
+        self.view.setNeedsLayout()
+        self.view.layoutIfNeeded()
     }
     
     // 🔧 NEW: 실제 프레임 기반 높이 계산 메서드

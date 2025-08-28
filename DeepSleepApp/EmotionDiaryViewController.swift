@@ -23,25 +23,28 @@ class EmotionDiaryViewController: UIViewController {
         return tableView
     }()
     
-    // 캘린더 뷰
+    // 캘린더 뷰 - 동적 로딩(모듈명 자동 감지)으로 안정화
     private let calendarViewController: UIViewController = {
-        // Instantiate dynamically to avoid compile-time dependency issues
-        if let cls = NSClassFromString("DeepSleep.EmotionCalendarViewController") as? UIViewController.Type {
+        let moduleName = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "DeepSleep"
+        let fullName = "\(moduleName).EmotionCalendarViewController"
+        if let cls = NSClassFromString(fullName) as? UIViewController.Type {
             return cls.init()
         } else {
             // Fallback: lightweight placeholder to keep layout stable
             let vc = UIViewController()
             vc.view.backgroundColor = .clear
             let label = UILabel()
-            label.text = "캘린더 로드 중..."
+            label.text = "캘린더 로드 실패: 타깃 멤버십/링킹 확인 필요"
             label.textColor = .secondaryLabel
             label.textAlignment = .center
+            label.numberOfLines = 2
             label.translatesAutoresizingMaskIntoConstraints = false
             vc.view.addSubview(label)
             NSLayoutConstraint.activate([
                 label.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
                 label.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor)
             ])
+            print("⚠️ [EmotionDiaryViewController] EmotionCalendarViewController 동적 로딩 실패 - \(fullName). 타깃 멤버십 또는 FSCalendar 링크를 확인하세요.")
             return vc
         }
     }()
@@ -85,12 +88,17 @@ class EmotionDiaryViewController: UIViewController {
     // 🔧 단순화된 제약조건 시스템 - 하나의 동적 제약조건만 사용
     internal var dynamicHeightConstraint: NSLayoutConstraint?
     
+    // 🔧 Bottom constraints for each segment; activate only the one for the visible view
+    internal var tableBottomConstraint: NSLayoutConstraint?
+    internal var calendarBottomConstraint: NSLayoutConstraint?
+    internal var insightBottomConstraint: NSLayoutConstraint?
+    
     // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
     internal let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.contentInsetAdjustmentBehavior = .never // 자동 inset 조정 비활성화
-        scrollView.alwaysBounceVertical = false // 수직 바운스 비활성화
+        scrollView.alwaysBounceVertical = true // 수직 바운스 활성화
         return scrollView
     }()
     
@@ -176,11 +184,14 @@ class EmotionDiaryViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
         
+        // Prepare bottom constraint to activate only when the Diary tab is visible
+        tableBottomConstraint = tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        tableBottomConstraint?.isActive = false
+        
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: contentView.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             tableView.heightAnchor.constraint(greaterThanOrEqualToConstant: 400)
         ])
     }
@@ -191,15 +202,17 @@ class EmotionDiaryViewController: UIViewController {
         calendarViewController.didMove(toParent: self)
         calendarViewController.view.translatesAutoresizingMaskIntoConstraints = false
 
+        // Prepare bottom constraint to activate only when the Calendar tab is visible
+        calendarBottomConstraint = calendarViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        calendarBottomConstraint?.isActive = false
+        
         NSLayoutConstraint.activate([
             calendarViewController.view.topAnchor.constraint(equalTo: contentView.topAnchor),
             calendarViewController.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             calendarViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             
             // 👇 여기에 높이 명시
-            calendarViewController.view.heightAnchor.constraint(equalToConstant: 750),
-            
-            calendarViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+            calendarViewController.view.heightAnchor.constraint(equalToConstant: 750)
         ])
     }
     
@@ -219,14 +232,14 @@ class EmotionDiaryViewController: UIViewController {
         insightStackView.addArrangedSubview(aiButtonStackView) // 기존 인사이트 뷰 스택에 추가
         
         // 🔧 insightStackView의 크기가 contentView를 결정하도록 우선순위 설정
-        let bottomConstraint = insightStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
-        bottomConstraint.priority = .init(999) // 높은 우선순위로 설정
+        insightBottomConstraint = insightStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+        insightBottomConstraint?.priority = .init(999) // 높은 우선순위로 설정
+        insightBottomConstraint?.isActive = false
         
         NSLayoutConstraint.activate([
             insightStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20), // 여백 추가
             insightStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            bottomConstraint
+            insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
     }
     
@@ -287,6 +300,20 @@ class EmotionDiaryViewController: UIViewController {
         default:
             break
         }
+        
+        // 🔧 Activate only the bottom constraint for the visible view to let Auto Layout drive content height
+        tableBottomConstraint?.isActive = false
+        calendarBottomConstraint?.isActive = false
+        insightBottomConstraint?.isActive = false
+        switch currentView {
+        case 0: tableBottomConstraint?.isActive = true
+        case 1: calendarBottomConstraint?.isActive = true
+        case 2: insightBottomConstraint?.isActive = true
+        default: break
+        }
+        
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         
         updateScrollViewContentSize()
     }

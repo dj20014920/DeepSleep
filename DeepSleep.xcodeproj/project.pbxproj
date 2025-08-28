@@ -29,6 +29,7 @@
 		E084F1832E33ACB3002F75E6 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0532E33ACB3002F75E6 /* ClaudeAPIService.swift */; };
 		E084F1842E33ACB3002F75E6 /* UserDefaults+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FE2E33ACB3002F75E6 /* UserDefaults+Extensions.swift */; };
 		E084F1852E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BA2E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift */; };
+		E0ABCDEF2E99999900AAA111 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B82E33ACB3002F75E6 /* EmotionCalendarViewController.swift */; };
 		E084F1862E33ACB3002F75E6 /* TodoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F72E33ACB3002F75E6 /* TodoManager.swift */; };
 		E084F1872E33ACB3002F75E6 /* APIConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0942E33ACB3002F75E6 /* APIConnectionValidator.swift */; };
 		E084F1882E33ACB3002F75E6 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0822E33ACB3002F75E6 /* HapticManager.swift */; };
@@ -1003,6 +1004,7 @@
 				E084F1832E33ACB3002F75E6 /* ClaudeAPIService.swift in Sources */,
 				E084F1842E33ACB3002F75E6 /* UserDefaults+Extensions.swift in Sources */,
 				E084F1852E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift in Sources */,
+				E0ABCDEF2E99999900AAA111 /* EmotionCalendarViewController.swift in Sources */,
 				E084F1862E33ACB3002F75E6 /* TodoManager.swift in Sources */,
 				E084F1872E33ACB3002F75E6 /* APIConnectionValidator.swift in Sources */,
 				E084F1882E33ACB3002F75E6 /* HapticManager.swift in Sources */,

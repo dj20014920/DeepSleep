@@ -10,6 +10,47 @@ import FSCalendar
 import CoreData
 import Combine
 
+// MARK: - Section Header View (Local Implementation)
+final class SectionHeaderView: UICollectionReusableView {
+    static let reuseIdentifier = "SectionHeaderView"
+    let titleLabel = UILabel()
+    let addButton = UIButton(type: .system)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    private func setup() {
+        backgroundColor = .clear
+
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        titleLabel.textColor = .label
+        addSubview(titleLabel)
+
+        addButton.translatesAutoresizingMaskIntoConstraints = false
+        addButton.setTitle("추가", for: .normal)
+        addButton.setTitleColor(tintColor, for: .normal)
+        addSubview(addButton)
+
+        NSLayoutConstraint.activate([
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            addButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            addButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: addButton.leadingAnchor, constant: -8)
+        ])
+    }
+}
+
 class EmotionCalendarViewController: UIViewController, UICollectionViewDataSource {
     
     enum SectionType {
