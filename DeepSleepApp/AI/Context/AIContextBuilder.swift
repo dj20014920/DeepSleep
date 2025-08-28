@@ -34,7 +34,7 @@ public final class AIContextBuilder {
 
         print("🏗️ [AIContextBuilder] Building prompt:")
         print("   - Mode: \(mode.rawValue)")
-        print("   - PersonaSignature: \(String(personaSignature.prefix(16)))...")
+        print("   - PersonaCoreSignature: \(String(personaSignature.prefix(16)))...")
         print("   - Recent messages count: \(recentMessages.count)")
         print("   - Core memory summary: \(coreMemorySummary != nil ? "Present (\(coreMemorySummary!.count) chars)" : "None")")
         print("   - Current message: \(currentUserMessage.prefix(100))...")
@@ -42,15 +42,14 @@ public final class AIContextBuilder {
 // 1) 시스템 프롬프트 (캐시)
         // DRY: 중앙 유틸 기반 시그니처로 캐시 키 통일
         let selectedModel = SettingsManager.shared.selectedLLM
-        let modelUnified = AIContextSignature.mapModel(from: selectedModel)
+        _ = AIContextSignature.mapModel(from: selectedModel) // retained for parity, not used in base key
         let memorySummaryFP: String? = {
             let s = MemoryManager.shared.getMemorySummary(maxItems: 5)
             return s.isEmpty ? nil : String(s.hashValue)
         }()
-        let unifiedSignature = AIContextSignature.build(
-            personaSignature: UserRulesManager.shared.personaSignature(),
+        let unifiedSignature = AIContextSignature.buildBase(
+            personaSignature: UserRulesManager.shared.personaCoreSignature(),
             mode: mode,
-            model: modelUnified,
             memorySummaryFP: memorySummaryFP
         )
         
@@ -131,6 +130,8 @@ public final class AIContextBuilder {
         - 한국어로 간결하고 친절하게 답변하세요.
         - JSON이 필요한 경우, 올바른 스키마와 이스케이프를 준수하세요.
         - 개인정보를 외부에 저장하지 마세요. 단, 앱 내부 세션 범위에서는 직전 대화 흐름을 이해하고 자연스럽게 이어가세요.
+        - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 또는 아래의 "Memory" 요약 범위에서 자연스럽게 이어가세요.
+        - 일기/감정 기록이 요약 형태로 제공될 수 있습니다. 이를 "요약 기반 맥락"으로 사용해 회상하되, 기기 밖의 영구 기억을 주장하지 마세요.
         - 최근 메시지를 간단히 요약해 연결감을 유지하세요.
         - 현재 모드: \(mode.rawValue)
         - 안전/윤리 가이드를 준수하세요.

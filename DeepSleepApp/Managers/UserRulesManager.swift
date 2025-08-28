@@ -67,7 +67,7 @@ extension UserRulesManager {
             .joined(separator: "|")
         if !rulesDigest.isEmpty { traits.append("rules:\(rulesDigest)") }
 
-        // 3) 환경 정보 추가
+        // 3) 환경 정보 추가 (개인화 핵심 외 변동 요소 포함)
         traits.append("llm:\(selectedLLM.rawValue)")
         traits.append("locale:\(locale)")
 
@@ -79,6 +79,45 @@ extension UserRulesManager {
         print("   - Traits combined: \(joined.prefix(200))...")
         print("   - SHA256 hash: \(String(hash.prefix(32)))...")
         
+        return hash
+    }
+
+    /// 모델 변경과 무관한 페르소나 핵심 서명(캐시 공유용)
+    /// - 주의: LLM 선택과 같은 변동 요소를 포함하지 않습니다.
+    public func personaCoreSignature() -> String {
+        print("🆔 [UserRulesManager] Generating personaCoreSignature (model-agnostic)...")
+        let settings = UserSettingsModel.loadFromUserDefaults()
+        let locale = Locale.current.identifier
+        
+        var traits: [String] = []
+        if let age = settings.age, age > 0 { traits.append("age:\(age)") }
+        if !settings.conversationTones.isEmpty {
+            let tones = settings.conversationTones.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
+            traits.append("tones:\(tones)")
+        }
+        if !settings.personalityTraits.isEmpty {
+            let pers = settings.personalityTraits.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
+            traits.append("traits:\(pers)")
+        }
+        if !settings.personalityDescription.isEmpty {
+            let desc = String(sanitizePII(settings.personalityDescription).prefix(64))
+            if !desc.isEmpty { traits.append("desc:\(desc)") }
+        }
+        if !settings.musicPreferences.isEmpty {
+            let music = settings.musicPreferences.prefix(3).map { $0.rawValue }.joined(separator: ",")
+            traits.append("music:\(music)")
+        }
+        // 사용자 정의 규칙 요약
+        let rulesDigest = getAllRules().prefix(10)
+            .map { "\(sanitizePII($0.userInput))=>\(sanitizePII($0.correctedMeaning))" }
+            .joined(separator: "|")
+        if !rulesDigest.isEmpty { traits.append("rules:\(rulesDigest)") }
+        // 환경 중 안정 요소만 포함
+        traits.append("locale:\(locale)")
+        
+        let joined = traits.joined(separator: ";")
+        let hash = sha256(joined)
+        print("🔐 [UserRulesManager] PersonaCoreSignature generated: \(String(hash.prefix(32)))...")
         return hash
     }
 

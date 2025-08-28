@@ -134,8 +134,7 @@ public class SettingsManager {
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
             userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
-            // 캐시 무효화: 모델 변경 시 시스템 프롬프트 재구성 필요
-            AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsManager.selectedLLM.set")
+            // 모델별 지침은 런타임 합성이므로 시스템 프롬프트 캐시는 모델 변경으로 무효화하지 않습니다.
         }
     }
     
@@ -144,7 +143,6 @@ public class SettingsManager {
         let previous = selectedLLM
         guard previous != model else { return }
         selectedLLM = model
-        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsManager.updateSelectedModelAtomically")
         NotificationCenter.default.post(name: .aiModelChanged, object: nil, userInfo: ["from": previous.rawValue, "to": model.rawValue])
     }
     

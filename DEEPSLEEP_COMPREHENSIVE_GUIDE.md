@@ -19,6 +19,31 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-28 업데이트: AI 컨텍스트/캐시 안정화 · 모델 간 공유 · 세션 지속성 보강
+
+요약
+- 베이스 캐시 키 도입(buildBase): 모드+페르소나코어+메모리요약 기반의 모델 불문 캐시 키로 폴백/모델 전환 시에도 캐시 HIT 유지
+- 페르소나 코어 시그니처(personaCoreSignature): LLM을 제외한 핵심 페르소나 지문을 별도 해시로 관리(외부 전송 금지)
+- assembledPrompt 중복 제거: UnifiedAIServiceImpl에서 assembledPrompt가 존재하면 그것만 시스템 프롬프트로 사용하여 이중 지침 제거
+- 모델 특화 지침은 런타임 합성: 캐시 키에 모델 요소를 섞지 않고 호출 시 덧붙여 안정성 확보
+- 일기 분석 세션 지속: ChatRouter(.diaryAnalysis) → resumeSessionId 주입으로 재진입 시 대화가 이어짐
+
+영향 파일
+- Managers/UserRulesManager.swift (personaCoreSignature)
+- AI/Context/AIContextSignature.swift (buildBase)
+- AI/Context/AIContextBuilder.swift (베이스 캐시 키 적용)
+- AI/Services/UnifiedAIServiceImpl.swift (프롬프트 중복 제거/런타임 합성)
+- ChatRouter.swift (resumeSessionId 지정)
+
+검증 방법
+1) 일반대화/일기분석 각각 첫 호출 MISS → 두 번째 호출 HIT 확인
+2) 모델 전환/폴백 후에도 베이스 캐시 HIT 유지 확인
+3) OpenRouter free_model 경로에서도 시스템 지침이 중복 붙지 않는지 확인
+4) “대나무숲에서 이 일기 이야기하기” 재진입 시 동일 세션 복원 확인
+
+주의
+- 해시(시그니처)는 내부 캐시 키 전용으로 외부 모델로 전송되지 않음. 외부 AI에는 언제나 비식별 서술형 컨텍스트만 전달됨(AI_CONTEXT_MANAGEMENT_ROADMAP.md 참조).
+
 ### 🆕 2025-08-27 업데이트: AdMob/Secrets.xcconfig 통합 및 광고 SDK 마이그레이션
 
 요약

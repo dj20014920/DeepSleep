@@ -2,6 +2,31 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-28 Updates (AI 컨텍스트/캐시 안정화 · assembledPrompt 중복 제거 · 세션 지속성)
+
+What changed where
+- Managers/UserRulesManager.swift: personaCoreSignature() 도입 (LLM 불문 핵심 지문)
+- AI/Context/AIContextSignature.swift: buildBase(...) 추가 (모델 제외 베이스 캐시 키)
+- AI/Context/AIContextBuilder.swift: 시스템 프롬프트 캐시 키를 buildBase + personaCoreSignature로 변경
+- AI/Services/UnifiedAIServiceImpl.swift:
+  - assembledPrompt가 주어지면 단일 시스템 프롬프트로 사용(중복 제거)
+  - generateOptimizedSystemPrompt: 베이스(모드별 기본+일반 지침)만 캐시, 모델 특화 지침은 런타임 합성
+- ChatRouter.swift: .diaryAnalysis 진입 시 resumeSessionId = SessionManager.shared.getCurrentSessionId() 지정
+
+Rationale
+- DRY/KISS: 시스템 프롬프트 중복 합성 제거로 토큰 낭비/지침 충돌 방지
+- Stable cache: 모델 전환/폴백 상황에서도 캐시 HIT 유지(베이스 키)
+- UX: 일기 분석 재진입 시 동일 세션 복원으로 맥락 유지
+
+Verification checklist
+- [ ] 일반/일기 분석 2번째 호출 시 Cache HIT
+- [ ] free_model → gemini 폴백 후에도 베이스 캐시 HIT 유지
+- [ ] 시스템 지침이 1회만 포함됨(중복 제거)
+- [ ] .diaryAnalysis 재진입 시 동일 세션 메시지 로드 로그 확인
+
+Risks / Notes
+- 해시/시그니처는 내부 캐시 키 전용이며 외부 모델로 전달되지 않음. 외부 모델 파서/JSON과 무관.
+
 ## 2025-08-27 Updates (AdMob/Secrets.xcconfig 통합 · Google Mobile Ads SDK 마이그레이션)
 
 What changed where

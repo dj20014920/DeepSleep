@@ -389,9 +389,7 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
     
     // 감정을 이모지로 변환하는 헬퍼 함수
     private func getEmotionEmoji(for emotion: String) -> String {
-        // 🔍 디버깅용 로그 추가
-        print("🔍 [getEmotionEmoji] 입력된 감정: '\(emotion)'")
-        print("🔍 [getEmotionEmoji] 소문자 변환: '\(emotion.lowercased())'")
+       
         
         let emoji: String
         

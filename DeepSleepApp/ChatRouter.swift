@@ -26,6 +26,8 @@ enum ChatRouter {
         case .diaryAnalysis(let diary):
             vc.chatContext = .emotionDiaryAnalysis
             vc.initialDiaryData = diary
+            // 현재 날짜 세션을 재사용하여 재진입 시 대화가 이어지도록 설정
+            vc.resumeSessionId = SessionManager.shared.getCurrentSessionId()
             
         case .emotionAnalysis(let emotion):
             vc.chatContext = .emotionAnalysis

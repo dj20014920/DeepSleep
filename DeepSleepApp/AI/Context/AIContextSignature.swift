@@ -39,5 +39,14 @@ public enum AIContextSignature {
         let joined = "p:\(p)|mode:\(md)|model:\(m)|mem:\(mem)"
         return sha256(joined)
     }
+
+    // Base cache key without model dimension (for cross-model sharing)
+    public static func buildBase(personaSignature: String, mode: AIMode, memorySummaryFP: String?) -> String {
+        let p = norm(personaSignature)
+        let md = mode.rawValue
+        let mem = memorySummaryFP ?? "none"
+        let joined = "p:\(p)|mode:\(md)|mem:\(mem)"
+        return sha256(joined)
+    }
 }
 

@@ -260,15 +260,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String?
 ) async throws -> AIResponse {
         
-        // 🎨 모드별 맞춤형 시스템 프롬프트 생성 + assembledPrompt 병합
-        var systemPrompt = generateOptimizedSystemPrompt(for: mode, model: model)
-        if let assembled = assembledPrompt, !assembled.isEmpty {
-            systemPrompt += "\n\n" + assembled
-        }
+        // 🎨 시스템 프롬프트 구성: assembledPrompt가 있으면 그것을 단일 시스템 프롬프트로 사용 (중복 제거)
+        let systemPrompt: String = {
+            if let assembled = assembledPrompt, !assembled.isEmpty {
+                return assembled
+            } else {
+                return generateOptimizedSystemPrompt(for: mode, model: model)
+            }
+        }()
         
-        // 멀티-메시지 구성: 시스템 + 최근 대화 + 현재 사용자 입력
+        // 멀티-메시지 구성: 시스템 + (필요 시) 최근 대화 + 현재 사용자 입력
+        // assembledPrompt가 제공된 경우, 이미 시스템/메모리/최근/사용자 입력이 조립되어 있으므로
+        // 추가 히스토리를 중복해서 붙이지 않습니다.
         var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
-        if let history = context?.conversationHistory, !history.isEmpty {
+        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
             let recent = Array(history.suffix(16))
             for turn in recent {
                 roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
@@ -310,15 +315,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
             
             // 멀티-메시지 구성: 시스템 + (대화 이력 또는 assembledPrompt) + 현재 사용자 입력
-            var sysPrompt = generateOptimizedSystemPrompt(for: mode, model: model)
-            if let assembled = assembledPrompt, !assembled.isEmpty {
-                sysPrompt += "\n\n" + assembled
-            }
+            let sysPrompt: String = {
+                if let assembled = assembledPrompt, !assembled.isEmpty {
+                    return assembled
+                } else {
+                    return generateOptimizedSystemPrompt(for: mode, model: model)
+                }
+            }()
             var messages: [OpenRouterFallbackManager.ORMessage] = [
                 .init(role: "system", content: sysPrompt)
             ]
             
-            if let history = context?.conversationHistory, !history.isEmpty {
+            if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
                 let recent = Array(history.suffix(16)) // 최근 16개만 포함
                 for turn in recent {
                     messages.append(.init(role: turn.role.rawValue, content: turn.content))
@@ -465,9 +473,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private func handleModelChanged(notification: Notification) {
         let from = (notification.userInfo?["from"] as? String) ?? "unknown"
         let to = (notification.userInfo?["to"] as? String) ?? "unknown"
-        print("🔔 [UnifiedAIService] aiModelChanged: \(from) → \(to). 컨텍스트 캐시 무효화 및 파이프라인 점검")
-        // 컨텍스트 캐시 무효화는 SettingsManager에서 이미 수행하지만, 이중 안전망으로 한 번 더 보장 가능
-        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "UnifiedAIServiceImpl")
+        print("🔔 [UnifiedAIService] aiModelChanged: \(from) → \(to). 파이프라인 점검")
+        // 모델별 특화 지침은 런타임 합성하므로 시스템 프롬프트 캐시는 모델 변경으로 무효화하지 않습니다.
         // 필요 시 모델별 세션 상태 초기화/메트릭 리셋 등을 여기에 추가 가능
     }
     
@@ -612,40 +619,36 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
     
     /// 모드와 모델에 맞는 시스템 프롬프트 생성
     private func generateOptimizedSystemPrompt(for mode: AIMode, model: AIModel) -> String {
-        let basePrompt = getBaseSystemPromptForMode(mode)
-        let modelSpecificOptimization = getModelSpecificOptimization(for: model)
+        let basePromptText = getBaseSystemPromptForMode(mode)
+        let generalGuidelines = """
+        중요한 지침:
+        - 한국어로 자연스럽고 친근하게 응답하세요
+        - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
+        - 실용적이고 도움이 되는 조언을 제공하세요
+        - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
+        - 개인정보를 외부에 저장하지 마세요. 세션 내 제공된 대화 히스토리를 바탕으로 맥락을 이어가세요.
+        - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 범위에서 자연스럽게 이어가세요.
+        """
         
-        // 페르소나 시그니처 구성 (외부 전송 금지, 캐시 키로만 사용)
-        let selectedModel = settingsManager.selectedLLM.rawValue
+        // 페르소나 코어 시그니처(모델 불문) 구성 (외부 전송 금지, 캐시 키로만 사용)
         let memorySummaryFP: String = {
             let summary = MemoryManager.shared.getMemorySummary(maxItems: 5)
             return summary.isEmpty ? "none" : String(summary.hashValue)
         }()
-        // DRY: 중앙 유틸로 통일
-        let personaSignature = AIContextSignature.build(
-            personaSignature: UserRulesManager.shared.personaSignature(),
+        let baseKey = AIContextSignature.buildBase(
+            personaSignature: UserRulesManager.shared.personaCoreSignature(),
             mode: mode,
-            model: model,
             memorySummaryFP: memorySummaryFP
         )
         
-        // 3시간 TTL 캐시 활용
-        let prompt = contextManager.getSystemPrompt(personaSignature: personaSignature) {
-            return """
-            \(basePrompt)
-            
-            \(modelSpecificOptimization)
-            
-            중요한 지침:
-            - 한국어로 자연스럽고 친근하게 응답하세요
-            - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
-            - 실용적이고 도움이 되는 조언을 제공하세요
-            - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
-            - 개인정보를 외부에 저장하지 마세요. 세션 내 제공된 대화 히스토리를 바탕으로 맥락을 이어가세요.
-            - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 범위에서 자연스럽게 이어가세요.
-            """
+        // 3시간 TTL 캐시 활용: 모델 불문 베이스 프롬프트만 캐시
+        let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
+            return "\(basePromptText)\n\n\(generalGuidelines)"
         }
-        return prompt
+        
+        // 모델별 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
+        let modelSpecific = getModelSpecificOptimization(for: model)
+        return basePrompt + "\n\n" + modelSpecific
     }
     
     /// 모드별 기본 시스템 프롬프트

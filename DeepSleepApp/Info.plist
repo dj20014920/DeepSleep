@@ -289,5 +289,9 @@
 		<string>$(ADMOB_APP_ID)</string>
 		<key>ADMOB_BANNER_UNIT_ID</key>
 		<string>$(ADMOB_BANNER_UNIT_ID)</string>
+		<key>ADMOB_TEST_APP_ID</key>
+		<string>$(ADMOB_TEST_APP_ID)</string>
+		<key>ADMOB_TEST_BANNER_UNIT_ID</key>
+		<string>$(ADMOB_TEST_BANNER_UNIT_ID)</string>
 	</dict>
 </plist>
