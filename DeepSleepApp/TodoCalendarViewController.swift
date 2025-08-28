@@ -1049,89 +1049,100 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     
     // MARK: - 종합 프롬프트 생성
     private func buildComprehensivePrompt() async -> String {
-        // 🆕 향상된 분석을 위한 할 일 분류 및 컨텍스트 수집
-        let allTodos = selectedDateTodos
-        let completedTodos = allTodos.filter { $0.isCompleted }
-        let pendingTodos = allTodos.filter { !$0.isCompleted }
-        
-        // 🆕 연속 일정 분석 (장기 여행 등의 정보 수집)
-        let continuousEvents = getContinuousEventContext()
-        
-        // 현재 시간 및 날짜 정보
+        let weekly = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion
+        let all = TodoManager.shared.loadTodos()
+        return Self.buildOverallAdvicePrompt(date: selectedDate,
+                                             todos: selectedDateTodos,
+                                             allTodos: all,
+                                             weeklyContext: weekly)
+    }
+
+    // MARK: - 공통화된 날짜별 전체 조언 프롬프트 (DRY)
+    static func buildOverallAdvicePrompt(date: Date,
+                                         todos: [TodoItem],
+                                         allTodos: [TodoItem],
+                                         weeklyContext: String?) -> String {
         let currentTime = Date()
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
         let currentTimeString = timeFormatter.string(from: currentTime)
-        
+
         let selectedDateFormatter = DateFormatter()
         selectedDateFormatter.dateFormat = "MM월 dd일 (E)"
         selectedDateFormatter.locale = Locale(identifier: "ko_KR")
-        let selectedDateString = selectedDateFormatter.string(from: selectedDate)
-        
-        // 할 일 우선순위별 분류
-        let highPriorityTodos = allTodos.filter { $0.priority == 2 }
-        let mediumPriorityTodos = allTodos.filter { $0.priority == 1 }
-        let lowPriorityTodos = allTodos.filter { $0.priority == 0 }
-        
-        // 긴급성 분석 (마감일 기준)
-        let urgentTodos = pendingTodos.filter {
-            $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 // 24시간 이내
-        }
-        
-        // 주간 컨텍스트
-        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
-        
+        let selectedDateString = selectedDateFormatter.string(from: date)
+
+        let completedTodos = todos.filter { $0.isCompleted }
+        let pendingTodos = todos.filter { !$0.isCompleted }
+        let highPriority = todos.filter { $0.priority == 2 }
+        let mediumPriority = todos.filter { $0.priority == 1 }
+        let lowPriority = todos.filter { $0.priority == 0 }
+        let urgentTodos = pendingTodos.filter { $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 }
+
         var promptContent = """
-        📅 날짜: \(selectedDateString)
+        📅 대상 날짜: \(selectedDateString)
         🕒 현재 시간: \(currentTimeString)
-        
+
         📊 할 일 현황:
-        • 전체 할 일: \(allTodos.count)개
+        • 전체 할 일: \(todos.count)개
         • 완료된 할 일: \(completedTodos.count)개
         • 남은 할 일: \(pendingTodos.count)개
         • 긴급한 할 일: \(urgentTodos.count)개 (24시간 이내)
-        
+
         🎯 우선순위별 분류:
-        • 높음: \(highPriorityTodos.count)개
-        • 보통: \(mediumPriorityTodos.count)개  
-        • 낮음: \(lowPriorityTodos.count)개
-        
+        • 높음: \(highPriority.count)개
+        • 보통: \(mediumPriority.count)개
+        • 낮음: \(lowPriority.count)개
+
         📋 상세 할 일 목록:
         """
-        
-        // 우선순위 높은 순으로 정렬하여 표시
-        let sortedTodos = allTodos.sorted { $0.priority > $1.priority }
+
+        let sortedTodos = todos.sorted { $0.priority > $1.priority }
         for (index, todo) in sortedTodos.enumerated() {
             let priorityEmoji = ["📌", "📝", "📄"][todo.priority]
             let statusEmoji = todo.isCompleted ? "✅" : "⏳"
             let urgentMark = urgentTodos.contains(where: { $0.id == todo.id }) ? " 🔥" : ""
-            
-            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(todo.title) (\(todo.dueDateString))\(urgentMark)"
-            if let notes = todo.notes, !notes.isEmpty {
-                promptContent += " - 메모: \(notes)"
+            let maskedTitle = SettingsManager.shared.maskPIIForExport(todo.title)
+            let maskedNotes = todo.notes.map { SettingsManager.shared.maskPIIForExport($0) }
+            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(maskedTitle) (\(todo.dueDateString))\(urgentMark)"
+            if let notes = maskedNotes, !notes.isEmpty { promptContent += " - 메모: \(notes)" }
+        }
+
+        // 연속 일정 정보
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: date)
+        var continuousEvents: [String] = []
+        for todo in allTodos {
+            if let end = todo.endDate {
+                let start = calendar.startOfDay(for: todo.dueDate)
+                let endDay = calendar.startOfDay(for: end)
+                if day >= start && day <= endDay {
+                    let masked = SettingsManager.shared.maskPIIForExport(todo.title)
+                    continuousEvents.append("• \(masked): \(todo.dueDateString) ~ \(DateFormatter.localizedString(from: end, dateStyle: .medium, timeStyle: .short))")
+                }
             }
         }
-        
-        // 🆕 연속 일정 정보 추가
         if !continuousEvents.isEmpty {
             promptContent += "\n\n🗓️ 연속 일정 정보:"
-            for eventInfo in continuousEvents {
-                promptContent += "\n\(eventInfo)"
-            }
+            for info in continuousEvents { promptContent += "\n\(info)" }
         }
-        
+
+        if let weekly = weeklyContext, !weekly.isEmpty {
+            promptContent += "\n\n사용자 활동 패턴:\n\(weekly)"
+        }
+
         promptContent += """
-        
+
         📈 요청사항:
         위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 **200자 이내**로 간결하게 해주세요:
         1. 우선순위 조정 및 시간 배분 전략
         2. 효율적인 업무 순서 및 실행 방법
         3. 스트레스 관리 및 동기부여 방안
-        
+
         **중요**: 응답을 200자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
         단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
         """
-        
+
         return promptContent
     }
     

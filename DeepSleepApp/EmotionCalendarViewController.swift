@@ -173,7 +173,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         calendar.delegate = self
         calendar.dataSource = self
         calendar.translatesAutoresizingMaskIntoConstraints = false
-        
+
         // 캘린더 스타일 설정
         calendar.backgroundColor = .systemBackground
         calendar.appearance.headerTitleColor = .label
@@ -185,6 +185,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         calendar.appearance.eventDefaultColor = .systemGreen
         calendar.appearance.headerDateFormat = "yyyy년 MM월"
         
+        // 커스텀 데이 셀 등록 (이모지 + 그라데이션 테두리)
+        calendar.register(EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
+
         view.addSubview(calendar)
         
         NSLayoutConstraint.activate([
@@ -342,16 +345,61 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
 // MARK: - FSCalendarDelegate, FSCalendarDataSource
 
 extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSource {
+    func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
+        let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
+        // 날짜별 할 일 상태를 계산하여 그라데이션 테두리 지정
+        let todos = todoManager.getTodos(for: date)
+        let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
+        switch state {
+        case .none:
+            cell.setTodoRingVisible(false)
+        case .premiumRing:
+            cell.setPalette(.premium)
+            cell.setTodoRingVisible(true)
+        case .freeRing:
+            cell.setPalette(.free)
+            cell.setTodoRingVisible(true)
+        }
+        return cell
+    }
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
         selectedDate = date
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
-        if let entry = diaryDataForCalendar[dateString] {
-            showDiaryDetail(for: entry.date, emotion: entry.selectedEmotion)
+        let dateKey = formatter.string(from: date)
+
+        let todos = todoManager.getTodos(for: date)
+        let hasTodos = !todos.isEmpty
+        let diary = diaryDataForCalendar[dateKey]
+
+        // 우선순위: 일기 + 할일이 둘 다 있으면 선택지를 제공, 아니면 각각 단일 액션
+        if let diary = diary, hasTodos {
+            let sheet = UIAlertController(title: "무엇을 보실까요?", message: nil, preferredStyle: .actionSheet)
+            sheet.addAction(UIAlertAction(title: "💭 일기 보기", style: .default, handler: { [weak self] _ in
+                self?.showDiaryDetail(for: diary.date, emotion: diary.selectedEmotion)
+            }))
+            sheet.addAction(UIAlertAction(title: "📋 할 일 + 조언", style: .default, handler: { [weak self] _ in
+                self?.presentTodosSheet(for: date, todos: todos)
+            }))
+            sheet.addAction(UIAlertAction(title: "취소", style: .cancel))
+            present(sheet, animated: true)
+        } else if let diary = diary {
+            showDiaryDetail(for: diary.date, emotion: diary.selectedEmotion)
+        } else if hasTodos {
+            presentTodosSheet(for: date, todos: todos)
         }
-        // TODO: reload insight/todo data for the selected date
+        // 선택 날짜의 데이터 새로고침
         // loadData(for: date)
+    }
+
+    private func presentTodosSheet(for date: Date, todos: [TodoItem]) {
+        let vc = TodoListSheetViewController(date: date, todos: todos, allTodosProvider: { TodoManager.shared.loadTodos() })
+        let nav = UINavigationController(rootViewController: vc)
+        nav.modalPresentationStyle = .pageSheet
+        if let sheet = nav.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+        }
+        present(nav, animated: true)
     }
     
     func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
