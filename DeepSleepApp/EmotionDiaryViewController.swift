@@ -4,7 +4,7 @@ class EmotionDiaryViewController: UIViewController {
     
     // MARK: - UI Components
     private let segmentedControl: UISegmentedControl = {
-        let items = ["일기", "캘린더", "인사이트"]
+        let items = ["일기", "캘린더", "할 일", "인사이트"]
         let control = UISegmentedControl(items: items)
         control.selectedSegmentIndex = 0
         control.translatesAutoresizingMaskIntoConstraints = false
@@ -28,7 +28,9 @@ class EmotionDiaryViewController: UIViewController {
         let moduleName = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "DeepSleep"
         let fullName = "\(moduleName).EmotionCalendarViewController"
         if let cls = NSClassFromString(fullName) as? UIViewController.Type {
-            return cls.init()
+            let vc = cls.init()
+            if let cal = vc as? EmotionCalendarViewController { cal.showsTodoSection = false }
+            return vc
         } else {
             // Fallback: lightweight placeholder to keep layout stable
             let vc = UIViewController()
@@ -47,6 +49,13 @@ class EmotionDiaryViewController: UIViewController {
             print("⚠️ [EmotionDiaryViewController] EmotionCalendarViewController 동적 로딩 실패 - \(fullName). 타깃 멤버십 또는 FSCalendar 링크를 확인하세요.")
             return vc
         }
+    }()
+
+    // 할 일 탭 컨텐츠(일기 섹션 숨긴 TodoCalendar)
+    private let todoTabViewController: TodoCalendarViewController = {
+        let vc = TodoCalendarViewController()
+        vc.hideDiarySection = true
+        return vc
     }()
     
     // 인사이트 뷰
@@ -91,6 +100,7 @@ class EmotionDiaryViewController: UIViewController {
     // 🔧 Bottom constraints for each segment; activate only the one for the visible view
     internal var tableBottomConstraint: NSLayoutConstraint?
     internal var calendarBottomConstraint: NSLayoutConstraint?
+    internal var todoBottomConstraint: NSLayoutConstraint?
     internal var insightBottomConstraint: NSLayoutConstraint?
     
     // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
@@ -137,6 +147,7 @@ class EmotionDiaryViewController: UIViewController {
         setupScrollView()
         setupTableView()
         setupCalendarView()
+        setupTodoTabView()
         setupInsightView()
         
         showCurrentView()
@@ -215,6 +226,23 @@ class EmotionDiaryViewController: UIViewController {
             calendarViewController.view.heightAnchor.constraint(equalToConstant: 750)
         ])
     }
+
+    private func setupTodoTabView() {
+        addChild(todoTabViewController)
+        contentView.addSubview(todoTabViewController.view)
+        todoTabViewController.didMove(toParent: self)
+        todoTabViewController.view.translatesAutoresizingMaskIntoConstraints = false
+
+        todoBottomConstraint = todoTabViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        todoBottomConstraint?.isActive = false
+
+        NSLayoutConstraint.activate([
+            todoTabViewController.view.topAnchor.constraint(equalTo: contentView.topAnchor),
+            todoTabViewController.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            todoTabViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            todoTabViewController.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 600)
+        ])
+    }
     
     private func setupInsightView() {
         contentView.addSubview(insightStackView)
@@ -284,6 +312,7 @@ class EmotionDiaryViewController: UIViewController {
         // 모든 뷰 숨기기
         tableView.isHidden = true
         calendarViewController.view.isHidden = true
+        todoTabViewController.view.isHidden = true
         insightStackView.isHidden = true
         
         // 🔧 단순화된 탭 전환 처리 - 더 이상 복잡한 제약조건 전환 불필요
@@ -291,24 +320,23 @@ class EmotionDiaryViewController: UIViewController {
         
         // 선택된 뷰만 보이기
         switch currentView {
-        case 0: // 일기
-            tableView.isHidden = false
-        case 1: // 캘린더
-            calendarViewController.view.isHidden = false
-        case 2: // 인사이트
-            insightStackView.isHidden = false
-        default:
-            break
+        case 0: tableView.isHidden = false
+        case 1: calendarViewController.view.isHidden = false
+        case 2: todoTabViewController.view.isHidden = false
+        case 3: insightStackView.isHidden = false
+        default: break
         }
         
         // 🔧 Activate only the bottom constraint for the visible view to let Auto Layout drive content height
         tableBottomConstraint?.isActive = false
         calendarBottomConstraint?.isActive = false
+        todoBottomConstraint?.isActive = false
         insightBottomConstraint?.isActive = false
         switch currentView {
         case 0: tableBottomConstraint?.isActive = true
         case 1: calendarBottomConstraint?.isActive = true
-        case 2: insightBottomConstraint?.isActive = true
+        case 2: todoBottomConstraint?.isActive = true
+        case 3: insightBottomConstraint?.isActive = true
         default: break
         }
         

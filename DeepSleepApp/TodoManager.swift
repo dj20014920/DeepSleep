@@ -175,6 +175,21 @@ class TodoManager {
         }
     }
 
+    // MARK: - AI Advice Persistence
+    /// 개별 할 일에 AI 조언 텍스트를 추가로 저장하고 타임스탬프/플래그를 갱신
+    func appendAdvice(to todoId: UUID, advice: String) {
+        var current = loadTodos()
+        guard let index = current.firstIndex(where: { $0.id == todoId }) else { return }
+        var t = current[index]
+        var advices = t.aiAdvices ?? []
+        advices.append(advice)
+        t.aiAdvices = advices
+        t.aiAdvicesGeneratedAt = Date()
+        t.hasReceivedAIAdvice = true
+        current[index] = t
+        saveTodos(current)
+    }
+
     func updateTodoItem(_ todoToUpdate: TodoItem) {
         updateTodo(todoToUpdate) { _, _ in
             // The synchronous call doesn't handle completion, so we can leave this empty.

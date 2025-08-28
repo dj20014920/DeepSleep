@@ -221,6 +221,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         case todos = 1
     }
 
+    // 새 탭 요구사항: 할 일 탭에서는 일기 섹션을 숨김
+    public var hideDiarySection: Bool = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         print("👍 [TodoCalendarViewController] viewDidLoad() - 🚀 최적화된 초기화 시작")
@@ -553,7 +556,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     
     // MARK: - UITableViewDataSource
     func numberOfSections(in tableView: UITableView) -> Int {
-        return CalendarSection.allCases.count // 일기, 할 일 두 섹션
+        return hideDiarySection ? 1 : CalendarSection.allCases.count
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -562,26 +565,24 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             return 0 
         }
         
-        switch currentSection {
-        case .diary:
-            let count = selectedDateDiary != nil ? 1 : 0
-            print("📊 [TodoCalendarViewController] diary section row count: \(count)")
-            return count // 일기가 있으면 1개, 없으면 0개
-        case .todos:
-            let count = selectedDateTodos.count
-            print("📊 [TodoCalendarViewController] todos section row count: \(count)")
-            return count // 할 일 개수
+        if hideDiarySection {
+            return selectedDateTodos.count
+        } else {
+            switch currentSection {
+            case .diary:
+                let count = selectedDateDiary != nil ? 1 : 0
+                print("📊 [TodoCalendarViewController] diary section row count: \(count)")
+                return count
+            case .todos:
+                let count = selectedDateTodos.count
+                print("📊 [TodoCalendarViewController] todos section row count: \(count)")
+                return count
+            }
         }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let currentSection = CalendarSection(rawValue: indexPath.section) else {
-            print("⚠️ [TodoCalendarViewController] 잘못된 섹션: \(indexPath.section)")
-            return UITableViewCell()
-        }
-        
-        switch currentSection {
-        case .diary:
+        if hideDiarySection == false, let currentSection = CalendarSection(rawValue: indexPath.section), currentSection == .diary {
             // 🔧 안전한 셀 dequeue 및 유효성 검사
             guard let diary = selectedDateDiary else {
                 print("⚠️ [TodoCalendarViewController] selectedDateDiary가 nil입니다")
@@ -597,7 +598,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             cell.selectionStyle = .none // 일기 셀은 선택 스타일 없음
             return cell
             
-        case .todos:
+        }
+        // todos 섹션
             // 🔧 안전한 배열 접근
             guard indexPath.row < selectedDateTodos.count else {
                 print("⚠️ [TodoCalendarViewController] todos 배열 범위 초과: \(indexPath.row)/\(selectedDateTodos.count)")
@@ -612,12 +614,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             let todo = selectedDateTodos[indexPath.row]
             cell.configure(with: todo)
             return cell
-        }
+        
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         guard let currentSection = CalendarSection(rawValue: section) else { return nil }
         
+        if hideDiarySection { return selectedDateTodos.isEmpty ? "📌 할 일 (없음)" : "📌 할 일 목록" }
         switch currentSection {
         case .diary:
             return selectedDateDiary != nil ? "💭 그날의 감정 기록" : nil
@@ -629,18 +632,10 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // MARK: - UITableViewDelegate
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        guard let currentSection = CalendarSection(rawValue: indexPath.section) else { return }
-
-        if currentSection == .todos {
+        if hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos {
             let todoItem = selectedDateTodos[indexPath.row]
-            // 여기서 toggleCompletion 대신 수정화면으로 바로 이동
-            let addEditVC = AddEditTodoViewController()
-            addEditVC.delegate = self
-            addEditVC.todoItem = todoItem
-            let navController = UINavigationController(rootViewController: addEditVC)
-            present(navController, animated: true, completion: nil)
-            
-        } else if currentSection == .diary, let diary = selectedDateDiary {
+            presentAdviceInfo(for: todoItem)
+        } else if CalendarSection(rawValue: indexPath.section) == .diary, let diary = selectedDateDiary {
             print("감정 일기 셀 선택됨: \(diary.userMessage)")
             // DiaryWriteViewController를 수정 모드로 열기
             let diaryWriteVC = DiaryWriteViewController()
@@ -652,6 +647,20 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         loadData(for: selectedDate)
         updateOverallAdviceButtonUI()
+    }
+
+    // 최근 AI 조언 정보창 표시 (없으면 생성 유도)
+    private func presentAdviceInfo(for todo: TodoItem) {
+        if let advice = todo.aiAdvices?.last, !advice.isEmpty {
+            self.showAdvice(title: "💡 \(todo.title)", advice: advice)
+        } else {
+            let alert = UIAlertController(title: "조언 없음", message: "이 할 일에 대한 저장된 조언이 없습니다. 지금 받을까요?", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+            alert.addAction(UIAlertAction(title: "조언 받기", style: .default, handler: { [weak self] _ in
+                self?.requestTodoAdvice(for: todo)
+            }))
+            present(alert, animated: true)
+        }
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
@@ -1360,6 +1369,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                         AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
                     }
                     
+                    // 조언 저장 및 표시
+                    TodoManager.shared.appendAdvice(to: todo.id, advice: advice)
                     self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice)
                 }
                 

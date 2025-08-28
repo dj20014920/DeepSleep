@@ -84,6 +84,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     private var headerLabel: UILabel!
     
     var selectedDate: Date = Date()
+    // 캘린더 화면에서 Todo 섹션 노출 여부(감정 일기 화면의 캘린더 탭에서는 false로 설정)
+    var showsTodoSection: Bool = true
     private var sections: [SectionType] = []
     
     private let todoManager = TodoManager.shared
@@ -272,9 +274,11 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         
         sections.append(.insight(insightText))
         
-        // Todo 섹션 추가 (항상 표시)
-        let todos = todoManager.getTodos(for: date)
-        sections.append(.todo(todos))
+        // Todo 섹션은 설정에 따라 표시
+        if showsTodoSection {
+            let todos = todoManager.getTodos(for: date)
+            sections.append(.todo(todos))
+        }
         
         collectionView.reloadData()
     }
