@@ -23,13 +23,13 @@ final class AdsManager {
         Bundle.main.object(forInfoDictionaryKey: "ADMOB_BANNER_UNIT_ID") as? String
     }
 
-    // Enforce test units for DEBUG builds, as per Google policy and your requirement.
+    // Choose banner unit ID: prefer configured (Secrets.xcconfig → Info.plist), fallback to test ID if missing.
+    // Note: If you want to force test units in Debug, gate it with Info.plist TEST_MODE instead of compile flag.
     func bannerAdUnitIdForCurrentBuild() -> String {
-        #if DEBUG
+        if let real = configuredBannerUnitId, !real.isEmpty {
+            return real
+        }
         return testBannerUnitId
-        #else
-        return (configuredBannerUnitId?.isEmpty == false ? configuredBannerUnitId! : testBannerUnitId)
-        #endif
     }
 
     // Optional: initialize SDK if available and the app id is present.
@@ -98,4 +98,3 @@ final class BannerAdContainerView: UIView {
         #endif
     }
 }
-
