@@ -127,6 +127,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         // 데이터 로드
         loadDiaryData()
         loadData(for: selectedDate)
+
+        // 할 일 변경 실시간 반영
+        NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -139,6 +142,16 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         if calendar != nil {
             calendar.reloadData()
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .todosUpdated, object: nil)
+    }
+
+    @objc private func handleTodosUpdated() {
+        loadData(for: selectedDate)
+        calendar?.reloadData()
+        collectionView.reloadData()
     }
     
     private func loadDiaryData() {
@@ -175,6 +188,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         calendar.delegate = self
         calendar.dataSource = self
         calendar.translatesAutoresizingMaskIntoConstraints = false
+        calendar.locale = Locale(identifier: "en_US")
 
         // 캘린더 스타일 설정
         calendar.backgroundColor = .systemBackground
@@ -439,62 +453,9 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
         return nil // 기본 날짜 숫자 표시
     }
     
-    // 감정을 이모지로 변환하는 헬퍼 함수
+    // 공통 유틸을 통한 감정→이모지 변환
     private func getEmotionEmoji(for emotion: String) -> String {
-       
-        
-        let emoji: String
-        
-        // ✅ 먼저 이모지 자체인지 확인 (DiaryWriteViewController에서 이모지를 직접 저장하는 경우)
-        switch emotion {
-        case "😊":
-            emoji = "😊"
-        case "😢":
-            emoji = "😢"
-        case "😠":
-            emoji = "😠"  // 화남 이모지
-        case "😰":
-            emoji = "😰"
-        case "😴":
-            emoji = "😴"
-        case "🥰":
-            emoji = "🥰"
-        case "😔":
-            emoji = "😔"
-        case "😤":
-            emoji = "😤"
-        case "😌":
-            emoji = "😌"
-        case "🤔":
-            emoji = "🤔"
-        default:
-            // 텍스트 감정명인 경우 기존 로직 사용
-            switch emotion.lowercased() {
-            case "기쁨", "행복", "즐거움":
-                emoji = "😊"
-            case "슬픔", "우울", "속상함":
-                emoji = "😢"
-            case "화남", "짜증", "분노":
-                emoji = "😡"
-            case "불안", "걱정", "스트레스":
-                emoji = "😰"
-            case "피곤", "지침":
-                emoji = "😴"
-            case "평온", "차분":
-                emoji = "😌"
-            case "활력", "에너지":
-                emoji = "⚡"
-            case "사랑", "애정":
-                emoji = "🥰"
-            case "놀람", "깜짝":
-                emoji = "😲"
-            case "혼란", "당황":
-                emoji = "😕"
-            default:
-                emoji = "🙂" // 기본 이모지
-            }
-        }
-        
+        let emoji = CommonUtilities.shared.mapEmotionToEmoji(emotion)
         print("🔍 [getEmotionEmoji] 결과 이모지: '\(emoji)'")
         return emoji
     }

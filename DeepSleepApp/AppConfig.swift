@@ -128,6 +128,14 @@ struct AppConfig {
             ConfigReader.double("FADE_OUT_DURATION") ?? { print("⚠️ [AppConfig.Audio] FADE_OUT_DURATION 누락 — 0.0 처리"); return 0.0 }()
         }()
     }
+
+    // MARK: - 🎯 추천 엔진 설정
+    struct Recommendation {
+        // 시간대 기반 필터/가중치 사용 여부: 사용자가 밤에만 사용해도 동일 품질 제공을 위해 기본 false
+        static let useTimeOfDay: Bool = {
+            ConfigReader.bool("RECO_USE_TIME_OF_DAY") ?? false
+        }()
+    }
     
     // MARK: - 🐛 개발 설정
     

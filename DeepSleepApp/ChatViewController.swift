@@ -15,12 +15,20 @@ struct AIResponseData: Codable {
     let presetName: String?
     let description: String?
     let volumes: [Float]?
+    let presetKey: String?
     let reason: String? // Corrected from 'reasoning'
     let confidence: Double?
     let personalizedExplanation: String?
     let adaptation: String?
     let adaptationLevel: String?
     let emotion: String?
+    let items: [AIItem]? // 외부 모델 전용: 개별 사운드 조합
+}
+
+struct AIItem: Codable {
+    let soundName: String?
+    let versionName: String?
+    let volume: Float?
 }
 
 // MARK: - SharedCore 타입들 사용 (중복 제거 완료)
@@ -102,6 +110,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     // 🔒 중복 요청 방지 플래그
     private var isProcessingRecommendation = false
+    // 추천 메시지와 페이로드 연결(바로 적용하기용)
+    private var presetPayloads: [UUID: EnhancedRecommendationResponse] = [:]
     
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
@@ -1986,6 +1996,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         
         let chatMessage = ChatMessage(text: message, sender: .ai, type: .presetRecommendation)
         appendChat(chatMessage)
+
+        // 메시지와 추천 페이로드를 연결하여 '바로 적용하기'에서 정확히 적용 가능
+        presetPayloads[chatMessage.id] = recommendation
     }
     
     deinit {
@@ -3230,6 +3243,21 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             
             masterRecommendation = (volumes: expandedVolumes, compatibleVersions: expandedVersions)
             
+            if recommendation.sounds.isEmpty,
+               let scientific = getScientificRecommendationFor(emotion: recommendedEmotion) {
+                // 과학 프리셋으로 폴백
+                let presetMessage = """
+                **[\(scientific.presetName)]**
+                \(scientific.reason ?? "AI가 분석한 추천 프리셋입니다.")
+
+                로컬 알고리즘(과학 프리셋)으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다.
+                """
+                let chatMessage = ChatMessage(text: presetMessage, sender: .ai, type: .presetRecommendation)
+                appendChat(chatMessage)
+                presetPayloads[chatMessage.id] = scientific
+                isProcessingRecommendation = false
+                return
+            }
             print("✅ 로컬 프리셋 추천 성공: \(recommendation.sounds.count)개 사운드")
             
         } catch {
@@ -3264,8 +3292,15 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         
         // 프리셋 적용 메시지 추가
         let chatMessage = ChatMessage(text: presetMessage, sender: .ai, type: .presetRecommendation)
-        
         appendChat(chatMessage)
+        // 로컬 추천도 페이로드를 연결해 '바로 적용하기'가 정확히 동작하도록 함
+        let payload = EnhancedRecommendationResponse(
+            presetName: recommendedPreset.name,
+            volumes: SoundPresetCatalog.applyCompatibilityFilter(to: recommendedPreset.volumes.map { Float($0) }),
+            versions: recommendedPreset.versions,
+            reason: recommendedPreset.description
+        )
+        presetPayloads[chatMessage.id] = payload
         
         // 🆕 로컬 AI 추천 기록 저장
         // Local AI recommendation recording not available in SessionManager
@@ -3279,35 +3314,19 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     /// 사용자 데이터 기반 감정 추론
     private func inferEmotionFromUserData(context: LocalAIContext) -> String {
-        // 1. 최근 감정 히스토리 분석
-        if let recentEmotion = context.emotionHistory.first?.emotion {
-            return recentEmotion
+        let timeOfDay = getCurrentTimeOfDay()
+        // 최근 사용자 텍스트(마지막 5개)
+        let recentUserTexts = messages.suffix(5).compactMap { msg in
+            (msg.sender == .user) ? msg.text : nil
         }
-        
-        // 2. 피드백 데이터에서 감정 추출
-        if let recentFeedback = context.feedbackData.first {
-            let emotion = recentFeedback.contextEmotion
-            return emotion
-        }
-        
-        // 3. 시간대별 기본 감정 (폴백)
-        let currentTimeOfDay = getCurrentTimeOfDay()
-        switch currentTimeOfDay {
-        case "새벽", "자정":
-            return "수면"
-        case "아침":
-            return "활력"
-        case "오전", "점심":
-            return "집중"
-        case "오후":
-            return "안정"
-        case "저녁":
-            return "이완"
-        case "밤":
-            return "수면"
-        default:
-            return "평온"
-        }
+        // 1) 최근 감정 히스토리
+        let recentEmotion = context.emotionHistory.first?.emotion
+        // 2) 피드백 데이터 감정
+        let feedbackEmotion = context.feedbackData.first?.contextEmotion
+        // 우선순위: 히스토리 → 피드백 → 사용자 텍스트 → 시간대
+        let primary = recentEmotion ?? feedbackEmotion
+        let normalized = EmotionNormalizer.normalizeFromSignals(emotion: primary, recentUserTexts: recentUserTexts, timeOfDay: timeOfDay)
+        return normalized
     }
     
     /// 감정 강도 계산
@@ -3592,8 +3611,19 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
     // MARK: - Phase 1: JSON 기반 AI 응답 파싱 (통합된 새로운 방식)
     func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
         UnifiedLogger.shared.debug("프리셋 파싱 시작: \(response.prefix(100))...", category: .ai)
-        
-        // 🔄 통합 JSON 파싱 시스템 활용 (중앙집중식)
+
+        // 0) 먼저 혼합 출력에서 최초 JSON 객체만 정확히 추출 시도 (중앙 파서 유틸)
+        if let jsonSlice = AIResponseParser.shared.extractFirstJSONObjectString(response) {
+            do {
+                let result = try decodeAIResponse(from: jsonSlice)
+                UnifiedLogger.shared.debug("중앙 파서 JSON slice 파싱 성공", category: .ai)
+                return result
+            } catch {
+                UnifiedLogger.shared.warning("JSON slice 디코딩 실패: \(error.localizedDescription)")
+            }
+        }
+
+        // 1) (Deprecated) 코드펜스 제거 + 순수 JSON 여부 확인
         if let cleanText = parseJSONIntelligently(response) {
             // 추출된 텍스트를 프리셋 형식으로 변환 시도
             do {
@@ -3656,14 +3686,35 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
             }
         }
         
-        // 데이터 유효성 검증
-        guard let presetName = aiResponse.presetName, !presetName.isEmpty else {
-            throw JSONParsingError.missingRequiredFields
+        // 데이터 유효성 검증 및 보정
+        var resolvedName: String = aiResponse.presetName ?? "AI 추천"
+        var volumes: [Float] = aiResponse.volumes ?? []
+        var outVersions: [Int] = SoundPresetCatalog.defaultVersions
+        // presetKey 우선 사용
+        if volumes.isEmpty, let key = aiResponse.presetKey, let presetVolumes = SoundPresetCatalog.scientificPresets[key] {
+            volumes = presetVolumes
+            if resolvedName.isEmpty || resolvedName == "AI 추천" { resolvedName = key }
         }
-        
-        guard let volumes = aiResponse.volumes, !volumes.isEmpty else {
-            throw JSONParsingError.missingRequiredFields
+        // items 기반(외부 모델 전용): 개별 사운드 조합을 앱 카테고리/버전으로 매핑
+        if volumes.isEmpty, let items = aiResponse.items, !items.isEmpty {
+            let count = SoundPresetCatalog.categoryCount
+            var arr = Array(repeating: Float(0), count: count)
+            var vers = SoundPresetCatalog.defaultVersions
+            for it in items {
+                guard let sName = it.soundName else { continue }
+                let vol = min(max(it.volume ?? 0, 0), 100)
+                if let (catIdx, verIdx) = mapItemToCategoryAndVersion(soundName: sName, versionName: it.versionName) {
+                    arr[catIdx] = vol
+                    vers[catIdx] = verIdx
+                } else if let idx = SoundPresetCatalog.findCategoryIndex(by: sName) {
+                    arr[idx] = vol
+                }
+            }
+            volumes = arr
+            outVersions = vers
         }
+        // 여전히 비어 있으면 오류
+        guard !volumes.isEmpty else { throw JSONParsingError.missingRequiredFields }
         
         // confidence 값 검증 (옵셔널 처리)
         let confidenceValue = aiResponse.confidence ?? 0.8
@@ -3671,21 +3722,58 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
             throw JSONParsingError.invalidVolumeCount
         }
         
-        // 볼륨 배열 크기 검증
-        guard volumes.count == 13 else {
-            throw JSONParsingError.invalidVolumeCount
+        // 볼륨 길이 보정: 1~13 사이면 13으로 패딩/절단 (카테고리 개수 기준)
+        let targetCount = SoundPresetCatalog.categoryCount
+        if volumes.count != targetCount {
+            if volumes.count > targetCount {
+                volumes = Array(volumes.prefix(targetCount))
+            } else if volumes.count > 0 {
+                volumes.append(contentsOf: Array(repeating: 0, count: targetCount - volumes.count))
+            } else {
+                throw JSONParsingError.invalidVolumeCount
+            }
         }
+
+        // 값 클램프 (0~100)
+        volumes = volumes.map { min(max($0, 0), 100) }
         
         // 조합 필터링 적용
         let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: volumes)
-        let versions = SoundPresetCatalog.defaultVersions // aiResponse.versions는 없으므로 기본값 사용
+        let versions = outVersions
         
         return EnhancedRecommendationResponse(
-            presetName: "🧠 " + presetName,
+            presetName: "🧠 " + resolvedName,
             volumes: filteredVolumes,
             versions: versions,
             reason: aiResponse.reason ?? "AI 추천 프리셋"
         )
+    }
+
+    // 외부 모델 항목을 앱 카테고리/버전으로 매핑
+    private func mapItemToCategoryAndVersion(soundName: String, versionName: String?) -> (Int, Int)? {
+        // 1) 카테고리 인덱스 추정
+        let count = SoundPresetCatalog.categoryCount
+        var targetCat: Int? = SoundPresetCatalog.findCategoryIndex(by: soundName)
+        // 2) 정확히 못 찾으면 SoundManager 카탈로그 탐색
+        if targetCat == nil {
+            for i in 0..<count {
+                if let c = SoundManager.shared.getSoundCatalog(at: i) {
+                    if c.baseName.contains(soundName) || soundName.contains(c.baseName) {
+                        targetCat = i; break
+                    }
+                }
+            }
+        }
+        guard let cat = targetCat, let catalog = SoundManager.shared.getSoundCatalog(at: cat) else { return nil }
+        // 3) 버전 인덱스 추정
+        if let vName = versionName, !vName.isEmpty {
+            if let idx = catalog.versions.firstIndex(where: { $0.displayName.contains(vName) || vName.contains($0.displayName) }) {
+                return (cat, idx)
+            }
+        }
+        // displayName 미지정 or 매칭 실패 → 기본 버전
+        let def = catalog.versions.firstIndex { $0.isDefault } ?? 0
+        return (cat, def)
     }
     
     // MARK: - 새로운 11개 형식 파싱
@@ -3863,7 +3951,7 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
         // 볼륨 생성 (주요 사운드는 높게, 나머지는 낮게)
         var volumes: [Float] = Array(repeating: 0, count: 13)
         for (index, soundName) in finalSoundList.enumerated() {
-            if let categoryIndex = SoundPresetCatalog.categoryNames.firstIndex(of: soundName) {
+            if let categoryIndex = SoundPresetCatalog.findCategoryIndex(by: soundName) {
                 volumes[categoryIndex] = index < 3 ? Float.random(in: 60...90) : Float.random(in: 20...50)
             }
         }
@@ -3896,8 +3984,10 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
         
         lastAppliedPreset = newPreset
         updateCategorySliders(with: preset.volumes)
-        // onPresetApply?(preset) // ViewController에 알림 - 타입 불일치로 임시 주석
-        
+        // 메인 화면 컨트롤러에도 적용(재생/저장 포함)
+        if let mainVC = navigationController?.viewControllers.first as? ViewController {
+            mainVC.applyPreset(volumes: preset.volumes, versions: preset.versions, name: preset.presetName)
+        }
         showToast(message: "🎵 프리셋 '\(preset.presetName)'이 적용되었습니다.")
     }
     
@@ -4199,35 +4289,31 @@ extension ChatViewController {
         
         UnifiedLogger.shared.debug("메시지 발견 - 타입: \(foundMessage.type), 텍스트 일부: \(String(messageText.prefix(50)))", category: .ui)
         
-        // 메시지에서 프리셋 이름 추출 (간단한 파싱)
-        let presetName = extractPresetName(from: messageText)
-        
-        // ViewController+Utilities의 기존 applyRecommendedPreset 메서드 활용
-        if let mainVC = navigationController?.viewControllers.first as? ViewController {
-            // 프리셋 적용 시도
-            if let volumes = SoundPresetCatalog.samplePresets[presetName] {
-                mainVC.applyPreset(volumes: volumes, versions: SoundPresetCatalog.defaultVersions, name: presetName)
-                UnifiedLogger.shared.debug("프리셋 적용 완료: \(presetName)", category: .ui)
-                
-                // 적용 완료 피드백 메시지
-                let feedbackMessage = ChatMessage(
-                    text: "🎵 '\(presetName)' 프리셋이 적용되었습니다!\n\n사운드 설정이 업데이트되었어요.",
-                    sender: .ai,
-                    type: .bot
-                )
-                appendChat(feedbackMessage)
-            } else {
-                UnifiedLogger.shared.error("프리셋을 찾을 수 없음: \(presetName)")
-                
-                // 오류 피드백 메시지
-                let errorMessage = ChatMessage(
-                    text: "⚠️ 죄송합니다. 해당 프리셋을 찾을 수 없습니다.\n다른 추천을 받아보시겠어요?",
-                    sender: .ai,
-                    type: .bot
-                )
-                appendChat(errorMessage)
-            }
+        // 1) 추천 페이로드가 연결되어 있으면 그 값을 적용 (정확)
+        if let payload = presetPayloads[messageId] {
+            applyPreset(payload)
+            return
         }
+        // 2) 연결이 없으면 메시지 텍스트에서 JSON/키 기반으로 복구 시도
+        if let recovered = parsePresetRecommendation(from: messageText) {
+            applyPreset(recovered)
+            return
+        }
+        // 3) 마지막으로, 메시지에서 프리셋 이름을 추출해 카탈로그에서 찾기 (강화된 매핑)
+        let extractedName = extractPresetName(from: messageText)
+        if let resolved = resolvePresetVolumes(byName: extractedName) {
+            if let mainVC = navigationController?.viewControllers.first as? ViewController {
+                mainVC.applyPreset(volumes: resolved.volumes, versions: SoundPresetCatalog.defaultVersions, name: resolved.name)
+            }
+            return
+        }
+        UnifiedLogger.shared.error("프리셋을 찾을 수 없음: \(extractedName)")
+        let errorMessage = ChatMessage(
+            text: "⚠️ 죄송합니다. 해당 프리셋을 찾을 수 없습니다.\n다른 추천을 받아보시겠어요?",
+            sender: .ai,
+            type: .bot
+        )
+        appendChat(errorMessage)
     }
     
     /// 메시지 텍스트에서 프리셋 이름 추출
@@ -4276,17 +4362,73 @@ extension ChatViewController {
             }
         }
         
-        // SoundPresetCatalog의 프리셋 이름 중에서 매치되는 것 찾기
+        // 카탈로그 이름 스캔 (샘플 + 과학 프리셋)
         for presetName in SoundPresetCatalog.samplePresets.keys {
-            if messageText.contains(presetName) {
-                UnifiedLogger.shared.debug("카탈로그에서 프리셋 이름 발견: \(presetName)", category: .ui)
-                return presetName
-            }
+            if messageText.contains(presetName) { return presetName }
         }
-        
+        for presetName in SoundPresetCatalog.scientificPresets.keys {
+            if messageText.contains(presetName) { return presetName }
+        }
+
         // 기본값으로 "깊은 휴식" 반환
         UnifiedLogger.shared.debug("프리셋 이름 추출 실패 - 기본값 사용: 깊은 휴식", category: .ui)
         return "깊은 휴식"
+    }
+
+    // MARK: - 이름 정규화 및 매핑 보조
+    private func normalizePresetName(_ name: String) -> String {
+        // 특수문자/이모지(대부분의 기호 포함)를 제거하고 한글/영문/숫자/공백만 유지
+        // 그리고 공백/대소문자/슬래시 표준화
+        let lowered = name.lowercased()
+        var cleaned = lowered
+            .replacingOccurrences(of: "[\n\r\t]", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"[()\[\]\{\}]"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: "/", with: " ")
+            .replacingOccurrences(of: "[|]", with: " ", options: .regularExpression)
+        // 허용: 한글/영문/숫자/공백, 나머지는 제거
+        cleaned = cleaned.replacingOccurrences(of: "[^0-9a-z가-힣 ]", with: "", options: .regularExpression)
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 다중 공백 축약
+        return cleaned.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
+    }
+
+    private func resolvePresetVolumes(byName name: String) -> (name: String, volumes: [Float])? {
+        let norm = normalizePresetName(name)
+
+        // 1) 정확/유사 매칭: 과학 프리셋
+        if let match = SoundPresetCatalog.scientificPresets.first(where: { normalizePresetName($0.key) == norm }) {
+            return (name: match.key, volumes: match.value)
+        }
+        // 부분 포함 매칭
+        if let match = SoundPresetCatalog.scientificPresets.first(where: { normalizePresetName($0.key).contains(norm) || norm.contains(normalizePresetName($0.key)) }) {
+            return (name: match.key, volumes: match.value)
+        }
+
+        // 2) 샘플 프리셋 매칭
+        if let match = SoundPresetCatalog.samplePresets.first(where: { normalizePresetName($0.key) == norm }) {
+            return (name: match.key, volumes: match.value)
+        }
+        if let match = SoundPresetCatalog.samplePresets.first(where: { normalizePresetName($0.key).contains(norm) || norm.contains(normalizePresetName($0.key)) }) {
+            return (name: match.key, volumes: match.value)
+        }
+
+        // 3) 의미 기반 간단 매핑 (한국어 키워드 → 대표 과학 프리셋)
+        let keywordToKey: [(pattern: String, key: String)] = [
+            ("수면|잠|밤|저녁", "Deep Sleep Maintenance"),
+            ("평온|안정|이완|휴식", "Zen Garden Flow"),
+            ("집중|몰입|학습|코딩", "Deep Work Flow"),
+            ("활력|에너지|기상|아침", "Morning Energy Boost"),
+            ("명상|마음챙김|명상", "Walking Meditation"),
+            ("불안|초조|긴장|코르티솔", "Nature Stress Detox")
+        ]
+        for map in keywordToKey {
+            if norm.range(of: map.pattern, options: .regularExpression) != nil,
+               let vols = SoundPresetCatalog.scientificPresets[map.key] {
+                return (name: map.key, volumes: vols)
+            }
+        }
+
+        return nil
     }
     
     
@@ -4495,5 +4637,3 @@ extension ChatViewController {
         // 기존 셀 구성 코드...
     }
 }
-
-

@@ -171,17 +171,111 @@ class EnhancedSoundRecommendationEngine {
     // MARK: - 카탈로그 로딩
     
     private func loadEnhancedCatalog() {
-        guard let url = Bundle.main.url(forResource: "sound_catalog_enhanced", withExtension: "json"),
-              let data = try? Data(contentsOf: url) else {
-            print("⚠️ sound_catalog_enhanced.json 파일을 찾을 수 없습니다.")
-            return
+        // JSON을 사용하지 않고 항상 앱 내 카탈로그로부터 동적 구성
+        enhancedCatalog = buildEnhancedCatalogFromInMemory()
+        lastCatalogSignature = currentCatalogSignature()
+        print("🧩 동적 카탈로그 구성 완료: \(enhancedCatalog.count)개 카테고리")
+    }
+
+    /// JSON이 없을 때 SoundManager + SoundPresetCatalog로부터 고도화 메타데이터를 동적으로 구성
+    private func buildEnhancedCatalogFromInMemory() -> [EnhancedSoundMetadata] {
+        var result: [EnhancedSoundMetadata] = []
+        let count = SoundPresetCatalog.categoryCount
+
+        for categoryIndex in 0..<count {
+            guard let catalog = SoundManager.shared.getSoundCatalog(at: categoryIndex) else { continue }
+
+            var versions: [EnhancedSoundVersion] = []
+            for ver in catalog.versions {
+                // 사운드 이름 추출 (확장자 제거)
+                let baseFile = ver.fileName.replacingOccurrences(of: ".mp3", with: "")
+            // SoundPresetCatalog.soundDetails(+supplemental)에서 풍부한 정보 추출
+            let detailsAny = SoundPresetCatalog.getSoundDetail(for: baseFile) ?? SoundPresetCatalog.getSoundDetail(for: catalog.baseName)
+                let details = detailsAny ?? [:]
+
+                let timeOfDay = (details["timeOfDay"] as? [String]) ?? ["모든 시간"]
+                let emotions = (details["emotions"] as? [String]) ?? []
+                let therapeutic = (details["therapeuticBenefits"] as? String) ?? ""
+                let psycho = (details["psychoacousticProfile"] as? String) ?? ""
+                let avoid = (details["avoidWith"] as? [String]) ?? []
+                let intensityRange = (details["intensityRange"] as? [Int]) ?? [15, 45]
+                let optimal = (details["optimalIntensity"] as? Int)
+                let optimalRange: [Int] = {
+                    if let o = optimal { return [max(0, o - 5), min(100, o + 5)] }
+                    if intensityRange.count >= 2 { return [intensityRange[0], intensityRange[1]] }
+                    return [25, 45]
+                }()
+
+                // 휴리스틱 기본값들 (측정 불가 값)
+                let freqRange = (details["frequencyRangeHz"] as? String) ?? "20-20000"
+                let peakHz = (details["peakFrequencyHz"] as? Int) ?? 500
+                let rms = (details["rmsDbfs"] as? Float) ?? -24.0
+                let mixCoeff: Float = 1.0
+                let fadeIn = 2
+                let fadeOut = 2
+
+                let enriched = EnhancedSoundVersion(
+                    version: ver.version,
+                    fileName: ver.fileName,
+                    displayName: ver.displayName,
+                    emoji: ver.emoji,
+                    description: ver.description,
+                    durationSeconds: 900,              // 15분 기본
+                    sampleRateKhz: 44.1,
+                    frequencyRangeHz: freqRange,
+                    peakFrequencyHz: peakHz,
+                    rmsDbfs: rms,
+                    optimalVolumePercent: optimalRange,
+                    volumeIntensityRange: intensityRange,
+                    bestPair: [],
+                    avoidPair: avoid,
+                    emotionTags: emotions,
+                    timeOfDayOptimal: timeOfDay,
+                    therapeuticBenefits: therapeutic,
+                    psychoacousticProfile: psycho,
+                    usageScenarios: [],
+                    mixingCoefficient: mixCoeff,
+                    fadeInSeconds: fadeIn,
+                    fadeOutSeconds: fadeOut,
+                    isDefault: ver.isDefault
+                )
+                versions.append(enriched)
+            }
+
+            result.append(EnhancedSoundMetadata(
+                id: catalog.id,
+                baseName: catalog.baseName,
+                categoryIndex: categoryIndex,
+                versions: versions
+            ))
         }
-        
-        do {
-            enhancedCatalog = try JSONDecoder().decode([EnhancedSoundMetadata].self, from: data)
-            print("✅ 고도화된 사운드 카탈로그 로드 완료: \(enhancedCatalog.count)개 카테고리")
-        } catch {
-            print("⚠️ 고도화된 카탈로그 파싱 실패: \(error)")
+        return result
+    }
+
+    // MARK: - 동적 갱신(카탈로그 변경 대응)
+    private var lastCatalogSignature: String = ""
+
+    private func currentCatalogSignature() -> String {
+        var parts: [String] = []
+        let count = SoundPresetCatalog.categoryCount
+        for i in 0..<count {
+            if let c = SoundManager.shared.getSoundCatalog(at: i) {
+                parts.append(c.id)
+                parts.append(c.baseName)
+                parts.append(String(c.categoryIndex))
+                parts.append(String(c.versions.count))
+                for v in c.versions { parts.append(v.fileName) }
+            }
+        }
+        return parts.joined(separator: "|")
+    }
+
+    private func ensureCatalogUpToDate() {
+        let sig = currentCatalogSignature()
+        if sig != lastCatalogSignature {
+            enhancedCatalog = buildEnhancedCatalogFromInMemory()
+            lastCatalogSignature = sig
+            print("🔄 사운드 카탈로그 변경 감지 → 동적 메타데이터 재구성 완료 (\(enhancedCatalog.count) 카테고리)")
         }
     }
     
@@ -218,17 +312,27 @@ class EnhancedSoundRecommendationEngine {
         preferredCount: Int? = nil
     ) -> (sounds: [(soundId: String, version: String, volume: Float)], explanation: String) {
         
+        // 카탈로그가 최신인지 확인 (음원/버전 추가/삭제 자동 반영)
+        ensureCatalogUpToDate()
         let currentTimeOfDay = timeOfDay ?? getCurrentTimeOfDay()
         print("🔍 [EnhancedRecommendation] 감정: \(emotion), 시간: \(currentTimeOfDay), 강도: \(intensity)")
         
-        // 1. 감정별 후보 사운드 필터링
-        let emotionCandidates = filterSoundsByEmotion(emotion: emotion)
+        // 1. 감정별 후보 사운드 필터링 (동의어 정규화 포함)
+        let normalizedEmotion = normalizeEmotion(emotion)
+        var emotionCandidates = filterSoundsByEmotion(emotion: normalizedEmotion)
         
         // 2. 시간대별 필터링
-        let timeFilteredCandidates = filterSoundsByTimeOfDay(candidates: emotionCandidates, timeOfDay: currentTimeOfDay)
+        let baseForTimeFilter: [EnhancedSoundVersion] = emotionCandidates.isEmpty ? enhancedCatalog.flatMap { $0.versions } : emotionCandidates
+        var timeFilteredCandidates: [EnhancedSoundVersion]
+        if AppConfig.Recommendation.useTimeOfDay {
+            let filtered = filterSoundsByTimeOfDay(candidates: baseForTimeFilter, timeOfDay: currentTimeOfDay)
+            timeFilteredCandidates = filtered.isEmpty ? buildFallbackCandidates(timeOfDay: currentTimeOfDay) : filtered
+        } else {
+            timeFilteredCandidates = baseForTimeFilter
+        }
         
         // 3. 사용자 선호도 반영
-        let personalizedCandidates = applySexualizedPreferences(candidates: timeFilteredCandidates)
+        let personalizedCandidates = applyPersonalizedPreferences(candidates: timeFilteredCandidates)
         
         // 4. 최적 조합 개수 결정
         let targetCount = determineOptimalCombinationCount(
@@ -264,6 +368,29 @@ class EnhancedSoundRecommendationEngine {
         updateUsageHistory(emotion: emotion, sounds: volumeOptimizedSounds)
         
         return (sounds: volumeOptimizedSounds, explanation: explanation)
+    }
+
+    // 감정 표준화(동의어 통합)
+    private func normalizeEmotion(_ emotion: String) -> String {
+        let e = emotion.trimmingCharacters(in: .whitespacesAndNewlines)
+        if e.contains("수면") || e.contains("잠") { return "평온" }
+        return e
+    }
+
+    // 시간대 추천 기반 후보 빌드
+    private func buildFallbackCandidates(timeOfDay: String) -> [EnhancedSoundVersion] {
+        guard let td = SoundPresetCatalog.TimeOfDay(rawValue: timeOfDay) else {
+            return enhancedCatalog.flatMap { $0.versions }
+        }
+        let names = td.recommendedSounds
+        var result: [EnhancedSoundVersion] = []
+        for wanted in names {
+            if let meta = enhancedCatalog.first(where: { $0.baseName == wanted }) {
+                let def = meta.versions.first(where: { $0.isDefault }) ?? meta.versions.first
+                if let def { result.append(def) }
+            }
+        }
+        return result.isEmpty ? enhancedCatalog.flatMap { $0.versions } : result
     }
     
     /// 🎲 다양성 기반 프리셋 생성 (피드백 학습 적용)
@@ -478,7 +605,8 @@ class EnhancedSoundRecommendationEngine {
         return filtered.isEmpty ? candidates : filtered
     }
     
-    private func applySexualizedPreferences(candidates: [EnhancedSoundVersion]) -> [(version: EnhancedSoundVersion, score: Float)] {
+    // 개인화 선호도 반영
+    private func applyPersonalizedPreferences(candidates: [EnhancedSoundVersion]) -> [(version: EnhancedSoundVersion, score: Float)] {
         return candidates.map { version in
             let soundId = extractSoundId(from: version.fileName)
             let userPreference = userProfile.preferredVolumes[soundId] ?? 0.5

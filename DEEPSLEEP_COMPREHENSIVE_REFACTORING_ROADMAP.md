@@ -2,6 +2,47 @@
 
 [Note: Existing content retained above]
 
+## 2025-08-28 Updates (캘린더·Todo 완전 분리 · UI/UX 통일 · 실시간 동기화)
+
+What changed where
+- EmotionDiaryViewController.swift
+  - 세그먼트: `일기 | 캘린더 | Todo | 인사이트`
+  - 캘린더 탭: To-do 섹션 숨김(인사이트 중심), Todo 탭: 일기 섹션 숨김(할 일/조언 전용)
+  - [일기 쓰기]/[전체 삭제]는 “일기” 탭에서만 노출
+- EmotionCalendarViewController.swift
+  - `showsTodoSection` 추가(일기 화면 내 캘린더에서 To-do 숨김)
+  - locale = `en_US`, weekdayTextColor = `.label`
+- TodoCalendarViewController.swift
+  - 캘린더를 EmotionCalendar와 동일 셀/스타일로 통일(`EmotionCalendarDayCell`)
+  - locale = `en_US`, weekdayTextColor = `.label`
+  - 캘린더 하단에 큰 파란 버튼 `+ Todo`(50pt) → 그 아래 `오늘의 전체 조언 보기`(50pt)
+  - 버튼 간격 16pt, 테이블뷰는 조언 버튼 하단 + 12 시작
+  - 임시 top 제약 제거(`tableTopTempConstraint`)로 제약 충돌 경고 해소
+- CommonUtilities.swift
+  - 감정→이모지 매핑 `mapEmotionToEmoji` 공통화
+- Calendar/CalendarDayDecorLogic.swift
+  - 링 계산 단일화: 오늘/미래 미완료=무지개, 과거 “할 일 있었음”=그레이
+- TodoManager.swift
+  - `Notification.Name.todosUpdated` 방송(실시간 동기화), `appendAdvice`로 조언 텍스트 영구 저장
+- AI/Services/UnifiedAIServiceImpl.swift + 호출자들
+  - `.taskAdvice`는 OpenAI GPT‑4o Mini로 고정(README 정합)
+
+Rationale
+- DRY/KISS: 셀/이모지/모델 라우팅/링 계산 한 곳으로 단일화
+- UX: 할 일은 “Todo” 탭에서 집중, 캘린더는 감정/인사이트에 집중
+- Sync: 저장소 변경 시 양쪽 화면 동시 업데이트
+
+Verification checklist
+- [ ] 두 캘린더 요일이 모두 영어로 동일하게 표시(en_US, .label)
+- [ ] [+ Todo] / [오늘의 전체 조언 보기] 버튼이 파란색·높이 50pt, 서로 16pt 간격으로 표시됨
+- [ ] 캘린더/할 일 탭 간 To-do/일기 노출 정책이 분리됨
+- [ ] 한쪽에서 To-do 추가/수정/삭제 시 다른쪽도 즉시 반영
+- [ ] .taskAdvice 경로가 OpenAI만 사용되는지 로그로 확인
+
+Risks / Notes
+- 버튼/간격/색상은 다크모드에서도 대비가 충분(.systemBlue/.white)
+- 선택 날짜 싱크(양 탭 동시 선택)는 추후 Notification으로 확장 가능
+
 ## 2025-08-28 Updates (AI 컨텍스트/캐시 안정화 · assembledPrompt 중복 제거 · 세션 지속성)
 
 What changed where

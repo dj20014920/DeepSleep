@@ -274,6 +274,7 @@ class TodoManager {
         do {
             let data = try JSONEncoder().encode(todos)
             UserDefaults.standard.set(data, forKey: todosKey)
+            NotificationCenter.default.post(name: .todosUpdated, object: nil)
         } catch {
             UnifiedLogger.shared.logTodo("Error encoding todos: \(error)")
         }
@@ -517,4 +518,9 @@ class TodoManager {
             print("👍 오래된 AI 조언 없음. 모든 조언이 최신 상태입니다.")
         }
     }
-} 
+}
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let todosUpdated = Notification.Name("TodosUpdatedNotification")
+}

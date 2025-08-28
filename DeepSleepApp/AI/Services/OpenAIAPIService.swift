@@ -15,7 +15,7 @@ import Foundation
 class OpenAIAPIService {
     private let apiKey: String
     private let baseURL = "https://api.openai.com/v1/chat/completions"
-    private let defaultModel = "gpt-4o-mini" // 비용 효율적인 최신 모델
+    private let defaultModel = "gpt-4o-mini-2024-07-18" // 안정 버전 고정
     
     // MARK: - 초기화
     
@@ -92,7 +92,7 @@ class OpenAIAPIService {
     ) -> [String: Any] {
         
         var requestBody: [String: Any] = [
-            "model": defaultModel,
+            "model": modelId(for: mode),
             "max_tokens": tokenConfig.maxTokens,
             "temperature": tokenConfig.temperature,
             "messages": [
@@ -135,7 +135,7 @@ class OpenAIAPIService {
         mode: AIMode
     ) -> [String: Any] {
         var requestBody: [String: Any] = [
-            "model": defaultModel,
+            "model": modelId(for: mode),
             "max_tokens": tokenConfig.maxTokens,
             "temperature": tokenConfig.temperature
         ]
@@ -153,10 +153,25 @@ class OpenAIAPIService {
         if let frequencyPenalty = tokenConfig.frequencyPenalty { requestBody["frequency_penalty"] = frequencyPenalty }
         if let presencePenalty = tokenConfig.presencePenalty { requestBody["presence_penalty"] = presencePenalty }
         
-        if shouldUseStructuredOutput(for: mode), let responseFormat = tokenConfig.responseFormat {
-            requestBody["response_format"] = buildResponseFormat(responseFormat)
+        if shouldUseStructuredOutput(for: mode) {
+            if mode == .presetRecommendation {
+                requestBody["response_format"] = buildPresetRecommendationSchema()
+            } else if let responseFormat = tokenConfig.responseFormat {
+                requestBody["response_format"] = buildResponseFormat(responseFormat)
+            }
         }
         return requestBody
+    }
+
+    /// 모드별 모델 아이디 선택 (AI-README 정책 반영)
+    private func modelId(for mode: AIMode) -> String {
+        switch mode {
+        case .presetRecommendation:
+            // 프리셋 추천용: 구조화된 출력 지원 & 가용성 안정 모델 사용
+            return "gpt-4o-mini-2024-07-18"
+        default:
+            return defaultModel
+        }
     }
     
     /// 모드별 Structured Outputs 사용 여부 결정
@@ -179,6 +194,42 @@ class OpenAIAPIService {
         case .markdown:
             return ["type": "text"] // OpenAI는 마크다운을 별도 지원하지 않음
         }
+    }
+
+    // 강제 JSON 스키마 (OpenAI json_schema 모드)
+    private func buildPresetRecommendationSchema() -> [String: Any] {
+        let schema: [String: Any] = [
+            "type": "object",
+            "properties": [
+                "presetName": ["type": "string"],
+                "items": [
+                    "type": "array",
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "soundName": ["type": "string"],
+                            "versionName": ["type": "string"],
+                            "volume": ["type": "number", "minimum": 0, "maximum": 100]
+                        ],
+                        "required": ["soundName", "volume"],
+                        "additionalProperties": false
+                    ],
+                    "minItems": 1,
+                    "maxItems": 13
+                ],
+                "reason": ["type": "string"],
+                "confidence": ["type": "number", "minimum": 0.0, "maximum": 1.0]
+            ],
+            "required": ["items", "reason"],
+            "additionalProperties": false
+        ]
+        return [
+            "type": "json_schema",
+            "json_schema": [
+                "name": "PresetRecommendation",
+                "schema": schema,
+            ]
+        ]
     }
     
     // MARK: - 🌐 API 요청 수행

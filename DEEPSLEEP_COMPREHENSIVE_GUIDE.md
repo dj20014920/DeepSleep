@@ -1758,6 +1758,33 @@ sections.append(.todo(todos))  // ✅ 항상 Todo 섹션 표시
 
 **해결된 문제:**
 - ❌ **이전**: 할 일이 없는 날에는 Todo 섹션이 아예 보이지 않음
+
+---
+
+## 10. 🆕 2025-08-28 캘린더/To‑do 리디자인 정리
+
+### 10.1 탭 구조와 역할 분리
+- 세그먼트: `일기 | 캘린더 | Todo | 인사이트`
+- 캘린더 탭: 감정/인사이트만(할 일 섹션 숨김), Todo 탭: 캘린더 + To‑do + 조언(일기 섹션 숨김)
+
+### 10.2 캘린더 UI/UX 통일
+- FSCalendar locale `en_US`, `weekdayTextColor = .label`
+- 공통 셀 `EmotionCalendarDayCell`(이모지 + 그라데이션 링)
+- 링 계산 `CalendarDayDecorLogic` 단일화(오늘/미래 미완료=무지개, 과거 “할 일 있었음”=그레이)
+- 감정→이모지 변환은 `CommonUtilities.mapEmotionToEmoji`
+
+### 10.3 실시간 동기화
+- `TodoManager.saveTodos()` → `Notification.Name.todosUpdated`
+- 양 컨트롤러에서 옵저빙 → `loadData(for:)` + `calendar.reloadData()`/`tableView.reloadData()`
+
+### 10.4 버튼/레이아웃 정책
+- Todo 탭 상단: 큰 파란 버튼 `+ Todo`(50pt) → 아래 큰 파란 버튼 `오늘의 전체 조언 보기`(50pt), 간격 16pt
+- 테이블뷰는 조언 버튼 하단 + 12 시작(겹침 없음)
+- [일기 쓰기]/[전체 삭제]는 일기 탭에서만 노출
+
+### 10.5 할일 조언 모델
+- `.taskAdvice`는 OpenAI GPT‑4o Mini를 사용(README 모델 정책과 정합)
+
 - ❌ **이전**: 사용자가 첫 번째 할 일을 추가할 방법이 없음
 - ✅ **현재**: 할 일이 없어도 항상 Todo 섹션과 + 추가 버튼 표시
 - ✅ **현재**: 완벽한 사용자 경험 제공

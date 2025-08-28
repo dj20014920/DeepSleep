@@ -445,6 +445,31 @@ class CommonUtilities {
         return 1.0 // 시뮬레이터나 다른 플랫폼에서는 항상 100%로 가정
         #endif
     }
+
+    // MARK: - 😊 감정 → 이모지 매핑 (공통화)
+    func mapEmotionToEmoji(_ emotion: String) -> String {
+        // 이모지 자체가 들어오는 경우 그대로 반환
+        switch emotion {
+        case "😊","😢","😠","😰","😴","🥰","😔","😤","😌","🤔","😡","😲","😕":
+            return emotion
+        default:
+            break
+        }
+        // 텍스트 감정명 매핑
+        switch emotion.lowercased() {
+        case "기쁨", "행복", "즐거움": return "😊"
+        case "슬픔", "우울", "속상함": return "😢"
+        case "화남", "짜증", "분노": return "😡"
+        case "불안", "걱정", "스트레스": return "😰"
+        case "피곤", "지침": return "😴"
+        case "평온", "차분": return "😌"
+        case "활력", "에너지": return "⚡"
+        case "사랑", "애정": return "🥰"
+        case "놀람", "깜짝": return "😲"
+        case "혼란", "당황": return "😕"
+        default: return "🙂"
+        }
+    }
 }
 
 // MARK: - Cache Constants

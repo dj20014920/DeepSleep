@@ -1028,8 +1028,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             self?.handleQuickAction(action)
         }, for: .touchUpInside)
         
-        // 버튼 크기를 더 크고 넓게 설정 - 챗 버블에 맞게 임팩트 있게
-        button.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        // 버튼 최소 높이만 보장하여 셀 고정 높이와 충돌 방지
+        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
         
         // 버튼이 레이아웃된 후 그라데이션 크기 조정
         DispatchQueue.main.async {

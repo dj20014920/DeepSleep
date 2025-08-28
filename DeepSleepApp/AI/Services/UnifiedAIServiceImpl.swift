@@ -676,12 +676,45 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             """
             
         case .presetRecommendation:
+            // 사용 가능한 사운드/버전 목록 요약(간결)
+            let count = SoundPresetCatalog.categoryCount
+            var lines: [String] = []
+            for i in 0..<min(count, 13) {
+                if let c = SoundManager.shared.getSoundCatalog(at: i) {
+                    let vnames = c.versions.map { $0.displayName }.joined(separator: ", ")
+                    lines.append("- \(c.baseName): \(vnames)")
+                }
+            }
+            let catalogSummary = lines.joined(separator: "\n")
             return """
-            당신은 음악 및 사운드 큐레이션 전문가입니다. 사용자의 상황과 요구에 맞는 음악 프리셋을 추천할 때:
-            - 사용자의 현재 감정과 원하는 상태 고려
-            - 과학적 근거가 있는 음악 치료 원리 적용
-            - 다양한 장르와 스타일 중에서 선택
-            - JSON 형식으로 구조화된 추천 결과 제공
+            당신은 DeepSleep 앱의 사운드 큐레이터입니다. 아래 지침에 따라 오직 JSON 오브젝트 한 개만 반환하세요.
+
+            [목표]
+            - 사용자의 간략한 페르소나/최근 대화/감정 일기를 바탕으로, 앱 내 사운드들 중 어울리는 조합을 직접 선정합니다.
+            - 사전 정의 프리셋 키를 사용하지 않습니다. 앱의 실제 사운드 이름과 버전을 사용하세요.
+
+            [반드시 지킬 것]
+            - JSON 오브젝트 단 한 개만 반환(추가 텍스트 금지)
+            - items는 1~13개, volume은 0~100 정수
+            - soundName은 앱 카탈로그의 이름 중 하나, versionName은 해당 사운드의 버전 이름 중 하나
+            - reason은 120자 이내 한국어 텍스트
+
+            [앱 사운드 카탈로그 요약]
+            \(catalogSummary)
+
+            [예시 JSON 스키마(요약)]
+            {
+              "presetName": "🌙 부드러운 밤의 호흡",
+              "items": [
+                {"soundName": "바람", "versionName": "바람2 v2", "volume": 35},
+                {"soundName": "파도", "versionName": "파도2 v2", "volume": 30}
+              ],
+              "reason": "밤 시간대의 안정감을 높이고…",
+              "confidence": 0.82
+            }
+
+            [주의]
+            - 위 스키마를 준수하세요. JSON 외 텍스트 출력 금지.
             """
             
         case .monthlyStatistics:

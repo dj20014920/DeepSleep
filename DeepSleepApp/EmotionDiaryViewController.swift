@@ -4,7 +4,7 @@ class EmotionDiaryViewController: UIViewController {
     
     // MARK: - UI Components
     private let segmentedControl: UISegmentedControl = {
-        let items = ["일기", "캘린더", "할 일", "인사이트"]
+        let items = ["일기", "캘린더", "Todo", "인사이트"]
         let control = UISegmentedControl(items: items)
         control.selectedSegmentIndex = 0
         control.translatesAutoresizingMaskIntoConstraints = false
@@ -135,13 +135,7 @@ class EmotionDiaryViewController: UIViewController {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "감정 일기"
         
-        let writeButton = UIBarButtonItem(title: "일기 쓰기", style: .plain, target: self, action: #selector(writeNewDiary))
-        let deleteButton = UIBarButtonItem(title: "전체 삭제", style: .plain, target: self, action: #selector(clearAllData))
-        
-        writeButton.tintColor = UIDesignSystem.Colors.primaryText
-        deleteButton.tintColor = UIDesignSystem.Colors.primaryText
-        
-        navigationItem.rightBarButtonItems = [writeButton, deleteButton]
+        // 상단 버튼은 일기 탭에서만 노출 (showCurrentView에서 설정)
         
         setupSegmentedControl()
         setupScrollView()
@@ -339,11 +333,22 @@ class EmotionDiaryViewController: UIViewController {
         case 3: insightBottomConstraint?.isActive = true
         default: break
         }
-        
+
         view.setNeedsLayout()
         view.layoutIfNeeded()
-        
+
         updateScrollViewContentSize()
+
+        // 네비게이션 버튼: 일기 탭에서만 표시
+        if currentView == 0 {
+            let writeButton = UIBarButtonItem(title: "일기 쓰기", style: .plain, target: self, action: #selector(writeNewDiary))
+            let deleteButton = UIBarButtonItem(title: "전체 삭제", style: .plain, target: self, action: #selector(clearAllData))
+            writeButton.tintColor = UIDesignSystem.Colors.primaryText
+            deleteButton.tintColor = UIDesignSystem.Colors.primaryText
+            navigationItem.rightBarButtonItems = [writeButton, deleteButton]
+        } else {
+            navigationItem.rightBarButtonItems = nil
+        }
     }
     
     func updateScrollViewContentSize() {

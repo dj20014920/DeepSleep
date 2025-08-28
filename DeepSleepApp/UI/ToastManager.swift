@@ -45,27 +45,34 @@ class ToastManager {
             return
         }
         
+        // 1) 뷰 생성 (내부 레이아웃만 구성, 윈도우 제약은 여기에서 추가)
         let toastView = createToastView(message: message, style: style)
         window.addSubview(toastView)
-        
-        // 초기 위치 설정 (화면 하단 밖)
+
+        // 2) 윈도우 기준 제약조건은 공통 상위 뷰(윈도우)에 추가해야 안전
+        let safeInsets = window.safeAreaInsets
+        NSLayoutConstraint.activate([
+            toastView.leadingAnchor.constraint(greaterThanOrEqualTo: window.leadingAnchor, constant: 20),
+            toastView.trailingAnchor.constraint(lessThanOrEqualTo: window.trailingAnchor, constant: -20),
+            toastView.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+            toastView.bottomAnchor.constraint(equalTo: window.bottomAnchor, constant: -(safeInsets.bottom + 20)),
+            toastView.widthAnchor.constraint(lessThanOrEqualToConstant: 350)
+        ])
+
+        // 3) 초기 상태 및 애니메이션
         toastView.transform = CGAffineTransform(translationX: 0, y: 100)
         toastView.alpha = 0
-        
-        // 애니메이션으로 등장
         UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0, options: .curveEaseOut) {
             toastView.transform = .identity
             toastView.alpha = 1.0
         }
-        
-        // 일정 시간 후 사라짐
         UIView.animate(withDuration: 0.3, delay: duration, options: .curveEaseIn) {
             toastView.transform = CGAffineTransform(translationX: 0, y: 100)
             toastView.alpha = 0
         } completion: { _ in
             toastView.removeFromSuperview()
         }
-        
+
         UnifiedLogger.shared.debug("Toast 표시: \(message)", category: .ui)
     }
     
@@ -111,32 +118,8 @@ class ToastManager {
         
         containerView.addSubview(stackView)
         
-        // Safe Area 가져오기 (iOS 15+ 지원)
-        let window: UIWindow?
-        let safeAreaInsets: UIEdgeInsets
-        
-        if #available(iOS 15.0, *) {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                window = windowScene.windows.first(where: { $0.isKeyWindow })
-                safeAreaInsets = window?.safeAreaInsets ?? .zero
-            } else {
-                window = nil
-                safeAreaInsets = .zero
-            }
-        } else {
-            window = UIApplication.shared.windows.first(where: { $0.isKeyWindow })
-            safeAreaInsets = window?.safeAreaInsets ?? .zero
-        }
-        
+        // 내부 스택 레이아웃만 구성 (윈도우 제약은 presentToast에서 추가)
         NSLayoutConstraint.activate([
-            // Container constraints
-            containerView.leadingAnchor.constraint(greaterThanOrEqualTo: window!.leadingAnchor, constant: 20),
-            containerView.trailingAnchor.constraint(lessThanOrEqualTo: window!.trailingAnchor, constant: -20),
-            containerView.centerXAnchor.constraint(equalTo: window!.centerXAnchor),
-            containerView.bottomAnchor.constraint(equalTo: window!.bottomAnchor, constant: -(safeAreaInsets.bottom + 20)),
-            containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 350),
-            
-            // Stack view constraints
             stackView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
             stackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
             stackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),

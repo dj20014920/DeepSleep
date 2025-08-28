@@ -817,6 +817,94 @@ class SoundPresetCatalog {
             "emotions": ["외로움", "스트레스", "불안"]
         ]
     ]
+
+    // 추가 보강 상세 정보(운영 중 튜닝에 활용). 기존 soundDetails를 덮어쓰기/보완.
+    static let supplementalSoundDetails: [String: [String: Any]] = [
+        // 자연 사운드들: 시간대/감정/권장강도 보강
+        "파도": [
+            "timeOfDay": ["아침", "오후", "저녁", "모든 시간"],
+            "emotions": ["평온", "이완", "집중"],
+            "optimalIntensity": 35,
+            "intensityRange": [20, 50]
+        ],
+        "파도2": [
+            "timeOfDay": ["아침", "오후", "모든 시간"],
+            "emotions": ["활력", "집중", "행복"],
+            "optimalIntensity": 40,
+            "intensityRange": [25, 55]
+        ],
+        "바람2": [
+            "timeOfDay": ["저녁", "밤", "깊은밤", "모든 시간"],
+            "emotions": ["이완", "평온", "불안"],
+            "optimalIntensity": 25,
+            "intensityRange": [10, 40]
+        ],
+        "시냇물": [
+            "timeOfDay": ["아침", "오전", "오후", "저녁"],
+            "emotions": ["평온", "이완", "행복"],
+            "optimalIntensity": 30,
+            "intensityRange": [20, 45]
+        ],
+        "고양이": [
+            "timeOfDay": ["저녁", "밤", "깊은밤", "모든 시간"],
+            "emotions": ["평온", "우울", "외로움"],
+            "optimalIntensity": 20,
+            "intensityRange": [10, 35]
+        ],
+        "새": [
+            "timeOfDay": ["아침", "늦은아침"],
+            "emotions": ["행복", "활력", "우울"],
+            "optimalIntensity": 35,
+            "intensityRange": [20, 50]
+        ],
+        "밤": [
+            "timeOfDay": ["밤", "깊은밤"],
+            "emotions": ["수면", "평온", "외로움"],
+            "optimalIntensity": 22,
+            "intensityRange": [15, 35]
+        ],
+        "밤2": [
+            "timeOfDay": ["밤", "깊은밤"],
+            "emotions": ["수면", "명상", "평온"],
+            "optimalIntensity": 25,
+            "intensityRange": [15, 35]
+        ],
+        "비": [
+            "timeOfDay": ["저녁", "밤", "모든 시간"],
+            "emotions": ["불안", "평온", "우울"],
+            "optimalIntensity": 30,
+            "intensityRange": [20, 45]
+        ],
+        "키보드1": [
+            "timeOfDay": ["오전", "점심", "오후"],
+            "emotions": ["집중", "몰입"],
+            "optimalIntensity": 20,
+            "intensityRange": [10, 30]
+        ],
+        "키보드2": [
+            "timeOfDay": ["오전", "오후"],
+            "emotions": ["집중", "활력"],
+            "optimalIntensity": 18,
+            "intensityRange": [8, 28]
+        ],
+        "연필": [
+            "timeOfDay": ["오전", "오후"],
+            "emotions": ["집중", "창의"],
+            "optimalIntensity": 22,
+            "intensityRange": [10, 30]
+        ],
+        "쿨링팬": [
+            "timeOfDay": ["오전", "오후"],
+            "emotions": ["집중"],
+            "optimalIntensity": 18,
+            "intensityRange": [10, 28]
+        ]
+    ]
+
+    static func getSoundDetail(for name: String) -> [String: Any]? {
+        if let sup = supplementalSoundDetails[name] { return sup }
+        return soundDetails[name]
+    }
     
     // MARK: - 전문가 프리셋 (심리음향학 기반)
     static let expertPresets: [String: [String: Any]] = [
