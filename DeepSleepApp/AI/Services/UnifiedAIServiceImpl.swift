@@ -8,6 +8,9 @@
 
 import Foundation
 import Combine
+import CryptoKit
+import UIKit
+import Security
 
 /// 🚀 **통합 AI 서비스 실제 구현체**
 /// 모든 AI 모델을 통합하여 관리하는 메인 서비스
@@ -77,6 +80,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // MARK: - 🔧 서비스 초기화
     
     private func initializeServices() {
+        // 프록시 모드에서는 개별 API 서비스 초기화를 건너뛴다 (키 불필요)
+        if EnvironmentConfig.shared.useProxy {
+            claudeService = nil
+            openAIService = nil
+            geminiService = nil
+            naverService = nil
+            freeModelService = nil
+            return
+        }
         // Claude 서비스 초기화
         if let claudeKey = getAPIKey(for: .claude) {
             claudeService = ClaudeAPIService(apiKey: claudeKey)
@@ -259,6 +271,25 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         tokenConfig: TokenConfiguration,
         assembledPrompt: String?
 ) async throws -> AIResponse {
+        // 🛰️ 프록시 경유(구성 기반)
+        if EnvironmentConfig.shared.useProxy {
+            let proxyURL = try resolveProxyBaseURL()
+            // Build messages
+            var roleMessages: [RoleMessage] = []
+            if let assembled = assembledPrompt, !assembled.isEmpty {
+                roleMessages.append(RoleMessage(role: .system, content: assembled))
+            } else {
+                let sys = generateOptimizedSystemPrompt(for: mode, model: model)
+                roleMessages.append(RoleMessage(role: .system, content: sys))
+                if let history = context?.conversationHistory, !history.isEmpty {
+                    let recent = Array(history.suffix(16))
+                    for turn in recent { roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)) }
+                }
+                roleMessages.append(RoleMessage(role: .user, content: content))
+            }
+            // Call proxy inline (avoid project membership issues)
+            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+        }
 
         // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
         if model == .claude {
@@ -1012,6 +1043,123 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         }
         
         return optimizedConfig
+    }
+}
+
+// MARK: - Proxy inline call
+extension UnifiedAIServiceImpl {
+    /// PROXY_BASE_URL 정규화 및 엄격 검증
+    private func resolveProxyBaseURL() throws -> URL {
+        let raw = EnvironmentConfig.shared.proxyBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { throw AIServiceError.configurationError("PROXY_BASE_URL_INVALID") }
+        let normalized: String = {
+            if raw.lowercased().hasPrefix("http://") || raw.lowercased().hasPrefix("https://") { return raw }
+            return "https://" + raw
+        }()
+        guard let url = URL(string: normalized),
+              let scheme = url.scheme?.lowercased(), (scheme == "https" || scheme == "http"),
+              let host = url.host, !host.isEmpty else {
+            throw AIServiceError.configurationError("PROXY_BASE_URL_INVALID")
+        }
+        return url
+    }
+
+    private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL) async throws -> AIResponse {
+        let body: [String: Any] = [
+            "model": mapPreferredModelForProxy(preferred),
+            "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
+            "mode": mode.rawValue
+        ]
+        func makeRequest(sigMessage: String, includeNonce: Bool) throws -> URLRequest {
+            var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
+            r.httpMethod = "POST"
+            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            r.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
+            r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
+            r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
+            if includeNonce { r.setValue(nonce, forHTTPHeaderField: "X-Emozleep-Nonce") }
+            let signature = hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
+            r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
+            r.httpBody = try JSONSerialization.data(withJSONObject: body)
+            return r
+        }
+
+        // Prepare common header values
+        let uid: String = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
+        let tier: String = { switch StoreKitSubscriptionManager.shared.currentTier { case .free: return "free"; case .pro: return "pro"; case .max: return "max" } }()
+        let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
+        let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        // Secret: Keychain 우선 → 없으면 enroll → 최후 fallback: xcconfig
+        var secret = keychainLoadSecret(for: uid)
+        if secret == nil {
+            if let enrolled = try? await enrollSecret(uid: uid, proxyBase: proxyURL) {
+                keychainSaveSecret(enrolled, for: uid)
+                secret = enrolled
+            }
+        }
+        #if DEBUG
+        let effectiveSecret = secret ?? EnvironmentConfig.shared.clientProxyHmacSecret
+        #else
+        guard let effectiveSecret = secret else { throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING") }
+        #endif
+
+        let start = Date()
+        let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
+        let sigMessage = useNonce ? "\(ts):\(uid):\(tier):\(nonce)" : "\(ts):\(uid):\(tier)"
+        let req = try makeRequest(sigMessage: sigMessage, includeNonce: useNonce)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw AIServiceError.serverError(statusCode: code)
+        }
+        struct ProxyResp: Codable { let provider: String; let content: String }
+        let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
+        let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+        let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: ["provider": proxy.provider])
+        return AIResponse(id: UUID().uuidString, model: preferred, mode: mode, content: proxy.content, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(start)*1000))
+    }
+    private func enrollSecret(uid: String, proxyBase: URL) async throws -> String {
+        var req = URLRequest(url: proxyBase.appendingPathComponent("v1/enroll"))
+        req.httpMethod = "POST"
+        req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw AIServiceError.serverError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
+        }
+        struct EnrollResp: Codable { let secret: String }
+        let r = try JSONDecoder().decode(EnrollResp.self, from: data)
+        return r.secret
+    }
+    private func keychainLoadSecret(for uid: String) -> String? {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: "emozleep.proxy.hmac",
+                                    kSecAttrAccount as String: uid,
+                                    kSecReturnData as String: true]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+    private func keychainSaveSecret(_ secret: String, for uid: String) {
+        let data = Data(secret.utf8)
+        let del: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                  kSecAttrService as String: "emozleep.proxy.hmac",
+                                  kSecAttrAccount as String: uid]
+        SecItemDelete(del as CFDictionary)
+        let add: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                  kSecAttrService as String: "emozleep.proxy.hmac",
+                                  kSecAttrAccount as String: uid,
+                                  kSecValueData as String: data,
+                                  kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+        SecItemAdd(add as CFDictionary, nil)
+    }
+    private func hmacSHA256Hex(message: String, secret: String) -> String {
+        let key = SymmetricKey(data: Data(secret.utf8))
+        let mac = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: key)
+        return mac.map { String(format: "%02x", $0) }.joined()
+    }
+    private func mapPreferredModelForProxy(_ m: AIModel) -> String {
+        switch m { case .claude: return "claude"; case .openAI: return "openai"; case .gemini: return "gemini"; case .naver: return "free"; case .freeModel: return "free" }
     }
 }
 

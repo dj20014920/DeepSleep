@@ -64,6 +64,11 @@ High-level architecture
   • Monthly statistics uses a weekly limit (KST Monday reset) under the key path implemented by UsageLimitManager.canUseWeeklyLimitedFeature.
   • 80%/100% events (.aiUsageLimitWarning/.aiUsageLimitReached) notify UI; ChatViewController shows an alert with remaining counts, reset time, and an Upgrade CTA.
   • Buttons show remaining quotas inline: EmotionDiaryViewController (일기 분석), EmotionCalendarViewController (월간/주간 통계 패턴 분석).
+
+4) Secure proxy (Cloudflare Workers) — optional
+- All LLM traffic can be routed through a Worker (`/v1/chat`) for key protection and cost/usage policy enforcement.
+- Enable via xcconfig/Info: `USE_PROXY=YES`, `PROXY_BASE_URL`, `CLIENT_PROXY_HMAC_SECRET`.
+- UnifiedAIServiceImpl detects the flag and calls the proxy with HMAC headers; server applies tier rules and Claude caps and returns a unified payload.
 - ContextMetrics: request counters by model/mode, cache hit/miss, fallback attempts, and periodic one-line summaries for ops visibility.
 
 4) Fallback and cost strategy

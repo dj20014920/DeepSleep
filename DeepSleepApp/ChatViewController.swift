@@ -302,11 +302,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     /// 🧠 지능형 AI 응답 파싱 (모든 JSON 구조 지원)
     private func parseAIResponse(_ response: String) -> String {
-        print("🔍 [ChatViewController] 원본 AI 응답: \(response)")
         // 중앙 파서로 일원화 (DRY)
         let provider: AIProvider = .openrouter // 통합 free_model 경로 포함, 기본값을 openrouter로 취급
         let parsed = AIResponseParser.shared.parse(response, from: provider)
-        print("🔧 [ChatViewController] 중앙 파서 결과: \(parsed.prefix(50))...")
         return parsed
     }
     

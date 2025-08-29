@@ -161,6 +161,7 @@ public final class StoreKitSubscriptionManager: NSObject {
             let transaction = try checkVerified(verification)
             await transaction.finish()
             await refreshEntitlements()
+            await ProxyTierReporter.report(passiveFrom: transaction)
         case .userCancelled:
             return
         case .pending:
@@ -220,6 +221,7 @@ public final class StoreKitSubscriptionManager: NSObject {
                             if let p = SubscriptionProduct(rawValue: transaction.productID) {
                                 newActiveProducts.insert(p)
                             }
+                            await ProxyTierReporter.report(passiveFrom: transaction)
                         } else {
                             anyExpiredAt = max(anyExpiredAt ?? exp, exp)
                         }
@@ -229,6 +231,7 @@ public final class StoreKitSubscriptionManager: NSObject {
                         if let p = SubscriptionProduct(rawValue: transaction.productID) {
                             newActiveProducts.insert(p)
                         }
+                        await ProxyTierReporter.report(passiveFrom: transaction)
                     }
                 }
             } catch {
@@ -301,3 +304,6 @@ private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         return isTrialEligible ? 7 : nil
     }
 }
+
+// MARK: - Proxy tier reporting helper (in-file to avoid project membership issues)
+// (중복 제거) 내부 _ProxyTierReporter는 ProxyTierReporter로 통일됨

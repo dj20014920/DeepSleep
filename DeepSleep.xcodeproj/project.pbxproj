@@ -186,6 +186,8 @@
 		E0B562282E616FA000D334F1 /* SubscriptionTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562272E616FA000D334F1 /* SubscriptionTier.swift */; };
 		E0B5622B2E61778500D334F1 /* GlobalGradientTicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */; };
 		E0B5622C2E61778500D334F1 /* GradientAnimationSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */; };
+		E0B562302E61909A00D334F1 /* ProxyTierReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */; };
+		E0B562322E6190CA00D334F1 /* ProxySecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -405,6 +407,8 @@
 		E0B562272E616FA000D334F1 /* SubscriptionTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTier.swift; sourceTree = "<group>"; };
 		E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalGradientTicker.swift; sourceTree = "<group>"; };
 		E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientAnimationSpec.swift; sourceTree = "<group>"; };
+		E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyTierReporter.swift; sourceTree = "<group>"; };
+		E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxySecretStore.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -574,6 +578,7 @@
 		E084F06B2E33ACB3002F75E6 /* Security */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */,
 				E084F0682E33ACB3002F75E6 /* InputValidationManager.swift */,
 				E084F06A2E33ACB3002F75E6 /* SecureStorageManager.swift */,
 			);
@@ -869,6 +874,7 @@
 		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */,
 				E0B562272E616FA000D334F1 /* SubscriptionTier.swift */,
 				E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */,
 				E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */,
@@ -1101,6 +1107,7 @@
 				E084F1B92E33ACB3002F75E6 /* SharedModels.swift in Sources */,
 				E084F1BA2E33ACB3002F75E6 /* SettingsManager.swift in Sources */,
 				E084F1BB2E33ACB3002F75E6 /* UserSettingsModel.swift in Sources */,
+				E0B562322E6190CA00D334F1 /* ProxySecretStore.swift in Sources */,
 				E084F1BC2E33ACB3002F75E6 /* PerformanceOptimizer.swift in Sources */,
 				E084F1BD2E33ACB3002F75E6 /* PersonaMemoryModel.swift in Sources */,
 				E084F1BE2E33ACB3002F75E6 /* AddEditTodoViewController.swift in Sources */,
@@ -1146,6 +1153,7 @@
 				E09CD6ED2E4B0D93007C133E /* CoreDataStack.swift in Sources */,
 				E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */,
 				E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */,
+				E0B562302E61909A00D334F1 /* ProxyTierReporter.swift in Sources */,
 				E084F1E52E33ACB3002F75E6 /* AIServiceTypes.swift in Sources */,
 				E084F1E62E33ACB3002F75E6 /* EmotionAnalysisChatViewModel.swift in Sources */,
 				E0E7BCD62E56252800FF7073 /* SubscriptionUIBinder.swift in Sources */,
@@ -1356,6 +1364,7 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROXY_BASE_URL = "https://emozleep.vinny4920-081.workers.dev";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1382,6 +1391,7 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROXY_BASE_URL = "https://emozleep.vinny4920-081.workers.dev";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

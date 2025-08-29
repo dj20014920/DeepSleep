@@ -420,11 +420,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     /// 완전 토큰 소모 제로 API 상태 확인
     private func performZeroTokenAPICheck() {
+        // 프록시 모드에서는 API 키 검증을 생략(키 불필요), 네트워크 상태만 기본적으로 신뢰
+        if EnvironmentConfig.shared.useProxy {
+            print("🔌 [Proxy] 프록시 모드 활성화 → API 키 체크 생략")
+            if EnvironmentConfig.shared.proxyBaseURL.isEmpty {
+                print("⚠️ [Proxy] PROXY_BASE_URL이 비어 있습니다. Secrets.xcconfig/Info.plist를 확인하세요.")
+            }
+            print("📱 [메인 UI] 앱 메인 화면으로 진행...")
+            return
+        }
+
         // API 상태 확인 (토큰 소모 없음)
-        
-        // 1단계: 즉시 빠른 체크
-        // 타입 접근성 문제로 임시 주석 처리
-        // let (hasValidKeys, networkOK, recommendedAPI) = ZeroTokenAPIChecker.shared.quickZeroTokenCheck()
+        // 1단계: 즉시 빠른 체크 (로컬 Info.plist 기반)
         let hasValidKeys: Bool = {
             return (
                 (ConfigReader.string("GEMINI_API_KEY")?.isEmpty == false) ||
@@ -435,14 +442,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             )
         }()
         let recommendedAPI: String? = hasValidKeys ? "gemini" : nil
-        
+
         if hasValidKeys {
             print("✅ [즉시 결과] API 사용 준비 완료!")
-            if let recommended = recommendedAPI {
-                print("🏆 [권장 API] \(recommended)")
-            }
-            
-            // 2단계: 백그라운드에서 상세 분석 (메인 UI 방해 안함)
+            if let recommended = recommendedAPI { print("🏆 [권장 API] \(recommended)") }
             Task {
                 await ZeroTokenAPIChecker.shared.performZeroTokenCheck()
                 print("🎉 [최종 완료] 모든 상태 확인 완료 (토큰 소모 0개)")
@@ -451,8 +454,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             print("⚠️ [즉시 결과] API 키 설정이 필요합니다")
             showAPISetupGuidance()
         }
-        
-        // UI 진행을 방해하지 않도록 즉시 리턴
+
         print("📱 [메인 UI] 앱 메인 화면으로 진행...")
     }
     

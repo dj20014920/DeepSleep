@@ -169,6 +169,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 - Claude: Premium 30회 상한 초과 시 자동으로 Gemini(또는 다음 폴백) 라우팅. 성공 시에만 Claude 카운트 증가.
 - 월간 통계: 주간 1회(KST, 월요일 00:00 리셋) 정책으로 통일. 시작 전 안내에 이번 주 남은 횟수/리셋 시각 표기.
 - 버튼 라벨: 일기 분석/월간(주간) 분석/일기 편집·작성 화면의 대나무숲 버튼까지 “(남은 N/총 M)” 또는 “(이번주 n/1)”로 표준화.
+- 프록시(Cloudflare Workers): `USE_PROXY=YES`일 때 UnifiedAIServiceImpl이 `/v1/chat`로 라우팅(HMAC 인증). 서버는 티어/상한 보조 집행 및 통일 포맷 반환.
 
 관련 코드
 - UsageLimitManager: 일일/주간 한도, 티어별 키 적용, 80%/100% 알림 발행
@@ -176,6 +177,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 - AIUsageManager: 위임/브로드캐스트만 수행(DRY)
 - ChatViewController: Alert 수신 및 Paywall 전환 CTA
 - EmotionDiary/EmotionCalendar/EditDiary/DiaryWrite VC: 버튼 라벨 표준화 및 실시간 갱신
+- Proxy: emozleep/src/worker.js, wrangler.toml(바인딩/Vars), Info/Secrets 매핑(USE_PROXY, PROXY_BASE_URL, CLIENT_PROXY_HMAC_SECRET)
 
 운영/관측 포인트
 - Alert 트리거 시점과 리셋 시각(자정, KST 주간)을 로그에 함께 남겨 CS/분석에 활용

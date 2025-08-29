@@ -216,6 +216,11 @@ await example.runAllExamples()
    - 프롬프트 캐싱으로 Claude 90% 절약 가능
    - 배치 처리로 대부분 모델 50% 할인
 
+8. **보안 프록시(Cloudflare Workers) 경유**:
+   - 앱은 `USE_PROXY=YES` 설정 시 모든 LLM 호출을 `/v1/chat` 프록시로 전송(키 보호/사용량 집행)
+   - HMAC 헤더(`X-Emozleep-*`)로 최소 인증, 티어 규칙/Claude 상한을 서버에서 보조 집행
+   - 응답은 `{ provider, content, raw }` 통일 포맷
+
 ## 🚨 문제 해결
 
 ### 자주 발생하는 오류
@@ -235,6 +240,11 @@ await example.runAllExamples()
 4. **네트워크 오류**
    - 인터넷 연결 확인
    - API 서버 상태 확인
+
+5. **프록시 인증 오류(401/403)**
+   - HMAC 헤더 누락/서명 불일치 여부 확인
+   - Origin 제한(ALLOWED_ORIGINS) 또는 네이티브 앱(Origin 없음) 정책 확인
+   - 클라이언트 비밀(CLIENT_PROXY_HMAC_SECRET)과 워커 비밀(EDGE_SIGNING_SECRET)의 일치 확인
 
 ### 디버깅 방법
 

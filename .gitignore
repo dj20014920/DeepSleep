@@ -10,6 +10,9 @@ build_test
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/naver.xcconfig
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Secrets.xcconfig
 AGENTS.md
+/Users/dj20014920/Desktop/DeepSleep/WARP.md
+emozleep
+emozleep/*
 # ===== macOS =====
 .DS_Store
 .AppleDouble

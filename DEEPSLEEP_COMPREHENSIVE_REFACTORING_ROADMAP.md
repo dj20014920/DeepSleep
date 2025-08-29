@@ -90,6 +90,10 @@ What changed where
   - “대나무숲에서 이 일기 이야기하기 (N/M)” 버튼 표기 및 실시간 갱신(옵저버)
 - ChatViewController.swift
   - 80%/100% Alert(남은 횟수/리셋 시각/업그레이드 CTA) 수신 및 표시
+- Proxy(Cloudflare Workers)
+  - emozleep/src/worker.js: `/v1/chat` 프록시, HMAC 인증, Claude 상한 보조 집행, 통일 응답
+  - wrangler.toml: KV/Vars/Secret 바인딩, 배포
+  - iOS: Info( USE_PROXY/PROXY_BASE_URL/CLIENT_PROXY_HMAC_SECRET ) + UnifiedAIServiceImpl 프록시 경유 분기
 
 Rationale
 - DRY/KISS: 한도/정책은 UsageLimitManager 단일화, 화면은 어댑터만 사용
@@ -101,6 +105,7 @@ Verification checklist
 - [x] 월간 통계 시작 전 주간 남은 1/n 안내
 - [x] Edit/Write/Diary/Calendar 모든 버튼에 “(N/M)” 또는 “(이번주 n/1)” 표기
 - [x] Claude 초과 시 자동 Gemini 라우팅(로그/응답 확인)
+- [x] 프록시 경유 시 통합 포맷/정상 응답, 인증 실패 시 401/403 반환
 
 Risks / Notes
 - 테스트 스킴 미구성으로 스모크 테스트의 Test 단계는 스킴 추가 후 재검증 필요

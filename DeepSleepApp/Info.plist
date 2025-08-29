@@ -267,6 +267,14 @@
 	<string>$(AI_LIMITS_EMOTION_ANALYSIS)</string>
 	<key>AI_LIMITS_MONTHLY_REPORT</key>
 	<string>$(AI_LIMITS_MONTHLY_REPORT)</string>
+
+	<!-- Proxy settings (Cloudflare Worker) -->
+	<key>USE_PROXY</key>
+	<string>$(USE_PROXY)</string>
+	<key>PROXY_BASE_URL</key>
+	<string>$(PROXY_BASE_URL)</string>
+	<key>CLIENT_PROXY_HMAC_SECRET</key>
+	<string>$(CLIENT_PROXY_HMAC_SECRET)</string>
 	
 	<!-- 개발 및 모니터링 설정 -->
 	<key>DEBUG_MODE</key>
