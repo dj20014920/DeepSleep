@@ -16,7 +16,7 @@ class AIUsageManager {
 
     private let userDefaults = UserDefaults.standard
     
-    // 각 기능별 일일 제한 횟수 설정
+    // 각 기능별 기본 일일 제한 (동적 분기 전 기본값)
     private let dailyLimits: [AIFeatureType: Int] = [
         .chat: 50,
         .presetRecommendation: 5,
@@ -87,7 +87,7 @@ class AIUsageManager {
         resetCountIfNeeded(for: feature)
         let countKey = "daily_\(feature.rawValue)_count"
         let usedCount = userDefaults.integer(forKey: countKey)
-        let limit = dailyLimits[feature] ?? 0
+        let limit = limit(for: feature)
         return usedCount < limit
     }
 
@@ -96,7 +96,7 @@ class AIUsageManager {
         resetCountIfNeeded(for: feature)
         let countKey = "daily_\(feature.rawValue)_count"
         let usedCount = userDefaults.integer(forKey: countKey)
-        let limit = dailyLimits[feature] ?? 0
+        let limit = limit(for: feature)
         return max(0, limit - usedCount)
     }
 
@@ -106,11 +106,16 @@ class AIUsageManager {
         resetCountIfNeeded(for: feature)
         let countKey = "daily_\(feature.rawValue)_count"
         let currentCount = userDefaults.integer(forKey: countKey)
-        let limit = dailyLimits[feature] ?? 0
+        let limit = limit(for: feature)
         
         if currentCount < limit {
             userDefaults.set(currentCount + 1, forKey: countKey)
             print("💡 AI 기능 [\(feature.rawValue)] 사용 기록됨. 오늘 사용: \(currentCount + 1)/\(limit)")
+            NotificationCenter.default.post(name: .aiUsageUpdated, object: nil, userInfo: [
+                "feature": feature.rawValue,
+                "used": currentCount + 1,
+                "limit": limit
+            ])
             return true
         } else {
             print("⚠️ AI 기능 [\(feature.rawValue)] 사용 횟수 초과.")
@@ -130,3 +135,24 @@ class AIUsageManager {
 
 // CaseIterable 추가
 extension AIFeatureType: CaseIterable {} 
+
+public extension Notification.Name {
+    static let aiUsageUpdated = Notification.Name("aiUsageUpdated")
+}
+
+// MARK: - Dynamic Limits
+extension AIUsageManager {
+    /// 유/무료 구독 상태를 고려한 동적 일일 제한
+    private func limit(for feature: AIFeatureType) -> Int {
+        if feature == .presetRecommendation {
+            // 무료 3회, 유료 7회
+            return SubscriptionStatusCenter.shared.isPremium ? 7 : 3
+        }
+        return dailyLimits[feature] ?? 0
+    }
+
+    /// 총 일일 제한 조회(표시용)
+    func getTotalLimit(for feature: AIFeatureType) -> Int {
+        return limit(for: feature)
+    }
+}

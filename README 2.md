@@ -97,10 +97,10 @@ let emotionResponse = try await aiService.sendMessage(
     tokenConfig: nil
 )
 
-// 2. 음악 프리셋 추천
+// 2. 음악 프리셋 추천 (아이템 리스트 방식)
 let musicResponse = try await aiService.sendMessage(
     content: "스트레스 해소에 좋은 음악을 추천해주세요",
-    model: .gemini,
+    model: .gemini, // Gemini 2.0 Flash-Lite 권장
     mode: .presetRecommendation,
     context: context,
     tokenConfig: TokenConfiguration(maxTokens: 100, responseFormat: .json)
@@ -191,7 +191,7 @@ await example.runAllExamples()
 
 | 모델 | Input (1K 토큰) | Output (1K 토큰) | 특징 | 무료 티어 | 순위 |
 |------|-----------------|------------------|------|----------|------|
-| **Gemini 2.5 Flash-Lite** | $0.000075 | $0.0003 | 가장 저렴, 빠른 응답 | Google AI Studio 무료 | 1위 |
+| **Gemini 2.0 Flash-Lite** | $0.000075 | $0.0003 | 가장 저렴, 빠른 응답 | Google AI Studio 무료 | 1위 |
 | **Naver HyperCLOVA X** | $0.00075 (₩1) | $0.000188 (₩0.25) | 한국어 특화, 한국 정서 | 비공개 | 2위 |
 | **GPT-4o Mini** | $0.00015 | $0.0006 | JSON 구조화 출력 우수 | ChatGPT 무료 플랜 제한적 | 3위 |
 | **Claude 3.5 Sonnet** | $0.003 | $0.015 | 고품질, 깊은 공감 | Claude.ai 웹사이트 | 4위 |
@@ -201,11 +201,11 @@ await example.runAllExamples()
 ### 비용 최적화 팁
 
 1. **확정된 모드별 AI 모델 매핑**:
-   - **프리셋 추천**: OpenAI GPT-4o Mini (JSON 생성 우수)
+   - **프리셋 추천**: Gemini 2.0 Flash-Lite (아이템 리스트 JSON)
    - **감정 일기 분석**: Claude 3.5 Sonnet (깊은 공감)
-   - **할일 조언**: Gemini 2.5 Flash-Lite (빠른 응답)
-   - **일반 대화**: 사용자 설정 (미설정시 Gemini 2.5 Flash-Lite)
-   - **월간 통계**: Gemini 2.5 Flash-Lite (큰 컨텍스트)
+   - **할일 조언**: Gemini 2.0 Flash-Lite (빠른 응답)
+   - **일반 대화**: 사용자 설정 (미설정시 Gemini 2.0 Flash-Lite)
+   - **월간 통계**: Gemini 2.0 Flash-Lite (큰 컨텍스트)
    - **운세**: Naver HyperCLOVA X (한국 정서)
    - **감정 분석**: OpenAI GPT-4o Mini (JSON 출력)
 

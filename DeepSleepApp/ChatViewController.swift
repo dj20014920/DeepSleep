@@ -1186,6 +1186,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             self?.updateUIForSubscriptionStatus()
         }
         updateUIForSubscriptionStatus()
+
+        // AI 사용량 업데이트 수신 → 퀵액션 라벨을 실시간 갱신
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAIUsageUpdated(_:)), name: .aiUsageUpdated, object: nil)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -2006,6 +2009,30 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         cleanup()
     }
 
+    @objc private func handleAIUsageUpdated(_ note: Notification) {
+        guard let feature = note.userInfo?["feature"] as? String,
+              feature == AIFeatureType.presetRecommendation.rawValue else { return }
+        // 현재 표시 중인 메시지 중 추천 선택(.recommendationSelector) 버블이 있으면 제목 갱신
+        let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
+        let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
+        let aiTitle = "AI 분석 추천받기 (\(remaining)/\(total))"
+
+        // 최신 recommendationSelector 메시지를 찾아 quickActions 업데이트
+        if let idx = displayMessages.lastIndex(where: { $0.type == .recommendationSelector }) {
+            var msg = displayMessages[idx]
+            if let qas = msg.quickActions {
+                let newQAs = qas.map { qa in
+                    if qa.action == "ai_recommendation" {
+                        return QuickAction(title: aiTitle, action: qa.action)
+                    } else { return qa }
+                }
+                msg.quickActions = newQAs
+                displayMessages[idx] = msg
+                tableView.reloadRows(at: [IndexPath(row: idx, section: 0)], with: .none)
+            }
+        }
+    }
+
     private func createPreset(from aiResponse: AIResponseData) -> SoundPreset? {
         guard let volumes = aiResponse.volumes else {
             return nil
@@ -2455,10 +2482,15 @@ extension ChatViewController {
     @objc private func presetButtonTapped() {
         UnifiedLogger.shared.debug("프리셋 버튼 탭됨 - 퀵액션 생성", category: .ui)
         
+        // 남은 횟수/총 한도를 실시간 반영 (무료 3회/유료 7회)
+        let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
+        let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
+        let aiTitle = "AI 분석 추천받기 (\(remaining)/\(total))"
+
         // 퀵액션을 보여주는 메시지 생성
         let quickActions = [
             QuickAction(title: "앱 분석 추천받기", action: "local_recommendation"),
-            QuickAction(title: "AI 분석 추천받기 (5/5)", action: "ai_recommendation")
+            QuickAction(title: aiTitle, action: "ai_recommendation")
         ]
         
         let selectorMessage = ChatMessage(
@@ -3528,7 +3560,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     private func handleAIRecommendation() {
         // AI 사용량 체크
         guard AIUsageManager.shared.canUse(feature: .presetRecommendation) else {
-            let errorMessage = ChatMessage(text: "⚠️ 대나무숲 분석 추천 사용량이 초과되었습니다. (일일 5회 제한)", sender: .ai, type: .bot)
+            let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
+            let errorMessage = ChatMessage(text: "⚠️ 대나무숲 분석 추천 사용량이 초과되었습니다. (일일 \(total)회 제한)", sender: .ai, type: .bot)
             appendChat(errorMessage)
             return
         }
