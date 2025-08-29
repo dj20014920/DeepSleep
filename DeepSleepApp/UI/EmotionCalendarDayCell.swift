@@ -2,36 +2,14 @@ import UIKit
 import FSCalendar
 
 /// FSCalendar 셀에 감정 이모지와 To-do 존재 표시(그라데이션 테두리)를 함께 표현하는 셀
-final class EmotionCalendarDayCell: FSCalendarCell {
+final class EmotionCalendarDayCell: FSCalendarCell, GradientTickSubscriber {
     enum Palette { case premium, free }
     private let gradientBorderLayer = CAGradientLayer()
     private let borderMaskLayer = CAShapeLayer()
+    private var isAnimating = false
+    private var currentPalette: Palette = .premium
 
-    // 팔레트 프리셋
-    private let premiumColors: [CGColor] = [
-        UIColor.systemPink.cgColor,
-        UIColor.systemRed.cgColor,
-        UIColor.systemOrange.cgColor,
-        UIColor.systemYellow.cgColor,
-        UIColor.systemGreen.cgColor,
-        UIColor.systemTeal.cgColor,
-        UIColor.systemCyan.cgColor,
-        UIColor.systemBlue.cgColor,
-        UIColor.systemIndigo.cgColor,
-        UIColor.systemPurple.cgColor,
-        UIColor.systemPink.cgColor
-    ]
-
-    private let freeColors: [CGColor] = [
-        UIColor(white: 0.30, alpha: 1.0).cgColor,
-        UIColor(white: 0.40, alpha: 1.0).cgColor,
-        UIColor(white: 0.50, alpha: 1.0).cgColor,
-        UIColor(white: 0.60, alpha: 1.0).cgColor,
-        UIColor(white: 0.70, alpha: 1.0).cgColor,
-        UIColor(white: 0.60, alpha: 1.0).cgColor,
-        UIColor(white: 0.50, alpha: 1.0).cgColor,
-        UIColor(white: 0.40, alpha: 1.0).cgColor
-    ]
+    // 팔레트는 GradientBadgePalette에서 공유(중복 정의 금지)
 
     // 테두리 표시 여부
     private var shouldShowTodoRing: Bool = false
@@ -47,32 +25,55 @@ final class EmotionCalendarDayCell: FSCalendarCell {
     }
 
     private func setup() {
-        // 기본 셀 스타일 유지하면서, 가장 위에 얇은 링을 추가한다
-        gradientBorderLayer.type = .axial
-        gradientBorderLayer.colors = premiumColors
-        gradientBorderLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientBorderLayer.endPoint = CGPoint(x: 1, y: 1)
+        // 기본 셀 스타일 유지하면서, 가장 위에 얇은 네모 링(그라데이션)을 추가한다
+        if #available(iOS 12.0, *) {
+            gradientBorderLayer.type = .conic   // 시각적으로 뚜렷한 링 흐름
+            // Conic: startPoint가 중심이어야 올바른 각도 매핑이 됨
+            gradientBorderLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
+            gradientBorderLayer.endPoint = CGPoint(x: 1.0, y: 0.5) // 시작 각도 기준점
+        } else {
+            gradientBorderLayer.type = .axial
+            gradientBorderLayer.startPoint = CGPoint(x: 0.0, y: 0.0)
+            gradientBorderLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
+        }
+        gradientBorderLayer.colors = GradientBadgePalette.proColors().map { $0.cgColor }
         gradientBorderLayer.isHidden = true
-        layer.addSublayer(gradientBorderLayer)
+        // 은은한 빛 번짐 효과
+        gradientBorderLayer.shadowColor = UIColor.systemPurple.cgColor
+        gradientBorderLayer.shadowOffset = .zero
+        gradientBorderLayer.shadowRadius = 6
+        gradientBorderLayer.shadowOpacity = 0.55
+        gradientBorderLayer.isOpaque = false
+        gradientBorderLayer.zPosition = 999
+        if #available(iOS 13.0, *) {
+            gradientBorderLayer.cornerCurve = .continuous
+        }
+        contentView.layer.addSublayer(gradientBorderLayer)
 
         borderMaskLayer.fillColor = UIColor.clear.cgColor
         borderMaskLayer.strokeColor = UIColor.black.cgColor
         borderMaskLayer.lineWidth = 2
+        borderMaskLayer.lineJoin = .round
+        borderMaskLayer.lineCap = .round
         gradientBorderLayer.mask = borderMaskLayer
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        gradientBorderLayer.frame = bounds
+        gradientBorderLayer.frame = contentView.bounds
 
-        // 날짜 셀의 네모난 칸에 맞춘 라운디드 사각형 테두리
-        // 약간 안쪽으로 인셋하여 겹침을 줄임
-        let inset: CGFloat = 3.0
-        let rect = bounds.insetBy(dx: inset, dy: inset)
-        let corner: CGFloat = max(6, min(rect.width, rect.height) * 0.16)
+        // 날짜 셀의 실제 블록(컨텐츠 뷰) 경계에 딱 맞는 테두리
+        // 선이 잘리지 않도록 선 두께의 절반만큼만 인셋
+        let base = min(contentView.bounds.width, contentView.bounds.height)
+        let lineWidth: CGFloat = max(1.0, base * 0.035)
+        borderMaskLayer.lineWidth = lineWidth
+        let rect = contentView.bounds.insetBy(dx: lineWidth / 2.0, dy: lineWidth / 2.0)
+        // 애플 UI 느낌의 연속 곡률에 가깝게: 셀 크기 기반 동적 라운드(최소 6, 최대 12)
+        let corner: CGFloat = max(6.0, min(12.0, base * 0.22))
         let path = UIBezierPath(roundedRect: rect, cornerRadius: corner)
         borderMaskLayer.path = path.cgPath
-        borderMaskLayer.lineWidth = 2.0
+        gradientBorderLayer.shadowPath = path.cgPath
+        gradientBorderLayer.cornerRadius = corner
     }
 
     override func prepareForReuse() {
@@ -84,14 +85,79 @@ final class EmotionCalendarDayCell: FSCalendarCell {
         shouldShowTodoRing = visible
         gradientBorderLayer.isHidden = !visible
         setNeedsLayout()
+        if visible {
+            startBadgeMatchedAnimation()
+            // 즉시 현재 진행도를 반영하여 첫 프레임부터 배지와 동기화
+            gradientTick(progress: GlobalGradientTicker.shared.progress)
+        } else {
+            stopBadgeMatchedAnimation()
+        }
     }
 
     func setPalette(_ palette: Palette) {
-        switch palette {
-        case .premium:
-            gradientBorderLayer.colors = premiumColors
-        case .free:
-            gradientBorderLayer.colors = freeColors
+        currentPalette = palette
+        let uiColors: [UIColor] = (palette == .premium) ? GradientBadgePalette.proColors() : GradientBadgePalette.freeColors()
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        gradientBorderLayer.colors = uiColors.map { $0.cgColor }
+        CATransaction.commit()
+        if shouldShowTodoRing {
+            gradientTick(progress: GlobalGradientTicker.shared.progress)
         }
+    }
+
+    // MARK: - Badge-matched gradient flow via global ticker
+    private func startBadgeMatchedAnimation() {
+        guard !isAnimating else { return }
+        isAnimating = true
+        applyGradientColorsAnimation()
+    }
+
+    private func stopBadgeMatchedAnimation() {
+        guard isAnimating else { return }
+        isAnimating = false
+        gradientBorderLayer.removeAnimation(forKey: "colorsFlow")
+        gradientBorderLayer.removeAnimation(forKey: "locationsFlow")
+    }
+
+    // GradientTickSubscriber (더 이상 전역 틱커를 사용하지 않지만 초기 프레임 지정용으로 남김)
+    func gradientTick(progress: CGFloat) {
+        setGradientColors(progress: progress)
+    }
+
+    private func setGradientColors(progress: CGFloat) {
+        let base: [UIColor] = (currentPalette == .premium) ? GradientBadgePalette.proColors() : GradientBadgePalette.freeColors()
+        let colors = GradientBadgePalette.interpolatedColors(from: base, progress: progress)
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        gradientBorderLayer.colors = colors
+        // locations는 균등 분포 고정 (conic에서 각도 기준)
+        let n = max(2, colors.count)
+        let locs: [NSNumber] = (0..<n).map { NSNumber(value: Double(CGFloat($0) / CGFloat(n - 1))) }
+        gradientBorderLayer.locations = locs
+        CATransaction.commit()
+    }
+
+    private func applyGradientColorsAnimation() {
+        let base: [UIColor] = (currentPalette == .premium) ? GradientBadgePalette.proColors() : GradientBadgePalette.freeColors()
+        // Keyframe으로 colors 자체를 회전시켜 흐름을 보장 (locations는 균등 고정)
+        let steps = 36
+        var values: [[CGColor]] = []
+        for i in 0..<steps {
+            let p = CGFloat(i) / CGFloat(steps)
+            values.append(GradientBadgePalette.interpolatedColors(from: base, progress: p))
+        }
+        let anim = CAKeyframeAnimation(keyPath: "colors")
+        anim.values = values
+        anim.calculationMode = .linear
+        anim.duration = GradientAnimationSpec.badgeCycleDuration
+        anim.repeatCount = .infinity
+        anim.isRemovedOnCompletion = false
+        gradientBorderLayer.add(anim, forKey: "colorsFlow")
+
+        // locations는 균등 분포로 고정 (렌더링 일관성)
+        let n = max(2, base.count)
+        let locs: [NSNumber] = (0..<n).map { NSNumber(value: Double(CGFloat($0) / CGFloat(n - 1))) }
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        gradientBorderLayer.locations = locs
+        CATransaction.commit()
     }
 }

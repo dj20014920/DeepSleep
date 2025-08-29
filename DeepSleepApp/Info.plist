@@ -149,6 +149,14 @@
 	<!-- AI 일일 사용량 제한 설정 -->
 	<key>DAILY_CHAT_LIMIT</key>
 	<string>$(DAILY_CHAT_LIMIT_FREE)</string>
+	<key>DAILY_CHAT_LIMIT_PREMIUM</key>
+	<string>$(DAILY_CHAT_LIMIT_PREMIUM)</string>
+	<key>DAILY_CHAT_LIMIT_FREE</key>
+	<string>$(DAILY_CHAT_LIMIT_FREE)</string>
+	<key>DAILY_CLAUDE_LIMIT_PREMIUM</key>
+	<string>$(DAILY_CLAUDE_LIMIT_PREMIUM)</string>
+	<key>DAILY_CLAUDE_LIMIT_FREE</key>
+	<string>$(DAILY_CLAUDE_LIMIT_FREE)</string>
 	<key>DAILY_PRESET_RECOMMENDATION_LIMIT</key>
 	<string>$(DAILY_PRESET_RECOMMENDATION_LIMIT)</string>
 	<key>DAILY_DIARY_ANALYSIS_LIMIT</key>
@@ -239,6 +247,10 @@
 	<!-- AI 기능별 일일 제한 -->
 	<key>AI_LIMITS_CHAT</key>
 	<string>$(AI_LIMITS_CHAT)</string>
+	<key>AI_LIMITS_CHAT_PRO</key>
+	<string>$(AI_LIMITS_CHAT_PRO)</string>
+	<key>AI_LIMITS_CHAT_MAX</key>
+	<string>$(AI_LIMITS_CHAT_MAX)</string>
 	<key>AI_LIMITS_PRESET_RECOMMENDATION</key>
 	<string>$(AI_LIMITS_PRESET_RECOMMENDATION)</string>
 	<key>AI_LIMITS_DIARY_ANALYSIS</key>
@@ -247,6 +259,8 @@
 	<string>$(AI_LIMITS_MONTHLY_STATISTICS)</string>
 	<key>AI_LIMITS_TODO_ADVICE</key>
 	<string>$(AI_LIMITS_TODO_ADVICE)</string>
+	<key>AI_LIMITS_TODO_ADVICE_EACH</key>
+	<string>$(AI_LIMITS_TODO_ADVICE_EACH)</string>
 	<key>AI_LIMITS_FORTUNE</key>
 	<string>$(AI_LIMITS_FORTUNE)</string>
 	<key>AI_LIMITS_EMOTION_ANALYSIS</key>

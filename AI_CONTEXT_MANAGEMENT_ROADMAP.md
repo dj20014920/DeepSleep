@@ -158,6 +158,28 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 - [ ] ZeroTokenAPIChecker 동시성 안전화 (Swift 6 대비)
 
 **Should-fix (1주 내)**
+
+---
+
+## 2025-08-29 동기화: 사용량 한도·라벨·폴백 정책
+
+요약
+- 한도/티어/주간 정책은 코드 단일화(UsageLimitManager)로 관리하며, 화면은 얇은 어댑터(AIUsageManager)로만 사용함.
+- 채팅: Free/Pro/Max 티어별 한도 적용. 80%/100% 도달 시 Alert로 남은 횟수/자정 리셋/업그레이드 CTA 제공.
+- Claude: Premium 30회 상한 초과 시 자동으로 Gemini(또는 다음 폴백) 라우팅. 성공 시에만 Claude 카운트 증가.
+- 월간 통계: 주간 1회(KST, 월요일 00:00 리셋) 정책으로 통일. 시작 전 안내에 이번 주 남은 횟수/리셋 시각 표기.
+- 버튼 라벨: 일기 분석/월간(주간) 분석/일기 편집·작성 화면의 대나무숲 버튼까지 “(남은 N/총 M)” 또는 “(이번주 n/1)”로 표준화.
+
+관련 코드
+- UsageLimitManager: 일일/주간 한도, 티어별 키 적용, 80%/100% 알림 발행
+- UnifiedAIServiceImpl: Claude 상한 체크와 자동 폴백, 성공 시 카운트 증가
+- AIUsageManager: 위임/브로드캐스트만 수행(DRY)
+- ChatViewController: Alert 수신 및 Paywall 전환 CTA
+- EmotionDiary/EmotionCalendar/EditDiary/DiaryWrite VC: 버튼 라벨 표준화 및 실시간 갱신
+
+운영/관측 포인트
+- Alert 트리거 시점과 리셋 시각(자정, KST 주간)을 로그에 함께 남겨 CS/분석에 활용
+- 폴백 발생 로그는 모델쌍(from→to)과 사유를 함께 기록(ContextMetrics)
 - [ ] UnifiedAIServiceImpl 메트릭 TODO를 ContextMetrics로 통합
 - [ ] MemoryOptimizationManager 최소 정책 구현
 - [ ] ConfigReader 유틸 공통화 (DRY 달성)

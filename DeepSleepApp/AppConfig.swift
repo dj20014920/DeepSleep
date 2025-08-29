@@ -41,6 +41,12 @@ struct AppConfig {
         static let chat: Int = {
             ConfigReader.int("AI_LIMITS_CHAT") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_CHAT 누락 — 0 처리"); return 0 }()
         }()
+        static let chatPro: Int = {
+            ConfigReader.int("AI_LIMITS_CHAT_PRO") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_CHAT_PRO 누락 — 0 처리"); return 0 }()
+        }()
+        static let chatMax: Int = {
+            ConfigReader.int("AI_LIMITS_CHAT_MAX") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_CHAT_MAX 누락 — 0 처리"); return 0 }()
+        }()
         
         static let presetRecommendation: Int = {
             ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_PRESET_RECOMMENDATION 누락 — 0 처리"); return 0 }()
@@ -56,6 +62,9 @@ struct AppConfig {
         
         static let todoAdvice: Int = {
             ConfigReader.int("AI_LIMITS_TODO_ADVICE") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_TODO_ADVICE 누락 — 0 처리"); return 0 }()
+        }()
+        static let todoAdviceEach: Int = {
+            ConfigReader.int("AI_LIMITS_TODO_ADVICE_EACH") ?? { print("⚠️ [AppConfig.AILimits] AI_LIMITS_TODO_ADVICE_EACH 누락 — 1 처리"); return 1 }()
         }()
         
         static let fortune: Int = {

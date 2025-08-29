@@ -570,55 +570,48 @@ extension EmotionCalendarViewController {
     
     // MARK: - AI Analysis Implementation
     func showAIAnalysisAlert() {
-        let remainingCount = AIUsageManager.shared.getRemainingCount(for: .monthlyStatistics)
-        let totalLimit = 3 // AIUsageManager에서 설정된 monthlyStatistics 일일 제한
-            
-        guard remainingCount > 0 else {
+        // 주간 1회 제한 정책 적용(KST 월요일 00:00 리셋)
+        let weekly = UsageLimitManager.shared.canUseWeeklyLimitedFeature(anchor: .kstMonday, key: "monthly_statistics")
+        guard weekly.canUse else {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "ko_KR")
+            df.dateFormat = "M월 d일 a h시 m분"
+            let resetStr = df.string(from: weekly.resetAt)
             let limitAlert = UIAlertController(
-                title: "📊 일일 감정 패턴 분석 완료",
-                message: """
-                오늘 감정 패턴 분석을 모두 사용하셨습니다.
-                
-                깊이 있는 감정 패턴 분석을 위해 하루 \(totalLimit)회로 제한하고 있어요.
-                대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
-                
-                내일 다시 이용해보세요! 😊
-                
-                💡 일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?
-                """,
+                title: "📊 감정 패턴 분석 (주간 1회 제한)",
+                message: "이번 주 이용을 모두 사용하셨습니다.\n\n리셋 시각: \(resetStr)\n일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?",
                 preferredStyle: .alert
             )
-            
             limitAlert.addAction(UIAlertAction(title: "확인", style: .default))
             present(limitAlert, animated: true)
             return
         }
-        
+
         let alert = UIAlertController(
             title: "🔒 개인정보 보호 안내",
             message: """
             AI 감정 패턴 분석 대화를 시작합니다:
-            📊 오늘 남은 분석 횟수: \(remainingCount)/\(totalLimit)회
-            
+            📊 이번 주 남은 분석 횟수: \(weekly.remaining)/1회
+
             • 최근 30일간의 감정 패턴 분석
             • 감정 통계 및 트렌드 파악
             • 개인 맞춤 감정 관리 조언
             • 충분한 시간 동안 깊이 있는 대화 가능
             • 일기 내용은 포함되지 않습니다
-            
-            개인 식별이 가능한 정보는 전송되지 않으며, 
+
+            개인 식별이 가능한 정보는 전송되지 않으며,
             대화 종료 후 데이터는 즉시 삭제됩니다.
-            
+
             계속하시겠습니까?
             """,
             preferredStyle: .alert
         )
-        
+
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
         alert.addAction(UIAlertAction(title: "대나무숲 패턴 분석 시작", style: .default) { [weak self] _ in
             self?.startAIAnalysisChat()
         })
-        
+
         present(alert, animated: true)
     }
     
@@ -812,10 +805,11 @@ extension EmotionCalendarViewController {
             self.present(responseAlert, animated: true)
         })
         
-        // ✅ 일기 분석 대화 버튼 - 남은 횟수 표시
+        // ✅ 일기 분석 대화 버튼 - 남은 횟수 표시 (n/total 형식 통일)
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let totalCount = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
         let diaryAnalysisTitle = remainingCount > 0 ?
-            "💬 이 일기를 AI와 깊이 분석 (남은 횟수: \(remainingCount))" :
+            "💬 이 일기를 AI와 깊이 분석 (\(remainingCount)/\(totalCount))" :
             "💬 일기 분석 대화 (오늘 사용 완료)"
         
         alert.addAction(UIAlertAction(title: diaryAnalysisTitle, style: .default) { _ in
@@ -835,21 +829,19 @@ extension EmotionCalendarViewController {
     
     // MARK: - ✅ 일기 대화 시작 - 하루 1회 제한 추가 & 안전한 데이터 전달
     func startDiaryConversation(with entry: EmotionDiary) {
-        // ✅ 하루 1회 제한 체크
+        // ✅ 일일 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let totalCount = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
         
         guard remainingCount > 0 else {
             let limitAlert = UIAlertController(
-                title: "📝 일일 일기 분석 완료",
+                title: "📝 일기 분석 한도 도달",
                 message: """
-                오늘 일기 분석 대화를 이미 사용하셨습니다.
-                
-                깊이 있는 일기 분석을 위해 하루 1회로 제한하고 있어요.
-                대신 충분한 시간 동안 AI와 깊이 있게 대화할 수 있습니다.
-                
-                내일 다시 이용해보세요! 😊
-                
-                💡 일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?
+                오늘 일기 분석 대화의 일일 한도(총 \(totalCount)회)를 모두 사용하셨습니다.
+
+                내일 다시 이용해 주세요. 😊
+
+                💡 더 많은 대화를 원하시면 일반 채팅을 이용해 보세요.
                 """,
                 preferredStyle: .alert
             )
@@ -982,7 +974,8 @@ extension EmotionCalendarViewController {
         
         // ✅ 대나무숲 버튼도 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석" : "💬 분석 완료"
+        let totalCount = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석 (\(remainingCount)/\(totalCount))" : "💬 분석 완료"
         let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
         
         detailVC.navigationItem.leftBarButtonItem = closeButton

@@ -294,14 +294,16 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         calendar.appearance.headerDateFormat = "yyyy년 MM월"
         calendar.appearance.weekdayTextColor = .label
-        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.titleWeekendColor = UIDesignSystem.Colors.error
-        calendar.appearance.todayColor = .systemOrange
-        calendar.appearance.selectionColor = UIColor.darkGray
-        calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
+        calendar.appearance.headerTitleColor = .label
+        calendar.appearance.titleDefaultColor = .label
+        calendar.appearance.titleWeekendColor = .label
+        calendar.appearance.todayColor = .systemBlue
+        calendar.appearance.selectionColor = .systemPurple
+        calendar.appearance.eventDefaultColor = .systemGreen
+        calendar.backgroundColor = .systemBackground
         calendar.locale = Locale(identifier: "en_US")
-        calendar.placeholderType = .none
+        // EmotionCalendarViewController와 동일하게 이전/다음 달 날짜도 표시(흐릿하게)
+        calendar.placeholderType = .fillSixRows
 
         self.view.addSubview(calendar)
         self.calendar = calendar
@@ -471,64 +473,16 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     // MARK: - FSCalendarDataSource
     func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-        // 해당 날짜의 할 일 확인
-        let todos = TodoManager.shared.getTodos(for: date)
-        let hasTodo = !todos.filter { !$0.isCompleted }.isEmpty
-        
-        // 연속 일정 확인 - 이 날짜가 어떤 연속 일정의 범위에 포함되는지 확인
-        let allTodos = TodoManager.shared.loadTodos()
-        let hasRangeEvent = allTodos.contains { todo in
-            guard let _ = todo.endDate else { return false }
-            return isDateInEventRange(todo, date: date) && !todo.isCompleted
-        }
-        
-        // 일기 확인
-        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
-        
-        return (hasTodo || hasRangeEvent || hasDiary) ? 1 : 0
+        // EmotionCalendarViewController와 동일: 일기가 있는 날짜만 1점 표시
+        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+        let key = df.string(from: date)
+        return diaryDataForCalendar[key] != nil ? 1 : 0
     }
 
     // MARK: - FSCalendarDelegateAppearance (For Dot Colors)
     func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
-        var eventColors: [UIColor] = []
-        let todos = TodoManager.shared.getTodos(for: date)
-        let hasIncompleteTodo = todos.contains { !$0.isCompleted }
-        let hasCompletedTodo = todos.contains { $0.isCompleted }
-        
-        // 연속 일정 확인
-        let allTodos = TodoManager.shared.loadTodos()
-        let rangeEvents = allTodos.filter { todo in
-            guard let _ = todo.endDate else { return false }
-            return isDateInEventRange(todo, date: date) && !todo.isCompleted
-        }
-        let hasRangeEvent = !rangeEvents.isEmpty
-        
-        // 연속 일정이 있는 경우 가장 높은 우선순위의 색상 사용
-        var rangeEventColor: UIColor?
-        if hasRangeEvent {
-            let primaryRangeEvent = rangeEvents.max { $0.priority < $1.priority } ?? rangeEvents.first!
-            rangeEventColor = priorityColor(for: primaryRangeEvent.priority)
-        }
-        
-        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
-
-        // 우선순위: 연속 일정 > 미완료 할일 > 일기 > 완료된 할일
-        if hasRangeEvent && hasDiary {
-            eventColors.append(UIColor.systemPurple) // 연속 일정 + 일기: 보라색
-        } else if hasRangeEvent {
-            eventColors.append(rangeEventColor!) // 연속 일정만: 우선순위 색상
-        } else if hasIncompleteTodo && hasDiary {
-            eventColors.append(UIColor.systemPurple) // 할 일 + 일기: 보라색
-        } else if hasIncompleteTodo {
-            eventColors.append(UIColor.systemBlue)   // 할 일만: 파란색
-        } else if hasDiary {
-            eventColors.append(UIColor.systemGreen)  // 일기만: 초록색
-        } else if hasCompletedTodo {
-            eventColors.append(UIColor.systemGray4) // 완료된 할 일만: 연한 회색
-        }
-        
-        // eventColors가 비어있으면 nil을 반환해야 기본 점 색상이 사용됨 (또는 점이 안 찍힘)
-        return eventColors.isEmpty ? nil : eventColors
+        // EmotionCalendarViewController와 동일: 기본 색상(.systemGreen) 사용
+        return nil
     }
 
     // 선택된 날짜의 이벤트 점 색상 (선택사항)

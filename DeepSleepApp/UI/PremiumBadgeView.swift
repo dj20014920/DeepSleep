@@ -197,8 +197,8 @@ public final class PremiumBadgeView: UIView {
     }
     
     @objc private func updateAnimation() {
-        // Very slow increment for smooth animation
-        animationProgress += 0.0075  // Much slower than before
+        // Very slow increment for smooth animation (shared spec)
+        animationProgress += GradientAnimationSpec.badgeIncrementPerFrame
         if animationProgress > 1.0 {
             animationProgress -= 1.0
         }

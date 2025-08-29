@@ -183,6 +183,9 @@
 		E0AAA0012E60000000ABCDEF /* ViewController+PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1032E33ACB3002F75E6 /* ViewController+PlaybackControls.swift */; };
 		E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B72E33ACB3002F75E6 /* EmotionAnalyzer.swift */; };
 		E0ABCDEF2E99999900AAA111 /* EmotionCalendarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B82E33ACB3002F75E6 /* EmotionCalendarViewController.swift */; };
+		E0B562282E616FA000D334F1 /* SubscriptionTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562272E616FA000D334F1 /* SubscriptionTier.swift */; };
+		E0B5622B2E61778500D334F1 /* GlobalGradientTicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */; };
+		E0B5622C2E61778500D334F1 /* GradientAnimationSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -399,6 +402,9 @@
 		E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
 		E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
+		E0B562272E616FA000D334F1 /* SubscriptionTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTier.swift; sourceTree = "<group>"; };
+		E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalGradientTicker.swift; sourceTree = "<group>"; };
+		E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientAnimationSpec.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -614,6 +620,8 @@
 		E084F0882E33ACB3002F75E6 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */,
+				E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */,
 				E0E7BCD12E561E8200FF7073 /* PremiumBadgeView.swift */,
 				E084F0852E33ACB3002F75E6 /* InsightCell.swift */,
 				E084F0862E33ACB3002F75E6 /* ToastManager.swift */,
@@ -861,6 +869,7 @@
 		E0E7BCB52E5591CA00FF7073 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562272E616FA000D334F1 /* SubscriptionTier.swift */,
 				E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */,
 				E0E7BCDA2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift */,
 				E0E7BCCF2E561E7000FF7073 /* StoreKitSubscriptionManager.swift */,
@@ -1058,6 +1067,8 @@
 				E084F1A52E33ACB3002F75E6 /* LRUCache.swift in Sources */,
 				E084F1A62E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift in Sources */,
 				E084F1A82E33ACB3002F75E6 /* AdvancedPresetCatalog.swift in Sources */,
+				E0B5622B2E61778500D334F1 /* GlobalGradientTicker.swift in Sources */,
+				E0B5622C2E61778500D334F1 /* GradientAnimationSpec.swift in Sources */,
 				E084F1A92E33ACB3002F75E6 /* LaunchViewController.swift in Sources */,
 				E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */,
 				E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */,
@@ -1141,6 +1152,7 @@
 				E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */,
 				E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */,
 				E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */,
+				E0B562282E616FA000D334F1 /* SubscriptionTier.swift in Sources */,
 				E084F1E72E33ACB3002F75E6 /* CompilerFixStubs.swift in Sources */,
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,

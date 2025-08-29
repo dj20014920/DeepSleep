@@ -48,6 +48,12 @@ QA/검증 체크리스트(로컬→샌드박스)
 - 샌드박스(실기기): StoreKit Configuration=None → Product.products(for:) 정상 로딩, 결제/복원/Trial 자격 판별/만료 반영
 - 전역 UI 반영: Notification.subscriptionStatusChanged 수신 후 Paywall 자동 닫힘/버튼/배지 갱신
 
+전환(Conversion) UX 체크리스트 — 사용량 한도 연계 (2025-08-29)
+- [x] 일반 채팅 80%/100% 도달 시 Alert 노출(남은 횟수/리셋 시각/업그레이드 CTA)
+- [x] Alert에서 “업그레이드” 선택 시 PaywallViewController 표시
+- [x] Paywall 닫힘: 구독 활성화 시 자동 닫힘
+- [x] 정책 문구: “7일 무료체험 후 자동 갱신…” 등 기존 카피와 정합
+
 스토어 카피 초안(동일 그룹 1회 7일 체험 고지 일관)
 - ko-KR(요약): “7일 무료체험 후 자동 갱신. 언제든 취소 가능. 연간은 Pro 약 17%, Max 약 25% 절약.”
 - en-US(요약): “7-day free trial. Auto-renews. Cancel anytime. Yearly: Pro ~17% off, Max ~25% off.”

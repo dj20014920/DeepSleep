@@ -353,6 +353,7 @@ class DiaryWriteViewController: UIViewController {
         saveButton.isEnabled = false
         
         aiChatButton.isHidden = false
+        updateAIChatButtonUI()
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "완료",
@@ -376,7 +377,19 @@ class DiaryWriteViewController: UIViewController {
     
     @objc private func showAIChatAlert() {
         guard let diaryEntry = savedDiaryEntry else { return }
-        
+        let remain = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        guard remain > 0 else {
+            let limit = UIAlertController(
+                title: "📝 일기 분석 한도 도달",
+                message: "오늘 일기 분석 대화의 일일 한도(총 \(total)회)를 모두 사용하셨습니다.",
+                preferredStyle: .alert
+            )
+            limit.addAction(UIAlertAction(title: "확인", style: .default))
+            present(limit, animated: true)
+            return
+        }
+
         let alert = UIAlertController(
             title: "🔒 개인정보 보호 안내",
             message: """
@@ -523,6 +536,7 @@ class DiaryWriteViewController: UIViewController {
 
             saveButton.setTitle("일기 수정", for: .normal)
             aiChatButton.isHidden = false // 수정 모드에서는 AI 채팅 버튼 바로 표시
+            updateAIChatButtonUI()
             
             // 네비게이션 바 버튼도 "완료" 상태로 시작할 수 있음 (저장 후와 동일하게)
             navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -543,6 +557,28 @@ class DiaryWriteViewController: UIViewController {
                 action: #selector(rightBarButtonTapped)
             )
         }
+    }
+
+    private func updateAIChatButtonUI() {
+        let remain = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        if aiChatButton.isHidden == false {
+            if remain > 0 {
+                aiChatButton.isEnabled = true
+                aiChatButton.backgroundColor = .systemGreen
+                aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (\(remain)/\(total))", for: .normal)
+            } else {
+                aiChatButton.isEnabled = false
+                aiChatButton.backgroundColor = .systemGray3
+                aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (오늘 사용 완료)", for: .normal)
+            }
+        }
+    }
+
+    @objc private func handleAIUsageUpdated(_ note: Notification) {
+        guard let feature = note.userInfo?["feature"] as? String,
+              feature == AIFeatureType.diaryAnalysis.rawValue else { return }
+        updateAIChatButtonUI()
     }
     
     private func updateSelectedEmotionButtonUI(selectedEmoji: String) {

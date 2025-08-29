@@ -203,7 +203,7 @@ struct TodoItem: Codable, Identifiable, Hashable {
     }
     
     var maxAdviceCount: Int {
-        return 3 // 최대 3회까지 조언 가능
+        return AppConfig.AILimits.todoAdviceEach
     }
 }
 

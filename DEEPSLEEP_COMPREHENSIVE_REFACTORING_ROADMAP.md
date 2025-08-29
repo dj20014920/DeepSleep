@@ -43,6 +43,69 @@ Risks / Notes
 - 버튼/간격/색상은 다크모드에서도 대비가 충분(.systemBlue/.white)
 - 선택 날짜 싱크(양 탭 동시 선택)는 추후 Notification으로 확장 가능
 
+## 2025-08-29 Updates (캘린더 그라데이션 링 · 완전 통일 · 가시성 보장)
+
+What changed where
+- UI/EmotionCalendarDayCell.swift
+  - Conic gradient(`type=.conic`) 중심/각도 교정(`startPoint=(0.5,0.5)`, `endPoint=(1.0,0.5)`)
+  - `CAKeyframeAnimation(keyPath: "colors")`로 색 배열 자체를 부드럽게 순환 → 회전 없이 “보이는 흐름” 보장
+  - locations는 균등 분포 고정(0→1), 암시적 애니 비활성화로 프레임 즉시 반영
+  - 모서리 연속 곡률/동적 반경(6–12pt), `shadowPath`/`zPosition=999`/`isOpaque=false` 적용
+- UI/GradientPalettes.swift, UI/GradientAnimationSpec.swift
+  - 팔레트/속도 공유(DRY): 구독 뱃지와 동일 색/속도
+- TodoCalendarViewController.swift
+  - Emotion 캘린더와 완전 통일: placeholder/today/selection/eventDefault/배경/locale/label
+  - 이벤트 점: “일기가 있는 날짜만 1점”으로 규칙 단일화
+
+Rationale
+- DRY/KISS: 팔레트·속도·셀·표시 규칙 단일화, 중복 이벤트 색상 로직 제거
+- UX: 얇은 경계에서도 확실히 보이는 색 흐름 확보(키프레임 애니)
+
+Verification checklist
+- [ ] 과거/미래(Free/Pro) 모두 링 색이 부드럽게 흐른다(속도/패턴 동일, 팔레트만 다름)
+- [ ] 두 화면 캘린더의 appearance/점 규칙/placeholder가 완전히 동일
+- [ ] 모서리 라운드가 과도하지 않고 일관되게 보인다(6–12pt)
+
+Risks / Notes
+- 일부 환경에서 conic + locations 오프셋만으로는 미세 변화일 수 있어 colors 키프레임으로 시인성 보장
+- AutoLayout 경고/AdMob/LaunchServices/코어데이터 경고는 별도 이슈(무관)
+
+## 2025-08-29 Updates (한도/티어/모델 라우팅·UX 라벨 통일)
+
+What changed where
+- AI/UsageLimitManager.swift
+  - 티어별 채팅 한도 적용: `AI_LIMITS_CHAT[_PRO/_MAX]`(하위: `DAILY_CHAT_LIMIT_{FREE,PREMIUM}`)
+  - 월간 통계는 주간 1회(KST 월요일 00:00 리셋)로 고정 유틸 사용
+  - 80%/100% 도달 시 알림(.aiUsageLimitWarning/.aiUsageLimitReached) 발행
+- AI/Services/UnifiedAIServiceImpl.swift
+  - Claude 일일 상한(`DAILY_CLAUDE_LIMIT_{FREE,PREMIUM}`) 초과 시 Gemini(또는 다음)로 자동 라우팅
+  - Claude 호출 성공 시에만 Claude 사용량 증가
+- AIUsageManager.swift
+  - 자체 카운트 제거, 모든 판정/수치는 UsageLimitManager 위임(DRY)
+  - 화면 업데이트용 `.aiUsageUpdated`만 브로드캐스트 유지
+- EmotionDiaryViewController.swift / EmotionCalendarViewController.swift
+  - 버튼 타이틀 “(남은 N/총 M)” 통일, 주간 정책은 “(이번주 n/1)” 표기
+  - Alert 문구 동적화(설정값 반영)
+- EditDiaryViewController.swift / DiaryWriteViewController.swift
+  - “대나무숲에서 이 일기 이야기하기 (N/M)” 버튼 표기 및 실시간 갱신(옵저버)
+- ChatViewController.swift
+  - 80%/100% Alert(남은 횟수/리셋 시각/업그레이드 CTA) 수신 및 표시
+
+Rationale
+- DRY/KISS: 한도/정책은 UsageLimitManager 단일화, 화면은 어댑터만 사용
+- UX: 남은 횟수 라벨 표준화, 임계 도달 시 적절한 안내/업그레이드 유도
+- 비용/안정성: Claude 상한 초과 시 무경고 폴백으로 자연스러운 대화 지속
+
+Verification checklist
+- [x] Free/Pro/Max 채팅 한도 적용 및 Alert 표시
+- [x] 월간 통계 시작 전 주간 남은 1/n 안내
+- [x] Edit/Write/Diary/Calendar 모든 버튼에 “(N/M)” 또는 “(이번주 n/1)” 표기
+- [x] Claude 초과 시 자동 Gemini 라우팅(로그/응답 확인)
+
+Risks / Notes
+- 테스트 스킴 미구성으로 스모크 테스트의 Test 단계는 스킴 추가 후 재검증 필요
+- 로컬 응답까지 채팅 한도 포함 여부는 정책 옵션으로 향후 추가 가능(YAGNI로 현재 제외)
+
 ## 2025-08-28 Updates (AI 컨텍스트/캐시 안정화 · assembledPrompt 중복 제거 · 세션 지속성)
 
 What changed where

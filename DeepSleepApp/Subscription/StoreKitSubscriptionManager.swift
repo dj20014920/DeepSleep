@@ -32,6 +32,19 @@ public final class StoreKitSubscriptionManager: NSObject {
         }
     }
 
+    // 현재 활성 구독 상품들 (만료되지 않은 entitlement)
+    public private(set) var activeProducts: Set<SubscriptionProduct> = []
+    // 계산된 현재 티어
+    public var currentTier: SubscriptionTier {
+        if activeProducts.contains(.maxMonthly) || activeProducts.contains(.maxYearly) {
+            return .max
+        }
+        if activeProducts.contains(.proMonthly) || activeProducts.contains(.proYearly) {
+            return .pro
+        }
+        return .free
+    }
+
     /// 과거 구독 거래 내역 존재 여부(최소 정책 판단에 사용)
     private var hasAnySubscriptionHistory: Bool = false
 
@@ -173,6 +186,7 @@ public final class StoreKitSubscriptionManager: NSObject {
         var latestExpiration: Date?
         var refundedGraceUntil: Date?
         var anyExpiredAt: Date?
+        var newActiveProducts: Set<SubscriptionProduct> = []
 
         // 정책: 환불 시 결제일로부터 30일간 프리미엄 유지
         func computeRefundGrace(until purchaseDate: Date) -> Date {
@@ -203,18 +217,26 @@ public final class StoreKitSubscriptionManager: NSObject {
                         latestExpiration = max(latestExpiration ?? exp, exp)
                         if exp > Date() {
                             premium = true
+                            if let p = SubscriptionProduct(rawValue: transaction.productID) {
+                                newActiveProducts.insert(p)
+                            }
                         } else {
                             anyExpiredAt = max(anyExpiredAt ?? exp, exp)
                         }
                     } else {
                         // 비소모성/무기한인 경우로 간주(여기서는 프리미엄 활성 처리)
                         premium = true
+                        if let p = SubscriptionProduct(rawValue: transaction.productID) {
+                            newActiveProducts.insert(p)
+                        }
                     }
                 }
             } catch {
                 logger.error("Entitlement verification failed: \(error.localizedDescription)")
             }
         }
+        // 활성 상품 반영
+        self.activeProducts = newActiveProducts
         // 관찰된 거래가 하나라도 있으면 과거 구독 이력이 있다고 간주(최소 정책)
         self.hasAnySubscriptionHistory = observedAnyTransactions
 
@@ -279,4 +301,3 @@ private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         return isTrialEligible ? 7 : nil
     }
 }
-

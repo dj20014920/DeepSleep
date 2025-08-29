@@ -58,7 +58,12 @@ High-level architecture
 - AIContextManager: builds and caches system prompts (TTL ~3h) keyed by personaSignature; never sends raw identifiers externally—only anonymized descriptive context is sent.
 - AIContextBuilder: assembles final prompt: [system prompt cache] + [core memory summary] + [recent N messages]. Integrates TokenOptimizer to fit token budgets.
 - MemoryManager & PersonaMemoryManager: user-selected “core memories” and persona traits; updates trigger cache invalidation via AIContextManager.clearCache(reason: ...).
-- UsageLimitManager: daily caps by feature (e.g., chat, diary analysis). UnifiedAIServiceImpl checks/bumps usage atomically; 80%/100% events notify UI.
+- UsageLimitManager: daily caps by feature (e.g., chat, diary analysis) + weekly caps where applicable.
+  • Tier-aware chat limits via Info keys: AI_LIMITS_CHAT, AI_LIMITS_CHAT_PRO, AI_LIMITS_CHAT_MAX (fallback to DAILY_CHAT_LIMIT_{FREE,PREMIUM}).
+  • Claude daily caps: DAILY_CLAUDE_LIMIT_{FREE,PREMIUM}. If exceeded, UnifiedAIServiceImpl auto-routes to Gemini (or next fallback).
+  • Monthly statistics uses a weekly limit (KST Monday reset) under the key path implemented by UsageLimitManager.canUseWeeklyLimitedFeature.
+  • 80%/100% events (.aiUsageLimitWarning/.aiUsageLimitReached) notify UI; ChatViewController shows an alert with remaining counts, reset time, and an Upgrade CTA.
+  • Buttons show remaining quotas inline: EmotionDiaryViewController (일기 분석), EmotionCalendarViewController (월간/주간 통계 패턴 분석).
 - ContextMetrics: request counters by model/mode, cache hit/miss, fallback attempts, and periodic one-line summaries for ops visibility.
 
 4) Fallback and cost strategy
@@ -92,4 +97,3 @@ Assistant behavior in this repo
 - Prefer building with xcodebuild against the DeepSleep scheme; use the provided smoke script for fast validation.
 - For AI features, assume Secrets.xcconfig exists locally; when absent, mock paths should run but provider calls will fail gracefully.
 - When editing code, keep the unified sendMessage entrypoint and shared builders/parsers DRY; do not reintroduce parallel ad-hoc call paths.
-

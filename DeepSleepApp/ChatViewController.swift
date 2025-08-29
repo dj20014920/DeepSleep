@@ -1187,6 +1187,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         updateUIForSubscriptionStatus()
 
+        // 💡 일반 채팅 사용량 80% 경고/100% 도달 알림 Observe
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAIUsageThreshold(_:)), name: .aiUsageLimitWarning, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAIUsageThreshold(_:)), name: .aiUsageLimitReached, object: nil)
+
         // AI 사용량 업데이트 수신 → 퀵액션 라벨을 실시간 갱신
         NotificationCenter.default.addObserver(self, selector: #selector(handleAIUsageUpdated(_:)), name: .aiUsageUpdated, object: nil)
     }
@@ -1223,6 +1227,36 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         
         // 📱 앱 종료/백그라운드 진입 시 채팅 기록 강제 저장
         saveChatHistory()
+    }
+
+    @objc private func handleAIUsageThreshold(_ note: Notification) {
+        guard let mode = note.userInfo?["mode"] as? String,
+              mode == AIMode.generalConversation.rawValue else { return }
+
+        let status = UsageLimitManager.shared.canUseAIFeature(.generalConversation)
+        let remaining = max(0, status.dailyLimit - status.currentUsage)
+        let resetAt = UsageLimitManager.shared.nextDailyResetAt()
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "ko_KR")
+        df.dateFormat = "M월 d일 a h시 m분"
+        let resetStr = df.string(from: resetAt)
+
+        let isWarning = note.name == .aiUsageLimitWarning
+        let title = isWarning ? "⚠️ 채팅 사용량 80% 도달" : "⛔️ 오늘 채팅 한도 도달"
+        let message = isWarning ?
+            "오늘 남은 채팅 횟수: \(remaining)회\n\n리셋 시각: \(resetStr)\n더 많은 대화를 위해 상위 티어 구독을 이용해보시겠어요?" :
+            "오늘 채팅 한도(\(status.dailyLimit)회)를 모두 사용했습니다.\n\n리셋 시각: \(resetStr)\n상위 티어 구독으로 여유롭게 이용해보세요."
+
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
+        alert.addAction(UIAlertAction(title: "업그레이드", style: .default, handler: { [weak self] _ in
+            guard let self = self else { return }
+            let vc = PaywallViewController()
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .formSheet
+            self.present(nav, animated: true)
+        }))
+        present(alert, animated: true)
     }
     
     // ✅ 세션 시간 기록

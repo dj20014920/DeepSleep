@@ -128,6 +128,7 @@ class EmotionDiaryViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         loadDiaryData()
+        updateAIButtonsRemainingLabels()
     }
     
     // MARK: - Setup
@@ -263,6 +264,27 @@ class EmotionDiaryViewController: UIViewController {
             insightStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
+
+        // 초기 버튼 타이틀에 남은 횟수 표시 적용
+        updateAIButtonsRemainingLabels()
+    }
+
+    // 중복된 viewWillAppear 제거: 위에서 일괄 처리
+
+    /// 남은 횟수 라벨을 버튼 타이틀에 반영(일관된 UX)
+    private func updateAIButtonsRemainingLabels() {
+        // 일기 개별 분석(일일 한도)
+        let remainDiary = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let totalDiary = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        let diaryTitle = remainDiary > 0 ? "선택 일기 대나무숲 분석 (\(remainDiary)/\(totalDiary))" : "선택 일기 대나무숲 분석 (오늘 사용 완료)"
+        aiAnalyzeSelectedDiaryButton.setTitle(diaryTitle, for: .normal)
+        aiAnalyzeSelectedDiaryButton.isEnabled = remainDiary > 0 && selectedDiaryForAnalysis != nil
+
+        // 최근 30일 감정 패턴 분석(주간 1회)
+        let weekly = UsageLimitManager.shared.canUseWeeklyLimitedFeature(anchor: .kstMonday, key: "monthly_statistics")
+        let monthTitle = weekly.canUse ? "최근 30일 감정 대나무숲 분석 (이번주 \(weekly.remaining)/1)" : "최근 30일 감정 대나무숲 분석 (이번주 사용 완료)"
+        aiAnalyzeMonthlyEmotionsButton.setTitle(monthTitle, for: .normal)
+        aiAnalyzeMonthlyEmotionsButton.isEnabled = weekly.canUse
     }
     
     // MARK: - Data Loading

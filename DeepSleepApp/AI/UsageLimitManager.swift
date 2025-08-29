@@ -117,7 +117,19 @@ public class UsageLimitManager {
             "DAILY_CHAT_LIMIT_PREMIUM",
             "DAILY_CLAUDE_LIMIT_FREE",
             "DAILY_CLAUDE_LIMIT_PREMIUM",
-            "DAILY_PATTERN_ANALYSIS_LIMIT"
+            "DAILY_PATTERN_ANALYSIS_LIMIT",
+            // AppConfig 확장 키
+            "AI_LIMITS_CHAT",
+            "AI_LIMITS_CHAT_PRO",
+            "AI_LIMITS_CHAT_MAX",
+            "AI_LIMITS_PRESET_RECOMMENDATION",
+            "AI_LIMITS_DIARY_ANALYSIS",
+            "AI_LIMITS_MONTHLY_STATISTICS",
+            "AI_LIMITS_TODO_ADVICE",
+            "AI_LIMITS_TODO_ADVICE_EACH",
+            "AI_LIMITS_FORTUNE",
+            "AI_LIMITS_EMOTION_ANALYSIS",
+            "AI_LIMITS_MONTHLY_REPORT"
         ]
         
         for key in keys {
@@ -160,9 +172,16 @@ public class UsageLimitManager {
     private func limitKeyCandidates(for mode: AIMode, isPremium: Bool) -> [String] {
         switch mode {
         case .generalConversation:
-            return isPremium
-            ? ["DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT"]
-            : ["DAILY_CHAT_LIMIT_FREE", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT"]
+            // 티어에 따라 우선순위를 다르게 적용 (Max > Pro > Free)
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            switch tier {
+            case .max:
+                return ["AI_LIMITS_CHAT_MAX", "DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"]
+            case .pro:
+                return ["AI_LIMITS_CHAT_PRO", "DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"]
+            case .free:
+                return ["AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"]
+            }
         case .emotionDiaryAnalysis:
             return ["DAILY_DIARY_ANALYSIS_LIMIT", "AI_LIMITS_DIARY_ANALYSIS"]
         case .taskAdvice:
@@ -287,6 +306,13 @@ public class UsageLimitManager {
         #if DEBUG
         print("⏰ [UsageLimitManager] 다음 자정(\\(nextMidnight)) 자동 초기화 예약됨")
         #endif
+    }
+
+    /// 다음 일일 초기화 시각(로컬 캘린더 기준 자정)
+    public func nextDailyResetAt() -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        return calendar.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime) ?? now
     }
 }
 

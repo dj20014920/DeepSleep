@@ -105,6 +105,9 @@ class EditDiaryViewController: UIViewController {
         setupNotifications()
         setupTapGesture()
         loadDiaryData() // ✅ 기존 일기 데이터 로드
+        updateAIChatButtonUI()
+        // 사용량 변경 시 버튼 상태/라벨 갱신
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAIUsageUpdated(_:)), name: .aiUsageUpdated, object: nil)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -222,7 +225,7 @@ class EditDiaryViewController: UIViewController {
     private func setupButtons() {
         contentView.addSubview(saveButton)
         contentView.addSubview(aiChatButton)
-        
+
         saveButton.addTarget(self, action: #selector(updateDiary), for: .touchUpInside)
         aiChatButton.addTarget(self, action: #selector(showAIChatAlert), for: .touchUpInside)
     }
@@ -378,7 +381,20 @@ class EditDiaryViewController: UIViewController {
     
     @objc private func showAIChatAlert() {
         guard let diaryEntry = diaryToEdit else { return }
-        
+        // 한도 체크
+        let remaining = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        guard remaining > 0 else {
+            let limit = UIAlertController(
+                title: "📝 일기 분석 한도 도달",
+                message: "오늘 일기 분석 대화의 일일 한도(총 \(total)회)를 모두 사용하셨습니다.\n\n일반 채팅으로 계속 대화해보실래요?",
+                preferredStyle: .alert
+            )
+            limit.addAction(UIAlertAction(title: "확인", style: .default))
+            present(limit, animated: true)
+            return
+        }
+
         let alert = UIAlertController(
             title: "🔒 개인정보 보호 안내",
             message: """
@@ -404,6 +420,26 @@ class EditDiaryViewController: UIViewController {
         })
         
         present(alert, animated: true)
+    }
+
+    private func updateAIChatButtonUI() {
+        let remain = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
+        let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+        if remain > 0 {
+            aiChatButton.isEnabled = true
+            aiChatButton.backgroundColor = .systemGreen
+            aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (\(remain)/\(total))", for: .normal)
+        } else {
+            aiChatButton.isEnabled = false
+            aiChatButton.backgroundColor = .systemGray3
+            aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (오늘 사용 완료)", for: .normal)
+        }
+    }
+
+    @objc private func handleAIUsageUpdated(_ note: Notification) {
+        guard let feature = note.userInfo?["feature"] as? String,
+              feature == AIFeatureType.diaryAnalysis.rawValue else { return }
+        updateAIChatButtonUI()
     }
     
     private func startAIChat() {

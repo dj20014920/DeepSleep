@@ -19,6 +19,29 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-29 업데이트: 캘린더/그라데이션 완전 통일 · 가시성 보장
+
+요약
+- 캘린더 두 화면(Emotion/Todo) 외형 및 동작 완전 통일: placeholder(이전/다음 달), today/selection/event, 배경/텍스트/locale
+- 이벤트 점 규칙 단일화: “일기가 있는 날짜만 1점”
+- 링 테두리: `EmotionCalendarDayCell` 하나만 사용(공통)
+  - Conic gradient 중심/각도 교정(start=(0.5,0.5), end=(1.0,0.5))
+  - `CAKeyframeAnimation(keyPath: "colors")`로 색 배열을 부드럽게 순환(배지와 동일 팔레트/속도)
+  - 동적 모서리(6–12pt), `cornerCurve=.continuous`, `shadowPath` 지정
+- 팔레트/속도 공유: `GradientBadgePalette`, `GradientAnimationSpec`
+
+영향 파일(핵심)
+- UI/EmotionCalendarDayCell.swift, UI/GradientPalettes.swift, UI/GradientAnimationSpec.swift
+- UI/PremiumBadgeView.swift(속도 상수 공유), UI/GlobalGradientTicker.swift(초기 싱크용)
+- EmotionCalendarViewController.swift, TodoCalendarViewController.swift(appearance/점 규칙 통일)
+
+검증 방법
+1) 과거/미래 일정이 있는 날짜의 링에서 색이 회전 없이 “흐르는”지 확인
+2) 두 화면의 placeholder/today/selection/event/배경/텍스트가 동일한지 확인
+3) “일기 있는 날짜만 점 1개” 규칙이 동일한지 확인
+
+참고: 설계 상세는 `CALENDAR_TODO_SYNC.md`를 참조하세요.
+
 ### 🆕 2025-08-28 업데이트: AI 컨텍스트/캐시 안정화 · 모델 간 공유 · 세션 지속성 보강
 
 요약
@@ -2112,7 +2135,7 @@ AI: 안녕하세요! 저는 DeepSleep 앱의 AI 어시스턴트로, 여러분의
 체크리스트
 - [ ] 동일 모드/설정/핵심기억 상태에서 캐시 HIT 로그 확인
 - [ ] 모델/사용자정보/핵심기억 변경 시 캐시 MISS로 재계산
-- [ ] 일일 한도 80%/100% 도달 시 알림 수신 및 UI 토스트/Alert 표시
+- [x] 일일 한도 80%/100% 도달 시 알림 수신 및 UI Alert 표시 (ChatViewController: 남은 횟수/리셋 시각/업그레이드 CTA)
 - [ ] 모든 버블 길게누르기 → 기억/복사/공유 메뉴 정상 노출 및 동작
 
 ---

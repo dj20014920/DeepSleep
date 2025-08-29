@@ -185,7 +185,7 @@ await example.runAllExamples()
 - ✅ 레이트 리미팅 및 사용량 제한
 - ✅ 프롬프트 인젝션 방지
 
-## 💰 비용 관리
+## 💰 비용 관리 (및 사용량/구독 정책 동기화)
 
 ### 모델별 정확한 비용 (2025년 7월 22일 최신)
 
@@ -210,7 +210,7 @@ await example.runAllExamples()
    - **감정 분석**: OpenAI GPT-4o Mini (JSON 출력)
 
 2. **토큰 제한 설정**: 각 모드별로 적절한 `maxTokens` 설정
-2. **Fallback 순서** (비용 기준): Gemini → Naver → OpenAI → Claude
+2. **Fallback 순서** (비용 기준): free model tier(OpenRouter) → Gemini → OpenAI → Naver → Claude
 3. **비용 절약 전략**: 
    - 무료 티어 활용 (Google AI Studio에서 Gemini 무료 사용)
    - 프롬프트 캐싱으로 Claude 90% 절약 가능
@@ -391,18 +391,37 @@ public func sendMessage(content: String, model: AIMode, mode: AIMode, context: A
 
 ### 사용량 제한 통합 시스템 (Secrets.xcconfig)
 ```xcconfig
-# AI 기능별 일일 제한 (기존 설정 활용)
-DAILY_CHAT_LIMIT = 50                    # 일반 채팅
-DAILY_PRESET_RECOMMENDATION_LIMIT = 5    # 프리셋 추천  
-DAILY_DIARY_ANALYSIS_LIMIT = 5           # 일기 분석
-DAILY_TODO_ADVICE_LIMIT = 5              # 할일 조언
-DAILY_FORTUNE_LIMIT = 1                  # 운세
+# Chat(티어별)
+AI_LIMITS_CHAT = 50
+AI_LIMITS_CHAT_PRO = 100
+AI_LIMITS_CHAT_MAX = 200
+DAILY_CHAT_LIMIT_FREE = 50
+DAILY_CHAT_LIMIT_PREMIUM = 50
 
-# 전체 시스템 제한
-MAX_DAILY_REQUESTS = 100                 # 하루 최대 요청 수
-MAX_PROMPT_LENGTH = 2000                 # 최대 프롬프트 길이
-MAX_CONVERSATION_TURNS = 200             # 대화 세션당 최대 턴
+# Claude(일일 상한)
+DAILY_CLAUDE_LIMIT_FREE = 0
+DAILY_CLAUDE_LIMIT_PREMIUM = 30
+
+# 기능별 일일 제한
+DAILY_PRESET_RECOMMENDATION_LIMIT = 5
+DAILY_DIARY_ANALYSIS_LIMIT = 3
+DAILY_TODO_ADVICE_LIMIT = 5
+DAILY_FORTUNE_LIMIT = 1
+DAILY_EMOTION_ANALYSIS_LIMIT = $(AI_LIMITS_EMOTION_ANALYSIS)
+
+# 월간 통계(주간 1회 정책은 코드에서 처리)
+DAILY_MONTHLY_STATISTICS_LIMIT = 0
+
+# 할 일 ‘개별’ 조언 횟수(아이템당)
+AI_LIMITS_TODO_ADVICE_EACH = 1
+
+# 전역 보안 제한
+MAX_DAILY_REQUESTS = 100
+MAX_PROMPT_LENGTH = 2000
+MAX_CONVERSATION_TURNS = 200
 ```
+
+> 참고 파일: `WARP.md`(구성/흐름 개요), `DEEPSLEEP_COMPREHENSIVE_GUIDE.md`(검증 체크리스트), `AI_CONTEXT_MANAGEMENT_ROADMAP.md`(캐시/맥락/토큰 정책), `IOS_IAP_ROADMAP.md`(Paywall/IAP 동작)
 
 ---
 
@@ -437,13 +456,40 @@ MAX_CONVERSATION_TURNS = 200             # 대화 세션당 최대 턴
 3. 기존 AI 서비스 통합 기반 마련
 4. 보안 설정 시스템 검증
 
-### 🔄 진행 예정 작업
+### 🔄 진행 예정 작업 (업데이트)
 1. **시스템 프롬프트 파일 탐색 및 통합**
 2. **AIMode enum 확장 및 매핑**
-3. **UsageLimitManager 구현**
+3. ~~UsageLimitManager 구현~~ (완료: 티어별 채팅/Claude 상한/주간 1회 정책/80% 알림/버튼 라벨 연동)
 4. **분산된 AI 호출 지점 통합**
 5. **ViewController 리팩토링**
 6. **통합 테스트 및 성능 검증**
+
+---
+
+## 🆕 2025-08-29 업데이트 요약
+- 티어별 채팅 한도 도입: Free/Pro/Max(50/100/200)
+- Claude 일일 30회(Premium) 상한 + 초과 시 자동 Gemini 라우팅
+- 월간 통계 → 주간 1회(KST, 월요일 00:00 리셋)로 정책 정합화
+4. **Claude 상한·자동 라우팅**:
+   - Premium도 `DAILY_CLAUDE_LIMIT_PREMIUM`(기본 30) 적용
+   - 초과 시 UnifiedAIServiceImpl이 자동으로 Gemini(또는 다음 폴백)로 라우팅(무경고, 자연스러운 UX)
+
+5. **티어별 채팅 한도**:
+   - Free/Pro/Max에 따라 Info 키 우선순위로 적용
+     • Max: `AI_LIMITS_CHAT_MAX` / Pro: `AI_LIMITS_CHAT_PRO` / Free: `AI_LIMITS_CHAT`
+     • 하위 호환: `DAILY_CHAT_LIMIT_{FREE,PREMIUM}`
+   - 80%/100% 도달 시 알림 브로드캐스트 → ChatViewController에서 Alert + “업그레이드” CTA 표시
+
+6. **월간 통계 정책(주간 1회, KST)**:
+   - `UsageLimitManager.canUseWeeklyLimitedFeature(.kstMonday, key: "monthly_statistics")`
+   - 시작 전 안내에 이번 주 남은 횟수/리셋 시각 노출
+
+7. **버튼 남은 횟수 라벨**:
+   - 감정 일기 분석/월간(주간) 통계 버튼에 “(남은 n/총 m)” 또는 “(이번주 n/1)” 표시
+
+- 채팅 80%/100% 도달 Alert + Paywall CTA
+- 버튼 라벨에 남은 횟수 표시: 감정 일기 분석/월간(주간) 통계
+- 모든 한도/키는 `Secrets.xcconfig` → `Info.plist` → `ConfigReader` 경로로 로드
 
 ---
 

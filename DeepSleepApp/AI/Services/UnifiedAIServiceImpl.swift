@@ -259,6 +259,24 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         tokenConfig: TokenConfiguration,
         assembledPrompt: String?
 ) async throws -> AIResponse {
+
+        // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
+        if model == .claude {
+            let (canUseClaude, _, _) = claudeUsageStatus()
+            if !canUseClaude {
+                // Claude 상한 초과 → Gemini 우선 폴백
+                let fallbackModel: AIModel = availableModels.contains(.gemini) ? .gemini : (fallbackOrder.first { $0 != .claude } ?? .freeModel)
+                print("🔀 [UnifiedAIService] Claude 일일 상한 도달 → \(fallbackModel.rawValue)로 자동 라우팅")
+                return try await sendToSpecificModel(
+                    content: content,
+                    model: fallbackModel,
+                    mode: mode,
+                    context: context,
+                    tokenConfig: tokenConfig,
+                    assembledPrompt: assembledPrompt
+                )
+            }
+        }
         
         // 🎨 시스템 프롬프트 구성: assembledPrompt가 있으면 그것을 단일 시스템 프롬프트로 사용 (중복 제거)
         let systemPrompt: String = {
@@ -286,7 +304,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             guard let service = claudeService else {
                 throw AIServiceError.modelUnavailable(model: model)
             }
-            return try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
+            let result = try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
+            incrementClaudeUsage()
+            return result
             
         case .openAI:
             guard let service = openAIService else {
@@ -366,6 +386,39 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 processingTime: 0
             )
         }
+    }
+
+    // MARK: - Claude 일일 상한 관리
+    private func claudeUsageStatus() -> (canUse: Bool, current: Int, limit: Int) {
+        let isPremium = SubscriptionStatusCenter.shared.isPremium
+        let key = isPremium ? "DAILY_CLAUDE_LIMIT_PREMIUM" : "DAILY_CLAUDE_LIMIT_FREE"
+        let limit = ConfigReader.int(key, default: isPremium ? 30 : 0) ?? (isPremium ? 30 : 0)
+        let ud = UserDefaults.standard
+        let dateKey = claudeDateKey()
+        let today = todayString()
+        if ud.string(forKey: dateKey) != today {
+            ud.set(today, forKey: dateKey)
+            ud.set(0, forKey: claudeCountKey())
+        }
+        let count = ud.integer(forKey: claudeCountKey())
+        return (count < limit, count, limit)
+    }
+    private func incrementClaudeUsage() {
+        let ud = UserDefaults.standard
+        let today = todayString()
+        if ud.string(forKey: claudeDateKey()) != today {
+            ud.set(today, forKey: claudeDateKey())
+            ud.set(0, forKey: claudeCountKey())
+        }
+        let cur = ud.integer(forKey: claudeCountKey())
+        ud.set(cur + 1, forKey: claudeCountKey())
+    }
+    private func claudeCountKey() -> String { "claude_usage_count" }
+    private func claudeDateKey() -> String { "claude_usage_date" }
+    private func todayString() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
     }
     
     // MARK: - 🔄 Fallback 로직

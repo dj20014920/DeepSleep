@@ -62,5 +62,32 @@ struct GradientBadgePalette {
             alpha: (a1 + a2) / 2
         )
     }
-}
 
+    // 공유: 배지와 캘린더가 동일한 방식/속도로 색을 순환하도록 보간된 색 배열을 생성
+    static func interpolatedColors(from base: [UIColor], progress: CGFloat) -> [CGColor] {
+        guard !base.isEmpty else { return [] }
+        let count = base.count
+        var colors: [CGColor] = []
+        for i in 0..<count {
+            let pos = (CGFloat(i) / CGFloat(max(1, count - 1))) + progress
+            let idx = Int(floor(pos * CGFloat(count))) % count
+            let next = (idx + 1) % count
+            let frac = (pos * CGFloat(count)).truncatingRemainder(dividingBy: 1)
+            colors.append(interpolate(from: base[idx], to: base[next], fraction: frac).cgColor)
+        }
+        return colors
+    }
+
+    private static func interpolate(from: UIColor, to: UIColor, fraction: CGFloat) -> UIColor {
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        from.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        to.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return UIColor(
+            red: r1 + (r2 - r1) * fraction,
+            green: g1 + (g2 - g1) * fraction,
+            blue: b1 + (b2 - b1) * fraction,
+            alpha: a1 + (a2 - a1) * fraction
+        )
+    }
+}
