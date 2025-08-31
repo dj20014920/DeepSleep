@@ -1,6 +1,6 @@
 //
 //  SceneDelegate.swift
-//  DeepSleep
+//  EmoZleep
 //
 //  Created by 추동준 on 4/15/25.
 //
@@ -239,7 +239,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// 🚀 최적화된 메인 인터페이스 (안정적인 기본 탭바 시스템)
     func showOptimizedMainInterface() {
         print("🚀 [SceneDelegate] OptimizedTabBarController 적용")
-        
+
+        // 온보딩 체크 및 시작
+        if !OnboardingManager.shared.isOnboardingCompleted {
+            print("🎯 [SceneDelegate] 온보딩 미완료 - 온보딩 시작")
+            showOnboardingFirst()
+            return
+        }
+
         // 최적화된 탭바 컨트롤러 생성
         let optimizedTabController = OptimizedTabBarController()
         
@@ -325,6 +332,30 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // MARK: - 🧹 레거시 스와이프 코드 모두 제거됨
     // OptimizedTabBarController가 모든 스와이프 기능을 대체
     
+}
+
+// MARK: - 🎯 온보딩 관리
+
+extension SceneDelegate {
+    /// 🎯 온보딩 우선 표시
+    func showOnboardingFirst() {
+        print("🎯 [SceneDelegate] EmoZleep 온보딩 화면 표시")
+
+        let onboardingVC = OnboardingViewController()
+        onboardingVC.modalPresentationStyle = .fullScreen
+
+        // 현재 window의 rootViewController가 있다면 그 위에 표시
+        if let window = self.window,
+           let rootVC = window.rootViewController {
+            rootVC.present(onboardingVC, animated: true)
+        } else {
+            // window가 아직 설정되지 않은 경우
+            let tempVC = UIViewController()
+            tempVC.view.backgroundColor = .black
+            self.window?.rootViewController = tempVC
+            tempVC.present(onboardingVC, animated: true)
+        }
+    }
 }
 
 /*

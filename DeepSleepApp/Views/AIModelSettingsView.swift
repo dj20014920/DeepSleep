@@ -16,7 +16,7 @@ struct AIModelSettingsView: View {
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("당신과 대화할 AI 친구를 선택하세요")
+                    Text("당신과 대화할 대나무숲 친구를 선택하세요")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -63,7 +63,7 @@ struct AIModelSettingsView: View {
             }
             .padding(.bottom, 30)
         }
-        .navigationTitle("AI 모델 설정")
+        .navigationTitle("대나무숲 친구 설정")
         .navigationBarTitleDisplayMode(.inline)
     }
     

@@ -1,3 +1,10 @@
+//
+//  LaunchViewController.swift
+//  EmoZleep
+//
+//  Created on 2025-01-20.
+//
+
 import UIKit
 
 class LaunchViewController: UIViewController {
@@ -72,7 +79,7 @@ class LaunchViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 서브타이틀 추가
-        subtitleLabel.text = "AI와 함께하는 감정 기록"
+        subtitleLabel.text = "대나무숲 친구와 함께하는 감정 기록"
         subtitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .light)
         subtitleLabel.textColor = .white.withAlphaComponent(0.8)
         subtitleLabel.textAlignment = .center
@@ -176,6 +183,13 @@ class LaunchViewController: UIViewController {
     
     // MARK: - 안전한 화면 전환
     private func transitionToMainInterface() {
+        // 온보딩 완료 여부 먼저 체크
+        if !OnboardingManager.shared.isOnboardingCompleted {
+            print("🎯 [Launch] 온보딩 미완료 - 온보딩 시작")
+            showOnboarding()
+            return
+        }
+
         // 여러 방법으로 SceneDelegate에 접근 시도 (안정성 향상)
         if let windowScene = view.window?.windowScene,
            let sceneDelegate = windowScene.delegate as? SceneDelegate {
@@ -188,7 +202,13 @@ class LaunchViewController: UIViewController {
             fallbackTransition()
         }
     }
-    
+
+    private func showOnboarding() {
+        let onboardingVC = OnboardingViewController()
+        onboardingVC.modalPresentationStyle = .fullScreen
+        present(onboardingVC, animated: true)
+    }
+
     private func fallbackTransition() {
         guard let window = view.window else { return }
         

@@ -1,3 +1,8 @@
+//  EmotionDiaryViewController.swift
+//  EmoZleep
+//
+//  Created on 2025-01-20.
+
 import UIKit
 
 class EmotionDiaryViewController: UIViewController {
@@ -129,6 +134,13 @@ class EmotionDiaryViewController: UIViewController {
         super.viewWillAppear(animated)
         loadDiaryData()
         updateAIButtonsRemainingLabels()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        // 튜토리얼 표시 (최초 방문 시)
+        showTutorialIfNeeded()
     }
     
     // MARK: - Setup
@@ -542,6 +554,46 @@ class EmotionDiaryViewController: UIViewController {
         // UI 업데이트 로직
         DispatchQueue.main.async {
             // 여기에 UI 업데이트 코드 추가
+        }
+    }
+
+    // MARK: - 🎯 튜토리얼 시스템
+
+    private func showTutorialIfNeeded() {
+        // 온보딩이 완료된 후에만 튜토리얼 표시
+        guard OnboardingManager.shared.isOnboardingCompleted else { return }
+
+        let hasShownTutorial = UserDefaults.standard.bool(forKey: "HasShownDiaryTutorial")
+        guard !hasShownTutorial else { return }
+
+        // 튜토리얼 표시
+        showDiaryTutorial()
+    }
+
+    private func showDiaryTutorial() {
+        let alert = UIAlertController(
+            title: "📔 감정 일기 시작하기",
+            message: """
+            감정을 기록하고 대나무숲 친구와 함께 분석해보세요!
+
+            ✨ 주요 기능:
+            • 일기 쓰기 및 감정 기록
+            • 캘린더에서 감정 추이 확인
+            • 할 일 관리 및 리마인더
+            • 대나무숲 친구 인사이트 및 추천
+
+            💡 팁: 꾸준한 기록으로 자신의 감정 패턴을 발견해보세요!
+            """,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "알겠어요", style: .default) { _ in
+            UserDefaults.standard.set(true, forKey: "HasShownDiaryTutorial")
+        })
+
+        // 잠시 후 표시하여 자연스럽게
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.present(alert, animated: true)
         }
     }
 }

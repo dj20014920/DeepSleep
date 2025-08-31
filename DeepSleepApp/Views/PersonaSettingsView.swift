@@ -17,11 +17,11 @@ struct PersonaSettingsView: View {
                             .font(.system(size: 60))
                             .foregroundColor(.blue)
                         
-                        Text("AI 페르소나 설정")
+                        Text("대나무숲 페르소나 설정")
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("당신의 AI 어시스턴트를 개인화하세요")
+                        Text("당신의 대나무숲 친구를 개인화하세요")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -208,12 +208,12 @@ struct PersonaSettingsView: View {
                         HStack {
                             Image(systemName: "square.3.stack.3d.top.filled")
                                 .foregroundColor(.blue)
-                            Text("AI 엔진 설정")
+                            Text("대화 엔진 설정")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                         }
                         
-                        NavigationLink(destination: Text("AI 모델 설정 (준비 중)")) {
+                        NavigationLink(destination: Text("대나무숲 친구 설정 (준비 중)")) {
                             HStack {
                                 Text("사용 모델 변경")
                                 Spacer()

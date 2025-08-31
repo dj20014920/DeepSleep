@@ -1,3 +1,8 @@
+//  SettingsViewController.swift
+//  EmoZleep
+//
+//  Created on 2025-01-20.
+
 import UIKit
 import SwiftUI
 
@@ -37,6 +42,11 @@ class SettingsViewController: UIViewController {
         updateSubscriptionBadge()
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Settings 화면은 별도의 튜토리얼을 표시하지 않습니다(KISS/YAGNI).
+    }
+
     // MARK: - Setup Methods
     
     private func setupUI() {
@@ -140,7 +150,7 @@ class SettingsViewController: UIViewController {
         
         userInfoSection.addItem(SettingsItem(
             title: "사용 패턴 분석",
-            subtitle: "AI가 분석한 나의 음악/프리셋 선호도",
+            subtitle: "대나무숲 친구가 분석한 나의 음악/프리셋 선호도",
             type: .navigation,
             action: { [weak self] in
                 self?.showUsageAnalytics()
@@ -169,7 +179,7 @@ class SettingsViewController: UIViewController {
         // 앱 정보 항목들
         aboutSection.addItem(SettingsItem(
             title: "버전 정보",
-            subtitle: "DeepSleep v1.0.0",
+            subtitle: "EmoZleep v1.0.0",
             type: .info,
             action: nil
         ))
@@ -189,6 +199,15 @@ class SettingsViewController: UIViewController {
             type: .navigation,
             action: { [weak self] in
                 self?.showPolicyHub()
+            }
+        ))
+        
+        aboutSection.addItem(SettingsItem(
+            title: "🎯 앱 다시보기",
+            subtitle: "온보딩 및 튜토리얼 재시작",
+            type: .navigation,
+            action: { [weak self] in
+                self?.showOnboardingRestart()
             }
         ))
     }
@@ -323,6 +342,30 @@ extension SettingsViewController {
     private func showPolicyHub() {
         let hubVC = PolicyHubViewController()
         navigationController?.pushViewController(hubVC, animated: true)
+    }
+    
+    private func showOnboardingRestart() {
+        let alert = UIAlertController(
+            title: "🎯 EmoZleep 둘러보기",
+            message: "앱의 주요 기능들을 다시 한 번 살펴보시겠습니까?",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "다시보기", style: .default) { [weak self] _ in
+            // 온보딩 재시작
+            OnboardingManager.shared.restartOnboarding()
+
+            // 현재 화면을 닫고 온보딩 시작
+            self?.dismiss(animated: true) {
+                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
+                    sceneDelegate.showOnboardingFirst()
+                }
+            }
+        })
+
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+
+        present(alert, animated: true)
     }
 }
 

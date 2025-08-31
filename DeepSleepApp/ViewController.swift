@@ -1,3 +1,8 @@
+//  ViewController.swift
+//  EmoZleep
+//
+//  Created on 2025-01-20.
+
 import UIKit
 import AVFoundation
 import MediaPlayer
@@ -287,6 +292,9 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         
         // 🆕 초기화 완료 플래그 설정
         hasCompletedInitialSetup = true
+
+        // 튜토리얼 표시 (최초 방문 시)
+        showTutorialIfNeeded()
 
         // 광고 배너는 화면 표시 후 1회만 로드(중복 로드 방지)
         if !hasLoadedBannerOnce {
@@ -1113,6 +1121,46 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
             guard let self = self else { return }
             self.updatePresetBlocks()
             print("✅ [ViewController [\(self.instanceUUID)]] 최근 사용한 프리셋 UI 갱신 완료")
+        }
+    }
+
+    // MARK: - 🎯 튜토리얼 시스템
+
+    private func showTutorialIfNeeded() {
+        // 온보딩이 완료된 후에만 튜토리얼 표시
+        guard OnboardingManager.shared.isOnboardingCompleted else { return }
+
+        let hasShownTutorial = UserDefaults.standard.bool(forKey: "HasShownSoundTutorial")
+        guard !hasShownTutorial else { return }
+
+        // 튜토리얼 표시
+        showSoundTutorial()
+    }
+
+    private func showSoundTutorial() {
+        let alert = UIAlertController(
+            title: "🎵 수면 사운드 시작하기",
+            message: """
+            EmoZleep의 수면 사운드 기능을 만나보세요!
+
+            ✨ 주요 기능:
+            • 13가지 사운드 카테고리 (파도, 빗소리, 숲 등)
+            • 각 사운드의 볼륨 조절
+            • 대나무숲 친구 추천 프리셋 사용
+            • 타이머 설정으로 자동 종료
+
+            💡 팁: 현재 감정에 맞는 사운드를 선택해보세요!
+            """,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "알겠어요", style: .default) { _ in
+            UserDefaults.standard.set(true, forKey: "HasShownSoundTutorial")
+        })
+
+        // 잠시 후 표시하여 자연스럽게
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.present(alert, animated: true)
         }
     }
 }

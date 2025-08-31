@@ -67,10 +67,13 @@ final class OpenRouterFallbackManager {
     // 🎯 통합 무료 모델 리스트 (지능순 + 한국어 대화 + JSON 파싱 최적화)
     // 웹 검색 결과 기반으로 성능 순서 재배치 (2025년 8월 기준)
     private let unifiedFreeModels: [String] = [
+        // Tier 0: 대화 적합 기본값 (요청에 따라 GPT-OSS를 최우선)
+        "openai/gpt-oss-20b:free",                      // ✅ GPT-OSS (대화 기본값)
+        
         // Tier 1: 최고 성능 추론 모델들 (한국어 + JSON 특화)
-        "deepseek/deepseek-r1:free",                    // 🥇 최신 추론 모델, O3급 성능
-        "deepseek/deepseek-r1-0528:free",               // 🥈 안정화된 R1, 수학/코딩 우수
-        "deepseek/deepseek-r1-0528-qwen3-8b:free",     // 🥉 경량화된 R1, 8B로 235B급 성능
+        "deepseek/deepseek-r1:free",                    // 최신 추론 모델, O3급 성능
+        "deepseek/deepseek-r1-0528:free",               // 안정화된 R1, 수학/코딩 우수
+        "deepseek/deepseek-r1-0528-qwen3-8b:free",     // 경량화된 R1, 8B로 235B급 성능
         
         // Tier 2: 대형 고성능 모델들 (한국어 우수)
         "qwen/qwen-2.5-72b-instruct:free",             // 72B 대형, JSON 생성 특화

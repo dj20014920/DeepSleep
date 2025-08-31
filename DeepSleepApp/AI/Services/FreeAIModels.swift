@@ -56,19 +56,21 @@ public enum FreeAIModel: String, CaseIterable {
     
     var priority: Int {
         switch self {
+        // Tier 0 - 최우선: GPT-OSS
+        case .openAIGPTOSS: return 1
         // Tier 1
-        case .qwenCoder32B: return 1
-        case .llamaUltra405B: return 2
-        case .qwen72B: return 3
+        case .qwenCoder32B: return 2
+        case .llamaUltra405B: return 3
+        case .qwen72B: return 4
         // Tier 2
-        case .geminiFlash: return 4
-        case .deepseekR1: return 5
-        case .nemotronUltra: return 6
+        case .geminiFlash: return 5
+        case .deepseekR1: return 6
+        case .nemotronUltra: return 7
         // Tier 3
-        case .mistralSmall: return 7
-        case .llama70B: return 8
-        case .gemma27B: return 9
-        case .qwq32B: return 10
+        case .mistralSmall: return 8
+        case .llama70B: return 9
+        case .gemma27B: return 10
+        case .qwq32B: return 11
         // 추가 모델
         default: return 99
         }
@@ -84,8 +86,8 @@ public enum FreeAIModel: String, CaseIterable {
             // 감정 분석 - DeepSeek이 강함
             return .deepseekR1
         case .generalConversation:
-            // 일반 대화 - 빠르고 안정적인 모델
-            return .qwenCoder32B
+            // 일반 대화 - GPT-OSS 우선
+            return .openAIGPTOSS
         case .taskAdvice, .monthlyStatistics:
             // 구조화된 응답 - Qwen이 JSON에 강함
             return .qwen72B

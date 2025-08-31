@@ -93,10 +93,10 @@ extension ViewController {
         button.titleLabel?.font = .systemFont(ofSize: 11, weight: .bold)
         button.titleLabel?.numberOfLines = 2
         button.titleLabel?.textAlignment = .center
-        button.setTitle("🧠\nAI 추천", for: .normal)
+        button.setTitle("🧠\n\(BrandingCopy.recommendationName)", for: .normal)
         button.setTitleColor(UIDesignSystem.Colors.accent, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.tag = 999 // AI 추천 버튼 식별용
+        button.tag = 999 // 대나무숲 추천 버튼 식별용
         button.addTarget(self, action: #selector(aiRecommendButtonTapped), for: .touchUpInside)
         
         // 그라데이션 효과 추가

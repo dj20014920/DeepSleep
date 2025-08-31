@@ -110,7 +110,7 @@ extension EmotionAnalysisQuickActionView {
             QuickAction(title: "🎯 개선 방법이 궁금해요", intent: "improvement_tips", icon: "arrow.up.circle"),
             QuickAction(title: "📈 감정 변화 추이 설명해주세요", intent: "trend_analysis", icon: "chart.line.uptrend.xyaxis"),
             QuickAction(title: "💡 스트레스 관리 조언 주세요", intent: "stress_management", icon: "brain.head.profile"),
-            QuickAction(title: "🧠 AI 추천받기", intent: "ai_recommendation", icon: "sparkles"),
+            QuickAction(title: BrandingCopy.quickActionAIRecommendationTitle(), intent: "ai_recommendation", icon: "sparkles"),
             QuickAction(title: "🏠 로컬 추천받기", intent: "local_recommendation", icon: "house")
         ]
     }
@@ -122,4 +122,4 @@ extension EmotionAnalysisQuickActionView {
         get { stackView.arrangedSubviews }
         set { }
     }
-} 
+}

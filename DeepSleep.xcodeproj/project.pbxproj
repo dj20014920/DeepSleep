@@ -189,6 +189,11 @@
 		E0B562302E61909A00D334F1 /* ProxyTierReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */; };
 		E0B562322E6190CA00D334F1 /* ProxySecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */; };
 		E0B562382E645BD200D334F1 /* ProxyAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */; };
+		E0B5623B2E647EF500D334F1 /* AIResponsePostProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */; };
+		E0B5623D2E647EFE00D334F1 /* BrandingCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5623C2E647EFE00D334F1 /* BrandingCopy.swift */; };
+		E0B562412E647F1200D334F1 /* OnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562402E647F1200D334F1 /* OnboardingManager.swift */; };
+		E0B562432E647F1A00D334F1 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */; };
+		E0B562452E6488F800D334F1 /* FeatureTutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -412,6 +417,11 @@
 		E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxySecretStore.swift; sourceTree = "<group>"; };
 		E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_FROXYSERVER.md; sourceTree = "<group>"; };
 		E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyAuthSigner.swift; sourceTree = "<group>"; };
+		E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponsePostProcessor.swift; sourceTree = "<group>"; };
+		E0B5623C2E647EFE00D334F1 /* BrandingCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandingCopy.swift; sourceTree = "<group>"; };
+		E0B562402E647F1200D334F1 /* OnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingManager.swift; sourceTree = "<group>"; };
+		E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewController.swift; sourceTree = "<group>"; };
+		E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureTutorialManager.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -533,6 +543,7 @@
 		E084F05C2E33ACB3002F75E6 /* AI */ = {
 			isa = PBXGroup;
 			children = (
+				E0B5623A2E647EF500D334F1 /* Response */,
 				E0E7BC9B2E53664B00FF7073 /* Context */,
 				E0E7BC9D2E53664B00FF7073 /* Memory */,
 				E0E7BC9F2E53664B00FF7073 /* Optimization */,
@@ -655,6 +666,10 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */,
+				E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */,
+				E0B562402E647F1200D334F1 /* OnboardingManager.swift */,
+				E0B5623C2E647EFE00D334F1 /* BrandingCopy.swift */,
 				E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */,
 				E0899CA12E6038A2006AD307 /* Calendar */,
 				E0899C922E5EE8B1006AD307 /* Ads */,
@@ -822,6 +837,14 @@
 				E09CD6E52E466707007C133E /* MemoryProfiler.swift */,
 			);
 			path = Utils;
+			sourceTree = "<group>";
+		};
+		E0B5623A2E647EF500D334F1 /* Response */ = {
+			isa = PBXGroup;
+			children = (
+				E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */,
+			);
+			path = Response;
 			sourceTree = "<group>";
 		};
 		E0E7BC9B2E53664B00FF7073 /* Context */ = {
@@ -1060,6 +1083,7 @@
 				E084F1942E33ACB3002F75E6 /* TypingIndicatorCell.swift in Sources */,
 				E084F1952E33ACB3002F75E6 /* UserRulesManager.swift in Sources */,
 				E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */,
+				E0B562432E647F1A00D334F1 /* OnboardingViewController.swift in Sources */,
 				E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */,
 				E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */,
 				E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */,
@@ -1100,6 +1124,7 @@
 				E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */,
 				E084F1B22E33ACB3002F75E6 /* AppConfig.swift in Sources */,
 				E084F1B32E33ACB3002F75E6 /* Models.swift in Sources */,
+				E0B5623B2E647EF500D334F1 /* AIResponsePostProcessor.swift in Sources */,
 				E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */,
 				E084F1B42E33ACB3002F75E6 /* UIColorExtensions.swift in Sources */,
 				E084F1B52E33ACB3002F75E6 /* ToastManager.swift in Sources */,
@@ -1180,6 +1205,7 @@
 				E084F1EF2E33ACB3002F75E6 /* InsightCell.swift in Sources */,
 				E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */,
 				E084F1F12E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift in Sources */,
+				E0B5623D2E647EFE00D334F1 /* BrandingCopy.swift in Sources */,
 				E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */,
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
 				E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */,
@@ -1192,6 +1218,7 @@
 				E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */,
 				E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */,
 				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
+				E0B562412E647F1200D334F1 /* OnboardingManager.swift in Sources */,
 				E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */,
 				E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */,
 				E0899C892E5CB6FE006AD307 /* CentralNotificationScheduler.swift in Sources */,
@@ -1204,6 +1231,7 @@
 				E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */,
 				E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */,
 				E084F2002E33ACB3002F75E6 /* ConsoleLogger.swift in Sources */,
+				E0B562452E6488F800D334F1 /* FeatureTutorialManager.swift in Sources */,
 				E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */,
 				E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */,
 				E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */,
@@ -1358,6 +1386,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
@@ -1367,7 +1396,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 1.1;
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROXY_AUTH_USE_NONCE = YES;
@@ -1396,7 +1426,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 1.1;
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROXY_AUTH_USE_NONCE = YES;

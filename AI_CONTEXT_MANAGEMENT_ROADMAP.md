@@ -163,6 +163,36 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 
 ## 2025-08-29 동기화: 사용량 한도·라벨·폴백 정책
 
+## 2025-08-31 동기화: 인사 억제·브랜딩 카피·온보딩 UI(한국어)
+
+이번 동기화는 컨텍스트/응답 후처리와 사용자-facing 카피 정책, 온보딩 UI 개선을 문서에 반영합니다.
+
+핵심 변경
+- 반복 인사 억제: 시스템 프롬프트에 "반복 인사/닉네임 과다 사용 금지" 지침 추가 + AIResponsePostProcessor로 후속 턴 인사 제거(첫 인사 유지)
+- 브랜딩 카피 중앙화: BrandingCopy.swift 생성 및 구독/추천/분석 관련 문구를 상수화(DRY). 프로젝트 전역 UI에서 "AI 모델/AI 추천/AI가" → 브랜드 톤으로 치환
+- 온보딩 UI 인식 강화: 페르소나 단계에 핵심 버튼 비활성(미리보기) + 캡션 추가. 구독 미리보기 라벨은 BrandingCopy 상수 사용
+
+치환 가이드(사용자-facing 텍스트만)
+- "AI 모델" → "대나무숲 친구 모델"
+- "AI 추천" → BrandingCopy.recommendationName 또는 quickActionAIRecommendationTitle()
+- "AI가 ~" → "대나무숲 친구가 ~"
+- "AI " 접두사 → 문맥에 따라 "대나무숲/대나무숲 친구"로 조정
+
+검증 체크리스트(8/31)
+- [x] OnboardingViewController: 구독 미리보기에 BrandingCopy.subscriptionFreeLabel/ProLabel 사용
+- [x] Persona/Settings/UsageAnalytics 주요 화면의 사용자-facing 텍스트 치환 완료
+- [x] UnifiedAIServiceImpl 경로에서 인사 후처리 로그/메타데이터 확인 가능
+
+추가 코드 동기화(2025-08-31)
+- ChatViewController에 restoreMessagesFromStorage 구현(저장 → UI 모델 매핑) 및 showTutorialIfNeeded(간단 알림) 추가
+- SettingsViewController에서 튜토리얼 호출 제거(설정 화면은 미표시 정책)
+- OnboardingViewController의 메인 진입 방식 표준화: SceneDelegate.showOptimizedMainInterface 우선, 불가 시 Notification("GoToMainScreen") 폴백
+
+후속 권장
+- 주요 CTA(예: 추천 시작, 분석 실행)에도 미리보기+캡션 패턴 확장 여부 협의
+- BrandingCopy에 추가 카피(analysisCompleteTitle, analysisReasonLabel 등) 지속 통합
+- 전역 정적 텍스트에 대한 스크립트 기반 검증(치환 누락 자동 탐지) 도입
+
 요약
 - 한도/티어/주간 정책은 코드 단일화(UsageLimitManager)로 관리하며, 화면은 얇은 어댑터(AIUsageManager)로만 사용함.
 - 채팅: Free/Pro/Max 티어별 한도 적용. 80%/100% 도달 시 Alert로 남은 횟수/자정 리셋/업그레이드 CTA 제공.

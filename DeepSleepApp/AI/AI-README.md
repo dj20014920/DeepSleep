@@ -194,3 +194,60 @@ let response = try await aiService.sendMessage(
 **💡 팁**: 개발 중에는 `AppConfig.Development.isDebugMode = true`로 설정하여 상세한 디버그 정보를 확인할 수 있습니다.
 
 **🚀 베타 테스트**: 통합 무료 모델을 우선 사용하여 비용 절감과 안정성을 동시에 확보하세요!
+
+## 🆕 2025-08-31 브랜드/온보딩 동기화(한국어)
+
+본 업데이트는 사용자-facing 문구를 일관된 브랜드 톤으로 통일하고, 온보딩 UI의 이해도를 높이기 위한 개선 사항을 문서화합니다.
+
+1) 브랜딩 카피 중앙화(BrandingCopy.swift)
+- 파일: DeepSleepApp/BrandingCopy.swift
+- 주요 상수
+  - subscriptionFreeLabel = "무료: 기본 대나무숲 친구 모델 + 50회/일"
+  - subscriptionProLabel = "프리미엄: 모든 대나무숲 친구 모델 + 무제한"
+  - recommendationName = "대나무숲 추천"
+  - quickActionAIRecommendationTitle() = "🧠 대나무숲 분석 추천"
+- 사용 가이드
+  - 사용자 UI에서 구독/추천/분석 관련 문구는 하드코딩하지 말고 BrandingCopy를 통해 접근합니다(DRY).
+
+2) 전역 문구 치환 정책(사용자 노출 UI만)
+- 치환 대상(예시)
+  - "AI 모델" → "대나무숲 친구 모델"
+  - "AI 추천" → BrandingCopy.recommendationName 또는 quickActionAIRecommendationTitle()
+  - "AI가 ~" → "대나무숲 친구가 ~"
+  - 선행 "AI " 접두사 → 문맥에 따라 "대나무숲 " 또는 "대나무숲 친구 "로 조정
+- 주의: 타입/클래스/로그/주석 등 비-UI 텍스트는 치환 대상에서 제외합니다.
+- 적용 사례
+  - AIModelSettingsView: 내비게이션 타이틀/설명문 카피 업데이트
+  - PersonaSettingsView: 페르소나/엔진 설정 문구 업데이트
+  - SettingsViewController: "사용 패턴 분석" 섹션의 부제에서 "AI가" → "대나무숲 친구가"
+  - UsageAnalyticsViewController: 헤더/카드 타이틀의 "AI" → "대나무숲" 정렬
+
+3) 온보딩 UI 인식 강화
+- OnboardingViewController.subscriptionIntro: 구독 미리보기 라벨을 BrandingCopy의 상수로 표시
+- OnboardingViewController.aiPersonaSetup: 핵심 버튼의 비활성 미리보기(알파 0.5) + 캡션 추가
+  - 캡션 예시: "이 버튼으로 친구를 고를 수 있어요. 설정에서 언제든 변경 가능"
+- 동일 패턴은 추후 주요 CTA에도 점진 적용(협의 필요)
+
+4) 반복 인사 억제(컨텍스트 관리와 연계)
+- 시스템 프롬프트에 반복 인사/닉네임 과다 사용 방지 지침을 명시(코드 반영 완료)
+- AIResponsePostProcessor: 이전 턴에 인사가 있었을 때 후속 응답에서 선행 인사를 제거(첫 인사는 유지)
+- 적용 경로: UnifiedAIServiceImpl.sendMessageInternal(프록시/직접 모두)
+
+5) 구독 라벨·정책 일치 확인(Secrets.xcconfig)
+- 무료 50회/일 정책 확인: DAILY_CHAT_LIMIT_FREE=50, AI_LIMITS_CHAT=50
+- Pro/Max 등급 키는 UsageLimitManager가 우선순위에 따라 로드(Info.plist 매핑 경유)
+
+검증 체크리스트
+- [x] 온보딩 구독 미리보기는 BrandingCopy 상수로 표시됨
+- [x] 설정/분석 화면 등 사용자-facing 텍스트의 "AI 모델/AI 추천/AI가"가 브랜드 톤으로 치환됨
+- [x] 첫 인사 유지, 이후 반복 인사 제거(로그/메타데이터 표기)
+
+5) 컴파일 오류 정리(2025-08-31)
+- ChatViewController: restoreMessagesFromStorage 구현(저장된 메시지 → UI 모델 매핑) 및 showTutorialIfNeeded(간단 Alert) 추가
+- SettingsViewController: viewDidAppear의 튜토리얼 호출 제거(KISS/YAGNI)
+- OnboardingViewController: 메인 전환 단일 진입점(SceneDelegate.showOptimizedMainInterface) 우선, 미존재 시 Notification("GoToMainScreen") 폴백
+
+후속 작업(문서용)
+- [ ] 브랜딩 치환 누락 자동검사용 스크립트 도입 여부 결정
+- [ ] Secrets.xcconfig 키 레퍼런스 표(주요 키 요약) 추가
+- [ ] 컨텍스트/응답 후처리 디버그 로그 예시 샘플 업데이트

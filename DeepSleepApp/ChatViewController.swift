@@ -1148,7 +1148,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         setupPaging()
         
         // 🎯 중앙집중식 메시지 복원 - 하나의 메서드만 호출
-        restoreAndInitializeMessages()
+        restoreMessagesFromStorage()
+        
+        // 튜토리얼 표시 (초기화 완료 후)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.showTutorialIfNeeded()
+        }
         
         // 이어서 대화하기: 특정 세션 메시지로 교체 로드
         if let sessionId = resumeSessionId {
@@ -1227,6 +1232,53 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         saveChatHistory()
     }
 
+    // MARK: - 초기 데이터 복원/튜토리얼
+    private func restoreMessagesFromStorage() {
+        // 중앙 저장소(SessionManager)에서 최근 메시지 로드 후 UI 모델로 매핑
+        let stored = SessionManager.shared.getRecentChatMessages(limit: 100)
+        var mapped = stored.map { storedMessage in
+            let sender: MessageSender = {
+                switch storedMessage.role {
+                case "assistant": return .ai
+                case "user": return .user
+                case "system": return .system
+                default: return .user
+                }
+            }()
+            let fixedType: ChatMessageType = {
+                if storedMessage.type == .text {
+                    switch sender {
+                    case .user: return .user
+                    case .ai: return .bot
+                    case .system: return .system
+                    }
+                }
+                return storedMessage.type
+            }()
+            let finalText = (sender == .ai) ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            return ChatMessage(text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
+        }
+        mapped = deduplicateMessages(mapped)
+        self.messages = mapped
+        self.tableView.reloadData()
+        self.scrollToBottom()
+    }
+    
+    private func showTutorialIfNeeded() {
+        // ChatViewController 전용 간단 튜토리얼 (최초 1회)
+        let key = "HasShownChatTutorial"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let alert = UIAlertController(
+            title: "🌟 대화 시작 가이드",
+            message: "하단의 '🎵 지금 기분에 맞는 사운드 추천받기' 버튼을 눌러보세요!\n또는 마음속 이야기를 자유롭게 적어보셔도 좋아요.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
+            UserDefaults.standard.set(true, forKey: key)
+        })
+        present(alert, animated: true)
+    }
+
     @objc private func handleAIUsageThreshold(_ note: Notification) {
         guard let mode = note.userInfo?["mode"] as? String,
               mode == AIMode.generalConversation.rawValue else { return }
@@ -1291,20 +1343,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         let alert = UIAlertController(
             title: "🌟 대나무숲에 오신 것을 환영합니다!",
             message: """
-            대나무숲은 당신의 마음을 이해하고 공감하는 AI 친구입니다.
+            대나무숲은 당신의 마음을 이해하고 공감하는 친구입니다.
             
             ✨ 주요 기능:
             
             1️⃣ 페르소나 설정
-            나만의 AI 친구를 만들어보세요! 설정 > AI 페르소나에서 성격과 대화 스타일을 선택할 수 있습니다.
+            나만의 대나무숲 친구를 만들어보세요! 설정 > 대나무숲 친구 페르소나에서 성격과 대화 스타일을 선택할 수 있습니다.
             
             2️⃣ 핵심 기억 관리
-            중요한 대화는 길게 눌러 '핵심 기억'으로 저장하세요. AI가 당신을 더 잘 기억하고 이해할 수 있게 됩니다.
+            중요한 대화는 길게 눌러 '핵심 기억'으로 저장하세요. 대나무숲 친구가 당신을 더 잘 기억하고 이해할 수 있게 됩니다.
             
             3️⃣ 맞춤형 사운드 추천
-            현재 감정과 상황에 맞는 수면 사운드를 AI가 추천해드립니다.
+            현재 감정과 상황에 맞는 수면 사운드를 대나무숲 친구가 추천해드립니다.
             
-            💡 Tip: 대화를 나눌수록 AI가 당신을 더 잘 이해하게 됩니다!
+            💡 Tip: 대화를 나눌수록 대나무숲 친구가 당신을 더 잘 이해하게 됩니다!
             """,
             preferredStyle: .alert
         )
@@ -1324,7 +1376,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             
             // 안내 메시지 추가
             let guideMessage = ChatMessage(
-                text: "💡 언제든지 설정 > AI 페르소나에서 나만의 AI 친구를 만들 수 있어요!",
+                text: "💡 언제든지 설정 > 대나무숲 친구 페르소나에서 나만의 대나무숲 친구를 만들 수 있어요!",
                 sender: .ai,
                 type: .system
             )
@@ -1809,6 +1861,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         print("✅ AI 추천 생성 완료")
         
         // 추천 시간 기록
+       
         lastRecommendationTime = Date()
         
         return PresetRecommendationResponse(
@@ -1882,7 +1935,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private func showFeedbackPrompt(presetName: String) {
         let alert = UIAlertController(
             title: "🧠 대나무숲 학습 도움", 
-            message: "방금 추천받은 '\(presetName)'는 어떠셨나요? 피드백을 주시면 AI가 더 정확해집니다!", 
+            message: "방금 추천받은 '\(presetName)'는 어떠셨나요? 피드백을 주시면 대나무숲 친구가 더 정확해집니다!", 
             preferredStyle: .alert
         )
         
@@ -2009,7 +2062,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     private func showQuickFeedbackThankYou() {
-        let message = ChatMessage(text: "🙏 피드백 감사합니다! AI가 조금 더 똑똑해졌어요. 계속 학습하여 더 나은 추천을 드리겠습니다!", sender: .ai, type: .bot)
+        let message = ChatMessage(text: "🙏 피드백 감사합니다! 대나무숲 친구가 조금 더 똑똑해졌어요. 계속 학습하여 더 나은 추천을 드리겠습니다!", sender: .ai, type: .bot)
         appendChat(message)
         
         // ✅ ML 관련 성능 메트릭 제거됨 - 기본 로깅으로 대체
@@ -2024,7 +2077,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private func displayAIRecommendation(_ recommendation: EnhancedRecommendationResponse) {
         let message = """
         **[\(recommendation.presetName)]**
-        \(recommendation.reason ?? "AI가 분석한 추천 프리셋입니다.")
+        \(recommendation.reason ?? "대나무숲 친구가 분석한 추천 프리셋입니다.")
         
         신뢰도: 70%
         """
@@ -2047,7 +2100,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 현재 표시 중인 메시지 중 추천 선택(.recommendationSelector) 버블이 있으면 제목 갱신
         let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
         let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
-        let aiTitle = "AI 분석 추천받기 (\(remaining)/\(total))"
+        let aiTitle = "대나무숲 분석 추천받기 (\(remaining)/\(total))"
 
         // 최신 recommendationSelector 메시지를 찾아 quickActions 업데이트
         if let idx = displayMessages.lastIndex(where: { $0.type == .recommendationSelector }) {
@@ -2070,14 +2123,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             return nil
         }
         
-        let presetName = aiResponse.presetName ?? "AI 추천"
-        let description = aiResponse.reason ?? "AI가 사용자의 현재 상태에 맞춰 추천하는 사운드 프리셋입니다."
+        let presetName = aiResponse.presetName ?? "대나무숲 추천"
+        let description = aiResponse.reason ?? "대나무숲 친구가 사용자의 현재 상태에 맞춰 추천하는 사운드 프리셋입니다."
 
         // SoundPreset을 생성합니다.
         return SoundPreset(
             name: presetName,
             volumes: volumes,
-            emotion: aiResponse.emotion,
+            emotion: nil,
             isAIGenerated: true,
             description: description
         )
@@ -2085,7 +2138,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     private func showPresetOptions(for preset: SoundPreset) {
         let message = ChatMessage(
-            text: "AI가 다음 프리셋을 추천했습니다: **\(preset.name)**\n*\(preset.description ?? "")*\n\n이 프리셋을 적용하시겠습니까?",
+            text: "대나무숲 친구가 다음 프리셋을 추천했습니다: **\(preset.name)**\n*\(preset.description ?? "")*\n\n이 프리셋을 적용하시겠습니까?",
             sender: .ai,
             type: .presetRecommendation,
             quickActions: [
@@ -2322,6 +2375,7 @@ extension ChatViewController {
         return nil
     }
     
+    
     private func setupNavigationBar() {
         // 네비게이션 바 표시 설정
         navigationController?.setNavigationBarHidden(false, animated: false)
@@ -2507,17 +2561,10 @@ extension ChatViewController {
     
     @objc private func handleUserTyping() {
         adoptOverrideSessionIfNeeded()
-    }
-    
-    // MARK: - 누락된 함수들 추가
-    
-    @objc private func presetButtonTapped() {
-        UnifiedLogger.shared.debug("프리셋 버튼 탭됨 - 퀵액션 생성", category: .ui)
-        
         // 남은 횟수/총 한도를 실시간 반영 (무료 3회/유료 7회)
         let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
         let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
-        let aiTitle = "AI 분석 추천받기 (\(remaining)/\(total))"
+        let aiTitle = "대나무숲 분석 추천받기 (\(remaining)/\(total))"
 
         // 퀵액션을 보여주는 메시지 생성
         let quickActions = [
@@ -2536,6 +2583,11 @@ extension ChatViewController {
     }
     
     /// 채팅 내용에서 현재 감정 상태 분석
+    @objc private func presetButtonTapped() {
+        // 추천 선택 UI를 동일하게 띄운다
+        handleUserTyping()
+    }
+    
     private func analyzeCurrentEmotionFromChat() -> String {
         // 최근 5개 메시지에서 감정 키워드 추출
         let recentMessages = messages.suffix(5)
@@ -3312,7 +3364,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 // 과학 프리셋으로 폴백
                 let presetMessage = """
                 **[\(scientific.presetName)]**
-                \(scientific.reason ?? "AI가 분석한 추천 프리셋입니다.")
+                \(scientific.reason ?? "대나무숲 친구가 분석한 추천 프리셋입니다.")
 
                 로컬 알고리즘(과학 프리셋)으로 현재 시간대에 최적화된 사운드 조합을 선별했습니다.
                 """
@@ -3752,7 +3804,7 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
         }
         
         // 데이터 유효성 검증 및 보정
-        var resolvedName: String = aiResponse.presetName ?? "AI 추천"
+        var resolvedName: String = aiResponse.presetName ?? "대나무숲 추천"
         var volumes: [Float] = aiResponse.volumes ?? []
         var outVersions: [Int] = SoundPresetCatalog.defaultVersions
         // presetKey 우선 사용

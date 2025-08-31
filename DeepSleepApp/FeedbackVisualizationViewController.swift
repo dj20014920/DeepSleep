@@ -244,7 +244,7 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func createLearningProgressView() -> UIView {
-        let containerView = createChartContainer(title: "🧠 AI 학습 진행도")
+        let containerView = createChartContainer(title: "🧠 대나무숲 학습 진행도")
         
         let progressView = AILearningProgressView(metrics: learningMetrics)
         let hostingController = UIHostingController(rootView: progressView)
@@ -266,7 +266,7 @@ class FeedbackVisualizationViewController: UIViewController {
     }
     
     private func createAIInsightsView() -> UIView {
-        let containerView = createChartContainer(title: "💡 AI 학습 인사이트")
+        let containerView = createChartContainer(title: "💡 대나무숲 학습 인사이트")
         
         let insights = generateAIInsights()
         let insightsView = AIInsightsView(insights: insights)
@@ -444,12 +444,12 @@ class FeedbackVisualizationViewController: UIViewController {
         }
         
         // 학습 진행도 인사이트
-        insights.append(AIInsight(
-            title: "🧠 학습 진행도",
-            description: "AI 추천 정확도 \(String(format: "%.1f", metrics.learningAccuracy * 100))% 달성",
-            confidence: metrics.learningAccuracy,
-            impact: metrics.learningAccuracy > 0.7 ? "높음" : "보통"
-        ))
+            insights.append(AIInsight(
+                title: "🧠 학습 진행도",
+                description: "대나무숲 추천 정확도 \(String(format: "%.1f", metrics.learningAccuracy * 100))% 달성",
+                confidence: metrics.learningAccuracy,
+                impact: metrics.learningAccuracy > 0.7 ? "높음" : "보통"
+            ))
         
         return insights
     }

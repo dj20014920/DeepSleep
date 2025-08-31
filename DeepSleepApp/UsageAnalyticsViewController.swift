@@ -29,7 +29,7 @@ class UsageAnalyticsViewController: UIViewController {
     
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "📊 AI가 분석한 나의 패턴"
+        label.text = "📊 대나무숲 친구가 분석한 나의 패턴"
         label.font = UIFont.boldSystemFont(ofSize: 22)
         label.textColor = UIDesignSystem.Colors.primaryText
         label.textAlignment = .center
@@ -229,7 +229,7 @@ class UsageAnalyticsViewController: UIViewController {
     }
     
     private func createAIInsightsCard() -> UIView {
-        let cardView = createAnalyticsCard(title: "🤖 AI 분석 인사이트", subtitle: "SessionManager 데이터 기반 분석")
+        let cardView = createAnalyticsCard(title: "🧠 대나무숲 분석 인사이트", subtitle: "SessionManager 데이터 기반 분석")
         
         let insightsContainer = UIView()
         insightsContainer.translatesAutoresizingMaskIntoConstraints = false

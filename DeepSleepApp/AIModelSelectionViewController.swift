@@ -6,7 +6,7 @@ class AIModelSelectionViewController: UIViewController {
     
     // MARK: - Properties
     
-    var currentSelectedModel: AIModelType = .claude35
+    var currentSelectedModel: AIModelType = SettingsManager.shared.selectedLLM
     var onModelSelected: ((AIModelType) -> Void)?
     
     private let scrollView = UIScrollView()
@@ -136,8 +136,8 @@ class AIModelSelectionViewController: UIViewController {
             (
                 type: AIModelType.freeModel,
                 personality: "베타 테스터를 위한 무료 친구",
-                specialties: ["무료 이용", "다양한 AI 모델", "자동 전환", "한국어 지원"],
-                strengths: "여러 무료 AI 모델을 자동으로 전환하며 최적의 답변을 제공해요",
+                specialties: ["무료 이용", "다양한 대나무숲 친구 모델", "자동 전환", "한국어 지원"],
+                strengths: "여러 무료 대나무숲 친구 모델을 자동으로 전환하며 최적의 답변을 제공해요",
                 bestFor: "부담 없는 대화, 다양한 스타일 체험, 베타 테스트"
             ),
             (

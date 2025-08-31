@@ -233,7 +233,32 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 roleMessages.append(RoleMessage(role: .user, content: content))
             }
             print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
-            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+            let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+            let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                response: rawResp.content,
+                history: context?.conversationHistory,
+                nickname: nickname
+            )
+            var addInfo = rawResp.metadata.additionalInfo
+            addInfo["greeting_stripped"] = (reason != nil)
+            if let r = reason { addInfo["greeting_stripped_reason"] = r }
+            let newMeta = ResponseMetadata(
+                emotionAnalysis: rawResp.metadata.emotionAnalysis,
+                recommendations: rawResp.metadata.recommendations,
+                confidenceScore: rawResp.metadata.confidenceScore,
+                additionalInfo: addInfo
+            )
+            return AIResponse(
+                id: rawResp.id,
+                model: rawResp.model,
+                mode: rawResp.mode,
+                content: processedText,
+                metadata: newMeta,
+                usage: rawResp.usage,
+                timestamp: rawResp.timestamp,
+                processingTime: rawResp.processingTime
+            )
         }
 
         let selectedModel = getSelectedModel(preferredModel: model)
@@ -270,7 +295,35 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             case .approved:
                 let processingTime = Date().timeIntervalSince(startTime)
                 print("✅ [UnifiedAIService] 메시지 전송 완료 - 처리시간: \(Int(processingTime * 1000))ms")
-                return response
+                // Post-process to reduce repetitive greetings after the first assistant turn
+                let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+                let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                    response: response.content,
+                    history: context?.conversationHistory,
+                    nickname: nickname
+                )
+                if let r = reason {
+                    print("✂️ [UnifiedAIService] Stripped leading greeting (\(r))")
+                }
+                var addInfo = response.metadata.additionalInfo
+                addInfo["greeting_stripped"] = (reason != nil)
+                if let r = reason { addInfo["greeting_stripped_reason"] = r }
+                let newMeta = ResponseMetadata(
+                    emotionAnalysis: response.metadata.emotionAnalysis,
+                    recommendations: response.metadata.recommendations,
+                    confidenceScore: response.metadata.confidenceScore,
+                    additionalInfo: addInfo
+                )
+                return AIResponse(
+                    id: response.id,
+                    model: response.model,
+                    mode: response.mode,
+                    content: processedText,
+                    metadata: newMeta,
+                    usage: response.usage,
+                    timestamp: response.timestamp,
+                    processingTime: response.processingTime
+                )
             }
             
         } catch {
@@ -739,6 +792,8 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
         - 개인정보를 외부에 저장하지 마세요. 세션 내 제공된 대화 히스토리를 바탕으로 맥락을 이어가세요.
         - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 범위에서 자연스럽게 이어가세요.
+        - 반복 인사 방지: 첫 응답에서만 간단한 인사가 허용됩니다. 이후 메시지는 "안녕하세요" 등의 인사로 시작하지 말고 바로 본론으로 들어가세요.
+        - 호칭 과다 사용 금지: 사용자 닉네임은 필요할 때에만 드물게 사용하세요(매 턴 반복 금지).
         """
         
         // 페르소나 코어 시그니처(모델 불문) 구성 (외부 전송 금지, 캐시 키로만 사용)

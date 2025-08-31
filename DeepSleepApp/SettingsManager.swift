@@ -129,7 +129,7 @@ public class SettingsManager {
                     return AIModelType(from: llmType)
                 }
             }
-            return .claude35 // 기본 모델
+            return .gemini // 기본 모델
         }
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
