@@ -2,6 +2,7 @@
 # =====================================================
 ..*
 *.sh
+*.disabled
 CLAUDE.md
 .specstory
 build_test

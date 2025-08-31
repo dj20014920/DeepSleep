@@ -18,8 +18,8 @@ struct BrandingCopy {
     static let analysisLabel = "\(friend) 분석"
     static let analysisReasonLabel = "\(friend) 추천 이유"
 
-    static let subscriptionFreeLabel = "무료: 기본 대나무숲 친구 모델 + 50회/일"
-    static let subscriptionProLabel = "프리미엄: 모든 대나무숲 친구 모델 + 무제한"
+    static let subscriptionFreeLabel = "무료: 기본 대나무숲 친구 모델 + 일기 분석 + 음원 추천 + 할 일 조언 + 더 많은 기능"
+    static let subscriptionProLabel = "프리미엄: + 대나무숲 친구 모델 선택 가능, 더 많은 사용량"
 
     static let botNamePrefix = "\(friend): "
 

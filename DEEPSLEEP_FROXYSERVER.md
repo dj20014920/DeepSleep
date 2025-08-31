@@ -106,6 +106,7 @@
 - ALLOWED_ORIGINS로 허용 Origin 제어(콤마 구분). 비어 있으면 모두 허용.
 - iOS 네이티브는 기본적으로 Origin 헤더를 보내지 않지만, 본 앱은 일관성을 위해 Origin: https://emozleep.app 를 항상 전송합니다. 반드시 ALLOWED_ORIGINS에 https://emozleep.app 를 포함하세요.
 - 웹에서 커스텀 헤더를 읽을 수 있도록 Access-Control-Expose-Headers에 정책/프로바이더 헤더를 명시했습니다.
+- 클라이언트는 ProxyAuthConfig.origin 상수를 통해 동일 Origin을 사용합니다(하드코딩 분산 금지, DRY).
 
 
 8) 환경 변수/시크릿
@@ -117,7 +118,7 @@
 - 시크릿(대시보드 또는 `wrangler secret put`)
   - EDGE_SIGNING_SECRET
   - CLAUDE_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY
-  - NAVER_API_KEY, NAVER_API_SECRET
+  - NAVER_CLOUD_API_KEY  ← 단일 키로 통일 (형식: key:secret)
   - OPENROUTER_API_KEY
 - KV 바인딩
   - 이름: USAGE_KV (wrangler.toml에 선언)
@@ -139,7 +140,8 @@ C. Variables(일반 변수)
 
 D. Secrets(시크릿)
 - Settings → Variables → Add → Set as Secret
-  - EDGE_SIGNING_SECRET, CLAUDE_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, NAVER_API_KEY, NAVER_API_SECRET, OPENROUTER_API_KEY
+  - EDGE_SIGNING_SECRET, CLAUDE_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, NAVER_CLOUD_API_KEY, OPENROUTER_API_KEY
+  - 주의: 기존 NAVER_API_KEY/NAVER_API_SECRET 사용 중이면, 서버 코드 업데이트 전까지 병행 유지 가능. 최종적으로는 NAVER_CLOUD_API_KEY=key:secret 단일 형태로 이관합니다.
 
 E. 라우트/커스텀 도메인(선택)
 - Triggers → Custom domains → Add custom domain
@@ -199,6 +201,7 @@ F. 로그/테일
 13) 스모크 테스트(curl)
 - 스크립트: /Users/dj20014920/Desktop/DeepSleep/scripts/proxy_smoke_test.sh
 - 시크릿은 절대 명령줄에 직접 쓰지 마세요. 환경 변수로 주입하세요.
+- CI 정책 헤더 점검 스크립트: scripts/ci_proxy_policy_check.sh (성공 응답에서 X-Provider/X-Policy-* 포함 확인)
 
 A. 프리플라이트(CORS/웹 테스트용)
   curl -i -X OPTIONS \
@@ -257,6 +260,20 @@ C. 서명된 채팅(비스트리밍)
 - KV TTL: Cloudflare 최소 60초 준수(자정 만료는 secondsUntilKSTMidnight())
 - Nonce 재사용 방지(권장): nonce:{uid}:{nonce} 키를 KV에 300초 TTL로 저장(Set if not exists). 중복 감지 시 401/409 반환
 
+
+15.1) 절대 변경 금지(Immutable Contract) — 반드시 준수
+- 헤더 명세: X-Emozleep-UID/Tier/Timestamp/(Nonce?)/Sig — 철자/대소문자/콜론 구분 포함
+- 서명 원문: "{ts}:{uid}:{tier}:{nonce?}" — Nonce 사용 여부만 분기, 순서 변경 금지
+- Origin: https://emozleep.app — 클라이언트 상수화(ProxyAuthConfig.origin), 서버 ALLOWED_ORIGINS에 반드시 포함
+- 엔드포인트 경로/메서드: POST /v1/enroll, POST /v1/chat, POST /v1/subscription/report, OPTIONS /v1/chat — 오타/경로 변경 금지
+- 정책 헤더: X-Provider, X-Policy-Tier, X-Policy-ResetAt(+09:00), X-Policy-Claude-Remaining — 노출 이름 고정
+- Naver 시크릿: NAVER_CLOUD_API_KEY=key:secret 단일 형태 — 이전 NAVER_API_KEY/NAVER_API_SECRET 병행 사용 금지(이관 완료 후 제거)
+
+15.2) 왜 이렇게 고정하나요?(배경/이유)
+- 클라이언트와 서버 간 서명·헤더는 프로토콜 계약입니다. 작은 오타/순서 변경도 인증 실패를 유발합니다.
+- Origin은 CORS/정책 노출(Expose-Headers)의 전제이며, 다중 하드코딩은 유지보수 리스크입니다. 중앙 상수화로 오탈자/누락 방지.
+- Naver 키 단일화는 설정/문서/대시보드의 중복을 제거하여 운영 위험을 낮춥니다.
+- 정책 헤더 명세 고정은 iOS UI 싱크(남은 횟수/리셋 시각)와 로그/모니터링의 일관성을 보장합니다.
 
 16) 트러블슈팅
 - 401 Unauthorized

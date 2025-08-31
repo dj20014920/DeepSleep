@@ -39,7 +39,7 @@ enum ProxyTierReporter {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
+        req.setValue(ProxyAuthConfig.origin, forHTTPHeaderField: "Origin")
         req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
         req.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
         req.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")

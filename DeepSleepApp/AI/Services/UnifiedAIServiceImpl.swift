@@ -80,15 +80,37 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // MARK: - 🔧 서비스 초기화
     
     private func initializeServices() {
-        // 프록시 모드에서는 개별 API 서비스 초기화를 건너뛴다 (키 불필요)
+        // 프록시 모드에서는 원칙적으로 서버가 단일 진실(SSOT)입니다.
+        // 그러나 개발 환경(DEBUG)에서는 프록시 장애/인증 실패 시를 대비해
+        // 안전 폴백 경로를 활성화합니다.
         if EnvironmentConfig.shared.useProxy {
+            #if DEBUG
+            // 1) 무료 모델 폴백 초기화(있을 경우)
+            if getAPIKey(for: .freeModel) != nil {
+                freeModelService = OpenRouterFallbackManager.shared
+                print("🛟 [UnifiedAIService] DEBUG 프록시 모드: freeModelService 초기화(안전 폴백)")
+            } else {
+                freeModelService = nil
+                print("⚠️ [UnifiedAIService] DEBUG 프록시 모드: OPENROUTER_API_KEY 미설정 (무료 폴백 비활성)")
+            }
+            // 2) 로컬 직접 서비스도 초기화해 '직접 폴백' 경로 유지(프록시 실패 시에만 사용)
+            if let claudeKey = getAPIKey(for: .claude) { claudeService = ClaudeAPIService(apiKey: claudeKey) }
+            if let openAIKey = getAPIKey(for: .openAI) { openAIService = OpenAIAPIService(apiKey: openAIKey) }
+            if let geminiKey = getAPIKey(for: .gemini) { geminiService = GeminiAPIService(apiKey: geminiKey) }
+            if let naverKey = getAPIKey(for: .naver) { naverService = NaverAPIService(apiKey: naverKey) }
+            // 주의: 실제 호출은 항상 프록시 우선이며, 아래 sendMessageInternal에서 프록시 실패 시에만 사용됩니다.
+            return
+            #else
+            // Release: 프록시 모드에서는 클라이언트 키를 사용하지 않음(보안/심사).
             claudeService = nil
             openAIService = nil
             geminiService = nil
             naverService = nil
             freeModelService = nil
             return
+            #endif
         }
+        // 프록시 미사용: 로컬 서비스를 정상 초기화
         // Claude 서비스 초기화
         if let claudeKey = getAPIKey(for: .claude) {
             claudeService = ClaudeAPIService(apiKey: claudeKey)
@@ -219,46 +241,91 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
         // 🛰️ 프록시 모드 절대 우선: 어떤 로컬 라우팅/폴백보다 먼저 서버 프록시로 보낸다.
         if EnvironmentConfig.shared.useProxy {
-            let proxyURL = try resolveProxyBaseURL()
-            var roleMessages: [RoleMessage] = []
-            if let assembled = assembledPrompt, !assembled.isEmpty {
-                roleMessages.append(RoleMessage(role: .system, content: assembled))
-            } else {
-                let sys = generateOptimizedSystemPrompt(for: mode, model: model)
-                roleMessages.append(RoleMessage(role: .system, content: sys))
-                if let history = context?.conversationHistory, !history.isEmpty {
-                    let recent = Array(history.suffix(16))
-                    for turn in recent { roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)) }
+            do {
+                let proxyURL = try resolveProxyBaseURL()
+                var roleMessages: [RoleMessage] = []
+                if let assembled = assembledPrompt, !assembled.isEmpty {
+                    roleMessages.append(RoleMessage(role: .system, content: assembled))
+                } else {
+                    let sys = generateOptimizedSystemPrompt(for: mode, model: model)
+                    roleMessages.append(RoleMessage(role: .system, content: sys))
+                    if let history = context?.conversationHistory, !history.isEmpty {
+                        let recent = Array(history.suffix(16))
+                        for turn in recent { roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)) }
+                    }
+                    roleMessages.append(RoleMessage(role: .user, content: content))
                 }
-                roleMessages.append(RoleMessage(role: .user, content: content))
+                print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
+                let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+                let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+                let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                    response: rawResp.content,
+                    history: context?.conversationHistory,
+                    nickname: nickname
+                )
+                var addInfo = rawResp.metadata.additionalInfo
+                addInfo["greeting_stripped"] = (reason != nil)
+                if let r = reason { addInfo["greeting_stripped_reason"] = r }
+                let newMeta = ResponseMetadata(
+                    emotionAnalysis: rawResp.metadata.emotionAnalysis,
+                    recommendations: rawResp.metadata.recommendations,
+                    confidenceScore: rawResp.metadata.confidenceScore,
+                    additionalInfo: addInfo
+                )
+                return AIResponse(
+                    id: rawResp.id,
+                    model: rawResp.model,
+                    mode: rawResp.mode,
+                    content: processedText,
+                    metadata: newMeta,
+                    usage: rawResp.usage,
+                    timestamp: rawResp.timestamp,
+                    processingTime: rawResp.processingTime
+                )
+            } catch let AIServiceError.serverError(statusCode) {
+                // 인증/서버 오류 → DEBUG에서만 안전 폴백(통합 무료 모델 → 로컬 직접 서비스 순)
+                #if DEBUG
+                if statusCode == 401 || statusCode == 403 || statusCode >= 500 {
+                    // 1) OpenRouter 무료 폴백 우선
+                    if let freeService = freeModelService {
+                        print("🛟 [UnifiedAIService] Proxy 오류(\(statusCode)) → OpenRouter 안전 폴백 시도")
+                        var messages: [OpenRouterFallbackManager.ORMessage] = []
+                        if let assembled = assembledPrompt, !assembled.isEmpty {
+                            messages.append(.init(role: "system", content: assembled))
+                        } else {
+                            messages.append(.init(role: "system", content: generateOptimizedSystemPrompt(for: mode, model: .freeModel)))
+                            if let history = context?.conversationHistory, !history.isEmpty {
+                                let recent = Array(history.suffix(16))
+                                for turn in recent {
+                                    messages.append(.init(role: turn.role.rawValue, content: turn.content))
+                                }
+                            }
+                        }
+                        messages.append(.init(role: "user", content: content))
+                        let responseText = try await freeService.sendMessageWithFallback(messages: messages, mode: mode)
+                        let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+                        let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: ["provider": "openrouter", "fallback": true])
+                        return AIResponse(id: UUID().uuidString, model: .freeModel, mode: mode, content: responseText, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(startTime)*1000))
+                    }
+                    // 2) 무료 모델이 없거나 실패한 경우: 로컬 직접 서비스 폴백(프록시 우회)
+                    if hasAnyDirectServiceAvailable() {
+                        print("🛟 [UnifiedAIService] Proxy 오류(\(statusCode)) → 로컬 직접 서비스 폴백 시도")
+                        return try await sendDirectBypassingProxy(
+                            content: content,
+                            preferredModel: model,
+                            mode: mode,
+                            context: context,
+                            assembledPrompt: assembledPrompt
+                        )
+                    } else {
+                        print("⚠️ [UnifiedAIService] 직접 폴백 불가: 로컬 서비스 미초기화 또는 키 누락")
+                    }
+                }
+                #endif
+                throw AIServiceError.serverError(statusCode: statusCode)
+            } catch {
+                throw error
             }
-            print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
-            let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
-            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-            let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                response: rawResp.content,
-                history: context?.conversationHistory,
-                nickname: nickname
-            )
-            var addInfo = rawResp.metadata.additionalInfo
-            addInfo["greeting_stripped"] = (reason != nil)
-            if let r = reason { addInfo["greeting_stripped_reason"] = r }
-            let newMeta = ResponseMetadata(
-                emotionAnalysis: rawResp.metadata.emotionAnalysis,
-                recommendations: rawResp.metadata.recommendations,
-                confidenceScore: rawResp.metadata.confidenceScore,
-                additionalInfo: addInfo
-            )
-            return AIResponse(
-                id: rawResp.id,
-                model: rawResp.model,
-                mode: rawResp.mode,
-                content: processedText,
-                metadata: newMeta,
-                usage: rawResp.usage,
-                timestamp: rawResp.timestamp,
-                processingTime: rawResp.processingTime
-            )
         }
 
         let selectedModel = getSelectedModel(preferredModel: model)
@@ -1125,6 +1192,95 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         
         return optimizedConfig
     }
+    
+    /// DEBUG 전용: 로컬 직접 서비스 사용 가능 여부
+    private func hasAnyDirectServiceAvailable() -> Bool {
+        return claudeService != nil || openAIService != nil || geminiService != nil || naverService != nil
+    }
+
+    /// DEBUG 전용: 프록시 우회하여 로컬 서비스로 직접 전송(안전 폴백)
+    /// - 주의: EnvironmentConfig.shared.useProxy가 true여도 이 경로는 프록시를 사용하지 않습니다.
+    private func sendDirectBypassingProxy(
+        content: String,
+        preferredModel: AIModel,
+        mode: AIMode,
+        context: AIContext?,
+        assembledPrompt: String?
+    ) async throws -> AIResponse {
+        // 최적 모델 선택(기본 선호 존중)
+        let model = getOptimalModelForMode(mode: mode, userPreferred: preferredModel)
+        // 시스템 프롬프트
+        let systemPrompt: String = {
+            if let assembled = assembledPrompt, !assembled.isEmpty { return assembled }
+            return generateOptimizedSystemPrompt(for: mode, model: model)
+        }()
+        // 역할 기반 메시지 구성
+        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
+        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
+            let recent = Array(history.suffix(16))
+            for turn in recent {
+                roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+            }
+        }
+        roleMessages.append(RoleMessage(role: .user, content: content))
+        // 모델별 직접 호출
+        let tokenCfg = optimizeTokenConfigForModel(mode.recommendedTokenConfig, model: model, mode: mode)
+        let response: AIResponse
+        switch model {
+        case .claude:
+            guard let service = claudeService else { throw AIServiceError.modelUnavailable(model: .claude) }
+            response = try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+        case .openAI:
+            guard let service = openAIService else { throw AIServiceError.modelUnavailable(model: .openAI) }
+            response = try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+        case .gemini:
+            guard let service = geminiService else { throw AIServiceError.modelUnavailable(model: .gemini) }
+            response = try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+        case .naver:
+            guard let service = naverService else { throw AIServiceError.modelUnavailable(model: .naver) }
+            response = try await service.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+        case .freeModel:
+            // freeModelService가 없으므로, 차선인 Gemini/OpenAI/Claude/Naver 순으로 선택
+            if let svc = geminiService {
+                return try await svc.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+            } else if let svc = openAIService {
+                return try await svc.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+            } else if let svc = claudeService {
+                return try await svc.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+            } else if let svc = naverService {
+                return try await svc.sendMessages(messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+            } else {
+                throw AIServiceError.modelUnavailable(model: .freeModel)
+            }
+        }
+        // 출력 후처리(인사 제거)
+        let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+        let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+            response: response.content,
+            history: context?.conversationHistory,
+            nickname: nickname
+        )
+        if let r = reason { print("✂️ [UnifiedAIService] Direct fallback: leading greeting stripped (\(r))") }
+        var addInfo = response.metadata.additionalInfo
+        addInfo["fallback"] = true
+        addInfo["fallback_path"] = "direct_local"
+        let newMeta = ResponseMetadata(
+            emotionAnalysis: response.metadata.emotionAnalysis,
+            recommendations: response.metadata.recommendations,
+            confidenceScore: response.metadata.confidenceScore,
+            additionalInfo: addInfo
+        )
+        return AIResponse(
+            id: response.id,
+            model: model,
+            mode: response.mode,
+            content: processedText,
+            metadata: newMeta,
+            usage: response.usage,
+            timestamp: response.timestamp,
+            processingTime: response.processingTime
+        )
+    }
 }
 
 // MARK: - Proxy inline call
@@ -1155,7 +1311,7 @@ extension UnifiedAIServiceImpl {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
             r.httpMethod = "POST"
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            r.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
+            r.setValue(ProxyAuthConfig.origin, forHTTPHeaderField: "Origin")
             r.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
@@ -1182,15 +1338,24 @@ extension UnifiedAIServiceImpl {
         let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
 
         // Device secret 확보: Keychain → 없으면 enroll 호출. DEBUG에서는 마지막 폴백 허용
+        print("🔐 [UnifiedAIService] 프록시 인증 준비 - UID: \(uid), Tier: \(tier)")
         let effectiveSecret: String
         do {
             effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyURL)
+            print("✅ [UnifiedAIService] 시크릿 확보 성공")
         } catch {
+            print("⚠️ [UnifiedAIService] ProxyAuthClient 실패: \(error)")
             #if DEBUG
             let fallback = EnvironmentConfig.shared.clientProxyHmacSecret
-            guard !fallback.isEmpty else { throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING") }
-            effectiveSecret = fallback
+            if !fallback.isEmpty {
+                print("🔄 [UnifiedAIService] DEBUG 모드: CLIENT_PROXY_HMAC_SECRET 폴백 사용")
+                effectiveSecret = fallback
+            } else {
+                print("❌ [UnifiedAIService] CLIENT_PROXY_HMAC_SECRET도 비어있음")
+                throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING")
+            }
             #else
+            print("❌ [UnifiedAIService] 프로덕션 모드: 시크릿 없음")
             throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING")
             #endif
         }
@@ -1198,10 +1363,29 @@ extension UnifiedAIServiceImpl {
         let start = Date()
         let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
         let sigMessage = ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: useNonce ? nonce : nil)
+        print("🔏 [UnifiedAIService] 서명 생성 - Message: \(sigMessage)")
+        
         let req = try makeRequest(sigMessage: sigMessage, includeNonce: useNonce)
+        print("📤 [UnifiedAIService] 프록시 요청 전송: \(proxyURL.absoluteString)/v1/chat")
+        
         let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+        
+        guard let http = resp as? HTTPURLResponse else {
+            print("❌ [UnifiedAIService] 프록시 응답이 HTTP가 아님")
+            throw AIServiceError.serverError(statusCode: -1)
+        }
+        
+        print("📥 [UnifiedAIService] 프록시 응답: HTTP \(http.statusCode)")
+        
+        guard (200...299).contains(http.statusCode) else {
+            let code = http.statusCode
+            if code == 401 {
+                print("❌ [UnifiedAIService] 401 인증 실패 - 시크릿이 잘못되었거나 만료됨")
+            } else if code == 403 {
+                print("❌ [UnifiedAIService] 403 권한 없음 - Origin 또는 티어 문제")
+            } else {
+                print("❌ [UnifiedAIService] 프록시 오류: \(code)")
+            }
             throw AIServiceError.serverError(statusCode: code)
         }
         struct ProxyResp: Codable { let provider: String; let content: String }

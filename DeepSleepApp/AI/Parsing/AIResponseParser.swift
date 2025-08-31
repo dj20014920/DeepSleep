@@ -46,11 +46,37 @@ public final class AIResponseParser {
 
     // 공통 키 우선
     private func parseCommon(_ json: [String: Any]) -> String? {
-        let keys = ["message", "response", "text", "content"]
+        // 1) 가장 흔한 키 우선
+        let keys = ["message", "response", "text", "content", "answer", "output", "result", "reply"]
         for k in keys {
-            if let v = json[k] as? String, v.isEmpty == false { return v }
+            if let v = json[k] as? String, v.isEmpty == false { return unescapeIfNeeded(v) }
+        }
+        // 2) 중첩 객체 내부에 위 키들이 있을 수 있음 → 1단계만 탐색 (KISS)
+        for (_, value) in json {
+            if let nested = value as? [String: Any] {
+                for k in keys {
+                    if let v = nested[k] as? String, v.isEmpty == false { return unescapeIfNeeded(v) }
+                }
+            }
         }
         return nil
+    }
+    
+    /// JSON 문자열로 이스케이프된 값일 경우 원복(예: \"...\" → ")
+    private func unescapeIfNeeded(_ s: String) -> String {
+        // 양끝이 쌍따옴표로 둘러싸였고, 내부에 이스케이프가 많은 경우 간단 복원
+        var out = s
+        if (out.hasPrefix("\"") && out.hasSuffix("\"")) || out.contains("\\\"") || out.contains("\\n") || out.contains("\\t") {
+            out = out.replacingOccurrences(of: "\\\"", with: "\"")
+            out = out.replacingOccurrences(of: "\\n", with: "\n")
+            out = out.replacingOccurrences(of: "\\t", with: "\t")
+            // 바깥쪽 따옴표 제거
+            if out.hasPrefix("\"") && out.hasSuffix("\"") {
+                out.removeFirst()
+                out.removeLast()
+            }
+        }
+        return out
     }
 
     // 공급자별 경로

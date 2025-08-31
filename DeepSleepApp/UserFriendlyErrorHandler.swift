@@ -11,6 +11,36 @@ final class UserFriendlyErrorHandler {
     
     /// 에러를 사용자가 이해하기 쉬운 메시지로 변환
     func getUserFriendlyMessage(for error: Error) -> String {
+        // AIServiceError 우선 처리
+        if let ai = error as? AIServiceError {
+            switch ai {
+            case .serverError(let code):
+                if code == 401 || code == 403 {
+                    return "프록시 인증이 필요해요. 🔐\n개발 환경이라면 PROXY_BASE_URL/CLIENT_PROXY_HMAC_SECRET를 확인하고, 문제가 지속되면 잠시 후 다시 시도해주세요."
+                } else {
+                    return "일시적인 서버 오류가 발생했어요. 🔧\n잠시 후 다시 시도해주세요. (코드 \(code))"
+                }
+            case .usageLimitExceeded(let msg):
+                return msg
+            case .quotaExceeded:
+                return "모델 할당량을 초과했어요. 내일 다시 이용해주세요."
+            case .unauthorized:
+                return "인증이 만료되었거나 키가 유효하지 않아요. 설정을 확인해주세요."
+            default:
+                break
+            }
+        }
+        
+        // 일부 런타임/동시성 경로에서 Swift Error → NSError로 브리징될 수 있음
+        // 이 경우에도 401/403을 정확히 인식해 사용자에게 안내
+        let desc = String(describing: error)
+        let lower = (error.localizedDescription + " " + desc).lowercased()
+        if lower.contains("401") || lower.contains("403") {
+            if lower.contains("server") || lower.contains("서버") || lower.contains("servererror") {
+                return "프록시 인증이 필요해요. 🔐\n개발 환경이라면 PROXY_BASE_URL/CLIENT_PROXY_HMAC_SECRET를 확인하고, 문제가 지속되면 잠시 후 다시 시도해주세요."
+            }
+        }
+        
         switch error {
         case let urlError as URLError:
             return handleNetworkError(urlError)

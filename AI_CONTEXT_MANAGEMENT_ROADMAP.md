@@ -210,6 +210,19 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 - Proxy: emozleep/src/worker.js, wrangler.toml(바인딩/Vars), Info/Secrets 매핑(USE_PROXY, PROXY_BASE_URL, CLIENT_PROXY_HMAC_SECRET)
 
 운영/관측 포인트
+
+Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
+- HMAC 서명 원문: "{ts}:{uid}:{tier}:{nonce?}" (Nonce 사용 시 포함, 순서 고정)
+- 요청 헤더: X-Emozleep-UID/Tier/Timestamp/(Nonce?)/Sig (대소문자/하이픈 포함 정확히 일치)
+- Origin: https://emozleep.app (ProxyAuthConfig.origin 상수로 관리, 하드코딩 분산 금지)
+- 엔드포인트/메서드: POST /v1/enroll, POST /v1/chat, POST /v1/subscription/report, OPTIONS /v1/chat
+- 정책 헤더: X-Provider, X-Policy-Tier, X-Policy-ResetAt(+09:00), X-Policy-Claude-Remaining
+- Naver 키: NAVER_CLOUD_API_KEY=key:secret (단일 키). 과거 NAVER_API_KEY/NAVER_API_SECRET 표기는 폐기.
+
+이유(Why)
+- 클라이언트-서버 간 인증/정책 헤더는 프로토콜 계약입니다. 사소한 오타나 순서 변경은 인증 실패를 유발합니다.
+- Origin 상수화로 누락/오탈자 리스크 제거(DRY). 서버 ALLOWED_ORIGINS와의 정합성 보장.
+- Naver 키 단일화로 문서/대시보드/코드의 중복 제거 및 운영 안정성 향상.
 - Alert 트리거 시점과 리셋 시각(자정, KST 주간)을 로그에 함께 남겨 CS/분석에 활용
 - 폴백 발생 로그는 모델쌍(from→to)과 사유를 함께 기록(ContextMetrics)
 - [ ] UnifiedAIServiceImpl 메트릭 TODO를 ContextMetrics로 통합
