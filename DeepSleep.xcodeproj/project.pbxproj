@@ -188,6 +188,7 @@
 		E0B5622C2E61778500D334F1 /* GradientAnimationSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */; };
 		E0B562302E61909A00D334F1 /* ProxyTierReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */; };
 		E0B562322E6190CA00D334F1 /* ProxySecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */; };
+		E0B562382E645BD200D334F1 /* ProxyAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -409,6 +410,8 @@
 		E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientAnimationSpec.swift; sourceTree = "<group>"; };
 		E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyTierReporter.swift; sourceTree = "<group>"; };
 		E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxySecretStore.swift; sourceTree = "<group>"; };
+		E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_FROXYSERVER.md; sourceTree = "<group>"; };
+		E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyAuthSigner.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -461,6 +464,7 @@
 		A00F = {
 			isa = PBXGroup;
 			children = (
+				E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */,
 				E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */,
 				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
@@ -578,6 +582,7 @@
 		E084F06B2E33ACB3002F75E6 /* Security */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */,
 				E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */,
 				E084F0682E33ACB3002F75E6 /* InputValidationManager.swift */,
 				E084F06A2E33ACB3002F75E6 /* SecureStorageManager.swift */,
@@ -1101,6 +1106,7 @@
 				E084F1B62E33ACB3002F75E6 /* SettingsSectionView.swift in Sources */,
 				E084F1B72E33ACB3002F75E6 /* EmotionResponseManager.swift in Sources */,
 				E084F1B82E33ACB3002F75E6 /* FeedbackPromptViewController.swift in Sources */,
+				E0B562382E645BD200D334F1 /* ProxyAuthSigner.swift in Sources */,
 				E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */,
 				E0899C932E5EE8B1006AD307 /* AdsManager.swift in Sources */,
 				E0E7BCCB2E561E3300FF7073 /* KSTDatePolicy.swift in Sources */,
@@ -1364,12 +1370,12 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USE_PROXY = YES;
-			PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
 				PROXY_AUTH_USE_NONCE = YES;
+				PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				USE_PROXY = YES;
 			};
 			name = Debug;
 		};
@@ -1393,12 +1399,12 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USE_PROXY = YES;
-			PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
 				PROXY_AUTH_USE_NONCE = YES;
+				PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				USE_PROXY = YES;
 			};
 			name = Release;
 		};

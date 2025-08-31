@@ -4,28 +4,47 @@ import StoreKit
 enum ProxyTierReporter {
     static func report(passiveFrom transaction: Transaction) async {
         guard EnvironmentConfig.shared.useProxy,
-              let url = URL(string: EnvironmentConfig.shared.proxyBaseURL)?.appendingPathComponent("v1/subscription/report")
+              let proxyBase = URL(string: EnvironmentConfig.shared.proxyBaseURL)
         else { return }
+        let url = proxyBase.appendingPathComponent("v1/subscription/report")
 
-        // 최소 보안: HMAC 인증 헤더(프록시에서 per-device 비밀 검증)
+        // 공통 헤더 값
         let uid: String = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
         let tier = tierFor(productId: transaction.productID)
         let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
-        let secret = "" // 클라이언트 비밀은 Keychain에서 프록시 호출시만 사용하므로 여기선 헤더만 보내고 프록시가 device secret으로 HMAC 검증
-        // 여기서는 하위 호환: 서명 없이도 프록시가 device secret 기반 HMAC만 요구하므로, 최소한의 헤더만 첨부 (UnifiedAIServiceImpl에서 enroll/서명 수행)
+        let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
+        let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
 
-        var body: [String: Any] = [
-            "productId": transaction.productID
-        ]
+        // per-device secret 확보(없으면 enroll)
+        let secret: String
+        do {
+            secret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyBase)
+        } catch {
+            #if DEBUG
+            let fallback = EnvironmentConfig.shared.clientProxyHmacSecret
+            guard !fallback.isEmpty else { return }
+            secret = fallback
+            #else
+            return
+            #endif
+        }
+        let signingMessage = ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: useNonce ? nonce : nil)
+        let sig = ProxyAuthSigner.hmacSHA256Hex(message: signingMessage, secret: secret)
+
+        var body: [String: Any] = ["productId": transaction.productID]
         if let exp = transaction.expirationDate {
             body["expiresAtMs"] = Int64(exp.timeIntervalSince1970 * 1000)
         }
+
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
         req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
         req.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
         req.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
+        if useNonce { req.setValue(nonce, forHTTPHeaderField: "X-Emozleep-Nonce") }
+        req.setValue(sig, forHTTPHeaderField: "X-Emozleep-Sig")
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         _ = try? await URLSession.shared.data(for: req)
     }

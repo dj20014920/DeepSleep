@@ -1105,7 +1105,7 @@ extension UnifiedAIServiceImpl {
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
             if includeNonce { r.setValue(nonce, forHTTPHeaderField: "X-Emozleep-Nonce") }
-            let signature = hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
+            let signature = ProxyAuthSigner.hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             return r
@@ -1125,23 +1125,24 @@ extension UnifiedAIServiceImpl {
         let tier: String = { switch StoreKitSubscriptionManager.shared.currentTier { case .free: return "free"; case .pro: return "pro"; case .max: return "max" } }()
         let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
         let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
-        // Secret: Keychain 우선 → 없으면 enroll → 최후 fallback: xcconfig
-        var secret = keychainLoadSecret(for: uid)
-        if secret == nil {
-            if let enrolled = try? await enrollSecret(uid: uid, proxyBase: proxyURL) {
-                keychainSaveSecret(enrolled, for: uid)
-                secret = enrolled
-            }
+
+        // Device secret 확보: Keychain → 없으면 enroll 호출. DEBUG에서는 마지막 폴백 허용
+        let effectiveSecret: String
+        do {
+            effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyURL)
+        } catch {
+            #if DEBUG
+            let fallback = EnvironmentConfig.shared.clientProxyHmacSecret
+            guard !fallback.isEmpty else { throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING") }
+            effectiveSecret = fallback
+            #else
+            throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING")
+            #endif
         }
-        #if DEBUG
-        let effectiveSecret = secret ?? EnvironmentConfig.shared.clientProxyHmacSecret
-        #else
-        guard let effectiveSecret = secret else { throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING") }
-        #endif
 
         let start = Date()
         let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
-        let sigMessage = useNonce ? "\(ts):\(uid):\(tier):\(nonce)" : "\(ts):\(uid):\(tier)"
+        let sigMessage = ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: useNonce ? nonce : nil)
         let req = try makeRequest(sigMessage: sigMessage, includeNonce: useNonce)
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
@@ -1169,49 +1170,14 @@ extension UnifiedAIServiceImpl {
         let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: addInfo)
         return AIResponse(id: UUID().uuidString, model: preferred, mode: mode, content: proxy.content, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(start)*1000))
     }
-    private func enrollSecret(uid: String, proxyBase: URL) async throws -> String {
-        var req = URLRequest(url: proxyBase.appendingPathComponent("v1/enroll"))
-        req.httpMethod = "POST"
-        req.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
-        req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
-        let (data, response) = try await URLSession.shared.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw AIServiceError.serverError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
-        }
-        struct EnrollResp: Codable { let secret: String }
-        let r = try JSONDecoder().decode(EnrollResp.self, from: data)
-        return r.secret
-    }
-    private func keychainLoadSecret(for uid: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                    kSecAttrService as String: "emozleep.proxy.hmac",
-                                    kSecAttrAccount as String: uid,
-                                    kSecReturnData as String: true]
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-    private func keychainSaveSecret(_ secret: String, for uid: String) {
-        let data = Data(secret.utf8)
-        let del: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                  kSecAttrService as String: "emozleep.proxy.hmac",
-                                  kSecAttrAccount as String: uid]
-        SecItemDelete(del as CFDictionary)
-        let add: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                  kSecAttrService as String: "emozleep.proxy.hmac",
-                                  kSecAttrAccount as String: uid,
-                                  kSecValueData as String: data,
-                                  kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
-        SecItemAdd(add as CFDictionary, nil)
-    }
-    private func hmacSHA256Hex(message: String, secret: String) -> String {
-        let key = SymmetricKey(data: Data(secret.utf8))
-        let mac = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: key)
-        return mac.map { String(format: "%02x", $0) }.joined()
-    }
     private func mapPreferredModelForProxy(_ m: AIModel) -> String {
-        switch m { case .claude: return "claude"; case .openAI: return "openai"; case .gemini: return "gemini"; case .naver: return "free"; case .freeModel: return "free" }
+        switch m {
+        case .claude: return "claude"
+        case .openAI: return "openai"
+        case .gemini: return "gemini"
+        case .naver: return "naver"
+        case .freeModel: return "free"
+        }
     }
 }
 

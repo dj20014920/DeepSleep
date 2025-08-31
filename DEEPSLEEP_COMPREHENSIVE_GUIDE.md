@@ -19,6 +19,39 @@
 8. [향후 개선사항](#8-향후-개선사항)
 9. **[🆕 최신 안정화 현황](#9-최신-안정화-현황)** ⭐
 
+### 🆕 2025-08-31 업데이트: 프록시 모드 전환(Cloudflare Workers) — 보안/비용/관측성 일원화
+
+요약
+- 프록시 모드 활성화: iOS 클라이언트가 모든 AI 호출을 중앙 프록시(/v1/chat)로 전송합니다. 로그: "🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat" 확인됨.
+- 프로덕션 URL 반영: PROXY_BASE_URL = https://emozleep-production.vinny4920-081.workers.dev (Debug/Release 모두).
+- 인증: HMAC-SHA256(+Nonce) 서명. 헤더(X-Emozleep-UID, -Tier, -Timestamp, -Sig, -Nonce?) 일치. iOS는 /v1/enroll로 장치별 시크릿을 발급/키체인 저장.
+- 서버 라우팅/폴백: tier/일일한도 기반으로 routePolicy 적용. 현재 서버 폴백 체인은 openrouter(무료) → gemini → openai → naver → claude.
+- 사용량/정책 헤더: iOS는 X-Policy-* 헤더가 있을 경우 파싱하여 남은 사용량/리셋 시간 UI에 반영. 서버가 미발행 시에도 동작 무방.
+- CORS: 네이티브 앱의 비-브라우저 요청을 고려해 인증 성공 시 Origin 미포함도 허용. 웹 Origin 허용은 ALLOWED_ORIGINS로 제한.
+- 문서/운영: Cloudflare 대시보드에서 KV(USAGE_KV) 바인딩/시크릿/변수 설정 완료. 세부 가이드는 DEEPSLEEP_FROXYSERVER.md 참고.
+
+관련 파일
+- iOS: DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift (프록시 경로, 헤더/HMAC, enroll, 정책 헤더 파싱)
+- iOS: DeepSleepApp/Subscription/ProxyTierReporter.swift (/v1/subscription/report HMAC 서명 포함)
+- iOS 설정: DeepSleepApp/EnvironmentConfig.swift, DeepSleepApp/Info.plist (USE_PROXY, PROXY_BASE_URL, PROXY_AUTH_USE_NONCE, CLIENT_PROXY_HMAC_SECRET)
+- 서버: emozleep/wrangler.toml, emozleep/worker.js (라우팅/폴백/인증/프로바이더 호출)
+- 운영 가이드: /Users/dj20014920/Desktop/DeepSleep/DEEPSLEEP_FROXYSERVER.md
+- 스모크 테스트: scripts/proxy_smoke_test.sh (enroll/preflight/chat)
+
+검증 방법 (요점)
+1) 앱 실행 시 보안 체크 로그에 Proxy Base URL 설정/프록시 모드 활성화가 출력되는지 확인
+2) 일반 대화(gemini) 요청 성공 및 provider가 gemini로 표시되는지 확인(X-Provider 헤더가 있으면 일치 여부 확인)
+3) Claude(프리미엄) 일일 한도 도달 시 자동 라우팅 변경(로그/헤더) 확인
+4) 잘못된 서명/오래된 타임스탬프/누락 헤더 → 401/400/403 적절히 반환 확인
+5) OPTIONS 프리플라이트 204 + CORS 헤더 확인 (웹 환경에서만)
+6) /v1/subscription/report가 서명(HMAC+Nonce) 헤더로 200 응답하는지 확인
+7) scripts/proxy_smoke_test.sh chat 실행 시 X-Policy-ResetAt이 +09:00으로 표시되는지 확인
+
+주의/정합성 메모
+- KV TTL은 Cloudflare 정책상 최소 60초 이상이어야 함. 자정 만료 키(expirationTtl)는 secondsUntilKSTMidnight()로 설정.
+- wrangler.toml의 main 경로와 실제 소스 경로가 일치하는지 재확인. (현재 main="src/worker.js"; 필요 시 수정)
+- iOS는 정책 헤더가 없더라도 정상 동작. 헤더가 제공되면 UI에 남은 사용량/리셋 시간을 노출.
+
 ### 🆕 2025-08-29 업데이트: 캘린더/그라데이션 완전 통일 · 가시성 보장
 
 요약

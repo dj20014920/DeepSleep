@@ -88,6 +88,14 @@ public class EnvironmentConfig {
                 print("🔑 \(name) API Key: \(status) | \(masked)")
             }
         }
+        #else
+        // Release: 프록시 모드에서 번들 API 키가 남아 있으면 경고(보안/심사 위험)
+        if useProxy {
+            let keys = [geminiApiKey, claudeApiKey, naverCloudApiKey, openAIApiKey]
+            if keys.contains(where: { !$0.isEmpty }) {
+                print("⚠️ [Security] Release+ProxyMode: 번들에 공급자 API 키가 남아 있습니다. 서버 프록시만 사용하도록 키를 제거하세요.")
+            }
+        }
         #endif
     }
     
