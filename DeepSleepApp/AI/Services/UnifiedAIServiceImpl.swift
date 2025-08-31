@@ -216,6 +216,26 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 ) async throws -> AIResponse {
         
         let startTime = Date()
+
+        // 🛰️ 프록시 모드 절대 우선: 어떤 로컬 라우팅/폴백보다 먼저 서버 프록시로 보낸다.
+        if EnvironmentConfig.shared.useProxy {
+            let proxyURL = try resolveProxyBaseURL()
+            var roleMessages: [RoleMessage] = []
+            if let assembled = assembledPrompt, !assembled.isEmpty {
+                roleMessages.append(RoleMessage(role: .system, content: assembled))
+            } else {
+                let sys = generateOptimizedSystemPrompt(for: mode, model: model)
+                roleMessages.append(RoleMessage(role: .system, content: sys))
+                if let history = context?.conversationHistory, !history.isEmpty {
+                    let recent = Array(history.suffix(16))
+                    for turn in recent { roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)) }
+                }
+                roleMessages.append(RoleMessage(role: .user, content: content))
+            }
+            print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
+            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+        }
+
         let selectedModel = getSelectedModel(preferredModel: model)
         
         print("🚀 [UnifiedAIService] 메시지 전송 시작 - 모델: \(selectedModel.rawValue), 모드: \(mode.rawValue)")
@@ -419,11 +439,17 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
     }
 
-    // MARK: - Claude 일일 상한 관리
+    // MARK: - Claude 일일 상한 관리 (단일 진실원칙: 프록시 사용 시 로컬 상한 비활성화)
     private func claudeUsageStatus() -> (canUse: Bool, current: Int, limit: Int) {
+        // 프록시 모드에서는 서버 정책 헤더(X-Policy-*)가 단일 진실원칙(SSOT)으로 작동하므로,
+        // 로컬 상한 체크를 비활성화합니다.
+        if EnvironmentConfig.shared.useProxy {
+            return (true, 0, Int.max)
+        }
         let isPremium = SubscriptionStatusCenter.shared.isPremium
         let key = isPremium ? "DAILY_CLAUDE_LIMIT_PREMIUM" : "DAILY_CLAUDE_LIMIT_FREE"
-        let limit = ConfigReader.int(key, default: isPremium ? 30 : 0) ?? (isPremium ? 30 : 0)
+        // 프록시 미사용(개발/offline)에서만 로컬 제한을 사용하며, 기본값은 0으로 둡니다.
+        let limit = ConfigReader.int(key, default: 0) ?? 0
         let ud = UserDefaults.standard
         let dateKey = claudeDateKey()
         let today = todayString()
@@ -1074,6 +1100,7 @@ extension UnifiedAIServiceImpl {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
             r.httpMethod = "POST"
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            r.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
             r.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
@@ -1082,6 +1109,15 @@ extension UnifiedAIServiceImpl {
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             return r
+        }
+        func header(_ http: HTTPURLResponse, _ key: String) -> String? {
+            // 대/소문자 무시 헤더 조회
+            for (k, v) in http.allHeaderFields {
+                if let ks = (k as? String), ks.caseInsensitiveCompare(key) == .orderedSame {
+                    return String(describing: v)
+                }
+            }
+            return nil
         }
 
         // Prepare common header values
@@ -1114,13 +1150,29 @@ extension UnifiedAIServiceImpl {
         }
         struct ProxyResp: Codable { let provider: String; let content: String }
         let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
+
+        // 정책/프로바이더 헤더 파싱
+        let polRemaining = header(http, "X-Policy-Remaining")
+        let polResetAt  = header(http, "X-Policy-ResetAt")
+        let polTier     = header(http, "X-Policy-Tier")
+        let claudeLeft  = header(http, "X-Policy-Claude-Remaining")
+        let providerHdr = header(http, "X-Provider")
+
+        var addInfo: [String: Any] = ["provider": proxy.provider]
+        if let r = polRemaining { addInfo["policyRemaining"] = r }
+        if let r = polResetAt  { addInfo["policyResetAt"] = r }
+        if let r = polTier     { addInfo["policyTier"] = r }
+        if let r = claudeLeft  { addInfo["claudeRemaining"] = r }
+        if let r = providerHdr { addInfo["providerHeader"] = r }
+
         let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
-        let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: ["provider": proxy.provider])
+        let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: addInfo)
         return AIResponse(id: UUID().uuidString, model: preferred, mode: mode, content: proxy.content, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(start)*1000))
     }
     private func enrollSecret(uid: String, proxyBase: URL) async throws -> String {
         var req = URLRequest(url: proxyBase.appendingPathComponent("v1/enroll"))
         req.httpMethod = "POST"
+        req.setValue("https://emozleep.app", forHTTPHeaderField: "Origin")
         req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {

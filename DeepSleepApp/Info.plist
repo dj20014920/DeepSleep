@@ -315,5 +315,7 @@
 		<string>$(ADMOB_TEST_APP_ID)</string>
 		<key>ADMOB_TEST_BANNER_UNIT_ID</key>
 		<string>$(ADMOB_TEST_BANNER_UNIT_ID)</string>
-	</dict>
+		<key>PROXY_AUTH_USE_NONCE</key>
+	<string>$(PROXY_AUTH_USE_NONCE)</string>
+</dict>
 </plist>

@@ -410,36 +410,49 @@ public class SessionManager {
     
     /// 채팅 메시지 추가 (에러 전파)
     public func addChatMessage(to sessionId: String, message: StoredChatMessage) throws {
-        // Core Data에서 세션 찾기
-        let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        var sessionError: Error?
         
-        do {
-            let sessions = try context.fetch(request)
-            guard let sessionEntity = sessions.first else {
-                throw SessionManagerError.sessionNotFound(id: sessionId)
+        // viewContext는 메인 스레드에서만 안전하게 접근해야 함
+        // performAndWait를 사용하여 어떤 스레드에서 호출되더라도 작업을 메인 큐에서 동기적으로 실행
+        context.performAndWait {
+            do {
+                // Core Data에서 세션 찾기
+                let request: NSFetchRequest<UnifiedSessionEntity> = UnifiedSessionEntity.fetchRequest()
+                request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+                
+                let sessions = try context.fetch(request)
+                guard let sessionEntity = sessions.first else {
+                    throw SessionManagerError.sessionNotFound(id: sessionId)
+                }
+                
+                // 새 메시지 엔티티 생성
+                let messageEntity = StoredChatMessageEntity(context: context)
+                messageEntity.id = UUID()
+                messageEntity.timestamp = message.timestamp
+                messageEntity.role = message.role
+                messageEntity.content = message.content
+                messageEntity.session = sessionEntity
+                
+                // 세션 활동 시간 업데이트
+                sessionEntity.lastActivityAt = Date()
+                
+                // 저장
+                try saveContext()
+                
+                print("✅ [SessionManager] 메시지 추가 완료: \(sessionId)")
+                
+            } catch {
+                sessionError = error
             }
-            
-            // 새 메시지 엔티티 생성
-            let messageEntity = StoredChatMessageEntity(context: context)
-            messageEntity.id = UUID()
-            messageEntity.timestamp = message.timestamp
-            messageEntity.role = message.role
-            messageEntity.content = message.content
-            messageEntity.session = sessionEntity
-            
-            // 세션 활동 시간 업데이트
-            sessionEntity.lastActivityAt = Date()
-            
-            // 저장 (에러 전파)
-            try saveContext()
-            
-            print("✅ [SessionManager] 메시지 추가 완료: \(sessionId)")
-            
-        } catch let error as SessionManagerError {
-            throw error
-        } catch {
-            throw SessionManagerError.saveFailure(underlying: error)
+        }
+        
+        if let error = sessionError {
+            // performAndWait 블록 내에서 발생한 에러를 다시 던짐
+            if let specificError = error as? SessionManagerError {
+                throw specificError
+            } else {
+                throw SessionManagerError.saveFailure(underlying: error)
+            }
         }
     }
     

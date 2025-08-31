@@ -1,6 +1,7 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
 ..*
+*.sh
 CLAUDE.md
 .specstory
 build_test

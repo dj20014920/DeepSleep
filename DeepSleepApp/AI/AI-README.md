@@ -95,6 +95,12 @@ let response = try await aiService.sendMessage(
 
 ## 📊 시스템 플로우
 
+### Proxy-first 아키텍처 (USE_PROXY=YES)
+- 클라이언트는 항상 프록시의 /v1/chat으로 전송합니다
+- 서버는 티어/레이트리밋/모델 라우팅/비용 정책을 적용하고, 응답 헤더에 정책 정보를 담아 반환합니다
+  - X-Policy-Remaining, X-Policy-ResetAt, X-Policy-Tier, X-Policy-Claude-Remaining, X-Provider
+- iOS 클라이언트는 위 정책 헤더를 파싱하여 UI/로깅에 반영하고, 로컬 중복 제한 로직은 사용하지 않습니다(SSOT)
+
 ```
 사용자 입력
     ↓
@@ -111,23 +117,24 @@ let response = try await aiService.sendMessage(
 
 - 모든 입력은 AISecurityManager를 통해 검증
 - 프롬프트 인젝션 방지
-- API 키는 Secrets.xcconfig에서 안전하게 관리
+- API 키는 앱에 저장하지 않음. USE_PROXY=YES일 때 모든 호출은 Cloudflare Worker 프록시를 경유하며, 키는 서버에만 존재
+- 프록시 인증: HMAC-SHA256(UID, Tier, Timestamp, Nonce) + Nonce 재사용 차단
 
 ## 💰 비용 관리 (2025-08-20 업데이트)
 
 | 모델 | 특징 | 권장 사용 | 비용 |
 |------|------|-----------|------|
 | **🆕 통합 무료 모델** | **25개 모델 순차 폴백** | **베타 테스트, 대량 사용** | **무료** |
-| Claude Haiku 3.5      | 고품질, 한국어 우수  | 일기 분석, 깊은 대화   | $0.80/$4.00 |
+| claude-3-5-haiku-latest     | 고품질, 한국어 우수  | 일기 분석, 깊은 대화   | $0.80/$4.00 |
 | OpenAI GPT-4o Mini    | 빠름, 구조화된 출력  | 할일 조언, 실용적 응답  | $0.15/$0.60 |
 | Gemini 2.0 Flash-Lite | 다국어, 빠르고 저렴  | 프리셋 추천(아이템 리스트) | $~0.075/$~0.30 |
 | Naver (HCX-DASH-002)  | 한국어 특화        | 일반 대화, 한국 정서    | (1000토큰당)₩0.25/(1000토큰당)₩1 |
 ### 🎯 Fallback 우선순위 (비용 기준)
-1. **통합 무료 모델** (25개 모델 순차 시도)
-2. **Gemini 2.0 Flash-Lite** (저렴/빠른 구조화 출력)
-3. **OpenAI GPT-4o Mini** (중간 비용, 안정성)
-4. **Naver HyperCLOVA X** (한국어 특화)
-5. **Claude Haiku 3.5** (최고 품질)
+1. **통합 무료 모델** (25개 모델 순차 시도-베타테스트용)
+2. **Gemini 2.0 Flash-Lite** (무료 티어 일반대화 고정, 프리셋 추천 용도)
+3. **OpenAI GPT-4o Mini** (중간 비용, 구독 결제 유저 대나무숲 친구선택 가능)
+4. **Naver HyperCLOVA X** (한국어 특화, 구독 결제 유저 대나무숲 친구선택 가능, 추후 운세로 사용? 고민중)
+5. **Claude Haiku 3.5** (최고 품질, 무료 구독유저는 사용 불가, 유료 구독유저만 사용 가능-횟수제한있음30회)
 
 ## 📚 상세 문서
 

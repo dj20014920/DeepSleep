@@ -1364,7 +1364,9 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROXY_BASE_URL = "https://emozleep.vinny4920-081.workers.dev";
+				USE_PROXY = YES;
+			PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
+				PROXY_AUTH_USE_NONCE = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1391,7 +1393,9 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROXY_BASE_URL = "https://emozleep.vinny4920-081.workers.dev";
+				USE_PROXY = YES;
+			PROXY_BASE_URL = "https://emozleep-production.vinny4920-081.workers.dev";
+				PROXY_AUTH_USE_NONCE = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
