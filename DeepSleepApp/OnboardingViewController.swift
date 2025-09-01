@@ -252,13 +252,7 @@ class OnboardingViewController: UIViewController {
             previewStack.topAnchor.constraint(equalTo: container.topAnchor),
             previewStack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
 
-            // 실제 동작 버튼 배치
-            personaButton.topAnchor.constraint(equalTo: previewStack.bottomAnchor, constant: 20),
-            personaButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            personaButton.widthAnchor.constraint(equalToConstant: 200),
-            personaButton.heightAnchor.constraint(equalToConstant: 44),
-            personaButton.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
+             ])
 
         return container
     }
