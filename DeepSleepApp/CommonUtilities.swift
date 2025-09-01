@@ -446,7 +446,7 @@ class CommonUtilities {
         #endif
     }
 
-    // MARK: - 😊 감정 → 이모지 매핑 (공통화)
+    // MARK: - 😊 감정 ↔ 이모지 매핑 (공통화)
     func mapEmotionToEmoji(_ emotion: String) -> String {
         // 이모지 자체가 들어오는 경우 그대로 반환
         switch emotion {
@@ -461,13 +461,37 @@ class CommonUtilities {
         case "슬픔", "우울", "속상함": return "😢"
         case "화남", "짜증", "분노": return "😡"
         case "불안", "걱정", "스트레스": return "😰"
-        case "피곤", "지침": return "😴"
+        case "피곤", "지침", "졸림", "수면": return "😴"
         case "평온", "차분": return "😌"
         case "활력", "에너지": return "⚡"
         case "사랑", "애정": return "🥰"
         case "놀람", "깜짝": return "😲"
-        case "혼란", "당황": return "😕"
+        case "혼란", "당황", "생각": return "🤔"
+        case "실망": return "😔"
         default: return "🙂"
+        }
+    }
+    
+    /// 주어진 이모지를 앱 표준 감정명으로 매핑
+    /// - Parameter emoji: 감정 이모지(예: "😊")
+    /// - Returns: 표준 감정명(예: "기쁨"). 매핑 실패 시 "감정" 반환.
+    func mapEmojiToEmotionName(_ emoji: String) -> String {
+        switch emoji {
+        case "😊": return "기쁨"
+        case "😢": return "슬픔"
+        case "😠": return "화남"
+        case "😡": return "화남"
+        case "😰": return "불안"
+        case "😴": return "수면"
+        case "🥰": return "사랑"
+        case "😔": return "우울"
+        case "😤": return "짜증"
+        case "😌": return "평온"
+        case "🤔": return "생각"
+        case "😲": return "놀람"
+        case "😕": return "혼란"
+        case "🙂": return "평온"
+        default: return "감정"
         }
     }
 }

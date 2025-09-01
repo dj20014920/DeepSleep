@@ -515,6 +515,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     self.removeLastLoadingMessage()
                     self.handleAIResponse(response)
                     
+                    // ✅ 오늘의 일기 분석 기록 저장 (캘린더 ‘대나무숲 친구 답변’에서 사용)
+                    let parsed = self.parseAIResponse(response)
+                    SettingsManager.shared.appendDiaryAnalysis(parsed, for: Date())
+                    
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         self.appendChat(ChatMessage(text: "💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!", sender: .ai, type: .bot))

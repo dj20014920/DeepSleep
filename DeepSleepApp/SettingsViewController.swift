@@ -159,6 +159,15 @@ class SettingsViewController: UIViewController {
         
         // 앱 설정 항목들
         appSettingsSection.addItem(SettingsItem(
+            title: "🔐 권한 설정",
+            subtitle: "알림, 캘린더, 건강 데이터 등 앱 권한 관리",
+            type: .navigation,
+            action: { [weak self] in
+                self?.showPermissionSettings()
+            }
+        ))
+        
+        appSettingsSection.addItem(SettingsItem(
             title: "알림 설정",
             subtitle: "푸시 알림, 수면 리마인더",
             type: .navigation,
@@ -317,6 +326,11 @@ extension SettingsViewController {
     private func showUsageAnalytics() {
         let analyticsVC = UsageAnalyticsViewController()
         navigationController?.pushViewController(analyticsVC, animated: true)
+    }
+    
+    private func showPermissionSettings() {
+        let permissionVC = PermissionSettingsViewController()
+        navigationController?.pushViewController(permissionVC, animated: true)
     }
     
     private func showNotificationSettings() {

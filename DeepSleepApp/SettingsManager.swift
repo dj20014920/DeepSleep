@@ -17,6 +17,12 @@ public struct UserSettings: Codable {
     public init() {}
 }
 
+// MARK: - Emotion Diary Notifications
+public extension Notification.Name {
+    static let emotionDiaryUpdated = Notification.Name("EmotionDiaryUpdatedNotification")
+    static let diaryAnalysisUpdated = Notification.Name("DiaryAnalysisUpdatedNotification")
+}
+
 // MARK: - UsageStats 타입 정의 (임시)
 public struct UsageStats: Codable {
     let date: String
@@ -372,7 +378,13 @@ public class SettingsManager {
     // MARK: - Emotion Diary
     func saveEmotionDiary(_ entry: EmotionDiary) {
         var entries = loadEmotionDiary()
-        entries.append(entry)
+        
+        if let existingIndex = entries.firstIndex(where: { $0.id == entry.id }) {
+            // 업서트: 동일 ID가 있으면 교체
+            entries[existingIndex] = entry
+        } else {
+            entries.append(entry)
+        }
         
         // 최대 200개 항목만 유지
         if entries.count > 200 {
@@ -382,6 +394,9 @@ public class SettingsManager {
         if let encoded = try? JSONEncoder().encode(entries) {
             userDefaults.set(encoded, forKey: Keys.emotionDiary)
         }
+        
+        // 브로드캐스트: 감정 일기 업데이트 (즉시 동기화)
+        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["entry": entry])
     }
     
     func loadEmotionDiary() -> [EmotionDiary] {
@@ -407,10 +422,26 @@ public class SettingsManager {
         return emotionCount
     }
     
-    // MARK: - Emotion Diary - 전체 삭제 추가
+    // MARK: - Emotion Diary - 삭제/초기화
     func resetAllDiaryEntries() {
         userDefaults.removeObject(forKey: Keys.emotionDiary)
         print("🗑️ 모든 감정 일기 데이터가 UserDefaults에서 삭제되었습니다.")
+        // 분석 로그도 함께 초기화
+        clearAllDiaryAnalyses()
+        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["cleared": true])
+    }
+    
+    /// 단일 일기 삭제 (ID 기준)
+    func deleteEmotionDiary(id: UUID) {
+        var entries = loadEmotionDiary()
+        guard let idx = entries.firstIndex(where: { $0.id == id }) else { return }
+        let removed = entries.remove(at: idx)
+        if let encoded = try? JSONEncoder().encode(entries) {
+            userDefaults.set(encoded, forKey: Keys.emotionDiary)
+        }
+        // 해당 날짜의 분석 로그도 함께 제거 (동기화)
+        clearDiaryAnalyses(for: removed.date)
+        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["deletedId": id.uuidString, "date": removed.date])
     }
     
     // MARK: - Sound Presets
@@ -760,6 +791,63 @@ public class SettingsManager {
         return diaries.filter { diary in
             diary.date >= today && diary.date < tomorrow
         }.count
+    }
+    
+    // MARK: - Diary Analysis Store (오늘의 일기 대화 기록)
+    
+    struct DiaryAnalysisRecord: Codable {
+        let id: UUID
+        let date: Date
+        let text: String
+    }
+    
+    private func diaryAnalysisKey(for date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return "DiaryAnalysis." + f.string(from: date)
+    }
+    
+    /// 오늘(또는 특정 날짜)의 분석 결과를 저장 (최신순 정렬은 조회 시 처리)
+    func appendDiaryAnalysis(_ text: String, for date: Date = Date()) {
+        let key = diaryAnalysisKey(for: date)
+        var list = loadDiaryAnalysesAll(for: date)
+        list.append(DiaryAnalysisRecord(id: UUID(), date: Date(), text: text))
+        if let encoded = try? JSONEncoder().encode(list) { userDefaults.set(encoded, forKey: key) }
+        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date])
+    }
+    
+    /// 특정 날짜의 모든 분석 결과 로드 (최신순)
+    private func loadDiaryAnalysesAll(for date: Date) -> [DiaryAnalysisRecord] {
+        let key = diaryAnalysisKey(for: date)
+        guard let data = userDefaults.data(forKey: key), let list = try? JSONDecoder().decode([DiaryAnalysisRecord].self, from: data) else { return [] }
+        return list.sorted { $0.date > $1.date }
+    }
+    
+    /// 페이지네이션 로드
+    func loadDiaryAnalyses(for date: Date, offset: Int, limit: Int) -> ([DiaryAnalysisRecord], Bool) {
+        let all = loadDiaryAnalysesAll(for: date)
+        let start = min(offset, all.count)
+        let end = min(offset + limit, all.count)
+        let page = Array(all[start..<end])
+        let hasMore = end < all.count
+        return (page, hasMore)
+    }
+    
+    /// 특정 날짜의 분석 로그 삭제
+    func clearDiaryAnalyses(for date: Date) {
+        let key = diaryAnalysisKey(for: date)
+        userDefaults.removeObject(forKey: key)
+        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date, "cleared": true])
+    }
+    
+    /// 전체 분석 로그 삭제
+    func clearAllDiaryAnalyses() {
+        // 최근 60일 정도만 키 스캔 (YAGNI: 전체 키 열람 대신 최근 일수만 처리)
+        let cal = Calendar.current
+        for i in 0..<60 {
+            if let d = cal.date(byAdding: .day, value: -i, to: Date()) {
+                userDefaults.removeObject(forKey: diaryAnalysisKey(for: d))
+            }
+        }
+        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["clearedAll": true])
     }
     
     // MARK: - Category Sound Versions

@@ -300,6 +300,10 @@
 			<string>audio</string>
 		</array>
 
+		<!-- Calendar purpose strings (required when EventKit is used) -->
+		<key>NSCalendarsUsageDescription</key>
+		<string>This app integrates your todos with the system calendar to help you stay organized. You can manage todo events and sync your schedule. You can change this anytime in Calendar permissions.</string>
+		
 		<!-- HealthKit purpose strings (required when HealthKit capability or APIs are present) -->
 		<key>NSHealthShareUsageDescription</key>
 		<string>This app reads Health data you allow (e.g., sleep analysis, mindful minutes) to personalize sleep guidance and track your progress. You control this in Health permissions.</string>

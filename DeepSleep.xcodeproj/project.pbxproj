@@ -195,6 +195,8 @@
 		E0B562432E647F1A00D334F1 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */; };
 		E0B562452E6488F800D334F1 /* FeatureTutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */; };
 		E0B562472E64B1BB00D334F1 /* ProxyAuthConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562462E64B1BB00D334F1 /* ProxyAuthConfig.swift */; };
+		E0B562492E65649600D334F1 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562482E65649600D334F1 /* PermissionManager.swift */; };
+		E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -424,6 +426,8 @@
 		E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewController.swift; sourceTree = "<group>"; };
 		E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureTutorialManager.swift; sourceTree = "<group>"; };
 		E0B562462E64B1BB00D334F1 /* ProxyAuthConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyAuthConfig.swift; sourceTree = "<group>"; };
+		E0B562482E65649600D334F1 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionSettingsViewController.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -669,6 +673,8 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */,
+				E0B562482E65649600D334F1 /* PermissionManager.swift */,
 				E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */,
 				E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */,
 				E0B562402E647F1200D334F1 /* OnboardingManager.swift */,
@@ -1133,6 +1139,7 @@
 				E084F1B52E33ACB3002F75E6 /* ToastManager.swift in Sources */,
 				E084F1B62E33ACB3002F75E6 /* SettingsSectionView.swift in Sources */,
 				E084F1B72E33ACB3002F75E6 /* EmotionResponseManager.swift in Sources */,
+				E0B562492E65649600D334F1 /* PermissionManager.swift in Sources */,
 				E084F1B82E33ACB3002F75E6 /* FeedbackPromptViewController.swift in Sources */,
 				E0B562382E645BD200D334F1 /* ProxyAuthSigner.swift in Sources */,
 				E0E7BCCA2E561E3300FF7073 /* FeatureFlags.swift in Sources */,
@@ -1212,6 +1219,7 @@
 				E0B5623D2E647EFE00D334F1 /* BrandingCopy.swift in Sources */,
 				E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */,
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
+				E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */,
 				E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */,
 				E0NEW1012E70000100ABCDEF /* GradientPalettes.swift in Sources */,
 				E0NEW1022E70000100ABCDEF /* EmotionCalendarDayCell.swift in Sources */,
@@ -1389,7 +1397,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1420,7 +1428,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
