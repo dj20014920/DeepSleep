@@ -229,7 +229,7 @@ class OnboardingViewController: UIViewController {
 
         let previewCaption = UILabel()
         previewCaption.translatesAutoresizingMaskIntoConstraints = false
-        previewCaption.text = "이 버튼으로 친구를 고를 수 있어요. 설정에서 언제든 변경 가능"
+        previewCaption.text = "설정 창에 있는 대나무숲 친구 설정을 누르면 친구를 고를 수 있어요"
         previewCaption.font = UIFont.systemFont(ofSize: 12, weight: .regular)
         previewCaption.textColor = .secondaryLabel
         previewCaption.textAlignment = .center
@@ -241,17 +241,7 @@ class OnboardingViewController: UIViewController {
         previewStack.spacing = 8
         previewStack.translatesAutoresizingMaskIntoConstraints = false
 
-        // 실제 동작 버튼
-        let personaButton = UIButton(type: .system)
-        personaButton.translatesAutoresizingMaskIntoConstraints = false
-        personaButton.setTitle("대나무숲 친구 선택하기", for: .normal)
-        personaButton.setTitleColor(.white, for: .normal)
-        personaButton.backgroundColor = .systemBlue
-        personaButton.layer.cornerRadius = 8
-        personaButton.addTarget(self, action: #selector(personaSetupTapped), for: .touchUpInside)
-
         container.addSubview(previewStack)
-        container.addSubview(personaButton)
 
         NSLayoutConstraint.activate([
             // 미리보기 버튼 크기

@@ -1,4 +1,190 @@
-# 🌙 DeepSleep AI - 종합 프로젝트 가이드
+# 🌙 DeepSleep AI — 종합 프로젝트 가이드 (현재 구조 기준)
+
+본 문서는 날짜별 변경 로그를 제거하고, 현재 코드베이스/서버 상태를 기준으로 단일 진입점·중앙집중형 호출·SSoT(Single Source of Truth) 구조를 명확히 설명합니다. 아래 원칙을 항상 준수합니다:
+- DRY: 비슷한 로직이 다른 이름으로 여러 곳에 산재하는 것을 금지
+- KISS: 단순하고 명확하게 설계
+- YAGNI: 지금 필요하지 않은 기능은 추가하지 않음
+- SOLID: 단일 책임, 개방-폐쇄, 리스코프 치환, 인터페이스 분리, 의존성 역전
+- “두더지 잡기” 금지: 컴파일러 지시만 따르는 개별 오류 수정 금지. 근본 원인 분석/개선 우선
+- 스텁/주석처리/가짜 구현으로의 “빌드만 성공” 금지
+
+---
+
+## 1. 개요
+DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추천을 제공하는 앱입니다. 모든 AI 요청은 SessionManager.sendMessage를 단일 진입점으로 통과하고, UnifiedAIServiceImpl이 프록시(서버) 우선 정책으로 외부 모델을 호출합니다. 앱 내부 데이터(채팅/피드백/행동 이벤트)는 SessionManager를 통해 일관되게 관리합니다.
+
+핵심 SSoT
+- AI 호출 SSoT: SessionManager.sendMessage(mode:)
+- 라우팅/컨텍스트 SSoT: ChatRouter + ChatViewController.chatContext
+- 응답 파싱/살균 SSoT: AIResponseParser.shared
+- 사용량 제한 SSoT: UsageLimitManager / AIUsageManager
+- 보안/서명 SSoT: ProxyAuthConfig/ProxyAuthSigner/ProxyAuthClient
+- 사용자 설정/일기 SSoT: SettingsManager
+
+---
+
+## 2. 핵심 아키텍처
+
+### 2.1 전체 아키텍처 다이어그램 (현재 구조)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                               iOS App                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UI Layer                                                                 │
+│ ├ ViewController (#Todays_Mood)                                          │
+│ ├ EmotionDiaryViewController (일기 목록/인사이트/캘린더)                   │
+│ ├ DiaryWriteViewController / EditDiaryViewController (일기 작성/수정)     │
+│ └ ChatViewController (대나무숲)                                           │
+│          │                                                                │
+│          ▼ (RoutingContext)                                              │
+│      ChatRouter  ───────────────────►  ChatViewController.chatContext     │
+│          │                                  │                             │
+│          │                                  ├ isEphemeralSession (일기분석)│
+│          │                                  └ setupInitialMessages()       │
+│          │                                                                │
+│          ▼                                                                │
+│  SessionManager.sendMessage(mode)  ◄─── 단일 진입점(SSoT)                 │
+│          │   (UsageLimitManager 게이트 + 저장정책 + 보안검증)              │
+│          ▼                                                                │
+│               UnifiedAIServiceImpl (프록시 우선)                          │
+│          │        │                                                       │
+│          │        ├ useProxy = true ► ProxyAuthClient.enroll(없으면)       │
+│          │        │                    HMAC 서명 헤더로 /v1/chat 호출      │
+│          │        ├ useProxy = true + DEBUG 실패시 → OpenRouter 폴백      │
+│          │        └ useProxy = false → 직접 서비스(Claude/OpenAI/Gemini/NCX)│
+└──────────┼───────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌────────────────────────── Cloudflare Workers Proxy ──────────────────────┐
+│  /v1/enroll: 장치별 시크릿 발급 (키체인 저장)                            │
+│  /v1/chat:  인증(HMAC) + 티어/일일정책 + 라우팅·폴백                     │
+│    ↳ Providers: openrouter(무료) → gemini → openai → naver → claude       │
+│    ↳ 정책 헤더: X-Policy-*, X-Provider (iOS가 UI/로그로 반영)             │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+주요 단방향 흐름
+- UI → ChatRouter → ChatViewController → SessionManager → UnifiedAIServiceImpl → (Proxy) → Provider
+- 사용량/구독 게이트는 SessionManager/EntitlementGate에서 차단, UI는 상태만 표기
+- 응답은 AIResponseParser/후처리를 거쳐 ChatViewController에서 표시 및 저장정책 적용
+
+### 2.2 진입점(Entry Points)과 컨텍스트
+- 일반 대화: ViewController의 #Todays_Mood → ChatRouter.chatViewController(context: .general)
+- 일기 분석(권장 SSoT):
+  - EmotionDiaryViewController(목록/인사이트)의 “분석” → ChatRouter.chatViewController(context: .diaryAnalysis(diary:))
+  - DiaryWriteViewController / EditDiaryViewController의 “대나무숲에서 이 일기 이야기하기” → 동일
+  - 효과: chatContext = .emotionDiaryAnalysis, diaryContext 설정, isEphemeralSession = true로 저장소 복원/재개/오버라이드 모두 차단. ChatVC가 setupInitialMessages() → requestDiaryAnalysisWithTracking(diary:) 단일 경로로 트리거
+- 월간 패턴: EmotionDiaryViewController → ChatRouter.chatViewController(context: .monthlyPattern(data:))
+
+### 2.3 단일 진입점 — SessionManager
+- 모든 외부 AI 호출은 SessionManager.sendMessage(mode:)만 사용
+- 수행 순서: UsageLimitManager 게이트 → AIContext assembling → UnifiedAIServiceImpl 호출 → 응답 보안 검증/후처리 → 정책에 따른 저장(필요 시)
+- 저장 정책: 환영/안내/퀵액션/프리셋 원문 등 비핵심 메시지는 디스크 저장 생략. 사용자/AI 핵심 텍스트만 저장해 맥락을 깔끔히 유지
+
+### 2.4 AI 통합 — UnifiedAIServiceImpl
+- 프록시 우선 경로(useProxy = true):
+  - enroll(/v1/enroll)로 장치 시크릿 확보(키체인 저장) → HMAC-SHA256 서명(X-Emozleep-*) 헤더로 /v1/chat 호출
+  - 서버는 티어/정책 헤더(X-Policy-*)를 반환하여 iOS가 남은 한도/리셋 시간 등을 UI 반영
+- DEBUG 안전 폴백: 프록시 401/403/5xx 시 OpenRouter(무료) → 로컬 직접 서비스 순으로 제한적 폴백
+- 프록시 미사용 시: 각 Provider 서비스(Claude/OpenAI/Gemini/Naver)로 직접 호출
+- 모드→최적 모델 매핑 내장(예: presetRecommendation=Gemini 우선 등)
+
+### 2.5 사용량/구독 게이트
+- UsageLimitManager: 기능별 일일/주간 한도 평가 및 증가
+- EntitlementGate/EntitlementUI: 구독 상태에 따른 접근 제어와 Paywall 연동
+- ChatViewController는 게이트 결과만 확인/표시하고, 로직은 게이트/SessionManager에 위임
+
+### 2.6 보안·개인정보
+- AISecurityManager: 입력/출력 유효성 검증 및 살균
+- Diary 분석 진입 시 UI 개인정보 안내 Alert 강제
+- Export는 SettingsManager.maskPIIForExport로 PII 마스킹 후 공유
+- 프록시 인증/서명 SSoT: ProxyAuthConfig(Origin), ProxyAuthSigner(HMAC), ProxyAuthClient(enroll+키체인)
+
+### 2.7 사운드 추천 파이프라인(요약)
+- 로컬: EnhancedSoundRecommendationEngine + SessionManager.buildRichContextForLocalAI → 앱 내 카탈로그 기반 추천(토큰 소모 없음)
+- 외부: UnifiedAIServiceImpl(presetRecommendation) → JSON(또는 파싱 가능한 텍스트) → AIResponseParser/parsePresetRecommendation → SoundManager 적용
+- 퀵액션은 사용자가 명시적으로 버튼을 눌렀을 때만 노출(입력창 포커스만으로 노출 금지)
+
+### 2.8 로깅/관측성
+- ContextMetrics/AICallLogger: 요청/모델/모드/처리시간 요약 로그
+- Proxy 응답 헤더(X-Provider/X-Policy-*) 수집 후 메타데이터로 보존(필요 시 UI 반영)
+
+---
+
+## 3. 엔드투엔드 플로우
+
+### 3.1 일반 대화
+1) #Todays_Mood → ChatRouter(.general) → ChatViewController(chatContext=.generalConversation)
+2) 사용량/구독 게이트 통과 시, SessionManager.sendMessage(mode:.generalConversation)
+3) UnifiedAIServiceImpl → Proxy(/v1/chat) → Provider → AIResponseParser → ChatVC 표시/저장
+
+### 3.2 일기 분석(권장)
+1) DiaryWrite/Edit/EmotionDiary 화면에서 현재 열려 있는 일기 선택 → ChatRouter(.diaryAnalysis(diary:))
+2) ChatVC: isEphemeralSession=true, setupInitialMessages() → 개인정보 안내 Alert → requestDiaryAnalysisWithTracking(diary:)
+3) SessionManager.sendMessage(mode:.emotionDiaryAnalysis) → UnifiedAIServiceImpl → Proxy → Provider → 결과 표시
+
+### 3.3 월간 패턴 분석
+1) EmotionDiaryViewController → ChatRouter(.monthlyPattern(data:))
+2) ChatVC: setupInitialMessages() → requestPatternAnalysisWithTracking → 동일 경로
+
+### 3.4 사운드 추천(외부/로컬)
+- 외부: ChatVC 퀵액션 → SessionManager.sendMessage(mode:.presetRecommendation) → JSON 파싱 → 적용
+- 로컬: ChatVC.handleLocalRecommendation() → SessionManager.buildRichContextForLocalAI → 추천 생성/적용
+
+---
+
+## 4. 단일 진입점/중앙집중형 호출 체크리스트
+- 새 기능에서 AI 호출이 필요하다 → 반드시 SessionManager.sendMessage(mode:)만 사용
+- 새 대화/분석 화면을 연다 → ChatRouter로 context를 명시, ChatVC.chatContext로 분기
+- 프록시/서명/키 관리 → ProxyAuthConfig/Signer/Client만 참조(분산 금지)
+- 사용량 제한/구독 → UsageLimitManager/EntitlementGate로만 판단, UI는 상태를 보여주기만 함
+- 응답 파싱/살균 → AIResponseParser.shared에 추가. 화면별 파서 중복 금지
+
+---
+
+## 5. 서버(프록시) 통합 사양 요약
+- 엔드포인트: /v1/enroll(장치 시크릿 발급), /v1/chat(서명/HMAC, 모드/선호모델/메시지)
+- 인증 헤더: X-Emozleep-UID, X-Emozleep-Tier, X-Emozleep-Timestamp, (옵션) X-Emozleep-Nonce, X-Emozleep-Sig
+- 서명 포맷: "{ts}:{uid}:{tier}[:{nonce}]" → HMAC-SHA256 hex
+- 정책 헤더: X-Provider, X-Policy-Remaining, X-Policy-ResetAt, X-Policy-Tier, (옵션) X-Policy-Claude-Remaining
+- 키 보안: App 번들에 공급자 키를 포함하지 않음(프록시 우선). DEBUG 폴백 외 금지
+- 운영 가이드/세부 구현: DEEPSLEEP_FROXYSERVER.md 참고
+
+---
+
+## 6. 데이터 및 저장소
+- SettingsManager: 감정 일기(EmotionDiary) 저장/조회, 사용자 설정, 즐겨찾기일/알림 등
+- SessionManager: 채팅/피드백/행동 이벤트 등 통합 세션 데이터. 저장 정책은 중앙에서 적용
+- Export/공유: PII 마스킹 후 텍스트-only 내보내기
+
+---
+
+## 7. 보증하는 원칙의 코드 대응
+- DRY: ChatRouter/SessionManager/UnifiedAIServiceImpl/AIResponseParser가 각 도메인의 SSoT
+- 두더지 잡기 금지: 오류는 라우팅·SSoT 누락/중복/계약 위반 관점에서 근본 원인 해결
+- KISS/YAGNI: 불필요한 분기/미사용 경로 제거, 필요한 시점에만 확장
+- SOLID: 뷰/UI 레이어는 표시/입력만, 비즈니스/호출/저장은 전담 모듈에 위임
+
+---
+
+## 8. 개발자 빠른 점검표
+1) Chat 진입은 ChatRouter만 사용했는가?
+2) AI 호출은 SessionManager만 사용했는가?
+3) 응답 파싱 로직이 AIResponseParser.shared에만 존재하는가?
+4) 프록시 헤더/서명은 ProxyAuth* SSoT를 따르는가?
+5) 사용량/구독 게이트가 UI가 아닌 Gate/Manager에서만 판정되는가?
+6) 일기 분석은 .diaryAnalysis(diary:) + isEphemeralSession=true 경로로만 진입하는가?
+7) 퀵액션은 사용자의 명시적 탭으로만 노출되는가?
+
+---
+
+## 9. 용어
+- SSoT: Single Source of Truth, 한 가지 진실의 출처
+- RoutingContext/ChatMode: 화면 진입 목적/AI 모드 연결자
+- Ephemeral Session: 저장소 복원/재개가 비활성화된 일시 세션(일기 분석)
+- Proxy Mode: Cloudflare Workers 기반 중앙 프록시 우선 호출 정책
+- Provider: Gemini/OpenAI/Claude/Naver/통합 무료(OpenRouter)
 
 > iOS 구독/IAP 요약: 프리미엄 월간/연간(동일 그룹) + 7일 무료체험(그룹 1회). 무료는 freeModel + gemini만 선택 가능, 프리미엄/Trial은 전체 모델 선택 가능(testModel은 프로덕션 UI 비노출). 최소 iOS 17.0. 자세한 설계/작업 순서는 IOS_IAP_ROADMAP.md를 참조하세요.
 > 
