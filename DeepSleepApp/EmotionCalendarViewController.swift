@@ -892,8 +892,8 @@ extension EmotionCalendarViewController {
         let diaryContext = DiaryContext(from: safeEntry)
         chatVC.diaryContext = diaryContext
         
-        // 🛡️ 초기 사용자 텍스트 설정
-        chatVC.initialUserText = "일기_분석_모드_확인"
+        // 🛡️ 초기 사용자 텍스트 설정(SSoT 트리거 키)
+        chatVC.initialUserText = "일기_분석_모드"
         
         // 🛡️ 타이틀 통일
         // chatVC.title = "#Todays_Mood"

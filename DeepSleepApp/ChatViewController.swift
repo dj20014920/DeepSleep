@@ -1219,6 +1219,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         
         // 🎯 기능 온보딩 Alert (최초 1회)
         showOnboardingAlertIfNeeded()
+        
+        // 📝 #Todays_Mood로 진입한 일반 채팅에서 일기 분석을 바로 시작하도록 안내
+        // 에페메랄 세션(일기 전용)에서는 기존 플로우(setupInitialMessages)에서 이미 처리되므로 제외
+        handlePendingDiaryAnalysisIfNeeded()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -2520,7 +2524,7 @@ extension ChatViewController {
     private func setupTargets() {
         sendButton.addTarget(self, action: #selector(sendButtonTapped), for: .touchUpInside)
         presetButton.addTarget(self, action: #selector(presetButtonTapped), for: .touchUpInside)
-        inputTextField.addTarget(self, action: #selector(handleUserTyping), for: .editingDidBegin)
+        // 입력창 포커스 시 퀵액션이 뜨지 않도록 편집 시작 이벤트 연결 제거
     }
     
     // MARK: - Resume/Override Handling
@@ -3103,30 +3107,14 @@ extension ChatViewController {
     private func startDiaryAnalysis() {
         guard let diaryData = diaryContext else { return }
         
-        let analysisText = """
-        오늘의 감정: \(diaryData.emotion) 
+        let introText = """
+        오늘의 감정: \(diaryData.emotion ?? "알 수 없음")
         일기 내용을 바탕으로 감정을 분석해드릴게요 😊
         """
-        appendChat(ChatMessage(text: analysisText, sender: .ai, type: .bot))
-        showLoading(true)
+        appendChat(ChatMessage(text: introText, sender: .ai, type: .bot))
         
-        Task {
-            do {
-                let diaryContent = "감정: \(diaryData.emotion), 내용: 일기 분석 요청"
-                
-                // 🚀 SessionManager의 통합 AI 서비스 사용
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
-                let responseContent = try await SessionManager.shared.sendMessage(
-                    content: diaryContent,
-                    model: selectedModel,
-                    mode: .emotionDiaryAnalysis,
-                    saveMessages: true
-                )
-                handleAIResponse(responseContent)
-            } catch {
-                handleAIError(error)
-            }
-        }
+        // SSoT: 통합 경로로 분석 요청
+        requestDiaryAnalysisWithTracking(diary: diaryData)
     }
     
     private func addQuickEmotionButtons() {
@@ -3176,6 +3164,48 @@ extension ChatViewController {
             result.append(msg)
         }
         return result
+    }
+    
+    /// #Todays_Mood 경로 등에서 일반 채팅으로 진입했을 때, 전달된 일기 분석을 안전하게 시작
+    private func handlePendingDiaryAnalysisIfNeeded() {
+        // 에페메랄 세션(일기 전용)에서는 기존 초기화 경로가 처리하므로 제외
+        guard !isEphemeralSession else { return }
+        guard let text = initialUserText, text == "일기_분석_모드" else { return }
+        guard let diary = diaryContext, !didStartDiaryAnalysis else { return }
+        
+        // 한 번만 처리하도록 플래그 설정(중복 방지)
+        didStartDiaryAnalysis = true
+        // 초기 사용자 텍스트는 소진 처리
+        initialUserText = nil
+        
+        // 개인정보 안내 후 진행 여부 확인
+        let emotionLabel = diary.emotion ?? "알 수 없음"
+        let alert = UIAlertController(
+            title: "🔒 개인정보 보호 안내",
+            message: """
+            대나무숲에서 이야기하기 위해 다음 정보가 전송됩니다:
+
+            • 선택한 감정: \(emotionLabel)
+            • 작성한 일기 내용
+
+            ⚠️ 주의사항:
+            • 개인 식별 정보(이름, 전화번호 등)가 포함된 경우 전송하지 않는 것을 권장합니다
+            • 대화 종료 후 데이터는 즉시 삭제됩니다
+            • 민감한 개인정보는 삭제 후 진행하시기 바랍니다
+
+            계속하시겠습니까?
+            """,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: { [weak self] _ in
+            // 취소 시 안내만 남김
+            self?.appendChat(ChatMessage(text: "원하실 때 언제든 일기 분석을 요청하실 수 있어요. 😊", sender: .ai, type: .bot))
+        }))
+        alert.addAction(UIAlertAction(title: "대나무숲에서 이야기하기", style: .default, handler: { [weak self] _ in
+            guard let self = self else { return }
+            self.startDiaryAnalysis()
+        }))
+        present(alert, animated: true)
     }
 }
 

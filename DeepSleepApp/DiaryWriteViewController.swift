@@ -420,8 +420,10 @@ class DiaryWriteViewController: UIViewController {
     private func startAIChat() {
         guard let diaryEntry = savedDiaryEntry else { return }
         
-        // DRY: 라우터의 일기 분석 컨텍스트를 사용하여 단일 경로로 통일(에페메랄 세션)
-        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diaryEntry))
+        // 요구사항: #Todays_Mood의 일반 채팅을 열고 그 안에서 분석을 요청
+        let chatVC = ChatRouter.chatViewController()
+        chatVC.diaryContext = DiaryContext(from: diaryEntry)
+        chatVC.initialUserText = "일기_분석_모드" // ChatVC에서 개인정보 안내 후 요청 진행
         
         chatVC.onPresetApply = { [weak self] preset in
             NotificationCenter.default.post(

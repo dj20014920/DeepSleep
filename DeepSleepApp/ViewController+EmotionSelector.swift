@@ -35,6 +35,8 @@ extension ViewController {
     }
     
     @objc func hashtagTapped() {
+        // 해시태그는 일반 대나무숲 대화로만 진입합니다.
+        // 특정 일기 분석은 '일기 쓰기/수정 화면'이나 '일기 목록'에서 해당 일기에서만 시작합니다.
         let chatVC = ChatRouter.chatViewController()
         chatVC.initialUserText = nil
         
