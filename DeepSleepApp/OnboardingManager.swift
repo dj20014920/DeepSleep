@@ -40,9 +40,9 @@ class OnboardingManager {
             case .welcome:
                 return "대나무숲 친구와 함께하는 감정 기록과 일상 앱입니다"
             case .appIntroduction:
-                return "EmoZleep은 당신의 감정을 이해하고 편안한 환경을 제공합니다"
+                return "EmoZleep은 당신의 감정을 이해하고 편안한 환경을 제공합니다 "
             case .aiPersonaSetup:
-                return "나만의 대나무숲 친구를 설정하여 더 개인적인 대화를 나눠보세요"
+                return "나만의 대나무숲 친구를 설정하여 더 개인적인 대화를 나눠보세요 \n#Todays_Mood를 누르면 대나무숲(채팅창)으로 진입합니다"
             case .mainFeatures:
                 return "감정 분석, 수면 사운드 추천, 일기 작성 분석, 할 일 조언 등 다양한 기능을 만나보세요"
             case .soundExperience:
