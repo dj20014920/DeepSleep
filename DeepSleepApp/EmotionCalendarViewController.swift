@@ -627,6 +627,11 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
         }
     }
     
+    func todoListCell(_ cell: TodoListCell, didRequestEditItem item: TodoItem, at index: Int) {
+        UnifiedLogger.shared.logTodo("Edit todo item requested: \(item.title)")
+        presentAddEditTodoViewController(todoItem: item)
+    }
+    
     func todoListCellDidRequestAddItem(_ cell: TodoListCell) {
         UnifiedLogger.shared.logTodo("Add todo item requested")
         presentAddEditTodoViewController(todoItem: nil)

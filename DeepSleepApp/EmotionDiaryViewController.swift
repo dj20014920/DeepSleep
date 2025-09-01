@@ -146,7 +146,7 @@ class EmotionDiaryViewController: UIViewController {
     // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        title = "감정 일기"
+        title = "미니 다이어리"
         
         // 상단 버튼은 일기 탭에서만 노출 (showCurrentView에서 설정)
         

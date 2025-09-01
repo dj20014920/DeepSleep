@@ -4,6 +4,7 @@ import UIKit
 protocol TodoListCellDelegate: AnyObject {
     func todoListCell(_ cell: TodoListCell, didToggleItem item: TodoItem, at index: Int)
     func todoListCell(_ cell: TodoListCell, didDeleteItem item: TodoItem, at index: Int)
+    func todoListCell(_ cell: TodoListCell, didRequestEditItem item: TodoItem, at index: Int)
     func todoListCellDidRequestAddItem(_ cell: TodoListCell)
 }
 
@@ -188,11 +189,38 @@ extension TodoListCell: UITableViewDelegate {
         return 44
     }
     
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            let item = todoItems[indexPath.row]
-            delegate?.todoListCell(self, didDeleteItem: item, at: indexPath.row)
+    // 스와이프 액션 메뉴 구현 (수정/삭제)
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        guard indexPath.row < todoItems.count else { return nil }
+        let item = todoItems[indexPath.row]
+        
+        // 삭제 액션
+        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
+            guard let self = self else {
+                completion(false)
+                return
+            }
+            self.delegate?.todoListCell(self, didDeleteItem: item, at: indexPath.row)
+            completion(true)
         }
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash")
+        
+        // 수정 액션
+        let editAction = UIContextualAction(style: .normal, title: "수정") { [weak self] _, _, completion in
+            guard let self = self else {
+                completion(false)
+                return
+            }
+            self.delegate?.todoListCell(self, didRequestEditItem: item, at: indexPath.row)
+            completion(true)
+        }
+        editAction.backgroundColor = .systemBlue
+        editAction.image = UIImage(systemName: "pencil")
+        
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        configuration.performsFirstActionWithFullSwipe = false // 전체 스와이프로 삭제 방지
+        return configuration
     }
 }
 
