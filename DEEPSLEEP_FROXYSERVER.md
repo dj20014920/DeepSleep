@@ -41,6 +41,28 @@ iOS 연동
 
 ---
 
+# 2025-09-01 업데이트: 프록시/캐싱/라우팅 현황 요약
+
+- 인증 안정화
+  - HMAC 서명(ts:uid:tier[:nonce]) 생성 시점과 헤더 전송 값을 일치시켜 401 재발 방지.
+  - iOS: 재등록 자동 1회 재시도 유지, DEBUG 1회성 X-Cache-* 샘플 로깅.
+- 라우팅/폴백
+  - 체인: openrouter → gemini → openai → naver → claude. free+tier가 claude 요청 시 gemini로 강등.
+  - 현재 로그에선 X-Provider=none/X-Cache-Action=bypass로 표시 → OpenRouter 경로 사용 중(서버에 GEMINI_API_KEY 미설정 가능성 높음).
+- 캐시 전략
+  - Gemini: caches.create(ttl=3600s) + 요청마다 PATCH(updateMask=ttl)로 TTL 연장(최대 3시간). X-Cache-Provider=gemini, Action=write/read, Tokens=writeIn/readIn(필요 시 patchMs).
+  - Anthropic: cache_control.ephemeral(3600s)로 안정 프리픽스 캐시(write/read). 30분 경과 시 write.
+  - OpenAI: 프리픽스 해시 관찰만(bypass). Naver: 미지원.
+- 관측 지표
+  - Server-Timing: auth/parse/provider.
+  - /v1/metrics: providers.{gemini,anthropic}.totalWrites/Reads/hitRate/estSavingsUSD.
+- 필요한 설정(운영 반영)
+  - wrangler secrets: GEMINI_API_KEY, (선택) OPENAI_API_KEY, CLAUDE_API_KEY, NAVER_API_KEY, NAVER_API_SECRET.
+  - wrangler vars: DEFAULT_GEMINI_MODEL=gemini-2.0-flash-lite, NONCE_TTL_SECONDS=300 등.
+  - 배포 후 curl /v1/metrics로 캐시 카운트 상승 확인.
+
+---
+
 1) 현재 상태(요약)
 - 워커 이름: emozleep
 - 프로덕션 URL: https://emozleep-production.vinny4920-081.workers.dev

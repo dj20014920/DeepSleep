@@ -34,7 +34,7 @@ enum ProxyAuthClient {
         
         #if DEBUG
         // DEBUG 모드: 강제 재발급 테스트 (401 인증 실패 해결용)
-        let forceReEnroll = true
+        let forceReEnroll = false
         if forceReEnroll {
             print("🔧 [ProxyAuthClient] DEBUG: 강제 재발급 모드 활성화")
             // 기존 시크릿 삭제

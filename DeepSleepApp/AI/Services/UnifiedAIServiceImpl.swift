@@ -18,6 +18,11 @@ import Security
 /// - 테스트 방안: Instruments의 Allocations로 메모리 누수 확인
 public class UnifiedAIServiceImpl: UnifiedAIService {
     public static let shared = UnifiedAIServiceImpl()
+
+    #if DEBUG
+    // One-time sample log guard for cache headers
+    private static var hasLoggedCacheHeaderSample = false
+    #endif
     
     // MARK: - Properties  
     private let securityManager = AISecurityManager.shared
@@ -1326,7 +1331,9 @@ extension UnifiedAIServiceImpl {
         ]
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
-        func makeRequest(sigMessage: String, includeNonce: Bool) throws -> URLRequest {
+        
+        // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
+        func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
             r.httpMethod = "POST"
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1334,9 +1341,8 @@ extension UnifiedAIServiceImpl {
             r.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
-            if includeNonce { r.setValue(nonce, forHTTPHeaderField: "X-Emozleep-Nonce") }
+            if let n = nonce { r.setValue(n, forHTTPHeaderField: "X-Emozleep-Nonce") }
             if let inv = contextInvalidation, !inv.isEmpty { r.setValue(inv, forHTTPHeaderField: "X-Context-Invalidation") }
-            let signature = ProxyAuthSigner.hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             return r
@@ -1351,15 +1357,13 @@ extension UnifiedAIServiceImpl {
             return nil
         }
 
-        // Prepare common header values
+        // Prepare common header values (uid/tier만 고정, ts/nonce는 시도별 갱신)
         let uid: String = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
         let tier: String = { switch StoreKitSubscriptionManager.shared.currentTier { case .free: return "free"; case .pro: return "pro"; case .max: return "max" } }()
-        let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
-        let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
 
         // Device secret 확보: Keychain → 없으면 enroll 호출. DEBUG에서는 마지막 폴백 허용
         print("🔐 [UnifiedAIService] 프록시 인증 준비 - UID: \(uid), Tier: \(tier)")
-        let effectiveSecret: String
+        var effectiveSecret: String
         do {
             effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyURL)
             print("✅ [UnifiedAIService] 시크릿 확보 성공")
@@ -1382,20 +1386,37 @@ extension UnifiedAIServiceImpl {
 
         let start = Date()
         let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
-        let sigMessage = ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: useNonce ? nonce : nil)
-        print("🔏 [UnifiedAIService] 서명 생성 - Message: \(sigMessage)")
-        
-        let req = try makeRequest(sigMessage: sigMessage, includeNonce: useNonce)
-        print("📤 [UnifiedAIService] 프록시 요청 전송: \(proxyURL.absoluteString)/v1/chat")
-        
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        
-        guard let http = resp as? HTTPURLResponse else {
-            print("❌ [UnifiedAIService] 프록시 응답이 HTTP가 아님")
-            throw AIServiceError.serverError(statusCode: -1)
+        var attempt = 0
+        var data: Data = Data()
+        var http: HTTPURLResponse!
+        while attempt < 2 {
+            let curTs = String(Int64(Date().timeIntervalSince1970 * 1000))
+            let curNonce = useNonce ? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() : nil
+            let sigMessage = ProxyAuthSigner.composeSigningMessage(ts: curTs, uid: uid, tier: tier, nonce: curNonce)
+            print("🔏 [UnifiedAIService] 서명 생성 - Message: \(sigMessage)")
+            let signature = ProxyAuthSigner.hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
+            let req = try makeRequest(ts: curTs, nonce: curNonce, signature: signature)
+            print("📤 [UnifiedAIService] 프록시 요청 전송(attempt=\(attempt+1)): \(proxyURL.absoluteString)/v1/chat")
+            let result = try await URLSession.shared.data(for: req)
+            data = result.0
+            if let r = result.1 as? HTTPURLResponse { http = r } else {
+                print("❌ [UnifiedAIService] 프록시 응답이 HTTP가 아님")
+                throw AIServiceError.serverError(statusCode: -1)
+            }
+            print("📥 [UnifiedAIService] 프록시 응답: HTTP \(http.statusCode)")
+            if (200...299).contains(http.statusCode) {
+                break
+            }
+            if http.statusCode == 401 && attempt == 0 {
+                print("↻ [UnifiedAIService] 401 감지 → 시크릿 삭제 후 재등록 시도")
+                ProxySecretStore.delete(for: uid)
+                effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyURL)
+                attempt += 1
+                continue
+            }
+            // 그 외 오류는 기존 처리로 전달
+            break
         }
-        
-        print("📥 [UnifiedAIService] 프록시 응답: HTTP \(http.statusCode)")
         
         guard (200...299).contains(http.statusCode) else {
             let code = http.statusCode
@@ -1412,6 +1433,9 @@ extension UnifiedAIServiceImpl {
         let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
 
         // 정책/프로바이더/캐시 헤더 파싱
+        if let st = header(http, "Server-Timing") {
+            print("⏱️ [Server-Timing] \(st)")
+        }
         let polRemaining = header(http, "X-Policy-Remaining")
         let polResetAt  = header(http, "X-Policy-ResetAt")
         let polTier     = header(http, "X-Policy-Tier")
@@ -1421,6 +1445,13 @@ extension UnifiedAIServiceImpl {
         let cacheAction = header(http, "X-Cache-Action")
         let cacheTTL    = header(http, "X-Cache-TTL")
         let cacheTokens = header(http, "X-Cache-Tokens")
+
+        #if DEBUG
+        if !Self.hasLoggedCacheHeaderSample {
+            print("🧪 [CacheHeaders] provider=\(cacheProv ?? "-") action=\(cacheAction ?? "-") ttl=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-")")
+            Self.hasLoggedCacheHeaderSample = true
+        }
+        #endif
 
         var addInfo: [String: Any] = ["provider": proxy.provider]
         if let r = polRemaining { addInfo["policyRemaining"] = r }
@@ -1437,68 +1468,24 @@ extension UnifiedAIServiceImpl {
         let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: addInfo)
         return AIResponse(id: UUID().uuidString, model: preferred, mode: mode, content: proxy.content, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(start)*1000))
     }
-    private func mapPreferredModelForProxy(_ m: AIModel) -> String {
-        switch m {
-        case .claude: return "claude"
-        case .openAI: return "openai"
-        case .gemini: return "gemini"
-        case .naver: return "naver"
-        case .freeModel: return "free"
-        }
-    }
 }
 
-// MARK: - 📊 확장
-
-extension UnifiedAIServiceImpl {
-    
-    /// 메트릭 요약 로그 출력
-    func emitMetricsSummaryLog() {
-        let line = ContextMetrics.shared.oneLineSummary()
-        let dist = ContextMetrics.shared.modelModeSummary()
-        print("📈 [Metrics] \(line)")
-        print("📊 [Metrics] \(dist)")
-    }
-    
-    /// 전체 시스템 상태 보고서 생성
-    func generateSystemStatusReport() -> String {
-        let availableCount = availableModels.count
-        let totalCount = AIModel.allCases.count
-        
-        var report = """
-        🚀 UnifiedAIService 시스템 상태 보고서
-        ==========================================
-        
-        📊 모델 가용성: \(availableCount)/\(totalCount)개 사용 가능
-        """
-        
-        for model in AIModel.allCases {
-            let status = availableModels.contains(model) ? "✅ 사용 가능" : "❌ 사용 불가"
-            let displayName = model.displayName
-            report += "\n   • \(displayName): \(status)"
-        }
-        
-        if let cheapest = cheapestFallbackModel {
-            report += "\n\n🔄 Fallback 모델: \(cheapest.displayName)"
-        }
-        
-        let userSelectedModel = settingsManager.selectedLLM
-        let mapped = mapAIModelTypeToAIModel(userSelectedModel)
-        report += "\n👤 사용자 선택 모델: \(mapped.displayName)"
-        
-        report += """
-        
-        
-        🔒 보안 설정:
-           • 최대 프롬프트 길이: 2000자
-           • 일일 최대 요청: 100회
-           • 레이트 리미팅: 활성화
-        
-        📅 보고서 생성 시간: \(DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short))
-        """
-        
-        return report
-    }
+/// 20요청마다 메트릭 요약 로그를 출력 (ContextMetrics 단일 출처 사용)
+private func emitMetricsSummaryLog() {
+    let summary = ContextMetrics.shared.oneLineSummary()
+    let dist = ContextMetrics.shared.modelModeSummary()
+    print("📈 [AIMetrics] \(summary)")
+    print("📊 [AIMetrics] \(dist)")
 }
 
-// MARK: - AIModel 확장 (displayName은 AIServiceTypes.swift에 정의됨)
+/// 프록시 서버가 기대하는 모델 식별자 문자열로 매핑
+/// - 단일 출처: AIModel → 서버 체인(openrouter/gemini/openai/naver/claude)
+private func mapPreferredModelForProxy(_ preferred: AIModel) -> String {
+    switch preferred {
+    case .gemini: return "gemini"
+    case .openAI: return "openai"
+    case .claude: return "claude"
+    case .naver: return "naver"
+    case .freeModel: return "openrouter" // 통합 무료 모델은 서버에서 openrouter로 시작
+    }
+}

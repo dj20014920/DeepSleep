@@ -18,22 +18,8 @@ public final class TokenOptimizer {
     }
 
     public func maxTokens(for mode: AIMode) -> Int {
-        switch mode {
-        case .generalConversation:
-            return ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 800) ?? 800
-        case .presetRecommendation:
-            return ConfigReader.int("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 300) ?? 300
-        case .emotionDiaryAnalysis:
-            return ConfigReader.int("AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS", default: 600) ?? 600
-        case .monthlyStatistics:
-            return ConfigReader.int("AI_MONTHLY_STATISTICS_MAX_TOKENS", default: 600) ?? 600
-        case .taskAdvice:
-            return ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 500) ?? 500
-        case .fortuneTelling:
-            return ConfigReader.int("AI_FORTUNE_TELLING_MAX_TOKENS", default: 400) ?? 400
-        case .emotionAnalysis:
-            return ConfigReader.int("AI_EMOTION_ANALYSIS_MAX_TOKENS", default: 300) ?? 300
-        }
+        // DRY: 토큰 상한은 AIMode.recommendedTokenConfig 단일 출처를 따른다
+        return mode.recommendedTokenConfig.maxTokens
     }
 
     // 예산 내로 최근 메시지를 줄이는 간단한 정책(시스템>기억>최근대화 순서)
