@@ -43,6 +43,29 @@ Risks / Notes
 - 버튼/간격/색상은 다크모드에서도 대비가 충분(.systemBlue/.white)
 - 선택 날짜 싱크(양 탭 동시 선택)는 추후 Notification으로 확장 가능
 
+## 2025-09-01 Updates (일기 분석 라우팅·에페메랄 세션 통일)
+
+What changed where
+- ChatRouter.swift
+  - .diaryAnalysis(diary:) 경로에서 isEphemeralSession = true 설정, resumeSessionId 주입 제거
+- ChatViewController.swift
+  - isEphemeralSession이면 저장소 복원/재개/오버라이드 모두 비활성
+  - setupChatContext에서 diaryAnalysis는 setupInitialMessages()로 원래 플로우 호출
+- EditDiaryViewController.swift / DiaryWriteViewController.swift
+  - "대나무숲에서 이 일기 이야기하기" 버튼 → ChatRouter.chatViewController(context: .diaryAnalysis(diary:))로 통일
+
+Rationale
+- DRY/SSoT: 분석 진입·트리거·호출 경로를 단일화(setupInitialMessages → requestDiaryAnalysisWithTracking → SessionManager.sendMessage)
+- UX: 저장소 복원/재개 알림 없이 예측 가능한 "저장→분석" 흐름 보장
+
+Verification checklist
+- [ ] 두 화면 모두 버튼 → 자동 분석 시작(인트로→로딩→결과), 복원/재개 알림 미표시
+- [ ] /v1/chat 호출은 mode=emotionDiaryAnalysis
+- [ ] 사용량 한도 초과 시 Diary 화면에서 사전 차단(Alert)
+
+Risks / Notes
+- 일반 대화/프리셋 추천 경로에는 영향 없음(분리 유지)
+
 ## 2025-08-29 Updates (캘린더 그라데이션 링 · 완전 통일 · 가시성 보장)
 
 What changed where

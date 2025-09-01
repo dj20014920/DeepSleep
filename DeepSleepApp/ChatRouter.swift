@@ -25,9 +25,15 @@ enum ChatRouter {
             
         case .diaryAnalysis(let diary):
             vc.chatContext = .emotionDiaryAnalysis
+            // DRY: 분석 트리거의 단일 SSoT는 ChatViewController.requestDiaryAnalysisWithTracking
+            //     → diaryContext를 설정하여 ChatViewController의 setupInitialMessages 경로를 사용하도록 통일
+            vc.diaryContext = DiaryContext(from: diary)
+            // 호환성: 기존 초기 데이터 필드도 유지(표시 메시지 등에서 사용될 수 있음)
             vc.initialDiaryData = diary
-            // 현재 날짜 세션을 재사용하여 재진입 시 대화가 이어지도록 설정
-            vc.resumeSessionId = SessionManager.shared.getCurrentSessionId()
+            // 일기 분석은 신규 에페메랄 세션으로 시작(과거 대화 복원/재개 금지)
+            vc.isEphemeralSession = true
+            // 명시적 모드 플래그(선택): 필요 시 내부 분기에서 활용 가능
+            vc.initialUserText = "일기_분석_모드"
             
         case .emotionAnalysis(let emotion):
             vc.chatContext = .emotionAnalysis

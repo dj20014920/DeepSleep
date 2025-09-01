@@ -67,12 +67,16 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
+    // 중복 분석 트리거 방지
+    private var didStartDiaryAnalysis: Bool = false
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     var messages: [ChatMessage] = []
     
     /// 특정 세션을 불러와 이어서 대화하기 위한 ID (옵션)
     var resumeSessionId: String?
+    // 에페메랄 세션 여부(과거 대화 복원/재개/오버라이드 비활성)
+    var isEphemeralSession: Bool = false
     var initialUserText: String?
     var diaryContext: DiaryContext?
     
@@ -1147,24 +1151,28 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 페이징 설정
         setupPaging()
         
-        // 🎯 중앙집중식 메시지 복원 - 하나의 메서드만 호출
-        restoreMessagesFromStorage()
+        // 🎯 중앙집중식 메시지 복원 - 컨텍스트에 따라 수행
+        if !(chatContext == .emotionDiaryAnalysis || chatContext == .emotionDiaryAnalysisAlt || isEphemeralSession) {
+            restoreMessagesFromStorage()
+        }
         
         // 튜토리얼 표시 (초기화 완료 후)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             self?.showTutorialIfNeeded()
         }
         
-        // 이어서 대화하기: 특정 세션 메시지로 교체 로드
-        if let sessionId = resumeSessionId {
-            loadMessagesForSession(sessionId: sessionId)
-            // 재개 안내 알림
-            presentResumeInfoAlertIfNeeded()
-        } else if let overrideId = SettingsManager.shared.activeChatSessionOverrideId {
-            // 해시태그 진입 등에서 설정 레벨의 오버라이드가 지정된 경우에도 동일 처리
-            loadMessagesForSession(sessionId: overrideId)
-            resumeSessionId = overrideId
-            presentResumeInfoAlertIfNeeded()
+        // 이어서 대화하기: 특정 세션 메시지로 교체 로드 (에페메랄 세션에서는 비활성)
+        if !isEphemeralSession {
+            if let sessionId = resumeSessionId {
+                loadMessagesForSession(sessionId: sessionId)
+                // 재개 안내 알림
+                presentResumeInfoAlertIfNeeded()
+            } else if let overrideId = SettingsManager.shared.activeChatSessionOverrideId {
+                // 해시태그 진입 등에서 설정 레벨의 오버라이드가 지정된 경우에도 동일 처리
+                loadMessagesForSession(sessionId: overrideId)
+                resumeSessionId = overrideId
+                presentResumeInfoAlertIfNeeded()
+            }
         }
         
         // 📊 메모리 사용량 체크
@@ -2517,6 +2525,7 @@ extension ChatViewController {
     
     // MARK: - Resume/Override Handling
     private func presentResumeInfoAlertIfNeeded() {
+        guard !isEphemeralSession else { return }
         guard !hasShownResumeAlert else { return }
         guard resumeSessionId != nil || SettingsManager.shared.activeChatSessionOverrideId != nil else { return }
         hasShownResumeAlert = true
@@ -2533,6 +2542,7 @@ extension ChatViewController {
     }
     
     private func adoptOverrideSessionIfNeeded() {
+        guard !isEphemeralSession else { return }
         guard !didAdoptSessionOverride else { return }
         let targetId = resumeSessionId ?? SettingsManager.shared.activeChatSessionOverrideId
         guard let sessionId = targetId else { return }
@@ -2714,7 +2724,8 @@ extension ChatViewController {
         
         switch chatContext {
         case .emotionDiaryAnalysis, .emotionDiaryAnalysisAlt:
-            setupDiaryAnalysisContext()
+            // 원래 플로우: setupInitialMessages()가 diaryContext를 기반으로 requestDiaryAnalysisWithTracking을 트리거
+            setupInitialMessages()
         case .emotionAnalysis:
             setupEmotionAnalysisContext()
         case .monthlyPatternAnalysis, .monthlyStatistics:
@@ -2752,6 +2763,15 @@ extension ChatViewController {
                 type: .bot
             )
             appendChat(analysisPrompt)
+            
+            // Fallback: 과거 경로 호환. diaryContext가 미설정된 경우 단일 경로로 통일하여 즉시 분석 트리거
+            if self.diaryContext == nil {
+                self.diaryContext = DiaryContext(from: diary)
+                if !self.didStartDiaryAnalysis {
+                    self.didStartDiaryAnalysis = true
+                    self.requestDiaryAnalysisWithTracking(diary: self.diaryContext!)
+                }
+            }
         }
     }
     

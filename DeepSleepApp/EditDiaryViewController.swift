@@ -444,10 +444,8 @@ class EditDiaryViewController: UIViewController {
     
     private func startAIChat() {
         guard let diaryEntry = diaryToEdit else { return }
-        let chatVC = ChatRouter.chatViewController()
-        // 필수 데이터 검증
-        chatVC.diaryContext = DiaryContext(from: diaryEntry)
-        chatVC.initialUserText = "일기를 분석해줘"
+        // DRY: 라우터의 일기 분석 컨텍스트를 사용하여 단일 경로로 통일
+        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diaryEntry))
         chatVC.onPresetApply = { [weak self] recommendation in
             NotificationCenter.default.post(
                 name: NSNotification.Name("ApplyPresetFromChat"),

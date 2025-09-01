@@ -163,6 +163,29 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 
 ## 2025-08-29 동기화: 사용량 한도·라벨·폴백 정책
 
+## 2025-09-01 동기화: 감정일기 분석 ‘에페메랄 세션’ 원칙 확정 (SSoT)
+
+배경
+- 감정일기 분석은 저장소 복원/재개/오버라이드가 개입되면 UX가 혼동되고, 원래의 자동 분석 플로우(SSoT)가 훼손될 수 있음.
+- 따라서 일기 분석은 ‘에페메랄 세션’으로 진입하여, 기존 대화 복원·재개를 차단하고 즉시 분석을 시작하는 것이 원칙.
+
+결정(코드 반영 완료)
+- Router: ChatRouter.chatViewController(context: .diaryAnalysis(diary:)) → chatContext(.emotionDiaryAnalysis) + diaryContext + isEphemeralSession = true
+- Controller: ChatViewController는 isEphemeralSession이면 아래를 모두 무시
+  - 저장소 복원(restoreMessagesFromStorage)
+  - 재개 알림(presentResumeInfoAlertIfNeeded)
+  - 세션 오버라이드(adoptOverrideSessionIfNeeded)
+- Trigger: setupInitialMessages() → requestDiaryAnalysisWithTracking(diary:) → SessionManager.sendMessage(mode: .emotionDiaryAnalysis)
+- 적용 화면: DiaryWriteViewController / EditDiaryViewController 모두 Router(.diaryAnalysis)로 통일
+
+검증 체크리스트
+- [ ] Write/Edit에서 “대나무숲에서 이 일기 이야기하기” → Chat에서 자동 분석 시작
+- [ ] 저장소 복원 알림/과거 페이징 로그 없음
+- [ ] /v1/chat 호출이 mode=emotionDiaryAnalysis로 기록됨
+- [ ] 사용량 한도 도달 시 Diary 화면에서 사전 차단(Alert)
+
+—
+
 ## 2025-08-31 동기화: 인사 억제·브랜딩 카피·온보딩 UI(한국어)
 
 이번 동기화는 컨텍스트/응답 후처리와 사용자-facing 카피 정책, 온보딩 UI 개선을 문서에 반영합니다.

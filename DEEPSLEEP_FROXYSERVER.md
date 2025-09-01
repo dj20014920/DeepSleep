@@ -275,6 +275,19 @@ C. 서명된 채팅(비스트리밍)
 - Naver 키 단일화는 설정/문서/대시보드의 중복을 제거하여 운영 위험을 낮춥니다.
 - 정책 헤더 명세 고정은 iOS UI 싱크(남은 횟수/리셋 시각)와 로그/모니터링의 일관성을 보장합니다.
 
+15.3) 감정일기 분석 플로우 SSoT (iOS)
+- 진입점: ChatRouter.chatViewController(context: .diaryAnalysis(diary:))
+- 라우팅: Router가 chatContext(.emotionDiaryAnalysis)와 diaryContext를 설정하고 isEphemeralSession = true로 진입(저장소 복원/재개 알림 차단)
+- 트리거 SSoT: ChatViewController.requestDiaryAnalysisWithTracking(diary:)
+- 보정: Router가 diaryContext를 설정하여 ChatViewController 경로로 통합(legacy initialDiaryData만으로는 트리거 안 되는 오류 예방)
+- 중복 방지: didStartDiaryAnalysis 플래그로 다중 호출 차단
+- 서버 호출: /v1/chat (프록시) 고정, HMAC(+Nonce) 헤더, 정책 헤더 UI 반영
+- 적용 화면: DiaryWriteViewController/ EditDiaryViewController 모두 Router(.diaryAnalysis)로 통일
+- 클라이언트와 서버 간 서명·헤더는 프로토콜 계약입니다. 작은 오타/순서 변경도 인증 실패를 유발합니다.
+- Origin은 CORS/정책 노출(Expose-Headers)의 전제이며, 다중 하드코딩은 유지보수 리스크입니다. 중앙 상수화로 오탈자/누락 방지.
+- Naver 키 단일화는 설정/문서/대시보드의 중복을 제거하여 운영 위험을 낮춥니다.
+- 정책 헤더 명세 고정은 iOS UI 싱크(남은 횟수/리셋 시각)와 로그/모니터링의 일관성을 보장합니다.
+
 16) 트러블슈팅
 - 401 Unauthorized
   - X-Emozleep-* 헤더 정확성 확인

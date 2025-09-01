@@ -420,12 +420,9 @@ class DiaryWriteViewController: UIViewController {
     private func startAIChat() {
         guard let diaryEntry = savedDiaryEntry else { return }
         
-        // ChatRouter를 사용하여 ChatViewController 생성
-        let chatVC = ChatRouter.chatViewController()
+        // DRY: 라우터의 일기 분석 컨텍스트를 사용하여 단일 경로로 통일(에페메랄 세션)
+        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diaryEntry))
         
-        // 필수 데이터 검증
-        chatVC.diaryContext = DiaryContext(from: diaryEntry)
-        chatVC.initialUserText = "일기를 분석해줘"
         chatVC.onPresetApply = { [weak self] preset in
             NotificationCenter.default.post(
                 name: NSNotification.Name("ApplyPresetFromChat"),

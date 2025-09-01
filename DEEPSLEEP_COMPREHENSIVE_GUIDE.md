@@ -31,12 +31,34 @@
 - 문서/운영: Cloudflare 대시보드에서 KV(USAGE_KV) 바인딩/시크릿/변수 설정 완료. 세부 가이드는 DEEPSLEEP_FROXYSERVER.md 참고.
 
 관련 파일
+
+### 🔒 불변 계약 요약 (iOS ↔ Proxy)
+- 엔드포인트: /v1/enroll, /v1/chat (변경 금지)
+- 인증 헤더: X-Emozleep-UID, X-Emozleep-Tier, X-Emozleep-Timestamp, X-Emozleep-Nonce?, X-Emozleep-Sig
+- 서명 포맷: "{ts}:{uid}:{tier}[:{nonce}]" (HMAC-SHA256 → hex lower)
+- Origin: ProxyAuthConfig.origin 상수 단일 소스 사용(하드코딩 분산 금지)
+- 정책 헤더: X-Provider, X-Policy-Tier, X-Policy-Remaining, X-Policy-ResetAt(KST ISO), X-Policy-Claude-Remaining
+- 라우팅/폴백: free → gemini → openai → naver → claude (iOS getOptimalModelForMode와 동기화)
+- 키 보안: 모든 외부 API 키는 서버 비밀 저장 전용. iOS 번들 금지.
+
+### 📝 감정일기 분석 플로우(최신 SSoT)
+- 진입: ChatRouter.chatViewController(context: .diaryAnalysis(diary:))
+- 설정: ChatRouter가 chatContext(.emotionDiaryAnalysis)와 diaryContext를 함께 설정(초기 메시지 표시는 initialDiaryData 병행), isEphemeralSession = true 적용(저장소 복원/재개/오버라이드 차단)
+- 트리거: ChatViewController.requestDiaryAnalysisWithTracking(diary:) 하나만 사용(중복 금지)
+- 중복 방지: didStartDiaryAnalysis 플래그로 다중 트리거 방지
+- 호출 경로: SessionManager.sendMessage(mode: .emotionDiaryAnalysis) → UnifiedAIServiceImpl(Proxy first) → /v1/chat
+- 파싱: 일반 텍스트는 AIResponseParser.shared.parse로 살균/정리. JSON이 필요한 경로(프리셋)는 parsePresetRecommendation이 중앙 파서를 통해 slice 추출 후 디코딩
 - iOS: DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift (프록시 경로, 헤더/HMAC, enroll, 정책 헤더 파싱)
 - iOS: DeepSleepApp/Subscription/ProxyTierReporter.swift (/v1/subscription/report HMAC 서명 포함)
 - iOS 설정: DeepSleepApp/EnvironmentConfig.swift, DeepSleepApp/Info.plist (USE_PROXY, PROXY_BASE_URL, PROXY_AUTH_USE_NONCE, CLIENT_PROXY_HMAC_SECRET)
 - 서버: emozleep/wrangler.toml, emozleep/worker.js (라우팅/폴백/인증/프로바이더 호출)
 - 운영 가이드: /Users/dj20014920/Desktop/DeepSleep/DEEPSLEEP_FROXYSERVER.md
 - 스모크 테스트: scripts/proxy_smoke_test.sh (enroll/preflight/chat)
+
+사용자 플로우(일기 작성/수정 화면)
+- DiaryWriteViewController: 일기 저장 후 → "대나무숲에서 이 일기 이야기하기" → Router(.diaryAnalysis)로 에페메랄 진입 → ChatViewController가 setupInitialMessages()로 자동 분석 시작
+- EditDiaryViewController: 동일하게 Router(.diaryAnalysis) 에페메랄 진입 → 자동 분석 시작
+- 기대 UX: 저장소 복원/재개 알림 없이 "📝 이 일기를 분석해주세요" → 인트로 → "분석하고 있어요..." → 결과 표시
 
 검증 방법 (요점)
 1) 앱 실행 시 보안 체크 로그에 Proxy Base URL 설정/프록시 모드 활성화가 출력되는지 확인
