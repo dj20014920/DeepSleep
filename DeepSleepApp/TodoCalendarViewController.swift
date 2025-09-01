@@ -297,8 +297,12 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         calendar.appearance.headerTitleColor = .label
         calendar.appearance.titleDefaultColor = .label
         calendar.appearance.titleWeekendColor = .label
-        calendar.appearance.todayColor = .systemBlue
-        calendar.appearance.selectionColor = .systemPurple
+        // 기본 하이라이트(선택/오늘) 원 제거
+        calendar.appearance.titleTodayColor = .label
+        calendar.appearance.todayColor = .clear
+        calendar.appearance.selectionColor = .clear
+        calendar.appearance.borderSelectionColor = .clear
+        calendar.appearance.titleSelectionColor = .label
         calendar.appearance.eventDefaultColor = .systemGreen
         calendar.backgroundColor = .systemBackground
         calendar.locale = Locale(identifier: "en_US")
@@ -507,6 +511,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // EmotionCalendar와 동일한 셀(이모지+그라데이션 링) 적용
     func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
         let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
+        // 오늘 표시: 우상단 모서리 접힘 마크
+        cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
         let todos = TodoManager.shared.getTodos(for: date)
         let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
         switch state {

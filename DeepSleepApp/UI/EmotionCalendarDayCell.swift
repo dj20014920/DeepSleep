@@ -6,8 +6,10 @@ final class EmotionCalendarDayCell: FSCalendarCell, GradientTickSubscriber {
     enum Palette { case premium, free }
     private let gradientBorderLayer = CAGradientLayer()
     private let borderMaskLayer = CAShapeLayer()
+    private let todayCornerLayer = CAShapeLayer()
     private var isAnimating = false
     private var currentPalette: Palette = .premium
+    private var isTodayCornerVisible: Bool = false
 
     // 팔레트는 GradientBadgePalette에서 공유(중복 정의 금지)
 
@@ -56,6 +58,13 @@ final class EmotionCalendarDayCell: FSCalendarCell, GradientTickSubscriber {
         borderMaskLayer.lineJoin = .round
         borderMaskLayer.lineCap = .round
         gradientBorderLayer.mask = borderMaskLayer
+
+        // 오늘 표시: 우상단 작은 접힌 모서리 형태의 삼각형 레이어
+        todayCornerLayer.fillColor = UIColor.systemBlue.withAlphaComponent(0.9).cgColor
+        todayCornerLayer.strokeColor = UIColor.clear.cgColor
+        todayCornerLayer.isHidden = true
+        todayCornerLayer.zPosition = 1000
+        contentView.layer.addSublayer(todayCornerLayer)
     }
 
     override func layoutSubviews() {
@@ -74,11 +83,16 @@ final class EmotionCalendarDayCell: FSCalendarCell, GradientTickSubscriber {
         borderMaskLayer.path = path.cgPath
         gradientBorderLayer.shadowPath = path.cgPath
         gradientBorderLayer.cornerRadius = corner
+
+        // 오늘 모서리 접힘 표시 갱신
+        todayCornerLayer.frame = contentView.bounds
+        updateTodayCornerPath()
     }
 
     override func prepareForReuse() {
         super.prepareForReuse()
         setTodoRingVisible(false)
+        setTodayCornerVisible(false)
     }
 
     func setTodoRingVisible(_ visible: Bool) {
@@ -159,5 +173,26 @@ final class EmotionCalendarDayCell: FSCalendarCell, GradientTickSubscriber {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         gradientBorderLayer.locations = locs
         CATransaction.commit()
+    }
+
+    // 오늘 날짜의 모서리 접힘 마크 노출 여부
+    func setTodayCornerVisible(_ visible: Bool) {
+        isTodayCornerVisible = visible
+        todayCornerLayer.isHidden = !visible
+        if visible { updateTodayCornerPath() }
+    }
+
+    private func updateTodayCornerPath() {
+        guard !todayCornerLayer.isHidden else { return }
+        let b = contentView.bounds
+        let size = max(6, min(12, min(b.width, b.height) * 0.22))
+        // 우상단 작은 삼각형
+        let path = UIBezierPath()
+        let topRight = CGPoint(x: b.maxX, y: b.minY)
+        path.move(to: CGPoint(x: topRight.x - size, y: topRight.y))
+        path.addLine(to: topRight)
+        path.addLine(to: CGPoint(x: topRight.x, y: topRight.y + size))
+        path.close()
+        todayCornerLayer.path = path.cgPath
     }
 }

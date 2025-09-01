@@ -115,7 +115,6 @@ class StorageManagementViewController: UIViewController {
         super.viewDidLayoutSubviews()
         // 갱신 시 컨테이너에 뉴모피즘 섀도우 재적용(프레임 반영)
         statisticsContainerView.applyNeumorphicContainer(cornerRadius: 16)
-        quickCleanupContainerView.applyNeumorphicContainer(cornerRadius: 16)
         // 테이블 높이 자동 보정
         adjustTableHeight()
     }
@@ -135,9 +134,8 @@ class StorageManagementViewController: UIViewController {
         // 스크롤뷰 설정
         setupScrollView()
         
-        // 각 섹션 설정 (통계 카드 + 빠른 정리 카드 분리)
+        // 각 섹션 설정 (통계 카드에 빠른 정리 통합)
         setupStatisticsSection()
-        setupQuickCleanupSection()
         setupTableView()
         
         // 레이아웃 설정
@@ -178,7 +176,7 @@ class StorageManagementViewController: UIViewController {
         let headerLabel = UILabel()
         headerLabel.numberOfLines = 0
         let titleText = "📊 저장소 현황"
-        let detailsText = "🔒 최근 \(protectionDays)일 보호 · ⭐ 즐겨찾기 제외 · 상한: 무료 3개/프리미엄·트라이얼 10개"
+        let detailsText = "⭐ 즐겨찾기 제외 · 상한: 무료 3개/프리미엄·트라이얼 10개"
         let headerAttr = NSMutableAttributedString(
             string: titleText + "\n",
             attributes: [
@@ -206,38 +204,12 @@ class StorageManagementViewController: UIViewController {
         retentionLabel.textColor = .secondaryLabel
         retentionLabel.numberOfLines = 0
         retentionLabel.lineBreakMode = .byWordWrapping
-                
         
-        // 상단 카드 내부 메인 스택 (프로퍼티)
-        statsStack.axis = .vertical
-        statsStack.spacing = 8
-        statsStack.alignment = .leading
-        statsStack.translatesAutoresizingMaskIntoConstraints = false
-        
-        // 메인 스택에 구성 요소 추가 (빠른 정리는 별도 카드)
-        [headerLabel, totalSizeLabel, fileCountLabel, retentionLabel].forEach { statsStack.addArrangedSubview($0) }
-        
-        statisticsContainerView.addSubview(statsStack)
-        statisticsContainerView.addSubview(refreshButton)
-        
-        NSLayoutConstraint.activate([
-            statsStack.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 16),
-            statsStack.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
-            statsStack.trailingAnchor.constraint(equalTo: statisticsContainerView.trailingAnchor, constant: -16),
-            statsStack.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16),
-            
-        ])
-    }
-    
-    private func setupQuickCleanupSection() {
-        quickCleanupContainerView.translatesAutoresizingMaskIntoConstraints = false
-        quickCleanupContainerView.applyNeumorphicContainer(cornerRadius: 16)
-        
-        // 제목
-        let titleLabel = UILabel()
-        titleLabel.text = "🧹 빠른 정리"
-        titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
-        titleLabel.textColor = .label
+        // 빠른 정리 제목
+        let quickCleanupTitleLabel = UILabel()
+        quickCleanupTitleLabel.text = "🧹 빠른 정리"
+        quickCleanupTitleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
+        quickCleanupTitleLabel.textColor = .label
         
         // 버튼들 설정
         setupCleanupButton(compressButton, title: "🗑️ 선택한 날짜 삭제", color: .systemBlue)
@@ -247,28 +219,47 @@ class StorageManagementViewController: UIViewController {
         compressButton.addTarget(self, action: #selector(compressOldConversationsTapped), for: .touchUpInside)
         deleteAllButton.addTarget(self, action: #selector(deleteAllConversationsTapped), for: .touchUpInside)
         
-        // 카드 내부 수직 스택
-        quickStack.axis = .vertical
-        quickStack.spacing = 12
-        quickStack.alignment = .fill
-        quickStack.translatesAutoresizingMaskIntoConstraints = false
+        // 통합된 메인 스택 (프로퍼티)
+        statsStack.axis = .vertical
+        statsStack.spacing = 12
+        statsStack.alignment = .fill
+        statsStack.translatesAutoresizingMaskIntoConstraints = false
         
-        quickStack.addArrangedSubview(titleLabel)
-        quickStack.addArrangedSubview(compressButton)
-        quickStack.addArrangedSubview(deleteAllButton)
+        // 통계 정보들을 먼저 추가
+        [headerLabel, totalSizeLabel, fileCountLabel, retentionLabel].forEach { 
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            statsStack.addArrangedSubview($0) 
+        }
         
-        quickCleanupContainerView.addSubview(quickStack)
+        // 구분선 추가
+        let separatorView = UIView()
+        separatorView.backgroundColor = UIColor.separator.withAlphaComponent(0.3)
+        separatorView.translatesAutoresizingMaskIntoConstraints = false
+        statsStack.addArrangedSubview(separatorView)
+        
+        // 빠른 정리 섹션 추가
+        quickCleanupTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        statsStack.addArrangedSubview(quickCleanupTitleLabel)
+        statsStack.addArrangedSubview(compressButton)
+        statsStack.addArrangedSubview(deleteAllButton)
+        
+        statisticsContainerView.addSubview(statsStack)
         
         NSLayoutConstraint.activate([
-            quickStack.topAnchor.constraint(equalTo: quickCleanupContainerView.topAnchor, constant: 16),
-            quickStack.leadingAnchor.constraint(equalTo: quickCleanupContainerView.leadingAnchor, constant: 16),
-            quickStack.trailingAnchor.constraint(equalTo: quickCleanupContainerView.trailingAnchor, constant: -16),
-            quickStack.bottomAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: -16),
+            statsStack.topAnchor.constraint(equalTo: statisticsContainerView.topAnchor, constant: 16),
+            statsStack.leadingAnchor.constraint(equalTo: statisticsContainerView.leadingAnchor, constant: 16),
+            statsStack.trailingAnchor.constraint(equalTo: statisticsContainerView.trailingAnchor, constant: -16),
+            statsStack.bottomAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: -16),
             
+            // 구분선 높이
+            separatorView.heightAnchor.constraint(equalToConstant: 1),
+            
+            // 버튼 높이
             compressButton.heightAnchor.constraint(equalToConstant: 48),
             deleteAllButton.heightAnchor.constraint(equalToConstant: 48)
         ])
     }
+
     
     private func setupCleanupButton(_ button: UIButton, title: String, color: UIColor) {
         button.setTitle(title, for: .normal)
@@ -333,7 +324,6 @@ class StorageManagementViewController: UIViewController {
     
     private func setupLayout() {
         contentView.addSubview(statisticsContainerView)
-        contentView.addSubview(quickCleanupContainerView)
         contentView.addSubview(tableView)
         
         NSLayoutConstraint.activate([
@@ -350,18 +340,13 @@ class StorageManagementViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
             
-            // 통계 섹션 카드
+            // 통계 섹션 카드 (빠른 정리 통합)
             statisticsContainerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             statisticsContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             statisticsContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
-            // 빠른 정리 카드 (통계 카드 아래 확실히 분리)
-            quickCleanupContainerView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 20),
-            quickCleanupContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            quickCleanupContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            
-            // 테이블뷰 (빠른 정리 카드 아래)
-            tableView.topAnchor.constraint(equalTo: quickCleanupContainerView.bottomAnchor, constant: 16),
+            // 테이블뷰 (통합 카드 아래)
+            tableView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
@@ -435,7 +420,7 @@ class StorageManagementViewController: UIViewController {
     // MARK: - Actions
     
     @objc private func closeButtonTapped() {
-        dismiss(animated: true)
+        navigationController?.popViewController(animated: true)
     }
     
     @objc private func refreshButtonTapped() {

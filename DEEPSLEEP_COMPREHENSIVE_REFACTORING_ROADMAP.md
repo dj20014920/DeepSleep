@@ -43,6 +43,49 @@ Risks / Notes
 - 버튼/간격/색상은 다크모드에서도 대비가 충분(.systemBlue/.white)
 - 선택 날짜 싱크(양 탭 동시 선택)는 추후 Notification으로 확장 가능
 
+## 2025-09-01 Updates (캘린더 오늘 표시·하이라이트 제거 · 인사이트/CTA · DateFormatter 정합)
+
+What changed where
+- EmotionCalendarViewController.swift
+  - FSCalendar 기본 원형 하이라이트 제거: todayColor/selectionColor/borderSelectionColor = .clear, titleToday/SelectionColor = .label
+  - 셀 구성 시 오늘 날짜에 한해 우상단 "접힌 모서리" 삼각형 마크 표시: cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
+  - 인사이트 섹션: 오늘 날짜이고(선택일=오늘), 해당 날짜에 일기 O & 분석 로그 X이면 CTA "오늘 일기 분석 시작" 노출 → startDiaryConversation(with:)로 연결
+  - 오늘 일기 미작성 시 TodayEmotion/Insight에서 안내 문구 + "일기 쓰기" 버튼 노출(이미 구현된 흐름 보강)
+  - 키 포맷 정합: 잘못된 DateFormatter.with(...) 제거, SettingsManager.shared.dateKey(for:) 사용으로 yyyy-MM-dd 키 일관화
+- TodoCalendarViewController.swift
+  - EmotionCalendar와 동일한 FSCalendar appearance로 하이라이트 제거 및 일관화
+  - cellFor에서 오늘 모서리 삼각형 마크 동일 표시
+- UI/EmotionCalendarDayCell.swift
+  - todayCornerLayer(CAShapeLayer) 추가: 셀 우상단 작은 삼각형(접힌 종이 모서리 느낌) 렌더링
+  - selectionLayer/todayLayer 같은 내부 레이어 직접 접근 제거(KISS). 기본 하이라이트 제거는 appearance로만 처리
+  - 그라데이션 링(할 일 데코) 유지 및 성능/시인성 설정 유지
+- ChatViewController.swift (기 반영 사항 문서화)
+  - 일기 분석 결과 SettingsManager에 저장 후 .diaryAnalysisUpdated 브로드캐스트 → 달력 인사이트 실시간 갱신
+- SettingsManager.swift (기 반영 사항 문서화)
+  - Notification.Name.emotionDiaryUpdated, .diaryAnalysisUpdated 발행
+  - dateKey(for:) = yyyy-MM-dd(en_US_POSIX) 제공, 캘린더 인덱싱 SSoT
+
+Rationale
+- KISS/DRY/SSoT: FSCalendar 하이라이트 제거를 appearance 한 곳에서만 수행, 셀은 오늘 마크만 담당. 날짜 키 생성은 SettingsManager.dateKey로 단일화
+- UX: 원형 하이라이트(오늘/선택) 제거로 시각적 과밀 해소, 오늘은 은은한 삼각형 마크로 표기
+- 실시간성: 일기/분석 저장 시 알림으로 인사이트 즉시 갱신
+
+Verification checklist
+- [ ] 오늘/선택 시 원형 하이라이트가 나타나지 않는다(보라/파란 원 없음)
+- [ ] 오늘 날짜 셀 우상단에 작은 삼각형 마크가 보인다(겹침/깨짐 없음)
+- [ ] 오늘이고, 일기 O & 분석 X → 인사이트 셀에 "오늘 일기 분석 시작" 버튼 노출·진입 정상
+- [ ] 오늘 일기 미작성 → TodayEmotion/Insight에서 안내 + "일기 쓰기" 버튼 노출
+- [ ] 감정 이모지(캘린더/오늘 카드) 표기가 SettingsManager/공통 매핑과 일치
+- [ ] DateFormatter.with 사용 0건, dateKey(for:) 사용으로 빌드 에러 없음
+
+Risks / Notes
+- 오늘 삼각형 마크 색상/크기는 소형(기본 systemBlue, 크기≈셀 변의 22%)으로 설정. 다크모드/테마별 가독성 확인 권장
+- 이벤트 점/이모지/그라데이션 링과의 겹침을 실기기에서 점검(특히 작은 화면)
+
+Next (옵션)
+- 오늘 마크 색상/크기/위치 미세 조정 파라미터화
+- 인사이트 섹션 페이징 "더보기" 및 오늘 카드 내 보조 CTA 추가(사용자 요청 시)
+
 ## 2025-09-01 Updates (일기 분석 라우팅·에페메랄 세션 통일)
 
 What changed where

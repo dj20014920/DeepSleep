@@ -131,6 +131,20 @@ class InsightCell: UICollectionViewCell {
         }
     }
     
+    // 분석 리스트 전용 구성 (섹션 헤더에 제목이 있으므로 타이틀 숨김)
+    func configureAnalysisList(_ text: String, showCTA: Bool, ctaTitle: String = "오늘 일기 분석 시작") {
+        iconLabel.text = "🌿"
+        titleLabel.isHidden = true
+        contentLabel.text = text
+        primaryButton.setTitle(ctaTitle, for: .normal)
+        primaryButton.isHidden = !showCTA
+        // 대나무숲 카드 색감(파스텔) & 그림자 적용 (더 밝게)
+        containerView.layer.borderWidth = 1
+        containerView.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
+        containerView.backgroundColor = UIDesignSystem.Colors.accent.withAlphaComponent(0.08)
+        containerView.applyShadow(UIDesignSystem.Shadow.small())
+    }
+    
     func configure(with emotion: String, intensity: Float, description: String) {
         iconLabel.text = getEmotionIcon(for: emotion)
         titleLabel.text = emotion
@@ -244,6 +258,7 @@ class InsightCell: UICollectionViewCell {
         super.prepareForReuse()
         iconLabel.text = nil
         titleLabel.text = nil
+        titleLabel.isHidden = false
         contentLabel.text = nil
         containerView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
         containerView.layer.borderWidth = 0

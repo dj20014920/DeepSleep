@@ -54,13 +54,16 @@ final class SectionHeaderView: UICollectionReusableView {
 class EmotionCalendarViewController: UIViewController, UICollectionViewDataSource {
     
     enum SectionType {
+        case todayEmotion(EmotionDiary?)
         case insight(String)
         case todo([TodoItem])
         
         var title: String {
             switch self {
+            case .todayEmotion:
+                return "" // 컬렉션 헤더는 숨김 (상단 고정 라벨 사용)
             case .insight:
-                return "AI Insight"
+                return "대나무숲 친구 대화"
             case .todo:
                 return "To-Do List"
             }
@@ -214,9 +217,12 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         calendar.appearance.headerTitleColor = .label
         calendar.appearance.weekdayTextColor = .label
         calendar.appearance.titleDefaultColor = .label
-        calendar.appearance.titleTodayColor = .white
-        calendar.appearance.todayColor = .systemBlue
-        calendar.appearance.selectionColor = .systemPurple
+        // 기본 하이라이트(선택/오늘) 원 제거
+        calendar.appearance.titleTodayColor = .label
+        calendar.appearance.todayColor = .clear
+        calendar.appearance.selectionColor = .clear
+        calendar.appearance.borderSelectionColor = .clear
+        calendar.appearance.titleSelectionColor = .label
         calendar.appearance.eventDefaultColor = .systemGreen
         calendar.appearance.headerDateFormat = "yyyy년 MM월"
         
@@ -263,6 +269,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         collectionView.delegate = self
         
         // 셀 등록
+        collectionView.register(TodayEmotionCell.self, forCellWithReuseIdentifier: TodayEmotionCell.reuseIdentifier)
         collectionView.register(InsightCell.self, forCellWithReuseIdentifier: InsightCell.reuseIdentifier)
         collectionView.register(TodoListCell.self, forCellWithReuseIdentifier: TodoListCell.reuseIdentifier)
         collectionView.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "SectionHeaderView")
@@ -290,53 +297,27 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         dateKeyFormatter.dateFormat = "yyyy-MM-dd"
         let dateKey = dateKeyFormatter.string(from: date)
         
-        var insightText: String
-        if let diary = diaryDataForCalendar[dateKey] {
-            // 일기가 있는 경우 감정 및 요약 표시
-            let emotionEmoji = getEmotionEmoji(for: diary.selectedEmotion)
-            insightText = """
-📊 \(dateString)의 감정 분석
-
-오늘의 감정: \(emotionEmoji) \(diary.selectedEmotion)
-"\(diary.userMessage.prefix(50))\(diary.userMessage.count > 50 ? "..." : "")"
-"""
-            
-            // 대나무숲 친구 분석 로그 (최신순 상위 3개)
-            let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: date, offset: 0, limit: 3)
-            if !records.isEmpty {
-                insightText += "\n\n🌿 대나무숲 친구 답변\n"
-                for rec in records {
-                    // 지나치게 긴 텍스트는 축약
-                    let t = rec.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let preview = t.count > 140 ? String(t.prefix(140)) + "…" : t
-                    insightText += "• \(preview)\n"
-                }
-                if hasMore {
-                    insightText += "… 외 추가 분석이 더 있어요."
-                }
+        // 섹션 구성: 오늘의 감정 카드 → 대나무숲 친구 대화 → Todo
+        let diaryForDate = diaryDataForCalendar[dateKey]
+        sections.append(.todayEmotion(diaryForDate))
+        
+        // 대나무숲 친구 대화(분석 로그) 텍스트 구성
+        var insightText: String = ""
+        let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: date, offset: 0, limit: 3)
+        if !records.isEmpty {
+            // 최신순 상위 3개
+            var lines: [String] = []
+            for rec in records {
+                let t = rec.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                let preview = t.count > 180 ? String(t.prefix(180)) + "…" : t
+                lines.append("• " + preview)
+            }
+            insightText = lines.joined(separator: "\n")
+            if hasMore {
+                insightText += "\n… 외 추가 분석이 더 있어요"
             }
         } else {
-            // 일기가 없는 경우
-            let isToday = Calendar.current.isDate(date, inSameDayAs: Date())
-            if isToday {
-                insightText = "📝 오늘의 감정을 아직 기록하지 않았어요\n\n감정 일기를 작성하면 대나무숲 친구에게 분석을 받을 수 있습니다."
-            } else {
-                insightText = "📊 \(dateString)의 일기 기록이 없습니다\n\n이 날에는 일기를 작성하지 않으셨네요!"
-            }
-            
-            // 일기가 없더라도 분석 로그가 있는 경우 표시 (예외 상황 대비)
-            let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: date, offset: 0, limit: 3)
-            if !records.isEmpty {
-                insightText += "\n\n🌿 대나무숲 친구 답변\n"
-                for rec in records {
-                    let t = rec.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let preview = t.count > 140 ? String(t.prefix(140)) + "…" : t
-                    insightText += "• \(preview)\n"
-                }
-                if hasMore {
-                    insightText += "… 외 추가 분석이 더 있어요"
-                }
-            }
+            insightText = "아직 분석 내역이 없습니다. 일기를 작성하고 대나무숲에서 이야기해보세요."
         }
         
         sections.append(.insight(insightText))
@@ -360,6 +341,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     
     @objc func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         switch sections[section] {
+        case .todayEmotion:
+            return 1
         case .insight:
             return 1
         case .todo(let items):
@@ -369,13 +352,24 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     
     @objc func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         switch sections[indexPath.section] {
+        case .todayEmotion(let diary):
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodayEmotionCell.reuseIdentifier, for: indexPath) as! TodayEmotionCell
+            cell.onWriteAction = { [weak self] in self?.openDiaryWriteFromCalendar() }
+            let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
+            cell.configure(with: diary, isToday: isToday)
+            return cell
         case .insight(let text):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath) as! InsightCell
-            // 오늘 감정 미입력 CTA 동작 연결: '일기 쓰기' 열기
+            // 분석 리스트 모드로 구성 (타이틀 숨김) + CTA (오늘/선택일 일기 O & 분석 없음)
+            let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
+            let dateKey = SettingsManager.shared.dateKey(for: selectedDate)
+            let diaryForDate = diaryDataForCalendar[dateKey]
+            let (records, _) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: 0, limit: 1)
+            let showCTA = (diaryForDate != nil) && records.isEmpty && isToday
             cell.onPrimaryAction = { [weak self] in
-                self?.openDiaryWriteFromCalendar()
+                if let entry = diaryForDate { self?.startDiaryConversation(with: entry) }
             }
-            cell.configure(with: text)
+            cell.configureAnalysisList(text, showCTA: showCTA, ctaTitle: "오늘 일기 분석 시작")
             return cell
         case .todo(let items):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath) as! TodoListCell
@@ -437,6 +431,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
 extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSource {
     func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
         let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
+        // 오늘 표시: 우상단 모서리 접힘 마크
+        cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
         // 날짜별 할 일 상태를 계산하여 그라데이션 테두리 지정
         let todos = todoManager.getTodos(for: date)
         let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
@@ -538,12 +534,43 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = collectionView.frame.width - 32 // 양쪽 패딩
         switch sections[indexPath.section] {
+        case .todayEmotion(let diary):
+            let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
+            let height = estimatedTodayEmotionHeight(diary: diary, isToday: isToday, width: width)
+            return CGSize(width: width, height: height)
         case .insight(let text):
             let height = estimatedInsightHeight(for: text, width: width)
             return CGSize(width: width, height: height)
         case .todo:
             return CGSize(width: width, height: 80)
         }
+    }
+    
+    // 동적 높이 계산: 오늘의 감정 카드
+    private func estimatedTodayEmotionHeight(diary: EmotionDiary?, isToday: Bool, width: CGFloat) -> CGFloat {
+        let contentWidth = width - 24 // 내부 패딩 보정
+        var total: CGFloat = 0
+        // 이모지 + 감정명 기본 높이
+        total += 32 /*emoji*/ + 8 + 20 /*name*/
+        
+        if diary == nil {
+            // 안내문 텍스트 높이
+            let text = isToday ? "아직 오늘의 감정을 알려주시지 않았어요!\n입력하러 가볼까요?" : "이 날짜에는 감정 일기를 작성하지 않으셨어요."
+            let attrs: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 14)]
+            let box = (text as NSString).boundingRect(
+                with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: attrs,
+                context: nil
+            )
+            total += 8 + ceil(box.height)
+            if isToday {
+                total += 8 + 40 // 버튼 영역 대략치
+            }
+        }
+        // 컨테이너 상하 여백
+        total += 32
+        return max(100, total)
     }
     
     // 동적 높이 계산: 인사이트 텍스트 길이에 따라 높이를 유연하게 조정
@@ -566,7 +593,12 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
-        return CGSize(width: collectionView.frame.width, height: 50)
+        switch sections[section] {
+        case .todayEmotion:
+            return .zero // 상단 고정 라벨이 있으므로 헤더 숨김
+        default:
+            return CGSize(width: collectionView.frame.width, height: 50)
+        }
     }
 }
 

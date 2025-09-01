@@ -179,11 +179,15 @@ class PermissionSettingsViewController: UIViewController {
         // 새로고침 애니메이션 표시
         navigationItem.rightBarButtonItem?.isEnabled = false
         
+        // 디버그 로그 추가
+        print("🔄 [PermissionSettings] 권한 상태 새로고침 시작")
+        
         loadPermissionStatuses()
         
         // 1초 후 버튼 다시 활성화
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.navigationItem.rightBarButtonItem?.isEnabled = true
+            print("✅ [PermissionSettings] 권한 상태 새로고침 완료")
         }
     }
 }
@@ -221,9 +225,22 @@ extension PermissionSettingsViewController: PermissionItemViewDelegate {
     }
     
     private func showPermissionDeniedAlert(for permissionType: PermissionType) {
+        let message: String
+        
+        switch permissionType {
+        case .calendar:
+            message = "📅 캘린더 권한이 거부되었습니다.\n\n할 일을 시스템 캘린더에 동기화하려면 설정에서 직접 권한을 허용해주세요.\n\n설정 > 개인정보보호 > 캘린더 > DeepSleep"
+        case .notification:
+            message = "🔔 알림 권한이 거부되었습니다.\n\n할 일 미리 알림을 받으려면 설정에서 직접 권한을 허용해주세요."
+        case .health:
+            message = "❤️ 건강 데이터 권한이 거부되었습니다.\n\n수면 분석 및 마음챙김 데이터를 사용하려면 설정에서 직접 권한을 허용해주세요."
+        case .backgroundAudio:
+            message = "🎵 백그라운드 오디오는 앱 설정에서 관리됩니다."
+        }
+        
         let alert = UIAlertController(
             title: "권한 거부됨",
-            message: "\(permissionType.displayName) 권한이 거부되었습니다.\n설정에서 직접 권한을 허용해주세요.",
+            message: message,
             preferredStyle: .alert
         )
         

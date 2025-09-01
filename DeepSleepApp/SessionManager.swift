@@ -775,7 +775,154 @@ public class SessionManager {
         }
     }
     
-    // MARK: - 로컬 AI 추천을 위한 통합 데이터 제공
+    // MARK: - AI 통합 호출 (단일 진입점)
+    
+    /// 모든 AI 호출의 단일 진입점 - 3시간 캐싱 보장
+    /// - Parameters:
+    ///   - content: 사용자 입력
+    ///   - mode: AI 모드
+    ///   - saveMessages: 메시지 저장 여부 (기본 true)
+    ///   - sessionId: 특정 세션 ID (기본적으로 현재 세션 사용)
+    /// - Returns: AI 응답
+    public func sendMessage(
+        content: String,
+        mode: AIMode,
+        saveMessages: Bool = true,
+        sessionId: String? = nil
+    ) async throws -> AIResponse {
+        print("🚀 [SessionManager] AI 호출 시작 - 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
+        
+        // 1. 사용량 한도 확인
+        let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+        guard usage.canUse else {
+            print("❌ [SessionManager] 사용량 한도 초과: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
+            throw AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+        }
+        
+        // 2. 세션 ID 결정
+        let targetSessionId = sessionId ?? getCurrentOrCreateSession().id
+        
+        // 3. 컨텍스트 구성 (3시간 캐싱 적용)
+        let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
+        
+        // 4. AI 서비스 호출
+        let selectedModelType = SettingsManager.shared.selectedLLM
+        let selectedModel = mapAIModelTypeToAIModel(selectedModelType)
+        let response = try await UnifiedAIServiceImpl.shared.sendMessage(
+            content: content,
+            model: selectedModel,
+            mode: mode,
+            context: aiContext,
+            tokenConfig: mode.recommendedTokenConfig,
+            assembledPrompt: nil // AIContextBuilder에서 자동 생성
+        )
+        
+        // 5. 메시지 저장 (옵션)
+        if saveMessages {
+            try await saveAIConversation(
+                sessionId: targetSessionId,
+                userMessage: content,
+                aiResponse: response,
+                mode: mode
+            )
+        }
+        
+        print("✅ [SessionManager] AI 호출 완료 - 응답 길이: \(response.content.count)자")
+        return response
+    }
+    
+    /// AI 컨텍스트 구성 (3시간 캐싱 적용)
+    private func buildAIContext(for mode: AIMode, sessionId: String) async throws -> AIContext {
+        print("🏗️ [SessionManager] AI 컨텍스트 구성 시작 - 모드: \(mode.rawValue)")
+        
+        // 최근 대화 내역 조회 (균형잡힌 8:8 구성)
+        let recentMessages = buildBalancedRecent(sessionId: sessionId, userMax: 8, assistantMax: 8)
+        
+        // 사용자 프로필 정보
+        let userSettings = UserSettingsModel.loadFromUserDefaults()
+        
+        // 핵심 기억 요약
+        let coreMemorySummary = MemoryManager.shared.getMemorySummary(maxItems: 5)
+        
+        // AIContext 생성
+        let context = AIContext(
+            userId: "user_\(sessionId)",
+            sessionId: sessionId,
+            conversationHistory: convertToAIConversationTurns(recentMessages),
+            userPreferences: createUserPreferences(from: userSettings),
+            environmentContext: nil
+        )
+        
+        print("✅ [SessionManager] AI 컨텍스트 구성 완료 - 최근 메시지: \(recentMessages.count)개")
+        return context
+    }
+    
+    /// 균형잡힌 최근 대화 구성 (사용자 8개, AI 8개)
+    private func buildBalancedRecent(sessionId: String, userMax: Int, assistantMax: Int) -> [StoredChatMessage] {
+        let messages = getChatMessages(forSessionId: sessionId, limit: 50) // 충분한 양 조회
+        
+        var userMessages: [StoredChatMessage] = []
+        var assistantMessages: [StoredChatMessage] = []
+        
+        // 최신순으로 정렬하여 균형잡힌 선택
+        let sortedMessages = messages.sorted { $0.timestamp > $1.timestamp }
+        
+        for message in sortedMessages {
+            switch message.role {
+            case "user":
+                if userMessages.count < userMax {
+                    userMessages.append(message)
+                }
+            case "assistant":
+                if assistantMessages.count < assistantMax {
+                    assistantMessages.append(message)
+                }
+            default:
+                // 시스템 메시지는 제외 (시스템 프롬프트에서 처리)
+                continue
+            }
+        }
+        
+        // 시간순으로 다시 정렬하여 자연스러운 대화 흐름 유지
+        let combined = (userMessages + assistantMessages).sorted { $0.timestamp < $1.timestamp }
+        
+        print("🔄 [SessionManager] 균형잡힌 대화 구성: 사용자 \(userMessages.count)개, AI \(assistantMessages.count)개")
+        return combined
+    }
+    
+    /// AI 대화 저장
+    private func saveAIConversation(
+        sessionId: String,
+        userMessage: String,
+        aiResponse: AIResponse,
+        mode: AIMode
+    ) async throws {
+        print("💾 [SessionManager] AI 대화 저장 시작")
+        
+        // 사용자 메시지 저장
+        let userStoredMessage = StoredChatMessage(
+            id: UUID().uuidString,
+            timestamp: Date(),
+            role: "user",
+            content: userMessage,
+            type: .text
+        )
+        
+        try addChatMessage(to: sessionId, message: userStoredMessage)
+        
+        // AI 응답 저장
+        let aiStoredMessage = StoredChatMessage(
+            id: aiResponse.id,
+            timestamp: aiResponse.timestamp,
+            role: "assistant",
+            content: aiResponse.content,
+            type: .text
+        )
+        
+        try addChatMessage(to: sessionId, message: aiStoredMessage)
+        
+        print("✅ [SessionManager] AI 대화 저장 완료")
+    }
     
     /// 로컬 AI 추천을 위한 풍부한 컨텍스트 생성
     public func buildRichContextForLocalAI() -> LocalAIContext {
@@ -802,7 +949,60 @@ public class SessionManager {
         )
     }
     
-    // MARK: - Private Methods
+    // MARK: - Private Helper Methods
+    
+    /// AIModelType을 AIModel로 변환
+    private func mapAIModelTypeToAIModel(_ modelType: AIModelType) -> AIModel {
+        switch modelType {
+        case .claude35:
+            return .claude
+        case .gpt4:
+            return .openAI
+        case .gemini:
+            return .gemini
+        case .naver:
+            return .naver
+        case .freeModel:
+            return .freeModel
+        case .onDevice:
+            return .freeModel // 온디바이스는 현재 무료 모델로 매핑
+        case .testModel:
+            return .freeModel // 테스트 모델도 무료 모델로 매핑
+        }
+    }
+    
+    /// StoredChatMessage 배열을 AIConversationTurn 배열로 변환
+    private func convertToAIConversationTurns(_ messages: [StoredChatMessage]) -> [AIConversationTurn] {
+        return messages.map { message in
+            let role: Role
+            switch message.role {
+            case "user":
+                role = .user
+            case "assistant":
+                role = .assistant
+            case "system":
+                role = .system
+            default:
+                role = .user // 기본값
+            }
+            
+            return AIConversationTurn(
+                role: role,
+                content: message.content,
+                timestamp: message.timestamp
+            )
+        }
+    }
+    
+    /// UserSettingsModel에서 UserPreferences 생성
+    private func createUserPreferences(from settings: UserSettingsModel) -> UserPreferences {
+        return UserPreferences(
+            preferredModel: nil,
+            responseStyle: .casual,
+            language: "ko",
+            maxResponseLength: nil
+        )
+    }
     
     /// 모든 세션을 메모리에 로드
     private func loadAllSessions() {

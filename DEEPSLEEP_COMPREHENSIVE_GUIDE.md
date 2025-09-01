@@ -260,6 +260,43 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 - wrangler.toml의 main 경로와 실제 소스 경로가 일치하는지 재확인. (현재 main="src/worker.js"; 필요 시 수정)
 - iOS는 정책 헤더가 없더라도 정상 동작. 헤더가 제공되면 UI에 남은 사용량/리셋 시간을 노출.
 
+### 🆕 2025-09-01 업데이트: 캘린더 하이라이트 제거 + 오늘 모서리 접힘 + 인사이트/오늘 카드 UX
+
+요약
+- 기본 원형 하이라이트 제거: todayColor/selectionColor/borderSelectionColor를 .clear로, titleToday/SelectionColor는 .label로 설정(두 캘린더 동일)
+- 오늘 표기: EmotionCalendarDayCell이 셀 우상단에 작은 삼각형(접힌 종이 모서리 느낌)을 렌더링. 컨트롤러는 오늘 여부만 판단해 setTodayCornerVisible(true/false) 호출
+- 인사이트/오늘 카드 UX: 
+  - 오늘이고, 선택일에 일기 O & 해당 날짜 분석 로그 X → 인사이트 셀에 "오늘 일기 분석 시작" 버튼 노출(대나무숲 대화로 연결)
+  - 오늘 일기 미작성 시 TodayEmotion/Insight에서 안내 문구 + "일기 쓰기" 버튼 노출(모달 작성 화면 진입)
+- 날짜 키 생성 SSoT: DateFormatter.with(...) 제거, SettingsManager.shared.dateKey(for:) 사용으로 yyyy-MM-dd(en_US_POSIX) 일관성 유지
+- 실시간 갱신: ChatViewController가 일기 분석 저장 시 SettingsManager를 통해 저장하고 .diaryAnalysisUpdated 방송 → 캘린더 인사이트 즉시 갱신
+
+영향 파일
+- DeepSleepApp/EmotionCalendarViewController.swift
+- DeepSleepApp/TodoCalendarViewController.swift
+- DeepSleepApp/UI/EmotionCalendarDayCell.swift
+- DeepSleepApp/ChatViewController.swift (분석 저장/알림)
+- DeepSleepApp/SettingsManager.swift (dateKey/알림 상수)
+
+동작 규칙(요약)
+- 오늘/선택 하이라이트 원은 사용하지 않는다(appearance로 제거)
+- 오늘 표시는 셀의 우상단 삼각형 마크로만 한다(은은하고 작게)
+- 인사이트 CTA 노출 조건: 선택일=오늘 ∧ 일기 존재 ∧ 분석 로그 없음
+- 날짜 키는 반드시 SettingsManager.dateKey(for:)로 생성한다(직접 포맷 금지)
+
+검증 방법
+1) 선택/오늘 하이라이트 원이 나타나지 않는지 확인(두 화면 모두)
+2) 오늘 날짜 셀 우상단 삼각형 마크가 보이는지 확인(다크모드 포함)
+3) 오늘이고 일기 O & 분석 X → 인사이트 셀 CTA가 노출되고 대화로 진입하는지 확인
+4) 오늘 일기 미작성 → 안내 문구 + "일기 쓰기" 버튼이 보이는지 확인
+5) DateFormatter.with 사용이 전역 0건인지 확인(키 생성은 dateKey(for:))
+
+디자인 메모
+- TodayEmotion 이모지 32pt + AutoShrink/최소 축소 비율 + 수직 압축 우선순위 반영으로 글자 잘림 방지(기존 반영)
+- 카드 색감: 밝은 파스텔 톤 + 은은한 그림자(기존 반영). 감정별 배경 12% 투명도, 보더는 원색 유지
+
+---
+
 ### 🆕 2025-08-29 업데이트: 캘린더/그라데이션 완전 통일 · 가시성 보장
 
 요약

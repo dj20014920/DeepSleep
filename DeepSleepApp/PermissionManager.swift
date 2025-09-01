@@ -36,11 +36,11 @@ enum PermissionType: String, CaseIterable {
         case .notification:
             return "할 일 미리 알림, 타이머 알림을 위해 필요합니다"
         case .calendar:
-            return "할 일을 시스템 캘린더에 동기화하기 위해 필요합니다"
+            return "할 일을 iPhone 캘린더 앱과 동기화하여 일정 관리를 도와드립니다. iOS 설정에서 바로 변경 가능합니다."
         case .health:
-            return "수면 데이터와 마음챙김 분석을 위해 필요합니다"
+            return "수면 데이터와 마음챙김 분석을 위해 필요합니다. 건강 앱에서 관리됩니다."
         case .backgroundAudio:
-            return "수면 사운드를 백그라운드에서 재생하기 위해 필요합니다"
+            return "수면 사운드를 백그라운드에서 재생하기 위해 필요합니다. 자동으로 설정됩니다."
         }
     }
     
@@ -118,20 +118,24 @@ class PermissionManager {
     
     // MARK: - Public Methods
     
-    /// 모든 권한 상태를 확인
+    /// 릫든 권한 상태를 확인
     func getAllPermissionStatuses(completion: @escaping ([PermissionType: PermissionStatus]) -> Void) {
+        print("🔍 [PermissionManager] 모든 권한 상태 확인 시작")
         var statuses: [PermissionType: PermissionStatus] = [:]
         let group = DispatchGroup()
         
         for permissionType in PermissionType.allCases {
             group.enter()
+            print("ℹ️ [PermissionManager] \(permissionType.displayName) 권한 상태 확인 중...")
             getPermissionStatus(for: permissionType) { status in
+                print("✅ [PermissionManager] \(permissionType.displayName): \(status.displayName)")
                 statuses[permissionType] = status
                 group.leave()
             }
         }
         
         group.notify(queue: .main) {
+            print("🎉 [PermissionManager] 모든 권한 상태 확인 완료")
             completion(statuses)
         }
     }
@@ -178,25 +182,9 @@ class PermissionManager {
     
     /// 특정 권한 섹션으로 이동 (iOS 설정)
     func openSpecificPermissionSettings(for type: PermissionType) {
-        let urlString: String
-        
-        switch type {
-        case .notification:
-            urlString = UIApplication.openSettingsURLString
-        case .calendar:
-            urlString = "App-prefs:Privacy&path=CALENDARS"
-        case .health:
-            urlString = "x-apple-health://sources/\(Bundle.main.bundleIdentifier ?? "")"
-        case .backgroundAudio:
-            urlString = UIApplication.openSettingsURLString
-        }
-        
-        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
-            UIApplication.shared.open(url)
-        } else {
-            // 특정 설정으로 이동할 수 없는 경우 일반 설정으로 이동
-            openAppSettings()
-        }
+        // iOS에서는 특정 권한 페이지로 직접 이동이 제한되어 있으므로
+        // 앱의 설정 페이지로 이동하여 사용자가 직접 권한을 관리하도록 함
+        openAppSettings()
     }
 }
 
@@ -258,13 +246,32 @@ private extension PermissionManager {
     }
     
     func requestCalendarPermission(completion: @escaping (Bool) -> Void) {
-        eventStore.requestFullAccessToEvents { [weak self] granted, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("🔴 Calendar permission error: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    completion(granted)
+        print("📅 [PermissionManager] 캘린더 권한 요청 시작")
+        
+        if #available(iOS 17.0, *) {
+            print("ℹ️ [PermissionManager] iOS 17+ requestFullAccessToEvents 사용")
+            eventStore.requestFullAccessToEvents { [weak self] granted, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("🔴 [PermissionManager] 캘린더 권한 오류: \(error.localizedDescription)")
+                        completion(false)
+                    } else {
+                        print("✅ [PermissionManager] 캘린더 권한 결과: \(granted ? "허용" : "거부")")
+                        completion(granted)
+                    }
+                }
+            }
+        } else {
+            print("ℹ️ [PermissionManager] iOS 16 이하 requestAccess 사용")
+            eventStore.requestAccess(to: .event) { [weak self] granted, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("🔴 [PermissionManager] 캘린더 권한 오류: \(error.localizedDescription)")
+                        completion(false)
+                    } else {
+                        print("✅ [PermissionManager] 캘린더 권한 결과: \(granted ? "허용" : "거부")")
+                        completion(granted)
+                    }
                 }
             }
         }

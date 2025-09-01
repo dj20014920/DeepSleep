@@ -69,7 +69,19 @@ NAVER_CLOUD_API_KEY = your-naver-api-key:your-secret
 
 ## 🔧 사용법
 
-### 기본 사용법
+### ✅ **권장 사용법** - SessionManager (3시간 캐싱 보장)
+
+```swift
+// SessionManager를 통한 AI 호출 - 3시간 캐싱 자동 보장
+let response = try await SessionManager.shared.sendMessage(
+    content: "안녕하세요!",
+    mode: .generalConversation
+)
+
+print(response.content)
+```
+
+### 기존 사용법 (직접 호출 - 권장하지 않음)
 
 ```swift
 let aiService = UnifiedAIServiceImpl.shared
@@ -86,6 +98,29 @@ print(response.content)
 ```
 
 ### 모드별 사용법
+
+```swift
+// 1. 감정 일기 분석 - SessionManager 사용 (추천)
+let emotionResponse = try await SessionManager.shared.sendMessage(
+    content: "오늘은 기분이 좋지 않았어요...",
+    mode: .emotionDiaryAnalysis
+)
+
+// 2. 음악 프리셋 추천 - 특정 모델 지정
+let musicResponse = try await SessionManager.shared.sendMessage(
+    content: "스트레스 해소에 좋은 음악을 추천해주세요",
+    mode: .presetRecommendation,
+    model: .gemini  // Gemini 2.0 Flash-Lite 추천
+)
+
+// 3. 할일 조언
+let taskResponse = try await SessionManager.shared.sendMessage(
+    content: "내일 프레젠테이션 준비를 어떻게 해야 할까요?",
+    mode: .taskAdvice
+)
+```
+
+### 기존 방식 (직접 호출)
 
 ```swift
 // 1. 감정 일기 분석
