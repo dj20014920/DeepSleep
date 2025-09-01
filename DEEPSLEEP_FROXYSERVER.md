@@ -1,9 +1,45 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-08-31
+최종 업데이트: 2025-09-01
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
 
+
+# 2025-09-01 배포/운영 동기화: 프록시 & 모델별 캐싱
+
+현재 상태(프로덕션)
+- 워커: emozleep (Cloudflare Workers)
+- URL: https://emozleep-production.vinny4920-081.workers.dev
+- Version ID: c18d6a9c-f4ad-43ed-9689-dce0210e60b5
+
+핵심 기능
+- /v1/chat: providerCaching 스키마 수용 및 공급자별 캐시 적용
+- 응답 헤더: X-Cache-Provider/Action/TTL/Tokens
+- 무효화: X-Context-Invalidation 헤더 1회성 처리
+
+공급자 정책
+- Anthropic: ephemeral cache_control 3600s, 30분 경과 write
+- Gemini: caches.create + PATCH ttl=3600s로 최대 3시간 운용
+- OpenAI: 시스템 프리픽스 해시/길이 KV 기록(관측)
+- Naver: 캐싱 불가 → bypass
+
+iOS 연동
+- AIContextManager: 무효화 사유 보관/소비
+- UnifiedAIServiceImpl: providerCaching 전송, X-Cache-* 파싱, 무효화 헤더 전송
+
+운영 팁
+- 로그: wrangler tail emozleep --format pretty
+- 재배포: wrangler deploy --env production
+- 검증 체크리스트
+  - X-Cache-Action: miss→write 이후 hit/read로 전환
+  - Gemini PATCH 응답 200 확인
+  - OpenAI prefix hash 변동 0 유지
+
+추가 과제
+- /v1/metrics 구현 및 대시보드 연계
+- NAVER 키 단일화 마이그레이션 완료
+
+---
 
 1) 현재 상태(요약)
 - 워커 이름: emozleep
@@ -305,4 +341,110 @@ C. 서명된 채팅(비스트리밍)
 
 17) 변경 이력
 - 2025-08-31: 프록시 모드 프로덕션 전환, HMAC+Nonce 인증, 정책 헤더/폴백 체인 정비, wrangler.toml main 경로 수정
+- 2025-09-01: 모델별 캐싱 설계/요청 스키마/헤더/KV 스키마/검증 체크리스트 추가
+
+## 18) 모델별 캐싱 시스템 설계/구현(비용 최적화) — 2025-09-01
+
+요약 결론
+- 토큰 비용 절감은 “공급자 측 캐싱”에서만 발생합니다. 3시간 앱 내부 캐시는 UX/레이턴시 개선에 유의미하나 과금에는 영향이 없습니다.
+- 권장안: 듀얼 레이어 유지(앱 3시간 캐시 + 서버 공급자 캐싱). 단, ‘캐시 소유권’은 서버로 단일화하여 프리픽스 안정화·무효화·메트릭을 서버에서 집행합니다.
+- 통일 대안: 앱 캐시 제거(서버만 캐싱)는 가능하나, 네트워크 장애/프록시 재시도 시 UX 저하가 있어 권장하지 않습니다.
+
+설계 원칙
+- 안정 프리픽스 정의: [시스템 프롬프트 + 페르소나 규칙 + 핵심기억 요약]을 바이트 동일하게 유지(줄바꿈/공백 포함). 최근 대화/사용자 입력은 프리픽스에 포함하지 않음.
+- 캐시 키: personaSignature(내부 해시) + 모델명. 해시는 외부 전송 금지. 서버에서만 식별자로 사용.
+- 무효화 SSoT: 모델/페르소나/핵심기억 변경 시 iOS가 헤더 X-Context-Invalidation: <reason>를 전송 → 서버는 해당 키의 캐시 엔트리를 무효화.
+
+요청 스키마 확장(/v1/chat)
+- 요청 JSON에 선택 필드 추가
+  {
+    // ...existing fields...
+    "providerCaching": {
+      "enable": true,
+      "strategy": "auto",    // auto|force-write|force-read
+      "ttlSeconds": 3600,      // 공급자별 최대치 내에서 사용(없으면 기본)
+      "cacheKey": "<personaSignature>"
+    }
+  }
+- 서버는 enable=true일 때만 공급자 캐싱을 시도. ttlSeconds는 공급자 한도 내로 클램프.
+
+응답/관측 헤더 추가
+- X-Cache-Provider: anthropic|gemini|openai|naver|none
+- X-Cache-Action: write|read|bypass|unsupported
+- X-Cache-TTL: 남은 TTL(초) 또는 0
+- X-Cache-Tokens: writeIn|readIn(예: "writeIn=1200;readIn=9800")
+
+KV/스토리지 스키마
+- 키: cache:{provider}:{model}:{personaKey}
+- 값(JSON): {
+    nameOrId: string,      // Gemini cache.name 등
+    createdAt: epoch_ms,
+    ttlSec: number,
+    lastReadAt: epoch_ms,
+    stats: { writes: n, reads: n }
+  }
+
+공급자별 구현 메모
+- Anthropic(Claude) — 운영 30분 정책(1시간 TTL 기반)
+  - 메시지 생성 시 안정 프리픽스에 cache_control: { type: "ephemeral", ttl: "1h" } 지정.
+  - KV에 personaKey로 "작성 시각" 저장. 운영 30분 정책은 30분 경과 시 재작성(force-write)로 달성.
+  - 사용량 필드(예: cache_creation_input_tokens, cache_read_input_tokens)로 히트율/절감 추적.
+  - 최소 캐시 길이/브레이크포인트 제약에 대비하여 프리픽스가 짧을 경우 bypass 처리.
+- Google Gemini — 1시간 TTL
+  - 최초 요청 시 caches.create(ttl=3600s) → 반환된 cache.name을 KV에 저장 후 generateContent에 cachedContent 사용.
+  - 3시간 운용은 1시간 단위로 caches.patch로 TTL 연장.
+  - UsageMetadata(토큰 메타) 기반으로 절감 추정치 산출.
+- OpenAI — 자동 프리픽스 캐싱
+  - 별도 API 없음. 바이트 동일 프리픽스를 엄수. usage 내 캐시 관련 카운터(제공 시)를 로깅.
+  - KV에는 마지막 프리픽스 해시와 길이만 기록해 프리픽스 안정성 점검.
+- Naver HyperCLOVA X — 미지원
+  - 캐싱 없음. 프리픽스 축약/요약으로 토큰 절감.
+
+무효화/동기화
+- iOS 트리거: 모델/페르소나/핵심기억 변경 시 X-Context-Invalidation로 알림.
+- 서버 트리거: 공급자 오류/스키마 변경 감지 시 해당 키 강제 무효화.
+- 앱 3시간 캐시는 계속 유지(UX/레이턴시). 단, 비용 분석 시 제외.
+
+메트릭/절감 계산(서버 집계)
+- per-provider: cache_write_tokens, cache_read_tokens, hit_rate, est_savings_usd.
+- 헤더와 로그를 기준으로 주/월 단위 리포트 생성.
+
+간단 의사코드(worker)
+```js
+// 안정 프리픽스 빌드(바이트 동일)
+const prefix = buildStablePrefix(system, persona, coreMemorySummary);
+const personaKey = sha256(prefix + model);
+
+switch(provider){
+  case 'anthropic':
+    // write/read 선택
+    const action = decideAnthropicAction(personaKey, req.providerCaching);
+    const messages = withCacheControl(prefix, userParts, action, '1h');
+    // 호출 및 usage 기반 로깅/헤더 세팅
+    break;
+  case 'gemini':
+    const entry = await ensureGeminiCache(env, personaKey, req.providerCaching);
+    const body = useCachedContent(entry.name, userParts);
+    // 호출 및 UsageMetadata 로깅
+    break;
+  case 'openai':
+    // 프리픽스 안정성만 보장, 호출/로깅
+    break;
+  case 'naver':
+    // 캐싱 없음 → 프리픽스 경량화
+    break;
+}
+```
+
+비용 관점 비교(요약)
+- 듀얼 레이어(앱 3h + 서버 캐싱): 비용 절감은 서버 캐싱이 전부 담당. UX/레이턴시 이점 존재 → 권장.
+- 단일화(서버 캐싱만): 비용 측면 동일, 다만 앱 단 캐시 제거 시 UX 리스크 증가 → 비권장.
+
+검증 체크리스트
+- [ ] /v1/chat 요청에 providerCaching 전달 시 헤더 X-Cache-* 응답 반영
+- [ ] Anthropic: 30분 후 재작성 동작, 1시간 미만에서도 read 히트율 80%+
+- [ ] Gemini: create→generate→patch 연장 루프에서 캐시 유효 3시간 운용
+- [ ] OpenAI: 프리픽스 바이트 동일 검증 로그(샘플 100건, 변동 0)
+- [ ] Naver: 프리픽스 요약 길이 상한 정책 적용
+- [ ] 무효화: 모델/페르소나/핵심기억 변경 시 서버·앱 캐시 모두 미스 확인
 

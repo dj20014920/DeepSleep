@@ -7,6 +7,8 @@ public final class AIContextManager {
 
     private let queue = DispatchQueue(label: "ai.context.manager.queue", qos: .userInitiated, attributes: .concurrent)
     private var cachedSystemPrompt: (prompt: String, timestamp: Date, personaHash: String)?
+    // 서버 캐시 무효화 헤더 전송을 위한 보류(reason) 저장소
+    private var pendingInvalidationReason: String?
 
     private let metrics = ContextMetrics.shared
 
@@ -66,8 +68,24 @@ public final class AIContextManager {
                 print("🗑️ [AIContextManager] Clearing existing cache with personaHash: \(String(cached.personaHash.prefix(16)))...")
             }
             self?.cachedSystemPrompt = nil
+            // 서버 캐시 무효화 헤더 전송 위해 보류 사유 기록(최근 1건)
+            self?.pendingInvalidationReason = String(describing: reason)
         }
         metrics.logInvalidation(reason: reason, caller: caller)
+    }
+
+    /// 서버에 보낼 무효화 헤더 값을 1회성으로 소비/반환
+    public func consumeInvalidationReasonForHeader() -> String? {
+        var value: String?
+        queue.sync {
+            value = pendingInvalidationReason
+        }
+        if value != nil {
+            queue.async(flags: .barrier) { [weak self] in
+                self?.pendingInvalidationReason = nil
+            }
+        }
+        return value
     }
 
     // 테스트 및 진단용 (페르소나 시그니처 원문 비노출, 해시 지문만 표시)

@@ -132,6 +132,21 @@ class TodoListCell: UICollectionViewCell {
         tableView.dataSource = self
         tableView.delegate = self
         tableView.register(TodoItemTableViewCell.self, forCellReuseIdentifier: TodoItemTableViewCell.reuseIdentifier)
+        
+        // 테이블뷰 스와이프 액션이 부모 스와이프보다 우선되도록 설정
+        tableView.delaysContentTouches = false
+        tableView.canCancelContentTouches = true
+        
+        // 스와이프 액션이 확실히 작동하도록 추가 설정
+        tableView.allowsSelection = true
+        tableView.isScrollEnabled = true
+        tableView.isUserInteractionEnabled = true
+        
+        // iOS 11+ 스와이프 액션 지원 확인
+        if #available(iOS 11.0, *) {
+            // iOS 11+에서는 기본적으로 스와이프 액션이 지원됨
+            UnifiedLogger.shared.debug("UITableView 스와이프 액션이 활성화되었습니다", category: .ui)
+        }
     }
     
     private func setupActions() {
@@ -145,6 +160,15 @@ class TodoListCell: UICollectionViewCell {
         updateEmptyState()
         
         UnifiedLogger.shared.logTodo("TodoListCell configured with \(items.count) items")
+        
+        // 스와이프 액션 사용 가능 상태 로깅
+        for (index, item) in items.enumerated() {
+            UnifiedLogger.shared.logTodo("  아이템[\(index)]: \(item.title)")
+        }
+        
+        // 테이블뷰 상태 로깅
+        UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \(tableView.dataSource != nil), 델리게이트: \(tableView.delegate != nil)", category: .ui)
+        UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \(tableView.isUserInteractionEnabled), 선택가능: \(tableView.allowsSelection)", category: .ui)
     }
     
     // MARK: - Actions
@@ -191,11 +215,19 @@ extension TodoListCell: UITableViewDelegate {
     
     // 스와이프 액션 메뉴 구현 (수정/삭제)
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        guard indexPath.row < todoItems.count else { return nil }
+        UnifiedLogger.shared.debug("스와이프 액션 요청: indexPath=\(indexPath.row), 전체 아이템 \(todoItems.count)개", category: .ui)
+        
+        guard indexPath.row < todoItems.count else { 
+            UnifiedLogger.shared.debug("인덱스 범위 초과: \(indexPath.row) >= \(todoItems.count)", category: .ui)
+            return nil 
+        }
+        
         let item = todoItems[indexPath.row]
+        UnifiedLogger.shared.debug("스와이프 액션 대상 아이템: \(item.title)", category: .ui)
         
         // 삭제 액션
         let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
+            UnifiedLogger.shared.debug("삭제 액션 실행: \(item.title)", category: .ui)
             guard let self = self else {
                 completion(false)
                 return
@@ -208,6 +240,7 @@ extension TodoListCell: UITableViewDelegate {
         
         // 수정 액션
         let editAction = UIContextualAction(style: .normal, title: "수정") { [weak self] _, _, completion in
+            UnifiedLogger.shared.debug("수정 액션 실행: \(item.title)", category: .ui)
             guard let self = self else {
                 completion(false)
                 return
@@ -220,6 +253,8 @@ extension TodoListCell: UITableViewDelegate {
         
         let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
         configuration.performsFirstActionWithFullSwipe = false // 전체 스와이프로 삭제 방지
+        
+        UnifiedLogger.shared.debug("스와이프 액션 구성 완료", category: .ui)
         return configuration
     }
 }

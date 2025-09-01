@@ -294,20 +294,14 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         calendar.appearance.headerDateFormat = "yyyy년 MM월"
         calendar.appearance.weekdayTextColor = .label
-        calendar.appearance.headerTitleColor = .label
-        calendar.appearance.titleDefaultColor = .label
-        calendar.appearance.titleWeekendColor = .label
-        // 기본 하이라이트(선택/오늘) 원 제거
-        calendar.appearance.titleTodayColor = .label
-        calendar.appearance.todayColor = .clear
-        calendar.appearance.selectionColor = .clear
-        calendar.appearance.borderSelectionColor = .clear
-        calendar.appearance.titleSelectionColor = .label
-        calendar.appearance.eventDefaultColor = .systemGreen
-        calendar.backgroundColor = .systemBackground
+        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
+        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
+        calendar.appearance.titleWeekendColor = UIDesignSystem.Colors.error
+        calendar.appearance.todayColor = .systemOrange
+        calendar.appearance.selectionColor = UIColor.darkGray
+        calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         calendar.locale = Locale(identifier: "en_US")
-        // EmotionCalendarViewController와 동일하게 이전/다음 달 날짜도 표시(흐릿하게)
-        calendar.placeholderType = .fillSixRows
+        calendar.placeholderType = .none
 
         self.view.addSubview(calendar)
         self.calendar = calendar
@@ -477,16 +471,64 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     // MARK: - FSCalendarDataSource
     func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-        // EmotionCalendarViewController와 동일: 일기가 있는 날짜만 1점 표시
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        let key = df.string(from: date)
-        return diaryDataForCalendar[key] != nil ? 1 : 0
+        // 해당 날짜의 할 일 확인
+        let todos = TodoManager.shared.getTodos(for: date)
+        let hasTodo = !todos.filter { !$0.isCompleted }.isEmpty
+        
+        // 연속 일정 확인 - 이 날짜가 어떤 연속 일정의 범위에 포함되는지 확인
+        let allTodos = TodoManager.shared.loadTodos()
+        let hasRangeEvent = allTodos.contains { todo in
+            guard let _ = todo.endDate else { return false }
+            return isDateInEventRange(todo, date: date) && !todo.isCompleted
+        }
+        
+        // 일기 확인
+        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
+        
+        return (hasTodo || hasRangeEvent || hasDiary) ? 1 : 0
     }
 
     // MARK: - FSCalendarDelegateAppearance (For Dot Colors)
     func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
-        // EmotionCalendarViewController와 동일: 기본 색상(.systemGreen) 사용
-        return nil
+        var eventColors: [UIColor] = []
+        let todos = TodoManager.shared.getTodos(for: date)
+        let hasIncompleteTodo = todos.contains { !$0.isCompleted }
+        let hasCompletedTodo = todos.contains { $0.isCompleted }
+        
+        // 연속 일정 확인
+        let allTodos = TodoManager.shared.loadTodos()
+        let rangeEvents = allTodos.filter { todo in
+            guard let _ = todo.endDate else { return false }
+            return isDateInEventRange(todo, date: date) && !todo.isCompleted
+        }
+        let hasRangeEvent = !rangeEvents.isEmpty
+        
+        // 연속 일정이 있는 경우 가장 높은 우선순위의 색상 사용
+        var rangeEventColor: UIColor?
+        if hasRangeEvent {
+            let primaryRangeEvent = rangeEvents.max { $0.priority < $1.priority } ?? rangeEvents.first!
+            rangeEventColor = priorityColor(for: primaryRangeEvent.priority)
+        }
+        
+        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
+
+        // 우선순위: 연속 일정 > 미완료 할일 > 일기 > 완료된 할일
+        if hasRangeEvent && hasDiary {
+            eventColors.append(UIColor.systemPurple) // 연속 일정 + 일기: 보라색
+        } else if hasRangeEvent {
+            eventColors.append(rangeEventColor!) // 연속 일정만: 우선순위 색상
+        } else if hasIncompleteTodo && hasDiary {
+            eventColors.append(UIColor.systemPurple) // 할 일 + 일기: 보라색
+        } else if hasIncompleteTodo {
+            eventColors.append(UIColor.systemBlue)   // 할 일만: 파란색
+        } else if hasDiary {
+            eventColors.append(UIColor.systemGreen)  // 일기만: 초록색
+        } else if hasCompletedTodo {
+            eventColors.append(UIColor.systemGray4) // 완료된 할 일만: 연한 회색
+        }
+        
+        // eventColors가 비어있으면 nil을 반환해야 기본 점 색상이 사용됨 (또는 점이 안 찍힘)
+        return eventColors.isEmpty ? nil : eventColors
     }
 
     // 선택된 날짜의 이벤트 점 색상 (선택사항)
@@ -511,8 +553,6 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // EmotionCalendar와 동일한 셀(이모지+그라데이션 링) 적용
     func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
         let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
-        // 오늘 표시: 우상단 모서리 접힘 마크
-        cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
         let todos = TodoManager.shared.getTodos(for: date)
         let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
         switch state {
@@ -685,39 +725,24 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         let todo = selectedDateTodos[indexPath.row]
         
-        // 🛡️ 조언 액션 - 할 일별 횟수 체크
-        let canReceiveAdvice = todo.canReceiveAdvice
-        let adviceTitle = canReceiveAdvice ? "조언\n(\(todo.adviceUsageText))" : "조언 완료"
-        
-        let adviceAction = UIContextualAction(style: .normal, title: adviceTitle) { [weak self] (action, view, completionHandler) in
-            guard canReceiveAdvice else {
-                self?.showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(todo.adviceUsageText))")
-                completionHandler(false)
-                return
-            }
-            
-            self?.requestTodoAdvice(for: todo)
-            completionHandler(true)
+        // ✏️ 수정 액션
+        let editAction = UIContextualAction(style: .normal, title: "수정") { [weak self] (_, _, completion) in
+            self?.presentEditTodo(todo)
+            completion(true)
         }
+        editAction.backgroundColor = UIColor.systemBlue
+        editAction.image = UIImage(systemName: "pencil")
         
-        // 🛡️ 조언 가능 여부에 따른 시각적 피드백
-        if canReceiveAdvice {
-            adviceAction.backgroundColor = UIColor.systemBlue
-            adviceAction.image = UIImage(systemName: "lightbulb.fill")
-        } else {
-            adviceAction.backgroundColor = UIColor.systemGray
-            adviceAction.image = UIImage(systemName: "checkmark.circle.fill")
-        }
-        
-        // 삭제 액션
-        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (action, view, completionHandler) in
+        // 🗑️ 삭제 액션
+        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (_, _, completion) in
             self?.deleteTodo(at: indexPath)
-            completionHandler(true)
+            completion(true)
         }
         deleteAction.image = UIImage(systemName: "trash.fill")
         
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, adviceAction])
-        configuration.performsFirstActionWithFullSwipe = false // 전체 스와이프로 자동 삭제 방지
+        // "수정/삭제"만 노출 (조언은 셀 탭 시 표시)
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        configuration.performsFirstActionWithFullSwipe = false
         return configuration
     }
 
@@ -777,9 +802,22 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
     }
     
+    // MARK: - 편집 화면 표시
+    private func presentEditTodo(_ todo: TodoItem) {
+        let addEditVC = AddEditTodoViewController()
+        addEditVC.todoItem = todo
+        addEditVC.delegate = self
+        let nav = UINavigationController(rootViewController: addEditVC)
+        present(nav, animated: true)
+    }
+
     // MARK: - AddEditTodoDelegate
     func didSaveTodoItem(_ todoItem: TodoItem) {
-        // Handle saving from Add/Edit view
+        // 저장/삭제 등 변경사항 반영
+        loadData(for: selectedDate)
+        calendar?.reloadData()
+        tableView?.reloadData()
+        updateOverallAdviceButtonUI()
     }
     
     // MARK: - Error Handling
@@ -1840,4 +1878,4 @@ class SimpleAdviceViewController: UIViewController {
             }
         }
     }
-} 
+}

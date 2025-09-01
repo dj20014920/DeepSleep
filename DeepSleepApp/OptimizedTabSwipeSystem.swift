@@ -17,7 +17,7 @@ import UIKit
 
 // MARK: - 📱 OptimizedTabBarController
 
-class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate {
+class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate, UIGestureRecognizerDelegate {
     
     // MARK: - Properties
     
@@ -70,12 +70,14 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate 
             // 좌측 스와이프 (다음 탭으로)
             let leftSwipe = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
             leftSwipe.direction = .left
+            leftSwipe.delegate = self // 델리게이트 설정
             view.addGestureRecognizer(leftSwipe)
             swipeGestureRecognizers.append(leftSwipe)
             
             // 우측 스와이프 (이전 탭으로)
             let rightSwipe = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
             rightSwipe.direction = .right
+            rightSwipe.delegate = self // 델리게이트 설정
             view.addGestureRecognizer(rightSwipe)
             swipeGestureRecognizers.append(rightSwipe)
             
@@ -174,6 +176,72 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate 
     deinit {
         swipeGestureRecognizers.forEach { view.removeGestureRecognizer($0) }
         print("🧹 [OptimizedTabBar] 메모리 정리 완료")
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension OptimizedTabBarController {
+    
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // 터치 위치가 테이블뷰나 컬렉션뷰 내부인지 확인
+        let touchPoint = touch.location(in: view)
+        let hitView = view.hitTest(touchPoint, with: nil)
+        
+        // UITableView나 그 서브뷰에서 발생한 터치인지 확인
+        var currentView = hitView
+        while currentView != nil {
+            if currentView is UITableView {
+                // 테이블뷰 내부에서는 탭 스와이프 제스처 비활성화
+                return false
+            }
+            // UICollectionView 내부의 UITableView도 처리
+            if currentView is UICollectionView {
+                // 컴렉션뷰 내부에 TodoListCell이 있을 수 있음
+                if let collectionView = currentView as? UICollectionView {
+                    let cellPoint = touch.location(in: collectionView)
+                    if let indexPath = collectionView.indexPathForItem(at: cellPoint),
+                       let cell = collectionView.cellForItem(at: indexPath) {
+                        // TodoListCell 내부의 UITableView 확인
+                        let cellLocalPoint = touch.location(in: cell)
+                        
+                        // TodoListCell 타입 확인
+                        if String(describing: type(of: cell)).contains("TodoListCell") {
+                            UnifiedLogger.shared.debug("TodoListCell 내부에서 탭 스와이프 제스처 비활성화", category: .ui)
+                            return false
+                        }
+                        
+                        // 재귀적으로 UITableView 찾기
+                        func findTableView(in view: UIView) -> UITableView? {
+                            if let tableView = view as? UITableView {
+                                return tableView
+                            }
+                            for subview in view.subviews {
+                                if let foundTableView = findTableView(in: subview) {
+                                    return foundTableView
+                                }
+                            }
+                            return nil
+                        }
+                        
+                        if let tableView = findTableView(in: cell) {
+                            let tableFrame = tableView.frame
+                            if tableFrame.contains(cellLocalPoint) {
+                                UnifiedLogger.shared.debug("테이블뷰 영역에서 탭 스와이프 제스처 비활성화", category: .ui)
+                                return false // TodoListCell의 테이블뷰에서는 탭 스와이프 비활성화
+                            }
+                        }
+                    }
+                }
+            }
+            currentView = currentView?.superview
+        }
+        
+        return true
+    }
+    
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 테이블뷰의 스와이프 액션과 동시에 인식되지 않도록 설정
+        return false
     }
 }
 

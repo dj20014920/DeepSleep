@@ -1301,12 +1301,31 @@ extension UnifiedAIServiceImpl {
         return url
     }
 
+    private func providerCacheTTLSeconds(for mode: AIMode) -> Int {
+        // Gemini는 공급자 최대 TTL이 1시간이므로 서버가 자동 연장한다.
+        // 앱은 1시간 요청을 유지해 UX/보안에 영향 없이 단순화.
+        switch mode {
+        case .emotionDiaryAnalysis, .presetRecommendation:
+            return 3600
+        default:
+            return 3600
+        }
+    }
+
     private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL) async throws -> AIResponse {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
             "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
             "mode": mode.rawValue
         ]
+        // 서버 공급자 캐싱 활성화
+        body["providerCaching"] = [
+            "enable": true,
+            "strategy": "auto",
+            "ttlSeconds": providerCacheTTLSeconds(for: mode)
+        ]
+        // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
+        let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         func makeRequest(sigMessage: String, includeNonce: Bool) throws -> URLRequest {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
             r.httpMethod = "POST"
@@ -1316,6 +1335,7 @@ extension UnifiedAIServiceImpl {
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
             if includeNonce { r.setValue(nonce, forHTTPHeaderField: "X-Emozleep-Nonce") }
+            if let inv = contextInvalidation, !inv.isEmpty { r.setValue(inv, forHTTPHeaderField: "X-Context-Invalidation") }
             let signature = ProxyAuthSigner.hmacSHA256Hex(message: sigMessage, secret: effectiveSecret)
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -1391,12 +1411,16 @@ extension UnifiedAIServiceImpl {
         struct ProxyResp: Codable { let provider: String; let content: String }
         let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
 
-        // 정책/프로바이더 헤더 파싱
+        // 정책/프로바이더/캐시 헤더 파싱
         let polRemaining = header(http, "X-Policy-Remaining")
         let polResetAt  = header(http, "X-Policy-ResetAt")
         let polTier     = header(http, "X-Policy-Tier")
         let claudeLeft  = header(http, "X-Policy-Claude-Remaining")
         let providerHdr = header(http, "X-Provider")
+        let cacheProv   = header(http, "X-Cache-Provider")
+        let cacheAction = header(http, "X-Cache-Action")
+        let cacheTTL    = header(http, "X-Cache-TTL")
+        let cacheTokens = header(http, "X-Cache-Tokens")
 
         var addInfo: [String: Any] = ["provider": proxy.provider]
         if let r = polRemaining { addInfo["policyRemaining"] = r }
@@ -1404,6 +1428,10 @@ extension UnifiedAIServiceImpl {
         if let r = polTier     { addInfo["policyTier"] = r }
         if let r = claudeLeft  { addInfo["claudeRemaining"] = r }
         if let r = providerHdr { addInfo["providerHeader"] = r }
+        if let r = cacheProv   { addInfo["cacheProvider"] = r }
+        if let r = cacheAction { addInfo["cacheAction"] = r }
+        if let r = cacheTTL    { addInfo["cacheTTL"] = r }
+        if let r = cacheTokens { addInfo["cacheTokens"] = r }
 
         let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
         let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: addInfo)

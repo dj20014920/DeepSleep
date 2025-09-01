@@ -867,3 +867,39 @@ class TokenOptimizer {
 3. **목표:** 사용자가 진정으로 "나를 이해하는 AI"를 경험할 수 있는 시스템 구축
 
 **이 시스템이 완성되면 DeepSleep은 단순한 수면 앱을 넘어 사용자의 진정한 AI 동반자가 될 것입니다.** 🚀
+
+# 2025-09-01 업데이트 동기화(서버/클라이언트 캐싱)
+
+본 문서는 현재 코드/배포 상태(2025-09-01)와 동기화되었습니다.
+
+핵심 변경 사항
+- 서버 모델별 캐싱(MVP) 실제 구현 및 프로덕션 배포 완료
+  - 요청 스키마 확장: providerCaching { enable, strategy, ttlSeconds, cacheKey? }
+  - 응답 관측 헤더: X-Cache-Provider/Action/TTL/Tokens 추가
+  - 무효화 헤더: X-Context-Invalidation 지원(모델·페르소나·핵심기억 변경 시 클라이언트가 1회성 전송)
+- 공급자별 세부 구현
+  - Anthropic: cache_control(ephemeral, 3600s)로 write/read 운용. ‘30분 리라이트’ 운영 정책 반영(생성 시각 30분 경과 시 강제 write)
+  - Gemini: 공급자 최대 TTL=1시간. 서버가 caches.create(3600s) 후 매 요청 시 PATCH(updateMask=ttl)로 TTL=3600s 갱신 → 최대 3시간 운용
+  - OpenAI: 프리픽스 자동 캐싱 관찰용으로 system 프리픽스 해시/길이 KV 기록(바이트 동일성 모니터링)
+  - Naver: 캐싱 미지원(bypass)
+- 듀얼 레이어 유지 결론
+  - 비용 절감은 서버 캐싱에서만 발생. 앱 3시간 캐시는 UX/레이턴시 개선용. 업계 관행에 따라 ‘앱 3시간 + 서버 공급자 캐싱’ 병행 유지가 최적
+
+iOS 동기화
+- AIContextManager: clearCache(reason:) 호출 시 무효화 사유를 내부 보관 → 다음 프록시 요청에서 X-Context-Invalidation 헤더로 1회성 전송
+- UnifiedAIServiceImpl: 프록시 바디에 providerCaching 기본 포함(enable=true, strategy=auto, ttlSeconds=3600). 응답 X-Cache-* 헤더 파싱해 메타데이터에 기록
+
+운영/테스트 가이드
+- 프로덕션 워커: https://emozleep-production.vinny4920-081.workers.dev
+- 배포: wrangler deploy --env production
+- 실시간 로그: wrangler tail emozleep --format pretty
+- 검증 포인트
+  - Claude: 최초 write → 30분 내 read, 30분 후 write 재전환
+  - Gemini: 최초 캐시 생성 후 요청마다 PATCH로 TTL 연장(로그에서 200 확인), 캐시 read 기록 증가
+  - OpenAI: 프리픽스 해시 안정(변동 0) 여부
+
+메트릭/대시보드(차기 작업)
+- 서버에서 provider별 hit_rate/est_savings_usd 계산용 집계 루틴과 리포트 엔드포인트(/v1/metrics) 추가 예정
+
+변경 이력(추가)
+- 2025-09-01: 서버 모델별 캐싱(MVP) 구현/배포, iOS 무효화 헤더 연결, 문서/가이드 동기화
