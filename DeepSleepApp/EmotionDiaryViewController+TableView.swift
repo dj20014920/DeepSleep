@@ -4,7 +4,7 @@ import UIKit
 extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return diaryEntries.count
+        return visibleDiaryEntries.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -12,7 +12,7 @@ extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate
             return UITableViewCell()
         }
         
-        let entry = diaryEntries[indexPath.row]
+        let entry = visibleDiaryEntries[indexPath.row]
         cell.configure(with: entry)
         return cell
     }
@@ -25,11 +25,19 @@ extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate
         return 140
     }
     
+    // ✅ 무한스크롤 트리거: 하단 근접 시 다음 페이지 로드
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        let threshold = max(0, visibleDiaryEntries.count - 3)
+        if indexPath.row >= threshold {
+            loadMoreDiariesIfNeeded()
+        }
+    }
+    
     // ✅ 셀 탭으로 수정/삭제 옵션 표시
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         
-        let diary = diaryEntries[indexPath.row]
+        let diary = visibleDiaryEntries[indexPath.row]
         showEditDiaryOptions(for: diary, at: indexPath)
     }
     
@@ -75,22 +83,21 @@ extension EmotionDiaryViewController: UITableViewDataSource, UITableViewDelegate
     }
     
     private func performDelete(diary: EmotionDiary, at indexPath: IndexPath) {
+        // 저장소에서 제거
         var allDiaries = SettingsManager.shared.loadEmotionDiary()
         allDiaries.removeAll { $0.id == diary.id }
-        
         saveDiaryList(allDiaries)
         
-        // 🔧 메인 스레드에서 UI 업데이트 보장
-        guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in
-                self?.performDelete(diary: diary, at: indexPath)
-            }
-            return
+        // 메모리 상태 동기화
+        if let fullIndex = diaryEntries.firstIndex(where: { $0.id == diary.id }) {
+            diaryEntries.remove(at: fullIndex)
         }
-        
-        // 테이블 뷰 업데이트 - ✅ 타입 명시로 수정
-        self.diaryEntries.remove(at: indexPath.row)
-        self.tableView.deleteRows(at: [indexPath], with: .fade)
+        if let visibleIndex = visibleDiaryEntries.firstIndex(where: { $0.id == diary.id }) {
+            visibleDiaryEntries.remove(at: visibleIndex)
+            tableView.deleteRows(at: [IndexPath(row: visibleIndex, section: 0)], with: .fade)
+        } else {
+            tableView.reloadData()
+        }
         
         // 성공 알림
         self.showAlert(title: "✅", message: "일기가 삭제되었습니다.")

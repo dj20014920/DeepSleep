@@ -226,6 +226,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // 새 탭 요구사항: 할 일 탭에서는 일기 섹션을 숨김
     public var hideDiarySection: Bool = false
 
+    // ✅ Todo 목록 페이지네이션 상태
+    private var visibleTodos: [TodoItem] = []
+    private var todosOffset: Int = 0
+    private let todosPageSize: Int = 20
+    private var todosHasMore: Bool = true
+    private var isLoadingMoreTodos: Bool = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         print("👍 [TodoCalendarViewController] viewDidLoad() - 🚀 최적화된 초기화 시작")
@@ -297,12 +304,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
         calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
         calendar.appearance.titleWeekendColor = UIDesignSystem.Colors.error
-        // 기본 하이라이트(선택/오늘) 원 제거 - EmotionCalendarViewController와 동일
-        calendar.appearance.titleTodayColor = .label
-        calendar.appearance.todayColor = .clear
-        calendar.appearance.selectionColor = .clear
-        calendar.appearance.borderSelectionColor = .clear
-        calendar.appearance.titleSelectionColor = .label
+        calendar.appearance.todayColor = .systemOrange
+        calendar.appearance.selectionColor = UIColor.darkGray
         calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         calendar.locale = Locale(identifier: "en_US")
         calendar.placeholderType = .none
@@ -445,15 +448,56 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
         for d in allDiaries { diaryDataForCalendar[df.string(from: d.date)] = d }
         
-        calendar.reloadData() // 이벤트 점 표시 업데이트
+        // 페이지네이션 초기화
+        resetTodosPaginationAndReload()
         
-        // 수정: updateEmptyStateView -> updateEmptyStateLabelVisibility 호출 후 tableView.reloadData() 명시적 호출
-        updateEmptyStateLabelVisibility() 
-        tableView.reloadData() // 데이터 로드 후 테이블 전체 새로고침
-
-        // 수정: 문자열 보간 오류 수정
-        print("선택된 날짜 \(date.description(with: Locale(identifier: "ko_KR"))): 할 일 \(selectedDateTodos.count)개, 일기 \(selectedDateDiary != nil ? "있음" : "없음")")
+        calendar.reloadData() // 이벤트 점 표시 업데이트
+        updateEmptyStateLabelVisibility()
+        
+        // 수정: 문자열 보간 안전화
+        let locale = Locale(identifier: "ko_KR")
+        let dateDesc = date.description(with: locale)
+        let diaryState = (selectedDateDiary != nil) ? "있음" : "없음"
+        print("선택된 날짜 \(dateDesc): 할 일 \(selectedDateTodos.count)개, 일기 \(diaryState)")
         updateOverallAdviceButtonUI()
+    }
+
+    private func resetTodosPaginationAndReload() {
+        todosOffset = 0
+        isLoadingMoreTodos = false
+        todosHasMore = true
+        visibleTodos.removeAll()
+        loadMoreTodosIfNeeded(force: true)
+        tableView?.reloadData()
+    }
+    
+    private func loadMoreTodosIfNeeded(force: Bool = false) {
+        guard force || (!isLoadingMoreTodos && todosHasMore) else { return }
+        isLoadingMoreTodos = true
+        let start = todosOffset
+        let end = min(selectedDateTodos.count, todosOffset + todosPageSize)
+        if start < end {
+            let nextSlice = Array(selectedDateTodos[start..<end])
+            let insertStartIndex = visibleTodos.count
+            visibleTodos.append(contentsOf: nextSlice)
+            todosOffset = end
+            todosHasMore = todosOffset < selectedDateTodos.count
+            
+            // 부분 삽입
+            var indexPaths: [IndexPath] = []
+            if hideDiarySection {
+                for i in 0..<nextSlice.count { indexPaths.append(IndexPath(row: insertStartIndex + i, section: 0)) }
+            } else {
+                // todos 섹션은 1번 섹션
+                for i in 0..<nextSlice.count { indexPaths.append(IndexPath(row: insertStartIndex + i, section: CalendarSection.todos.rawValue)) }
+            }
+            tableView?.performBatchUpdates({
+                tableView?.insertRows(at: indexPaths, with: .automatic)
+            }, completion: nil)
+        } else {
+            todosHasMore = false
+        }
+        isLoadingMoreTodos = false
     }
 
     deinit {
@@ -557,8 +601,6 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     // EmotionCalendar와 동일한 셀(이모지+그라데이션 링) 적용
     func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
         let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
-        // 오늘 표시: 우상단 모서리 접힘 마크 - EmotionCalendarViewController와 동일
-        cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
         let todos = TodoManager.shared.getTodos(for: date)
         let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
         switch state {
@@ -618,13 +660,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        guard let currentSection = CalendarSection(rawValue: section) else { 
+        guard let currentSection = CalendarSection(rawValue: section) else {
             print("⚠️ [TodoCalendarViewController] numberOfRowsInSection - 잘못된 섹션: \(section)")
-            return 0 
+            return 0
         }
         
         if hideDiarySection {
-            return selectedDateTodos.count
+            return visibleTodos.count
         } else {
             switch currentSection {
             case .diary:
@@ -632,7 +674,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 print("📊 [TodoCalendarViewController] diary section row count: \(count)")
                 return count
             case .todos:
-                let count = selectedDateTodos.count
+                let count = visibleTodos.count
                 print("📊 [TodoCalendarViewController] todos section row count: \(count)")
                 return count
             }
@@ -659,8 +701,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         }
         // todos 섹션
             // 🔧 안전한 배열 접근
-            guard indexPath.row < selectedDateTodos.count else {
-                print("⚠️ [TodoCalendarViewController] todos 배열 범위 초과: \(indexPath.row)/\(selectedDateTodos.count)")
+            guard indexPath.row < visibleTodos.count else {
+                print("⚠️ [TodoCalendarViewController] visibleTodos 배열 범위 초과: \(indexPath.row)/\(visibleTodos.count)")
                 return UITableViewCell()
             }
             
@@ -669,10 +711,20 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 return UITableViewCell()
             }
             
-            let todo = selectedDateTodos[indexPath.row]
+            let todo = visibleTodos[indexPath.row]
             cell.configure(with: todo)
             return cell
         
+    }
+    
+    // ✅ 무한스크롤 트리거: 하단 근접 시 다음 페이지 로드
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        // diary 섹션 제외
+        if !hideDiarySection, indexPath.section == CalendarSection.diary.rawValue { return }
+        let threshold = max(0, visibleTodos.count - 3)
+        if indexPath.row >= threshold {
+            loadMoreTodosIfNeeded()
+        }
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
@@ -691,7 +743,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         if hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos {
-            let todoItem = selectedDateTodos[indexPath.row]
+            guard indexPath.row < visibleTodos.count else { return }
+            let todoItem = visibleTodos[indexPath.row]
             presentAdviceInfo(for: todoItem)
         } else if CalendarSection(rawValue: indexPath.section) == .diary, let diary = selectedDateDiary {
             print("감정 일기 셀 선택됨: \(diary.userMessage)")
@@ -729,8 +782,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let isTodosSection = hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos
         guard isTodosSection else { return nil }
-        
-        let todo = selectedDateTodos[indexPath.row]
+        guard indexPath.row < visibleTodos.count else { return nil }
+        let todo = visibleTodos[indexPath.row]
         
         // ✏️ 수정 액션
         let editAction = UIContextualAction(style: .normal, title: "수정") { [weak self] (_, _, completion) in
@@ -742,12 +795,11 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         // 🗑️ 삭제 액션
         let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (_, _, completion) in
-            self?.deleteTodo(at: indexPath)
+            self?.deleteTodoById(todo.id)
             completion(true)
         }
         deleteAction.image = UIImage(systemName: "trash.fill")
         
-        // "수정/삭제"만 노출 (조언은 셀 탭 시 표시)
         let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
         configuration.performsFirstActionWithFullSwipe = false
         return configuration
@@ -755,43 +807,26 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard (hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos), editingStyle == .delete else { return }
-        
-        let todoToDelete = selectedDateTodos[indexPath.row] // 삭제할 아이템 미리 참조
-        
-        TodoManager.shared.deleteTodo(withId: todoToDelete.id) { [weak self] success, error in
+        guard indexPath.row < visibleTodos.count else { return }
+        let todoToDelete = visibleTodos[indexPath.row]
+        deleteTodoById(todoToDelete.id)
+    }
+    
+    private func deleteTodoById(_ id: UUID) {
+        TodoManager.shared.deleteTodo(withId: id) { [weak self] success, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if success {
-                    // 1. 데이터 소스 업데이트 (배열에서 아이템 제거)
-                    if self.selectedDateTodos.indices.contains(indexPath.row) && self.selectedDateTodos[indexPath.row].id == todoToDelete.id {
-                        self.selectedDateTodos.remove(at: indexPath.row)
-                        // 2. UITableView 애니메이션과 함께 특정 행 삭제
-                        tableView.deleteRows(at: [indexPath], with: .fade)
-                    } else {
-                        // 데이터 불일치 또는 이미 삭제된 경우 등 예외 상황, 테이블 전체 리로드로 안전하게 처리
-                        print("⚠️ 삭제하려는 항목이 예상 위치에 없거나 ID가 다릅니다. 테이블을 전체 리로드합니다.")
-                        self.loadData(for: self.selectedDate) // loadData가 tableView.reloadData() 호출
-                        if let error = error {
-                           self.handleTodoManagerError(error, forAction: "삭제 (부분 성공, 데이터 불일치)")
-                        }
-                        return
-                    }
+                    // 원본 목록 갱신
+                    self.selectedDateTodos.removeAll { $0.id == id }
+                    // 페이지네이션 다시 구성
+                    self.resetTodosPaginationAndReload()
                     
-                    // 3. 캘린더 이벤트 점 업데이트
                     self.calendar.reloadData()
-                    
-                    // 4. 빈 상태 레이블 가시성 업데이트 (reloadData 없이)
                     self.updateEmptyStateLabelVisibility()
-                    
-                    // 5. 할 일 섹션 헤더 업데이트 (전체 reloadData 대신 섹션만 리로드)
-                    if let todosSection = CalendarSection.todos.rawValue as Int? {
-                         tableView.reloadSections(IndexSet(integer: todosSection), with: .none)
-                    }
-                    
-                    // 6. 전체 조언 버튼 UI 업데이트 (선택적)
                     self.updateOverallAdviceButtonUI()
                     
-                    if let error = error { // 로컬 삭제는 성공했으나, 캘린더 연동 등에 문제가 있었을 경우
+                    if let error = error {
                         self.handleTodoManagerError(error, forAction: "삭제 (부분 성공)")
                     }
                 } else if let error = error {
@@ -831,11 +866,11 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         if let todoError = error as? TodoManagerError {
             alertTitle = "캘린더 연동 오류"
             switch todoError {
-            case .calendarAccessDenied(let specificMessage), 
+            case .calendarAccessDenied(let specificMessage),
                  .calendarAccessRestricted(let specificMessage),
                  .calendarWriteOnlyAccess(let specificMessage),
                  .unknownCalendarAuthorization(let specificMessage):
-                message = specificMessage 
+                message = specificMessage
             case .eventSaveFailed, .eventRemoveFailed, .eventFetchFailed:
                 message = todoError.localizedDescription
             }
@@ -890,7 +925,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         label.font = .systemFont(ofSize: 18, weight: .medium)
         label.textColor = .secondaryLabel
         label.numberOfLines = 0
-        label.isHidden = true 
+        label.isHidden = true
         tableView.backgroundView = label
         emptyStateLabel = label
     }
@@ -1450,277 +1485,119 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     
     // MARK: - 🔧 삭제 기능 분리
     private func deleteTodo(at indexPath: IndexPath) {
-        let todoToDelete = selectedDateTodos[indexPath.row]
-        
-        TodoManager.shared.deleteTodo(withId: todoToDelete.id) { [weak self] success, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                if success {
-                    if self.selectedDateTodos.indices.contains(indexPath.row) && self.selectedDateTodos[indexPath.row].id == todoToDelete.id {
-                        self.selectedDateTodos.remove(at: indexPath.row)
-                        self.tableView.deleteRows(at: [indexPath], with: .fade)
-                    } else {
-                        print("⚠️ 삭제하려는 항목이 예상 위치에 없거나 ID가 다릅니다. 테이블을 전체 리로드합니다.")
-                        self.loadData(for: self.selectedDate)
-                        if let error = error {
-                           self.handleTodoManagerError(error, forAction: "삭제 (부분 성공, 데이터 불일치)")
-                        }
-                        return
-                    }
-                    
-                    self.calendar.reloadData()
-                    self.updateEmptyStateLabelVisibility()
-                    
-                    if let todosSection = CalendarSection.todos.rawValue as Int? {
-                         self.tableView.reloadSections(IndexSet(integer: todosSection), with: .none)
-                    }
-                    
-                    self.updateOverallAdviceButtonUI()
-                    
-                    if let error = error {
-                        self.handleTodoManagerError(error, forAction: "삭제 (부분 성공)")
-                    }
-                } else if let error = error {
-                    self.handleTodoManagerError(error, forAction: "삭제")
-                } else {
-                    self.showAlert(title: "오류", message: "할 일 삭제 중 알 수 없는 오류가 발생했습니다.")
-                }
-            }
-        }
+        // 이 메서드는 더 이상 직접 사용하지 않음. deleteTodoById로 대체.
+        guard indexPath.row < visibleTodos.count else { return }
+        deleteTodoById(visibleTodos[indexPath.row].id)
     }
 
-    // MARK: - 🆕 연속 일정 컨텍스트 분석
-    // This method is already defined earlier in the file
- 
-    // MARK: - 🧠 AI 조언 기능 (리팩토링 완료)
- 
-    private func getAIAdvice(for date: Date) {
-        let todosForDate = TodoManager.shared.getTodos(for: date)
-        guard !todosForDate.isEmpty else {
-            presentAlert(title: "✅", message: "선택한 날짜에 할 일이 없어 조언을 드릴 수 없어요.")
-            return
-        }
-
-        // 로딩 UI 시작
-        showLoadingOverlay()
-
-        Task {
-            let todoTitles = todosForDate.map { $0.title }
-            
-            do {
-                // 🤖 SessionManager로 날짜별 AI 조언 호출 (저장 안 함)
-                let advice = try await SessionManager.shared.sendMessage(
-                    content: """
-                    다음 할 일 목록에 대한 실용적인 조언을 제공해주세요:
-                    
-                    할 일 목록: \(todoTitles.joined(separator: ", "))
-                    
-                    요구사항:
-                    - 간결하고 실용적인 조언
-                    - 우선순위나 순서 제안
-                    - 효율적인 수행 방법 제안
-                    - 3-4문장 이내로 작성
-                    """,
-                    model: .openAI,
-                    mode: .taskAdvice,
-                    saveMessages: false
-                )
-                
-                await MainActor.run {
-                    self.hideLoadingOverlay()
-                    self.presentAlert(title: "💡 AI 조언", message: advice)
-                }
-                
-            } catch {
-                await MainActor.run {
-                    self.hideLoadingOverlay()
-                    
-                    // 사용량 제한 초과 에러 처리
-                    let errorMessage: String
-                    if error.localizedDescription.contains("일일 사용 한도") {
-                        errorMessage = error.localizedDescription
-                    } else {
-                        errorMessage = "AI 조언을 가져오는 데 실패했습니다: \(error.localizedDescription)"
-                    }
-                    
-                    self.presentAlert(title: "오류", message: errorMessage)
-                }
-            }
-        }
-    }
-    
-    // 🆕 로딩 오버레이 표시/숨김
-    private func showLoadingOverlay() {
-        // ... existing code ...
-    }
-
-    @objc private func addAITaskButtonTapped() {
-        let currentTaskTitles = selectedDateTodos.map { $0.title }
-        
-        let promptContent = """
-        현재 할 일 목록: \(currentTaskTitles.joined(separator: ", "))
-        
-        위 목록을 고려하여 사용자가 다음으로 하면 좋을 만한 창의적이고 실용적인 할 일 아이템 하나를 제안해주세요.
-        
-        요구사항:
-        - 기존 할 일과 보완적이거나 연과된 작업
-        - 즉시 실행 가능한 구체적인 작업
-        - 형식: '작업명: 간략한 설명 (1줄)'
-        """
-        
-        Task {
-            do {
-                // 🤖 SessionManager를 통해 AI 작업 추천 호출 (저장 안 함, 단일 경로)
-                let suggestion = try await SessionManager.shared.sendMessage(
-                    content: promptContent,
-                    model: .openAI,
-                    mode: .taskAdvice,
-                    saveMessages: false
-                )
-                
-                await MainActor.run {
-                    // AI가 제안한 작업을 파싱하고 목록에 추가하는 로직 (향후 구현 예매)
-                    // 예: self.parseAndAddNewTask(suggestion)
-                    self.showAlert(title: "🤖 AI 추천 작업", message: suggestion)
-                }
-                
-            } catch {
-                await MainActor.run {
-                    // 사용량 제한 초과 에러 처리
-                    let errorMessage: String
-                    if error.localizedDescription.contains("일일 사용 한도") {
-                        errorMessage = error.localizedDescription
-                    } else {
-                        errorMessage = "AI 추천을 가져오는 데 실패했습니다. (\(error.localizedDescription))"
-                    }
-                    
-                    self.showAlert(title: "오류", message: errorMessage)
-                }
-            }
-        }
-    }
-
-    // MARK: - Helper Stubs
-    private var currentTasks: [String] { return [] }
-    
-    private func presentAlert(title: String, message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
-
-    // MARK: - Loading Overlay Helpers
-    private func hideLoadingOverlay() {
-        loadingOverlay?.hide()
-    }
 }
 
-// MARK: - 연속 일정 표시를 위한 커스텀 캘린더 셀
-class TodoRangeCalendarCell: FSCalendarCell {
-    private let rangeIndicatorView = UIView()
-    private let startIndicatorView = UIView()
-    private let endIndicatorView = UIView()
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setupRangeViews()
-    }
-    
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupRangeViews()
-    }
-    
-    private func setupRangeViews() {
-        // 연속 게이지 배경 - 더 부드러운 모서리
-        rangeIndicatorView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
-        rangeIndicatorView.layer.cornerRadius = 4 // 더 둥근 모서리
-        rangeIndicatorView.isHidden = true
-        rangeIndicatorView.clipsToBounds = false // 확장된 영역도 보이도록
-        contentView.insertSubview(rangeIndicatorView, at: 0)
+    // MARK: - 연속 일정 표시를 위한 커스텀 캘린더 셀
+    class TodoRangeCalendarCell: FSCalendarCell {
+        private let rangeIndicatorView = UIView()
+        private let startIndicatorView = UIView()
+        private let endIndicatorView = UIView()
         
-        // 시작점 표시 - 더 눈에 띄게
-        startIndicatorView.backgroundColor = UIColor.systemBlue
-        startIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
-        startIndicatorView.isHidden = true
-        startIndicatorView.layer.shadowColor = UIColor.black.cgColor
-        startIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
-        startIndicatorView.layer.shadowOpacity = 0.3
-        startIndicatorView.layer.shadowRadius = 2
-        contentView.addSubview(startIndicatorView)
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            setupRangeViews()
+        }
         
-        // 끝점 표시 - 더 눈에 띄게
-        endIndicatorView.backgroundColor = UIColor.systemBlue
-        endIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
-        endIndicatorView.isHidden = true
-        endIndicatorView.layer.shadowColor = UIColor.black.cgColor
-        endIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
-        endIndicatorView.layer.shadowOpacity = 0.3
-        endIndicatorView.layer.shadowRadius = 2
-        contentView.addSubview(endIndicatorView)
-    }
-    
-    override func layoutSubviews() {
-        super.layoutSubviews()
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            setupRangeViews()
+        }
         
-        let cellHeight = bounds.height
-        let cellWidth = bounds.width
-        let indicatorHeight: CGFloat = 8 // 더 두꺼운 게이지
-        let indicatorY = cellHeight - indicatorHeight - 4
-        
-        // 연속 게이지 - 셀 간격을 무시하고 확장하여 연속성 확보
-        let extensionWidth: CGFloat = 2 // 좌우로 확장
-        rangeIndicatorView.frame = CGRect(x: -extensionWidth, y: indicatorY, width: cellWidth + (extensionWidth * 2), height: indicatorHeight)
-        
-        // 시작/끝 표시는 좌우 끝에, 더 눈에 잘 띄게
-        let dotSize: CGFloat = 10
-        startIndicatorView.frame = CGRect(x: 4, y: indicatorY - 1, width: dotSize, height: dotSize)
-        endIndicatorView.frame = CGRect(x: cellWidth - dotSize - 4, y: indicatorY - 1, width: dotSize, height: dotSize)
-        
-        // 시작/끝 표시의 cornerRadius도 업데이트
-        startIndicatorView.layer.cornerRadius = dotSize / 2
-        endIndicatorView.layer.cornerRadius = dotSize / 2
-    }
-    
-    func configureRangeDisplay(isStart: Bool = false, isEnd: Bool = false, isInRange: Bool = false, color: UIColor = .systemBlue) {
-        // 연속 일정 배경 게이지 표시
-        rangeIndicatorView.isHidden = !isInRange
-        startIndicatorView.isHidden = !isStart
-        endIndicatorView.isHidden = !isEnd
-        
-        if isInRange {
-            // 연속 게이지 스타일링
-            rangeIndicatorView.backgroundColor = color.withAlphaComponent(0.5)
-            rangeIndicatorView.layer.borderWidth = 1
-            rangeIndicatorView.layer.borderColor = color.withAlphaComponent(0.8).cgColor
+        private func setupRangeViews() {
+            // 연속 게이지 배경 - 더 부드러운 모서리
+            rangeIndicatorView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
+            rangeIndicatorView.layer.cornerRadius = 4 // 더 둥근 모서리
+            rangeIndicatorView.isHidden = true
+            rangeIndicatorView.clipsToBounds = false // 확장된 영역도 보이도록
+            contentView.insertSubview(rangeIndicatorView, at: 0)
             
-            // 그라데이션 효과 추가 (선택적)
-            rangeIndicatorView.layer.shadowColor = color.cgColor
-            rangeIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 0)
-            rangeIndicatorView.layer.shadowOpacity = 0.2
-            rangeIndicatorView.layer.shadowRadius = 1
+            // 시작점 표시 - 더 눈에 띄게
+            startIndicatorView.backgroundColor = UIColor.systemBlue
+            startIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
+            startIndicatorView.isHidden = true
+            startIndicatorView.layer.shadowColor = UIColor.black.cgColor
+            startIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
+            startIndicatorView.layer.shadowOpacity = 0.3
+            startIndicatorView.layer.shadowRadius = 2
+            contentView.addSubview(startIndicatorView)
+            
+            // 끝점 표시 - 더 눈에 띄게
+            endIndicatorView.backgroundColor = UIColor.systemBlue
+            endIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
+            endIndicatorView.isHidden = true
+            endIndicatorView.layer.shadowColor = UIColor.black.cgColor
+            endIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
+            endIndicatorView.layer.shadowOpacity = 0.3
+            endIndicatorView.layer.shadowRadius = 2
+            contentView.addSubview(endIndicatorView)
         }
         
-        if isStart {
-            startIndicatorView.backgroundColor = color
-            startIndicatorView.layer.borderWidth = 2
-            startIndicatorView.layer.borderColor = UIColor.white.cgColor
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            
+            let cellHeight = bounds.height
+            let cellWidth = bounds.width
+            let indicatorHeight: CGFloat = 8 // 더 두꺼운 게이지
+            let indicatorY = cellHeight - indicatorHeight - 4
+            
+            // 연속 게이지 - 셀 간격을 무시하고 확장하여 연속성 확보
+            let extensionWidth: CGFloat = 2 // 좌우로 확장
+            rangeIndicatorView.frame = CGRect(x: -extensionWidth, y: indicatorY, width: cellWidth + (extensionWidth * 2), height: indicatorHeight)
+            
+            // 시작/끝 표시는 좌우 끝에, 더 눈에 잘 띄게
+            let dotSize: CGFloat = 10
+            startIndicatorView.frame = CGRect(x: 4, y: indicatorY - 1, width: dotSize, height: dotSize)
+            endIndicatorView.frame = CGRect(x: cellWidth - dotSize - 4, y: indicatorY - 1, width: dotSize, height: dotSize)
+            
+            // 시작/끝 표시의 cornerRadius도 업데이트
+            startIndicatorView.layer.cornerRadius = dotSize / 2
+            endIndicatorView.layer.cornerRadius = dotSize / 2
         }
         
-        if isEnd {
-            endIndicatorView.backgroundColor = color
-            endIndicatorView.layer.borderWidth = 2
-            endIndicatorView.layer.borderColor = UIColor.white.cgColor
+        func configureRangeDisplay(isStart: Bool = false, isEnd: Bool = false, isInRange: Bool = false, color: UIColor = .systemBlue) {
+            // 연속 일정 배경 게이지 표시
+            rangeIndicatorView.isHidden = !isInRange
+            startIndicatorView.isHidden = !isStart
+            endIndicatorView.isHidden = !isEnd
+            
+            if isInRange {
+                // 연속 게이지 스타일링
+                rangeIndicatorView.backgroundColor = color.withAlphaComponent(0.5)
+                rangeIndicatorView.layer.borderWidth = 1
+                rangeIndicatorView.layer.borderColor = color.withAlphaComponent(0.8).cgColor
+                
+                // 그라데이션 효과 추가 (선택적)
+                rangeIndicatorView.layer.shadowColor = color.cgColor
+                rangeIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 0)
+                rangeIndicatorView.layer.shadowOpacity = 0.2
+                rangeIndicatorView.layer.shadowRadius = 1
+            }
+            
+            if isStart {
+                startIndicatorView.backgroundColor = color
+                startIndicatorView.layer.borderWidth = 2
+                startIndicatorView.layer.borderColor = UIColor.white.cgColor
+            }
+            
+            if isEnd {
+                endIndicatorView.backgroundColor = color
+                endIndicatorView.layer.borderWidth = 2
+                endIndicatorView.layer.borderColor = UIColor.white.cgColor
+            }
+        }
+        
+        override func prepareForReuse() {
+            super.prepareForReuse()
+            rangeIndicatorView.isHidden = true
+            startIndicatorView.isHidden = true
+            endIndicatorView.isHidden = true
         }
     }
-    
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        rangeIndicatorView.isHidden = true
-        startIndicatorView.isHidden = true
-        endIndicatorView.isHidden = true
-    }
-}
 
 // MARK: - 조언 표시를 위한 간단한 커스텀 뷰 컨트롤러 (글자 수 제한 없음)
 class SimpleAdviceViewController: UIViewController {

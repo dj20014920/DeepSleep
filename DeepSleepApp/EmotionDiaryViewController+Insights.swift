@@ -94,6 +94,42 @@ extension EmotionDiaryViewController {
         
     }
     
+    // MARK: - 무한스크롤 구현
+    func updateInsightScrollViewContentSize() {
+        // 🔧 메인 스레드에서 UI 업데이트 보장
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateInsightScrollViewContentSize()
+            }
+            return
+        }
+        
+        // 레이아웃 강제 업데이트
+        scrollView.setNeedsLayout()
+        scrollView.layoutIfNeeded()
+        
+        // 인사이트 스택뷰의 실제 높이 계산
+        let stackViewHeight = insightStackView.systemLayoutSizeFitting(
+            CGSize(width: scrollView.bounds.width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        
+        // 최소 스크롤 높이는 화면 높이로 설정
+        let minContentHeight = scrollView.bounds.height
+        let contentHeight = max(stackViewHeight + 40, minContentHeight) // 하단 여백 40pt 추가
+        
+        // contentSize 업데이트
+        let newContentSize = CGSize(width: scrollView.bounds.width, height: contentHeight)
+        if scrollView.contentSize != newContentSize {
+            scrollView.contentSize = newContentSize
+            print("🔄 [인사이트 스크롤] contentSize 업데이트: \(newContentSize)")
+        }
+        
+        // 동적 제약조건 업데이트 (Auto Layout과 조화)
+        dynamicHeightConstraint?.constant = contentHeight
+    }
+    
     // MARK: - Enhanced Card Creation with Dropdown
     func createInsightCard(title: String, content: String, color: UIColor, isDropdownEnabled: Bool, dropdownType: InsightDropdownType? = nil) -> UIView {
         let containerView = UIView()
@@ -349,14 +385,6 @@ extension EmotionDiaryViewController {
     }
     
     // MARK: - Helper Methods
-    
-    internal func updateInsightScrollViewContentSize() {
-        guard self.currentView == 2 else { return }
-        
-        // Let Auto Layout drive the scrollView contentSize via contentLayoutGuide/bottom constraints
-        self.view.setNeedsLayout()
-        self.view.layoutIfNeeded()
-    }
     
     // 🔧 NEW: 실제 프레임 기반 높이 계산 메서드
     private func calculateRealContentHeight() -> CGFloat {

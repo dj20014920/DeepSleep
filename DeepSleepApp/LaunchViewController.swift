@@ -225,7 +225,7 @@ class LaunchViewController: UIViewController {
         let diaryVC = EmotionDiaryViewController()
         let diaryNav = UINavigationController(rootViewController: diaryVC)
         diaryNav.navigationBar.prefersLargeTitles = true
-        diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
+        diaryNav.tabBarItem = UITabBarItem(title: "미니 다이어리", image: UIImage(systemName: "book.fill"), tag: 1)
         
         // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
         let fortuneVC = TodaysFortuneViewController()

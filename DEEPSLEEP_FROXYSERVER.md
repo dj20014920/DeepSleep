@@ -1,43 +1,44 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-01
+최종 업데이트: 2025-09-02
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
 
 
-# 2025-09-01 배포/운영 동기화: 프록시 & 모델별 캐싱
+# 2025-09-02 배포/운영 동기화: 프록시 & 모델별 캐싱
 
 현재 상태(프로덕션)
 - 워커: emozleep (Cloudflare Workers)
 - URL: https://emozleep-production.vinny4920-081.workers.dev
-- Version ID: c18d6a9c-f4ad-43ed-9689-dce0210e60b5
+- Version ID: e042551e-3963-4875-9f7c-5dd4d43bd966
 
-핵심 기능
+핵심 기능(변경점 포함)
 - /v1/chat: providerCaching 스키마 수용 및 공급자별 캐시 적용
-- 응답 헤더: X-Cache-Provider/Action/TTL/Tokens
+- 응답 헤더: X-Cache-Provider/Action/TTL/Tokens + X-Fallback-Chain + X-Last-Error
 - 무효화: X-Context-Invalidation 헤더 1회성 처리
 
-공급자 정책
-- Anthropic: ephemeral cache_control 3600s, 30분 경과 write
-- Gemini: caches.create + PATCH ttl=3600s로 최대 3시간 운용
-- OpenAI: 시스템 프리픽스 해시/길이 KV 기록(관측)
-- Naver: 캐싱 불가 → bypass
+공급자 정책(정정)
+- Gemini: v1beta/cachedContents(create) + PATCH cachedContents/{name}?updateMask=ttl, 인증은 x-goog-api-key 헤더. TTL 3600s, 읽기 시 연장.
+- Anthropic: cache_control.ephemeral 3600s(운영 30분 정책), 30분 경과 write.
+- OpenAI: 프리픽스 관측만(bypass).
+- Naver: 캐싱 불가 → bypass.
 
-iOS 연동
-- AIContextManager: 무효화 사유 보관/소비
-- UnifiedAIServiceImpl: providerCaching 전송, X-Cache-* 파싱, 무효화 헤더 전송
+iOS 연동(변경점)
+- UnifiedAIServiceImpl: providerCaching.cacheKey=PersonaCoreSignature 전송(안정 키).
+- assembledPrompt 경로에서도 최근 16턴 원본 포함.
+- X-Cache-* 파싱/로깅 및 Server-Timing 파싱 유지.
 
 운영 팁
-- 로그: wrangler tail emozleep --format pretty
+- 로그: wrangler tail emozleep --format pretty --env production
 - 재배포: wrangler deploy --env production
 - 검증 체크리스트
-  - X-Cache-Action: miss→write 이후 hit/read로 전환
-  - Gemini PATCH 응답 200 확인
-  - OpenAI prefix hash 변동 0 유지
+  - 1회차 bypass → 2회차 read, X-Cache-TTL≈3600, tokens.cachedContentTokenCount 증가
+  - PATCH 200(or 204) 응답 확인
+  - X-Fallback-Chain과 X-Last-Error로 실패 사유 추적
 
 추가 과제
-- /v1/metrics 구현 및 대시보드 연계
-- NAVER 키 단일화 마이그레이션 완료
+- /v1/metrics: providers.gemini.{writes,reads,hitRate,savings} 집계(미구현)
+- NAVER 키 단일화 문서/코드 정합성 재검증
 
 ---
 
@@ -48,11 +49,11 @@ iOS 연동
   - iOS: 재등록 자동 1회 재시도 유지, DEBUG 1회성 X-Cache-* 샘플 로깅.
 - 라우팅/폴백
   - 체인: openrouter → gemini → openai → naver → claude. free+tier가 claude 요청 시 gemini로 강등.
-  - 현재 로그에선 X-Provider=none/X-Cache-Action=bypass로 표시 → OpenRouter 경로 사용 중(서버에 GEMINI_API_KEY 미설정 가능성 높음).
+  - 과거 로그에선 X-Provider=none/X-Cache-Action=bypass로 표시 → OpenRouter 경로 사용(키/가용성 이슈) 정황이 있었음.
 - 캐시 전략
-  - Gemini: caches.create(ttl=3600s) + 요청마다 PATCH(updateMask=ttl)로 TTL 연장(최대 3시간). X-Cache-Provider=gemini, Action=write/read, Tokens=writeIn/readIn(필요 시 patchMs).
-  - Anthropic: cache_control.ephemeral(3600s)로 안정 프리픽스 캐시(write/read). 30분 경과 시 write.
-  - OpenAI: 프리픽스 해시 관찰만(bypass). Naver: 미지원.
+  - Gemini: cachedContents + PATCH로 TTL 연장(최대 3시간). X-Cache-Provider=gemini, Action=write/read, Tokens.
+  - Anthropic: cache_control.ephemeral(3600s). 30분 경과 write.
+  - OpenAI: 프리픽스 해시 관측만(bypass). Naver: 미지원.
 - 관측 지표
   - Server-Timing: auth/parse/provider.
   - /v1/metrics: providers.{gemini,anthropic}.totalWrites/Reads/hitRate/estSavingsUSD.
@@ -364,6 +365,7 @@ C. 서명된 채팅(비스트리밍)
 17) 변경 이력
 - 2025-08-31: 프록시 모드 프로덕션 전환, HMAC+Nonce 인증, 정책 헤더/폴백 체인 정비, wrangler.toml main 경로 수정
 - 2025-09-01: 모델별 캐싱 설계/요청 스키마/헤더/KV 스키마/검증 체크리스트 추가
+- 2025-09-02: Gemini cachedContents(create, patch) 적용, 진단 헤더(X-Fallback-Chain, X-Last-Error) 추가, Version ID 업데이트
 
 ## 18) 모델별 캐싱 시스템 설계/구현(비용 최적화) — 2025-09-01
 

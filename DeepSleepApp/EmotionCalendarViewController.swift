@@ -9,6 +9,7 @@ import UIKit
 import FSCalendar
 import CoreData
 import Combine
+import ObjectiveC
 
 // MARK: - Section Header View (Local Implementation)
 final class SectionHeaderView: UICollectionReusableView {
@@ -100,6 +101,13 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     // MARK: - CoreData
     var container: NSPersistentContainer!
     
+    // ✅ 인사이트 페이지네이션 상태
+    private var loadedAnalyses: [SettingsManager.DiaryAnalysisRecord] = []
+    private var analysisOffset: Int = 0
+    private let analysisPageSize: Int = 5
+    private var analysisHasMore: Bool = false
+    private var isLoadingMoreAnalysis: Bool = false
+    
     // MARK: - Lifecycle
     
     override func viewDidLoad() {
@@ -129,7 +137,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         
         // 데이터 로드
         loadDiaryData()
-        loadData(for: selectedDate)
+        resetInsightPaginationAndLoadFirstPage(for: selectedDate)
 
         // 실시간 반영 알림 구독
         NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
@@ -143,7 +151,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         // 일기 데이터 새로고침
         loadDiaryData()
         // 현재 선택된 날짜 데이터 새로고침
-        loadData(for: selectedDate)
+        resetInsightPaginationAndLoadFirstPage(for: selectedDate)
         // 캘린더 새로고침
         if calendar != nil {
             calendar.reloadData()
@@ -172,7 +180,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     
     @objc private func handleDiaryAnalysisUpdated(_ note: Notification) {
         // 오늘/선택일의 분석 로그 변경 즉시 인사이트 반영
-        loadData(for: selectedDate)
+        resetInsightPaginationAndLoadFirstPage(for: selectedDate)
         collectionView.reloadData()
     }
     
@@ -287,39 +295,12 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     private func loadData(for date: Date) {
         sections.removeAll()
         
-        // AI Insight 섹션 추가
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M월 d일"
-        let dateString = formatter.string(from: date)
-        
-        // 해당 날짜의 일기 데이터 확인
-        let dateKeyFormatter = DateFormatter()
-        dateKeyFormatter.dateFormat = "yyyy-MM-dd"
-        let dateKey = dateKeyFormatter.string(from: date)
-        
         // 섹션 구성: 오늘의 감정 카드 → 대나무숲 친구 대화 → Todo
-        let diaryForDate = diaryDataForCalendar[dateKey]
+        let diaryForDate = diaryFor(date: date)
         sections.append(.todayEmotion(diaryForDate))
         
-        // 대나무숲 친구 대화(분석 로그) 텍스트 구성
-        var insightText: String = ""
-        let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: date, offset: 0, limit: 3)
-        if !records.isEmpty {
-            // 최신순 상위 3개
-            var lines: [String] = []
-            for rec in records {
-                let t = rec.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                let preview = t.count > 180 ? String(t.prefix(180)) + "…" : t
-                lines.append("• " + preview)
-            }
-            insightText = lines.joined(separator: "\n")
-            if hasMore {
-                insightText += "\n… 외 추가 분석이 더 있어요"
-            }
-        } else {
-            insightText = "아직 분석 내역이 없습니다. 일기를 작성하고 대나무숲에서 이야기해보세요."
-        }
-        
+        // 인사이트 텍스트는 loadedAnalyses 기반
+        let insightText = buildInsightText()
         sections.append(.insight(insightText))
         
         // Todo 섹션은 설정에 따라 표시
@@ -331,7 +312,66 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         collectionView.reloadData()
     }
     
-    // Removed duplicate method - see extension at line 639
+    private func diaryFor(date: Date) -> EmotionDiary? {
+        let dateKeyFormatter = DateFormatter(); dateKeyFormatter.dateFormat = "yyyy-MM-dd"
+        let dateKey = dateKeyFormatter.string(from: date)
+        return diaryDataForCalendar[dateKey]
+    }
+    
+    // MARK: - Insight Pagination Helpers
+    private func resetInsightPaginationAndLoadFirstPage(for date: Date) {
+        loadedAnalyses.removeAll()
+        analysisOffset = 0
+        analysisHasMore = true
+        isLoadingMoreAnalysis = false
+        // 초기 섹션 구성
+        loadData(for: date)
+        loadMoreAnalysesIfNeeded(force: true)
+    }
+    
+    private func buildInsightText() -> String {
+        guard !loadedAnalyses.isEmpty else {
+            // 비어있으면 기본 문구 구성
+            let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: 0, limit: 1)
+            analysisHasMore = hasMore
+            if diaryFor(date: selectedDate) == nil {
+                return "아직 분석 내역이 없습니다. 일기를 작성하고 대나무숲에서 이야기해보세요."
+            }
+            return records.isEmpty ? "아직 분석 내역이 없습니다. 일기를 작성하고 대나무숲에서 이야기해보세요." : "• \(records.first!.text)"
+        }
+        var lines: [String] = []
+        for rec in loadedAnalyses {
+            let t = rec.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let preview = t.count > 180 ? String(t.prefix(180)) + "…" : t
+            lines.append("• " + preview)
+        }
+        if analysisHasMore { lines.append("… 외 추가 분석이 더 있어요") }
+        return lines.joined(separator: "\n")
+    }
+    
+    private func loadMoreAnalysesIfNeeded(force: Bool = false) {
+        guard force || (!isLoadingMoreAnalysis && analysisHasMore) else { return }
+        isLoadingMoreAnalysis = true
+        let (page, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: analysisOffset, limit: analysisPageSize)
+        analysisOffset += page.count
+        analysisHasMore = hasMore
+        if !page.isEmpty {
+            loadedAnalyses.append(contentsOf: page)
+            updateInsightSection()
+        }
+        isLoadingMoreAnalysis = false
+    }
+    
+    private func updateInsightSection() {
+        let text = buildInsightText()
+        if let idx = sections.firstIndex(where: { if case .insight = $0 { return true } else { return false } }) {
+            sections[idx] = .insight(text)
+            collectionView.reloadSections(IndexSet(integer: idx))
+        } else {
+            sections.insert(.insight(text), at: 1)
+            collectionView.insertSections(IndexSet(integer: 1))
+        }
+    }
     
     // MARK: - UICollectionViewDataSource
     
@@ -345,8 +385,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             return 1
         case .insight:
             return 1
-        case .todo(let items):
-            return items.count
+        case .todo:
+            return 1
         }
     }
     
@@ -358,18 +398,16 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
             cell.configure(with: diary, isToday: isToday)
             return cell
-        case .insight(let text):
+        case .insight:
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath) as! InsightCell
             // 분석 리스트 모드로 구성 (타이틀 숨김) + CTA (오늘/선택일 일기 O & 분석 없음)
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
-            let dateKey = SettingsManager.shared.dateKey(for: selectedDate)
-            let diaryForDate = diaryDataForCalendar[dateKey]
-            let (records, _) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: 0, limit: 1)
-            let showCTA = (diaryForDate != nil) && records.isEmpty && isToday
+            let diaryForDate = diaryFor(date: selectedDate)
+            let showCTA = (diaryForDate != nil) && loadedAnalyses.isEmpty && isToday
             cell.onPrimaryAction = { [weak self] in
                 if let entry = diaryForDate { self?.startDiaryConversation(with: entry) }
             }
-            cell.configureAnalysisList(text, showCTA: showCTA, ctaTitle: "오늘 일기 분석 시작")
+            cell.configureAnalysisList(buildInsightText(), showCTA: showCTA, ctaTitle: "오늘 일기 분석 시작")
             return cell
         case .todo(let items):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath) as! TodoListCell
@@ -450,6 +488,9 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
     }
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
         selectedDate = date
+        // 선택 날짜 변경 시 인사이트 페이지네이션 리셋
+        resetInsightPaginationAndLoadFirstPage(for: date)
+        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dateKey = formatter.string(from: date)
@@ -541,8 +582,19 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
         case .insight(let text):
             let height = estimatedInsightHeight(for: text, width: width)
             return CGSize(width: width, height: height)
-        case .todo:
-            return CGSize(width: width, height: 80)
+        case .todo(let items):
+            // 기존: 고정 80 → 내장 테이블뷰(row 44pt)와 헤더/패딩을 반영한 동적 높이
+            let rows = max(items.count, 0)
+            let headerHeight: CGFloat = 40 // TodoListCell.headerView 고정 높이
+            let topPadding: CGFloat = 16
+            let betweenHeaderAndTable: CGFloat = 8
+            let bottomPadding: CGFloat = 16
+            let rowHeight: CGFloat = 44
+            // 최소 높이(비어있을 때 empty state 레이블 표시를 위한 여유)
+            let minHeight: CGFloat = 100
+            let computed = topPadding + headerHeight + betweenHeaderAndTable + (CGFloat(rows) * rowHeight) + bottomPadding
+            let height = max(minHeight, computed)
+            return CGSize(width: width, height: height)
         }
     }
     
@@ -598,6 +650,20 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
             return .zero // 상단 고정 라벨이 있으므로 헤더 숨김
         default:
             return CGSize(width: collectionView.frame.width, height: 50)
+        }
+    }
+}
+
+// MARK: - 무한 스크롤 트리거
+extension EmotionCalendarViewController: UIScrollViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView == collectionView else { return }
+        let offsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let height = scrollView.bounds.size.height
+        // 하단 200pt 근접 시 로드
+        if offsetY > contentHeight - height - 200 {
+            loadMoreAnalysesIfNeeded()
         }
     }
 }
@@ -676,226 +742,13 @@ extension EmotionCalendarViewController {
     }
 }
 
-// MARK: - AddEditTodoDelegate
-// extension EmotionCalendarViewController: AddEditTodoDelegate {
-//    func didSaveTodoItem(_ todoItem: TodoItem) {
-//        if let existingIndex = todoManager.getTodoItems(for: selectedDate).firstIndex(where: { $0.id == todoItem.id }) {
-//            // Update existing
-//            todoManager.updateTodoItem(todoItem)
-//        } else {
-//            // Add new
-//            todoManager.addTodoItem(todoItem)
-//        }
-//        loadData(for: selectedDate) // Reload data to show changes
-//    }
-// }
-
-// =====================================================================
-// MARK: - Merged content from EmotionCalendarViewController+AI.swift
-// =====================================================================
-
-// MARK: - EmotionCalendarViewController AI Extension
-extension EmotionCalendarViewController {
-    
-    // MARK: - AI Analysis Implementation
-    func showAIAnalysisAlert() {
-        // 주간 1회 제한 정책 적용(KST 월요일 00:00 리셋)
-        let weekly = UsageLimitManager.shared.canUseWeeklyLimitedFeature(anchor: .kstMonday, key: "monthly_statistics")
-        guard weekly.canUse else {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "ko_KR")
-            df.dateFormat = "M월 d일 a h시 m분"
-            let resetStr = df.string(from: weekly.resetAt)
-            let limitAlert = UIAlertController(
-                title: "📊 감정 패턴 분석 (주간 1회 제한)",
-                message: "이번 주 이용을 모두 사용하셨습니다.\n\n리셋 시각: \(resetStr)\n일반 채팅으로 감정 상담을 받아보시는 건 어떨까요?",
-                preferredStyle: .alert
-            )
-            limitAlert.addAction(UIAlertAction(title: "확인", style: .default))
-            present(limitAlert, animated: true)
-            return
-        }
-
-        let alert = UIAlertController(
-            title: "🔒 개인정보 보호 안내",
-            message: """
-            AI 감정 패턴 분석 대화를 시작합니다:
-            📊 이번 주 남은 분석 횟수: \(weekly.remaining)/1회
-
-            • 최근 30일간의 감정 패턴 분석
-            • 감정 통계 및 트렌드 파악
-            • 개인 맞춤 감정 관리 조언
-            • 충분한 시간 동안 깊이 있는 대화 가능
-            • 일기 내용은 포함되지 않습니다
-
-            개인 식별이 가능한 정보는 전송되지 않으며,
-            대화 종료 후 데이터는 즉시 삭제됩니다.
-
-            계속하시겠습니까?
-            """,
-            preferredStyle: .alert
-        )
-
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "대나무숲 패턴 분석 시작", style: .default) { [weak self] _ in
-            self?.startAIAnalysisChat()
-        })
-
-        present(alert, animated: true)
-    }
-    
-    func startAIAnalysisChat() {
-        let anonymizedData = generateAnonymizedEmotionData()
-        // ✅ 사용 횟수 기록 (실제 분석 시작 시점에)
-        AIUsageManager.shared.recordUsage(for: .monthlyStatistics)
-        
-        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
-        let chatVC = ChatRouter.chatViewController(context: .monthlyPattern(data: anonymizedData))
-        chatVC.initialUserText = "감정_패턴_분석_모드"
-        
-        // ✅ 네비게이션 컨트롤러 설정 개선
-        let navController = UINavigationController(rootViewController: chatVC)
-        
-        // 네비게이션 바 스타일 설정
-        navController.navigationBar.prefersLargeTitles = false
-        navController.navigationBar.tintColor = .systemBlue
-        navController.navigationBar.backgroundColor = .systemBackground
-        
-        // 모달 표시 스타일 설정
-        navController.modalPresentationStyle = .fullScreen
-        navController.modalTransitionStyle = .coverVertical
-        
-        // ✅ 네비게이션 바가 확실히 보이도록 설정
-        navController.setNavigationBarHidden(false, animated: false)
-        
-        // ✅ swipe back 제스처 활성화
-        navController.interactivePopGestureRecognizer?.isEnabled = true
-        navController.interactivePopGestureRecognizer?.delegate = nil
-        
-        present(navController, animated: true) {
-            // 표시 완료 후 추가 설정
-            navController.setNavigationBarHidden(false, animated: false)
-        }
-    }
-    
-    func generateAnonymizedEmotionData() -> String {
-        let calendar = Calendar.current
-        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
-        
-        let recentEntries = diaryEntries.filter { $0.date >= thirtyDaysAgo }
-        
-        guard !recentEntries.isEmpty else {
-            return "최근 30일간 감정 기록이 없습니다."
-        }
-        
-        let emotionCounts = Dictionary(grouping: recentEntries, by: { $0.selectedEmotion })
-            .mapValues { $0.count }
-            .sorted { $0.value > $1.value }
-        
-        var analysisText = "최근 30일 감정 패턴 분석:\n"
-        analysisText += "총 \(recentEntries.count)개의 감정 기록\n\n"
-        
-        for (emotion, count) in emotionCounts {
-            let percentage = Int((Float(count) / Float(recentEntries.count)) * 100)
-            analysisText += "• \(emotion): \(count)회 (\(percentage)%)\n"
-        }
-        
-        let weeklyPattern = analyzeWeeklyPattern(entries: recentEntries)
-        if !weeklyPattern.isEmpty {
-            analysisText += "\n주간 패턴:\n\(weeklyPattern)"
-        }
-        
-        // ✅ 추가 분석 정보 제공
-        let timePattern = analyzeTimePattern(entries: recentEntries)
-        if !timePattern.isEmpty {
-            analysisText += "\n시간대별 패턴:\n\(timePattern)"
-        }
-        
-        let emotionTrend = analyzeEmotionTrend(entries: recentEntries)
-        if !emotionTrend.isEmpty {
-            analysisText += "\n감정 변화 트렌드:\n\(emotionTrend)"
-        }
-        
-        return analysisText
-    }
-    
-    func analyzeWeeklyPattern(entries: [EmotionDiary]) -> String {
-        let calendar = Calendar.current
-        let weekdayNames = ["일", "월", "화", "수", "목", "금", "토"]
-        
-        let weekdayGroups = Dictionary(grouping: entries) { entry in
-            calendar.component(.weekday, from: entry.date) - 1
-        }
-        
-        var pattern = ""
-        for weekday in 0..<7 {
-            if let dayEntries = weekdayGroups[weekday], !dayEntries.isEmpty {
-                let mostCommonEmotion = Dictionary(grouping: dayEntries, by: { $0.selectedEmotion })
-                    .max(by: { $0.value.count < $1.value.count })?.key ?? ""
-                pattern += "• \(weekdayNames[weekday])요일: \(mostCommonEmotion) (\(dayEntries.count)회)\n"
-            }
-        }
-        
-        return pattern
-    }
-    
-    // ✅ 새로운 분석 메소드들 추가
-    func analyzeTimePattern(entries: [EmotionDiary]) -> String {
-        let calendar = Calendar.current
-        let hourGroups = Dictionary(grouping: entries) { entry in
-            calendar.component(.hour, from: entry.date)
-        }
-        
-        var pattern = ""
-        let timeRanges = [
-            (0...5, "새벽"),
-            (6...11, "오전"),
-            (12...17, "오후"),
-            (18...23, "저녁")
-        ]
-        
-        for (range, label) in timeRanges {
-            let rangeEntries = hourGroups.filter { range.contains($0.key) }.values.flatMap { $0 }
-            if !rangeEntries.isEmpty {
-                let mostCommonEmotion = Dictionary(grouping: rangeEntries, by: { $0.selectedEmotion })
-                    .max(by: { $0.value.count < $1.value.count })?.key ?? ""
-                pattern += "• \(label): \(mostCommonEmotion) (\(rangeEntries.count)회)\n"
-            }
-        }
-        
-        return pattern
-    }
-    
-    func analyzeEmotionTrend(entries: [EmotionDiary]) -> String {
-        guard entries.count >= 7 else { return "" }
-        
-        let sortedEntries = entries.sorted { $0.date < $1.date }
-        let midPoint = sortedEntries.count / 2
-        
-        let firstHalf = Array(sortedEntries.prefix(midPoint))
-        let secondHalf = Array(sortedEntries.suffix(midPoint))
-        
-        let positiveEmotions = ["😊", "😄", "🥰", "🙂"]
-        
-        let firstPositiveCount = firstHalf.filter { positiveEmotions.contains($0.selectedEmotion) }.count
-        let secondPositiveCount = secondHalf.filter { positiveEmotions.contains($0.selectedEmotion) }.count
-        
-        let firstPositiveRatio = Double(firstPositiveCount) / Double(firstHalf.count)
-        let secondPositiveRatio = Double(secondPositiveCount) / Double(secondHalf.count)
-        
-        let trend: String
-        let difference = secondPositiveRatio - firstPositiveRatio
-        
-        switch difference {
-        case 0.1...:
-            trend = "긍정적으로 개선되고 있습니다 ↗️"
-        case ..<(-0.1):
-            trend = "다소 하락하는 경향이 있습니다 ↘️"
-        default:
-            trend = "안정적인 상태를 유지하고 있습니다 ➡️"
-        }
-        
-        return "• 전체적인 감정 상태: \(trend)\n• 전반기 긍정 감정 비율: \(String(format: "%.1f", firstPositiveRatio * 100))%\n• 후반기 긍정 감정 비율: \(String(format: "%.1f", secondPositiveRatio * 100))%"
+// MARK: - AddEditTodoDelegate 채택으로 저장 후 새로고침
+extension EmotionCalendarViewController: AddEditTodoDelegate {
+    func didSaveTodoItem(_ todoItem: TodoItem) {
+        // 저장/삭제 후 목록 갱신
+        loadData(for: selectedDate)
+        calendar?.reloadData()
+        collectionView.reloadData()
     }
 }
 
@@ -906,6 +759,10 @@ extension EmotionCalendarViewController {
 // MARK: - EmotionCalendarViewController Diary Extension
 extension EmotionCalendarViewController {
     
+    private struct AssociatedKeys {
+        static var diaryEntryKey: UInt8 = 0
+    }
+
     // MARK: - ✅ 일기 상세보기 - 남은 횟수 표시 추가
     func showDiaryDetail(for date: Date, emotion: String) {
         let calendar = Calendar.current
@@ -1110,7 +967,8 @@ extension EmotionCalendarViewController {
         detailVC.navigationItem.leftBarButtonItem = closeButton
         detailVC.navigationItem.rightBarButtonItem = chatButton
         
-        objc_setAssociatedObject(detailVC, "diaryEntry", entry, .OBJC_ASSOCIATION_RETAIN)
+        // 연관 객체 저장 (안전한 키 사용)
+        objc_setAssociatedObject(detailVC, &AssociatedKeys.diaryEntryKey, entry, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         
         let navController = UINavigationController(rootViewController: detailVC)
         present(navController, animated: true)
@@ -1123,23 +981,10 @@ extension EmotionCalendarViewController {
     @objc func startChatFromDetail() {
         guard let presentedNav = presentedViewController as? UINavigationController,
               let detailVC = presentedNav.topViewController,
-              let entry = objc_getAssociatedObject(detailVC, "diaryEntry") as? EmotionDiary else { return }
+              let entry = objc_getAssociatedObject(detailVC, &AssociatedKeys.diaryEntryKey) as? EmotionDiary else { return }
         
         presentedNav.dismiss(animated: true) { [weak self] in
             self?.startDiaryConversation(with: entry)
         }
-    }
-}
-
-// MARK: - AddEditTodoDelegate
-extension EmotionCalendarViewController: AddEditTodoDelegate {
-    func didSaveTodoItem(_ todoItem: TodoItem) {
-        UnifiedLogger.shared.logTodo("Todo item saved: \(todoItem.title)")
-        
-        // 현재 선택된 날짜의 데이터 새로고침
-        loadData(for: selectedDate)
-        
-        // 캘린더 새로고침 (이벤트 점 표시 업데이트)
-        calendar.reloadData()
     }
 }

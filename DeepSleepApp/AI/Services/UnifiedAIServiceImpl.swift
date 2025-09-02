@@ -251,7 +251,14 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 var roleMessages: [RoleMessage] = []
                 if let assembled = assembledPrompt, !assembled.isEmpty {
                     roleMessages.append(RoleMessage(role: .system, content: assembled))
-                    // Fix: assembledPrompt가 있어도 현재 사용자 입력은 별도의 user 역할로 명확히 전달한다.
+                    // 정책: 최근 나+모델의 16개 턴을 원본 그대로 포함(역할/타임스탬프 유지)
+                    if let history = context?.conversationHistory, !history.isEmpty {
+                        let recent = Array(history.suffix(16))
+                        for turn in recent {
+                            roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+                        }
+                    }
+                    // 현재 사용자 입력은 별도의 user 역할로 명확히 전달
                     roleMessages.append(RoleMessage(role: .user, content: content))
                 } else {
                     let sys = generateOptimizedSystemPrompt(for: mode, model: model)
@@ -1341,14 +1348,16 @@ extension UnifiedAIServiceImpl {
             "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
             "mode": mode.rawValue
         ]
-        // 서버 공급자 캐싱 활성화
+        // 서버 공급자 캐싱 활성화 + 안정적 캐시 키(PersonaCoreSignature)
+        let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
         body["providerCaching"] = [
             "enable": true,
             "strategy": "auto",
-            "ttlSeconds": providerCacheTTLSeconds(for: mode)
+            "ttlSeconds": providerCacheTTLSeconds(for: mode),
+            "cacheKey": personaCoreKey
         ]
         // New: providerCaching config log
-        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode))")
+        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) cacheKey=\(String(personaCoreKey.prefix(16)))…")
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         

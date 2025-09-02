@@ -95,6 +95,13 @@ class EmotionDiaryViewController: UIViewController {
     
     // MARK: - Properties
     internal var diaryEntries: [EmotionDiary] = []
+    // ✅ 무한스크롤 표시용 가시 리스트(페이지네이션)
+    internal var visibleDiaryEntries: [EmotionDiary] = []
+    private let diaryPageSize: Int = 20
+    private var diaryOffset: Int = 0
+    private var isLoadingMoreDiaries: Bool = false
+    private var hasMoreDiaries: Bool = true
+
     internal var currentView: Int = 0 // 익스텐션에서 접근 가능하도록 internal로 변경
     private var selectedDiaryForAnalysis: EmotionDiary? // 선택된 일기 저장
     private var recommendationHistory: [RecommendationData] = []
@@ -107,6 +114,11 @@ class EmotionDiaryViewController: UIViewController {
     internal var calendarBottomConstraint: NSLayoutConstraint?
     internal var todoBottomConstraint: NSLayoutConstraint?
     internal var insightBottomConstraint: NSLayoutConstraint?
+    
+    // ✅ 화면 높이 고정용(탭별 내부 스크롤 활성화)
+    private var calendarHeightConstraint: NSLayoutConstraint?
+    private var diaryHeightConstraint: NSLayoutConstraint?
+    private var todoHeightConstraint: NSLayoutConstraint?
     
     // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
     internal let scrollView: UIScrollView = {
@@ -206,11 +218,14 @@ class EmotionDiaryViewController: UIViewController {
         tableBottomConstraint = tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         tableBottomConstraint?.isActive = false
         
+        // ✅ 일기 탭 내부 스크롤 활성화를 위해 화면 높이 제약 사전 생성(활성화는 탭 전환 시)
+        diaryHeightConstraint = tableView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
+        diaryHeightConstraint?.isActive = false
+        
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: contentView.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            tableView.heightAnchor.constraint(greaterThanOrEqualToConstant: 400)
+            tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
     }
     
@@ -224,13 +239,14 @@ class EmotionDiaryViewController: UIViewController {
         calendarBottomConstraint = calendarViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         calendarBottomConstraint?.isActive = false
         
+        // ✅ 고정값(750) 제거하고 화면 높이와 동일하게(활성화는 탭 전환 시)
+        calendarHeightConstraint = calendarViewController.view.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
+        calendarHeightConstraint?.isActive = false
+        
         NSLayoutConstraint.activate([
             calendarViewController.view.topAnchor.constraint(equalTo: contentView.topAnchor),
             calendarViewController.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            calendarViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            
-            // 👇 여기에 높이 명시
-            calendarViewController.view.heightAnchor.constraint(equalToConstant: 750)
+            calendarViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
     }
 
@@ -243,11 +259,14 @@ class EmotionDiaryViewController: UIViewController {
         todoBottomConstraint = todoTabViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         todoBottomConstraint?.isActive = false
 
+        // ✅ 할 일 탭도 내부 스크롤 사용을 위해 화면 높이와 동일하게(활성화는 탭 전환 시)
+        todoHeightConstraint = todoTabViewController.view.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
+        todoHeightConstraint?.isActive = false
+
         NSLayoutConstraint.activate([
             todoTabViewController.view.topAnchor.constraint(equalTo: contentView.topAnchor),
             todoTabViewController.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            todoTabViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            todoTabViewController.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 600)
+            todoTabViewController.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
     }
     
@@ -309,9 +328,57 @@ class EmotionDiaryViewController: UIViewController {
             return
         }
         
+        // 전체 데이터 로드
         self.diaryEntries = SettingsManager.shared.loadEmotionDiary()
+        // 최신순 정렬(필요시) 후 페이지네이션 초기화
+        // self.diaryEntries.sort { $0.date > $1.date }
+        resetDiaryPaginationAndLoadFirstPage()
+        
         self.tableView.reloadData()
         self.updateInsightView()
+    }
+    
+    // ✅ 페이지네이션 초기화 및 첫 페이지 로드
+    private func resetDiaryPaginationAndLoadFirstPage() {
+        diaryOffset = 0
+        isLoadingMoreDiaries = false
+        hasMoreDiaries = true
+        visibleDiaryEntries.removeAll()
+        
+        // ✅ 기존 셀 상태를 즉시 0행으로 동기화(초기 로드/리셋 시 필수)
+        tableView.reloadData()
+        
+        loadMoreDiariesIfNeeded(force: true)
+    }
+    
+    // ✅ 추가 페이지 로드
+    internal func loadMoreDiariesIfNeeded(force: Bool = false) {
+        guard force || (!isLoadingMoreDiaries && hasMoreDiaries) else { return }
+        isLoadingMoreDiaries = true
+        
+        let start = diaryOffset
+        let end = min(diaryEntries.count, diaryOffset + diaryPageSize)
+        if start < end {
+            let nextSlice = Array(diaryEntries[start..<end])
+            let startIndex = visibleDiaryEntries.count
+            visibleDiaryEntries.append(contentsOf: nextSlice)
+            diaryOffset = end
+            hasMoreDiaries = diaryOffset < diaryEntries.count
+            
+            // ✅ 초기 로드(0에서 시작)일 때는 insertRows 대신 reload로 일관성 보장
+            if startIndex == 0 {
+                tableView.reloadData()
+            } else {
+                var indexPaths: [IndexPath] = []
+                for i in 0..<nextSlice.count { indexPaths.append(IndexPath(row: startIndex + i, section: 0)) }
+                tableView.performBatchUpdates({
+                    tableView.insertRows(at: indexPaths, with: .automatic)
+                }, completion: nil)
+            }
+        } else {
+            hasMoreDiaries = false
+        }
+        isLoadingMoreDiaries = false
     }
     
     // MARK: - View Switching
@@ -360,13 +427,9 @@ class EmotionDiaryViewController: UIViewController {
         calendarBottomConstraint?.isActive = false
         todoBottomConstraint?.isActive = false
         insightBottomConstraint?.isActive = false
-        switch currentView {
-        case 0: tableBottomConstraint?.isActive = true
-        case 1: calendarBottomConstraint?.isActive = true
-        case 2: todoBottomConstraint?.isActive = true
-        case 3: insightBottomConstraint?.isActive = true
-        default: break
-        }
+        
+        // ✅ 탭별 내부 스크롤 동작 설정
+        configureScrollingForCurrentTab()
 
         view.setNeedsLayout()
         view.layoutIfNeeded()
@@ -385,6 +448,38 @@ class EmotionDiaryViewController: UIViewController {
         }
     }
     
+    private func configureScrollingForCurrentTab() {
+        // 부모 스크롤 활성/비활성 및 높이 제약 활성화로 자식 스크롤 독립 동작
+        switch currentView {
+        case 0: // Diary
+            scrollView.isScrollEnabled = false
+            diaryHeightConstraint?.isActive = true
+            calendarHeightConstraint?.isActive = false
+            todoHeightConstraint?.isActive = false
+            tableBottomConstraint?.isActive = true
+        case 1: // Calendar
+            scrollView.isScrollEnabled = false
+            diaryHeightConstraint?.isActive = false
+            calendarHeightConstraint?.isActive = true
+            todoHeightConstraint?.isActive = false
+            calendarBottomConstraint?.isActive = true
+        case 2: // Todo
+            scrollView.isScrollEnabled = false
+            diaryHeightConstraint?.isActive = false
+            calendarHeightConstraint?.isActive = false
+            todoHeightConstraint?.isActive = true
+            todoBottomConstraint?.isActive = true
+        case 3: // Insight
+            scrollView.isScrollEnabled = true
+            diaryHeightConstraint?.isActive = false
+            calendarHeightConstraint?.isActive = false
+            todoHeightConstraint?.isActive = false
+            insightBottomConstraint?.isActive = true
+        default:
+            break
+        }
+    }
+    
     func updateScrollViewContentSize() {
         // 🔧 UI 업데이트를 메인 스레드에서 보장
         guard Thread.isMainThread else {
@@ -395,7 +490,7 @@ class EmotionDiaryViewController: UIViewController {
         }
         
         // 인사이트 탭에서는 Auto Layout이 자동으로 처리
-        if currentView == 2 {
+        if currentView == 3 {
             updateInsightScrollViewContentSize()
             return
         }

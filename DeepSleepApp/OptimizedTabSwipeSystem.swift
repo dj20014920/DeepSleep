@@ -82,7 +82,14 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
             view.addGestureRecognizer(rightEdge)
             swipeGestureRecognizers.append(rightEdge)
             
-            print("✅ [OptimizedTabBar] 에지 팬 제스처 설정 완료")
+            // 전체 화면 가로 팬 → 큰 가로 제스처에서만 탭 전환 (셀 스와이프는 유지)
+            let tabPan = UIPanGestureRecognizer(target: self, action: #selector(handleTabPan(_:)))
+            tabPan.maximumNumberOfTouches = 1
+            tabPan.delegate = self
+            view.addGestureRecognizer(tabPan)
+            swipeGestureRecognizers.append(tabPan)
+            
+            print("✅ [OptimizedTabBar] 에지 팬 + 전체 화면 팬 제스처 설정 완료")
         }
     }
     
@@ -132,6 +139,31 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
                 }
             default:
                 break
+            }
+            
+            if newIndex != currentIndex {
+                switchToTab(newIndex, animated: true)
+            }
+        }
+    }
+    
+    @objc private func handleTabPan(_ gesture: UIPanGestureRecognizer) {
+        guard let vcs = viewControllers, !vcs.isEmpty else { return }
+        let translation = gesture.translation(in: view)
+        let velocity = gesture.velocity(in: view)
+        let distanceThreshold: CGFloat = 120 // 테이블 셀 스와이프와 구분되는 충분한 이동
+        let velocityThreshold: CGFloat = 600  // 빠른 가로 플릭 시 전환 허용
+        
+        if gesture.state == .ended {
+            let currentIndex = selectedIndex
+            var newIndex = currentIndex
+            
+            if abs(translation.x) > abs(translation.y) { // 가로 제스처만
+                if translation.x <= -distanceThreshold || velocity.x <= -velocityThreshold {
+                    newIndex = min(currentIndex + 1, (vcs.count - 1))
+                } else if translation.x >= distanceThreshold || velocity.x >= velocityThreshold {
+                    newIndex = max(currentIndex - 1, 0)
+                }
             }
             
             if newIndex != currentIndex {
@@ -217,23 +249,59 @@ extension OptimizedTabBarController {
     
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         // 에지 팬은 화면 가장자리에서만 시작되므로 충돌 위험 낮음.
-        // 추가로 UITableView/UICollectionView 내부에서도 허용하되, 에지 밖에서는 시작 불가.
-        
-        // 1) 네비게이션 컨트롤러의 뒤로가기 제스처와 충돌 방지
+        // 1) 네비게이션 컨트롤러의 뒤로가기 제스처와 충돌 방지 (왼쪽 에지)
         if let edgePan = gestureRecognizer as? UIScreenEdgePanGestureRecognizer, edgePan.edges.contains(.left) {
-            if let nav = (selectedViewController as? UINavigationController) ?? selectedViewController?.navigationController {
-                if nav.viewControllers.count > 1 {
-                    // 현재 화면에서 뒤로가기가 가능하면 탭 스와이프 비활성화
-                    return false
-                }
+            if let nav = (selectedViewController as? UINavigationController) ?? selectedViewController?.navigationController, nav.viewControllers.count > 1 {
+                return false
             }
         }
-        
         return true
     }
     
+    // 팬 시작 여부를 스마트하게 판별
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        let velocity = pan.velocity(in: view)
+        let translation = pan.translation(in: view)
+        
+        // 수직 성분이 더 크면 탭 팬 시작 금지
+        if abs(velocity.y) > abs(velocity.x) { return false }
+        
+        // 왼쪽 에지 근처에서 시작하고 뒤로가기가 가능한 경우 → 네비게이션 뒤로가기 우선
+        let start = pan.location(in: view)
+        if start.x < 24 {
+            if let nav = (selectedViewController as? UINavigationController) ?? selectedViewController?.navigationController,
+               nav.viewControllers.count > 1 {
+                return false
+            }
+        }
+        
+        // 터치 지점 뷰 검사: 스크롤뷰/테이블/컬렉션 내부일 때는 작은 드래그는 해당 뷰에 양보
+        let hit = view.hitTest(start, with: nil)
+        var current: UIView? = hit
+        while let v = current {
+            if let scroll = v as? UIScrollView {
+                // 수평 스크롤 가능한 뷰면 탭 팬 시작 금지
+                if scroll.contentSize.width > scroll.bounds.width { return false }
+                
+                // 테이블/컬렉션 내부: 작은 가로 이동(또는 낮은 속도)은 셀 스와이프에 양보
+                let isTableOrCollection = (scroll is UITableView) || (scroll is UICollectionView)
+                if isTableOrCollection {
+                    let distance = abs(translation.x)
+                    let speed = abs(velocity.x)
+                    if distance < 80 && speed < 800 { return false }
+                }
+                break
+            }
+            current = v.superview
+        }
+        
+        // 가로 제스처만 허용
+        return abs(velocity.x) > abs(velocity.y)
+    }
+    
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        // 에지 팬은 동시에 인식되어도 실제 시작 조건(가장자리)로 충돌 거의 없음.
+        // 동시에 인식하지 않음: 충돌 방지, 위의 shouldBegin에서 스마트하게 필터링
         return false
     }
 }

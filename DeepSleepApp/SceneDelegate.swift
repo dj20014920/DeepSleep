@@ -263,8 +263,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let diaryVC = EmotionDiaryViewController()
         let diaryNav = UINavigationController(rootViewController: diaryVC)
         diaryNav.navigationBar.prefersLargeTitles = true
-        diaryNav.tabBarItem = UITabBarItem(title: "일기목록", image: UIImage(systemName: "book.fill"), tag: 1)
-        print("✅ [SceneDelegate] 일기목록 탭 생성 완료")
+        diaryNav.tabBarItem = UITabBarItem(title: "미니 다이어리", image: UIImage(systemName: "book.fill"), tag: 1)
+        print("✅ [SceneDelegate] 미니 다이어리 탭 생성 완료")
         
         // 3. 오늘의 운세 화면 (TodaysFortuneViewController)
         // 오늘의 운세 화면 생성
