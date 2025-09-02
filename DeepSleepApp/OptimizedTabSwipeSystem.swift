@@ -21,7 +21,7 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
     
     // MARK: - Properties
     
-    private var swipeGestureRecognizers: [UISwipeGestureRecognizer] = []
+    private var swipeGestureRecognizers: [UIGestureRecognizer] = []
     private var isSwipeTransitionEnabled = true
     
     // MARK: - Lifecycle
@@ -66,22 +66,23 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
     }
     
     private func setupSwipeGestures() {
+        // 화면 전체 스와이프 → 가장자리 에지 팬으로 전환하여 하위 스크롤/스와이프 제스처와 충돌 제거
         if isSwipeTransitionEnabled {
-            // 좌측 스와이프 (다음 탭으로)
-            let leftSwipe = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-            leftSwipe.direction = .left
-            leftSwipe.delegate = self // 델리게이트 설정
-            view.addGestureRecognizer(leftSwipe)
-            swipeGestureRecognizers.append(leftSwipe)
+            // 좌측 에지 → 오른쪽으로 끌면 이전 탭
+            let leftEdge = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgePan(_:)))
+            leftEdge.edges = .left
+            leftEdge.delegate = self
+            view.addGestureRecognizer(leftEdge)
+            swipeGestureRecognizers.append(leftEdge)
             
-            // 우측 스와이프 (이전 탭으로)
-            let rightSwipe = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-            rightSwipe.direction = .right
-            rightSwipe.delegate = self // 델리게이트 설정
-            view.addGestureRecognizer(rightSwipe)
-            swipeGestureRecognizers.append(rightSwipe)
+            // 우측 에지 → 왼쪽으로 끌면 다음 탭
+            let rightEdge = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgePan(_:)))
+            rightEdge.edges = .right
+            rightEdge.delegate = self
+            view.addGestureRecognizer(rightEdge)
+            swipeGestureRecognizers.append(rightEdge)
             
-            print("✅ [OptimizedTabBar] 스와이프 제스처 설정 완료")
+            print("✅ [OptimizedTabBar] 에지 팬 제스처 설정 완료")
         }
     }
     
@@ -104,6 +105,38 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
         
         if newIndex != currentIndex {
             switchToTab(newIndex, animated: true)
+        }
+    }
+    
+    @objc private func handleEdgePan(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard let viewControllers = viewControllers, !viewControllers.isEmpty else { return }
+        let translation = gesture.translation(in: view)
+        let velocity = gesture.velocity(in: view)
+        let threshold: CGFloat = 40 // 최소 이동 임계값
+        let velocityThreshold: CGFloat = 250 // 속도 임계값
+        
+        if gesture.state == .ended {
+            let currentIndex = selectedIndex
+            var newIndex = currentIndex
+            
+            switch gesture.edges {
+            case .left:
+                // 왼쪽 에지에서 오른쪽으로 충분히 끌었을 때 → 이전 탭
+                if translation.x > threshold || velocity.x > velocityThreshold {
+                    newIndex = max(currentIndex - 1, 0)
+                }
+            case .right:
+                // 오른쪽 에지에서 왼쪽으로 충분히 끌었을 때 → 다음 탭
+                if translation.x < -threshold || velocity.x < -velocityThreshold {
+                    newIndex = min(currentIndex + 1, (viewControllers.count - 1))
+                }
+            default:
+                break
+            }
+            
+            if newIndex != currentIndex {
+                switchToTab(newIndex, animated: true)
+            }
         }
     }
     
@@ -183,64 +216,24 @@ class OptimizedTabBarController: UITabBarController, UITabBarControllerDelegate,
 extension OptimizedTabBarController {
     
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        // 터치 위치가 테이블뷰나 컬렉션뷰 내부인지 확인
-        let touchPoint = touch.location(in: view)
-        let hitView = view.hitTest(touchPoint, with: nil)
+        // 에지 팬은 화면 가장자리에서만 시작되므로 충돌 위험 낮음.
+        // 추가로 UITableView/UICollectionView 내부에서도 허용하되, 에지 밖에서는 시작 불가.
         
-        // UITableView나 그 서브뷰에서 발생한 터치인지 확인
-        var currentView = hitView
-        while currentView != nil {
-            if currentView is UITableView {
-                // 테이블뷰 내부에서는 탭 스와이프 제스처 비활성화
-                return false
-            }
-            // UICollectionView 내부의 UITableView도 처리
-            if currentView is UICollectionView {
-                // 컴렉션뷰 내부에 TodoListCell이 있을 수 있음
-                if let collectionView = currentView as? UICollectionView {
-                    let cellPoint = touch.location(in: collectionView)
-                    if let indexPath = collectionView.indexPathForItem(at: cellPoint),
-                       let cell = collectionView.cellForItem(at: indexPath) {
-                        // TodoListCell 내부의 UITableView 확인
-                        let cellLocalPoint = touch.location(in: cell)
-                        
-                        // TodoListCell 타입 확인
-                        if String(describing: type(of: cell)).contains("TodoListCell") {
-                            UnifiedLogger.shared.debug("TodoListCell 내부에서 탭 스와이프 제스처 비활성화", category: .ui)
-                            return false
-                        }
-                        
-                        // 재귀적으로 UITableView 찾기
-                        func findTableView(in view: UIView) -> UITableView? {
-                            if let tableView = view as? UITableView {
-                                return tableView
-                            }
-                            for subview in view.subviews {
-                                if let foundTableView = findTableView(in: subview) {
-                                    return foundTableView
-                                }
-                            }
-                            return nil
-                        }
-                        
-                        if let tableView = findTableView(in: cell) {
-                            let tableFrame = tableView.frame
-                            if tableFrame.contains(cellLocalPoint) {
-                                UnifiedLogger.shared.debug("테이블뷰 영역에서 탭 스와이프 제스처 비활성화", category: .ui)
-                                return false // TodoListCell의 테이블뷰에서는 탭 스와이프 비활성화
-                            }
-                        }
-                    }
+        // 1) 네비게이션 컨트롤러의 뒤로가기 제스처와 충돌 방지
+        if let edgePan = gestureRecognizer as? UIScreenEdgePanGestureRecognizer, edgePan.edges.contains(.left) {
+            if let nav = (selectedViewController as? UINavigationController) ?? selectedViewController?.navigationController {
+                if nav.viewControllers.count > 1 {
+                    // 현재 화면에서 뒤로가기가 가능하면 탭 스와이프 비활성화
+                    return false
                 }
             }
-            currentView = currentView?.superview
         }
         
         return true
     }
     
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        // 테이블뷰의 스와이프 액션과 동시에 인식되지 않도록 설정
+        // 에지 팬은 동시에 인식되어도 실제 시작 조건(가장자리)로 충돌 거의 없음.
         return false
     }
 }

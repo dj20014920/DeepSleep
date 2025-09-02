@@ -722,12 +722,13 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        return CalendarSection(rawValue: indexPath.section) == .todos
+        return hideDiarySection ? true : CalendarSection(rawValue: indexPath.section) == .todos
     }
     
     // 🆕 스와이프 액션 설정 (조언 기능 추가) - 통합 횟수 관리
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        guard CalendarSection(rawValue: indexPath.section) == .todos else { return nil }
+        let isTodosSection = hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos
+        guard isTodosSection else { return nil }
         
         let todo = selectedDateTodos[indexPath.row]
         
@@ -753,7 +754,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        guard CalendarSection(rawValue: indexPath.section) == .todos, editingStyle == .delete else { return }
+        guard (hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos), editingStyle == .delete else { return }
         
         let todoToDelete = selectedDateTodos[indexPath.row] // 삭제할 아이템 미리 참조
         
@@ -762,24 +763,18 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 guard let self = self else { return }
                 if success {
                     // 1. 데이터 소스 업데이트 (배열에서 아이템 제거)
-                    // indexPath.row 대신 todoToDelete.id로 다시 찾는 것이 더 안전할 수 있으나,
-                    // commit editingStyle의 indexPath는 삭제 직전의 유효한 인덱스여야 함.
-                    // 만약 selectedDateTodos가 다른 곳에서 동시에 변경될 가능성이 있다면 id로 찾는 것이 더 안전.
-                    // 여기서는 tableView가 제공한 indexPath를 신뢰하고 사용하되, 범위 체크를 추가할 수 있음.
                     if self.selectedDateTodos.indices.contains(indexPath.row) && self.selectedDateTodos[indexPath.row].id == todoToDelete.id {
                         self.selectedDateTodos.remove(at: indexPath.row)
                         // 2. UITableView 애니메이션과 함께 특정 행 삭제
-        tableView.deleteRows(at: [indexPath], with: .fade)
+                        tableView.deleteRows(at: [indexPath], with: .fade)
                     } else {
                         // 데이터 불일치 또는 이미 삭제된 경우 등 예외 상황, 테이블 전체 리로드로 안전하게 처리
                         print("⚠️ 삭제하려는 항목이 예상 위치에 없거나 ID가 다릅니다. 테이블을 전체 리로드합니다.")
-                        // 이 경우 loadData를 다시 호출하여 selectedDateTodos를 최신화하고 tableView.reloadData()를 유도
                         self.loadData(for: self.selectedDate) // loadData가 tableView.reloadData() 호출
-                        // 부분 성공에 대한 에러 처리는 여기서도 필요할 수 있음
                         if let error = error {
                            self.handleTodoManagerError(error, forAction: "삭제 (부분 성공, 데이터 불일치)")
                         }
-                        return // 추가 UI 업데이트는 loadData가 처리하므로 여기서 종료
+                        return
                     }
                     
                     // 3. 캘린더 이벤트 점 업데이트

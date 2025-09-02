@@ -251,6 +251,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 var roleMessages: [RoleMessage] = []
                 if let assembled = assembledPrompt, !assembled.isEmpty {
                     roleMessages.append(RoleMessage(role: .system, content: assembled))
+                    // Fix: assembledPrompt가 있어도 현재 사용자 입력은 별도의 user 역할로 명확히 전달한다.
+                    roleMessages.append(RoleMessage(role: .user, content: content))
                 } else {
                     let sys = generateOptimizedSystemPrompt(for: mode, model: model)
                     roleMessages.append(RoleMessage(role: .system, content: sys))
