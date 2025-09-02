@@ -261,6 +261,13 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     roleMessages.append(RoleMessage(role: .user, content: content))
                 }
                 print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
+                // New: Diagnostic prep log (no PII) — assembledPrompt usage, lengths, history turns, context cache snapshot
+                let sysLen = roleMessages.first?.content.count ?? 0
+                let userLen = roleMessages.last?.content.count ?? 0
+                let histTurns = max(0, roleMessages.count - 2)
+                let ctxSnap = AIContextManager.shared.debugSnapshot()
+                let usedAssembled = (assembledPrompt != nil && !(assembledPrompt!.isEmpty))
+                print("🧩 [AICallPrep] preferred=\(model.rawValue) mode=\(mode.rawValue) assembledPrompt=\(usedAssembled) sysLen=\(sysLen) histTurns=\(histTurns) userLen=\(userLen) ctx=\(ctxSnap)")
                 let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
                 let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                 let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
@@ -308,6 +315,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         }
                         messages.append(.init(role: "user", content: content))
                         let responseText = try await freeService.sendMessageWithFallback(messages: messages, mode: mode)
+                        // New: fallback summary log (OpenRouter)
+                        let durationMs = Int(Date().timeIntervalSince(startTime)*1000)
+                        print("🛟 [AIFallback] path=openrouter from=\(model.rawValue) mode=\(mode.rawValue) status=\(statusCode) durationMs=\(durationMs)")
                         let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
                         let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: ["provider": "openrouter", "fallback": true])
                         return AIResponse(id: UUID().uuidString, model: .freeModel, mode: mode, content: responseText, metadata: meta, usage: usage, timestamp: Date(), processingTime: Int(Date().timeIntervalSince(startTime)*1000))
@@ -315,13 +325,17 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     // 2) 무료 모델이 없거나 실패한 경우: 로컬 직접 서비스 폴백(프록시 우회)
                     if hasAnyDirectServiceAvailable() {
                         print("🛟 [UnifiedAIService] Proxy 오류(\(statusCode)) → 로컬 직접 서비스 폴백 시도")
-                        return try await sendDirectBypassingProxy(
+                        let resp = try await sendDirectBypassingProxy(
                             content: content,
                             preferredModel: model,
                             mode: mode,
                             context: context,
                             assembledPrompt: assembledPrompt
                         )
+                        // New: fallback summary log (Direct)
+                        let durationMs = Int(Date().timeIntervalSince(startTime)*1000)
+                        print("🛟 [AIFallback] path=direct from=\(model.rawValue) to=\(resp.model.rawValue) mode=\(mode.rawValue) status=\(statusCode) durationMs=\(durationMs)")
+                        return resp
                     } else {
                         print("⚠️ [UnifiedAIService] 직접 폴백 불가: 로컬 서비스 미초기화 또는 키 누락")
                     }
@@ -386,6 +400,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     confidenceScore: response.metadata.confidenceScore,
                     additionalInfo: addInfo
                 )
+                // New: one-line call summary for direct path
+                print("🎯 [AICallSummary] path=direct provider=\(finalModel.rawValue) mode=\(mode.rawValue) durationMs=\(Int(processingTime * 1000)) cacheProvider=- cacheAction=- fallback=false")
                 return AIResponse(
                     id: response.id,
                     model: response.model,
@@ -1329,6 +1345,8 @@ extension UnifiedAIServiceImpl {
             "strategy": "auto",
             "ttlSeconds": providerCacheTTLSeconds(for: mode)
         ]
+        // New: providerCaching config log
+        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode))")
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         
@@ -1452,6 +1470,17 @@ extension UnifiedAIServiceImpl {
             Self.hasLoggedCacheHeaderSample = true
         }
         #endif
+
+        // New: one-line call summary for proxy path
+        let ms = Int(Date().timeIntervalSince(start)*1000)
+        let providerUsed = proxy.provider
+        let preferredName = preferred.rawValue
+        let cacheUsed = (cacheAction?.lowercased() == "read")
+        let serverFallback = (providerHdr ?? providerUsed) != preferredName
+        print("🎯 [AICallSummary] path=proxy provider=\(providerUsed) xProvider=\(providerHdr ?? "-") preferred=\(preferredName) mode=\(mode.rawValue) durationMs=\(ms) cacheProvider=\(cacheProv ?? "-") cacheAction=\(cacheAction ?? "-") cacheUsed=\(cacheUsed) cacheTTL=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-") policyTier=\(polTier ?? "-") remaining=\(polRemaining ?? "-") resetAt=\(polResetAt ?? "-") fallback=\(serverFallback)")
+        if let xProv = providerHdr, xProv != providerUsed {
+            print("⚠️ [AICallSummary] provider header mismatch: body=\(providerUsed) header=\(xProv)")
+        }
 
         var addInfo: [String: Any] = ["provider": proxy.provider]
         if let r = polRemaining { addInfo["policyRemaining"] = r }
