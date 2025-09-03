@@ -54,6 +54,11 @@ final class SectionHeaderView: UICollectionReusableView {
 
 class EmotionCalendarViewController: UIViewController, UICollectionViewDataSource {
     
+    // 외부에서 날짜 선택 이벤트를 수신하기 위한 콜백
+    public var onDateSelected: ((Date) -> Void)?
+    // 캘린더만 표시(헤더/컬렉션 미표시) 모드
+    public var calendarOnlyMode: Bool = false
+    
     enum SectionType {
         case todayEmotion(EmotionDiary?)
         case insight(String)
@@ -132,26 +137,33 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         
         // UI 구성
         setupCalendar()
-        setupHeaderLabel()
-        setupCollectionView()
+        
+        if !calendarOnlyMode {
+            setupHeaderLabel()
+            setupCollectionView()
+        }
         
         // 데이터 로드
         loadDiaryData()
-        resetInsightPaginationAndLoadFirstPage(for: selectedDate)
-
-        // 실시간 반영 알림 구독
-        NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(handleEmotionDiaryUpdated(_:)), name: .emotionDiaryUpdated, object: nil)
-        // 📡 오늘의 일기 분석 로그 갱신 수신 → 인사이트 즉시 반영
-        NotificationCenter.default.addObserver(self, selector: #selector(handleDiaryAnalysisUpdated(_:)), name: .diaryAnalysisUpdated, object: nil)
+        
+        if !calendarOnlyMode {
+            resetInsightPaginationAndLoadFirstPage(for: selectedDate)
+            // 실시간 반영 알림 구독 (calendarOnlyMode에서는 불필요하므로 등록하지 않음)
+            NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(handleEmotionDiaryUpdated(_:)), name: .emotionDiaryUpdated, object: nil)
+            // 📡 오늘의 일기 분석 로그 갱신 수신 → 인사이트 즉시 반영
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDiaryAnalysisUpdated(_:)), name: .diaryAnalysisUpdated, object: nil)
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // 일기 데이터 새로고침
         loadDiaryData()
-        // 현재 선택된 날짜 데이터 새로고침
-        resetInsightPaginationAndLoadFirstPage(for: selectedDate)
+        // 현재 선택된 날짜 데이터 새로고침 (calendarOnlyMode에서는 스킵)
+        if !calendarOnlyMode {
+            resetInsightPaginationAndLoadFirstPage(for: selectedDate)
+        }
         // 캘린더 새로고침
         if calendar != nil {
             calendar.reloadData()
@@ -167,7 +179,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     @objc private func handleTodosUpdated() {
         loadData(for: selectedDate)
         calendar?.reloadData()
-        collectionView.reloadData()
+        if !calendarOnlyMode { collectionView.reloadData() }
     }
     
     @objc private func handleEmotionDiaryUpdated(_ note: Notification) {
@@ -175,11 +187,12 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         loadDiaryData()
         loadData(for: selectedDate)
         calendar?.reloadData()
-        collectionView.reloadData()
+        if !calendarOnlyMode { collectionView.reloadData() }
     }
     
     @objc private func handleDiaryAnalysisUpdated(_ note: Notification) {
         // 오늘/선택일의 분석 로그 변경 즉시 인사이트 반영
+        guard !calendarOnlyMode else { return }
         resetInsightPaginationAndLoadFirstPage(for: selectedDate)
         collectionView.reloadData()
     }
@@ -309,7 +322,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             sections.append(.todo(todos))
         }
         
-        collectionView.reloadData()
+        if !calendarOnlyMode { collectionView.reloadData() }
     }
     
     private func diaryFor(date: Date) -> EmotionDiary? {
@@ -320,6 +333,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     
     // MARK: - Insight Pagination Helpers
     private func resetInsightPaginationAndLoadFirstPage(for date: Date) {
+        // calendarOnlyMode에서는 인사이트/컬렉션 뷰가 없으므로 스킵
+        if calendarOnlyMode { return }
+        
         loadedAnalyses.removeAll()
         analysisOffset = 0
         analysisHasMore = true
@@ -363,6 +379,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     }
     
     private func updateInsightSection() {
+        // calendarOnlyMode에서는 컬렉션 뷰가 없으므로 UI 업데이트 스킵
+        guard !calendarOnlyMode, collectionView != nil else { return }
+        
         let text = buildInsightText()
         if let idx = sections.firstIndex(where: { if case .insight = $0 { return true } else { return false } }) {
             sections[idx] = .insight(text)
@@ -441,7 +460,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
                 self?.loadData(for: selected)
             }
             self?.calendar?.reloadData()
-            self?.collectionView.reloadData()
+            self?.collectionView?.reloadData()
         }
         let nav = UINavigationController(rootViewController: diaryWriteVC)
         present(nav, animated: true)
@@ -488,6 +507,13 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
     }
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
         selectedDate = date
+        
+        // calendarOnlyMode인 경우 상위에서 날짜 변경을 처리하도록 콜백만 호출
+        if calendarOnlyMode {
+            onDateSelected?(date)
+            return
+        }
+        
         // 선택 날짜 변경 시 인사이트 페이지네이션 리셋
         resetInsightPaginationAndLoadFirstPage(for: date)
         
@@ -748,7 +774,7 @@ extension EmotionCalendarViewController: AddEditTodoDelegate {
         // 저장/삭제 후 목록 갱신
         loadData(for: selectedDate)
         calendar?.reloadData()
-        collectionView.reloadData()
+        collectionView?.reloadData()
     }
 }
 

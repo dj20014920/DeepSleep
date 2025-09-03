@@ -89,7 +89,7 @@ struct TodoItem: Codable, Identifiable, Hashable {
             case .sleep:
                 return "수면"
             case .wellness:
-                return "웰니스"
+                return "기타" // 기존 '웰니스'를 UI 표기상 '기타'로 통일
             case .work:
                 return "업무"
             case .personal:
@@ -104,7 +104,7 @@ struct TodoItem: Codable, Identifiable, Hashable {
             case .sleep:
                 return "😴"
             case .wellness:
-                return "🧘‍♀️"
+                return "🧘‍♀️" // PERF-WARNING: 필요 시 '기타'에 더 적합한 이모지로 교체 검토
             case .work:
                 return "💼"
             case .personal:

@@ -17,6 +17,7 @@ class AddEditTodoViewController: UIViewController {
     
     private let dueDateLabel = UILabel()
     private let dueDatePicker = UIDatePicker()
+    private let quickRegisterButton = UIButton(type: .system)
     
     private let endDateLabel = UILabel()
     private let endDateSwitch = UISwitch()
@@ -30,6 +31,7 @@ class AddEditTodoViewController: UIViewController {
     
     private let notesLabel = UILabel()
     private let notesTextView = UITextView()
+    private let notesPlaceholderLabel = UILabel()
     
     private var isLoading = false
 
@@ -77,6 +79,16 @@ class AddEditTodoViewController: UIViewController {
         dueDatePicker.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(dueDatePicker)
         
+        // Quick Register Button
+        quickRegisterButton.setTitle("간편등록", for: .normal)
+        quickRegisterButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        quickRegisterButton.backgroundColor = .systemBlue
+        quickRegisterButton.setTitleColor(.white, for: .normal)
+        quickRegisterButton.layer.cornerRadius = 8
+        quickRegisterButton.translatesAutoresizingMaskIntoConstraints = false
+        quickRegisterButton.addTarget(self, action: #selector(quickRegisterTapped), for: .touchUpInside)
+        contentView.addSubview(quickRegisterButton)
+        
         // End Date
         endDateLabel.text = "종료 날짜 (연속 일정)"
         endDateLabel.font = .systemFont(ofSize: 16, weight: .medium)
@@ -109,6 +121,11 @@ class AddEditTodoViewController: UIViewController {
         categoryLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(categoryLabel)
         
+        // 카테고리 항목을 [수면, 업무, 개인, 건강, 기타] 순으로 재구성
+        categorySegmentedControl.removeAllSegments()
+        ["수면", "업무", "개인", "건강", "기타"].enumerated().forEach { idx, title in
+            categorySegmentedControl.insertSegment(withTitle: title, at: idx, animated: false)
+        }
         categorySegmentedControl.selectedSegmentIndex = 0 // 기본값: 수면
         categorySegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(categorySegmentedControl)
@@ -124,7 +141,16 @@ class AddEditTodoViewController: UIViewController {
         notesTextView.layer.cornerRadius = 8
         notesTextView.font = .systemFont(ofSize: 16)
         notesTextView.translatesAutoresizingMaskIntoConstraints = false
+        notesTextView.delegate = self
         contentView.addSubview(notesTextView)
+        
+        // Notes Placeholder
+        notesPlaceholderLabel.text = "입력하지 않아도 저장이 가능해요!"
+        notesPlaceholderLabel.textColor = .placeholderText
+        notesPlaceholderLabel.font = .systemFont(ofSize: 16)
+        notesPlaceholderLabel.translatesAutoresizingMaskIntoConstraints = false
+        notesPlaceholderLabel.isUserInteractionEnabled = false
+        notesTextView.addSubview(notesPlaceholderLabel)
     }
     
     private func setupConstraints() {
@@ -159,7 +185,12 @@ class AddEditTodoViewController: UIViewController {
             
             dueDatePicker.topAnchor.constraint(equalTo: dueDateLabel.bottomAnchor, constant: 8),
             dueDatePicker.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            dueDatePicker.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            dueDatePicker.trailingAnchor.constraint(lessThanOrEqualTo: quickRegisterButton.leadingAnchor, constant: -8),
+            
+            quickRegisterButton.centerYAnchor.constraint(equalTo: dueDatePicker.centerYAnchor),
+            quickRegisterButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            quickRegisterButton.widthAnchor.constraint(equalToConstant: 92),
+            quickRegisterButton.heightAnchor.constraint(equalToConstant: 36),
             
             // End Date
             endDateLabel.topAnchor.constraint(equalTo: dueDatePicker.bottomAnchor, constant: 24),
@@ -199,7 +230,12 @@ class AddEditTodoViewController: UIViewController {
             notesTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             notesTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             notesTextView.heightAnchor.constraint(equalToConstant: 100),
-            notesTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+            notesTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
+            
+            // Notes Placeholder (텍스트뷰 내부 패딩 고려하여 약간의 inset 적용)
+            notesPlaceholderLabel.topAnchor.constraint(equalTo: notesTextView.topAnchor, constant: 8),
+            notesPlaceholderLabel.leadingAnchor.constraint(equalTo: notesTextView.leadingAnchor, constant: 5),
+            notesPlaceholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: notesTextView.trailingAnchor, constant: -5)
         ])
     }
     
@@ -235,14 +271,15 @@ class AddEditTodoViewController: UIViewController {
         if let category = todoItem.category {
             switch category {
             case .sleep: categorySegmentedControl.selectedSegmentIndex = 0
-            case .wellness: categorySegmentedControl.selectedSegmentIndex = 1
-            case .work: categorySegmentedControl.selectedSegmentIndex = 2
-            case .personal: categorySegmentedControl.selectedSegmentIndex = 3
-            case .health: categorySegmentedControl.selectedSegmentIndex = 4
+            case .work: categorySegmentedControl.selectedSegmentIndex = 1
+            case .personal: categorySegmentedControl.selectedSegmentIndex = 2
+            case .health: categorySegmentedControl.selectedSegmentIndex = 3
+            case .wellness: categorySegmentedControl.selectedSegmentIndex = 4 // UI에서는 '기타'
             }
         }
         
         notesTextView.text = todoItem.notes
+        notesPlaceholderLabel.isHidden = !(notesTextView.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     // MARK: - Actions
@@ -324,8 +361,8 @@ class AddEditTodoViewController: UIViewController {
         let notes = notesTextView.text?.trimmingCharacters(in: .whitespacesAndNewlines)
         let notesText = notes?.isEmpty == true ? nil : notes
         
-        // 카테고리 매핑
-        let categories: [TodoItem.Category] = [.sleep, .wellness, .work, .personal, .health]
+        // 카테고리 매핑 (UI 순서: 수면, 업무, 개인, 건강, 기타)
+        let categories: [TodoItem.Category] = [.sleep, .work, .personal, .health, .wellness]
         let selectedCategory = categories[categorySegmentedControl.selectedSegmentIndex]
         
         if let existingTodo = todoItem {
@@ -426,4 +463,39 @@ class AddEditTodoViewController: UIViewController {
         scrollView.contentInset.bottom = 0
         scrollView.scrollIndicatorInsets.bottom = 0
     }
-} 
+}
+
+// MARK: - UITextViewDelegate
+extension AddEditTodoViewController: UITextViewDelegate {
+    func textViewDidChange(_ textView: UITextView) {
+        let text = textView.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        notesPlaceholderLabel.isHidden = !text.isEmpty
+    }
+}
+
+// MARK: - Quick Register Action
+extension AddEditTodoViewController {
+    @objc private func quickRegisterTapped() {
+        // 제목 필수 검증은 saveButtonTapped에서 수행
+        // 날짜: 해당 날짜 00:00 ~ 다음날 00:00 (로컬 타임존)
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: dueDatePicker.date)
+        guard let nextDayStart = cal.date(byAdding: .day, value: 1, to: startOfDay) else {
+            showAlert(message: "날짜 계산 중 오류가 발생했습니다.")
+            return
+        }
+        
+        dueDatePicker.date = startOfDay
+        endDateSwitch.isOn = true
+        endDatePicker.isHidden = false
+        endDatePicker.date = nextDayStart
+        
+        // 기본값: 카테고리=개인, 우선순위=보통
+        // UI 순서: 수면(0), 업무(1), 개인(2), 건강(3), 기타(4)
+        categorySegmentedControl.selectedSegmentIndex = 2
+        prioritySegmentedControl.selectedSegmentIndex = 1
+        
+        // 즉시 저장 시도
+        saveButtonTapped()
+    }
+}

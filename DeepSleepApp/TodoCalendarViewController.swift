@@ -200,9 +200,9 @@ class TodoTableViewCell: UITableViewCell {
 }
 
 // AddEditTodoDelegate 채택
-class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalendarDataSource, UITableViewDelegate, UITableViewDataSource, AddEditTodoDelegate {
+class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, AddEditTodoDelegate {
 
-    private weak var calendar: FSCalendar!
+    private var emotionCalendarVC: EmotionCalendarViewController!
     private weak var tableView: UITableView!
     private weak var overallAdviceButtonContainer: UIView!
     private weak var overallAdviceButton: UIButton!
@@ -224,7 +224,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
     // 새 탭 요구사항: 할 일 탭에서는 일기 섹션을 숨김
-    public var hideDiarySection: Bool = false
+    public var hideDiarySection: Bool = true
 
     // ✅ Todo 목록 페이지네이션 상태
     private var visibleTodos: [TodoItem] = []
@@ -241,7 +241,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         self.title = "내 일정"
         
-        setupCalendar()
+        setupEmbeddedCalendar()
         setupTableView()
         
         // 🚀 2단계: 나머지는 백그라운드에서 처리
@@ -251,13 +251,15 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         
         // 🚀 3단계: 오늘 날짜 선택은 즉시 (사용자가 바로 볼 수 있도록)
         let today = Date()
-        calendar.select(today)
+        emotionCalendarVC.calendar?.select(today)
         loadData(for: today)
         
         print("✅ TodoCalendarViewController 필수 UI 설정 완료")
 
         // 할 일 변경 실시간 반영
         NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
+        // 일기 변경 실시간 반영(embedded calendarOnlyMode는 내부 옵저버를 등록하지 않으므로 부모가 수신)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleEmotionDiaryUpdated), name: .emotionDiaryUpdated, object: nil)
     }
     
     // 🚀 성능 최적화: 비동기 설정
@@ -290,35 +292,23 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         print("✅ [TodoCalendarViewController] 테이블뷰 셀 등록 완료")
     }
     
-    private func setupCalendar() {
-        let calendar = FSCalendar(frame: .zero)
-        calendar.translatesAutoresizingMaskIntoConstraints = false
-        calendar.dataSource = self
-        calendar.delegate = self
-        
-        // 캘린더 셀: EmotionCalendarViewController와 동일한 셀 사용(이모지+그라데이션 링)
-        calendar.register(EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
-        
-        calendar.appearance.headerDateFormat = "yyyy년 MM월"
-        calendar.appearance.weekdayTextColor = .label
-        calendar.appearance.headerTitleColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.titleDefaultColor = UIDesignSystem.Colors.primaryText
-        calendar.appearance.titleWeekendColor = UIDesignSystem.Colors.error
-        calendar.appearance.todayColor = .systemOrange
-        calendar.appearance.selectionColor = UIColor.darkGray
-        calendar.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
-        calendar.locale = Locale(identifier: "en_US")
-        calendar.placeholderType = .none
-
-        self.view.addSubview(calendar)
-        self.calendar = calendar
-
+    private func setupEmbeddedCalendar() {
+        let child = EmotionCalendarViewController()
+        child.calendarOnlyMode = true
+        child.onDateSelected = { [weak self] date in
+            self?.loadData(for: date)
+        }
+        addChild(child)
+        view.addSubview(child.view)
+        child.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            calendar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 0),
-            calendar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
-            calendar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0),
-            calendar.heightAnchor.constraint(equalToConstant: 300)
+            child.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 0),
+            child.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            child.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            child.view.heightAnchor.constraint(equalToConstant: 300)
         ])
+        child.didMove(toParent: self)
+        self.emotionCalendarVC = child
     }
     
     private func setupOverallAdviceButtonArea() {
@@ -345,7 +335,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         self.overallAdviceActivityIndicator = indicator
 
         NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: addTodoButtonContainer?.bottomAnchor ?? calendar.bottomAnchor, constant: 12),
+            container.topAnchor.constraint(equalTo: addTodoButtonContainer?.bottomAnchor ?? emotionCalendarVC.view.bottomAnchor, constant: 12),
             container.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             container.heightAnchor.constraint(equalToConstant: 50),
@@ -373,7 +363,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         self.tableView = tableView
         
         // 임시 Top 제약(후에 updateTableViewConstraints에서 해제됨)
-        tableTopTempConstraint = tableView.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 60)
+        tableTopTempConstraint = tableView.topAnchor.constraint(equalTo: emotionCalendarVC.view.bottomAnchor, constant: 60)
         NSLayoutConstraint.activate([
             tableTopTempConstraint!,
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -421,7 +411,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         self.addTodoButton = button
 
         NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 16),
+            container.topAnchor.constraint(equalTo: emotionCalendarVC.view.bottomAnchor, constant: 16),
             container.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             container.heightAnchor.constraint(equalToConstant: 50),
@@ -451,7 +441,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         // 페이지네이션 초기화
         resetTodosPaginationAndReload()
         
-        calendar.reloadData() // 이벤트 점 표시 업데이트
+        emotionCalendarVC?.calendar?.reloadData() // 이벤트 업데이트
         updateEmptyStateLabelVisibility()
         
         // 수정: 문자열 보간 안전화
@@ -491,9 +481,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                 // todos 섹션은 1번 섹션
                 for i in 0..<nextSlice.count { indexPaths.append(IndexPath(row: insertStartIndex + i, section: CalendarSection.todos.rawValue)) }
             }
-            tableView?.performBatchUpdates({
-                tableView?.insertRows(at: indexPaths, with: .automatic)
-            }, completion: nil)
+            tableView?.reloadData()
         } else {
             todosHasMore = false
         }
@@ -502,11 +490,19 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
 
     deinit {
         NotificationCenter.default.removeObserver(self, name: .todosUpdated, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .emotionDiaryUpdated, object: nil)
     }
 
     @objc private func handleTodosUpdated() {
         loadData(for: selectedDate)
-        calendar?.reloadData()
+        emotionCalendarVC?.calendar?.reloadData()
+        tableView?.reloadData()
+    }
+    
+    @objc private func handleEmotionDiaryUpdated() {
+        // 일기 CRUD 변동 시 달력 이모지/점 갱신 및 상단 상태 갱신
+        loadData(for: selectedDate)
+        emotionCalendarVC?.calendar?.reloadData()
         tableView?.reloadData()
     }
     
@@ -517,113 +513,8 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         present(navController, animated: true, completion: nil)
     }
 
-    // MARK: - FSCalendarDataSource
-    func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-        // 해당 날짜의 할 일 확인
-        let todos = TodoManager.shared.getTodos(for: date)
-        let hasTodo = !todos.filter { !$0.isCompleted }.isEmpty
-        
-        // 연속 일정 확인 - 이 날짜가 어떤 연속 일정의 범위에 포함되는지 확인
-        let allTodos = TodoManager.shared.loadTodos()
-        let hasRangeEvent = allTodos.contains { todo in
-            guard let _ = todo.endDate else { return false }
-            return isDateInEventRange(todo, date: date) && !todo.isCompleted
-        }
-        
-        // 일기 확인
-        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
-        
-        return (hasTodo || hasRangeEvent || hasDiary) ? 1 : 0
-    }
 
-    // MARK: - FSCalendarDelegateAppearance (For Dot Colors)
-    func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
-        var eventColors: [UIColor] = []
-        let todos = TodoManager.shared.getTodos(for: date)
-        let hasIncompleteTodo = todos.contains { !$0.isCompleted }
-        let hasCompletedTodo = todos.contains { $0.isCompleted }
-        
-        // 연속 일정 확인
-        let allTodos = TodoManager.shared.loadTodos()
-        let rangeEvents = allTodos.filter { todo in
-            guard let _ = todo.endDate else { return false }
-            return isDateInEventRange(todo, date: date) && !todo.isCompleted
-        }
-        let hasRangeEvent = !rangeEvents.isEmpty
-        
-        // 연속 일정이 있는 경우 가장 높은 우선순위의 색상 사용
-        var rangeEventColor: UIColor?
-        if hasRangeEvent {
-            let primaryRangeEvent = rangeEvents.max { $0.priority < $1.priority } ?? rangeEvents.first!
-            rangeEventColor = priorityColor(for: primaryRangeEvent.priority)
-        }
-        
-        let hasDiary = SettingsManager.shared.loadEmotionDiary().contains(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
 
-        // 우선순위: 연속 일정 > 미완료 할일 > 일기 > 완료된 할일
-        if hasRangeEvent && hasDiary {
-            eventColors.append(UIColor.systemPurple) // 연속 일정 + 일기: 보라색
-        } else if hasRangeEvent {
-            eventColors.append(rangeEventColor!) // 연속 일정만: 우선순위 색상
-        } else if hasIncompleteTodo && hasDiary {
-            eventColors.append(UIColor.systemPurple) // 할 일 + 일기: 보라색
-        } else if hasIncompleteTodo {
-            eventColors.append(UIColor.systemBlue)   // 할 일만: 파란색
-        } else if hasDiary {
-            eventColors.append(UIColor.systemGreen)  // 일기만: 초록색
-        } else if hasCompletedTodo {
-            eventColors.append(UIColor.systemGray4) // 완료된 할 일만: 연한 회색
-        }
-        
-        // eventColors가 비어있으면 nil을 반환해야 기본 점 색상이 사용됨 (또는 점이 안 찍힘)
-        return eventColors.isEmpty ? nil : eventColors
-    }
-
-    // 선택된 날짜의 이벤트 점 색상 (선택사항)
-    // func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventSelectionColorsFor date: Date) -> [UIColor]? {
-    //     return appearance.eventDefaultColorsFor(date) // 기본 색상과 동일하게 유지 또는 다르게 설정
-    // }
-
-    // MARK: - FSCalendarDelegate
-    func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
-        // 사용자가 캘린더에서 날짜를 직접 선택했을 때만 페이지 이동 고려
-        if monthPosition == .current {
-            loadData(for: date)
-        } else {
-            // 다른 달의 날짜를 선택하면 해당 월로 캘린더를 부드럽게 이동
-            // 이 때, 이동 후 자동으로 didSelect가 다시 호출되지는 않으므로, 여기서 loadData도 호출.
-            calendar.setCurrentPage(date, animated: true)
-            loadData(for: date) // 페이지 이동 후 데이터 로드
-        }
-        updateOverallAdviceButtonUI()
-    }
-    
-    // EmotionCalendar와 동일한 셀(이모지+그라데이션 링) 적용
-    func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
-        let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
-        let todos = TodoManager.shared.getTodos(for: date)
-        let state = CalendarDayDecorLogic.state(for: date, todosForDate: todos)
-        switch state {
-        case .none:
-            cell.setTodoRingVisible(false)
-        case .premiumRing:
-            cell.setPalette(.premium)
-            cell.setTodoRingVisible(true)
-        case .freeRing:
-            cell.setPalette(.free)
-            cell.setTodoRingVisible(true)
-        }
-        return cell
-    }
-
-    // 날짜 타이틀(이모지) 표시: EmotionCalendar와 동일 로직
-    func calendar(_ calendar: FSCalendar, titleFor date: Date) -> String? {
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        if let diary = diaryDataForCalendar[df.string(from: date)] {
-            return CommonUtilities.shared.mapEmotionToEmoji(diary.selectedEmotion)
-        }
-        return nil
-    }
     
     // 연속 일정 관련 헬퍼 메서드들
     private func isEventStartDate(_ todo: TodoItem, date: Date) -> Bool {
@@ -822,7 +713,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
                     // 페이지네이션 다시 구성
                     self.resetTodosPaginationAndReload()
                     
-                    self.calendar.reloadData()
+                    self.emotionCalendarVC?.calendar?.reloadData()
                     self.updateEmptyStateLabelVisibility()
                     self.updateOverallAdviceButtonUI()
                     
@@ -851,7 +742,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     func didSaveTodoItem(_ todoItem: TodoItem) {
         // 저장/삭제 등 변경사항 반영
         loadData(for: selectedDate)
-        calendar?.reloadData()
+        emotionCalendarVC?.calendar?.reloadData()
         tableView?.reloadData()
         updateOverallAdviceButtonUI()
     }
@@ -1192,18 +1083,26 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         📋 상세 할 일 목록:
         """
 
+        // 카테고리·우선순위·시간(간편등록 시 '오늘 중 (시간관계없음)') 포함 표기
         let sortedTodos = todos.sorted { $0.priority > $1.priority }
         for (index, todo) in sortedTodos.enumerated() {
-            let priorityEmoji = ["📌", "📝", "📄"][todo.priority]
             let statusEmoji = todo.isCompleted ? "✅" : "⏳"
             let urgentMark = urgentTodos.contains(where: { $0.id == todo.id }) ? " 🔥" : ""
             let maskedTitle = SettingsManager.shared.maskPIIForExport(todo.title)
             let maskedNotes = todo.notes.map { SettingsManager.shared.maskPIIForExport($0) }
-            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(maskedTitle) (\(todo.dueDateString))\(urgentMark)"
+            let priorityText = ["낮음", "보통", "높음"][todo.priority]
+            let categoryText = todo.category?.displayName ?? "미지정"
+
+            let cal = Calendar.current
+            let startOfDay = cal.startOfDay(for: todo.dueDate)
+            let isAllDaySingle = (todo.endDate != nil) && (todo.dueDate == startOfDay) && (cal.startOfDay(for: todo.endDate!) == cal.date(byAdding: .day, value: 1, to: startOfDay))
+            let timeText = isAllDaySingle ? "오늘 중 (시간관계없음)" : todo.dueDateString
+
+            promptContent += "\n\(index + 1). \(statusEmoji) [\(categoryText)·\(priorityText)] \(maskedTitle) (\(timeText))\(urgentMark)"
             if let notes = maskedNotes, !notes.isEmpty { promptContent += " - 메모: \(notes)" }
         }
 
-        // 연속 일정 정보
+        // 연속 일정 정보 (끝 경계 배타)
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: date)
         var continuousEvents: [String] = []
@@ -1211,7 +1110,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             if let end = todo.endDate {
                 let start = calendar.startOfDay(for: todo.dueDate)
                 let endDay = calendar.startOfDay(for: end)
-                if day >= start && day <= endDay {
+                if day >= start && day < endDay {
                     let masked = SettingsManager.shared.maskPIIForExport(todo.title)
                     continuousEvents.append("• \(masked): \(todo.dueDateString) ~ \(DateFormatter.localizedString(from: end, dateStyle: .medium, timeStyle: .short))")
                 }
@@ -1243,7 +1142,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     
     // MARK: - 개별 할 일 프롬프트 생성
     private func buildIndividualTodoPrompt(for todo: TodoItem) async -> String {
-        // 할 일 상세 정보 분석
+        // 기존 로직을 확장: 카테고리/간편등록 시간 표현 포함
         let currentTime = Date()
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
@@ -1265,6 +1164,12 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
             urgencyText = "\(daysUntilDue)일 후 마감"
         }
         
+        // 간편등록(하루 종일) 시간 텍스트
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: todo.dueDate)
+        let isAllDaySingle = (todo.endDate != nil) && (todo.dueDate == startOfDay) && (cal.startOfDay(for: todo.endDate!) == cal.date(byAdding: .day, value: 1, to: startOfDay))
+        let timeText = isAllDaySingle ? "오늘 중 (시간관계없음)" : todo.dueDateString
+        
         // 주간 컨텍스트
         let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
         
@@ -1272,8 +1177,9 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         🎯 할 일 상세 분석:
         • 제목: \(todo.title)
         • 상태: \(statusText)
+        • 카테고리: \(todo.category?.displayName ?? "미지정")
         • 우선순위: \(priorityText)
-        • 마감일: \(todo.dueDateString)
+        • 시간: \(timeText)
         • 긴급도: \(urgencyText)
         • 현재 시간: \(currentTimeString)
         • 조언 횟수: \(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount) (이번이 \(todo.adviceRequestCount + 1)번째)
@@ -1341,79 +1247,7 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
         loadingOverlay = LoadingOverlayView()
         loadingOverlay?.show(in: view)
         
-        // 할 일 상세 정보 분석
-        let currentTime = Date()
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
-        let currentTimeString = timeFormatter.string(from: currentTime)
-        
-        let priorityText = ["낮음", "보통", "높음"][todo.priority]
-        let statusText = todo.isCompleted ? "완료됨" : "미완료"
-        let timeUntilDue = todo.dueDate.timeIntervalSince(currentTime)
-        let daysUntilDue = Int(timeUntilDue / (24 * 3600))
-        
-        var urgencyText = ""
-        if timeUntilDue < 0 {
-            urgencyText = "마감일이 \(abs(daysUntilDue))일 지났음 (지연됨)"
-        } else if timeUntilDue < 24 * 3600 {
-            urgencyText = "오늘 마감 (긴급)"
-        } else if timeUntilDue < 3 * 24 * 3600 {
-            urgencyText = "\(daysUntilDue)일 후 마감 (급함)"
-        } else {
-            urgencyText = "\(daysUntilDue)일 후 마감"
-        }
-        
-        // 주간 컨텍스트
-        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
-        
-        var promptContent = """
-        🎯 할 일 상세 분석:
-        • 제목: \(todo.title)
-        • 상태: \(statusText)
-        • 우선순위: \(priorityText)
-        • 마감일: \(todo.dueDateString)
-        • 긴급도: \(urgencyText)
-        • 현재 시간: \(currentTimeString)
-        • 조언 횟수: \(todo.adviceRequestCount + 1)/\(todo.maxAdviceCount) (이번이 \(todo.adviceRequestCount + 1)번째)
-        """
-        
-        if let notes = todo.notes, !notes.isEmpty {
-            promptContent += "\n• 메모: \(notes)"
-        }
-        
-        promptContent += """
-        
-        📝 요청사항:
-        위 할 일에 대해 다음 관점에서 개인화된 조언을 **150자 이내**로 간결하게 해주세요:
-        1. 실행 전략 및 구체적인 첫 번째 액션
-        2. 시간 관리 및 효율적인 접근법
-        3. 동기부여 및 완료 팁
-        
-        **중요**: 응답을 150자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
-        추상적인 격려보다는 실제로 실행할 수 있는 구체적인 방법을 제시해주세요.
-        """
-        
-        let systemPrompt = """
-        당신은 개인 생산성 전문가이자 실행력 코치입니다. 사용자의 특정 할 일에 대해 맞춤형 실행 전략을 제공하세요.
-        
-        **🔥 중요한 제약 조건**:
-        - 응답은 반드시 **150자 이내**로 작성해야 합니다
-        - 모바일 alert 창에서 잘리지 않도록 간결하게 작성하세요
-        - 불필요한 인사말이나 부가설명은 제외하고 핵심만 전달하세요
-        
-        분석 기준:
-        1. 긴급성과 중요성을 고려한 우선순위 조정
-        2. 작업의 복잡도에 따른 분해 전략  
-        3. 개인의 에너지 패턴과 시간 활용법
-        4. 동기 유지 및 완료율 향상 방법
-        5. 스트레스 관리 및 번아웃 예방
-        
-        사용자 활동 패턴:
-        \(weeklyContext)
-        
-        위 데이터를 바탕으로 사용자에게 가장 적합한 개별 할 일 실행 전략을 **150자 이내**로 제안하세요.
-        구체적이고 즉시 실행 가능한 조언을 해주세요.
-        """
+        // 공통 프롬프트 빌더 사용 (프롬프트 구성은 Task 블록 내 buildIndividualTodoPrompt에서 수행)
         
         Task {
             let promptContent = await self.buildIndividualTodoPrompt(for: todo)
@@ -1491,113 +1325,6 @@ class TodoCalendarViewController: UIViewController, FSCalendarDelegate, FSCalend
     }
 
 }
-
-    // MARK: - 연속 일정 표시를 위한 커스텀 캘린더 셀
-    class TodoRangeCalendarCell: FSCalendarCell {
-        private let rangeIndicatorView = UIView()
-        private let startIndicatorView = UIView()
-        private let endIndicatorView = UIView()
-        
-        override init(frame: CGRect) {
-            super.init(frame: frame)
-            setupRangeViews()
-        }
-        
-        required init?(coder: NSCoder) {
-            super.init(coder: coder)
-            setupRangeViews()
-        }
-        
-        private func setupRangeViews() {
-            // 연속 게이지 배경 - 더 부드러운 모서리
-            rangeIndicatorView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
-            rangeIndicatorView.layer.cornerRadius = 4 // 더 둥근 모서리
-            rangeIndicatorView.isHidden = true
-            rangeIndicatorView.clipsToBounds = false // 확장된 영역도 보이도록
-            contentView.insertSubview(rangeIndicatorView, at: 0)
-            
-            // 시작점 표시 - 더 눈에 띄게
-            startIndicatorView.backgroundColor = UIColor.systemBlue
-            startIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
-            startIndicatorView.isHidden = true
-            startIndicatorView.layer.shadowColor = UIColor.black.cgColor
-            startIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
-            startIndicatorView.layer.shadowOpacity = 0.3
-            startIndicatorView.layer.shadowRadius = 2
-            contentView.addSubview(startIndicatorView)
-            
-            // 끝점 표시 - 더 눈에 띄게
-            endIndicatorView.backgroundColor = UIColor.systemBlue
-            endIndicatorView.layer.cornerRadius = 5 // 크기에 맞게 조정
-            endIndicatorView.isHidden = true
-            endIndicatorView.layer.shadowColor = UIColor.black.cgColor
-            endIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 1)
-            endIndicatorView.layer.shadowOpacity = 0.3
-            endIndicatorView.layer.shadowRadius = 2
-            contentView.addSubview(endIndicatorView)
-        }
-        
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            
-            let cellHeight = bounds.height
-            let cellWidth = bounds.width
-            let indicatorHeight: CGFloat = 8 // 더 두꺼운 게이지
-            let indicatorY = cellHeight - indicatorHeight - 4
-            
-            // 연속 게이지 - 셀 간격을 무시하고 확장하여 연속성 확보
-            let extensionWidth: CGFloat = 2 // 좌우로 확장
-            rangeIndicatorView.frame = CGRect(x: -extensionWidth, y: indicatorY, width: cellWidth + (extensionWidth * 2), height: indicatorHeight)
-            
-            // 시작/끝 표시는 좌우 끝에, 더 눈에 잘 띄게
-            let dotSize: CGFloat = 10
-            startIndicatorView.frame = CGRect(x: 4, y: indicatorY - 1, width: dotSize, height: dotSize)
-            endIndicatorView.frame = CGRect(x: cellWidth - dotSize - 4, y: indicatorY - 1, width: dotSize, height: dotSize)
-            
-            // 시작/끝 표시의 cornerRadius도 업데이트
-            startIndicatorView.layer.cornerRadius = dotSize / 2
-            endIndicatorView.layer.cornerRadius = dotSize / 2
-        }
-        
-        func configureRangeDisplay(isStart: Bool = false, isEnd: Bool = false, isInRange: Bool = false, color: UIColor = .systemBlue) {
-            // 연속 일정 배경 게이지 표시
-            rangeIndicatorView.isHidden = !isInRange
-            startIndicatorView.isHidden = !isStart
-            endIndicatorView.isHidden = !isEnd
-            
-            if isInRange {
-                // 연속 게이지 스타일링
-                rangeIndicatorView.backgroundColor = color.withAlphaComponent(0.5)
-                rangeIndicatorView.layer.borderWidth = 1
-                rangeIndicatorView.layer.borderColor = color.withAlphaComponent(0.8).cgColor
-                
-                // 그라데이션 효과 추가 (선택적)
-                rangeIndicatorView.layer.shadowColor = color.cgColor
-                rangeIndicatorView.layer.shadowOffset = CGSize(width: 0, height: 0)
-                rangeIndicatorView.layer.shadowOpacity = 0.2
-                rangeIndicatorView.layer.shadowRadius = 1
-            }
-            
-            if isStart {
-                startIndicatorView.backgroundColor = color
-                startIndicatorView.layer.borderWidth = 2
-                startIndicatorView.layer.borderColor = UIColor.white.cgColor
-            }
-            
-            if isEnd {
-                endIndicatorView.backgroundColor = color
-                endIndicatorView.layer.borderWidth = 2
-                endIndicatorView.layer.borderColor = UIColor.white.cgColor
-            }
-        }
-        
-        override func prepareForReuse() {
-            super.prepareForReuse()
-            rangeIndicatorView.isHidden = true
-            startIndicatorView.isHidden = true
-            endIndicatorView.isHidden = true
-        }
-    }
 
 // MARK: - 조언 표시를 위한 간단한 커스텀 뷰 컨트롤러 (글자 수 제한 없음)
 class SimpleAdviceViewController: UIViewController {

@@ -20,6 +20,7 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 - 사용량 제한 SSoT: UsageLimitManager / AIUsageManager
 - 보안/서명 SSoT: ProxyAuthConfig/ProxyAuthSigner/ProxyAuthClient
 - 사용자 설정/일기 SSoT: SettingsManager
+- 캘린더 SSoT: EmotionCalendarViewController (calendarOnlyMode로 임베딩 재사용)
 
 ---
 
@@ -34,6 +35,7 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 │ UI Layer                                                                 │
 │ ├ ViewController (#Todays_Mood)                                          │
 │ ├ EmotionDiaryViewController (일기 목록/인사이트/캘린더)                   │
+│ ├ TodoCalendarViewController (투두 탭; EmotionCalendar 임베딩, calendarOnlyMode)
 │ ├ DiaryWriteViewController / EditDiaryViewController (일기 작성/수정)     │
 │ └ ChatViewController (대나무숲)                                           │
 │          │                                                                │
@@ -107,6 +109,15 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 - 퀵액션은 사용자가 명시적으로 버튼을 눌렀을 때만 노출(입력창 포커스만으로 노출 금지)
 
 ### 2.8 로깅/관측성
+- ContextMetrics/AICallLogger: 요청/모델/모드/처리시간 요약 로그
+- Proxy 응답 헤더(X-Provider/X-Policy-*) 수집 후 메타데이터로 보존(필요 시 UI 반영)
+
+### 2.9 캘린더 재사용 설계(SSoT)
+- 단일 진실 소스: EmotionCalendarViewController가 캘린더 UI/데이터/셀 장식을 단일 책임으로 담당
+- 재사용 방식: 투두 탭의 TodoCalendarViewController는 EmotionCalendarViewController를 자식 뷰컨으로 임베딩(calendarOnlyMode=true)하여 동일한 캘린더를 그대로 표시
+- 이벤트 전달: EmotionCalendarViewController.onDateSelected 콜백으로 부모가 선택 날짜를 수신하고, TodoManager를 통해 해당 날짜의 투두를 로드하여 테이블뷰 갱신
+- 안정성 정책: 테이블뷰 페이지네이션/무한 스크롤은 reloadData를 기본으로 사용(배치 삽입은 사전/사후 카운트 검증 체계 도입 시에만 허용)
+- 효과: DRY/KISS/YAGNI 준수, 화면 간 캘린더 완전 일관성, 유지보수성 향상
 - ContextMetrics/AICallLogger: 요청/모델/모드/처리시간 요약 로그
 - Proxy 응답 헤더(X-Provider/X-Policy-*) 수집 후 메타데이터로 보존(필요 시 UI 반영)
 

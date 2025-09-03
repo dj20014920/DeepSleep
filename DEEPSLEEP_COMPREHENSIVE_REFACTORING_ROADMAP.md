@@ -1,6 +1,36 @@
 # DeepSleep Comprehensive Guide and Refactoring Roadmap
 
-[Note: Existing content retained above]
+
+## 2025-09-02 Updates (단일 캘린더 SSoT: EmotionCalendar 임베딩 · Todo 탭 크래시 근본 해결)
+
+What changed where
+- EmotionCalendarViewController.swift
+  - calendarOnlyMode(Bool) 추가: 캘린더만 노출하는 임베딩 모드. 헤더/컬렉션/인사이트/노티 구독을 모두 비활성화하여 “캘린더만” 렌더
+  - onDateSelected: ((Date) -> Void)? 콜백 추가. 임베딩 부모가 날짜 선택 이벤트를 받아 투두 로드를 수행
+  - calendarOnlyMode일 때 collectionView.reloadData 및 알림 구독 가드 처리(불필요한 UI/옵저버 제거)
+  - 기존 캘린더 셀/장식/이모지 로직은 그대로 유지 — 캘린더 SSoT(단일 진실 소스)
+- TodoCalendarViewController.swift
+  - 자체 FSCalendar 구현(Delegate/DataSource/appearance/등록) 전면 제거 → EmotionCalendarViewController를 자식 뷰컨으로 임베딩(calendarOnlyMode=true)
+  - 날짜 선택 경로: child.onDateSelected = { [weak self] date in self?.loadData(for: date) }
+  - 기존 performBatchUpdates(insertRows) 제거 → reloadData로 일원화하여 NSInternalInconsistencyException 재현 경로 제거
+  - hideDiarySection 기본값 true로 통일(투두 탭은 투두에 집중, 일기 섹션은 숨김)
+  - 불필요 클래스(TodoRangeCalendarCell) 및 중복 FSCalendar 로직 삭제(DRY)
+
+Rationale
+- DRY/KISS/SSoT: 캘린더 로직은 EmotionCalendarViewController 한 곳만 유지. 투두 탭은 재사용(임베딩)으로 단순화
+- 안정성: 테이블뷰 배치 업데이트의 전후 카운트 불일치로 발생하던 크래시(Invalid batch updates)를 구조적으로 차단(reloadData)
+- YAGNI: 투두 탭에서 감정·인사이트 UI는 사용하지 않으므로 비활성화하여 복잡성/오버헤드 축소
+
+Verification checklist
+- [x] xcodebuild -scheme DeepSleep -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build → BUILD SUCCEEDED
+- [ ] 투두 탭 진입 → 스크롤로 로드 증가(loadMore) → 크래시 미발생(Invalid batch updates 로그 無)
+- [ ] 날짜 선택 시 onDateSelected → loadData(for:)가 호출되어 투두 목록이 정확히 갱신됨
+- [ ] 미니 다이어리 탭과 투두 탭의 캘린더 셀/이모지/스타일이 완전히 동일(SSoT 반영)
+- [ ] hideDiarySection=true에서 섹션/행 수 계산이 항상 visibleTodos와 일치
+
+Risks / Notes
+- UX 면에서 부분 삽입(애니메이션)이 필요해지면, 사전/사후 카운트 검증(가드)과 동기화 큐를 갖춘 정확한 batch 업데이트로 재도입 가능. 기본 정책은 안정성 우선(reloadData)
+- hideDiarySection 기본값은 기획에 따라 조정 가능. 현재는 투두 탭 집중을 위한 의도적 설정
 
 ## 2025-08-28 Updates (캘린더·Todo 완전 분리 · UI/UX 통일 · 실시간 동기화)
 

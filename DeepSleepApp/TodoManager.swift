@@ -296,7 +296,10 @@ class TodoManager {
                 let endDay = calendar.startOfDay(for: endDate)
                 let checkDay = calendar.startOfDay(for: date)
                 
-                return checkDay >= startDay && checkDay <= endDay
+                // 끝 경계를 배타적으로 처리하여 [startDay, endDay) 구간으로 간주
+                // 이유: 하루 종일(00:00~24:00) 일정(Quick Register)이 다음날 00:00을 end로 가지므로 다음날 표시를 방지
+                // 기존 다일 범위 일정도 논리적으로 endDay의 시작 시각은 포함되지 않는 것이 자연스러움
+                return checkDay >= startDay && checkDay < endDay
             }
             
             return false
