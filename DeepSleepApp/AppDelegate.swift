@@ -88,6 +88,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         // 앱 시작 시 모든 알림 재스케줄링
         TodoManager.shared.rescheduleAllNotifications()
+        
+        // ⏱️ 시간 지정된 할 일 자동 완료 모니터 시작
+        TodoAutoCompleter.shared.start()
 
         // AdMob SDK 초기화(가능한 경우). 실제 배너 로드는 뷰컨트롤러에서 처리.
         AdsManager.shared.configureIfPossible()

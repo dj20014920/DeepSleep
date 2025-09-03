@@ -198,6 +198,7 @@
 		E0B562492E65649600D334F1 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562482E65649600D334F1 /* PermissionManager.swift */; };
 		E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */; };
 		E0B5624D2E6567BB00D334F1 /* TodayEmotionCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */; };
+		E0B562552E67E8A100D334F1 /* TodoAutoCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -430,6 +431,7 @@
 		E0B562482E65649600D334F1 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayEmotionCell.swift; sourceTree = "<group>"; };
+		E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoAutoCompleter.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -676,6 +678,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562542E67E8A100D334F1 /* Services */,
 				E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */,
 				E0B562482E65649600D334F1 /* PermissionManager.swift */,
 				E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */,
@@ -857,6 +860,14 @@
 				E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */,
 			);
 			path = Response;
+			sourceTree = "<group>";
+		};
+		E0B562542E67E8A100D334F1 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		E0E7BC9B2E53664B00FF7073 /* Context */ = {
@@ -1124,6 +1135,7 @@
 				E0E7BCA62E53664B00FF7073 /* ContextMetrics.swift in Sources */,
 				E0E7BCA72E53664B00FF7073 /* TokenOptimizer.swift in Sources */,
 				E0E7BCA82E53664B00FF7073 /* AIContextBuilder.swift in Sources */,
+				E0B562552E67E8A100D334F1 /* TodoAutoCompleter.swift in Sources */,
 				E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */,
 				E0E7BCA92E53664B00FF7073 /* ContextEvents.swift in Sources */,
 				E0E7BCAA2E53664B00FF7073 /* AIResponseParser.swift in Sources */,

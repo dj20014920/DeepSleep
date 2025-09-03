@@ -1,4 +1,5 @@
 import UIKit
+import MediaPlayer
 
 // MARK: - 슬라이더 UI 및 제어 관련 Extension (11개 이모지 카테고리)
 extension ViewController {
@@ -159,7 +160,7 @@ extension ViewController {
         
         masterVolumeSlider = UISlider()
         masterVolumeSlider.minimumValue = 0
-        masterVolumeSlider.maximumValue = 200  // 최대 200%로 확장하여 증폭 가능
+        masterVolumeSlider.maximumValue = 500  // 최대 500%로 확장하여 증폭 가능
         masterVolumeSlider.value = 100  // 기본값 100%로 변경 (정상 작동)
         masterVolumeLevel = 100  // 초기값 100%로 설정
         masterVolumeSlider.addTarget(self, action: #selector(masterVolumeChanged(_:)), for: .valueChanged)
@@ -206,6 +207,15 @@ extension ViewController {
         
         // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
         applyMasterVolumeToSoundManager()
+        
+        // 토스트 메시지로 사용자에게 피드백
+        let volumePercent = Int(newMasterVolume)
+        if volumePercent > 200 {
+            showToast(message: "🔊 마스터볼륨 \(volumePercent)%")
+        } else {
+            showToast(message: "🔊 마스터볼륨 \(volumePercent)%")
+        }
+        
         provideLightHapticFeedback()
     }
     
@@ -227,9 +237,17 @@ extension ViewController {
         
         // 개별 슬라이더 위치는 그대로 두고 SoundManager에만 마스터 볼륨 적용
         applyMasterVolumeToSoundManager()
+        
+        // 토스트 메시지로 사용자에게 피드백
+        if volume > 200 {
+            showToast(message: "🔊 마스터볼륨 \(volume)% (시스템 음량도 증폭됨)")
+        } else {
+            showToast(message: "🔊 마스터볼륨 \(volume)%")
+        }
+        
         provideMediumHapticFeedback()
         
-        print("🔊 마스터볼륨 변경: \(volume)% (최대 200% 가능)")
+        print("🔊 마스터볼륨 변경: \(volume)% (최대 500% 가능)")
     }
     
     /// 마스터 볼륨을 SoundManager에만 적용 (슬라이더 위치는 변경하지 않음)
@@ -240,6 +258,27 @@ extension ViewController {
         for (index, slider) in sliders.enumerated() {
             let actualVolume = slider.value * masterMultiplier
             SoundManager.shared.setVolume(at: index, volume: actualVolume)
+        }
+        
+        // 시스템 볼륨도 함께 조절 (100% 기준으로 비례 조절)
+        adjustSystemVolume()
+    }
+    
+    /// 마스터볼륨에 따라 시스템 음량 조절
+    private func adjustSystemVolume() {
+        // 마스터볼륨이 100% 이상일 때만 시스템 볼륨 조절
+        if masterVolumeLevel > 100 {
+            // 100%를 기준으로 시스템 볼륨 증폭 (최대 1.0까지)
+            let baseSystemVolume: Float = 0.7 // 기본 시스템 볼륨 (70%)
+            let amplificationFactor = masterVolumeLevel / 100.0
+            let targetSystemVolume = min(1.0, baseSystemVolume * amplificationFactor)
+            
+            // MPVolumeView를 통한 시스템 볼륨 조절
+            DispatchQueue.main.async {
+                MPVolumeView.setSystemVolume(targetSystemVolume)
+            }
+            
+            print("🔊 시스템 볼륨 조절: 마스터볼륨 \(Int(self.masterVolumeLevel))% → 시스템볼륨 \(Int(targetSystemVolume * 100))%")
         }
     }
     
@@ -564,7 +603,7 @@ extension ViewController {
         return max(0, min(100, value))
     }
     
-    // MARK: - 마스터 볼륨 전용 검증 (0-200% 범위)
+    // MARK: - 마스터 볼륨 전용 검증 (0-500% 범위)
     func validateAndClampMasterVolume(_ input: String) -> Int {
         guard !input.isEmpty else { return 0 }
         
@@ -576,13 +615,13 @@ extension ViewController {
         guard let value = Int(trimmedInput) else { 
             // 소수점이 있는 경우 정수 부분만 추출
             if let doubleValue = Double(trimmedInput) {
-                return max(0, min(200, Int(doubleValue)))  // 마스터볼륨은 최대 200%
+                return max(0, min(500, Int(doubleValue)))  // 마스터볼륨은 최대 500%
             }
             return 0 
         }
         
-        // 경계값 체크: 0-200% 범위
-        return max(0, min(200, value))
+        // 경계값 체크: 0-500% 범위
+        return max(0, min(500, value))
     }
     
     // MARK: - 기존 호환성 메서드들
@@ -627,8 +666,8 @@ extension ViewController: UITextFieldDelegate {
         
         if updatedText.count > 3 { return false }
         
-        // 마스터 볼륨 필드는 200까지, 일반 볼륨 필드는 100까지
-        let maxValue = (textField == masterVolumeField) ? 200 : 100
+        // 마스터 볼륨 필드는 500까지, 일반 볼륨 필드는 100까지
+        let maxValue = (textField == masterVolumeField) ? 500 : 100
         if let value = Int(updatedText), value > maxValue { return false }
         
         return true
@@ -641,5 +680,17 @@ extension ViewController: UITextFieldDelegate {
     
     func textFieldDidBeginEditing(_ textField: UITextField) {
         textField.selectAll(nil)
+    }
+}
+
+// MARK: - MPVolumeView Extension for System Volume Control
+extension MPVolumeView {
+    static func setSystemVolume(_ volume: Float) {
+        let volumeView = MPVolumeView()
+        let slider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            slider?.value = volume
+        }
     }
 }

@@ -179,8 +179,9 @@ struct TodoItem: Codable, Identifiable, Hashable {
     
     var dueDateString: String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "ko_KR")
+        // 한국어 표기: 2025년 9월 3일 오전 12:00 형태
+        formatter.dateFormat = "yyyy년 M월 d일 a h:mm"
         return formatter.string(from: dueDate)
     }
     
@@ -204,6 +205,20 @@ struct TodoItem: Codable, Identifiable, Hashable {
     
     var maxAdviceCount: Int {
         return AppConfig.AILimits.todoAdviceEach
+    }
+}
+
+// MARK: - DRY Helpers
+extension TodoItem {
+    /// 간편등록(하루 종일) 일정 여부를 판별
+    /// - Quick 등록 패턴: endDate가 존재하고, dueDate는 해당 날짜 00:00, endDate는 다음날 00:00
+    var isAllDayQuickRegistration: Bool {
+        guard let end = endDate else { return false }
+        let cal = Calendar.current
+        let startOfDue = cal.startOfDay(for: dueDate)
+        let startOfEnd = cal.startOfDay(for: end)
+        let expectedEnd = cal.date(byAdding: .day, value: 1, to: startOfDue)
+        return (dueDate == startOfDue) && (startOfEnd == expectedEnd)
     }
 }
 

@@ -235,9 +235,9 @@ await example.runAllExamples()
 
 ### 비용 최적화 팁
 
-1. **확정된 모드별 AI 모델 매핑**:
+- **확정된 모드별 AI 모델 매핑**:
    - **프리셋 추천**: Gemini 2.0 Flash-Lite (아이템 리스트 JSON)
-   - **감정 일기 분석**: Claude 3.5 Sonnet (깊은 공감)
+   - **감정 일기 분석**: Gemini 2.0 Flash-Lite (고정, 빠르고 일관된 분석)
    - **할일 조언**: Gemini 2.0 Flash-Lite (빠른 응답)
    - **일반 대화**: 사용자 설정 (미설정시 Gemini 2.0 Flash-Lite)
    - **월간 통계**: Gemini 2.0 Flash-Lite (큰 컨텍스트)
@@ -304,6 +304,11 @@ await example.runAllExamples()
    - 다국어 텍스트 인코딩 최적화
 
 ## 🔄 업데이트 로그
+
+### 2025-09-03
+- 프록시 경로(/v1/chat) generation 파라미터 전달(클라이언트): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat을 요청 바디에 포함하도록 업데이트. 서버가 미수용이어도 무해하며, 수용 시 공급자별 파라미터로 매핑 권장.
+- 시스템 프롬프트 경량화: 모드별/모델별 프롬프트를 간결한 지시문으로 정리. 첫 응답만 짧은 인사 허용, 이후 인사/서두 반복 금지. 시스템 텍스트 복사 금지/결론 반복 금지/새 관점 또는 구체 예시 1개 포함.
+- 영향 파일: AI/Services/UnifiedAIServiceImpl.swift, AI/Context/AIContextBuilder.swift
 
 ### v1.0.0 (2025-07-21)
 - ✅ 4개 AI 모델 통합 완료

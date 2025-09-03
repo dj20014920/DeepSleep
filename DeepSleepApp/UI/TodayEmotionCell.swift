@@ -45,6 +45,9 @@ final class TodayEmotionCell: UICollectionViewCell {
         l.textColor = UIDesignSystem.Colors.secondaryText
         l.textAlignment = .center
         l.numberOfLines = 0
+        l.lineBreakMode = .byWordWrapping
+        l.setContentCompressionResistancePriority(.required, for: .vertical)
+        l.setContentHuggingPriority(.required, for: .vertical)
         l.isHidden = true
         return l
     }()
@@ -68,6 +71,7 @@ final class TodayEmotionCell: UICollectionViewCell {
         s.axis = .vertical
         s.alignment = .center
         s.spacing = 8
+        s.distribution = .fill
         return s
     }()
     
@@ -101,9 +105,12 @@ final class TodayEmotionCell: UICollectionViewCell {
             stack.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
             stack.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 12),
             stack.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -12),
-            stack.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: containerView.bottomAnchor, constant: -16),
             
-            emojiLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
+            emojiLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
+            
+            // guidanceLabel의 최소 높이를 보장하여 텍스트가 잘리지 않도록 함
+            stack.heightAnchor.constraint(greaterThanOrEqualToConstant: 60)
         ])
     }
     

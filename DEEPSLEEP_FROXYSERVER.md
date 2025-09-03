@@ -1,9 +1,50 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-02
+최종 업데이트: 2025-09-03
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
 
+
+# 2025-09-03 업데이트: 캐나리 배포와 멱등성(idempotency)
+
+용어 정의
+- 캐나리(Canary) 배포: 전체 사용자에게 한 번에 반영하지 않고, 일부 비율(예: 5%→10%→50%→100%)의 요청만 새로운 기능/정책을 적용해 안정성을 검증하는 점진적 롤아웃 방식입니다. 문제 발생 시 즉시 비율을 낮추거나 0%로 꺼서 영향 범위를 최소화할 수 있습니다.
+- 멱등성(Idempotency): 동일한 요청이 네트워크 재시도/중복 탭 등으로 여러 번 도착하더라도 서버에서 한 번만 처리하고 동일한 결과를 반환하는 성질입니다. 비용 낭비/중복 생성/지연을 방지합니다.
+
+구현 요약(서버)
+- 헤더 추가: X-Idempotency-Key를 수신하면 KV에 idemp:{uid}:{key}로 30초 inflight 마킹 후, 성공 시 120초간 결과(JSON) 저장 → 중복 도착 시 409(inflight) 또는 200(cached result)로 즉시 응답. 응답 헤더 X-Idempotency-Status=hit|inflight|stored.
+- 캐나리 비율: env CANARY_PERCENT=0..100. uid+날짜 기반 해시로 0~99 버킷에 매핑하여 providerCaching.enable을 샘플링 적용. 응답 헤더 X-Canary=hit(pct%)|miss(pct%).
+- CORS 노출: Access-Control-Expose-Headers에 X-Idempotency-Status, X-Canary 추가.
+- 코드 경로: worker.js(handleChat, baseCORSHeaders, inCanary).
+
+구현 요약(클라이언트 iOS)
+- 멱등성 키: mode + PersonaCoreSignature + SHA256(content)에서 64자 prefix로 생성하여 X-Idempotency-Key로 전송.
+- 동시 중복 방지: UnifiedAIServiceImpl 내부 isSending 플래그와 inflightKeys Set으로 중복 호출 차단.
+- 로깅: AICallSummary에 canary/idempotency 헤더를 포함 출력.
+
+운영/설정
+- wrangler.toml / 대시보드 Variables
+  - CANARY_PERCENT: "5"부터 시작해 10→50→100으로 단계 적용 권장.
+- 시크릿/키/KV
+  - USAGE_KV 이미 사용 중(레이틀리밋/캐시). 동일 네임스페이스 사용.
+
+검증 체크리스트
+- X-Idempotency-Key 동일 값으로 2회 연속 호출
+  - 1회차: 200 + X-Idempotency-Status=stored
+  - 2회차(즉시): 200 + X-Idempotency-Status=hit, 본문 provider/content 동일
+- 캐나리
+  - CANARY_PERCENT=5 설정 시 /v1/chat 응답 헤더 X-Canary=hit(5%) 또는 miss(5%) 분포 관측
+  - hit인 요청에서만 X-Cache-Provider/Action이 활성화되고 miss에서는 bypass 동작(정책 그대로)
+
+장애 대응
+- 캐나리: 문제가 보이면 CANARY_PERCENT를 즉시 0으로 내려 신규 기능을 비활성화(롤백). 기존 요청에는 영향 없음.
+- 멱등성: inflight TTL(30s) 내 반복 요청이 계속 inflight이면 클라이언트 중복 전송을 의심 → 앱 로그에서 isSending/inflightKeys 경고 확인.
+
+프로덕션 상태(요약)
+- 프록시: 캐시 적합성 자동 판단, 타임아웃/폴백, X-Cache-* 헤더 안정 동작.
+- 신규: 멱등성(서버/클라이언트) 활성, 캐나리 게이팅 도입(CANARY_PERCENT로 제어).
+
+---
 
 # 2025-09-02 배포/운영 동기화: 프록시 & 모델별 캐싱
 
@@ -42,28 +83,6 @@ iOS 연동(변경점)
 
 ---
 
-# 2025-09-01 업데이트: 프록시/캐싱/라우팅 현황 요약
-
-- 인증 안정화
-  - HMAC 서명(ts:uid:tier[:nonce]) 생성 시점과 헤더 전송 값을 일치시켜 401 재발 방지.
-  - iOS: 재등록 자동 1회 재시도 유지, DEBUG 1회성 X-Cache-* 샘플 로깅.
-- 라우팅/폴백
-  - 체인: openrouter → gemini → openai → naver → claude. free+tier가 claude 요청 시 gemini로 강등.
-  - 과거 로그에선 X-Provider=none/X-Cache-Action=bypass로 표시 → OpenRouter 경로 사용(키/가용성 이슈) 정황이 있었음.
-- 캐시 전략
-  - Gemini: cachedContents + PATCH로 TTL 연장(최대 3시간). X-Cache-Provider=gemini, Action=write/read, Tokens.
-  - Anthropic: cache_control.ephemeral(3600s). 30분 경과 write.
-  - OpenAI: 프리픽스 해시 관측만(bypass). Naver: 미지원.
-- 관측 지표
-  - Server-Timing: auth/parse/provider.
-  - /v1/metrics: providers.{gemini,anthropic}.totalWrites/Reads/hitRate/estSavingsUSD.
-- 필요한 설정(운영 반영)
-  - wrangler secrets: GEMINI_API_KEY, (선택) OPENAI_API_KEY, CLAUDE_API_KEY, NAVER_API_KEY, NAVER_API_SECRET.
-  - wrangler vars: DEFAULT_GEMINI_MODEL=gemini-2.0-flash-lite, NONCE_TTL_SECONDS=300 등.
-  - 배포 후 curl /v1/metrics로 캐시 카운트 상승 확인.
-
----
-
 1) 현재 상태(요약)
 - 워커 이름: emozleep
 - 프로덕션 URL: https://emozleep-production.vinny4920-081.workers.dev
@@ -98,7 +117,11 @@ iOS 연동(변경점)
       "messages": [{"role":"system|user|assistant","content":"..."}],
       "mode": "general_conversation" | "presetRecommendation" | ...,
       "temperature"?: number,
-      "maxTokens"?: number
+      "maxTokens"?: number,
+      "topP"?: number,
+      "frequencyPenalty"?: number,
+      "presencePenalty"?: number,
+      "responseFormat"?: "json" | "text" | "markdown"
     }
   - 응답 JSON: { "provider": "gemini|openai|claude|naver|openrouter", "content": "..." }
 - 응답 헤더(정책/관측)
@@ -341,6 +364,7 @@ C. 서명된 채팅(비스트리밍)
 - 보정: Router가 diaryContext를 설정하여 ChatViewController 경로로 통합(legacy initialDiaryData만으로는 트리거 안 되는 오류 예방)
 - 중복 방지: didStartDiaryAnalysis 플래그로 다중 호출 차단
 - 서버 호출: /v1/chat (프록시) 고정, HMAC(+Nonce) 헤더, 정책 헤더 UI 반영
+- 모델 정책: 감정일기 분석(emotion_diary_analysis)은 iOS에서 model=gemini로 고정 전송하며, 서버는 해당 선호를 우선 적용합니다.
 - 적용 화면: DiaryWriteViewController/ EditDiaryViewController 모두 Router(.diaryAnalysis)로 통일
 - 클라이언트와 서버 간 서명·헤더는 프로토콜 계약입니다. 작은 오타/순서 변경도 인증 실패를 유발합니다.
 - Origin은 CORS/정책 노출(Expose-Headers)의 전제이며, 다중 하드코딩은 유지보수 리스크입니다. 중앙 상수화로 오탈자/누락 방지.
@@ -366,8 +390,73 @@ C. 서명된 채팅(비스트리밍)
 - 2025-08-31: 프록시 모드 프로덕션 전환, HMAC+Nonce 인증, 정책 헤더/폴백 체인 정비, wrangler.toml main 경로 수정
 - 2025-09-01: 모델별 캐싱 설계/요청 스키마/헤더/KV 스키마/검증 체크리스트 추가
 - 2025-09-02: Gemini cachedContents(create, patch) 적용, 진단 헤더(X-Fallback-Chain, X-Last-Error) 추가, Version ID 업데이트
+- 2025-09-03: 캐나리 배포 및 멱등성(idempotency) 도입, 관련 헤더 및 환경 변수 추가, 검증 체크리스트 업데이트
 
 ## 18) 모델별 캐싱 시스템 설계/구현(비용 최적화) — 2025-09-01
+
+### 18.1 캐시 적합성 자동판단 — 2025-09-03
+
+요약
+- Gemini explicit cache는 모델별 최소 토큰 기준을 만족해야 합니다(Flash-Lite-001: 4096). 임계 미만에서 create를 호출하면 400(too small)로 실패합니다.
+- 서버는 캐시 생성 전에 countTokens로 토큰 수를 계산하고, 임계 미달이면 캐시 생성을 우회(bypass)합니다. 이때 헤더로 사유를 표준화해 전파합니다.
+- Anthropic(Claude)는 ephemeral 캐시의 운영 쿨다운(30분) 외에 최소 길이(≈1024 토큰 미만)에서는 write를 금지합니다.
+
+임계치/쿨다운 표
+- Gemini min_cache_tokens: 4096 (models/gemini-2.0-flash-lite-001)
+- Claude min_cache_tokens: 1024 (근사치), write_cooldown_minutes: 30
+- OpenAI/Naver: 공급자 캐시 미지원 → 항상 bypass
+
+결정 트리(간단)
+1) providerCaching.enable=false → 공급자 캐시 미사용(bypass)
+2) provider=gemini → countTokens(prefix)
+   - tokens >= 4096 → caches.create → generateContent(cachedContent=name) → TTL 연장 시 PATCH
+   - tokens < 4096 → bypass, 헤더 X-Cache-Error=too-small(4096)
+3) provider=anthropic → approxTokens(prefix) ≈ ceil(chars/4)
+   - approxTokens < 1024 → bypass
+   - approxTokens ≥ 1024 → lastWriteAt+30m 이전 read, 이후 write(ephemeral 1h)
+4) provider=openai/naver → bypass
+
+응답 헤더(추가)
+- X-Cache-Error: 캐시 우회 사유 코드(예: too-small(4096))
+- 기존: X-Cache-Provider/Action/TTL/Tokens, X-Fallback-Chain, X-Last-Error 유지
+
+타임박스/폴백/SLA
+- 공급자별 타임아웃: 기본 6초(PROVIDER_TIMEOUT_MS)
+- 전체 SLA: 기본 12초(SLA_MS)
+- 폴백 깊이: 최대 2단계(총 3회 시도). 체인 예: target→gemini→openai (naver/claude는 두 단계 내에서 가용성/티어에 따라 배치)
+
+메트릭 확장
+- /v1/metrics에 errors.gemini.cacheCreateErrors.tooSmall 카운트 노출
+- 추후 필요 시 /providers.{gemini,anthropic}.tokens(누계)로 절감액 추정 정밀도 개선 가능(YAGNI에 따라 지연)
+
+검증 체크리스트(업데이트)
+- Gemini
+  - 프리픽스 토큰 <4096: 200 + X-Cache-Action=bypass, X-Cache-Error=too-small(4096)
+  - 프리픽스 토큰 ≥4096: 최초 write 이후 read, PATCH 200/204, usageMetadata.cachedContentTokenCount 증가
+- Claude
+  - approxTokens <1024: bypass
+  - approxTokens ≥1024: 최초 write 후 30분 이전 read, 30분 경과 시 write 재수행
+- 폴백/시간
+  - tried 체인 길이 ≤3, 각 시도 6초 내 타임아웃, 전체 응답 12초 내
+- 메트릭
+  - /v1/metrics.errors.gemini.cacheCreateErrors.tooSmall 증가 확인
+
+구성 변수(wrangler.toml)
+- [vars]
+  - PROVIDER_TIMEOUT_MS = "6000"
+  - SLA_MS = "12000"
+- [env.production.vars]
+  - PROVIDER_TIMEOUT_MS = "6000"
+  - SLA_MS = "12000"
+
+변경 요약(코드)
+- worker.js
+  - fetchWithTimeout 도입, routeToProvider/각 provider 호출 타임아웃 적용
+  - Gemini: geminiCountTokens 추가, create 전 임계 판단 → 미달 시 bypass 및 헤더/메트릭 반영, 패딩 재시도 제거
+  - Anthropic: approxTokens 기반 min(1024) 미만 write 금지 + 30분 쿨다운 엄수
+  - 폴백 깊이 제한(3회), X-Cache-Error 헤더 노출
+- wrangler.toml
+  - PROVIDER_TIMEOUT_MS, SLA_MS 추가(기본 6s/12s)
 
 요약 결론
 - 토큰 비용 절감은 “공급자 측 캐싱”에서만 발생합니다. 3시간 앱 내부 캐시는 UX/레이턴시 개선에 유의미하나 과금에는 영향이 없습니다.
@@ -391,6 +480,9 @@ C. 서명된 채팅(비스트리밍)
     }
   }
 - 서버는 enable=true일 때만 공급자 캐싱을 시도. ttlSeconds는 공급자 한도 내로 클램프.
+- 추가 선택 필드(클라이언트 전송, 서버 수용 시 반영):
+  - temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat
+  - 미수용 서버에서도 무해(no-op). 수용 시 공급자별 파라미터로 매핑(예: OpenAI: top_p/frequency_penalty/presence_penalty, Gemini: response_mime_type 등).
 
 응답/관측 헤더 추가
 - X-Cache-Provider: anthropic|gemini|openai|naver|none
@@ -471,4 +563,27 @@ switch(provider){
 - [ ] OpenAI: 프리픽스 바이트 동일 검증 로그(샘플 100건, 변동 0)
 - [ ] Naver: 프리픽스 요약 길이 상한 정책 적용
 - [ ] 무효화: 모델/페르소나/핵심기억 변경 시 서버·앱 캐시 모두 미스 확인
+
+## 19) /v1/metrics 확장 — 캐나리·멱등성 지표 (2025-09-03)
+
+응답 스키마(추가)
+- canary: { percent, hit, miss }
+- idempotency: { hit, inflight, stored }
+
+의미
+- canary.percent: 현재 CANARY_PERCENT 설정값(%)
+- canary.hit/miss: 요청 기준 샘플링 결과 카운트(24h TTL)
+- idempotency.hit: 동일 키 재요청에 대한 캐시 결과 반환 횟수
+- idempotency.inflight: 동일 키가 처리 중일 때 재요청 감지 횟수(409)
+- idempotency.stored: 최초 처리 완료 후 결과를 저장한 횟수
+
+권장 대시보드 위젯
+- 캐나리 히트율: hit / (hit+miss), 임계 5→10→50→100% 단계에서 급변 없는지 확인
+- 멱등성 효과: hit / stored 비율(중복 재시도 억제율), inflight 추이(클라이언트 중복 전송 경고 지표)
+
+롤아웃 가이드(UX/비용/유지보수 최적화)
+- 초기값: CANARY_PERCENT=5 → 24~48시간 안정성 관찰
+- 증분: 10% → 50% → 100%, 각 단계 최소 24시간 간격으로 지표 확인
+- 중단 기준: 5xx/타임아웃/폴백 급증, idempotency.inflight 급증 시 원인 파악 후 유지/롤백
+- 운영 팁: 캐나리 hit 구간에서만 X-Cache-Action(read/write) 비율이 상승하는지 확인해 비용 절감 기대치 검증
 

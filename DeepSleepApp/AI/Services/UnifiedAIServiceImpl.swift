@@ -29,6 +29,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private let settingsManager = SettingsManager.shared
     private let contextManager = AIContextManager.shared
     
+    // Idempotency/inflight dedup
+    private var isSending: Bool = false
+    private var inflightKeys = Set<String>()
+    
     // 개별 AI 서비스들
     private var claudeService: ClaudeAPIService?
     private var openAIService: OpenAIAPIService?
@@ -191,6 +195,21 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let reqId = UUID().uuidString
         ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
         let overallStart = Date()
+        // Simple dedup: prevent overlapping sends
+        if isSending {
+            throw AIServiceError.configurationError("REQUEST_INFLIGHT")
+        }
+        isSending = true
+        defer { isSending = false }
+        // Build idempotency key from stable inputs (no PII): mode+personaCoreSignature+hash(content)
+        let personaKey = UserRulesManager.shared.personaCoreSignature()
+        let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+        let idemKey = String((mode.rawValue + ":" + personaKey + ":" + contentHash).prefix(64))
+        if inflightKeys.contains(idemKey) {
+            throw AIServiceError.configurationError("DUPLICATE_INFLIGHT")
+        }
+        inflightKeys.insert(idemKey)
+        defer { inflightKeys.remove(idemKey) }
         
         // 주기적 메트릭 요약 로그 (20요청마다)
         requestCounter += 1
@@ -223,10 +242,30 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         do {
             // 2. 실제 호출 (성공 시에만 사용량 증가)
             let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt)
+            // Call logging success (mode/model 포함)
+            let elapsedMs = Int(Date().timeIntervalSince(overallStart) * 1000)
+AICallLogger.shared.logAICallSuccess(
+                callId: reqId,
+                mode: response.mode,
+                model: response.model,
+                responseLength: response.content.count,
+                processingTime: elapsedMs,
+                tokenUsage: response.usage
+            )
             UsageLimitManager.shared.incrementUsage(for: mode)
             ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: true, duration: Date().timeIntervalSince(overallStart))
             return response
         } catch {
+            // Call logging failure
+            let elapsedMs = Int(Date().timeIntervalSince(overallStart) * 1000)
+            let aiError = (error as? AIServiceError) ?? AIServiceError.unknown(error)
+AICallLogger.shared.logAICallFailure(
+                callId: reqId,
+                mode: mode,
+                model: model,
+                error: aiError,
+                processingTime: elapsedMs
+            )
             ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
             throw error
         }
@@ -245,9 +284,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let startTime = Date()
 
         // 🛰️ 프록시 모드 절대 우선: 어떤 로컬 라우팅/폴백보다 먼저 서버 프록시로 보낸다.
-        if EnvironmentConfig.shared.useProxy {
+if EnvironmentConfig.shared.useProxy {
             do {
                 let proxyURL = try resolveProxyBaseURL()
+                // 모드별 최적 모델을 우선 적용(사용자 선호를 존중하되, 특정 모드는 정책상 고정)
+                let preferredForMode = getOptimalModelForMode(mode: mode, userPreferred: model)
                 var roleMessages: [RoleMessage] = []
                 if let assembled = assembledPrompt, !assembled.isEmpty {
                     roleMessages.append(RoleMessage(role: .system, content: assembled))
@@ -261,7 +302,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     // 현재 사용자 입력은 별도의 user 역할로 명확히 전달
                     roleMessages.append(RoleMessage(role: .user, content: content))
                 } else {
-                    let sys = generateOptimizedSystemPrompt(for: mode, model: model)
+                    let sys = generateOptimizedSystemPrompt(for: mode, model: preferredForMode)
                     roleMessages.append(RoleMessage(role: .system, content: sys))
                     if let history = context?.conversationHistory, !history.isEmpty {
                         let recent = Array(history.suffix(16))
@@ -276,8 +317,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 let histTurns = max(0, roleMessages.count - 2)
                 let ctxSnap = AIContextManager.shared.debugSnapshot()
                 let usedAssembled = (assembledPrompt != nil && !(assembledPrompt!.isEmpty))
-                print("🧩 [AICallPrep] preferred=\(model.rawValue) mode=\(mode.rawValue) assembledPrompt=\(usedAssembled) sysLen=\(sysLen) histTurns=\(histTurns) userLen=\(userLen) ctx=\(ctxSnap)")
-                let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+                print("🧩 [AICallPrep] preferred=\(preferredForMode.rawValue) mode=\(mode.rawValue) assembledPrompt=\(usedAssembled) sysLen=\(sysLen) histTurns=\(histTurns) userLen=\(userLen) ctx=\(ctxSnap)")
+                // Effective token/generation config for proxy path
+                let effTokenConfig = optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: preferredForMode, mode: mode)
+                let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: preferredForMode, proxyURL: proxyURL, tokenConfig: effTokenConfig)
                 let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                 let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                     response: rawResp.content,
@@ -457,8 +500,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 }
                 roleMessages.append(RoleMessage(role: .user, content: content))
             }
+            // Compute effective token config for proxy
+            let effTokenConfig = optimizeTokenConfigForModel(tokenConfig, model: model, mode: mode)
             // Call proxy inline (avoid project membership issues)
-            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL)
+            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL, tokenConfig: effTokenConfig)
         }
 
         // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
@@ -851,30 +896,40 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     
     /// 모드별 최적 AI 모델 추천
 private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 모드별 AI 모델 매핑 (특정 모드는 최적 모델 사용, 일반 대화는 사용자 설정 존중)
+        // 프록시 모드에서는 로컬 가용성(availableModels)을 고려하지 않는다.
+        // 서버가 실제 라우팅/폴백을 담당하므로, 정책상 선호 모델을 그대로 전달한다.
+        if EnvironmentConfig.shared.useProxy {
+            switch mode {
+            case .emotionDiaryAnalysis:
+                return .gemini // 정책 고정
+            case .presetRecommendation, .monthlyStatistics:
+                return .gemini
+            case .taskAdvice, .emotionAnalysis:
+                return .openAI
+            case .fortuneTelling:
+                return .naver
+            default:
+                return userPreferred // 일반 대화 등은 사용자 선호 존중
+            }
+        }
+        
+        // 프록시 미사용 시: 로컬 가용성 기반으로 최적 모델 선택
         let optimalModelMapping: [AIMode: AIModel] = [
             .generalConversation: userPreferred,
-            .emotionDiaryAnalysis: availableModels.contains(.claude) ? .claude : .freeModel,
+            .emotionDiaryAnalysis: availableModels.contains(.gemini) ? .gemini : .freeModel,
             .taskAdvice: availableModels.contains(.openAI) ? .openAI : .freeModel,
-            // 비용/가용성 기준: 프리셋 추천은 Gemini 우선, 실패 시 OpenAI로 폴백
             .presetRecommendation: availableModels.contains(.gemini) ? .gemini : (availableModels.contains(.openAI) ? .openAI : .freeModel),
             .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,
             .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,
             .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel
         ]
         
-        // 매핑된 모델이 있고 사용 가능한 경우
-        if let optimalModel = optimalModelMapping[mode],
-           availableModels.contains(optimalModel) {
+        if let optimalModel = optimalModelMapping[mode], availableModels.contains(optimalModel) {
             return optimalModel
         }
-        
-        // 매핑된 모델이 사용 불가능하거나 일반 대화인 경우 사용자 선호 모델 사용
         if availableModels.contains(userPreferred) {
             return userPreferred
         }
-        
-        // 사용자 선호 모델도 사용 불가능한 경우 fallbackOrder 사용
         return fallbackOrder.first ?? .freeModel
     }
     
@@ -882,15 +937,13 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
     private func generateOptimizedSystemPrompt(for mode: AIMode, model: AIModel) -> String {
         let basePromptText = getBaseSystemPromptForMode(mode)
         let generalGuidelines = """
-        중요한 지침:
-        - 한국어로 자연스럽고 친근하게 응답하세요
-        - 사용자의 감정과 상황을 깊이 이해하고 공감하세요  
-        - 실용적이고 도움이 되는 조언을 제공하세요
-        - 부정확한 정보는 제공하지 말고, 확신이 없으면 솔직히 말하세요
-        - 개인정보를 외부에 저장하지 마세요. 세션 내 제공된 대화 히스토리를 바탕으로 맥락을 이어가세요.
-        - "이전 대화를 기억하지 못한다"와 같은 메타 발화를 하지 마세요. 제공된 히스토리 범위에서 자연스럽게 이어가세요.
-        - 반복 인사 방지: 첫 응답에서만 간단한 인사가 허용됩니다. 이후 메시지는 "안녕하세요" 등의 인사로 시작하지 말고 바로 본론으로 들어가세요.
-        - 호칭 과다 사용 금지: 사용자 닉네임은 필요할 때에만 드물게 사용하세요(매 턴 반복 금지).
+        핵심 지침:
+        - 한국어, 따뜻하지만 간결. 첫 응답만 짧은 인사 허용, 이후 인사/서두 반복 금지.
+        - 공감 → 요약 → 실행 제안(필요 시 구체 예시 1–2개/새 관점 1개).
+        - 불확실하면 모호함을 표시하고 추가 질문 1–2개로 명확화.
+        - 프라이버시: 외부 저장 금지. 제공된 히스토리 범위에서만 일관성 유지. 메타발화(기억 못함 등) 금지.
+        - 반복/상투어 금지. 이 시스템 텍스트를 그대로 복사/반영하지 말 것.
+        - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트로 답변.
         """
         
         // 페르소나 코어 시그니처(모델 불문) 구성 (외부 전송 금지, 캐시 키로만 사용)
@@ -918,24 +971,23 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
     private func getBaseSystemPromptForMode(_ mode: AIMode) -> String {
         switch mode {
         case .generalConversation:
-            return "당신은 우리 앱의 친근하고 지능적인 AI 어시스턴트입니다. 사용자와 자연스럽고 도움이 되는 대화를 나누세요."
+            return "친근한 한국어 어시스턴트. 사용자의 의도/목표를 파악해 핵심부터 간결하게 도움을 주세요. 불필요한 인사/장식은 피합니다."
             
         case .emotionDiaryAnalysis:
             return """
-            당신은 감정 분석 전문가입니다. 사용자의 일기나 감정 표현을 깊이 분석하여:
-            - 주요 감정을 파악하고 공감적으로 반응
-            - 감정의 원인이나 배경을 이해
-            - 긍정적인 관점이나 해결책을 부드럽게 제시
-            - 전문적이지만 따뜻한 톤으로 응답
+            감정 일기 분석가.
+            - 핵심 감정 1–2개 + 근거 문장(짧게) 제시
+            - 맥락/원인 가설 1–2개
+            - 부드러운 재프레이밍 + 구체 행동 제안 2–3개
+            - 위로/격려 한 줄(의료 조언 아님)
             """
             
         case .taskAdvice:
             return """
-            당신은 실용적인 생산성 코치입니다. 사용자의 할일이나 과제에 대해:
-            - 구체적이고 실행 가능한 조언 제공
-            - 단계별로 명확하게 설명
-            - 시간 관리와 우선순위 설정 도움
-            - 동기부여가 되는 격려의 메시지 포함
+            실행 코치.
+            - 목표/제약 파악 → 3단계 실행 계획
+            - 30–60분 타임박스와 우선순위 제안
+            - 바로 시작할 1가지 첫 행동 제시
             """
             
         case .presetRecommendation:
@@ -950,63 +1002,37 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             }
             let catalogSummary = lines.joined(separator: "\n")
             return """
-            당신은 DeepSleep 앱의 사운드 큐레이터입니다. 아래 지침에 따라 오직 JSON 오브젝트 한 개만 반환하세요.
-            (중요) 코드펜스(```), 주석, 설명, 불릿 등 JSON 외 텍스트는 절대 포함하지 마세요.
-
-            [목표]
-            - 사용자의 간략한 페르소나/최근 대화/감정 일기를 바탕으로, 앱 내 사운드들 중 어울리는 조합을 직접 선정합니다.
-            - 사전 정의 프리셋 키를 사용하지 않습니다. 앱의 실제 사운드 이름과 버전을 사용하세요.
-
-            [반드시 지킬 것]
-            - JSON 오브젝트 단 한 개만 반환(추가 텍스트 금지)
-            - items는 1~13개, volume은 0~100 정수
-            - soundName은 앱 카탈로그의 이름 중 하나, versionName은 해당 사운드의 버전 이름 중 하나
-            - reason은 120자 이내 한국어 텍스트
-
+            DeepSleep 사운드 큐레이터.
+            - 오직 JSON 객체 1개만 출력(추가 텍스트/코드펜스/주석 금지)
+            - items: 1–13개, volume: 0–100 정수
+            - soundName: 카탈로그 이름, versionName: 해당 사운드의 버전
+            - reason: 120자 이내 한국어
             [앱 사운드 카탈로그 요약]
             \(catalogSummary)
-
-            [예시 JSON 스키마(요약)]
-            {
-              "presetName": "🌙 부드러운 밤의 호흡",
-              "items": [
-                {"soundName": "바람", "versionName": "바람2 v2", "volume": 35},
-                {"soundName": "파도", "versionName": "파도2 v2", "volume": 30}
-              ],
-              "reason": "밤 시간대의 안정감을 높이고…",
-              "confidence": 0.82
-            }
-
-            [주의]
-            - 위 스키마를 준수하세요. JSON 외 텍스트 출력 금지.
-            - 코드펜스(```json 등), 마크다운, 추가 설명 금지. 순수 JSON만 반환.
             """
             
         case .monthlyStatistics:
             return """
-            당신은 데이터 분석 전문가입니다. 월간 수면 및 활동 통계를 분석할 때:
-            - 패턴과 트렌드를 명확하게 식별
-            - 통계적 의미와 실생활 연관성 설명
-            - 개선점과 긍정적 변화 강조
-            - 다음 달 목표와 추천사항 제공
+            데이터 분석가.
+            - 지난달 패턴 3개 요약(간단 근거)
+            - 개선점 2개와 긍정 변화 1개
+            - 다음 달 목표 2개 + 실행 팁
             """
             
         case .fortuneTelling:
             return """
-            당신은 따뜻하고 지혜로운 운세 상담사입니다. 한국의 전통적 정서를 바탕으로:
-            - 긍정적이고 희망적인 메시지 전달
-            - 구체적인 미신보다는 삶의 지혜 제공
-            - 사용자의 노력과 선택을 강조
-            - 재미있으면서도 의미 있는 내용 구성
+            따뜻한 운세 상담.
+            - 희망적 메시지, 미신보다 삶의 지혜 중심
+            - 선택과 노력의 중요성 강조
+            - 가벼운 재미 요소 1줄 포함
             """
             
         case .emotionAnalysis:
             return """
-            당신은 감정 분석 AI입니다. 사용자의 텍스트에서 감정을 분석하여:
-            - 주요 감정과 감정 강도 파악
-            - 복합적인 감정 상태 인식
-            - JSON 형식으로 구조화된 분석 결과 제공
-            - 객관적이고 정확한 분석에 집중
+            감정 분석(JSON).
+            - 주요 감정, 강도(0–1), 보조 감정 배열
+            - 근거 문장 인용 최대 2개
+            - 오직 JSON만 출력
             """
         }
     }
@@ -1016,44 +1042,26 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         switch model {
         case .claude:
             return """
-            Claude 특화 지침:
-            - 창의적이고 깊이 있는 사고를 활용하세요
-            - 복잡한 감정과 상황을 세밀하게 분석하세요
-            - 문학적이고 아름다운 표현을 사용하되 이해하기 쉽게 하세요
+            Claude 최적화: 맥락 깊이+우아함, 그러나 간결·명료.
             """
             
         case .openAI:
             return """
-            OpenAI 특화 지침:
-            - 구조화되고 논리적인 답변을 제공하세요
-            - JSON 출력이 필요한 경우 정확한 형식을 준수하세요
-            - 단계별이고 체계적인 설명을 선호하세요
-            - 실용적이고 즉시 활용 가능한 조언에 집중하세요
+            OpenAI 최적화: 구조화·단계적 사고, JSON 스키마 엄수.
             """
             
         case .gemini:
             return """
-            Gemini 특화 지침:
-            - 빠르고 효율적인 응답을 제공하세요
-            - 다양한 관점과 옵션을 제시하세요
-            - 안전하고 균형 잡힌 내용을 우선하세요
-            - 대용량 컨텍스트를 활용한 종합적 분석을 수행하세요
+            Gemini 최적화: 속도·효율·안전, 폭넓은 관점 제시.
             """
             
         case .naver:
             return """
-            Naver HyperCLOVA X 특화 지침:
-            - 한국의 문화와 정서를 깊이 반영하세요
-            - 한국어의 뉘앙스와 존댓말을 적절히 사용하세요
-            - 한국 사회의 맥락과 상황을 고려하세요
-            - 친근하면서도 정중한 톤을 유지하세요
+            Naver 최적화: 한국 문화·정서 반영, 정중한 존댓말.
             """
         case .freeModel:
             return """
-            OpenRouter 통합 무료 모델 지침:
-            - 한국어로 자연스럽고 간결하게 답하세요
-            - JSON이 필요한 경우 올바른 스키마와 작은 따옴표/백틱 없이 순수 JSON만 출력하세요
-            - 과한 창의성보다 정확성과 일관성을 우선하세요
+            무료 모델 최적화: 간결·정확, JSON 스키마 준수.
             """
         }
     }
@@ -1342,12 +1350,19 @@ extension UnifiedAIServiceImpl {
         }
     }
 
-    private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL) async throws -> AIResponse {
+    private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL, tokenConfig: TokenConfiguration) async throws -> AIResponse {
         var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
             "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
             "mode": mode.rawValue
         ]
+        // Generation parameters (optionally used by the proxy)
+        body["temperature"] = tokenConfig.temperature
+        body["maxTokens"] = tokenConfig.maxTokens
+        if let v = tokenConfig.topP { body["topP"] = v }
+        if let v = tokenConfig.frequencyPenalty { body["frequencyPenalty"] = v }
+        if let v = tokenConfig.presencePenalty { body["presencePenalty"] = v }
+        if let rf = tokenConfig.responseFormat { body["responseFormat"] = rf.rawValue }
         // 서버 공급자 캐싱 활성화 + 안정적 캐시 키(PersonaCoreSignature)
         let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
         body["providerCaching"] = [
@@ -1361,6 +1376,11 @@ extension UnifiedAIServiceImpl {
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         
+        // Compose client idempotency key (same scheme as sendMessage)
+        let contentConcat = messages.last?.content ?? ""
+        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+        let idemKey = String((mode.rawValue + ":" + personaCoreKey + ":" + contentHash).prefix(64))
+        
         // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
         func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
@@ -1372,6 +1392,8 @@ extension UnifiedAIServiceImpl {
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
             if let n = nonce { r.setValue(n, forHTTPHeaderField: "X-Emozleep-Nonce") }
             if let inv = contextInvalidation, !inv.isEmpty { r.setValue(inv, forHTTPHeaderField: "X-Context-Invalidation") }
+            // Pass idempotency key for server-side dedup
+            r.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             return r
@@ -1474,6 +1496,8 @@ extension UnifiedAIServiceImpl {
         let cacheAction = header(http, "X-Cache-Action")
         let cacheTTL    = header(http, "X-Cache-TTL")
         let cacheTokens = header(http, "X-Cache-Tokens")
+        let canaryHdr   = header(http, "X-Canary")
+        let idemStatus  = header(http, "X-Idempotency-Status")
 
         #if DEBUG
         if !Self.hasLoggedCacheHeaderSample {
@@ -1488,7 +1512,7 @@ extension UnifiedAIServiceImpl {
         let preferredName = preferred.rawValue
         let cacheUsed = (cacheAction?.lowercased() == "read")
         let serverFallback = (providerHdr ?? providerUsed) != preferredName
-        print("🎯 [AICallSummary] path=proxy provider=\(providerUsed) xProvider=\(providerHdr ?? "-") preferred=\(preferredName) mode=\(mode.rawValue) durationMs=\(ms) cacheProvider=\(cacheProv ?? "-") cacheAction=\(cacheAction ?? "-") cacheUsed=\(cacheUsed) cacheTTL=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-") policyTier=\(polTier ?? "-") remaining=\(polRemaining ?? "-") resetAt=\(polResetAt ?? "-") fallback=\(serverFallback)")
+        print("🎯 [AICallSummary] path=proxy provider=\(providerUsed) xProvider=\(providerHdr ?? "-") preferred=\(preferredName) mode=\(mode.rawValue) durationMs=\(ms) cacheProvider=\(cacheProv ?? "-") cacheAction=\(cacheAction ?? "-") cacheUsed=\(cacheUsed) cacheTTL=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-") canary=\(canaryHdr ?? "-") idempotency=\(idemStatus ?? "-") policyTier=\(polTier ?? "-") remaining=\(polRemaining ?? "-") resetAt=\(polResetAt ?? "-") fallback=\(serverFallback)")
         if let xProv = providerHdr, xProv != providerUsed {
             print("⚠️ [AICallSummary] provider header mismatch: body=\(providerUsed) header=\(xProv)")
         }
@@ -1503,6 +1527,8 @@ extension UnifiedAIServiceImpl {
         if let r = cacheAction { addInfo["cacheAction"] = r }
         if let r = cacheTTL    { addInfo["cacheTTL"] = r }
         if let r = cacheTokens { addInfo["cacheTokens"] = r }
+        if let r = canaryHdr   { addInfo["canary"] = r }
+        if let r = idemStatus  { addInfo["idempotency"] = r }
 
         let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
         let meta = ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0, additionalInfo: addInfo)
@@ -1513,6 +1539,7 @@ extension UnifiedAIServiceImpl {
 /// 20요청마다 메트릭 요약 로그를 출력 (ContextMetrics 단일 출처 사용)
 private func emitMetricsSummaryLog() {
     let summary = ContextMetrics.shared.oneLineSummary()
+   
     let dist = ContextMetrics.shared.modelModeSummary()
     print("📈 [AIMetrics] \(summary)")
     print("📊 [AIMetrics] \(dist)")

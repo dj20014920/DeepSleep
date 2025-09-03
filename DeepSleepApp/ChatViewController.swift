@@ -497,15 +497,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - 📝 일기 분석 기능 (통합)
     
     /// 일기 분석 요청 처리
-    func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
+func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
         appendChat(ChatMessage(text: "분석하고 있어요...", sender: .ai, type: .loading))
         
         Task {
             do {
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                // 정책 고정: 일기 분석은 Gemini로 호출(사용자 모델 설정과 무관)
                 let response = try await SessionManager.shared.sendMessage(
                     content: diary.content,
-                    model: selectedModel,
+                    model: .gemini,
                     mode: .emotionDiaryAnalysis,
                     saveMessages: true
                 )

@@ -244,6 +244,7 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 - 트리거: ChatViewController.requestDiaryAnalysisWithTracking(diary:) 하나만 사용(중복 금지)
 - 중복 방지: didStartDiaryAnalysis 플래그로 다중 트리거 방지
 - 호출 경로: SessionManager.sendMessage(mode: .emotionDiaryAnalysis) → UnifiedAIServiceImpl(Proxy first) → /v1/chat
+- 모델: Gemini(고정). 클라이언트는 model=.gemini로 전송하며, 서버도 해당 선호를 우선 적용합니다.
 - 파싱: 일반 텍스트는 AIResponseParser.shared.parse로 살균/정리. JSON이 필요한 경로(프리셋)는 parsePresetRecommendation이 중앙 파서를 통해 slice 추출 후 디코딩
 - iOS: DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift (프록시 경로, 헤더/HMAC, enroll, 정책 헤더 파싱)
 - iOS: DeepSleepApp/Subscription/ProxyTierReporter.swift (/v1/subscription/report HMAC 서명 포함)
@@ -305,6 +306,30 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 디자인 메모
 - TodayEmotion 이모지 32pt + AutoShrink/최소 축소 비율 + 수직 압축 우선순위 반영으로 글자 잘림 방지(기존 반영)
 - 카드 색감: 밝은 파스텔 톤 + 은은한 그림자(기존 반영). 감정별 배경 12% 투명도, 보더는 원색 유지
+
+---
+
+### 🆕 2025-09-03 업데이트: 프록시 경로 generation 파라미터 전달 + 시스템 프롬프트 경량화
+
+요약
+- 프록시 바디에 generation 파라미터 전달(클라이언트): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat을 /v1/chat 요청에 포함하도록 UnifiedAIServiceImpl.sendViaProxy를 확장했습니다. 서버가 미수용이어도 무해하며, 수용 시 공급자별 파라미터로 매핑해 반영합니다.
+- 시스템 프롬프트 경량화(클라이언트): AIContextBuilder.generateDefaultSystemPrompt와 UnifiedAIServiceImpl의 모드별/모델별 지침을 간결한 지시문으로 축약했습니다.
+  - 첫 응답만 짧은 인사 허용, 이후 인사/서두 반복 금지
+  - 공감 → 요약 → 실행 제안(구체 예시 1–2 또는 새 관점 1)
+  - 시스템 텍스트 복사 금지, 결론/문장 반복 금지
+  - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트
+
+영향 파일(클라이언트)
+- DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift
+- DeepSleepApp/AI/Context/AIContextBuilder.swift
+
+서버/문서 정합성
+- DEEPSLEEP_FROXYSERVER.md의 /v1/chat 요청 스키마에 선택 필드(topP/frequencyPenalty/presencePenalty/responseFormat) 항목을 추가했습니다. 서버는 필드 미수용 시 무해(no-op), 수용 시 공급자별 파라미터로 매핑 권장.
+
+검증 방법
+1) 프록시 경로 호출 시, AICallSummary 로그는 기존과 동일하게 동작합니다. 서버 로그에서 요청 바디에 generation 파라미터가 포함되는지 확인할 수 있습니다.
+2) 동일 질의 2회 호출 시, 캐싱/헤더(X-Cache-*) 동작이 기존과 동일함을 확인합니다.
+3) 응답 품질: 반복 인사/상투어 감소, 구체 제안/새 관점 포함률 증가를 육안으로 검토합니다.
 
 ---
 

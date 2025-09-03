@@ -89,6 +89,28 @@ public final class AICallLogger {
         // AI 호출 성공
     }
     
+    /// 모드/모델 포함 성공 로그 (집계 정확도 향상)
+    public func logAICallSuccess(
+        callId: String,
+        mode: AIMode,
+        model: AIModel,
+        responseLength: Int,
+        processingTime: Int,
+        tokenUsage: TokenUsage? = nil
+    ) {
+        let logEntry = AICallLogEntry(
+            id: callId,
+            timestamp: Date(),
+            mode: mode,
+            model: model,
+            status: .success,
+            responseLength: responseLength,
+            processingTime: processingTime,
+            tokenUsage: tokenUsage
+        )
+        writeLog(entry: logEntry)
+    }
+    
     /// AI 호출 실패 로그
     /// - Parameters:
     ///   - callId: 호출 고유 ID
@@ -117,6 +139,32 @@ public final class AICallLogger {
         writeLog(entry: logEntry)
         
         logger.error("❌ AI 호출 실패 - ID: \(callId), 에러: \(error.shortTitle), 처리 시간: \(processingTime)ms")
+    }
+    
+    /// 모드/모델 포함 실패 로그 (집계 정확도 향상)
+    public func logAICallFailure(
+        callId: String,
+        mode: AIMode,
+        model: AIModel,
+        error: AIServiceError,
+        processingTime: Int
+    ) {
+        let logEntry = AICallLogEntry(
+            id: callId,
+            timestamp: Date(),
+            mode: mode,
+            model: model,
+            userInput: nil,
+            status: .failed,
+            responseLength: nil,
+            processingTime: processingTime,
+            errorType: String(describing: error),
+            errorMessage: error.localizedDescription,
+            tokenUsage: nil,
+            usageInfo: nil
+        )
+        writeLog(entry: logEntry)
+        logger.error("❌ AI 호출 실패 - mode=\(mode.rawValue) model=\(model.rawValue) ID: \(callId), 에러: \(error.shortTitle), 처리 시간: \(processingTime)ms")
     }
     
     /// 사용량 제한 초과 로그
@@ -188,6 +236,22 @@ public final class AICallLogger {
         )
     }
     
+    /// 최근 N일간 모드별 호출 횟수 집계 (기본: 성공한 호출만)
+    /// - Parameters:
+    ///   - days: 조회 일수 (기본 7일)
+    ///   - statuses: 포함할 상태 집합 (기본 .success)
+    /// - Returns: [AIMode: Count]
+    public func getRecentModeCounts(days: Int = 7, statuses: Set<AICallStatus> = [.success]) -> [AIMode: Int] {
+        let logs = readRecentLogs(days: days).filter { statuses.contains($0.status) }
+        var counts: [AIMode: Int] = [:]
+        for log in logs {
+            if let m = log.mode {
+                counts[m, default: 0] += 1
+            }
+        }
+        return counts
+    }
+    
     // MARK: - 🗂️ 로그 파일 관리
     
     private func writeLog(entry: AICallLogEntry) {
@@ -255,7 +319,7 @@ public final class AICallLogger {
     }
     
     private func parseLogLine(_ line: String) -> AICallLogEntry? {
-        // 간단한 로그 파싱 로직 (실제로는 더 정교한 파싱 필요)
+        // 개선된 로그 파싱 로직: mode, model, time 등을 추출
         let components = line.components(separatedBy: " | ")
         guard components.count >= 3 else { return nil }
         
@@ -263,7 +327,44 @@ public final class AICallLogger {
         let id = components[1]
         let status = AICallStatus(rawValue: components[2]) ?? .unknown
         
-        return AICallLogEntry(id: id, timestamp: timestamp, status: status)
+        var parsedMode: AIMode? = nil
+        var parsedModel: AIModel? = nil
+        var parsedProcessingTime: Int? = nil
+        var parsedErrorType: String? = nil
+        
+        if components.count > 3 {
+            for comp in components.dropFirst(3) {
+                if comp.hasPrefix("mode:") {
+                    let raw = String(comp.dropFirst("mode:".count))
+                    if let m = AIMode(rawValue: raw) { parsedMode = m }
+                } else if comp.hasPrefix("model:") {
+                    let raw = String(comp.dropFirst("model:".count))
+                    if let m = AIModel(rawValue: raw) { parsedModel = m }
+                } else if comp.hasPrefix("time:") {
+                    let raw = String(comp.dropFirst("time:".count))
+                    // 예: "1234ms" → 숫자만 추출
+                    let digits = raw.filter { $0.isNumber }
+                    if let val = Int(digits) { parsedProcessingTime = val }
+                } else if comp.hasPrefix("error:") {
+                    parsedErrorType = String(comp.dropFirst("error:".count))
+                }
+            }
+        }
+        
+        return AICallLogEntry(
+            id: id,
+            timestamp: timestamp,
+            mode: parsedMode,
+            model: parsedModel,
+            userInput: nil,
+            status: status,
+            responseLength: nil,
+            processingTime: parsedProcessingTime,
+            errorType: parsedErrorType,
+            errorMessage: nil,
+            tokenUsage: nil,
+            usageInfo: nil
+        )
     }
     
     private func manageLogFileSize() {

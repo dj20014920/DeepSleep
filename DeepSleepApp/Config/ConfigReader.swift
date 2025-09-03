@@ -11,7 +11,6 @@ import Foundation
 public enum ConfigReader {
     // 내부 로깅: 실제 값은 절대 노출하지 않음
     private static func logMissing(_ key: String, type: String) {
-        print("⚠️ [ConfigReader] Missing or invalid value for key=\(key), expected=\(type)")
     }
 
     // 원시 객체 조회 (String 또는 원시 타입)

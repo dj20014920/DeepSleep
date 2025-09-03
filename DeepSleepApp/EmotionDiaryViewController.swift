@@ -56,10 +56,13 @@ class EmotionDiaryViewController: UIViewController {
         }
     }()
 
-    // 할 일 탭 컨텐츠(일기 섹션 숨긴 TodoCalendar)
-    private let todoTabViewController: TodoCalendarViewController = {
-        let vc = TodoCalendarViewController()
-        vc.hideDiarySection = true
+    // 할 일 탭 컨텐츠: 캘린더 + 할 일 목록(통합 스크롤)
+    private let todoTabViewController: EmotionCalendarViewController = {
+        let vc = EmotionCalendarViewController()
+        vc.calendarOnlyMode = false
+        vc.showsTodoSection = true
+        vc.showTodayEmotionSection = false
+        vc.showInsightSection = false
         return vc
     }()
     
@@ -119,6 +122,21 @@ class EmotionDiaryViewController: UIViewController {
     private var calendarHeightConstraint: NSLayoutConstraint?
     private var diaryHeightConstraint: NSLayoutConstraint?
     private var todoHeightConstraint: NSLayoutConstraint?
+    
+    // Insights 탭 전용 내부 스크롤뷰 구성 요소
+    internal let insightScrollView: UIScrollView = {
+        let sv = UIScrollView()
+        sv.translatesAutoresizingMaskIntoConstraints = false
+        sv.alwaysBounceVertical = true
+        sv.contentInsetAdjustmentBehavior = .never
+        return sv
+    }()
+    internal let insightContentView: UIView = {
+        let v = UIView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+    private var insightHeightConstraint: NSLayoutConstraint?
     
     // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
     internal let scrollView: UIScrollView = {
@@ -271,7 +289,10 @@ class EmotionDiaryViewController: UIViewController {
     }
     
     private func setupInsightView() {
-        contentView.addSubview(insightStackView)
+        // 내부 스크롤 뷰 트리 구성: contentView → insightScrollView → insightContentView → insightStackView
+        contentView.addSubview(insightScrollView)
+        insightScrollView.addSubview(insightContentView)
+        insightContentView.addSubview(insightStackView)
         
         // AI 분석 버튼 액션 연결
         aiAnalyzeSelectedDiaryButton.addTarget(self, action: #selector(analyzeSelectedDiaryTapped), for: .touchUpInside)
@@ -282,18 +303,35 @@ class EmotionDiaryViewController: UIViewController {
         aiButtonStackView.axis = .vertical
         aiButtonStackView.spacing = 10
         aiButtonStackView.distribution = .fillEqually
+        insightStackView.addArrangedSubview(aiButtonStackView)
         
-        insightStackView.addArrangedSubview(aiButtonStackView) // 기존 인사이트 뷰 스택에 추가
-        
-        // 🔧 insightStackView의 크기가 contentView를 결정하도록 우선순위 설정
-        insightBottomConstraint = insightStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
-        insightBottomConstraint?.priority = .init(999) // 높은 우선순위로 설정
+        // Bottom 연결은 스크롤뷰 기준으로 contentView와 연결해 컨텐츠 높이 결정
+        insightBottomConstraint = insightScrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        insightBottomConstraint?.priority = .init(999)
         insightBottomConstraint?.isActive = false
         
+        // 내부 스크롤 활성화를 위한 높이 고정 (탭 전환 시 활성화)
+        insightHeightConstraint = insightScrollView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
+        insightHeightConstraint?.isActive = false
+        
         NSLayoutConstraint.activate([
-            insightStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20), // 여백 추가
-            insightStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            insightStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+            // insightScrollView 크기
+            insightScrollView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            insightScrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            insightScrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            
+            // insightContentView는 스크롤뷰 contentLayout에 붙임
+            insightContentView.topAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.topAnchor),
+            insightContentView.leadingAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.leadingAnchor),
+            insightContentView.trailingAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.trailingAnchor),
+            insightContentView.bottomAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.bottomAnchor),
+            insightContentView.widthAnchor.constraint(equalTo: insightScrollView.frameLayoutGuide.widthAnchor),
+            
+            // insightStackView는 콘텐츠 내부에 여백을 두고 배치
+            insightStackView.topAnchor.constraint(equalTo: insightContentView.topAnchor, constant: 20),
+            insightStackView.leadingAnchor.constraint(equalTo: insightContentView.leadingAnchor, constant: 16),
+            insightStackView.trailingAnchor.constraint(equalTo: insightContentView.trailingAnchor, constant: -16),
+            insightStackView.bottomAnchor.constraint(equalTo: insightContentView.bottomAnchor, constant: -20)
         ])
 
         // 초기 버튼 타이틀에 남은 횟수 표시 적용
@@ -408,7 +446,7 @@ class EmotionDiaryViewController: UIViewController {
         tableView.isHidden = true
         calendarViewController.view.isHidden = true
         todoTabViewController.view.isHidden = true
-        insightStackView.isHidden = true
+        insightScrollView.isHidden = true
         
         // 🔧 단순화된 탭 전환 처리 - 더 이상 복잡한 제약조건 전환 불필요
         print("🔍 [탭 전환] 현재 탭: \(currentView)")
@@ -418,7 +456,7 @@ class EmotionDiaryViewController: UIViewController {
         case 0: tableView.isHidden = false
         case 1: calendarViewController.view.isHidden = false
         case 2: todoTabViewController.view.isHidden = false
-        case 3: insightStackView.isHidden = false
+        case 3: insightScrollView.isHidden = false
         default: break
         }
         
@@ -456,24 +494,28 @@ class EmotionDiaryViewController: UIViewController {
             diaryHeightConstraint?.isActive = true
             calendarHeightConstraint?.isActive = false
             todoHeightConstraint?.isActive = false
+            insightHeightConstraint?.isActive = false
             tableBottomConstraint?.isActive = true
         case 1: // Calendar
             scrollView.isScrollEnabled = false
             diaryHeightConstraint?.isActive = false
             calendarHeightConstraint?.isActive = true
             todoHeightConstraint?.isActive = false
+            insightHeightConstraint?.isActive = false
             calendarBottomConstraint?.isActive = true
         case 2: // Todo
             scrollView.isScrollEnabled = false
             diaryHeightConstraint?.isActive = false
             calendarHeightConstraint?.isActive = false
             todoHeightConstraint?.isActive = true
+            insightHeightConstraint?.isActive = false
             todoBottomConstraint?.isActive = true
         case 3: // Insight
-            scrollView.isScrollEnabled = true
+            scrollView.isScrollEnabled = false
             diaryHeightConstraint?.isActive = false
             calendarHeightConstraint?.isActive = false
             todoHeightConstraint?.isActive = false
+            insightHeightConstraint?.isActive = true
             insightBottomConstraint?.isActive = true
         default:
             break

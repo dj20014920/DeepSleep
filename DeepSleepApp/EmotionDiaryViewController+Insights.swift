@@ -59,16 +59,17 @@ extension EmotionDiaryViewController {
         )
         insightStackView.addArrangedSubview(activityCard)
         
-        // 4. AI 추천 프리셋 사용량 (드롭다운)
-        let aiPresetUsage = getAIPresetUsage()
-        let presetCard = createInsightCard(
-            title: "🤖 AI 추천 활용",
-            content: "총 \(aiPresetUsage)번 사용",
+        // 4. 대나무숲 친구 사용량 (최근 7일, 드롭다운)
+        let modeCounts = AICallLogger.shared.getRecentModeCounts(days: 7)
+        let totalAICalls7d = modeCounts.values.reduce(0, +)
+        let aiFriendCard = createInsightCard(
+            title: "🧠 \(BrandingCopy.friend) 사용",
+            content: "최근 7일 총 \(totalAICalls7d)회",
             color: .systemPurple.withAlphaComponent(0.1),
             isDropdownEnabled: true,
-            dropdownType: .aiRecommendations
+            dropdownType: .aiFriendUsage
         )
-        insightStackView.addArrangedSubview(presetCard)
+        insightStackView.addArrangedSubview(aiFriendCard)
         
         // 5. 📅 이번 달 약속/일정 (NEW - 드롭다운)
         let monthlySchedules = getMonthlyScheduleData()
@@ -105,29 +106,26 @@ extension EmotionDiaryViewController {
         }
         
         // 레이아웃 강제 업데이트
-        scrollView.setNeedsLayout()
-        scrollView.layoutIfNeeded()
+        insightScrollView.setNeedsLayout()
+        insightScrollView.layoutIfNeeded()
         
         // 인사이트 스택뷰의 실제 높이 계산
         let stackViewHeight = insightStackView.systemLayoutSizeFitting(
-            CGSize(width: scrollView.bounds.width, height: UIView.layoutFittingCompressedSize.height),
+            CGSize(width: insightScrollView.bounds.width, height: UIView.layoutFittingCompressedSize.height),
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         ).height
         
         // 최소 스크롤 높이는 화면 높이로 설정
-        let minContentHeight = scrollView.bounds.height
+        let minContentHeight = insightScrollView.bounds.height
         let contentHeight = max(stackViewHeight + 40, minContentHeight) // 하단 여백 40pt 추가
         
         // contentSize 업데이트
-        let newContentSize = CGSize(width: scrollView.bounds.width, height: contentHeight)
-        if scrollView.contentSize != newContentSize {
-            scrollView.contentSize = newContentSize
+        let newContentSize = CGSize(width: insightScrollView.bounds.width, height: contentHeight)
+        if insightScrollView.contentSize != newContentSize {
+            insightScrollView.contentSize = newContentSize
             print("🔄 [인사이트 스크롤] contentSize 업데이트: \(newContentSize)")
         }
-        
-        // 동적 제약조건 업데이트 (Auto Layout과 조화)
-        dynamicHeightConstraint?.constant = contentHeight
     }
     
     // MARK: - Enhanced Card Creation with Dropdown
@@ -277,7 +275,7 @@ extension EmotionDiaryViewController {
         case totalRecords = 1
         case emotionAnalysis = 2
         case recentActivity = 3
-        case aiRecommendations = 4
+        case aiFriendUsage = 4
         case monthlySchedules = 5
         case importantSchedules = 6
     }
@@ -307,8 +305,8 @@ extension EmotionDiaryViewController {
         }
         
         // 🎨 부드러운 애니메이션을 위한 스크롤 비활성화
-        let scrollView = self.insightStackView.superview as? UIScrollView
-        scrollView?.isScrollEnabled = false
+        let scrollView = self.insightScrollView
+        scrollView.isScrollEnabled = false
         
         // 제약조건 전환 및 애니메이션
         if isExpanded {
@@ -318,20 +316,20 @@ extension EmotionDiaryViewController {
                 dropdownArrow.text = "▼"
                 
                 // 스크롤뷰의 contentOffset 고정
-                let currentOffset = scrollView?.contentOffset ?? .zero
+                let currentOffset = scrollView.contentOffset
                 
                 // 레이아웃 업데이트
                 self.view.layoutIfNeeded()
                 
                 // contentOffset 복원 (스크롤 위치 유지)
-                scrollView?.contentOffset = currentOffset
+                scrollView.contentOffset = currentOffset
                 
             }) { _ in
                 dropdownContentView.isHidden = true
                 
                 // 🔧 즉시 스크롤뷰 업데이트 - 비동기 제거
                 self.updateInsightScrollViewContentSize()
-                scrollView?.isScrollEnabled = true
+                scrollView.isScrollEnabled = true
             }
         } else {
             // 확장: 드롭다운 컨텐츠 표시
@@ -350,35 +348,33 @@ extension EmotionDiaryViewController {
                 dropdownArrow.text = "▲"
                 
                 // 스크롤뷰의 contentOffset 고정
-                let currentOffset = scrollView?.contentOffset ?? .zero
+                let currentOffset = scrollView.contentOffset
                 
                 // 레이아웃 업데이트
                 self.view.layoutIfNeeded()
                 
                 // contentOffset 복원 (스크롤 위치 유지)
-                scrollView?.contentOffset = currentOffset
+                scrollView.contentOffset = currentOffset
                 
             }) { _ in
                 // 🔧 즉시 스크롤뷰 업데이트 - 비동기 제거
                 self.updateInsightScrollViewContentSize()
-                scrollView?.isScrollEnabled = true
+                scrollView.isScrollEnabled = true
                 
                 // 🎯 드롭다운이 화면에서 벗어나면 자동 스크롤
-                if let scrollView = scrollView {
-                    let containerFrame = containerView.convert(containerView.bounds, to: scrollView)
-                    let dropdownBottom = containerFrame.maxY
-                    let scrollViewVisibleHeight = scrollView.frame.height
-                    let currentOffset = scrollView.contentOffset.y
+                let containerFrame = containerView.convert(containerView.bounds, to: scrollView)
+                let dropdownBottom = containerFrame.maxY
+                let scrollViewVisibleHeight = scrollView.frame.height
+                let currentOffset = scrollView.contentOffset.y
+                
+                if dropdownBottom > currentOffset + scrollViewVisibleHeight {
+                    let targetOffset = dropdownBottom - scrollViewVisibleHeight + 30
+                    let maxOffset = max(0, scrollView.contentSize.height - scrollViewVisibleHeight)
+                    let finalOffset = min(targetOffset, maxOffset)
                     
-                    if dropdownBottom > currentOffset + scrollViewVisibleHeight {
-                        let targetOffset = dropdownBottom - scrollViewVisibleHeight + 30
-                        let maxOffset = max(0, scrollView.contentSize.height - scrollViewVisibleHeight)
-                        let finalOffset = min(targetOffset, maxOffset)
-                        
-                        print("🔍 [자동스크롤] dropdownBottom: \(dropdownBottom), finalOffset: \(finalOffset)")
-                        
-                        scrollView.setContentOffset(CGPoint(x: 0, y: finalOffset), animated: true)
-                    }
+                    print("🔍 [자동스크롤] dropdownBottom: \(dropdownBottom), finalOffset: \(finalOffset)")
+                    
+                    scrollView.setContentOffset(CGPoint(x: 0, y: finalOffset), animated: true)
                 }
             }
         }
@@ -437,8 +433,8 @@ extension EmotionDiaryViewController {
             return generateEmotionAnalysisDetail()
         case .recentActivity:
             return generateRecentActivityDetail()
-        case .aiRecommendations:
-            return generateAIRecommendationsDetail()
+        case .aiFriendUsage:
+            return generateAIFriendUsageDetail()
         case .monthlySchedules:
             return generateMonthlySchedulesDetail()
         case .importantSchedules:
@@ -488,22 +484,17 @@ extension EmotionDiaryViewController {
         return detail.isEmpty ? "최근 7일간 기록이 없습니다." : detail
     }
     
-    private func generateAIRecommendationsDetail() -> String {
-        let allPresets = SettingsManager.shared.loadSoundPresets()
-        let aiPresets = allPresets.filter { $0.isAIGenerated }
-        
-        var detail = "AI 추천 활용 내역:\n"
-        for (index, preset) in aiPresets.enumerated() {
-            if index < 3 {
-                detail += "• \(preset.name): \(preset.description ?? "설명 없음")\n"
-            }
-        }
-        
-        if aiPresets.count > 3 {
-            detail += "• 외 \(aiPresets.count - 3)개 더..."
-        }
-        
-        return detail.isEmpty ? "AI 추천 사용 내역이 없습니다." : detail
+    private func generateAIFriendUsageDetail() -> String {
+        let modeCounts = AICallLogger.shared.getRecentModeCounts(days: 7)
+        func c(_ m: AIMode) -> Int { modeCounts[m] ?? 0 }
+        let total = modeCounts.values.reduce(0, +)
+        guard total > 0 else { return "최근 7일간 대나무숲 친구 호출이 없습니다." }
+        var detail = "최근 7일 대나무숲 친구 사용:\n"
+        detail += "• 일반 대화: \(c(.generalConversation))회\n"
+        detail += "• 프리셋 추천: \(c(.presetRecommendation))회\n"
+        detail += "• 일기 분석: \(c(.emotionDiaryAnalysis))회\n"
+        detail += "• 할 일 조언: \(c(.taskAdvice))회"
+        return detail
     }
     
     private func generateMonthlySchedulesDetail() -> String {

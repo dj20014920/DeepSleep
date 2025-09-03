@@ -234,6 +234,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
   - 재개 알림(presentResumeInfoAlertIfNeeded)
   - 세션 오버라이드(adoptOverrideSessionIfNeeded)
 - Trigger: setupInitialMessages() → requestDiaryAnalysisWithTracking(diary:) → SessionManager.sendMessage(mode: .emotionDiaryAnalysis)
+- 모델: Gemini로 고정 전송(model=.gemini). 프록시 모드에서 서버는 동일 선호를 우선 적용.
 - 적용 화면: DiaryWriteViewController / EditDiaryViewController 모두 Router(.diaryAnalysis)로 통일
 
 검증 체크리스트
@@ -621,3 +622,66 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
   1) 같은 페르소나/모드로 연속 2회 호출 → 2회차에 X-Cache-Action=read 관측.
   2) AICallSummary: cacheUsed=true, cacheTTL≈3600, tokens에 cachedContentTokenCount 증가.
   3) 품질: histTurns>0로 맥락 반영(응답 자연스러움 개선).
+
+# 2025-09-03 동기화: 캐나리 롤아웃 · 멱등성 강화
+
+정의
+- 캐나리(Canary): 기능/정책을 전체에 일괄 적용하지 않고 일부 비율(예: 5→10→50→100%)에만 점진 적용해 위험을 줄이는 배포 방식.
+- 멱등성(Idempotency): 동일 요청이 여러 번 들어와도 한 번만 처리하고 같은 결과를 반환하는 성질(중복 비용/지연 방지).
+
+앱(iOS)
+- UnifiedAIServiceImpl
+  - isSending 게이트로 동시 중복 방지.
+  - inflightKeys Set으로 동일 요청 재진입 차단.
+  - X-Idempotency-Key 생성: mode + PersonaCoreSignature + SHA256(userInput) → 64자 prefix, 프록시에 헤더로 전송.
+  - AICallSummary에 canary/idempotency 헤더 로깅.
+
+서버(Cloudflare Worker)
+- X-Idempotency-Key 처리: USAGE_KV에 idemp:{uid}:{key}
+  - 값 부재 → inflight 마킹(30s TTL) → 완료 시 {status:done, provider, content} 120s 저장
+  - 값 inflight → 409 duplicate_inflight
+  - 값 done → 200 캐시 결과 반환
+- 캐나리: CANARY_PERCENT(0..100)로 providerCaching.enable을 게이팅. uid:날짜 해시→버킷 매핑.
+- 응답 헤더: X-Idempotency-Status=hit|inflight|stored, X-Canary=hit(pct%)|miss(pct%).
+
+롤아웃 계획(권장)
+- Day 0: CANARY_PERCENT=5 (로그/지표 정상)
+- Day 1: 10%
+- Day 3: 50%
+- Day 7: 100%
+- 이슈 발생 시 즉시 0%로 롤백(Variables에서 수정 후 재배포).
+
+검증 체크리스트
+- 멱등성: 동일 입력 즉시 2회 → 1회차 stored, 2회차 hit
+- 캐나리: hit 요청만 X-Cache-Action!=bypass 비율 상승
+
+후속(옵션)
+- 서버 측 중복응답 TTL 조정(120s→300s)
+- /v1/metrics에 idempotency.{hits,inflights} 카운터 추가
+
+# 2025-09-03 동기화: 시스템 프롬프트 경량화 · 지시 강화 · 토큰 절약 + 프록시 generation 파라미터 전달
+
+요약
+- 시스템 프롬프트 경량화(클라이언트):
+  - AIContextBuilder.generateDefaultSystemPrompt를 간결한 지시문으로 축약.
+  - UnifiedAIServiceImpl의 getBaseSystemPromptForMode / getModelSpecificOptimization 지침을 한 줄/핵심 요점으로 정리.
+  - 지시 강화: 첫 응답만 인사 허용, 이후 인사/서두 반복 금지, 시스템 텍스트 복사 금지, 결론/문장 반복 금지, 새 관점 또는 구체 예시 1개 포함.
+- 프록시 generation 파라미터 전달(클라이언트):
+  - UnifiedAIServiceImpl.sendViaProxy가 temperature / maxTokens / topP / frequencyPenalty / presencePenalty / responseFormat을 /v1/chat 바디에 포함.
+  - 서버는 선택적으로 수용하며, 미수용 시 무해(no-op). 수용 시 공급자별 파라미터로 매핑 권장.
+
+기대 효과
+- 토큰 절약: 장황한 서문/예시 제거로 프롬프트 길이 단축. 캐시/동일 프리픽스 정책과 함께 통합 비용 절감 기대.
+- 품질 개선: 반복 인사/상투어 억제, 공감→요약→실행 제안 루틴 고정으로 일관 품질 상승.
+
+코드 반영(요약)
+- DeepSleepApp/AI/Context/AIContextBuilder.swift: generateDefaultSystemPrompt 경량화.
+- DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift: 모드/모델별 지침 축약, sendViaProxy 바디에 generation 파라미터 추가.
+
+서버/문서 정합성
+- DEEPSLEEP_FROXYSERVER.md에 /v1/chat 요청 스키마 선택 필드(topP, frequencyPenalty, presencePenalty, responseFormat)를 추가해 클라이언트 변경을 문서화.
+
+검증 체크리스트(9/03)
+- [ ] /v1/chat 요청 바디에 temperature/maxTokens가 포함되고, 필요 시 topP/frequencyPenalty/presencePenalty/responseFormat도 포함되는지 서버 로그로 확인.
+- [ ] 동일 요청 2회: 캐시 동작/헤더(X-Cache-*)는 기존과 동일.
+- [ ] 응답에서 반복 인사 감소/구체적 실행 제안 증가를 눈으로 확인.

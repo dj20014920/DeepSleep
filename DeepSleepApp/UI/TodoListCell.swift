@@ -40,6 +40,7 @@ class TodoListCell: UICollectionViewCell {
         label.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         label.textColor = UIDesignSystem.Colors.primaryText
         label.translatesAutoresizingMaskIntoConstraints = false
+        label.adjustsFontForContentSizeCategory = true
         return label
     }()
     
@@ -142,6 +143,10 @@ class TodoListCell: UICollectionViewCell {
         tableView.isScrollEnabled = true
         tableView.isUserInteractionEnabled = true
         
+        // 동적 셀 높이 활성화
+        tableView.estimatedRowHeight = 60
+        tableView.rowHeight = UITableView.automaticDimension
+        
         // iOS 11+ 스와이프 액션 지원 확인
         if #available(iOS 11.0, *) {
             // iOS 11+에서는 기본적으로 스와이프 액션이 지원됨
@@ -155,20 +160,32 @@ class TodoListCell: UICollectionViewCell {
     
     // MARK: - Configuration
     func configure(with items: [TodoItem]) {
-        self.todoItems = items
+        // 제목이 비어있는 항목은 '제목 없음'으로 보정
+        self.todoItems = items.map { it in
+            var t = it
+            if t.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                t.title = "제목 없음"
+            }
+            return t
+        }
         tableView.reloadData()
         updateEmptyState()
         
-        UnifiedLogger.shared.logTodo("TodoListCell configured with \(items.count) items")
+        UnifiedLogger.shared.logTodo("TodoListCell configured with \\(self.todoItems.count) items")
         
         // 스와이프 액션 사용 가능 상태 로깅
-        for (index, item) in items.enumerated() {
-            UnifiedLogger.shared.logTodo("  아이템[\(index)]: \(item.title)")
+        for (index, item) in self.todoItems.enumerated() {
+            UnifiedLogger.shared.logTodo("  아이템[\\(index)]: \\(item.title)")
         }
         
         // 테이블뷰 상태 로깅
-        UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \(tableView.dataSource != nil), 델리게이트: \(tableView.delegate != nil)", category: .ui)
-        UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \(tableView.isUserInteractionEnabled), 선택가능: \(tableView.allowsSelection)", category: .ui)
+        UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \\(tableView.dataSource != nil), 델리게이트: \\(tableView.delegate != nil)", category: .ui)
+        UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \\(tableView.isUserInteractionEnabled), 선택가능: \\(tableView.allowsSelection)", category: .ui)
+    }
+    
+    // 외부에서 카드 헤더 타이틀을 동적으로 지정하기 위한 API
+    func setHeaderTitle(_ title: String) {
+        titleLabel.text = title
     }
     
     // MARK: - Actions
@@ -210,7 +227,7 @@ extension TodoListCell: UITableViewDataSource {
 // MARK: - UITableViewDelegate
 extension TodoListCell: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 44
+        return UITableView.automaticDimension
     }
     
     // 스와이프 액션 메뉴 구현 (수정/삭제)
@@ -283,7 +300,7 @@ class TodoItemTableViewCell: UITableViewCell {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: "circle"), for: .normal)
         button.setImage(UIImage(systemName: "checkmark.circle.fill"), for: .selected)
-        button.tintColor = UIDesignSystem.Colors.accent
+        button.tintColor = .secondaryLabel // 기본은 회색 톤으로 대비 확보
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
@@ -292,7 +309,7 @@ class TodoItemTableViewCell: UITableViewCell {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 16, weight: .regular)
         label.textColor = UIDesignSystem.Colors.primaryText
-        label.numberOfLines = 1
+        label.numberOfLines = 0 // 멀티라인 지원
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -302,6 +319,15 @@ class TodoItemTableViewCell: UITableViewCell {
         view.layer.cornerRadius = 4
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
+    }()
+    
+    private let dueDateLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont.systemFont(ofSize: 12, weight: .regular)
+        label.textColor = UIDesignSystem.Colors.secondaryText
+        label.numberOfLines = 1
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }()
     
     // MARK: - Initialization
@@ -324,22 +350,29 @@ class TodoItemTableViewCell: UITableViewCell {
         
         contentView.addSubview(checkboxButton)
         contentView.addSubview(titleLabel)
+        contentView.addSubview(dueDateLabel)
         contentView.addSubview(priorityIndicator)
         
         NSLayoutConstraint.activate([
             checkboxButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            checkboxButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            checkboxButton.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 12),
             checkboxButton.widthAnchor.constraint(equalToConstant: 24),
             checkboxButton.heightAnchor.constraint(equalToConstant: 24),
+            checkboxButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             
             titleLabel.leadingAnchor.constraint(equalTo: checkboxButton.trailingAnchor, constant: 12),
-            titleLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             titleLabel.trailingAnchor.constraint(equalTo: priorityIndicator.leadingAnchor, constant: -8),
             
+            dueDateLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            dueDateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            dueDateLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            dueDateLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            
             priorityIndicator.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            priorityIndicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             priorityIndicator.widthAnchor.constraint(equalToConstant: 8),
-            priorityIndicator.heightAnchor.constraint(equalToConstant: 8)
+            priorityIndicator.heightAnchor.constraint(equalToConstant: 8),
+            priorityIndicator.centerYAnchor.constraint(equalTo: titleLabel.firstBaselineAnchor)
         ])
     }
     
@@ -353,23 +386,37 @@ class TodoItemTableViewCell: UITableViewCell {
         self.delegate = delegate
         self.itemIndex = index
         
-        titleLabel.text = item.title
+        let rawTitle = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeTitle = rawTitle.isEmpty ? "제목 없음" : rawTitle
         checkboxButton.isSelected = item.isCompleted
         
-        // 완료 상태에 따른 스타일 적용
+        // 상태별 텍스트/스타일 지정
         if item.isCompleted {
-            titleLabel.textColor = UIDesignSystem.Colors.secondaryText
-            titleLabel.alpha = 0.6
+            // 완료: 취소선 + 흐린 색상
             let attributedString = NSAttributedString(
-                string: item.title,
-                attributes: [NSAttributedString.Key.strikethroughStyle: NSUnderlineStyle.single.rawValue]
+                string: safeTitle,
+                attributes: [
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    .foregroundColor: UIDesignSystem.Colors.secondaryText
+                ]
             )
             titleLabel.attributedText = attributedString
+            titleLabel.textColor = UIDesignSystem.Colors.secondaryText
+            titleLabel.alpha = 0.8
+            dueDateLabel.alpha = 0.7
+            checkboxButton.tintColor = .systemGreen
         } else {
+            // 미완료: 일반 텍스트 확실하게 노출 (재사용 잔여 속성 초기화)
+            titleLabel.attributedText = nil
+            titleLabel.text = safeTitle
             titleLabel.textColor = UIDesignSystem.Colors.primaryText
             titleLabel.alpha = 1.0
-            titleLabel.attributedText = nil
+            dueDateLabel.alpha = 0.95
+            checkboxButton.tintColor = .label
         }
+        
+        // 마감 시간은 한국어 표기로 항상 표시
+        dueDateLabel.text = item.dueDateString
         
         // 우선순위 표시 (Int 타입으로 변경)
         switch item.priority {

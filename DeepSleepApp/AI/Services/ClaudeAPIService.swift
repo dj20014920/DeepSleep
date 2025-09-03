@@ -17,6 +17,9 @@ class ClaudeAPIService {
     private let baseURL = "https://api.anthropic.com/v1/messages"
     private let defaultModel = "claude-3-5-sonnet-20241022" // 2025년 최신 모델
     
+    // 최소 캐시 토큰(Anthropic Sonnet 계열 기준), 근사치 허용
+    private let minCacheTokens = 1024
+    
     // MARK: - 초기화
     
     init(apiKey: String) {
@@ -82,18 +85,37 @@ class ClaudeAPIService {
     
     // MARK: - 🔧 Claude API 요청 구성
     
-    private func buildClaudeRequest(
+private func buildClaudeRequest(
         content: String,
         systemPrompt: String,
         tokenConfig: TokenConfiguration
     ) -> [String: Any] {
         
-        // Claude API 2025년 형식에 맞는 요청 구성
+        // Anthropic 프롬프트 캐싱(cache_control) 지원: 안정 프리픽스를 system 블록으로 캐시
+        let approxTokens = approxTokenCount(systemPrompt)
+        let useCache = approxTokens >= 1024
+        let systemField: Any = {
+            if useCache {
+                return [
+                    [
+                        "type": "text",
+                        "text": systemPrompt,
+                        "cache_control": [
+                            "type": "ephemeral",
+                            "ttl": "1h"
+                        ]
+                    ]
+                ]
+            } else {
+                return systemPrompt
+            }
+        }()
+        
         return [
             "model": defaultModel,
             "max_tokens": tokenConfig.maxTokens,
             "temperature": tokenConfig.temperature,
-            "system": systemPrompt,
+            "system": systemField,
             "messages": [
                 [
                     "role": "user",
@@ -104,7 +126,7 @@ class ClaudeAPIService {
     }
     
     /// 멀티-메시지용 요청 구성 (Claude: system + messages)
-    private func buildClaudeRequest(
+private func buildClaudeRequest(
         messages: [RoleMessage],
         systemPrompt: String,
         tokenConfig: TokenConfiguration
@@ -115,11 +137,32 @@ class ClaudeAPIService {
                 "content": m.content
             ]
         }
+        
+        // Anthropic 프롬프트 캐싱(cache_control) 지원
+        let approxTokens = approxTokenCount(systemPrompt)
+        let useCache = approxTokens >= 1024
+        let systemField: Any = {
+            if useCache {
+                return [
+                    [
+                        "type": "text",
+                        "text": systemPrompt,
+                        "cache_control": [
+                            "type": "ephemeral",
+                            "ttl": "1h"
+                        ]
+                    ]
+                ]
+            } else {
+                return systemPrompt
+            }
+        }()
+        
         return [
             "model": defaultModel,
             "max_tokens": tokenConfig.maxTokens,
             "temperature": tokenConfig.temperature,
-            "system": systemPrompt,
+            "system": systemField,
             "messages": mapped
         ]
     }
@@ -242,6 +285,16 @@ class ClaudeAPIService {
         let outputCost = Double(usage.outputTokens) / 1000.0 * outputCostPer1000
         
         return inputCost + outputCost
+    }
+    
+    // MARK: - 🔢 근사 토큰 계산 (cache_control 적용 판단 용도)
+    private func approxTokenCount(_ text: String) -> Int {
+        // 매우 간단한 근사치: 영문 단어 1.3, 한글 글자 1.5, 기타 1.0 가중
+        let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+        let koreanChars = text.unicodeScalars.filter { (0xAC00...0xD7AF).contains($0.value) }.count
+        let otherChars = max(0, text.count - koreanChars)
+        let estimate = Int(Double(words) * 1.3 + Double(koreanChars) * 1.5 + Double(otherChars) * 0.2)
+        return estimate
     }
 }
 

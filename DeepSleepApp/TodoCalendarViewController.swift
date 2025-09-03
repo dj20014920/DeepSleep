@@ -618,17 +618,6 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         }
     }
     
-    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        guard let currentSection = CalendarSection(rawValue: section) else { return nil }
-        
-        if hideDiarySection { return selectedDateTodos.isEmpty ? "📌 할 일 (없음)" : "📌 할 일 목록" }
-        switch currentSection {
-        case .diary:
-            return selectedDateDiary != nil ? "💭 그날의 감정 기록" : nil
-        case .todos:
-            return selectedDateTodos.isEmpty && selectedDateDiary == nil ? nil : (selectedDateTodos.isEmpty ? "📌 할 일 (없음)" : "📌 할 일 목록")
-        }
-    }
     
     // MARK: - UITableViewDelegate
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {

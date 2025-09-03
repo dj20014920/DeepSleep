@@ -26,12 +26,16 @@ struct CalendarDayDecorLogic {
         // 미완료 할 일 존재 여부
         let hasPending = todosForDate.contains { !$0.isCompleted }
 
-        if startOfDate >= startOfToday {
-            // 오늘 또는 미래: 미완료가 있으면 프리미엄 링
+        if startOfDate == startOfToday {
+            // 오늘: 미완료가 있으면 프리미엄 링, 모두 완료면 무료 링
+            return hasPending ? .premiumRing : .freeRing
+        } else if startOfDate > startOfToday {
+            // 미래: 미완료가 있으면 프리미엄 링, 아니면 표시 없음
             return hasPending ? .premiumRing : .none
         } else {
-            // 과거 날짜: 해당 날짜에 할 일이 있었던 경우 무료 링
-            return .freeRing
+            // 과거 날짜: 해당 날짜에 할 일이 있었던 경우에만 무료 링
+            // (할 일이 전혀 없었던 날에는 링 표시 없음)
+            return todosForDate.isEmpty ? .none : .freeRing
         }
     }
 }

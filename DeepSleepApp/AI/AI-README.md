@@ -100,6 +100,7 @@ let response = try await aiService.sendMessage(
 - 서버는 티어/레이트리밋/모델 라우팅/비용 정책을 적용하고, 응답 헤더에 정책 정보를 담아 반환합니다
   - X-Policy-Remaining, X-Policy-ResetAt, X-Policy-Tier, X-Policy-Claude-Remaining, X-Provider
 - iOS 클라이언트는 위 정책 헤더를 파싱하여 UI/로깅에 반영하고, 로컬 중복 제한 로직은 사용하지 않습니다(SSOT)
+- 🆕 iOS는 generation 파라미터를 함께 전송합니다(선택): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat. 서버가 수용하면 공급자별 파라미터로 매핑, 미수용이면 무해하게 무시됩니다.
 
 ```
 사용자 입력
