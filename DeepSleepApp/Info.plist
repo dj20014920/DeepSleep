@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -54,8 +54,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	
-	<!-- Export compliance: app does not use non-exempt encryption beyond iOS system APIs -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UILaunchScreen</key>
@@ -77,8 +75,6 @@
 	<string>$(NAVER_CLOUD_API_SECRET)</string>
 	<key>OPENROUTER_API_KEY</key>
 	<string>$(OPENROUTER_API_KEY)</string>
-	
-	<!-- AI 토큰 설정 -->
 	<key>AI_GENERAL_CONVERSATION_MAX_TOKENS</key>
 	<string>$(AI_GENERAL_CONVERSATION_MAX_TOKENS)</string>
 	<key>AI_GENERAL_CONVERSATION_TEMPERATURE</key>
@@ -107,8 +103,6 @@
 	<string>$(AI_EMOTION_ANALYSIS_MAX_TOKENS)</string>
 	<key>AI_EMOTION_ANALYSIS_TEMPERATURE</key>
 	<string>$(AI_EMOTION_ANALYSIS_TEMPERATURE)</string>
-	
-	<!-- AI 모델별 설정 -->
 	<key>AI_CLAUDE_MAX_TOKENS_BONUS</key>
 	<string>$(AI_CLAUDE_MAX_TOKENS_BONUS)</string>
 	<key>AI_CLAUDE_MAX_TOKENS_LIMIT</key>
@@ -137,16 +131,12 @@
 	<string>$(AI_CREATIVE_MODE_TEMPERATURE_BONUS)</string>
 	<key>AI_CREATIVE_MODE_TEMPERATURE_MAX</key>
 	<string>$(AI_CREATIVE_MODE_TEMPERATURE_MAX)</string>
-	
-	<!-- 보안 및 제한 설정 -->
 	<key>MAX_PROMPT_LENGTH</key>
 	<string>$(MAX_PROMPT_LENGTH)</string>
 	<key>MAX_DAILY_REQUESTS</key>
 	<string>$(MAX_DAILY_REQUESTS)</string>
 	<key>MAX_CONVERSATION_TURNS</key>
 	<string>$(MAX_CONVERSATION_TURNS)</string>
-	
-	<!-- AI 일일 사용량 제한 설정 -->
 	<key>DAILY_CHAT_LIMIT</key>
 	<string>$(DAILY_CHAT_LIMIT_FREE)</string>
 	<key>DAILY_CHAT_LIMIT_PREMIUM</key>
@@ -169,8 +159,6 @@
 	<string>$(AI_LIMITS_EMOTION_ANALYSIS)</string>
 	<key>DAILY_MONTHLY_STATISTICS_LIMIT</key>
 	<string>$(DAILY_MONTHLY_STATISTICS_LIMIT)</string>
-	
-	<!-- 사용자 데이터 제한 -->
 	<key>MAX_DIARY_ENTRIES_PER_DAY</key>
 	<string>$(MAX_DIARY_ENTRIES_PER_DAY)</string>
 	<key>MAX_TODO_ITEMS</key>
@@ -185,8 +173,6 @@
 	<string>$(MAX_PRESET_COUNT)</string>
 	<key>MAX_CUSTOM_SOUND_COUNT</key>
 	<string>$(MAX_CUSTOM_SOUND_COUNT)</string>
-	
-	<!-- 네트워크 및 재시도 설정 -->
 	<key>MAX_RETRY_ATTEMPTS</key>
 	<string>$(MAX_RETRY_ATTEMPTS)</string>
 	<key>RETRY_DELAY</key>
@@ -197,8 +183,6 @@
 	<string>$(MEMORY_CHECK_INTERVAL)</string>
 	<key>STATUS_UPDATE_INTERVAL</key>
 	<string>$(STATUS_UPDATE_INTERVAL)</string>
-	
-	<!-- 페이징 설정 -->
 	<key>DEFAULT_PAGE_SIZE</key>
 	<string>$(DEFAULT_PAGE_SIZE)</string>
 	<key>MAX_CACHED_MESSAGES</key>
@@ -231,8 +215,6 @@
 	<string>$(RICH_CONTEXT_SESSION_LIMIT)</string>
 	<key>RECENT_FEEDBACK_FOR_RECOMMENDATION_LIMIT</key>
 	<string>$(RECENT_FEEDBACK_FOR_RECOMMENDATION_LIMIT)</string>
-	
-	<!-- 사운드 시스템 설정 -->
 	<key>DEFAULT_GLOBAL_VOLUME</key>
 	<string>$(DEFAULT_GLOBAL_VOLUME)</string>
 	<key>DEFAULT_MASTER_VOLUME</key>
@@ -243,8 +225,6 @@
 	<string>$(FADE_IN_DURATION)</string>
 	<key>FADE_OUT_DURATION</key>
 	<string>$(FADE_OUT_DURATION)</string>
-	
-	<!-- AI 기능별 일일 제한 -->
 	<key>AI_LIMITS_CHAT</key>
 	<string>$(AI_LIMITS_CHAT)</string>
 	<key>AI_LIMITS_CHAT_PRO</key>
@@ -267,16 +247,12 @@
 	<string>$(AI_LIMITS_EMOTION_ANALYSIS)</string>
 	<key>AI_LIMITS_MONTHLY_REPORT</key>
 	<string>$(AI_LIMITS_MONTHLY_REPORT)</string>
-
-	<!-- Proxy settings (Cloudflare Worker) -->
 	<key>USE_PROXY</key>
 	<string>$(USE_PROXY)</string>
 	<key>PROXY_BASE_URL</key>
 	<string>$(PROXY_BASE_URL)</string>
 	<key>CLIENT_PROXY_HMAC_SECRET</key>
 	<string>$(CLIENT_PROXY_HMAC_SECRET)</string>
-	
-	<!-- 개발 및 모니터링 설정 -->
 	<key>DEBUG_MODE</key>
 	<string>$(DEBUG_MODE)</string>
 	<key>VERBOSE_LOGGING</key>
@@ -285,45 +261,35 @@
 	<string>$(MOCK_AI_RESPONSES)</string>
 	<key>TEST_MODE</key>
 	<string>$(TEST_MODE)</string>
-		<key>ENABLE_CRASH_REPORTING</key>
-		<string>$(ENABLE_CRASH_REPORTING)</string>
-		<key>ENABLE_ANALYTICS</key>
-		<string>$(ENABLE_ANALYTICS)</string>
-		<key>ENABLE_PERFORMANCE_MONITORING</key>
-		<string>$(ENABLE_PERFORMANCE_MONITORING)</string>
-		<key>LOG_RETENTION_DAYS</key>
-		<string>$(LOG_RETENTION_DAYS)</string>
-
-		<!-- Background audio for sleep sounds -->
-		<key>UIBackgroundModes</key>
-		<array>
-			<string>audio</string>
-		</array>
-
-		<!-- Calendar purpose strings (required when EventKit is used) -->
-		<key>NSCalendarsUsageDescription</key>
-		<string>This app integrates your todos with the system calendar to help you stay organized. You can manage todo events and sync your schedule. You can change this anytime in Calendar permissions.</string>
-		
-		<!-- User Notifications purpose strings (optional but recommended) -->
-		<key>NSUserNotificationsUsageDescription</key>
-		<string>This app sends you reminders for your todos and timer notifications to help you stay on track. You can manage notifications in Settings.</string>
-		
-		<!-- HealthKit purpose strings (required when HealthKit capability or APIs are present) -->
-		<key>NSHealthShareUsageDescription</key>
-		<string>This app reads Health data you allow (e.g., sleep analysis, mindful minutes) to personalize sleep guidance and track your progress. You control this in Health permissions.</string>
-		<key>NSHealthUpdateUsageDescription</key>
-		<string>This app writes Health data you allow (e.g., mindful minutes, sleep-related entries) to help track your routines. You can change this anytime in Health permissions.</string>
-
-		<!-- AdMob Configuration (values provided via Secrets.xcconfig) -->
-		<key>GADApplicationIdentifier</key>
-		<string>$(ADMOB_APP_ID)</string>
-		<key>ADMOB_BANNER_UNIT_ID</key>
-		<string>$(ADMOB_BANNER_UNIT_ID)</string>
-		<key>ADMOB_TEST_APP_ID</key>
-		<string>$(ADMOB_TEST_APP_ID)</string>
-		<key>ADMOB_TEST_BANNER_UNIT_ID</key>
-		<string>$(ADMOB_TEST_BANNER_UNIT_ID)</string>
-		<key>PROXY_AUTH_USE_NONCE</key>
+	<key>ENABLE_CRASH_REPORTING</key>
+	<string>$(ENABLE_CRASH_REPORTING)</string>
+	<key>ENABLE_ANALYTICS</key>
+	<string>$(ENABLE_ANALYTICS)</string>
+	<key>ENABLE_PERFORMANCE_MONITORING</key>
+	<string>$(ENABLE_PERFORMANCE_MONITORING)</string>
+	<key>LOG_RETENTION_DAYS</key>
+	<string>$(LOG_RETENTION_DAYS)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app integrates your todos with the system calendar to help you stay organized. You can manage todo events and sync your schedule. You can change this anytime in Calendar permissions.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app sends you reminders for your todos and timer notifications to help you stay on track. You can manage notifications in Settings.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>This app reads Health data you allow (e.g., sleep analysis, mindful minutes) to personalize sleep guidance and track your progress. You control this in Health permissions.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>This app writes Health data you allow (e.g., mindful minutes, sleep-related entries) to help track your routines. You can change this anytime in Health permissions.</string>
+	<key>GADApplicationIdentifier</key>
+	<string>$(ADMOB_APP_ID)</string>
+	<key>ADMOB_BANNER_UNIT_ID</key>
+	<string>$(ADMOB_BANNER_UNIT_ID)</string>
+	<key>ADMOB_TEST_APP_ID</key>
+	<string>$(ADMOB_TEST_APP_ID)</string>
+	<key>ADMOB_TEST_BANNER_UNIT_ID</key>
+	<string>$(ADMOB_TEST_BANNER_UNIT_ID)</string>
+	<key>PROXY_AUTH_USE_NONCE</key>
 	<string>$(PROXY_AUTH_USE_NONCE)</string>
 </dict>
 </plist>
