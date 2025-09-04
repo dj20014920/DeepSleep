@@ -734,3 +734,17 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - [ ] /v1/chat 요청 바디에 temperature/maxTokens가 포함되고, 필요 시 topP/frequencyPenalty/presencePenalty/responseFormat도 포함되는지 서버 로그로 확인.
 - [ ] 동일 요청 2회: 캐시 동작/헤더(X-Cache-*)는 기존과 동일.
 - [ ] 응답에서 반복 인사 감소/구체적 실행 제안 증가를 눈으로 확인.
+## 2025-09-04 캐시 임계(토큰) 튜닝 가이드 — 과금 최소화
+
+원리 요약
+- 프리픽스 P(시스템+페르소나+핵심기억 요약 등)를 한 번만 과금(write)하고 TTL=1h 동안 재사용(read)하면, 후속 N−1회에 대해 P만큼 입력 토큰 절감.
+- 손익분기점은 대략 N≥2. 다만 P가 작을수록 write가 무의미해지므로 임계치 T를 둬서 “작은 P의 write 남발”을 억제.
+
+모드별 권장값(Secrets.xcconfig 한도·사용 패턴 반영)
+- 일반 대화(DAILY_CHAT_LIMIT_FREE=50): T≈1024 권장(평균 2–5회 재사용 가정). 세션 길 때 512까지 하향 가능.
+- 프리셋 추천(DAILY_PRESET_RECOMMENDATION_LIMIT=5): T≈2048 유지(재사용 횟수 적음). 동일 세션 3회 이상 연속 호출 빈번하면 1024 검토.
+- 감정/월간 통계 등 비잦은 모드: T≈1536(이득/안정 절충).
+
+운영 팁
+- 실측 헤더: `X-Cache-Tokens=writeIn=…;readIn=…` 수집 → 프리픽스 규모·히트율 기반으로 T를 점진 조정.
+- 예) 일반 대화에서 readIn≈1200이 반복되는데 write가 드물면 T를 1024로 낮춰 write 기회↑.

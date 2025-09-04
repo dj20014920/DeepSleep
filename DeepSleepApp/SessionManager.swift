@@ -899,6 +899,36 @@ public class SessionManager {
     ) async throws {
         print("💾 [SessionManager] AI 대화 저장 시작")
         
+        // 프리셋 추천 모드는 대화 원문을 저장하지 않고 요약만 저장(토큰/스토리지 최적화)
+        if mode == .presetRecommendation {
+            let masked = SettingsManager.shared.maskPIIForExport(userMessage)
+            let userSummary = "프리셋을 요청!" // 사용자 입력의 사실만 기록
+            let userStoredMessage = StoredChatMessage(
+                id: UUID().uuidString,
+                timestamp: Date(),
+                role: "user",
+                content: userSummary,
+                type: .text
+            )
+            try addChatMessage(to: sessionId, message: userStoredMessage)
+            // AI 응답은 JSON 파싱 후 프리셋명만 요약 저장
+            var aiSummary = "프리셋을 추천!."
+            if let parsed = AIResponseParser.shared.parsePresetRecommendation(aiResponse.content) {
+                let name = parsed.presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+                aiSummary = name.isEmpty ? "프리셋을 추천!." : "프리셋을 추천!: [\(name)]."
+            }
+            let aiStoredMessage = StoredChatMessage(
+                id: aiResponse.id,
+                timestamp: aiResponse.timestamp,
+                role: "assistant",
+                content: aiSummary,
+                type: .text
+            )
+            try addChatMessage(to: sessionId, message: aiStoredMessage)
+            print("✅ [SessionManager] AI 대화 저장 완료(요약 모드)")
+            return
+        }
+        
         // 사용자 메시지 저장
         let userStoredMessage = StoredChatMessage(
             id: UUID().uuidString,
@@ -907,9 +937,7 @@ public class SessionManager {
             content: userMessage,
             type: .text
         )
-        
         try addChatMessage(to: sessionId, message: userStoredMessage)
-        
         // AI 응답 저장
         let aiStoredMessage = StoredChatMessage(
             id: aiResponse.id,
@@ -918,9 +946,7 @@ public class SessionManager {
             content: aiResponse.content,
             type: .text
         )
-        
         try addChatMessage(to: sessionId, message: aiStoredMessage)
-        
         print("✅ [SessionManager] AI 대화 저장 완료")
     }
     

@@ -918,9 +918,9 @@ if EnvironmentConfig.shared.useProxy {
     
     /// 모드별 최적 AI 모델 추천
 private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 프록시 모드: 사용자 설정 모델을 최우선으로 그대로 전달.
-        // 실패 시 서버가 폴백 체인(사용자선호→free→gemini→openai→naver→claude)을 적용.
+        // 프리셋 추천은 항상 Gemini 고정(Strict JSON/스키마 강제 안정화 목적)
         if EnvironmentConfig.shared.useProxy {
+            if mode == .presetRecommendation { return .gemini }
             return userPreferred
         }
         
