@@ -496,7 +496,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             return cell
         case .todo(let items):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath) as! TodoListCell
-            cell.configure(with: items)
+            cell.configure(with: items, for: selectedDate)
             // 동적 헤더 타이틀 구성: 오늘이면 "오늘의 할 일", 아니면 "M.d일의 할 일"
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
             if isToday {
@@ -832,6 +832,93 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
     func todoListCellDidRequestAddItem(_ cell: TodoListCell) {
         UnifiedLogger.shared.logTodo("Add todo item requested")
         presentAddEditTodoViewController(todoItem: nil)
+    }
+
+    func todoListCellDidRequestDailyAdvice(_ cell: TodoListCell, for items: [TodoItem], on date: Date) {
+        UnifiedLogger.shared.logTodo("Daily advice requested for \(items.count) items")
+
+        // 오늘의 일기 찾기
+        guard let diaryEntry = diaryFor(date: date) else {
+            let alert = UIAlertController(
+                title: "오늘의 감정 일기 작성 필요",
+                message: "할 일 조언을 받으려면 먼저 오늘의 감정 일기를 작성해주세요.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        // 할 일 정보와 일기 정보를 결합하여 AI 조언 요청
+        let todoTitles = items.map { $0.title }.joined(separator: "\n")
+        let prompt = """
+        오늘 \(DateFormatter.localizedString(from: date, dateStyle: .full, timeStyle: .none))의 할 일 목록과 감정 상태를 바탕으로 조언을 부탁드려요.
+
+        감정 상태: \(diaryEntry.selectedEmotion)
+        일기 내용: \(diaryEntry.userMessage.prefix(200))\(diaryEntry.userMessage.count > 200 ? "..." : "")
+
+        오늘의 할 일들:
+        \(todoTitles)
+
+        이 상황에서 실천 가능한 구체적인 조언을 3가지 이내로 제안해주세요.
+        """
+
+        presentTodoAdviceChat(with: prompt, contextTitle: "오늘의 할 일 조언", adviceType: .overallTodoAdvice)
+    }
+
+    func todoListCellDidRequestIndividualAdvice(_ cell: TodoListCell, for item: TodoItem) {
+        UnifiedLogger.shared.logTodo("Individual advice requested for: \(item.title)")
+
+        // 오늘의 일기 찾기
+        let todayDiary = diaryFor(date: Date())
+        let emotionContext = todayDiary?.selectedEmotion ?? "알 수 없음"
+        let diaryContext = todayDiary?.userMessage.prefix(100) ?? "일기 없음"
+
+        let prompt = """
+        할 일: '\(item.title)'
+        마감 시간: \(item.dueDateString)
+        우선순위: \(item.priority == 2 ? "높음" : item.priority == 1 ? "중간" : "낮음")
+
+        오늘의 감정 상태: \(emotionContext)
+        오늘의 일기 내용: \(diaryContext)
+
+        이 할 일을 어떻게 더 잘 수행할 수 있을지 구체적인 조언을 2-3가지 이내로 제안해주세요.
+        """
+
+        presentTodoAdviceChat(with: prompt, contextTitle: "'\(item.title)' 할 일 조언", adviceType: .individualTodoAdvice)
+    }
+
+    private func presentTodoAdviceChat(with prompt: String, contextTitle: String, adviceType: AIFeatureType) {
+        // AI 사용량 확인
+        let remainingCount = AIUsageManager.shared.getRemainingCount(for: adviceType)
+        guard remainingCount > 0 else {
+            let alert = UIAlertController(
+                title: "AI 조언 한도 초과",
+                message: "오늘의 AI 조언 사용 한도를 모두 사용하셨습니다.\n내일 다시 이용해주세요.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        AIUsageManager.shared.recordUsage(for: adviceType)
+
+        // ChatViewController 생성
+        let chatVC = ChatRouter.chatViewController()
+
+        // 초기 프롬프트 설정
+        chatVC.initialUserText = prompt
+
+        // 타이틀 설정
+        chatVC.title = contextTitle
+
+        // 네비게이션 컨트롤러로 표시
+        let navController = UINavigationController(rootViewController: chatVC)
+        navController.modalPresentationStyle = .fullScreen
+        navController.modalTransitionStyle = .coverVertical
+
+        present(navController, animated: true)
     }
 }
 

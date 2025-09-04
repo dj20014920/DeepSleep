@@ -9,7 +9,7 @@
 import Foundation
 
 /// 💎 **Google Gemini API 서비스**
-/// Google Gemini Pro 모델과의 통신을 담당하는 서비스
+/// Google Gemini2.0flash-lite 모델과의 통신을 담당하는 서비스
 /// PERF-WARNING: 다국어 텍스트 처리 시 인코딩 오버헤드 주의
 /// - 테스트 방안: Instruments의 CPU 프로파일러로 문자열 처리 성능 측정
 class GeminiAPIService {

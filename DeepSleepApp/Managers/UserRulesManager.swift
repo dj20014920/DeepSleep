@@ -27,7 +27,7 @@ extension UserRulesManager {
         
         // 1) 원천 데이터 안전 수집
         let settings = UserSettingsModel.loadFromUserDefaults()
-        let selectedLLM = SettingsManager.shared.selectedLLM
+        let selectedLLM = SettingsManager.shared.selectedLLM // normalized by SettingsManager
         let locale = Locale.current.identifier
         
         print("👤 [UserRulesManager] Settings loaded:")
@@ -37,7 +37,7 @@ extension UserRulesManager {
         print("   - Personality traits: \(settings.personalityTraits)")
         print("   - Conversation tones: \(settings.conversationTones)")
         print("   - Music preferences: \(settings.musicPreferences.map { $0.rawValue })")
-        print("   - LLM: \(selectedLLM.rawValue)")
+        print("   - LLM: \(selectedLLM.rawValue) (normalized)")
         print("   - Locale: \(locale)")
 
         // 2) 의미 보존형 특성 요약 (PII 제거 후)
@@ -215,4 +215,4 @@ class UserRulesManager {
             print("[User-RulesError] Failed to load rules: \(error.localizedDescription)")
         }
     }
-} 
+}

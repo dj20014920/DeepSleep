@@ -1,6 +1,25 @@
 # DeepSleep Comprehensive Guide and Refactoring Roadmap
 
 
+## 2025-09-03 Updates (Chat/AI 파서 일원화 · 컴파일 안정화)
+
+What changed where
+- ChatViewController.swift
+  - 레거시 JSON 파싱 블록과 미존재 타입(AIResponseData 등) 참조 제거. AIResponseParser.parsePresetRecommendation만 호출.
+  - 초기화 전 self 사용, 중괄호 불균형 등으로 인한 컴파일 오류 제거.
+- SessionManager.swift
+  - presetRecommendation 모드에서 사용자/어시스턴트 일반 텍스트 메시지 저장 스킵(추천 카드/퀵액션은 UI로 노출되므로 중복 방지).
+
+Rationale
+- DRY/KISS/SSoT: 파싱은 AIResponseParser 한 곳, 저장 정책은 SessionManager 한 곳으로 집중.
+- UX: 텍스트 이중 저장으로 인한 중복 버블 방지, 기록은 요약/메타 중심 유지.
+
+Verification checklist
+- [x] xcodebuild iPhone 16 Pro 시뮬레이터 BUILD SUCCEEDED
+- [ ] 프리셋 추천 카드 표시 및 적용이 정상 동작, 텍스트 중복 저장 없음
+
+Risks / Notes
+- 향후 AI 응답 스키마가 바뀌면 AIResponseParser의 DTO/디코더만 수정하면 되며, 화면 코드는 변경 불필요.
 ## 2025-09-02 Updates (단일 캘린더 SSoT: EmotionCalendar 임베딩 · Todo 탭 크래시 근본 해결)
 
 What changed where

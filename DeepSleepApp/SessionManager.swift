@@ -1407,7 +1407,9 @@ extension SessionManager {
         print("🎯 [SessionManager] 중앙집중 AI 호출 - 모델: \(model.rawValue), 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
         
         // 1) 사용자 메시지 저장(정책 적용)
-        if saveMessages {
+        // 프리셋 추천 모드에서는 화면(UI)에서 이미 사용자 액션 버블을 표시하므로
+        // 저장소에는 중복 텍스트를 남기지 않는다(노이즈 방지).
+        if saveMessages && mode != .presetRecommendation {
             let currentSessionId = getCurrentSessionId()
             let toSaveUser = summarizeIfNeeded(role: "user", content: content, mode: mode)
             let userMessage = StoredChatMessage(
@@ -1464,7 +1466,10 @@ extension SessionManager {
             let response = aiResponse.content
             
             // 4) AI 응답 저장(정책 적용)
-            if saveMessages {
+            // 프리셋 추천 모드에서는 중앙 파서가 생성하는 카드가 UI/저장의 단일 진실(SSoT)이며,
+            // 요약 텍스트("AI: 프리셋을 추천했습니다.")를 별도 저장하면 채팅에 노이즈 버블이 생긴다.
+            // 따라서 presetRecommendation 모드에서는 조용히 저장을 생략한다.
+            if saveMessages && mode != .presetRecommendation {
                 let currentSessionId = getCurrentSessionId()
                 let toSaveAI = summarizeIfNeeded(role: "assistant", content: response, mode: mode)
                 let aiMessage = StoredChatMessage(

@@ -310,8 +310,6 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 ---
 
 ### 🆕 2025-09-03 업데이트: 프록시 경로 generation 파라미터 전달 + 시스템 프롬프트 경량화
-
-요약
 - 프록시 바디에 generation 파라미터 전달(클라이언트): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat을 /v1/chat 요청에 포함하도록 UnifiedAIServiceImpl.sendViaProxy를 확장했습니다. 서버가 미수용이어도 무해하며, 수용 시 공급자별 파라미터로 매핑해 반영합니다.
 - 시스템 프롬프트 경량화(클라이언트): AIContextBuilder.generateDefaultSystemPrompt와 UnifiedAIServiceImpl의 모드별/모델별 지침을 간결한 지시문으로 축약했습니다.
   - 첫 응답만 짧은 인사 허용, 이후 인사/서두 반복 금지
@@ -330,6 +328,33 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 1) 프록시 경로 호출 시, AICallSummary 로그는 기존과 동일하게 동작합니다. 서버 로그에서 요청 바디에 generation 파라미터가 포함되는지 확인할 수 있습니다.
 2) 동일 질의 2회 호출 시, 캐싱/헤더(X-Cache-*) 동작이 기존과 동일함을 확인합니다.
 3) 응답 품질: 반복 인사/상투어 감소, 구체 제안/새 관점 포함률 증가를 육안으로 검토합니다.
+
+### 🆕 2025-09-03 업데이트: 프리셋 추천 — 엄격 JSON/DRY 파서/폴백(서버 배포 상태 포함)
+
+yoyak
+- 프리셋 추천 파이프라인을 중앙 파서(AIResponseParser.parsePresetRecommendation)로 일원화(DRY). ChatViewController는 해당 훅만 호출하도록 정리.
+- 모델 전략: Gemini 우선 → 파싱 실패 시 OpenAI(Structured Outputs, JSON 스키마 강제) 폴백.
+- 컨텍스트 최적화: SoundPresetCatalog의 시간대 상위 Top‑K(최대 5개) 캡슐만 프롬프트에 포함하여 토큰 절감.
+- 사용량 카운트: 파싱 성공 시에만 증가하도록 가드.
+- 서버: Cloudflare Worker에 STRICT_JSON_ONLY=1 적용, preset_recommendation 모드에서 최소 MIME(application/json) 강제. 엄격 JSON 모드에서는 OpenRouter 경로 스킵.
+- 배포: dev 환경 배포(https://emozleep.vinny4920-081.workers.dev). production 오버라이드(CANARY_PERCENT=5)는 wrangler.toml에 정의되어 있으며 명시 배포 필요.
+
+검증 체크리스트
+- [ ] 앱에서 preset_recommendation 요청 시 추천 카드가 정상 노출, "바로 적용하기"가 실제 사운드에 반영(실패 시 롤백 UX)
+- [ ] X-Strict-JSON/X-Provider/X-Fallback-Chain 헤더 확인(엄격 JSON 강제/폴백 체인 추적)
+- [ ] Gemini 파싱 실패 → OpenAI 폴백 성공
+- [ ] 사용량 카운트가 파싱 성공시에만 증가
+
+참고 파일
+- iOS: DeepSleepApp/ChatViewController.swift, DeepSleepApp/AI/Parsing/AIResponseParser.swift, DeepSleepApp/ComprehensiveRecommendationModels.swift, DeepSleepApp/SoundPresetCatalog.swift
+- 서버: emozleep/worker.js, emozleep/wrangler.toml, emozleep/README.md
+
+컴파일 안정화/정리(9/03)
+- ChatViewController 내 레거시/중복 JSON 파싱 블록과 미존재 타입(AIResponseData 등) 참조를 전부 제거했습니다. 파서는 AIResponseParser.shared만 사용합니다.
+- 확장 내부 저장 프로퍼티, 초기화 전 self 사용, 중괄호 불균형 등으로 발생하던 컴파일 오류를 해소했습니다. iPhone 16 Pro 시뮬레이터 대상으로 xcodebuild 기준 BUILD SUCCEEDED를 확인했습니다.
+
+저장 정책(프리셋 추천 모드)
+- SessionManager: mode == .presetRecommendation 인 경우, UI에 추천 카드/퀵액션이 별도로 노출되므로 사용자/어시스턴트의 일반 텍스트 메시지는 저장하지 않습니다(히스토리는 요약/메타 중심 유지).
 
 ---
 

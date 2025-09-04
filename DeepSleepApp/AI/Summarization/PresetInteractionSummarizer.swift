@@ -18,13 +18,13 @@ public enum PresetInteractionSummarizer {
     public static func summarizeUserRequest(_ userText: String) -> String {
         let cleaned = sanitizePII(userText)
         // 불필요한 본문은 저장하지 않고, 요청 사실만 기록
-        return "사용자: 프리셋을 요청했습니다."
+        return "프리셋을 요청!"
     }
 
     public static func summarizeAIResponse(presetName: String?) -> String {
         if let name = presetName, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "AI: 프리셋을 추천했습니다: [\(name)]."
+            return "프리셋을 추천!: [\(name)]."
         }
-        return "AI: 프리셋을 추천했습니다."
+        return "프리셋을 추천!."
     }
 }

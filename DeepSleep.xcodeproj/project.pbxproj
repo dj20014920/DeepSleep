@@ -199,6 +199,7 @@
 		E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */; };
 		E0B5624D2E6567BB00D334F1 /* TodayEmotionCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */; };
 		E0B562552E67E8A100D334F1 /* TodoAutoCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */; };
+		E0B562572E683E3700D334F1 /* SimpleAdviceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -432,6 +433,7 @@
 		E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayEmotionCell.swift; sourceTree = "<group>"; };
 		E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoAutoCompleter.swift; sourceTree = "<group>"; };
+		E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAdviceViewController.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -652,6 +654,7 @@
 		E084F0882E33ACB3002F75E6 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */,
 				E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */,
 				E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */,
 				E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */,
@@ -1233,6 +1236,7 @@
 				E084F1F02E33ACB3002F75E6 /* EmotionAnalysisService.swift in Sources */,
 				E084F1F12E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift in Sources */,
 				E0B5623D2E647EFE00D334F1 /* BrandingCopy.swift in Sources */,
+				E0B562572E683E3700D334F1 /* SimpleAdviceViewController.swift in Sources */,
 				E084F1F32E33ACB3002F75E6 /* AICallLogger.swift in Sources */,
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
 				E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */,
@@ -1413,7 +1417,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1424,7 +1428,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 1.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1444,7 +1448,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
@@ -1454,7 +1458,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 1.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";

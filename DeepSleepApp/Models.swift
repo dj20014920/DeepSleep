@@ -369,6 +369,27 @@ public struct EnhancedRecommendationResponse: Codable, Equatable {
     public let reason: String?
 }
 
+// MARK: - Preset Recommendation DTO (for AI JSON decoding)
+public struct AIPresetRecommendationDTO: Codable {
+    public let presetName: String?
+    public let description: String?
+    public let volumes: [Float]?
+    public let presetKey: String?
+    public let reason: String?
+    public let confidence: Double?
+    public let personalizedExplanation: String?
+    public let adaptation: String?
+    public let adaptationLevel: String?
+    public let emotion: String?
+    public let items: [AIPresetItem]?
+}
+
+public struct AIPresetItem: Codable {
+    public let soundName: String?
+    public let versionName: String?
+    public let volume: Float?
+}
+
 extension EnhancedRecommendationResponse {
     func toRecommendationResponse() -> RecommendationResponse {
         return RecommendationResponse(

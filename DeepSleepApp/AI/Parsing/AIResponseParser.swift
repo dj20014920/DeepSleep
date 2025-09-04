@@ -13,6 +13,189 @@ public final class AIResponseParser {
     public static let shared = AIResponseParser()
     private init() {}
 
+    // MARK: - Typed parse hook: Preset Recommendation
+    public func parsePresetRecommendation(_ raw: String) -> EnhancedRecommendationResponse? {
+        let capped = String(raw.prefix(50_000))
+        let defenced = stripCodeFences(capped)
+        // 1) Try whole JSON
+        if let data = defenced.data(using: .utf8), let result = try? decodePreset(from: data) {
+            return result
+        }
+        // 2) Try slice extraction
+        if let jsonSlice = extractFirstJSONObjectString(defenced), let data = jsonSlice.data(using: .utf8), let result = try? decodePreset(from: data) {
+            return result
+        }
+        // 3) Try heuristic legacy formats for tolerance
+        if let legacy = parseNewFormatPreset(from: raw) { return legacy }
+        if let legacy12 = parseLegacyFormatPreset(from: raw) { return legacy12 }
+        // 4) Fallback basic (emotion/time-based)
+        return parseBasicFormatPreset()
+    }
+
+    private func decodePreset(from jsonData: Data) throws -> EnhancedRecommendationResponse? {
+        let decoder = JSONDecoder()
+        let dto = try decoder.decode(AIPresetRecommendationDTO.self, from: jsonData)
+        var resolvedName = dto.presetName ?? "대나무숲 추천"
+        var volumes: [Float] = dto.volumes ?? []
+        var outVersions: [Int] = SoundPresetCatalog.defaultVersions
+        // presetKey 우선
+        if volumes.isEmpty, let key = dto.presetKey, let preset = SoundPresetCatalog.scientificPresets[key] {
+            volumes = preset
+            if resolvedName.isEmpty || resolvedName == "AI 추천" { resolvedName = key }
+        }
+        // items 기반 매핑
+        if volumes.isEmpty, let items = dto.items, !items.isEmpty {
+            let count = SoundPresetCatalog.categoryCount
+            var arr = Array(repeating: Float(0), count: count)
+            var vers = SoundPresetCatalog.defaultVersions
+            for it in items {
+                guard let sName = it.soundName else { continue }
+                let vol = min(max(it.volume ?? 0, 0), 100)
+                if let (catIdx, verIdx) = mapItemToCategoryAndVersion(soundName: sName, versionName: it.versionName) {
+                    arr[catIdx] = vol
+                    vers[catIdx] = verIdx
+                } else if let idx = SoundPresetCatalog.findCategoryIndex(by: sName) {
+                    arr[idx] = vol
+                }
+            }
+            volumes = arr
+            outVersions = vers
+        }
+        guard !volumes.isEmpty else { return nil }
+        let confidenceValue = dto.confidence ?? 0.8
+        guard confidenceValue >= 0.0 && confidenceValue <= 1.0 else { return nil }
+        // normalize length
+        let targetCount = SoundPresetCatalog.categoryCount
+        if volumes.count != targetCount {
+            if volumes.count > targetCount { volumes = Array(volumes.prefix(targetCount)) }
+            else if volumes.count > 0 { volumes.append(contentsOf: Array(repeating: 0, count: targetCount - volumes.count)) }
+            else { return nil }
+        }
+        volumes = volumes.map { min(max($0, 0), 100) }
+        let filtered = SoundPresetCatalog.applyCompatibilityFilter(to: volumes)
+        return EnhancedRecommendationResponse(
+            presetName: "🧠 " + resolvedName,
+            volumes: filtered,
+            versions: outVersions,
+            reason: dto.reason ?? "AI 추천 프리셋"
+        )
+    }
+
+    private func mapItemToCategoryAndVersion(soundName: String, versionName: String?) -> (Int, Int)? {
+        let count = SoundPresetCatalog.categoryCount
+        var targetCat: Int? = SoundPresetCatalog.findCategoryIndex(by: soundName)
+        if targetCat == nil {
+            for i in 0..<count {
+                if let c = SoundManager.shared.getSoundCatalog(at: i) {
+                    if c.baseName.contains(soundName) || soundName.contains(c.baseName) { targetCat = i; break }
+                }
+            }
+        }
+        guard let cat = targetCat, let catalog = SoundManager.shared.getSoundCatalog(at: cat) else { return nil }
+        if let vName = versionName, !vName.isEmpty {
+            if let idx = catalog.versions.firstIndex(where: { $0.displayName.contains(vName) || vName.contains($0.displayName) }) {
+                return (cat, idx)
+            }
+        }
+        let def = catalog.versions.firstIndex { $0.isDefault } ?? 0
+        return (cat, def)
+    }
+
+    private func parseNewFormatPreset(from response: String) -> EnhancedRecommendationResponse? {
+        let pattern = #"(\w+):(\d+)"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let matches = regex?.matches(in: response, options: [], range: NSRange(location: 0, length: response.count)) ?? []
+        if matches.count < 5 { return nil }
+        var volumes: [Float] = Array(repeating: 0, count: SoundPresetCatalog.categoryCount)
+        var versions: [Int] = SoundPresetCatalog.defaultVersions
+        var presetName = "🎵 AI 추천"
+        for match in matches where match.numberOfRanges == 3 {
+            let categoryRange = Range(match.range(at: 1), in: response)!
+            let volumeRange = Range(match.range(at: 2), in: response)!
+            let category = String(response[categoryRange])
+            let volumeStr = String(response[volumeRange])
+            guard let volume = Float(volumeStr) else { continue }
+            if let index = SoundPresetCatalog.findCategoryIndex(by: category) {
+                volumes[index] = min(100, max(0, volume))
+            }
+        }
+        if let nameMatch = response.range(of: #"\"([^\"]+)\""#, options: .regularExpression) {
+            presetName = String(response[nameMatch]).replacingOccurrences(of: "\"", with: "")
+        }
+        versions = generateOptimalVersions(volumes: volumes)
+        let filtered = SoundPresetCatalog.applyCompatibilityFilter(to: volumes)
+        return EnhancedRecommendationResponse(
+            presetName: safePresetName(presetName),
+            volumes: filtered,
+            versions: versions,
+            reason: "새로운 11개 형식 추천"
+        )
+    }
+
+    private func parseLegacyFormatPreset(from response: String) -> EnhancedRecommendationResponse? {
+        let legacyCategories = ["Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain", "Forest", "Wind", "Night", "Lullaby", "Fan", "WhiteNoise"]
+        let pattern = #"(\w+):(\d+)"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let matches = regex?.matches(in: response, options: [], range: NSRange(location: 0, length: response.count)) ?? []
+        if matches.count < 5 { return nil }
+        var legacyVolumes: [Float] = Array(repeating: 0, count: 12)
+        let presetName = "🎵 AI 추천 (레거시)"
+        for match in matches where match.numberOfRanges == 3 {
+            let categoryRange = Range(match.range(at: 1), in: response)!
+            let volumeRange = Range(match.range(at: 2), in: response)!
+            let category = String(response[categoryRange])
+            let volumeStr = String(response[volumeRange])
+            guard let volume = Float(volumeStr) else { continue }
+            if let index = legacyCategories.firstIndex(of: category) {
+                legacyVolumes[index] = min(100, max(0, volume))
+            }
+        }
+        var converted: [Float] = Array(repeating: 0, count: 13)
+        for i in 0..<min(12, converted.count) { converted[i] = legacyVolumes[i] }
+        let filtered = SoundPresetCatalog.applyCompatibilityFilter(to: converted)
+        return EnhancedRecommendationResponse(
+            presetName: safePresetName(presetName),
+            volumes: filtered,
+            versions: SoundPresetCatalog.defaultVersions,
+            reason: "레거시 12개 형식 추천"
+        )
+    }
+
+    private func parseBasicFormatPreset() -> EnhancedRecommendationResponse? {
+        let emotion = "평온"
+        let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
+        return EnhancedRecommendationResponse(
+            presetName: safePresetName("🌊 마음 달래는 소리"),
+            volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
+            versions: generateOptimalVersions(volumes: volumes),
+            reason: "기본 감정별 추천"
+        )
+    }
+
+    private func generateOptimalVersions(volumes: [Float]) -> [Int] {
+        var versions = SoundPresetCatalog.defaultVersions
+        for (index, volume) in volumes.enumerated() {
+            if SoundPresetCatalog.hasMultipleVersions(at: index) {
+                switch index {
+                case 1: versions[index] = volume > 60 ? 1 : 0
+                case 2: versions[index] = volume > 70 ? 1 : 0
+                case 4: versions[index] = volume > 50 ? 1 : 0
+                case 9: versions[index] = volume > 65 ? 1 : 0
+                case 10: versions[index] = volume > 60 ? 1 : 0
+                case 11: versions[index] = volume > 55 ? 1 : 0
+                case 12: versions[index] = volume > 50 ? 1 : 0
+                default: break
+                }
+            }
+        }
+        return versions
+    }
+
+    private func safePresetName(_ name: String) -> String {
+        let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "🎵 AI 추천" : cleaned
+    }
+
     public func parse(_ raw: String, from provider: AIProvider) -> String {
         // 50k 문자 상한 (보안/성능)
         let capped = String(raw.prefix(50_000))

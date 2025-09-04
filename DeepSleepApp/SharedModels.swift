@@ -104,7 +104,7 @@ public struct UserInfo {
 public enum AIModelType: String, CaseIterable, Sendable {
     case claude35 = "claude-3.5-sonnet"
     case gpt4 = "gpt-4"
-    case gemini = "gemini-pro"
+    case gemini = "gemini"
     case naver = "hyperclova-x"
     case onDevice = "on-device"
     case freeModel = "free-model"  // 무료 모델 (베타)
@@ -184,31 +184,33 @@ public struct ModelContext {
     }
 }
 
-// MARK: - LLMServiceType Mapping Extension
+// MARK: - LLMServiceType Forward Declaration + Mapping Extension
+
 
 /// LLMServiceType과 AIModelType 간의 매핑
 public extension AIModelType {
-    /// LLMServiceType으로 변환
-    var toLLMServiceType: LLMServiceType {
+    /// LLMServiceType으로 변환 (호환성용)
+    var toLLMServiceType: String {
         switch self {
-        case .claude35: return .claude
-        case .gpt4: return .openAI
-        case .gemini: return .gemini
-        case .naver: return .naver
-        case .onDevice: return .onDevice
-        case .freeModel: return .openAI  // 무료 모델은 OpenRouter를 통해 OpenAI 호환 API 사용
-        case .testModel: return .openAI  // 테스트 모델도 OpenRouter 사용
+        case .claude35: return "claude"
+        case .gpt4: return "openAI"
+        case .gemini: return "gemini"
+        case .naver: return "naver"
+        case .onDevice: return "onDevice"
+        case .freeModel: return "openAI"  // 무료 모델은 OpenRouter를 통해 OpenAI 호환 API 사용
+        case .testModel: return "openAI"  // 테스트 모델도 OpenRouter 사용
         }
     }
     
-    /// LLMServiceType에서 생성
-    init(from llmType: LLMServiceType) {
-        switch llmType {
-        case .claude: self = .claude35
-        case .openAI: self = .gpt4
-        case .gemini: self = .gemini
-        case .naver: self = .naver
-        case .onDevice: self = .onDevice
+    /// 레거시 LLMServiceType 문자열에서 생성 (호환성용)
+    init?(fromLegacyString legacy: String) {
+        switch legacy.lowercased() {
+        case "claude": self = .claude35
+        case "openai": self = .gpt4
+        case "gemini": self = .gemini
+        case "naver": self = .naver
+        case "on_device", "ondevice": self = .onDevice
+        default: return nil
         }
     }
 }

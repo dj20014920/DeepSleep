@@ -13,7 +13,7 @@ public protocol UnifiedAIService {
     ///   - context: 추가 컨텍스트 정보
     ///   - tokenConfig: 토큰 설정 (옵션)
     /// - Returns: AI 응답
-    func sendMessage(
+func sendMessage(
         content: String,
         model: AIModel,
         mode: AIMode,
@@ -21,6 +21,16 @@ public protocol UnifiedAIService {
         tokenConfig: TokenConfiguration?,
         assembledPrompt: String?
 ) async throws -> AIResponse
+    
+    /// 지정 모델을 강제로 사용해 전송(프록시 경유 포함)
+    func sendMessageForceProvider(
+        content: String,
+        model: AIModel,
+        mode: AIMode,
+        context: AIContext?,
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String?
+    ) async throws -> AIResponse
     
     /// 스트리밍 응답을 위한 메시지 전송
     func sendMessageStream(

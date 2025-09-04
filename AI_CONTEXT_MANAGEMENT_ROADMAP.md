@@ -1,3 +1,37 @@
+# 2025-09-03 동기화: 프리셋 추천 JSON-Only 강제 · 중앙 파서 DRY · Gemini→OpenAI 폴백 · 서버 배포 현황
+
+요약(현재 상태)
+- 클라이언트: 프리셋 추천 파이프라인이 DRY하게 중앙 파서(AIResponseParser.parsePresetRecommendation)를 사용. ChatViewController는 해당 훅으로 파싱하고, Gemini 우선 → 실패 시 OpenAI(Structured Outputs/JSON 스키마) 폴백을 수행. 토큰 절약을 위해 시간대 기반 Top‑K(최대 5개) 사운드 캡슐만 프롬프트에 포함. 추천 사용량 카운트는 파싱 성공 시에만 증가.
+- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver.
+- 배포: dev 환경 배포 완료. URL: https://emozleep.vinny4920-081.workers.dev (Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3). dev 기본 CANARY_PERCENT=100, production 오버라이드는 wrangler.toml에서 5%로 설정됨(명시적 배포 필요).
+
+검증 체크리스트(9/03)
+- [ ] 앱에서 preset_recommendation 요청 → 응답 헤더 X-Strict-JSON가 존재하고 JSON만 반환되는지 확인
+- [ ] 추천 카드(UI) 노출 및 “바로 적용하기” 정상 적용(실패 시 롤백 UX)
+- [ ] Gemini 응답 파싱 실패 시 OpenAI 폴백으로 성공하는지 확인
+- [ ] 사용량 카운트가 파싱 성공시에만 증가하는지 확인
+- [ ] /v1/metrics에서 canary hit/miss, idempotency hit/stored, provider cache 지표 집계 확인
+
+앱 코드 정리/컴파일 안정화(9/03)
+- ChatViewController 내 레거시 파싱/임시 타입(AIResponseData 등) 제거, 중앙 파서(AIResponseParser.shared)만 사용하도록 정리했습니다.
+- 확장 내부 저장 프로퍼티, 초기화 전 self 참조, 중괄호 불균형 등 컴파일 오류를 제거했습니다.
+- SessionManager: presetRecommendation 모드에서는 일반 텍스트 메시지 저장을 스킵하여 추천 카드와 중복 저장을 방지합니다.
+- 결과: iPhone 16 Pro 시뮬레이터 기준 xcodebuild BUILD SUCCEEDED.
+
+운영/설정 요약(서버)
+- vars(dev): CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1, DEFAULT_*_MODEL, PROVIDER_TIMEOUT_MS=6000, SLA_MS=12000
+- vars(prod): CANARY_PERCENT=5(시작), STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
+- secrets: GEMINI_API_KEY(필수), OPENAI_API_KEY/CLAUDE_API_KEY(선택), OPENROUTER_API_KEY(선택), NAVER_API_KEY/NAVER_API_SECRET(선택), EDGE_SIGNING_SECRET(필수)
+- 응답 헤더: X-Strict-JSON=(schema|json;mime=application/json), X-Provider, X-Fallback-Chain, X-Cache-*, X-Policy-*
+
+추가 권장(문서/코드 정합)
+- 파서 단위 테스트: 코드펜스/선행·후행 텍스트/BOM/이모지/숫자 문자열/알 수 없는 필드/배열 래핑 등 엣지 케이스 케이스 추가
+- 관측성: parse_success/parse_error_kind/fallback_provider/parse_latency_ms/usage_counted 등 앱 측 로그 필드 표준화
+- 캐시 키: personaCoreSignature + 시간대 버킷 + Top‑K 캡슐 해시를 포함해 컨텍스트 변경 시 적절히 무효화
+- 점진적 롤아웃: production의 CANARY_PERCENT를 5→10→25→50→100 순으로 안정화 지표 기반 상향
+
+---
+
 # 2025-09-01 업데이트: 컨텍스트/캐싱/프록시 최신 상태 요약
 
 - iOS 프록시 인증 안정화
@@ -659,7 +693,22 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 서버 측 중복응답 TTL 조정(120s→300s)
 - /v1/metrics에 idempotency.{hits,inflights} 카운터 추가
 
-# 2025-09-03 동기화: 시스템 프롬프트 경량화 · 지시 강화 · 토큰 절약 + 프록시 generation 파라미터 전달
+# 2025-09-04 동기화: Vertex OAuth(서비스 계정) + 컨텍스트 캐싱 확정
+
+변경 요약(최종)
+- 서버는 Vertex REST(aiplatform.googleapis.com) + OAuth(서비스 계정) 경로를 기본 사용.
+- 시크릿/변수(워커): `GCP_SA_EMAIL`, `GCP_SA_PRIVATE_KEY`, `GCP_PROJECT_ID`, `GCP_LOCATION`.
+- GL API(Key) 경로는 폴백(시크릿 미설정 시)만 허용.
+- 컨텍스트 캐싱: `cachedContents` TTL=3600s. 프리픽스 토큰이 2048 이상일 때만 write(실효 중심).
+- 요청 축소: 캐시에 올린 프리픽스는 재전송 금지. 매 턴 "새 메시지 + cachedContent"만 전송.
+- 캐시 키: 클라이언트 미전송. 서버가 system+model 해시로 관리(SSOT·DRY).
+- 모델 우선순위(일반 대화): 사용자선호 → free(openrouter) → gemini → openai → naver → claude.
+- 프리셋 추천(Strict JSON): 기본 openrouter 제외(gemini → openai → claude → naver). 필요 시 토글 가능.
+
+운영 체크리스트
+- 서비스 계정 준비 및 워커 시크릿/변수 설정
+  - `GCP_SA_EMAIL` / `GCP_SA_PRIVATE_KEY` / `GCP_PROJECT_ID` / `GCP_LOCATION`
+- 배포 후 헤더 관찰: `X-Cache-Action=write|read`, `X-Cache-Tokens=writeIn/readIn`.
 
 요약
 - 시스템 프롬프트 경량화(클라이언트):

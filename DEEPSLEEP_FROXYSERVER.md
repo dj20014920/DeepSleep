@@ -1,8 +1,22 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-03
+최종 업데이트: 2025-09-04
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
+
+## 2025-09-04 동기화: GL API(Key) 고정 + 캐싱 정책 정리
+- Prod vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
+- 인증: Generative Language API + API Key(x-goog-api-key). 시크릿 이름은 `GEMINI_VERTEX_API_KEY`로 일원화(서버 전용).
+- 주의: Vertex REST(aiplatform)는 OAuth만 허용 → 워커에서는 사용하지 않음. GL API를 Enable하고, API Key 제한에 "Generative Language API"를 반드시 포함해야 403(API_KEY_SERVICE_BLOCKED)을 피할 수 있음.
+- 캐싱: cachedContents TTL=3600s, 프리픽스 토큰 ≥ 2048일 때만 write. generateContent에는 cachedContent만 전달(프리픽스 재전송 금지).
+- 폴백: preset_recommendation(Strict JSON)은 gemini→openai→claude, 일반 대화도 gemini 우선.
+- Dev 배포 URL: https://emozleep.vinny4920-081.workers.dev
+- Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3
+- Dev vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
+- Dev/Prod vars는 wrangler.toml에 정의. 프로덕션은 CANARY_PERCENT=100으로 캐싱 전면 적용.
+- 엄격 JSON(Strict JSON) 집행: mode === 'preset_recommendation' && STRICT_JSON_ONLY=1이면 responseMimeType을 application/json으로 강제. 클라이언트가 responseSchema를 보내면 OpenAI/Anthropic에 JSON Schema 기반 구조화 출력 강제. 응답 헤더 X-Strict-JSON=(schema|json;mime=application/json) 노출.
+- 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver (openrouter는 스킵)
+- 다음 액션: prod 배포(wrangler deploy --env production) + 캐나리 5%로 시작 후 지표 안정 시 점진 상향(10→25→50→100)
 
 
 # 2025-09-03 업데이트: 캐나리 배포와 멱등성(idempotency)
@@ -41,8 +55,8 @@
 - 멱등성: inflight TTL(30s) 내 반복 요청이 계속 inflight이면 클라이언트 중복 전송을 의심 → 앱 로그에서 isSending/inflightKeys 경고 확인.
 
 프로덕션 상태(요약)
-- 프록시: 캐시 적합성 자동 판단, 타임아웃/폴백, X-Cache-* 헤더 안정 동작.
-- 신규: 멱등성(서버/클라이언트) 활성, 캐나리 게이팅 도입(CANARY_PERCENT로 제어).
+- 프록시: Vertex OAuth(aiplatform) 경로 기본, GL API(Key)는 폴백. 캐시 적합성 자동 판단, 타임아웃/폴백, X-Cache-* 헤더 안정 동작.
+- 신규: 멱등성(서버/클라이언트) 활성, 캐나리=100%로 캐시 전면 적용.
 
 ---
 
@@ -51,7 +65,7 @@
 현재 상태(프로덕션)
 - 워커: emozleep (Cloudflare Workers)
 - URL: https://emozleep-production.vinny4920-081.workers.dev
-- Version ID: e042551e-3963-4875-9f7c-5dd4d43bd966
+- Version ID: c6b8424e-13e5-4c42-a52f-de033faf3bf3
 
 핵심 기능(변경점 포함)
 - /v1/chat: providerCaching 스키마 수용 및 공급자별 캐시 적용
@@ -587,3 +601,83 @@ switch(provider){
 - 중단 기준: 5xx/타임아웃/폴백 급증, idempotency.inflight 급증 시 원인 파악 후 유지/롤백
 - 운영 팁: 캐나리 hit 구간에서만 X-Cache-Action(read/write) 비율이 상승하는지 확인해 비용 절감 기대치 검증
 
+## 2025-09-03 핫픽스: 멱등 키 형식 통일 · generation 파라미터 매핑 · 캐나리 초기값
+
+- 멱등성 키 형식(클라이언트→서버)
+  - 형식: 64자 소문자 hex(서버 정규식 호환). 내부 구성: SHA256(mode + personaCore + SHA256(content))의 hex.
+  - 효과: X-Idempotency-Key 헤더가 항상 서버에서 유효 처리되어 hit/inflight/stored 동작이 활성화.
+
+- generation 파라미터 매핑(서버)
+  - OpenAI: topP→top_p, frequencyPenalty→frequency_penalty, presencePenalty→presence_penalty, responseFormat=json→response_format: {type:"json_object"}.
+  - Gemini: topP 지원, responseFormat=json→responseMimeType: application/json.
+  - Anthropic: topP 지원, responseFormat=json→response_format: {type:"json"}.
+  - 주: frequency/presence는 Gemini/Anthropic 공용 매핑이 없어 무시.
+
+- 캐나리 초기값
+  - CANARY_PERCENT=5 로 설정 후 24–48시간 관찰 → 10% → 50% → 100% 순.
+
+검증 체크리스트(핵심)
+- /v1/chat 2회 연속 같은 입력: 1회차 X-Idempotency-Status=stored, 2회차=hit.
+- /v1/chat 바디의 topP/frequency/presence/responseFormat 전달 시, 공급자별 매핑이 반영됨(응답/로그 확인).
+- /v1/metrics: canary.percent=5, hit/(hit+miss) 비율 유효.
+
+# 2025-09-03 업데이트(2): 엄격 JSON(Structured Output) 강제 및 폴백 재정의
+
+배경
+- iOS 특정 모드에서 “정확히 하나의 JSON 객체”를 강제. 프리 경로(OpenRouter)에서는 형식이 깨질 수 있음.
+- 기존 프록시는 responseFormat=json만 일부 반영했고, responseSchema/responseMimeType 전달은 미지원.
+
+변경 사항(서버)
+- /v1/chat 요청 본문 확장 필드 수용
+  - responseFormat: "json" | "text" | "markdown"
+  - responseMimeType: 예) "application/json"
+  - responseSchema: JSON Schema 객체(크기 제한 20KB)
+- 공급자별 매핑 강화
+  - OpenAI: response_format = { type: "json_schema", json_schema: { name: "emozleep_schema", schema, strict: true } } 또는 { type: "json_object" }
+  - Anthropic: response_format = { type: "json_schema", json_schema: { name: "emozleep_schema", schema, strict: true } } 또는 { type: "json" }
+  - Gemini: generationConfig.responseMimeType/responseSchema 전달(스키마/미디어타입 모두 지원)
+  - Naver/OpenRouter: 구조화 출력 파라미터 없음(프롬프트 의존)
+- 폴백 순서 재정의(엄격 JSON 시)
+  - 기본: openrouter → gemini → openai → naver → claude
+  - 엄격 JSON(strictJson) 시: gemini → openai → claude → naver → openrouter
+  - 환경 변수 STRICT_JSON_SKIP_OPENROUTER=1(기본): 엄격 JSON 모드에서 openrouter 제외
+- 헤더 추가
+  - X-Strict-JSON: "schema" | "json;mime=<type>" | "json"
+- CORS 노출 헤더에 X-Strict-JSON 추가
+
+변경 사항(구성)
+- wrangler.toml
+  - [vars]에 STRICT_JSON_SKIP_OPENROUTER 추가(기본 "1")
+  - [env.production.vars]에 CANARY_PERCENT="5" 및 STRICT_JSON_SKIP_OPENROUTER="1" 설정
+
+요청 계약(예시)
+```json
+{
+  "model": "gemini",
+  "mode": "presetRecommendation",
+  "messages": [
+    {"role":"system","content":"You are a structured JSON generator. Output only a single JSON object."},
+    {"role":"user","content":"추천 5개"}
+  ],
+  "responseFormat": "json",
+  "responseMimeType": "application/json",
+  "responseSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "items": {"type":"array","items":{"type":"string"}}
+    },
+    "required": ["items"]
+  }
+}
+```
+
+검증 체크리스트
+- 엄격 JSON 요청 시 응답 헤더에 X-Strict-JSON 존재
+- OpenAI/Anthropic 경로에서 json_schema(strict:true) 전달 확인
+- Gemini 경로에서 generationConfig.responseMimeType/responseSchema 확인
+- 폴백 체인: X-Fallback-Chain에 gemini>openai(>claude) 우선 적용 확인
+
+주의/제한
+- responseSchema가 20KB를 초과하면 무시됩니다(서버가 방어적으로 드롭)
+- OpenRouter/Naver는 스키마 강제가 없어 프롬프트만으로는 100% 보장 불가 → STRICT_JSON_SKIP_OPENROUTER=1 권장

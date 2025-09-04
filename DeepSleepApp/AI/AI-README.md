@@ -93,6 +93,11 @@ let response = try await aiService.sendMessage(
 // }
 ```
 
+🆕 2025-09-03 업데이트: 프리셋 추천 파서/서버/저장 정책
+- 중앙 파서: ChatViewController 등 화면 레이어의 임시 파싱 코드는 제거하고, AIResponseParser.parsePresetRecommendation만 사용합니다(DRY).
+- 서버 엄격 JSON: Cloudflare Worker에 STRICT_JSON_ONLY=1 설정. preset_recommendation 모드는 application/json만 허용하며, 파싱 실패 시 OpenAI(Structured Outputs/JSON Schema)로 폴백합니다.
+- 저장 정책: SessionManager는 mode == .presetRecommendation일 때 사용자/어시스턴트의 일반 텍스트 메시지 저장을 생략합니다(추천 카드는 UI 전용). 추천 사용량 카운트는 파싱 성공 시에만 증가합니다.
+
 ## 📊 시스템 플로우
 
 ### Proxy-first 아키텍처 (USE_PROXY=YES)
@@ -101,6 +106,16 @@ let response = try await aiService.sendMessage(
   - X-Policy-Remaining, X-Policy-ResetAt, X-Policy-Tier, X-Policy-Claude-Remaining, X-Provider
 - iOS 클라이언트는 위 정책 헤더를 파싱하여 UI/로깅에 반영하고, 로컬 중복 제한 로직은 사용하지 않습니다(SSOT)
 - 🆕 iOS는 generation 파라미터를 함께 전송합니다(선택): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat. 서버가 수용하면 공급자별 파라미터로 매핑, 미수용이면 무해하게 무시됩니다.
+
+### 서버측 컨텍스트 캐싱(2025-09-04)
+- 기본 경로: Vertex REST(aiplatform) + OAuth(서비스 계정). 폴백: GL API + API Key.
+- 시크릿/변수(서버): GCP_SA_EMAIL / GCP_SA_PRIVATE_KEY / GCP_PROJECT_ID / GCP_LOCATION.
+- 정책: 프리픽스 토큰이 2048 이상일 때만 cachedContents.write, TTL=3600s. 요청에는 cachedContent만 포함(프리픽스 재전송 금지).
+- 캐시 키: 클라이언트 미전송. 서버가 system+model 해시로 관리.
+
+### 모델 우선순위(프록시·서버 일치)
+- 사용자 설정(대나무숲 친구) → free(openrouter) → gemini → openai → naver → claude
+- 프리셋 추천(Strict JSON): 기본 openrouter 제외(gemini → openai → claude → naver)
 
 ```
 사용자 입력

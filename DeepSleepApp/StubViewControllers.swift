@@ -577,7 +577,7 @@ class FeedbackViewController: UIViewController, MFMailComposeViewControllerDeleg
     }
     
     @objc private func composeEmail() {
-        let recipient = "emozleep@gmail.com"
+        let recipient = "studio@emozleep.space"
         if MFMailComposeViewController.canSendMail() {
             let composer = MFMailComposeViewController()
             composer.mailComposeDelegate = self

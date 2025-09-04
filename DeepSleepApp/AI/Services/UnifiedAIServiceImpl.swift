@@ -105,8 +105,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             // 2) 로컬 직접 서비스도 초기화해 '직접 폴백' 경로 유지(프록시 실패 시에만 사용)
             if let claudeKey = getAPIKey(for: .claude) { claudeService = ClaudeAPIService(apiKey: claudeKey) }
             if let openAIKey = getAPIKey(for: .openAI) { openAIService = OpenAIAPIService(apiKey: openAIKey) }
-            if let geminiKey = getAPIKey(for: .gemini) { geminiService = GeminiAPIService(apiKey: geminiKey) }
+            // Vertex-Gemini는 항상 프록시 경유. 로컬 직접 Gemini 폴백은 비활성화한다.
+            geminiService = nil
             if let naverKey = getAPIKey(for: .naver) { naverService = NaverAPIService(apiKey: naverKey) }
+            print("ℹ️ [UnifiedAIService] DEBUG 프록시 모드: direct Gemini fallback 비활성화 (Vertex via proxy)")
             // 주의: 실제 호출은 항상 프록시 우선이며, 아래 sendMessageInternal에서 프록시 실패 시에만 사용됩니다.
             return
             #else
@@ -822,6 +824,26 @@ if EnvironmentConfig.shared.useProxy {
         }
     }
     
+// MARK: - 강제 지정 모델 전송(퍼블릭)
+    public func sendMessageForceProvider(
+        content: String,
+        model: AIModel,
+        mode: AIMode,
+        context: AIContext?,
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String? = nil
+    ) async throws -> AIResponse {
+        // 지정 모델을 그대로 이용하여 프록시에 전달(또는 direct)하기 위해 내부 전용 경로 재사용
+        return try await sendToSpecificModel(
+            content: content,
+            model: model,
+            mode: mode,
+            context: context,
+            tokenConfig: optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: model, mode: mode),
+            assembledPrompt: assembledPrompt
+        )
+    }
+
     // MARK: - 🌊 스트리밍 응답 (미구현)
     
     public func sendMessageStream(
@@ -896,21 +918,10 @@ if EnvironmentConfig.shared.useProxy {
     
     /// 모드별 최적 AI 모델 추천
 private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 프록시 모드에서는 로컬 가용성(availableModels)을 고려하지 않는다.
-        // 서버가 실제 라우팅/폴백을 담당하므로, 정책상 선호 모델을 그대로 전달한다.
+        // 프록시 모드: 사용자 설정 모델을 최우선으로 그대로 전달.
+        // 실패 시 서버가 폴백 체인(사용자선호→free→gemini→openai→naver→claude)을 적용.
         if EnvironmentConfig.shared.useProxy {
-            switch mode {
-            case .emotionDiaryAnalysis:
-                return .gemini // 정책 고정
-            case .presetRecommendation, .monthlyStatistics:
-                return .gemini
-            case .taskAdvice, .emotionAnalysis:
-                return .openAI
-            case .fortuneTelling:
-                return .naver
-            default:
-                return userPreferred // 일반 대화 등은 사용자 선호 존중
-            }
+            return userPreferred
         }
         
         // 프록시 미사용 시: 로컬 가용성 기반으로 최적 모델 선택
@@ -961,10 +972,51 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
             return "\(basePromptText)\n\n\(generalGuidelines)"
         }
-        
-        // 모델별 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
+    /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
         let modelSpecific = getModelSpecificOptimization(for: model)
         return basePrompt + "\n\n" + modelSpecific
+    }
+
+    // MARK: - Strict JSON Schema Builders
+    private static func buildPresetRecommendationSchema() -> [String: Any] {
+        // JSON Schema enforcing either volumes[0..100] (1..13 items) or items[{soundName, versionName?, volume(0..100)}]
+        // Keep lenient but precise enough to guide providers; server maps to provider-specific strict JSON.
+        return [
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": [
+                "presetName": ["type": "string", "minLength": 1],
+                "reason": ["type": "string", "minLength": 1, "maxLength": 200],
+                "confidence": ["type": "number", "minimum": 0, "maximum": 1],
+                "volumes": [
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 13,
+                    "items": ["type": "number", "minimum": 0, "maximum": 100]
+                ],
+                "items": [
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 13,
+                    "items": [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": [
+                            "soundName": ["type": "string", "minLength": 1],
+                            "versionName": ["type": "string"],
+                            "volume": ["type": "number", "minimum": 0, "maximum": 100]
+                        ],
+                        "required": ["soundName", "volume"]
+                    ]
+                ]
+            ],
+            "required": ["reason"],
+            "anyOf": [
+                ["required": ["volumes"]],
+                ["required": ["items"]]
+            ]
+        ]
     }
     
     /// 모드별 기본 시스템 프롬프트
@@ -990,7 +1042,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             - 바로 시작할 1가지 첫 행동 제시
             """
             
-        case .presetRecommendation:
+case .presetRecommendation:
             // 사용 가능한 사운드/버전 목록 요약(간결)
             let count = SoundPresetCatalog.categoryCount
             var lines: [String] = []
@@ -1001,6 +1053,20 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
                 }
             }
             let catalogSummary = lines.joined(separator: "\n")
+            // 시간대 기반 Top-5 후보(토큰 최소화)
+            let hour = Calendar.current.component(.hour, from: Date())
+            let timeLabel: String = {
+                switch hour { case 5..<9: return "아침"; case 9..<12: return "오전"; case 12..<18: return "오후"; case 18..<22: return "저녁"; default: return "밤" }
+            }()
+            var candidates: [String] = []
+            for (name, details) in SoundPresetCatalog.supplementalSoundDetails {
+                if let times = details["timeOfDay"] as? [String], times.contains(where: { $0 == timeLabel || $0 == "모든 시간" }) {
+                    let opt = (details["optimalIntensity"] as? Int) ?? 30
+                    candidates.append("\(name)(opt=\(opt))")
+                }
+                if candidates.count >= 5 { break }
+            }
+            let candidateLine = candidates.isEmpty ? "" : "\n[시간대 후보 Top-5] " + candidates.joined(separator: ", ")
             return """
             DeepSleep 사운드 큐레이터.
             - 오직 JSON 객체 1개만 출력(추가 텍스트/코드펜스/주석 금지)
@@ -1008,7 +1074,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             - soundName: 카탈로그 이름, versionName: 해당 사운드의 버전
             - reason: 120자 이내 한국어
             [앱 사운드 카탈로그 요약]
-            \(catalogSummary)
+            \(catalogSummary)\(candidateLine)
             """
             
         case .monthlyStatistics:
@@ -1363,23 +1429,32 @@ extension UnifiedAIServiceImpl {
         if let v = tokenConfig.frequencyPenalty { body["frequencyPenalty"] = v }
         if let v = tokenConfig.presencePenalty { body["presencePenalty"] = v }
         if let rf = tokenConfig.responseFormat { body["responseFormat"] = rf.rawValue }
-        // 서버 공급자 캐싱 활성화 + 안정적 캐시 키(PersonaCoreSignature)
-        let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
+
+        // Strict JSON for preset recommendation: enforce MIME + schema to maximize parse success and minimize retries
+        if mode == .presetRecommendation {
+            body["responseMimeType"] = "application/json"
+            body["responseSchema"] = Self.buildPresetRecommendationSchema()
+        }
+
+        // 서버 공급자 캐싱 활성화
+        // 주의: 캐시 키를 클라이언트에서 강제 지정하지 않는다.
+        //       서버가 system 텍스트와 모델을 해시하여 모드별/프롬프트별로 안전하게 분리된 캐시를 생성한다.
         body["providerCaching"] = [
             "enable": true,
             "strategy": "auto",
-            "ttlSeconds": providerCacheTTLSeconds(for: mode),
-            "cacheKey": personaCoreKey
+            "ttlSeconds": providerCacheTTLSeconds(for: mode)
         ]
-        // New: providerCaching config log
-        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) cacheKey=\(String(personaCoreKey.prefix(16)))…")
+        // New: providerCaching config log (no explicit cacheKey)
+        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode))")
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         
         // Compose client idempotency key (same scheme as sendMessage)
         let contentConcat = messages.last?.content ?? ""
         let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap { String(format: "%02x", $0) }.joined()
-        let idemKey = String((mode.rawValue + ":" + personaCoreKey + ":" + contentHash).prefix(64))
+        // Idempotency key: mode + persona signature + content hash (no PII)
+        let personaKeyForIdem = UserRulesManager.shared.personaCoreSignature()
+        let idemKey = String((mode.rawValue + ":" + personaKeyForIdem + ":" + contentHash).prefix(64))
         
         // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
         func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {

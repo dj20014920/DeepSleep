@@ -11,25 +11,6 @@ enum JSONParsingError: Error {
     case invalidVolumeCount
 }
 
-struct AIResponseData: Codable {
-    let presetName: String?
-    let description: String?
-    let volumes: [Float]?
-    let presetKey: String?
-    let reason: String? // Corrected from 'reasoning'
-    let confidence: Double?
-    let personalizedExplanation: String?
-    let adaptation: String?
-    let adaptationLevel: String?
-    let emotion: String?
-    let items: [AIItem]? // 외부 모델 전용: 개별 사운드 조합
-}
-
-struct AIItem: Codable {
-    let soundName: String?
-    let versionName: String?
-    let volume: Float?
-}
 
 // MARK: - SharedCore 타입들 사용 (중복 제거 완료)
 // 모든 공통 타입들은 SharedCore.swift에서 사용
@@ -2134,101 +2115,11 @@ func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
         }
     }
 
-    private func createPreset(from aiResponse: AIResponseData) -> SoundPreset? {
-        guard let volumes = aiResponse.volumes else {
-            return nil
-        }
-        
-        let presetName = aiResponse.presetName ?? "대나무숲 추천"
-        let description = aiResponse.reason ?? "대나무숲 친구가 사용자의 현재 상태에 맞춰 추천하는 사운드 프리셋입니다."
 
-        // SoundPreset을 생성합니다.
-        return SoundPreset(
-            name: presetName,
-            volumes: volumes,
-            emotion: nil,
-            isAIGenerated: true,
-            description: description
-        )
-    }
-
-    private func showPresetOptions(for preset: SoundPreset) {
-        let message = ChatMessage(
-            text: "대나무숲 친구가 다음 프리셋을 추천했습니다: **\(preset.name)**\n*\(preset.description ?? "")*\n\n이 프리셋을 적용하시겠습니까?",
-            sender: .ai,
-            type: .presetRecommendation,
-            quickActions: [
-                QuickAction(title: "✅ 적용하기", action: "applyPreset"),
-                QuickAction(title: "🔄 다른 추천 받기", action: "requestDifferentPreset"),
-                QuickAction(title: "📝 피드백 주기", action: "giveFeedback")
-            ],
-            metadata: ChatMetadata(sessionId: currentSessionId.uuidString)
-        )
-        
-        // 생성된 프리셋을 메시지 ID와 함께 저장
-        activeRecommendationPresets[message.id] = preset
-        
-        appendChat(message)
-    }
 
     // MARK: - AI 응답 처리 및 프리셋 추천
 
-    private func parseAIResponse(jsonString: String) {
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            handleAIError(NSError(domain: "AIResponseError", code: 1, userInfo: [NSLocalizedDescriptionKey: "AI 응답을 처리하는 중 오류가 발생했습니다: Invalid data format"]))
-            return
-        }
-        
-        do {
-            let aiResponse = try JSONDecoder().decode(AIResponseData.self, from: jsonData)
-            
-            if let preset = createPreset(from: aiResponse) {
-                showPresetOptions(for: preset)
-            } else {
-                let textResponse = aiResponse.description ?? "어떻게 도와드릴까요?"
-                appendChat(ChatMessage(text: textResponse, sender: .ai, type: .bot))
-            }
-        } catch {
-            handleAIError(error)
-            // 단순 텍스트로 처리 시도
-            appendChat(ChatMessage(text: jsonString, sender: .ai, type: .bot))
-        }
-    }
 
-    private func handlePresetAction(action: String, messageId: UUID) {
-        switch action {
-        case "applyPreset":
-            UnifiedLogger.shared.debug("'적용하기' 선택됨", category: .ui)
-            if let presetToApply = activeRecommendationPresets[messageId] {
-                onPresetApply?(presetToApply)
-                appendChat(ChatMessage(text: "'\(presetToApply.name)' 프리셋을 적용했습니다.", sender: .system, type: .system))
-                activeRecommendationPresets.removeValue(forKey: messageId) // 적용 후 제거
-            } else {
-                appendChat(ChatMessage(text: "이전 추천 정보를 찾을 수 없어 프리셋을 적용할 수 없습니다.", sender: .ai, type: .error))
-            }
-            
-        case "requestDifferentPreset":
-            UnifiedLogger.shared.debug("'다른 추천 받기' 선택됨", category: .ui)
-            // 현재 대화의 마지막 사용자 메시지를 기반으로 다시 요청
-            if let lastUserMessage = messages.last(where: { $0.sender == .user })?.text {
-                processUserMessageInternal(lastUserMessage)
-            } else {
-                processUserMessageInternal("다른 사운드 추천해줘")
-            }
-            
-        case "giveFeedback":
-            UnifiedLogger.shared.debug("'피드백 주기' 선택됨", category: .feedback)
-            // 피드백 UI 표시 (구현 필요)
-            let feedbackMessage = "피드백 기능은 현재 개발 중입니다. 소중한 의견 감사합니다!"
-            appendChat(ChatMessage(text: feedbackMessage, sender: .system, type: .system))
-            
-        default:
-            break
-        }
-        
-        // 버튼 비활성화 (TODO: 구현 필요)
-        // disableQuickActions(for: messageId)
-    }
 
     private func getLastRecommendation(for sessionId: String) -> PresetRecommendationResponse? {
         // 메시지 목록을 역순으로 탐색하여 해당 세션 ID를 가진 마지막 추천을 찾습니다.
@@ -3751,13 +3642,45 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                     self?.removeLastLoadingMessage()
                 
                     if !responseContent.isEmpty {
-                        let recommendation = self?.parsePresetRecommendation(from: responseContent)
+let recommendation = self?.parsePresetRecommendation(from: responseContent)
                         if let recommendation = recommendation {
                             self?.displayAIRecommendation(recommendation)
+                            // 성공적으로 프리셋을 파싱·표시한 경우에만 사용량을 증가시킵니다.
+                            AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                        } else {
+                            UnifiedLogger.shared.warning("프리셋 파싱 실패 → OpenAI로 2차 시도")
+                            Task {
+                                do {
+                                    let sid = self?.currentSessionId.uuidString ?? UUID().uuidString
+                                    let uid = "user_\(sid)"
+                                    let aiContext = AIContext(
+                                        userId: uid,
+                                        sessionId: sid,
+                                        conversationHistory: [],
+                                        userPreferences: nil,
+                                        environmentContext: nil
+                                    )
+                                    let response2 = try await UnifiedAIServiceImpl.shared.sendMessageForceProvider(
+                                        content: "감정: \(self?.currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
+                                        model: .openAI,
+                                        mode: .presetRecommendation,
+                                        context: aiContext,
+                                        tokenConfig: nil,
+                                        assembledPrompt: nil
+                                    )
+                                    if let second = self?.parsePresetRecommendation(from: response2.content) {
+                                        self?.displayAIRecommendation(second)
+                                        AIUsageManager.shared.recordUsage(for: .presetRecommendation)
+                                    } else {
+                                        UnifiedLogger.shared.error("OpenAI 2차 시도도 파싱 실패")
+                                    }
+                                } catch {
+                                    UnifiedLogger.shared.error("OpenAI 2차 시도 오류: \(error.localizedDescription)")
+                                }
+                            }
                         }
-                    AIUsageManager.shared.recordUsage(for: .presetRecommendation)
-                } else {
-throw JSONParsingError.invalidJSON // 에러 케이스로 전달
+                    } else {
+                        throw JSONParsingError.invalidJSON // 에러 케이스로 전달
                     }
                     self?.isProcessingRecommendation = false
                 }
@@ -3780,316 +3703,35 @@ throw JSONParsingError.invalidJSON // 에러 케이스로 전달
     }
     
     // MARK: - Phase 1: JSON 기반 AI 응답 파싱 (통합된 새로운 방식)
-    func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
-        UnifiedLogger.shared.debug("프리셋 파싱 시작: \(response.prefix(100))...", category: .ai)
-
-        // 0) 먼저 혼합 출력에서 최초 JSON 객체만 정확히 추출 시도 (중앙 파서 유틸)
-        if let jsonSlice = AIResponseParser.shared.extractFirstJSONObjectString(response) {
-            do {
-                let result = try decodeAIResponse(from: jsonSlice)
-                UnifiedLogger.shared.debug("중앙 파서 JSON slice 파싱 성공", category: .ai)
-                return result
-            } catch {
-                UnifiedLogger.shared.warning("JSON slice 디코딩 실패: \(error.localizedDescription)")
-            }
+func parsePresetRecommendation(from response: String) -> EnhancedRecommendationResponse? {
+        UnifiedLogger.shared.debug("프리셋 파싱 시작: \\(response.prefix(100))...", category: .ai)
+        let result = AIResponseParser.shared.parsePresetRecommendation(response)
+        if result == nil {
+            UnifiedLogger.shared.warning("모든 파싱 실패, 기본/레거시 포함")
         }
-
-        // 1) (Deprecated) 코드펜스 제거 + 순수 JSON 여부 확인
-        if let cleanText = parseJSONIntelligently(response) {
-            // 추출된 텍스트를 프리셋 형식으로 변환 시도
-            do {
-                let result = try decodeAIResponse(from: cleanText)
-                UnifiedLogger.shared.debug("통합 파서로 JSON 형식 파싱 성공", category: .ai)
-                return result
-            } catch let error as JSONParsingError {
-                UnifiedLogger.shared.warning("통합 파서 JSON 파싱 실패: \(error.localizedDescription)")
-            } catch {
-                UnifiedLogger.shared.warning("통합 파서 예상치 못한 오류: \(error.localizedDescription)")
-            }
-        }
-        
-        // 2. 레거시 정규식 파싱 시도 (호환성 유지)
-        if let result = parseNewFormat(from: response) {
-            UnifiedLogger.shared.debug("레거시 파서: 새로운 11개 형식 파싱 성공", category: .ai)
-            return result
-        }
-        
-        if let result = parseLegacyFormat(from: response) {
-            UnifiedLogger.shared.debug("레거시 파서: 기존 12개 형식 파싱 성공", category: .ai)
-            return result
-        }
-        
-        // 3. 감정 기반 기본 프리셋 반환 (최후 수단)
-        let fallbackResult = parseBasicFormat(from: response)
-        UnifiedLogger.shared.warning("모든 파싱 실패, 기본 프리셋 사용")
-        return fallbackResult
-    }
-    
-    // MARK: - JSON 기반 AI 응답 디코딩
-    private func decodeAIResponse(from response: String) throws -> EnhancedRecommendationResponse {
-        // JSON 형식 검증
-        guard response.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") else {
-            throw JSONParsingError.invalidJSON
-        }
-        
-        // JSON 데이터로 변환
-        guard let jsonData = response.data(using: .utf8) else {
-            throw JSONParsingError.invalidJSON
-        }
-        
-        let decoder = JSONDecoder()
-        let aiResponse: AIResponseData
-        
-        do {
-            aiResponse = try decoder.decode(AIResponseData.self, from: jsonData)
-        } catch let decodingError as DecodingError {
-            switch decodingError {
-            case .keyNotFound:
-                throw JSONParsingError.missingRequiredFields
-            case .typeMismatch:
-                throw JSONParsingError.invalidVolumeCount
-            case .valueNotFound:
-                throw JSONParsingError.missingRequiredFields
-            case .dataCorrupted:
-                throw JSONParsingError.invalidJSON
-            @unknown default:
-                throw JSONParsingError.invalidJSON
-            }
-        }
-        
-        // 데이터 유효성 검증 및 보정
-        var resolvedName: String = aiResponse.presetName ?? "대나무숲 추천"
-        var volumes: [Float] = aiResponse.volumes ?? []
-        var outVersions: [Int] = SoundPresetCatalog.defaultVersions
-        // presetKey 우선 사용
-        if volumes.isEmpty, let key = aiResponse.presetKey, let presetVolumes = SoundPresetCatalog.scientificPresets[key] {
-            volumes = presetVolumes
-            if resolvedName.isEmpty || resolvedName == "AI 추천" { resolvedName = key }
-        }
-        // items 기반(외부 모델 전용): 개별 사운드 조합을 앱 카테고리/버전으로 매핑
-        if volumes.isEmpty, let items = aiResponse.items, !items.isEmpty {
-            let count = SoundPresetCatalog.categoryCount
-            var arr = Array(repeating: Float(0), count: count)
-            var vers = SoundPresetCatalog.defaultVersions
-            for it in items {
-                guard let sName = it.soundName else { continue }
-                let vol = min(max(it.volume ?? 0, 0), 100)
-                if let (catIdx, verIdx) = mapItemToCategoryAndVersion(soundName: sName, versionName: it.versionName) {
-                    arr[catIdx] = vol
-                    vers[catIdx] = verIdx
-                } else if let idx = SoundPresetCatalog.findCategoryIndex(by: sName) {
-                    arr[idx] = vol
-                }
-            }
-            volumes = arr
-            outVersions = vers
-        }
-        // 여전히 비어 있으면 오류
-        guard !volumes.isEmpty else { throw JSONParsingError.missingRequiredFields }
-        
-        // confidence 값 검증 (옵셔널 처리)
-        let confidenceValue = aiResponse.confidence ?? 0.8
-        guard confidenceValue >= 0.0 && confidenceValue <= 1.0 else {
-            throw JSONParsingError.invalidVolumeCount
-        }
-        
-        // 볼륨 길이 보정: 1~13 사이면 13으로 패딩/절단 (카테고리 개수 기준)
-        let targetCount = SoundPresetCatalog.categoryCount
-        if volumes.count != targetCount {
-            if volumes.count > targetCount {
-                volumes = Array(volumes.prefix(targetCount))
-            } else if volumes.count > 0 {
-                volumes.append(contentsOf: Array(repeating: 0, count: targetCount - volumes.count))
-            } else {
-                throw JSONParsingError.invalidVolumeCount
-            }
-        }
-
-        // 값 클램프 (0~100)
-        volumes = volumes.map { min(max($0, 0), 100) }
-        
-        // 조합 필터링 적용
-        let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: volumes)
-        let versions = outVersions
-        
-        return EnhancedRecommendationResponse(
-            presetName: "🧠 " + resolvedName,
-            volumes: filteredVolumes,
-            versions: versions,
-            reason: aiResponse.reason ?? "AI 추천 프리셋"
-        )
+        return result
     }
 
-    // 외부 모델 항목을 앱 카테고리/버전으로 매핑
-    private func mapItemToCategoryAndVersion(soundName: String, versionName: String?) -> (Int, Int)? {
-        // 1) 카테고리 인덱스 추정
-        let count = SoundPresetCatalog.categoryCount
-        var targetCat: Int? = SoundPresetCatalog.findCategoryIndex(by: soundName)
-        // 2) 정확히 못 찾으면 SoundManager 카탈로그 탐색
-        if targetCat == nil {
-            for i in 0..<count {
-                if let c = SoundManager.shared.getSoundCatalog(at: i) {
-                    if c.baseName.contains(soundName) || soundName.contains(c.baseName) {
-                        targetCat = i; break
-                    }
-                }
-            }
-        }
-        guard let cat = targetCat, let catalog = SoundManager.shared.getSoundCatalog(at: cat) else { return nil }
-        // 3) 버전 인덱스 추정
-        if let vName = versionName, !vName.isEmpty {
-            if let idx = catalog.versions.firstIndex(where: { $0.displayName.contains(vName) || vName.contains($0.displayName) }) {
-                return (cat, idx)
-            }
-        }
-        // displayName 미지정 or 매칭 실패 → 기본 버전
-        let def = catalog.versions.firstIndex { $0.isDefault } ?? 0
-        return (cat, def)
-    }
-    
-    // MARK: - 새로운 11개 형식 파싱
-    private func parseNewFormat(from response: String) -> EnhancedRecommendationResponse? {
-        let pattern = #"(\\w+):(\\d+)"#
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let matches = regex?.matches(in: response, options: [], range: NSRange(location: 0, length: response.count)) ?? []
-        
-        if matches.count < 5 { return nil }
-        
-        var volumes: [Float] = Array(repeating: 0, count: SoundPresetCatalog.categoryCount)
-        var versions: [Int] = SoundPresetCatalog.defaultVersions
-        var presetName = "🎵 AI 추천"
-        
-        for match in matches {
-            guard match.numberOfRanges == 3 else { continue }
-            
-            let categoryRange = Range(match.range(at: 1), in: response)!
-            let volumeRange = Range(match.range(at: 2), in: response)!
-            
-            let category = String(response[categoryRange])
-            let volumeStr = String(response[volumeRange])
-            
-            guard let volume = Float(volumeStr) else { continue }
-            
-            if let index = SoundPresetCatalog.findCategoryIndex(by: category) {
-                volumes[index] = min(100, max(0, volume))
-            }
-        }
-        
-        // 프리셋 이름 추출
-        if let nameMatch = response.range(of: #"\""([^\"]+)\""#, options: .regularExpression) {
-            presetName = String(response[nameMatch]).replacingOccurrences(of: "\"", with: "")
-        }
-        
-        // AI가 추천한 볼륨에 따라 적절한 버전 선택
-        versions = generateOptimalVersions(volumes: volumes)
-        
-        // 조합 필터링 적용
-        let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: volumes)
-        
-        return EnhancedRecommendationResponse(
-            presetName: safePresetName(presetName),
-            volumes: filteredVolumes,
-            versions: versions,
-            reason: "새로운 11개 형식 추천"
-        )
-    }
-    
-    // MARK: - 볼륨에 따른 최적 버전 선택
+    // 프리셋 내부 선택된 버전 계산(간단 규칙)
     private func generateOptimalVersions(volumes: [Float]) -> [Int] {
         var versions = SoundPresetCatalog.defaultVersions
-        
-        // 볼륨이 높은 카테고리에 더 적합한 버전 선택
         for (index, volume) in volumes.enumerated() {
             if SoundPresetCatalog.hasMultipleVersions(at: index) {
                 switch index {
-                case 1:  // 바람 - 볼륨 높으면 바람2 (더 강한 바람)
-                    versions[index] = volume > 60 ? 1 : 0
-                case 2:  // 밤 - 볼륨 높으면 밤2 (더 깊은 밤)
-                    versions[index] = volume > 70 ? 1 : 0
-                case 4:  // 비 - 볼륨 중간 이상이면 창문비 (더 부드러운)
-                    versions[index] = volume > 50 ? 1 : 0
-                case 9:  // 키보드 - 볼륨 높으면 키보드2 (더 리드미컬)
-                    versions[index] = volume > 65 ? 1 : 0
-                case 10: // 파도 - 볼륨 높으면 파도2 (더 강한 파도)
-                    versions[index] = volume > 60 ? 1 : 0
-                case 11: // 새 - 볼륨 높으면 새-비 (비와 새 조합)
-                    versions[index] = volume > 55 ? 1 : 0
-                case 12: // 발걸음-눈 - 볼륨 높으면 발걸음-눈2 (더 선명한 소리)
-                    versions[index] = volume > 50 ? 1 : 0
-                default:
-                    break
+                case 1: versions[index] = volume > 60 ? 1 : 0
+                case 2: versions[index] = volume > 70 ? 1 : 0
+                case 4: versions[index] = volume > 50 ? 1 : 0
+                case 9: versions[index] = volume > 65 ? 1 : 0
+                case 10: versions[index] = volume > 60 ? 1 : 0
+                case 11: versions[index] = volume > 55 ? 1 : 0
+                case 12: versions[index] = volume > 50 ? 1 : 0
+                default: break
                 }
             }
         }
-        
         return versions
     }
-    
-    // MARK: - 기존 12개 형식 파싱
-    private func parseLegacyFormat(from response: String) -> EnhancedRecommendationResponse? {
-        let legacyCategories = ["Rain", "Thunder", "Ocean", "Fire", "Steam", "WindowRain", "Forest", "Wind", "Night", "Lullaby", "Fan", "WhiteNoise"]
-        let pattern = #"(\\w+):(\\d+)"#
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let matches = regex?.matches(in: response, options: [], range: NSRange(location: 0, length: response.count)) ?? []
-        
-        if matches.count < 5 { return nil }
-        
-        var legacyVolumes: [Float] = Array(repeating: 0, count: 12)
-        let presetName = "🎵 AI 추천 (레거시)"
-        
-        for match in matches {
-            guard match.numberOfRanges == 3 else { continue }
-            
-            let categoryRange = Range(match.range(at: 1), in: response)!
-            let volumeRange = Range(match.range(at: 2), in: response)!
-            
-            let category = String(response[categoryRange])
-            let volumeStr = String(response[volumeRange])
-            
-            guard let volume = Float(volumeStr) else { continue }
-            
-            if let index = legacyCategories.firstIndex(of: category) {
-                legacyVolumes[index] = min(100, max(0, volume))
-            }
-        }
-        
-        // 12개 → 13개 변환 (올바른 크기로 수정)
-        var convertedVolumes: [Float] = Array(repeating: 0, count: 13)
-        for i in 0..<min(12, convertedVolumes.count) {
-            convertedVolumes[i] = legacyVolumes[i]
-        }
-        
-        let filteredVolumes = SoundPresetCatalog.applyCompatibilityFilter(to: convertedVolumes)
-        
-        return EnhancedRecommendationResponse(
-            presetName: safePresetName(presetName),
-            volumes: filteredVolumes,
-            versions: SoundPresetCatalog.defaultVersions,
-            reason: "레거시 12개 형식 추천"
-        )
-    }
-    
-    // MARK: - 감정별 기본 프리셋 (13개 카테고리)
-    private func parseBasicFormat(from response: String) -> EnhancedRecommendationResponse? {
-        let emotion = initialUserText ?? "😊"
-        
-        // 🌈 모든 프리셋에서 동등하게 선택 (우선순위 없음)
-        // 감정과 시간대 기반으로 통합된 추천 시스템 사용
-        let scientificRecommendation = getScientificRecommendationFor(emotion: emotion)
-        if let scientificPreset = scientificRecommendation {
-            return scientificPreset
-        }
-        
-        // 만약 과학적 프리셋 선택에 실패한 경우 (거의 없음) 기본 프리셋 반환
-        let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
-        return EnhancedRecommendationResponse(
-            presetName: safePresetName("🌊 마음 달래는 소리"),
-            volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-            versions: generateOptimalVersions(volumes: volumes),
-            reason: "기본 감정별 추천"
-        )
-    }
-    
+
     // MARK: - 🧠 과학적 프리셋 추천 시스템
     
     /// 감정과 시간대를 기반으로 과학적 프리셋 추천

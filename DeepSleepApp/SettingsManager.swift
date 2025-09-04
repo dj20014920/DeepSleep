@@ -126,14 +126,17 @@ public class SettingsManager {
         get {
             // 이전 버전 호환성: LLMServiceType 값을 AIModelType으로 변환
             if let rawValue = userDefaults.string(forKey: Keys.selectedLLM) {
-                // 먼저 AIModelType으로 직접 변환 시도
-                if let model = AIModelType(rawValue: rawValue) {
-                    return model
+                // 0) 사전 정규화/마이그레이션: 레거시 문자열을 표준 모델로 매핑(gemini-pro 등)
+                if let normalized = normalizeStoredModelString(rawValue) {
+                    // 필요 시 자체 치유: 정규화된 값으로 저장값 업데이트
+                    if normalized.rawValue != rawValue {
+                        userDefaults.set(normalized.rawValue, forKey: Keys.selectedLLM)
+                    }
+                    return normalized
                 }
-                // 실패하면 LLMServiceType에서 변환
-                if let llmType = LLMServiceType(rawValue: rawValue) {
-                    return AIModelType(from: llmType)
-                }
+                // 1) 직접 매핑 실패 시, 기본값으로 자체 치유
+                userDefaults.set(AIModelType.gemini.rawValue, forKey: Keys.selectedLLM)
+                return .gemini
             }
             return .gemini // 기본 모델
         }
@@ -142,6 +145,27 @@ public class SettingsManager {
             userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
             // 모델별 지침은 런타임 합성이므로 시스템 프롬프트 캐시는 모델 변경으로 무효화하지 않습니다.
         }
+    }
+
+    // MARK: - Stored model normalization (migration/self-heal)
+    /// 레거시/비표준 저장 문자열을 표준 AIModelType으로 정규화합니다.
+    /// 예: "gemini-pro" → .gemini
+    private func normalizeStoredModelString(_ raw: String) -> AIModelType? {
+        // 우선 정확/공식 매핑 시도
+        if let model = AIModelType(rawValue: raw) { return model }
+        // LLMServiceType 호환성 체크 (AIServiceTypes.swift에서 가져옴)
+        if let model = AIModelType(fromLegacyString: raw) { return model }
+        // 레거시 값 처리
+        let lower = raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if lower == "gemini-pro" || lower.hasPrefix("gemini-pro") || lower.hasPrefix("gemini") {
+            return .gemini
+        }
+        if lower == "gpt-4o-mini" || lower.hasPrefix("gpt-4o") || lower == "gpt-4-mini" {
+            return .gpt4
+        }
+        if lower.contains("claude") { return .claude35 }
+        if lower.contains("hyperclova") || lower.contains("naver") { return .naver }
+        return nil
     }
     
     /// 모델 변경을 단일 진입점에서 원자적으로 처리 (저장 → 컨텍스트 무효화 → 알림)

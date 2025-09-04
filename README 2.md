@@ -566,3 +566,12 @@ MAX_CONVERSATION_TURNS = 200
 **👥 기여자**: 개발자 + Claude Code AI  
 
 *이 기록은 향후 아키텍처 결정 및 팀 온보딩 시 핵심 참고 자료로 활용됩니다.*
+
+## 📑 프록시 계약 확장 — 엄격 JSON(Structured Output)
+- /v1/chat 선택 필드 추가 지원:
+  - responseFormat: "json" | "text" | "markdown"
+  - responseMimeType: 예) "application/json"
+  - responseSchema: JSON Schema 객체(≤20KB)
+- 서버 폴백(엄격 JSON 모드): gemini → openai → claude → naver → openrouter (환경에 따라 openrouter 제외)
+- 새 헤더: X-Strict-JSON
+- 자세한 사용법은 `STRUCTURED_OUTPUT_GUIDE.md` 참조

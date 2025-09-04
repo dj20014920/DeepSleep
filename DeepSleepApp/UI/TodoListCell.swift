@@ -6,14 +6,17 @@ protocol TodoListCellDelegate: AnyObject {
     func todoListCell(_ cell: TodoListCell, didDeleteItem item: TodoItem, at index: Int)
     func todoListCell(_ cell: TodoListCell, didRequestEditItem item: TodoItem, at index: Int)
     func todoListCellDidRequestAddItem(_ cell: TodoListCell)
+    func todoListCellDidRequestDailyAdvice(_ cell: TodoListCell, for items: [TodoItem], on date: Date)
+    func todoListCellDidRequestIndividualAdvice(_ cell: TodoListCell, for item: TodoItem)
 }
 
 /// 할 일 목록을 표시하는 컬렉션 뷰 셀
 class TodoListCell: UICollectionViewCell {
     static let reuseIdentifier = "TodoListCell"
-    
+
     weak var delegate: TodoListCellDelegate?
     private var todoItems: [TodoItem] = []
+    private var currentDate: Date = Date()
     
     // MARK: - UI Components
     private let containerView: UIView = {
@@ -50,6 +53,17 @@ class TodoListCell: UICollectionViewCell {
         button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
         button.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         button.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+        button.layer.cornerRadius = 8
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
+    private let dailyAdviceButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("💬 오늘 할 일 조언", for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        button.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+        button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.cornerRadius = 8
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -96,34 +110,40 @@ class TodoListCell: UICollectionViewCell {
         containerView.addSubview(headerView)
         containerView.addSubview(tableView)
         containerView.addSubview(emptyStateLabel)
-        
+
         headerView.addSubview(titleLabel)
+        headerView.addSubview(dailyAdviceButton)
         headerView.addSubview(addButton)
-        
+
         NSLayoutConstraint.activate([
             containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
             containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 4),
             containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -4),
             containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            
+
             headerView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
             headerView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
             headerView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
             headerView.heightAnchor.constraint(equalToConstant: 40),
-            
+
             titleLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            
+
+            dailyAdviceButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            dailyAdviceButton.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -8),
+            dailyAdviceButton.widthAnchor.constraint(equalToConstant: 100),
+            dailyAdviceButton.heightAnchor.constraint(equalToConstant: 32),
+
             addButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
             addButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             addButton.widthAnchor.constraint(equalToConstant: 60),
             addButton.heightAnchor.constraint(equalToConstant: 32),
-            
+
             tableView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             tableView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
             tableView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16),
-            
+
             emptyStateLabel.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
             emptyStateLabel.centerYAnchor.constraint(equalTo: tableView.centerYAnchor)
         ])
@@ -156,10 +176,21 @@ class TodoListCell: UICollectionViewCell {
     
     private func setupActions() {
         addButton.addTarget(self, action: #selector(addButtonTapped), for: .touchUpInside)
+        dailyAdviceButton.addTarget(self, action: #selector(dailyAdviceButtonTapped), for: .touchUpInside)
     }
     
     // MARK: - Configuration
     func configure(with items: [TodoItem]) {
+        self.currentDate = Date()
+        configureInternal(with: items)
+    }
+
+    func configure(with items: [TodoItem], for date: Date) {
+        self.currentDate = date
+        configureInternal(with: items)
+    }
+
+    private func configureInternal(with items: [TodoItem]) {
         // 제목이 비어있는 항목은 '제목 없음'으로 보정
         self.todoItems = items.map { it in
             var t = it
@@ -170,14 +201,14 @@ class TodoListCell: UICollectionViewCell {
         }
         tableView.reloadData()
         updateEmptyState()
-        
+
         UnifiedLogger.shared.logTodo("TodoListCell configured with \\(self.todoItems.count) items")
-        
+
         // 스와이프 액션 사용 가능 상태 로깅
         for (index, item) in self.todoItems.enumerated() {
             UnifiedLogger.shared.logTodo("  아이템[\\(index)]: \\(item.title)")
         }
-        
+
         // 테이블뷰 상태 로깅
         UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \\(tableView.dataSource != nil), 델리게이트: \\(tableView.delegate != nil)", category: .ui)
         UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \\(tableView.isUserInteractionEnabled), 선택가능: \\(tableView.allowsSelection)", category: .ui)
@@ -188,6 +219,11 @@ class TodoListCell: UICollectionViewCell {
         titleLabel.text = title
     }
     
+    @objc private func dailyAdviceButtonTapped() {
+        delegate?.todoListCellDidRequestDailyAdvice(self, for: todoItems, on: currentDate)
+        UnifiedLogger.shared.debug("TodoListCell daily advice button tapped", category: .ui)
+    }
+
     // MARK: - Actions
     @objc private func addButtonTapped() {
         delegate?.todoListCellDidRequestAddItem(self)
@@ -281,11 +317,16 @@ extension TodoListCell: TodoItemCellDelegate {
     func todoItemCell(_ cell: TodoItemTableViewCell, didToggleItem item: TodoItem, at index: Int) {
         delegate?.todoListCell(self, didToggleItem: item, at: index)
     }
+
+    func todoItemCell(_ cell: TodoItemTableViewCell, didTapTitle item: TodoItem, at index: Int) {
+        delegate?.todoListCellDidRequestIndividualAdvice(self, for: item)
+    }
 }
 
 // MARK: - TodoItemTableViewCell
 protocol TodoItemCellDelegate: AnyObject {
     func todoItemCell(_ cell: TodoItemTableViewCell, didToggleItem item: TodoItem, at index: Int)
+    func todoItemCell(_ cell: TodoItemTableViewCell, didTapTitle item: TodoItem, at index: Int)
 }
 
 class TodoItemTableViewCell: UITableViewCell {
@@ -378,6 +419,11 @@ class TodoItemTableViewCell: UITableViewCell {
     
     private func setupActions() {
         checkboxButton.addTarget(self, action: #selector(checkboxTapped), for: .touchUpInside)
+
+        // 글자 탭 제스처 추가
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(titleLabelTapped))
+        titleLabel.addGestureRecognizer(tapGesture)
+        titleLabel.isUserInteractionEnabled = true
     }
     
     // MARK: - Configuration
@@ -439,6 +485,12 @@ class TodoItemTableViewCell: UITableViewCell {
         delegate?.todoItemCell(self, didToggleItem: item, at: itemIndex)
         UnifiedLogger.shared.logTodo("TodoItem toggled: \(item.title)")
     }
+
+    @objc private func titleLabelTapped() {
+        guard let item = todoItem else { return }
+        delegate?.todoItemCell(self, didTapTitle: item, at: itemIndex)
+        UnifiedLogger.shared.logTodo("TodoItem title tapped: \(item.title)")
+    }
     
     // MARK: - Lifecycle
     override func prepareForReuse() {
@@ -449,4 +501,4 @@ class TodoItemTableViewCell: UITableViewCell {
         checkboxButton.isSelected = false
         priorityIndicator.isHidden = true
     }
-} 
+}

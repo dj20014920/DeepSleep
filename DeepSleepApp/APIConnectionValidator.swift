@@ -1,6 +1,6 @@
 import Foundation
 import Network
-
+/*
 /// 🔍 4대 AI 모델 API 연결 검증 및 상태 모니터링 시스템
 /// 2025년 최신 API 엔드포인트 기반으로 실제 연결 테스트 수행
 class APIConnectionValidator {
@@ -411,3 +411,4 @@ private extension String {
         return String(repeating: lhs, count: rhs)
     }
 }
+*/

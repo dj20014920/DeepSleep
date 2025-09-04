@@ -150,7 +150,7 @@ class SecurityConfig {
         print("   ✅ 할일 조언: \(dailyTodoAdviceLimit)회/일")
         print("   🔮 운세: \(dailyFortuneLimit)회/일")
         print("")
-        print("📝 [사용자 경험 제한]:")
+        print("📝 [사용자 경험 제한]:") 
         print("   📔 일기 작성: \(maxDiaryEntriesPerDay)개/일")
         print("   ✅ 할일 개수: \(maxTodoItems)개")
         print("   😊 감정 기록: \(maxEmotionEntriesPerDay)개/일")

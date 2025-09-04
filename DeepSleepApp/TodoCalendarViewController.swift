@@ -201,7 +201,7 @@ class TodoTableViewCell: UITableViewCell {
 
 // AddEditTodoDelegate 채택
 class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, AddEditTodoDelegate {
-
+    
     private var emotionCalendarVC: EmotionCalendarViewController!
     private weak var tableView: UITableView!
     private weak var overallAdviceButtonContainer: UIView!
@@ -216,23 +216,23 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
     
     // 🆕 로딩 오버레이 뷰
     private var loadingOverlay: LoadingOverlayView?
-
+    
     // 섹션 정의
     private enum CalendarSection: Int, CaseIterable {
         case diary = 0
         case todos = 1
     }
-
+    
     // 새 탭 요구사항: 할 일 탭에서는 일기 섹션을 숨김
     public var hideDiarySection: Bool = true
-
+    
     // ✅ Todo 목록 페이지네이션 상태
     private var visibleTodos: [TodoItem] = []
     private var todosOffset: Int = 0
     private let todosPageSize: Int = 20
     private var todosHasMore: Bool = true
     private var isLoadingMoreTodos: Bool = false
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         print("👍 [TodoCalendarViewController] viewDidLoad() - 🚀 최적화된 초기화 시작")
@@ -255,7 +255,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         loadData(for: today)
         
         print("✅ TodoCalendarViewController 필수 UI 설정 완료")
-
+        
         // 할 일 변경 실시간 반영
         NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
         // 일기 변경 실시간 반영(embedded calendarOnlyMode는 내부 옵저버를 등록하지 않으므로 부모가 수신)
@@ -316,7 +316,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         container.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(container)
         self.overallAdviceButtonContainer = container
-
+        
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
@@ -333,7 +333,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         indicator.color = .white
         container.addSubview(indicator)
         self.overallAdviceActivityIndicator = indicator
-
+        
         NSLayoutConstraint.activate([
             container.topAnchor.constraint(equalTo: addTodoButtonContainer?.bottomAnchor ?? emotionCalendarVC.view.bottomAnchor, constant: 12),
             container.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
@@ -387,7 +387,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
             tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
     }
-
+    
     // MARK: - [+ Todo] 버튼 영역
     private weak var addTodoButtonContainer: UIView?
     private weak var addTodoButton: UIButton?
@@ -397,7 +397,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         container.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(container)
         self.addTodoButtonContainer = container
-
+        
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
@@ -409,13 +409,13 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         button.addTarget(self, action: #selector(didTapAddButton), for: .touchUpInside)
         container.addSubview(button)
         self.addTodoButton = button
-
+        
         NSLayoutConstraint.activate([
             container.topAnchor.constraint(equalTo: emotionCalendarVC.view.bottomAnchor, constant: 16),
             container.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             container.heightAnchor.constraint(equalToConstant: 50),
-
+            
             // 큰 버튼로 컨테이너를 가득 채움
             button.topAnchor.constraint(equalTo: container.topAnchor),
             button.bottomAnchor.constraint(equalTo: container.bottomAnchor),
@@ -451,7 +451,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         print("선택된 날짜 \(dateDesc): 할 일 \(selectedDateTodos.count)개, 일기 \(diaryState)")
         updateOverallAdviceButtonUI()
     }
-
+    
     private func resetTodosPaginationAndReload() {
         todosOffset = 0
         isLoadingMoreTodos = false
@@ -487,12 +487,12 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         }
         isLoadingMoreTodos = false
     }
-
+    
     deinit {
         NotificationCenter.default.removeObserver(self, name: .todosUpdated, object: nil)
         NotificationCenter.default.removeObserver(self, name: .emotionDiaryUpdated, object: nil)
     }
-
+    
     @objc private func handleTodosUpdated() {
         loadData(for: selectedDate)
         emotionCalendarVC?.calendar?.reloadData()
@@ -512,9 +512,9 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         let navController = UINavigationController(rootViewController: addEditVC)
         present(navController, animated: true, completion: nil)
     }
-
-
-
+    
+    
+    
     
     // 연속 일정 관련 헬퍼 메서드들
     private func isEventStartDate(_ todo: TodoItem, date: Date) -> Bool {
@@ -549,7 +549,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
     func numberOfSections(in tableView: UITableView) -> Int {
         return hideDiarySection ? 1 : CalendarSection.allCases.count
     }
-
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         guard let currentSection = CalendarSection(rawValue: section) else {
             print("⚠️ [TodoCalendarViewController] numberOfRowsInSection - 잘못된 섹션: \(section)")
@@ -591,20 +591,20 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
             
         }
         // todos 섹션
-            // 🔧 안전한 배열 접근
-            guard indexPath.row < visibleTodos.count else {
-                print("⚠️ [TodoCalendarViewController] visibleTodos 배열 범위 초과: \(indexPath.row)/\(visibleTodos.count)")
-                return UITableViewCell()
-            }
-            
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as? TodoTableViewCell else {
-                print("⚠️ [TodoCalendarViewController] TodoTableViewCell dequeue 실패")
-                return UITableViewCell()
-            }
-            
-            let todo = visibleTodos[indexPath.row]
-            cell.configure(with: todo)
-            return cell
+        // 🔧 안전한 배열 접근
+        guard indexPath.row < visibleTodos.count else {
+            print("⚠️ [TodoCalendarViewController] visibleTodos 배열 범위 초과: \(indexPath.row)/\(visibleTodos.count)")
+            return UITableViewCell()
+        }
+        
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as? TodoTableViewCell else {
+            print("⚠️ [TodoCalendarViewController] TodoTableViewCell dequeue 실패")
+            return UITableViewCell()
+        }
+        
+        let todo = visibleTodos[indexPath.row]
+        cell.configure(with: todo)
+        return cell
         
     }
     
@@ -639,7 +639,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         loadData(for: selectedDate)
         updateOverallAdviceButtonUI()
     }
-
+    
     // 최근 AI 조언 정보창 표시 (없으면 생성 유도)
     private func presentAdviceInfo(for todo: TodoItem) {
         if let advice = todo.aiAdvices?.last, !advice.isEmpty {
@@ -684,7 +684,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         configuration.performsFirstActionWithFullSwipe = false
         return configuration
     }
-
+    
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard (hideDiarySection || CalendarSection(rawValue: indexPath.section) == .todos), editingStyle == .delete else { return }
         guard indexPath.row < visibleTodos.count else { return }
@@ -726,7 +726,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         let nav = UINavigationController(rootViewController: addEditVC)
         present(nav, animated: true)
     }
-
+    
     // MARK: - AddEditTodoDelegate
     func didSaveTodoItem(_ todoItem: TodoItem) {
         // 저장/삭제 등 변경사항 반영
@@ -742,14 +742,14 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         var message = "할 일 \(action) 중 오류 발생: \(error.localizedDescription)"
         let recoverySuggestion: String? = (error as? TodoManagerError)?.recoverySuggestion
         var alertTitle = "오류"
-
+        
         if let todoError = error as? TodoManagerError {
             alertTitle = "캘린더 연동 오류"
             switch todoError {
             case .calendarAccessDenied(let specificMessage),
-                 .calendarAccessRestricted(let specificMessage),
-                 .calendarWriteOnlyAccess(let specificMessage),
-                 .unknownCalendarAuthorization(let specificMessage):
+                    .calendarAccessRestricted(let specificMessage),
+                    .calendarWriteOnlyAccess(let specificMessage),
+                    .unknownCalendarAuthorization(let specificMessage):
                 message = specificMessage
             case .eventSaveFailed, .eventRemoveFailed, .eventFetchFailed:
                 message = todoError.localizedDescription
@@ -798,7 +798,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
     
     // MARK: - UI/UX Enhancements (Empty State, Calendar Dots, Diary Action)
     private var emptyStateLabel: UILabel? // 빈 화면 메시지 레이블
-
+    
     private func setupEmptyStateView() {
         let label = UILabel()
         label.textAlignment = .center
@@ -809,7 +809,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         tableView.backgroundView = label
         emptyStateLabel = label
     }
-
+    
     // 수정: 함수 이름 변경 및 tableView.reloadData() 호출 제거
     private func updateEmptyStateLabelVisibility() {
         let hasData = (selectedDateDiary != nil || !selectedDateTodos.isEmpty)
@@ -827,7 +827,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         }
         // tableView.reloadData() // 여기서 호출하지 않음
     }
-
+    
     // MARK: - AI Overall Advice Button Actions (New)
     private func updateOverallAdviceButtonUI() {
         // 🔧 크래시 수정: UI 요소가 아직 초기화되지 않았을 수 있음
@@ -842,181 +842,111 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         adviceButton.setTitleColor(.white, for: .normal)
         adviceButton.isEnabled = remainingCount > 0
         if adviceIndicator.isAnimating {
-             adviceButton.setTitle("", for: .normal) // 로딩 중에는 텍스트 숨김
+            adviceButton.setTitle("", for: .normal) // 로딩 중에는 텍스트 숨김
         }
     }
-
+    
     @objc private func didTapOverallAdviceButton() {
         guard AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice) > 0 else {
             showAlert(title: "알림", message: "오늘 사용할 수 있는 전체 할 일 조언 횟수를 모두 사용했습니다.")
             return
         }
         
-        // 🆕 향상된 분석을 위한 할 일 분류 및 컨텍스트 수집
-        let allTodos = selectedDateTodos
-        let completedTodos = allTodos.filter { $0.isCompleted }
-        let pendingTodos = allTodos.filter { !$0.isCompleted }
-        
-        // 🆕 연속 일정 분석 (장기 여행 등의 정보 수집)
-        let continuousEvents = getContinuousEventContext()
-        
-        guard !allTodos.isEmpty else {
+        guard !selectedDateTodos.isEmpty else {
             showAlert(title: "알림", message: "선택된 날짜에 할 일이 없어 전체 조언을 받을 수 없습니다.")
             return
         }
         
-        // 현재 시간 및 날짜 정보
-        let currentTime = Date()
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
-        let currentTimeString = timeFormatter.string(from: currentTime)
-        
-        let selectedDateFormatter = DateFormatter()
-        selectedDateFormatter.dateFormat = "MM월 dd일 (E)"
-        selectedDateFormatter.locale = Locale(identifier: "ko_KR")
-        let selectedDateString = selectedDateFormatter.string(from: selectedDate)
-        
-        // 할 일 우선순위별 분류
-        let highPriorityTodos = allTodos.filter { $0.priority == 2 }
-        let mediumPriorityTodos = allTodos.filter { $0.priority == 1 }
-        let lowPriorityTodos = allTodos.filter { $0.priority == 0 }
-        
-        // 긴급성 분석 (마감일 기준)
-        let urgentTodos = pendingTodos.filter {
-            $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 // 24시간 이내
+        Task {
+            let promptContent = await buildComprehensivePrompt()
+            // ✅ AI 조언 요청 로직 통합
+            requestTaskAdvice(for: promptContent, title: "✨ 오늘의 전체 조언 ✨", usageType: AIFeatureType.overallTodoAdvice)
         }
-        
-        // 주간 컨텍스트
-        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion ?? "일반적인 컨텍스트"
-        
-        var promptContent = """
-        📅 날짜: \(selectedDateString)
-        🕒 현재 시간: \(currentTimeString)
-        
-        📊 할 일 현황:
-        • 전체 할 일: \(allTodos.count)개
-        • 완료된 할 일: \(completedTodos.count)개
-        • 남은 할 일: \(pendingTodos.count)개
-        • 긴급한 할 일: \(urgentTodos.count)개 (24시간 이내)
-        
-        🎯 우선순위별 분류:
-        • 높음: \(highPriorityTodos.count)개
-        • 보통: \(mediumPriorityTodos.count)개  
-        • 낮음: \(lowPriorityTodos.count)개
-        
-        📋 상세 할 일 목록:
-        """
-        
-        // 우선순위 높은 순으로 정렬하여 표시
-        let sortedTodos = allTodos.sorted { $0.priority > $1.priority }
-        for (index, todo) in sortedTodos.enumerated() {
-            let priorityEmoji = ["📌", "📝", "📄"][todo.priority]
-            let statusEmoji = todo.isCompleted ? "✅" : "⏳"
-            let urgentMark = urgentTodos.contains(where: { $0.id == todo.id }) ? " 🔥" : ""
-            
-            promptContent += "\n\(index + 1). \(statusEmoji) \(priorityEmoji) \(todo.title) (\(todo.dueDateString))\(urgentMark)"
-            if let notes = todo.notes, !notes.isEmpty {
-                promptContent += " - 메모: \(notes)"
-            }
-        }
-        
-        // 🆕 연속 일정 정보 추가
-        if !continuousEvents.isEmpty {
-            promptContent += "\n\n🗓️ 연속 일정 정보:"
-            for eventInfo in continuousEvents {
-                promptContent += "\n\(eventInfo)"
-            }
-        }
-        
-        promptContent += """
-        
-        📈 요청사항:
-        위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 **200자 이내**로 간결하게 해주세요:
-        1. 우선순위 조정 및 시간 배분 전략
-        2. 효율적인 업무 순서 및 실행 방법
-        3. 스트레스 관리 및 동기부여 방안
-        
-        **중요**: 응답을 200자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
-        단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
-        """
-        
-        let _ = """
-        당신은 경험이 풍부한 생산성 컨설턴트이자 시간 관리 전문가입니다. 사용자의 할 일 패턴을 분석하여 개인화된 실행 전략을 제공하세요.
-        
-        **🔥 중요한 제약 조건**:
-        - 응답은 반드시 **200자 이내**로 작성해야 합니다
-        - 모바일 alert 창에서 잘리지 않도록 간결하게 작성하세요
-        - 불필요한 인사말이나 부가설명은 제외하고 핵심만 전달하세요
-        
-        분석 기준:
-        1. 긴급성 vs 중요성 매트릭스 적용  
-        2. 에너지 레벨과 시간대별 최적 작업 배치
-        3. 멀티태스킹 vs 단일집중 전략 선택
-        4. 휴식과 재충전 시점 고려
-        5. 현실적이고 달성 가능한 목표 설정
-        
-        사용자 활동 패턴:
-        \(weeklyContext)
-        
-        위 데이터를 활용하여 사용자의 작업 스타일에 맞는 맞춤형 조언을 **200자 이내**로 제공하세요.
-        구체적인 시간 배분, 작업 순서, 실행 팁을 포함해주세요.
-        """
-
-        // 🔧 기존 로딩 표시 제거하고 새로운 오버레이 로딩 표시
-        guard let adviceButton = overallAdviceButton,
-              let adviceIndicator = overallAdviceActivityIndicator else {
-            print("⚠️ [TodoCalendar] UI 요소가 초기화되지 않아 조언 요청 불가")
+    }
+    
+    // MARK: -  symptômes 할 일 개별/전체 조언 요청 통합 (Root Cause: Context-related mode override)
+    private func requestTaskAdvice(for content: String, title: String, usageType: AIFeatureType, todoItem: TodoItem? = nil) {
+        // 🛡️ 사용량 체크
+        guard AIUsageManager.shared.getRemainingCount(for: usageType) > 0 else {
+            let message = (usageType == .overallTodoAdvice) ? "오늘 사용할 수 있는 전체 할 일 조언 횟수를 모두 사용했습니다." : "오늘 사용할 수 있는 개별 할 일 조언 횟수를 모두 사용했습니다."
+            showAlert(title: "알림", message: message)
             return
         }
         
-        adviceButton.setTitle("", for: .normal)
-        adviceIndicator.stopAnimating()
-        adviceButton.isEnabled = false
+        // 🛡️ 개별 할 일의 경우, 아이템별 제한 추가 체크
+        if let todo = todoItem, !todo.canReceiveAdvice {
+            showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(todo.adviceUsageText))")
+            return
+        }
         
-        // 🆕 로딩 오버레이 표시
+        // 🎨 UI 로딩 상태 시작
         loadingOverlay = LoadingOverlayView()
         loadingOverlay?.show(in: view)
-
+        if usageType == .overallTodoAdvice {
+            overallAdviceButton.setTitle("", for: .normal)
+            overallAdviceActivityIndicator.startAnimating()
+            overallAdviceButton.isEnabled = false
+        }
+        
         Task {
-            let promptContent = await self.buildComprehensivePrompt()
-            
             do {
-                // 🤖 SessionManager로 전체 할일 조언 호출 (저장 안 함)
-                let advice = try await SessionManager.shared.sendMessage(
-                    content: promptContent,
-                    model: .openAI,
-                    mode: .taskAdvice,
-                    saveMessages: false
+                // 🤖 UnifiedAIServiceImpl 직접 호출하여 Context 오염 방지
+                let response = try await UnifiedAIServiceImpl.shared.sendMessage(
+                    content: content,
+                    model: .gemini, // 범용성이 좋은 Gemini 모델로 지정
+                    mode: .taskAdvice, // ✅ 핵심: 조언 모드 명시적 지정
+                    context: nil, // 독립적인 요청이므로 context 불필요
+                    tokenConfig: nil
                 )
+                let advice = response.content
                 
                 await MainActor.run {
-                    // 🔧 로딩 오버레이 숨기기
+                    // 💾 사용량 기록 및 데이터 업데이트
+                    AIUsageManager.shared.recordUsage(for: usageType)
+                    
+                    // ✅ 대나무숲 저장을 위한 메시지 생성 및 저장
+                    let sessionId = SessionManager.shared.getCurrentSessionId()
+                    let userRequestContent = (usageType == .overallTodoAdvice) ? "오늘의 전체 할 일에 대한 조언을 요청했습니다." : "'\(todoItem?.title ?? "")'에 대한 조언을 요청했습니다."
+                    
+                    let userMessage = StoredChatMessage(id: UUID().uuidString, timestamp: Date(), role: "user", content: userRequestContent, type: .text)
+                    let aiMessage = StoredChatMessage(id: UUID().uuidString, timestamp: Date(), role: "assistant", content: advice, type: .text)
+                    
+                    SessionManager.shared.addChatMessageSafely(to: sessionId, message: userMessage)
+                    SessionManager.shared.addChatMessageSafely(to: sessionId, message: aiMessage)
+                    
+                    if let todo = todoItem {
+                        TodoManager.shared.appendAdvice(to: todo.id, advice: advice)
+                        if var updatedTodo = self.selectedDateTodos.first(where: { $0.id == todo.id }) {
+                            updatedTodo.requestAdvice()
+                            TodoManager.shared.updateTodo(updatedTodo) { _,_ in }
+                        }
+                        self.loadData(for: self.selectedDate) // 데이터 리로드로 UI 갱신
+                    }
+                    
+                    // 🎨 UI 로딩 상태 종료 및 결과 표시
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
-                    self.overallAdviceActivityIndicator?.stopAnimating()
+                    if usageType == .overallTodoAdvice {
+                        self.overallAdviceActivityIndicator.stopAnimating()
+                        self.updateOverallAdviceButtonUI()
+                    }
                     
-                    self.showAdvice(title: "✨ 오늘의 전체 조언 ✨", advice: advice)
-                    AIUsageManager.shared.recordUsage(for: .overallTodoAdvice)
-                    self.updateOverallAdviceButtonUI() // 성공 후 버튼 UI 업데이트
+                    self.showAdvice(title: title, advice: advice)
                 }
                 
             } catch {
                 await MainActor.run {
-                    // 🔧 로딩 오버레이 숨기기
+                    // 🎨 UI 로딩 상태 종료
                     self.loadingOverlay?.hide()
                     self.loadingOverlay = nil
-                    self.overallAdviceActivityIndicator?.stopAnimating()
-                    
-                    // 사용량 제한 초과 에러 처리
-                    let errorMessage: String
-                    if error.localizedDescription.contains("일일 사용 한도") {
-                        errorMessage = error.localizedDescription
-                    } else {
-                        errorMessage = "전체 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
+                    if usageType == .overallTodoAdvice {
+                        self.overallAdviceActivityIndicator.stopAnimating()
+                        self.updateOverallAdviceButtonUI()
                     }
                     
+                    // ⚠️ 오류 처리
+                    let errorMessage = error.localizedDescription.contains("일일 사용 한도") ? error.localizedDescription : "AI 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
                     self.showAlert(title: "AI 조언 오류", message: errorMessage)
-                    self.updateOverallAdviceButtonUI() // 실패 후 버튼 UI 업데이트
                 }
             }
         }
@@ -1031,7 +961,7 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
                                              allTodos: all,
                                              weeklyContext: weekly)
     }
-
+    
     // MARK: - 공통화된 날짜별 전체 조언 프롬프트 (DRY)
     static func buildOverallAdvicePrompt(date: Date,
                                          todos: [TodoItem],
@@ -1041,37 +971,37 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "yyyy년 MM월 dd일 HH시 mm분"
         let currentTimeString = timeFormatter.string(from: currentTime)
-
+        
         let selectedDateFormatter = DateFormatter()
         selectedDateFormatter.dateFormat = "MM월 dd일 (E)"
         selectedDateFormatter.locale = Locale(identifier: "ko_KR")
         let selectedDateString = selectedDateFormatter.string(from: date)
-
+        
         let completedTodos = todos.filter { $0.isCompleted }
         let pendingTodos = todos.filter { !$0.isCompleted }
         let highPriority = todos.filter { $0.priority == 2 }
         let mediumPriority = todos.filter { $0.priority == 1 }
         let lowPriority = todos.filter { $0.priority == 0 }
         let urgentTodos = pendingTodos.filter { $0.dueDate.timeIntervalSince(currentTime) < 24 * 3600 }
-
+        
         var promptContent = """
         📅 대상 날짜: \(selectedDateString)
         🕒 현재 시간: \(currentTimeString)
-
+        
         📊 할 일 현황:
         • 전체 할 일: \(todos.count)개
         • 완료된 할 일: \(completedTodos.count)개
         • 남은 할 일: \(pendingTodos.count)개
         • 긴급한 할 일: \(urgentTodos.count)개 (24시간 이내)
-
+        
         🎯 우선순위별 분류:
         • 높음: \(highPriority.count)개
         • 보통: \(mediumPriority.count)개
         • 낮음: \(lowPriority.count)개
-
+        
         📋 상세 할 일 목록:
         """
-
+        
         // 카테고리·우선순위·시간(간편등록 시 '오늘 중 (시간관계없음)') 포함 표기
         let sortedTodos = todos.sorted { $0.priority > $1.priority }
         for (index, todo) in sortedTodos.enumerated() {
@@ -1081,16 +1011,16 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
             let maskedNotes = todo.notes.map { SettingsManager.shared.maskPIIForExport($0) }
             let priorityText = ["낮음", "보통", "높음"][todo.priority]
             let categoryText = todo.category?.displayName ?? "미지정"
-
+            
             let cal = Calendar.current
             let startOfDay = cal.startOfDay(for: todo.dueDate)
             let isAllDaySingle = (todo.endDate != nil) && (todo.dueDate == startOfDay) && (cal.startOfDay(for: todo.endDate!) == cal.date(byAdding: .day, value: 1, to: startOfDay))
             let timeText = isAllDaySingle ? "오늘 중 (시간관계없음)" : todo.dueDateString
-
+            
             promptContent += "\n\(index + 1). \(statusEmoji) [\(categoryText)·\(priorityText)] \(maskedTitle) (\(timeText))\(urgentMark)"
             if let notes = maskedNotes, !notes.isEmpty { promptContent += " - 메모: \(notes)" }
         }
-
+        
         // 연속 일정 정보 (끝 경계 배타)
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: date)
@@ -1109,23 +1039,23 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
             promptContent += "\n\n🗓️ 연속 일정 정보:"
             for info in continuousEvents { promptContent += "\n\(info)" }
         }
-
+        
         if let weekly = weeklyContext, !weekly.isEmpty {
             promptContent += "\n\n사용자 활동 패턴:\n\(weekly)"
         }
-
+        
         promptContent += """
-
+        
         📈 요청사항:
         위 할 일 목록을 종합적으로 분석하여 다음 관점에서 구체적인 조언을 **200자 이내**로 간결하게 해주세요:
         1. 우선순위 조정 및 시간 배분 전략
         2. 효율적인 업무 순서 및 실행 방법
         3. 스트레스 관리 및 동기부여 방안
-
+        
         **중요**: 응답을 200자 이내로 제한하여 모바일 alert에서 잘리지 않도록 해주세요.
         단순한 격려가 아닌, 실제로 실행할 수 있는 구체적인 액션플랜을 제시해주세요.
         """
-
+        
         return promptContent
     }
     
@@ -1220,256 +1150,172 @@ class TodoCalendarViewController: UIViewController, UITableViewDelegate, UITable
     
     // MARK: - 🆕 할 일 개별 조언 기능 - 통합 횟수 관리
     private func requestTodoAdvice(for todo: TodoItem) {
-        // 🛡️ 할 일별 조언 횟수 체크 (통합 관리)
-        guard todo.canReceiveAdvice else {
-            showAlert(title: "알림", message: "이 할 일에 대한 조언을 모두 사용했습니다. (\(todo.adviceUsageText))")
-            return
-        }
-        
-        // 🛡️ 전체 일일 제한도 함께 체크
-        guard AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice) > 0 else {
-            showAlert(title: "알림", message: "오늘 사용할 수 있는 개별 할 일 조언 횟수를 모두 사용했습니다.")
-            return
-        }
-        
-        // 🆕 로딩 오버레이 표시
-        loadingOverlay = LoadingOverlayView()
-        loadingOverlay?.show(in: view)
-        
-        // 공통 프롬프트 빌더 사용 (프롬프트 구성은 Task 블록 내 buildIndividualTodoPrompt에서 수행)
-        
         Task {
-            let promptContent = await self.buildIndividualTodoPrompt(for: todo)
+            let promptContent = await buildIndividualTodoPrompt(for: todo)
+            // ✅ AI 조언 요청 로직 통합
+            requestTaskAdvice(for: promptContent, title: "💡 \(todo.title) 조언", usageType: AIFeatureType.individualTodoAdvice, todoItem: todo)
+        }
+    }
+    
+    
+    
+    
+    class SimpleAdviceViewController: UIViewController {
+        private let titleText: String
+        private let adviceText: String
+        
+        private let containerView = UIView()
+        private let titleLabel = UILabel()
+        private let scrollView = UIScrollView()
+        private let adviceLabel = UILabel()
+        private let buttonStackView = UIStackView()
+        private let copyButton = UIButton(type: .system)
+        private let closeButton = UIButton(type: .system)
+        
+        init(titleText: String, adviceText: String) {
+            self.titleText = titleText
+            self.adviceText = adviceText
+            super.init(nibName: nil, bundle: nil)
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            setupUI()
+            configureContent()
+        }
+        
+        private func setupUI() {
+            view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
             
-            do {
-                // 🤖 SessionManager로 개별 할일 조언 호출 (저장 안 함)
-                let advice = try await SessionManager.shared.sendMessage(
-                    content: promptContent,
-                    model: .openAI,
-                    mode: .taskAdvice,
-                    saveMessages: false
-                )
+            // 컨테이너 뷰 설정
+            containerView.backgroundColor = .systemBackground
+            containerView.layer.cornerRadius = 16
+            containerView.layer.shadowColor = UIColor.black.cgColor
+            containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
+            containerView.layer.shadowOpacity = 0.3
+            containerView.layer.shadowRadius = 8
+            containerView.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(containerView)
+            
+            // 제목 라벨 설정
+            titleLabel.font = .systemFont(ofSize: 20, weight: .bold)
+            titleLabel.textColor = .label
+            titleLabel.textAlignment = .center
+            titleLabel.numberOfLines = 0
+            titleLabel.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(titleLabel)
+            
+            // 스크롤뷰 설정
+            scrollView.showsVerticalScrollIndicator = true
+            scrollView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(scrollView)
+            
+            // 조언 라벨 설정
+            adviceLabel.font = .systemFont(ofSize: 16)
+            adviceLabel.textColor = .label
+            adviceLabel.numberOfLines = 0
+            adviceLabel.translatesAutoresizingMaskIntoConstraints = false
+            scrollView.addSubview(adviceLabel)
+            
+            // 버튼 스택뷰 설정
+            buttonStackView.axis = .horizontal
+            buttonStackView.distribution = .fillEqually
+            buttonStackView.spacing = 12
+            buttonStackView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(buttonStackView)
+            
+            // 복사 버튼 설정
+            copyButton.setTitle("📋 복사하기", for: .normal)
+            copyButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+            copyButton.backgroundColor = .systemBlue
+            copyButton.setTitleColor(.white, for: .normal)
+            copyButton.layer.cornerRadius = 8
+            copyButton.addTarget(self, action: #selector(copyAdvice), for: .touchUpInside)
+            
+            // 닫기 버튼 설정
+            closeButton.setTitle("닫기", for: .normal)
+            closeButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+            closeButton.backgroundColor = .systemGray
+            closeButton.setTitleColor(.white, for: .normal)
+            closeButton.layer.cornerRadius = 8
+            closeButton.addTarget(self, action: #selector(closeAdvice), for: .touchUpInside)
+            
+            buttonStackView.addArrangedSubview(copyButton)
+            buttonStackView.addArrangedSubview(closeButton)
+            
+            // 제약 조건 설정 (UIScrollView 올바른 오토레이아웃: contentLayoutGuide/frameLayoutGuide 사용)
+            NSLayoutConstraint.activate([
+                // 컨테이너 뷰
+                containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                containerView.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
+                containerView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
+                containerView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+                containerView.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+                containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
                 
-                await MainActor.run {
-                    // 🔧 로딩 오버레이 숨기기
-                    self.loadingOverlay?.hide()
-                    self.loadingOverlay = nil
-                    
-                    // 🛡️ 할 일 조언 횟수 증가 (통합 관리)
-                    if let todoIndex = self.selectedDateTodos.firstIndex(where: { $0.id == todo.id }) {
-                        var updatedTodo = self.selectedDateTodos[todoIndex]
-                        if updatedTodo.requestAdvice() {
-                            // 할 일 업데이트
-                            self.selectedDateTodos[todoIndex] = updatedTodo
-                            
-                            // 저장소에도 업데이트
-                            TodoManager.shared.updateTodo(updatedTodo) { (_, error) in
-                                if let error = error {
-                                    print("⚠️ 할 일 조언 횟수 업데이트 실패: \(error.localizedDescription)")
-                                } else {
-                                    print("✅ 할 일 조언 횟수 업데이트 완료: \(updatedTodo.adviceUsageText)")
-                                }
-                            }
-                            
-                            // 테이블 뷰 업데이트
-                            self.tableView.reloadData()
-                        }
-                        
-                        AIUsageManager.shared.recordUsage(for: .individualTodoAdvice)
-                    }
-                    
-                    // 조언 저장 및 표시
-                    TodoManager.shared.appendAdvice(to: todo.id, advice: advice)
-                    self.showAdvice(title: "💡 \(todo.title) 조언", advice: advice)
-                }
+                // 제목 라벨
+                titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
+                titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+                titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
                 
-            } catch {
-                await MainActor.run {
-                    // 🔧 로딩 오버레이 숨기기
-                    self.loadingOverlay?.hide()
-                    self.loadingOverlay = nil
-                    
-                    // 사용량 제한 초과 에러 처리
-                    let errorMessage: String
-                    if error.localizedDescription.contains("일일 사용 한도") {
-                        errorMessage = error.localizedDescription
-                    } else {
-                        errorMessage = "개별 할 일 조언을 받아오는 데 실패했습니다. (\(error.localizedDescription))"
-                    }
-                    
-                    self.showAlert(title: "AI 조언 오류", message: errorMessage)
+                // 스크롤뷰
+                scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+                scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+                scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+                scrollView.heightAnchor.constraint(lessThanOrEqualToConstant: 400), // 최대 높이 제한
+                
+                // 조언 라벨 (contentLayoutGuide에 맞춤)
+                adviceLabel.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+                adviceLabel.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+                adviceLabel.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+                adviceLabel.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+                adviceLabel.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+                
+                // 버튼 스택뷰
+                buttonStackView.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 20),
+                buttonStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+                buttonStackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+                buttonStackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20),
+                buttonStackView.heightAnchor.constraint(equalToConstant: 44)
+            ])
+        }
+        
+        private func configureContent() {
+            titleLabel.text = titleText
+            adviceLabel.text = adviceText
+        }
+        
+        @objc private func copyAdvice() {
+            UIPasteboard.general.string = adviceText
+            
+            // 복사 완료 피드백
+            copyButton.setTitle("✅ 복사됨!", for: .normal)
+            copyButton.backgroundColor = .systemGreen
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.copyButton.setTitle("📋 복사하기", for: .normal)
+                self?.copyButton.backgroundColor = .systemBlue
+            }
+        }
+        
+        @objc private func closeAdvice() {
+            dismiss(animated: true)
+        }
+        
+        // 배경 터치로 닫기
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            if let touch = touches.first {
+                let location = touch.location(in: view)
+                if !containerView.frame.contains(location) {
+                    dismiss(animated: true)
                 }
             }
         }
-    }
-    
-    // MARK: - UI Helper Methods
-    // These methods are already defined earlier in the file
-    
-    // MARK: - 🔧 삭제 기능 분리
-    private func deleteTodo(at indexPath: IndexPath) {
-        // 이 메서드는 더 이상 직접 사용하지 않음. deleteTodoById로 대체.
-        guard indexPath.row < visibleTodos.count else { return }
-        deleteTodoById(visibleTodos[indexPath.row].id)
-    }
-
-}
-
-// MARK: - 조언 표시를 위한 간단한 커스텀 뷰 컨트롤러 (글자 수 제한 없음)
-class SimpleAdviceViewController: UIViewController {
-    private let titleText: String
-    private let adviceText: String
-    
-    private let containerView = UIView()
-    private let titleLabel = UILabel()
-    private let scrollView = UIScrollView()
-    private let adviceLabel = UILabel()
-    private let buttonStackView = UIStackView()
-    private let copyButton = UIButton(type: .system)
-    private let closeButton = UIButton(type: .system)
-    
-    init(titleText: String, adviceText: String) {
-        self.titleText = titleText
-        self.adviceText = adviceText
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        setupUI()
-        configureContent()
-    }
-    
-    private func setupUI() {
-        view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
         
-        // 컨테이너 뷰 설정
-        containerView.backgroundColor = .systemBackground
-        containerView.layer.cornerRadius = 16
-        containerView.layer.shadowColor = UIColor.black.cgColor
-        containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
-        containerView.layer.shadowOpacity = 0.3
-        containerView.layer.shadowRadius = 8
-        containerView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(containerView)
-        
-        // 제목 라벨 설정
-        titleLabel.font = .systemFont(ofSize: 20, weight: .bold)
-        titleLabel.textColor = .label
-        titleLabel.textAlignment = .center
-        titleLabel.numberOfLines = 0
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(titleLabel)
-        
-        // 스크롤뷰 설정
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(scrollView)
-        
-        // 조언 라벨 설정
-        adviceLabel.font = .systemFont(ofSize: 16)
-        adviceLabel.textColor = .label
-        adviceLabel.numberOfLines = 0
-        adviceLabel.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(adviceLabel)
-        
-        // 버튼 스택뷰 설정
-        buttonStackView.axis = .horizontal
-        buttonStackView.distribution = .fillEqually
-        buttonStackView.spacing = 12
-        buttonStackView.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(buttonStackView)
-        
-        // 복사 버튼 설정
-        copyButton.setTitle("📋 복사하기", for: .normal)
-        copyButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        copyButton.backgroundColor = .systemBlue
-        copyButton.setTitleColor(.white, for: .normal)
-        copyButton.layer.cornerRadius = 8
-        copyButton.addTarget(self, action: #selector(copyAdvice), for: .touchUpInside)
-        
-        // 닫기 버튼 설정
-        closeButton.setTitle("닫기", for: .normal)
-        closeButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        closeButton.backgroundColor = .systemGray
-        closeButton.setTitleColor(.white, for: .normal)
-        closeButton.layer.cornerRadius = 8
-        closeButton.addTarget(self, action: #selector(closeAdvice), for: .touchUpInside)
-        
-        buttonStackView.addArrangedSubview(copyButton)
-        buttonStackView.addArrangedSubview(closeButton)
-        
-        // 제약 조건 설정 (UIScrollView 올바른 오토레이아웃: contentLayoutGuide/frameLayoutGuide 사용)
-        NSLayoutConstraint.activate([
-            // 컨테이너 뷰
-            containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            containerView.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
-            containerView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
-            containerView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            containerView.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-                         containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 380),
-            
-            // 제목 라벨
-            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
-            
-             // 스크롤뷰
-             scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
-             scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
-             scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
-             scrollView.heightAnchor.constraint(lessThanOrEqualToConstant: 400), // 최대 높이 제한
-             
-             // 조언 라벨 (contentLayoutGuide에 맞춤)
-             adviceLabel.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-             adviceLabel.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-             adviceLabel.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-             adviceLabel.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-             adviceLabel.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
-             
-            // 버튼 스택뷰
-            buttonStackView.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 20),
-            buttonStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
-            buttonStackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
-            buttonStackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20),
-            buttonStackView.heightAnchor.constraint(equalToConstant: 44)
-        ])
-    }
-    
-    private func configureContent() {
-        titleLabel.text = titleText
-        adviceLabel.text = adviceText
-    }
-    
-    @objc private func copyAdvice() {
-        UIPasteboard.general.string = adviceText
-        
-        // 복사 완료 피드백
-        copyButton.setTitle("✅ 복사됨!", for: .normal)
-        copyButton.backgroundColor = .systemGreen
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.copyButton.setTitle("📋 복사하기", for: .normal)
-            self?.copyButton.backgroundColor = .systemBlue
-        }
-    }
-    
-    @objc private func closeAdvice() {
-        dismiss(animated: true)
-    }
-    
-    // 배경 터치로 닫기
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let touch = touches.first {
-            let location = touch.location(in: view)
-            if !containerView.frame.contains(location) {
-                dismiss(animated: true)
-            }
-        }
     }
 }
