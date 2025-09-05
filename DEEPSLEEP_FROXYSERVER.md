@@ -1,21 +1,29 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-04
+최종 업데이트: 2025-09-05
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
+
+## 2025-09-05 동기화: 캐시 임계/경로/폴백/헤더 정리
+- 동적 임계 T 적용: 일반=1024(장세션 512 시도 가능), 프리셋=2048(STRICT JSON), 분석/월간=1536. 공급자 바닥으로 클램프(Gemini=1024, Anthropic=512).
+- countTokens 경로: Vertex/GL 모두 `:countTokens` 리소스 사용(오류 404/405 방지).
+- 헤더 추가: `X-Cache-Policy-Min`(적용된 바닥)과 `X-Cache-Client-Override`(클라이언트 하향 요청값) 노출.
+- 폴백 순서(일반): gemini → openai → naver → claude → openrouter.
+- 폴백 순서(엄격 JSON): gemini → openai → naver → claude(OPENROUTER는 스킵; `STRICT_JSON_SKIP_OPENROUTER=1`).
+- 버스트 프리캐시: preset needCount=1, general needCount=2로 빠른 write 유도(이후 바닥/임계 정책 적용).
 
 ## 2025-09-04 동기화: GL API(Key) 고정 + 캐싱 정책 정리
 - Prod vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
 - 인증: Generative Language API + API Key(x-goog-api-key). 시크릿 이름은 `GEMINI_VERTEX_API_KEY`로 일원화(서버 전용).
 - 주의: Vertex REST(aiplatform)는 OAuth만 허용 → 워커에서는 사용하지 않음. GL API를 Enable하고, API Key 제한에 "Generative Language API"를 반드시 포함해야 403(API_KEY_SERVICE_BLOCKED)을 피할 수 있음.
-- 캐싱: cachedContents TTL=3600s, 프리픽스 토큰 ≥ 2048일 때만 write. generateContent에는 cachedContent만 전달(프리픽스 재전송 금지).
-- 폴백: preset_recommendation(Strict JSON)은 gemini→openai→claude, 일반 대화도 gemini 우선.
+- 캐싱: cachedContents TTL=3600s, 동적 임계(T) 적용(일반=1024, 프리셋=2048, 분석=1536). generateContent에는 cachedContent만 전달(프리픽스 재전송 금지). 공급자 바닥(Gemini=1024, Anthropic=512)로 클램프.
+- 폴백: preset_recommendation(Strict JSON)은 gemini→openai→naver→claude, 일반 대화도 gemini 우선.
 - Dev 배포 URL: https://emozleep.vinny4920-081.workers.dev
 - Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3
 - Dev vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
 - Dev/Prod vars는 wrangler.toml에 정의. 프로덕션은 CANARY_PERCENT=100으로 캐싱 전면 적용.
 - 엄격 JSON(Strict JSON) 집행: mode === 'preset_recommendation' && STRICT_JSON_ONLY=1이면 responseMimeType을 application/json으로 강제. 클라이언트가 responseSchema를 보내면 OpenAI/Anthropic에 JSON Schema 기반 구조화 출력 강제. 응답 헤더 X-Strict-JSON=(schema|json;mime=application/json) 노출.
-- 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver (openrouter는 스킵)
+- 폴백 체인(엄격 JSON 시): gemini → openai → naver → claude (openrouter는 스킵)
 - 다음 액션: prod 배포(wrangler deploy --env production) + 캐나리 5%로 시작 후 지표 안정 시 점진 상향(10→25→50→100)
 
 
@@ -73,7 +81,7 @@
 - 무효화: X-Context-Invalidation 헤더 1회성 처리
 
 공급자 정책(정정)
-- Gemini: v1beta/cachedContents(create) + PATCH cachedContents/{name}?updateMask=ttl, 인증은 x-goog-api-key 헤더. TTL 3600s, 읽기 시 연장.
+- Gemini: v1beta/cachedContents(create) + PATCH cachedContents/{name}?updateMask=ttl, 인증은 x-goog-api-key 헤더. TTL 3600s, 읽기 시 연장. 토큰 계산은 `:countTokens` 경로 사용.
 - Anthropic: cache_control.ephemeral 3600s(운영 30분 정책), 30분 경과 write.
 - OpenAI: 프리픽스 관측만(bypass).
 - Naver: 캐싱 불가 → bypass.
@@ -182,7 +190,7 @@ iOS 연동(변경점)
   - DEFAULT_CLAUDE_MODEL = "claude-3-5-haiku-latest"
   - DEFAULT_NAVER_MODEL = "HCX-DASH-002"
 - 서버 폴백 체인(현행 구현)
-  - openrouter(무료) → gemini → openai → naver → claude
+  - gemini → openai → naver → claude → openrouter
   - 클라이언트가 claude를 지정해 실패해도 위 순서로 폴백 시도
 - Claude 일일 상한(프리미엄)
   - 키: claude:{uid}:{YYYY-MM-DD}
@@ -195,6 +203,7 @@ iOS 연동(변경점)
 - 응답 정책 헤더(클라이언트는 있으면 파싱)
   - X-Provider, X-Policy-Tier, X-Policy-ResetAt(KST 자정, +09:00)
   - X-Policy-Claude-Remaining(프리미엄에서 유효)
+  - X-Cache-Policy-Min(공급자 바닥), X-Cache-Client-Override(클라이언트 하향 요청값)
   - 일반 ‘남은 횟수’(기능별)는 서버 집계 확장 시 추가 예정(YAGNI 원칙으로 현재 미도입)
 
 
@@ -350,7 +359,7 @@ C. 서명된 채팅(비스트리밍)
 
 
 15) 체크리스트/정합성
-- 폴백 체인: openrouter → gemini → openai → naver → claude (서버 구현과 문서 일치)
+- 폴백 체인: gemini → openai → naver → claude → openrouter (서버 구현과 문서 일치)
 - 정책 헤더: X-Provider/X-Policy-*, CORS Expose-Headers 포함(웹에서도 읽기 가능)
 - wrangler.toml main=worker.js(실제 파일과 일치)
 - KV TTL: Cloudflare 최소 60초 준수(자정 만료는 secondsUntilKSTMidnight())
@@ -411,23 +420,23 @@ C. 서명된 채팅(비스트리밍)
 ### 18.1 캐시 적합성 자동판단 — 2025-09-03
 
 요약
-- Gemini explicit cache는 모델별 최소 토큰 기준을 만족해야 합니다(Flash-Lite-001: 4096). 임계 미만에서 create를 호출하면 400(too small)로 실패합니다.
+- Gemini explicit cache는 공급자 최소 토큰 바닥(1024)을 만족해야 합니다. 임계 미만에서 create를 호출하면 400(too small/create_400)로 실패합니다.
 - 서버는 캐시 생성 전에 countTokens로 토큰 수를 계산하고, 임계 미달이면 캐시 생성을 우회(bypass)합니다. 이때 헤더로 사유를 표준화해 전파합니다.
 - Anthropic(Claude)는 ephemeral 캐시의 운영 쿨다운(30분) 외에 최소 길이(≈1024 토큰 미만)에서는 write를 금지합니다.
 
 임계치/쿨다운 표
-- Gemini min_cache_tokens: 4096 (models/gemini-2.0-flash-lite-001)
-- Claude min_cache_tokens: 1024 (근사치), write_cooldown_minutes: 30
+- Gemini min_cache_tokens: 1024 (공급자 바닥)
+- Claude min_cache_tokens: 512 (근사치), write_cooldown_minutes: 30
 - OpenAI/Naver: 공급자 캐시 미지원 → 항상 bypass
 
 결정 트리(간단)
 1) providerCaching.enable=false → 공급자 캐시 미사용(bypass)
 2) provider=gemini → countTokens(prefix)
-   - tokens >= 4096 → caches.create → generateContent(cachedContent=name) → TTL 연장 시 PATCH
-   - tokens < 4096 → bypass, 헤더 X-Cache-Error=too-small(4096)
+   - tokens ≥ 1024 → caches.create → generateContent(cachedContent=name) → TTL 연장 시 PATCH
+   - tokens < 1024 → bypass, 헤더 X-Cache-Error=too-small(1024), X-Cache-Policy-Min=1024
 3) provider=anthropic → approxTokens(prefix) ≈ ceil(chars/4)
-   - approxTokens < 1024 → bypass
-   - approxTokens ≥ 1024 → lastWriteAt+30m 이전 read, 이후 write(ephemeral 1h)
+   - approxTokens < 512 → bypass
+   - approxTokens ≥ 512 → lastWriteAt+30m 이전 read, 이후 write(ephemeral 1h)
 4) provider=openai/naver → bypass
 
 응답 헤더(추가)
@@ -467,7 +476,7 @@ C. 서명된 채팅(비스트리밍)
 - worker.js
   - fetchWithTimeout 도입, routeToProvider/각 provider 호출 타임아웃 적용
   - Gemini: geminiCountTokens 추가, create 전 임계 판단 → 미달 시 bypass 및 헤더/메트릭 반영, 패딩 재시도 제거
-  - Anthropic: approxTokens 기반 min(1024) 미만 write 금지 + 30분 쿨다운 엄수
+  - Anthropic: approxTokens 기반 min(512) 미만 write 금지 + 30분 쿨다운 엄수
   - 폴백 깊이 제한(3회), X-Cache-Error 헤더 노출
 - wrangler.toml
   - PROVIDER_TIMEOUT_MS, SLA_MS 추가(기본 6s/12s)

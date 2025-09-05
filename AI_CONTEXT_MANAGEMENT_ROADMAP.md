@@ -1,8 +1,26 @@
 # 2025-09-03 동기화: 프리셋 추천 JSON-Only 강제 · 중앙 파서 DRY · Gemini→OpenAI 폴백 · 서버 배포 현황
 
+## 2025-09-05 추가: 프리셋 추천 v2(창의적 타이틀 + 버전 인덱스 + 토큰 최적)
+- 목표: 모델이 내부 목록에서 고정 이름을 고르는 방식이 아니라, 카테고리 전체를 자유롭게 조합하여 새로운 presetName을 생성. 토큰 낭비 없이 성공률/품질/다양성을 동시에 달성.
+- 안정 프리픽스(캐시): 카테고리 수(categoryCount=13)와 각 카테고리의 버전 개수(versionCounts=[...])만 제공. 긴 카탈로그를 통째로 보내지 않음(토큰 절감), 대신 모델은 volumes(길이=13), versions(길이=13, 각 항목 0..versionCounts[i]-1)로 구조화 출력.
+- 엄격 JSON 스키마: { presetName, reason(≤120), volumes[13](0..100), versions[13](0..versionCounts[i]-1), confidence(0..1) }를 1개 객체로만 출력. (기존 items[{soundName,versionName,volume}]는 호환용 폴백)
+- 파서: versions 배열을 우선 사용. 없으면 items 또는 기본 규칙으로 폴백. 카테고리 개수에 맞춰 pad/trunc/경계검사 수행.
+- 캐시 임계: Gemini cachedContents 최소 입력=1024 정책 반영. 프리셋은 안정 프리픽스를 1k+로 구성하여 write→read 적중률 확보. 일반 대화는 프리픽스가 짧아 서버 캐시는 생략(App 캐시는 유지).
+
+## 2025-09-05 추가: 컨텍스트/캐싱 SSOT 및 동적 임계 동기화
+- 3+3 최근 턴 고정: 사용자 3 + 어시스턴트 3만 유지. 그 외는 롤링 요약으로 축약.
+- 롤링 요약: `AIContextBuilder.summarizeRecentAdaptive(targetTokens)`로 80–280 토큰 범위에서 적응형 요약(컨텍스트 밀도 기반).
+- SSOT 기반키: `AIContextSignature.currentMemorySummaryFP()`와 `computeBaseKeyForCurrentUser(mode:maxItems:)` 도입. `AIContextBuilder`/`UnifiedAIServiceImpl`의 모든 기반키 계산을 SSOT로 통일.
+- 앱 캐시: `AIContextManager`가 시스템 프롬프트를 SSOT 기반키로 3시간(TTL=10800s) 캐시.
+- 서버 캐시: Provider 최소 토큰 바닥을 반영하는 동적 임계:
+  - General: 기본 1024(장세션 512) — 단, Gemini 바닥=1024로 클램프.
+  - Preset: 2048(STRICT JSON), 7일 내 사용 힌트가 있으면 clientMinTokensOverride 하향 — 역시 공급자 바닥으로 클램프.
+  - Analysis/Monthly 리포트: 1536.
+- 헤더 노출(워커): `X-Cache-Policy-Min`(적용된 공급자 바닥), `X-Cache-Client-Override`(클라이언트 하향 요청값) 추가.
+
 요약(현재 상태)
 - 클라이언트: 프리셋 추천 파이프라인이 DRY하게 중앙 파서(AIResponseParser.parsePresetRecommendation)를 사용. ChatViewController는 해당 훅으로 파싱하고, Gemini 우선 → 실패 시 OpenAI(Structured Outputs/JSON 스키마) 폴백을 수행. 토큰 절약을 위해 시간대 기반 Top‑K(최대 5개) 사운드 캡슐만 프롬프트에 포함. 추천 사용량 카운트는 파싱 성공 시에만 증가.
-- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver.
+- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → naver → claude.
 - 배포: dev 환경 배포 완료. URL: https://emozleep.vinny4920-081.workers.dev (Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3). dev 기본 CANARY_PERCENT=100, production 오버라이드는 wrangler.toml에서 5%로 설정됨(명시적 배포 필요).
 
 검증 체크리스트(9/03)
@@ -22,7 +40,7 @@
 - vars(dev): CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1, DEFAULT_*_MODEL, PROVIDER_TIMEOUT_MS=6000, SLA_MS=12000
 - vars(prod): CANARY_PERCENT=5(시작), STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
 - secrets: GEMINI_API_KEY(필수), OPENAI_API_KEY/CLAUDE_API_KEY(선택), OPENROUTER_API_KEY(선택), NAVER_API_KEY/NAVER_API_SECRET(선택), EDGE_SIGNING_SECRET(필수)
-- 응답 헤더: X-Strict-JSON=(schema|json;mime=application/json), X-Provider, X-Fallback-Chain, X-Cache-*, X-Policy-*
+- 응답 헤더: X-Strict-JSON=(schema|json;mime=application/json), X-Provider, X-Fallback-Chain, X-Cache-*, X-Cache-Policy-Min, X-Cache-Client-Override, X-Policy-*
 
 추가 권장(문서/코드 정합)
 - 파서 단위 테스트: 코드펜스/선행·후행 텍스트/BOM/이모지/숫자 문자열/알 수 없는 필드/배열 래핑 등 엣지 케이스 케이스 추가
@@ -744,7 +762,9 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 일반 대화(DAILY_CHAT_LIMIT_FREE=50): T≈1024 권장(평균 2–5회 재사용 가정). 세션 길 때 512까지 하향 가능.
 - 프리셋 추천(DAILY_PRESET_RECOMMENDATION_LIMIT=5): T≈2048 유지(재사용 횟수 적음). 동일 세션 3회 이상 연속 호출 빈번하면 1024 검토.
 - 감정/월간 통계 등 비잦은 모드: T≈1536(이득/안정 절충).
+ - 공급자 바닥(클램프): Gemini=1024, Anthropic=512. 클라이언트 하향(예: 512)이 있어도 바닥 이하로는 내려가지 않음.
 
 운영 팁
 - 실측 헤더: `X-Cache-Tokens=writeIn=…;readIn=…` 수집 → 프리픽스 규모·히트율 기반으로 T를 점진 조정.
 - 예) 일반 대화에서 readIn≈1200이 반복되는데 write가 드물면 T를 1024로 낮춰 write 기회↑.
+ - 진단 헤더: `X-Cache-Policy-Min`(공급자 바닥), `X-Cache-Client-Override`(클라이언트 하향 요청값)도 함께 기록해 의도 vs 적용치를 비교.

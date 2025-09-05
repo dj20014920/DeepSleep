@@ -2075,8 +2075,6 @@ func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
         let message = """
         **[\(recommendation.presetName)]**
         \(recommendation.reason ?? "대나무숲 친구가 분석한 추천 프리셋입니다.")
-        
-        신뢰도: 70%
         """
         
         let chatMessage = ChatMessage(text: message, sender: .ai, type: .presetRecommendation)

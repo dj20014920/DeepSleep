@@ -383,29 +383,41 @@ class TodaysFortuneViewController: UIViewController {
         let age = calculateAge(from: birthDatePicker.date)
         let ageGroup = getAgeGroup(age: age)
         
-        // 개선된 별자리 정보 표시
+        // 개선된 별자리 및 개인 정보 표시
+        let genderText = genderSegmentedControl.selectedSegmentIndex == 0 ? "남성" : (genderSegmentedControl.selectedSegmentIndex == 1 ? "여성" : "기타")
         zodiacInfoLabel.text = """
-        \(fortune.zodiacSign) • 만 \(age)세 (\(ageGroup))
+        \(fortune.zodiacSign) • 만 \(age)세 (\(ageGroup)) • \(genderText)
+        🎯 나이와 성별을 고려한 맞춤형 운세입니다
         """
         
-        // 나이별 맞춤 운세 카드들
+        // 나이별 맞춤 운세 카드들 - 개선된 레이아웃
         let fortuneCards = [
-            ("🌟 총운 (\(ageGroup) 맞춤)", fortune.generalFortune),
-            ("💖 애정운", fortune.loveFortune),
-            ("💼 직업운", fortune.workFortune),
-            ("💪 건강운", fortune.healthFortune),
-            ("💰 금전운", "돈 관리에 신중함이 필요한 시기입니다.")
+            ("🌟 총운 (\(ageGroup) 맞춤)", fortune.generalFortune, UIDesignSystem.Colors.primary),
+            ("💖 애정운 (\(genderText) 특화)", fortune.loveFortune, UIDesignSystem.Colors.accent),
+            ("💼 직업운 (\(ageGroup) 중심)", fortune.workFortune, UIDesignSystem.Colors.info),
+            ("💪 건강운 (연령대 고려)", fortune.healthFortune, UIDesignSystem.Colors.success),
+            ("💰 금전운 (신규 추가!)", fortune.moneyFortune, UIDesignSystem.Colors.warning)
         ]
         
-        for (title, content) in fortuneCards {
-            let card = createEnhancedFortuneCard(title: title, content: content)
+        for (index, (title, content, color)) in fortuneCards.enumerated() {
+            let card = createEnhancedFortuneCard(title: title, content: content, accentColor: color)
+            
+            // 금전운 카드에 특별한 표시 추가
+            if index == 4 { // 금전운
+                let badge = createNewFeatureBadge()
+                card.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    badge.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
+                    badge.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -8)
+                ])
+            }
+            
             fortuneStackView.addArrangedSubview(card)
         }
         
-        // 별자리별 특성 정보
-        let traitInfo = "✨ \(fortune.zodiacSign) 특성: 오늘은 특별한 에너지가 흐르는 날입니다."
-        let traitCard = createEnhancedFortuneCard(title: "🔮 별자리 특성", content: traitInfo)
-        traitCard.backgroundColor = UIDesignSystem.Colors.accent.withAlphaComponent(0.1)
+        // 별자리별 특성 정보 - 개선된 버전
+        let traitInfo = generateZodiacTraits(zodiacSign: fortune.zodiacSign, ageGroup: ageGroup, gender: genderText)
+        let traitCard = createEnhancedFortuneCard(title: "🔮 \(fortune.zodiacSign) 특성 (맞춤형 분석)", content: traitInfo, accentColor: UIDesignSystem.Colors.accent)
         fortuneStackView.addArrangedSubview(traitCard)
         
         // 행운 정보 (개선된 버전)
@@ -414,15 +426,14 @@ class TodaysFortuneViewController: UIViewController {
         🔢 행운의 숫자: \(fortune.luckyNumber)
         💎 행운의 아이템: \(fortune.luckyItem)
         ⭐ 행운 지수: \(generateLuckyScore())%
+        🎈 개인화 지수: \(generatePersonalizationScore(ageGroup: ageGroup))
         """
-        let luckyCard = createEnhancedFortuneCard(title: "🍀 오늘의 행운 정보", content: luckyInfo)
-        luckyCard.backgroundColor = UIDesignSystem.Colors.success.withAlphaComponent(0.1)
+        let luckyCard = createEnhancedFortuneCard(title: "🍀 오늘의 행운 정보", content: luckyInfo, accentColor: UIDesignSystem.Colors.success)
         fortuneStackView.addArrangedSubview(luckyCard)
         
-        // 나이별 맞춤 조언
+        // 나이별 맞춤 조언 - 강화된 버전
         let adviceContent = generateAdviceForAge(ageGroup: ageGroup)
-        let adviceCard = createEnhancedFortuneCard(title: "💡 \(ageGroup)을 위한 조언", content: adviceContent)
-        adviceCard.backgroundColor = UIDesignSystem.Colors.warning.withAlphaComponent(0.1)
+        let adviceCard = createEnhancedFortuneCard(title: "💡 \(ageGroup)을 위한 전문 조언", content: adviceContent, accentColor: UIDesignSystem.Colors.warning)
         fortuneStackView.addArrangedSubview(adviceCard)
         
         // 개인 맞춤 메시지
@@ -439,6 +450,31 @@ class TodaysFortuneViewController: UIViewController {
     
     private func generateLuckyScore() -> Int {
         return Int.random(in: 75...95) // 긍정적인 점수 범위
+    }
+    
+    private func generatePersonalizationScore(ageGroup: String) -> String {
+        let scores = ["매우 높음", "높음", "우수"]
+        return scores.randomElement() ?? "우수"
+    }
+    
+    private func generateZodiacTraits(zodiacSign: String, ageGroup: String, gender: String) -> String {
+        let baseTraits = [
+            "♂ 물병자리": "독창적이고 미래 지향적인 에너지",
+            "♓ 물고기자리": "감성적이고 직가적인 성향",
+            "♈ 양자리": "열정적이고 도전적인 성격",
+            "♉ 황소자리": "안정적이고 인내심 강한 모습",
+            "♊ 쌍둥이자리": "호기심 많고 소통 능력이 뛰어난 성향",
+            "♋ 게자리": "배려심 깊고 가족 중심적인 성격",
+            "♌ 사자자리": "리더십이 강하고 자신감 넘치는 모습",
+            "♍ 처녀자리": "세심하고 완벽주의적인 성향",
+            "♎ 천칭자리": "균형감각과 조화를 중시하는 성격",
+            "♏ 전갈자리": "집중력이 강하고 열정적인 모습",
+            "♐ 사수자리": "자유롭고 모험심 강한 성향",
+            "♑ 염소자리": "책임감이 강하고 눈표가 명확한 성격"
+        ]
+        
+        let baseTrait = baseTraits[zodiacSign] ?? "특별한 에너지"
+        return "오늘은 \(baseTrait)이 \(ageGroup) \(gender)에게 특히 잘 나타날 것입니다. 이러한 특성을 활용해 좋은 하루를 만들어보세요."
     }
     
     private func generateTodaysActivity(ageGroup: String) -> String {
@@ -488,7 +524,7 @@ class TodaysFortuneViewController: UIViewController {
         return cardView
     }
     
-    private func createEnhancedFortuneCard(title: String, content: String) -> UIView {
+    private func createEnhancedFortuneCard(title: String, content: String, accentColor: UIColor? = nil) -> UIView {
         let cardView = UIView()
         cardView.backgroundColor = UIDesignSystem.Colors.cardBackground
         cardView.layer.cornerRadius = 16
@@ -499,12 +535,13 @@ class TodaysFortuneViewController: UIViewController {
         
         // 제목 부분
         let titleContainer = UIView()
-        titleContainer.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
+        let color = accentColor ?? UIDesignSystem.Colors.primary
+        titleContainer.backgroundColor = color.withAlphaComponent(0.1)
         titleContainer.layer.cornerRadius = 12
         titleContainer.translatesAutoresizingMaskIntoConstraints = false
         
         let titleLabel = createLabel(text: title, font: .boldSystemFont(ofSize: 17))
-        titleLabel.textColor = UIDesignSystem.Colors.primary
+        titleLabel.textColor = color
         titleLabel.textAlignment = .left
         
         titleContainer.addSubview(titleLabel)
@@ -517,7 +554,7 @@ class TodaysFortuneViewController: UIViewController {
         
         // 장식용 분리선
         let separatorView = UIView()
-        separatorView.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.2)
+        separatorView.backgroundColor = color.withAlphaComponent(0.2)
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
         cardView.addSubview(titleContainer)
@@ -552,6 +589,32 @@ class TodaysFortuneViewController: UIViewController {
         return cardView
     }
     
+    private func createNewFeatureBadge() -> UIView {
+        let badgeView = UIView()
+        badgeView.backgroundColor = UIDesignSystem.Colors.accent
+        badgeView.layer.cornerRadius = 12
+        badgeView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let badgeLabel = UILabel()
+        badgeLabel.text = "NEW"
+        badgeLabel.font = UIFont.boldSystemFont(ofSize: 10)
+        badgeLabel.textColor = .white
+        badgeLabel.textAlignment = .center
+        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        badgeView.addSubview(badgeLabel)
+        
+        NSLayoutConstraint.activate([
+            badgeView.widthAnchor.constraint(equalToConstant: 40),
+            badgeView.heightAnchor.constraint(equalToConstant: 24),
+            
+            badgeLabel.centerXAnchor.constraint(equalTo: badgeView.centerXAnchor),
+            badgeLabel.centerYAnchor.constraint(equalTo: badgeView.centerYAnchor)
+        ])
+        
+        return badgeView
+    }
+    
     private func createLabel(text: String, font: UIFont) -> UILabel {
         let label = UILabel()
         label.text = text
@@ -566,21 +629,31 @@ class TodaysFortuneViewController: UIViewController {
         formatter.dateFormat = "yyyy년 M월 d일"
         let dateString = formatter.string(from: Date())
         
+        // 나이 및 성별 정보 가져오기
+        let age = calculateAge(from: birthDatePicker.date)
+        let ageGroup = getAgeGroup(age: age)
+        let genderText = genderSegmentedControl.selectedSegmentIndex == 0 ? "남성" : (genderSegmentedControl.selectedSegmentIndex == 1 ? "여성" : "기타")
+        
         return """
         🔮 \(dateString) 오늘의 운세
         
-        \(fortune.zodiacSign)
+        \(fortune.zodiacSign) • \(ageGroup) (\(genderText))
         
         🌟 총운: \(fortune.generalFortune)
         💖 애정운: \(fortune.loveFortune)
         💼 직업운: \(fortune.workFortune)
+        💪 건강운: \(fortune.healthFortune)
+        💰 금전운: \(fortune.moneyFortune)
         
         🍀 행운의 색: \(fortune.luckyColor)
         🔢 행운의 숫자: \(fortune.luckyNumber)
         💎 행운의 아이템: \(fortune.luckyItem)
         
-        #오늘의운세 #DeepSleep
+        🎯 이 운세는 귀하의 나이와 성별을 고려한 맞춤형 운세입니다!
+        
+        #오늘의운세 #DeepSleep #맞춤운세
         """
+    }
     }
     
     private func generateAdviceForAge(ageGroup: String) -> String {

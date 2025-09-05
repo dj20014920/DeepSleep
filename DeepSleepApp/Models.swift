@@ -374,6 +374,7 @@ public struct AIPresetRecommendationDTO: Codable {
     public let presetName: String?
     public let description: String?
     public let volumes: [Float]?
+    public let versions: [Int]? // 신규: 모델이 직접 선택한 버전 인덱스(카테고리별)
     public let presetKey: String?
     public let reason: String?
     public let confidence: Double?

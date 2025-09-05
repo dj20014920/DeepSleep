@@ -43,6 +43,20 @@ public final class AIResponseParser {
             volumes = preset
             if resolvedName.isEmpty || resolvedName == "AI 추천" { resolvedName = key }
         }
+        // 모델이 직접 versions 배열을 제공한 경우 우선 사용(경계검사 포함)
+        if outVersions.count == SoundPresetCatalog.categoryCount, let dtoVersions = (try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any])?["versions"] as? [Int] {
+            let counts = (0..<SoundPresetCatalog.categoryCount).map { idx in
+                SoundManager.shared.getSoundCatalog(at: idx)?.versions.count ?? 1
+            }
+            var adjusted = outVersions
+            for i in 0..<min(dtoVersions.count, adjusted.count) {
+                let maxCount = max(1, counts[i])
+                let v = dtoVersions[i]
+                adjusted[i] = (v >= 0 && v < maxCount) ? v : (SoundPresetCatalog.defaultVersions[i])
+            }
+            outVersions = adjusted
+        }
+
         // items 기반 매핑
         if volumes.isEmpty, let items = dto.items, !items.isEmpty {
             let count = SoundPresetCatalog.categoryCount

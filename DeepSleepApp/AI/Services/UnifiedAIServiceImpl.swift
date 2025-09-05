@@ -995,7 +995,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let generalGuidelines = """
         핵심 지침:
         - 당신은 역할은 우리 어플(EmoZleep)의 대나무숲(채팅창) 친구임
-        - 한국어로 사용자의 말투와 상황의 따라 유연하게 대답할 것
+        - 한국어로 사용자의 페르소나와 감정과 말투와 상황의 따라 유연하게 친근하고 친절하게 대답할 것
         - 시스템 텍스트를 그대로 복사/반영하지 말 것.
         - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트로 답변.
         """
@@ -1010,12 +1010,14 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
             var prompt = "\(basePromptText)\n\n\(generalGuidelines)\n\n사용자 컨텍스트:\n\(userContext)"
             if mode == .presetRecommendation {
-                // 안정 프리픽스로 카탈로그 요약(짧게) 제공: 변동 정보는 user 메시지에서 별도 전달
-                let names = SoundPresetCatalog.dynamicCategoryNames
-                let emojis = SoundPresetCatalog.dynamicCategoryEmojis
-                let pairs = Array(zip(emojis, names).prefix(13))
-                let lines = pairs.map { "- \($0) \($1)" }.joined(separator: "\n")
-                prompt += "\n\n앱 사운드 카탈로그 요약(이름/버전만 사용, 다른 이름 생성 금지):\n\(lines)\n\n출력 규칙: JSON만, items[{soundName, versionName?, volume0..100}] 또는 volumes[0..100] 중 하나를 채움. presetName/reason/confidence 포함."
+                // 프리셋: 모델이 자유롭게 조합/제목 생성하되, 토큰 최소화를 위해 카탈로그 전체를 실어 나르지 않음.
+                // 대신 총 카테고리 수와 버전 개수만 제공 → 모델은 volumes(13), versions(13)로 출력.
+                let catCount = SoundPresetCatalog.categoryCount
+                let versionCounts: [Int] = (0..<catCount).map { idx in
+                    SoundManager.shared.getSoundCatalog(at: idx)?.versions.count ?? 1
+                }
+                let countsStr = versionCounts.map { String($0) }.joined(separator: ",")
+                prompt += "\n\n사운드 카탈로그 사양(토큰 절약형):\n- categoryCount=\(catCount)\n- versionCounts=[\(countsStr)] (각 카테고리별 버전 개수)\n\n요구사항(엄격):\n- 오직 JSON 1개만 출력. 추가 텍스트/코드펜스 금지.\n- 자유롭게 새로운 presetName을 생성(창의적/간결).\n- reason은 한국어 120자 이내.\n- volumes: 길이 \(catCount), 0..100 정수(또는 0..100 소수).\n- versions: 길이 \(catCount), 각 항목은 0..versionCounts[i]-1 정수.\n- confidence: 0..1.\n- items는 생략(선택). volumes+versions가 있으면 items는 없어야 함.\n- 모델이 자체 지식과 사용자 컨텍스트를 바탕으로 조합/균형/타이틀을 결정. 내부 카탈로그 이름 목록에 제한되지 않음."
             }
             return prompt
         }
@@ -1042,6 +1044,12 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
                     "maxItems": 13,
                     "items": ["type": "number", "minimum": 0, "maximum": 100]
                 ],
+                "versions": [
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 13,
+                    "items": ["type": "integer", "minimum": 0]
+                ],
                 "items": [
                     "type": "array",
                     "minItems": 1,
@@ -1060,7 +1068,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             ],
             "required": ["reason"],
             "anyOf": [
-                ["required": ["volumes"]],
+                ["required": ["volumes", "versions"]],
                 ["required": ["items"]]
             ]
         ]
@@ -1115,7 +1123,7 @@ case .presetRecommendation:
             }
             let candidateLine = candidates.isEmpty ? "" : "\n[시간대 후보 Top-5] " + candidates.joined(separator: ", ")
             return """
-            DeepSleep 사운드 큐레이터.
+            EmoZleep 사운드 큐레이터.
             - 오직 JSON 객체 1개만 출력(추가 텍스트/코드펜스/주석 금지)
             - items: 1–13개, volume: 0–100 정수
             - soundName: 카탈로그 이름, versionName: 해당 사운드의 버전
