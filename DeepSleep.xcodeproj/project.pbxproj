@@ -202,6 +202,7 @@
 		E0B562572E683E3700D334F1 /* SimpleAdviceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */; };
 		E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */; };
 		E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */; };
+		E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -438,6 +439,7 @@
 		E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAdviceViewController.swift; sourceTree = "<group>"; };
 		E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFlags.swift; sourceTree = "<group>"; };
 		E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -687,6 +689,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562602E6AC9C100D334F1 /* Settings */,
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
 				E084F0D22E33ACB3002F75E6 /* Info.plist */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
@@ -886,6 +889,14 @@
 				E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E0B562602E6AC9C100D334F1 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		E0E7BC9B2E53664B00FF7073 /* Context */ = {
@@ -1288,6 +1299,7 @@
 				E084F2022E33ACB3002F75E6 /* PresetSharingManager.swift in Sources */,
 				E084F2032E33ACB3002F75E6 /* EditDiaryViewController.swift in Sources */,
 				E084F2042E33ACB3002F75E6 /* EnhancedSoundRecommendationEngine.swift in Sources */,
+				E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

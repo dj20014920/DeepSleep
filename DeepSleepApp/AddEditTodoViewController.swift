@@ -80,7 +80,7 @@ class AddEditTodoViewController: UIViewController {
         contentView.addSubview(dueDatePicker)
         
         // Quick Register Button
-        quickRegisterButton.setTitle("간편등록", for: .normal)
+        quickRegisterButton.setTitle("하루종일", for: .normal)
         quickRegisterButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         quickRegisterButton.backgroundColor = .systemBlue
         quickRegisterButton.setTitleColor(.white, for: .normal)

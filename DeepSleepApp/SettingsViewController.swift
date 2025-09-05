@@ -136,6 +136,15 @@ class SettingsViewController: UIViewController {
                 self?.showAIModelSelection()
             }
         ))
+        // 친구 말투 설정
+        aiModelSection.addItem(SettingsItem(
+            title: "친구 말투 설정",
+            subtitle: "친근/전문/MBTI 다이얼(선택형)",
+            type: .navigation,
+            action: { [weak self] in
+                self?.showFriendToneSettings()
+            }
+        ))
         
         // 사용자 정보 항목들
         userInfoSection.addItem(SettingsItem(
@@ -311,6 +320,12 @@ extension SettingsViewController {
         let navController = UINavigationController(rootViewController: modelSelectionVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
+    }
+    private func showFriendToneSettings() {
+        let vc = FriendToneSettingsViewController()
+        let nav = UINavigationController(rootViewController: vc)
+        nav.modalPresentationStyle = .formSheet
+        present(nav, animated: true)
     }
     private func showUserBasicInfo() {
         let basicInfoVC = UserBasicInfoViewController()

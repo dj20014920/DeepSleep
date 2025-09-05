@@ -1349,7 +1349,55 @@ case .presetRecommendation:
             break
         }
         
+        // 사용자 페르소나 기반 미세 튜닝(친구 말투/MBTI)
+        optimizedConfig = applyUserPersonaTuning(optimizedConfig, mode: mode)
+        // JSON 모드는 다시 한 번 상한 캡(보수적)
+        if optimizedConfig.responseFormat == .json, let jsonTempMax = ConfigReader.double("AI_JSON_MODE_TEMPERATURE_MAX") {
+            optimizedConfig = TokenConfiguration(
+                maxTokens: optimizedConfig.maxTokens,
+                temperature: min(optimizedConfig.temperature, jsonTempMax),
+                topP: optimizedConfig.topP,
+                frequencyPenalty: optimizedConfig.frequencyPenalty,
+                presencePenalty: optimizedConfig.presencePenalty,
+                responseFormat: optimizedConfig.responseFormat
+            )
+        }
         return optimizedConfig
+    }
+
+    /// 사용자 말투/MBTI에 따른 경량 튜닝(온도/탑P). 서버/모드/모델 정책을 침범하지 않도록 ±0.15 내에서만 조정.
+    private func applyUserPersonaTuning(_ base: TokenConfiguration, mode: AIMode) -> TokenConfiguration {
+        var tDelta: Double = 0.0
+        var topP: Double? = base.topP
+
+        let settings = UserSettingsModel.loadFromUserDefaults()
+        // 톤 프리셋 영향(가중치 합산, 클램프)
+        for p in settings.preferredFriendTones {
+            switch p {
+            case .friendly, .supportive, .coaching: tDelta += 0.03
+            case .professional, .concise, .analytical: tDelta -= 0.05
+            case .calm: tDelta -= 0.03
+            case .playful, .humorous: tDelta += 0.05; topP = max(topP ?? 0.9, 0.9)
+            }
+        }
+        // MBTI 영향(선택된 축만 반영)
+        let mbti = settings.mbti
+        switch mbti.ie { case .i: tDelta -= 0.05; case .e: tDelta += 0.05; default: break }
+        switch mbti.ns { case .n: tDelta += 0.03; topP = max(topP ?? 0.9, 0.9); case .s: tDelta -= 0.03; topP = min(topP ?? 0.8, 0.8); default: break }
+        switch mbti.tf { case .t: tDelta -= 0.04; case .f: tDelta += 0.04; default: break }
+        switch mbti.pj { case .p: tDelta += 0.03; case .j: tDelta -= 0.03; default: break }
+
+        // 모드별 상한/하한 보호(일반 대화는 창의성 허용, JSON 모드는 별도 캡 적용 예정)
+        let tempBase = base.temperature
+        let clampedTemp = max(0.1, min(1.0, tempBase + max(-0.15, min(0.15, tDelta))))
+        return TokenConfiguration(
+            maxTokens: base.maxTokens,
+            temperature: clampedTemp,
+            topP: topP ?? base.topP,
+            frequencyPenalty: base.frequencyPenalty,
+            presencePenalty: base.presencePenalty,
+            responseFormat: base.responseFormat
+        )
     }
     
     /// DEBUG 전용: 로컬 직접 서비스 사용 가능 여부

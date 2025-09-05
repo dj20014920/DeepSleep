@@ -47,10 +47,18 @@ extension UserRulesManager {
             let tones = settings.conversationTones.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
             traits.append("tones:\(tones)")
         }
+        // 친구 톤 프리셋(최대 3개 요약)
+        if !settings.preferredFriendTones.isEmpty {
+            let tones = settings.preferredFriendTones.prefix(3).map { $0.rawValue }.joined(separator: ",")
+            traits.append("friendTones:\(tones)")
+        }
         if !settings.personalityTraits.isEmpty {
             let pers = settings.personalityTraits.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
             traits.append("traits:\(pers)")
         }
+        // MBTI 다이얼 요약(선택된 축만)
+        let mbtiBrief = settings.mbti.briefString()
+        if !mbtiBrief.isEmpty { traits.append("mbti:\(mbtiBrief)") }
         if !settings.personalityDescription.isEmpty {
             // 길이 과다 방지: 앞부분만 사용
             let desc = String(sanitizePII(settings.personalityDescription).prefix(64))
@@ -95,6 +103,10 @@ extension UserRulesManager {
             let tones = settings.conversationTones.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
             traits.append("tones:\(tones)")
         }
+        if !settings.preferredFriendTones.isEmpty {
+            let tones = settings.preferredFriendTones.prefix(3).map { $0.rawValue }.joined(separator: ",")
+            traits.append("friendTones:\(tones)")
+        }
         if !settings.personalityTraits.isEmpty {
             let pers = settings.personalityTraits.prefix(3).map { sanitizePII($0) }.joined(separator: ",")
             traits.append("traits:\(pers)")
@@ -103,6 +115,8 @@ extension UserRulesManager {
             let desc = String(sanitizePII(settings.personalityDescription).prefix(64))
             if !desc.isEmpty { traits.append("desc:\(desc)") }
         }
+        let mbtiBrief = settings.mbti.briefString()
+        if !mbtiBrief.isEmpty { traits.append("mbti:\(mbtiBrief)") }
         if !settings.musicPreferences.isEmpty {
             let music = settings.musicPreferences.prefix(3).map { $0.rawValue }.joined(separator: ",")
             traits.append("music:\(music)")

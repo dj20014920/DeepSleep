@@ -9,7 +9,11 @@ struct UserSettingsModel: Codable {
     var age: Int?
     var personalityDescription: String = "" // 자유로운 자기소개
     var personalityTraits: [String] = [] // 빠른 선택 성격 특성들
-    var conversationTones: [String] = [] // 선호하는 대화 스타일들
+    var conversationTones: [String] = [] // 선호하는 대화 스타일들(문자열)
+    // 새 친구 톤 프리셋(멀티 선택)
+    var preferredFriendTones: [FriendTonePreset] = []
+    // MBTI 다이얼(부분 선택 허용)
+    var mbti: MBTISelection = MBTISelection()
     
     // MARK: - 음악/소리 선호도
     var musicPreferences: [MusicStyle] = []
@@ -70,6 +74,17 @@ struct UserSettingsModel: Codable {
         // 선호하는 대화 스타일
         if !conversationTones.isEmpty {
             context += "• 선호 대화 스타일: \(conversationTones.joined(separator: ", "))\n"
+        }
+        // 친구 톤 프리셋
+        if !preferredFriendTones.isEmpty {
+            let tones = preferredFriendTones.map { $0.displayName }.joined(separator: ", ")
+            context += "• 친구 말투 프리셋: \(tones)\n"
+        }
+        // MBTI 요약(선택한 축만)
+        let mbtiBrief = mbti.briefString()
+        if !mbtiBrief.isEmpty {
+            context += "• MBTI 경향: \(mbtiBrief)\n"
+            context += mbti.guidelineSnippet()
         }
         
         // 음악/소리 선호도
@@ -198,6 +213,140 @@ enum AIPersonality: String, Codable, CaseIterable {
         case .cheerful: return "밝은"
         case .calm: return "차분한"
         case .wise: return "현명한"
+        }
+    }
+}
+
+// MARK: - FriendTonePreset & MBTI
+
+extension UserSettingsModel {
+    enum FriendTonePreset: String, Codable, CaseIterable {
+        case friendly
+        case professional
+        case calm
+        case playful
+        case humorous
+        case concise
+        case supportive
+        case analytical
+        case coaching
+
+        var displayName: String {
+            switch self {
+            case .friendly: return "친근한"
+            case .professional: return "전문적인"
+            case .calm: return "차분한"
+            case .playful: return "장난스러운"
+            case .humorous: return "유머러스한"
+            case .concise: return "간결한"
+            case .supportive: return "격려하는"
+            case .analytical: return "분석적인"
+            case .coaching: return "코칭형"
+            }
+        }
+    }
+
+    /// MBTI 4축 선택(각각 미정 허용)
+    struct MBTISelection: Codable {
+        var ie: MBTITraitOption = .unspecifiedIE
+        var ns: MBTITraitOption = .unspecifiedNS
+        var tf: MBTITraitOption = .unspecifiedTF
+        var pj: MBTITraitOption = .unspecifiedPJ
+
+        func briefString() -> String {
+            var parts: [String] = []
+            if ie.isSpecified { parts.append(ie.shortLabel) }
+            if ns.isSpecified { parts.append(ns.shortLabel) }
+            if tf.isSpecified { parts.append(tf.shortLabel) }
+            if pj.isSpecified { parts.append(pj.shortLabel) }
+            return parts.joined(separator: " ")
+        }
+
+        /// 톤/추론/상담 가이드 라인의 짧은 스니펫(선택된 축만)
+        func guidelineSnippet() -> String {
+            var lines: [String] = []
+            // I/E: 말투 에너지
+            if ie.isSpecified {
+                switch ie {
+                case .i: lines.append("• 말투: 조용하고 사려 깊게, 과장/과한 감탄사 최소화")
+                case .e: lines.append("• 말투: 에너제틱하고 격려적으로, 따뜻한 리액션 포함")
+                default: break
+                }
+            }
+            // N/S: 설명 스타일
+            if ns.isSpecified {
+                switch ns {
+                case .n: lines.append("• 설명: 직관/비유/큰그림 강조, 새로운 관점 1개 제시")
+                case .s: lines.append("• 설명: 구체/사실/사례 중심, 바로 적용 팁 포함")
+                default: break
+                }
+            }
+            // T/F: 문제 해결/상담 접근
+            if tf.isSpecified {
+                switch tf {
+                case .t: lines.append("• 접근: 논리적 근거/단계/장단점 정리")
+                case .f: lines.append("• 접근: 감정 공감→안심→작은 행동 제안")
+                default: break
+                }
+            }
+            // P/J: 구조/결론 스타일
+            if pj.isSpecified {
+                switch pj {
+                case .p: lines.append("• 스타일: 선택지/여지 남기기, 탐색형 제안")
+                case .j: lines.append("• 스타일: 명확한 결론/체크리스트/마감 제시")
+                default: break
+                }
+            }
+            return lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
+        }
+    }
+
+    enum MBTITraitOption: String, Codable {
+        // 각 축별 미정 구분(서명/직렬화 안정성)
+        case unspecifiedIE, i, e
+        case unspecifiedNS, n, s
+        case unspecifiedTF, t, f
+        case unspecifiedPJ, p, j
+
+        var isSpecified: Bool {
+            switch self {
+            case .unspecifiedIE, .unspecifiedNS, .unspecifiedTF, .unspecifiedPJ: return false
+            default: return true
+            }
+        }
+        var shortLabel: String {
+            switch self {
+            case .i: return "I"
+            case .e: return "E"
+            case .n: return "N"
+            case .s: return "S"
+            case .t: return "T"
+            case .f: return "F"
+            case .p: return "P"
+            case .j: return "J"
+            default: return ""
+            }
+        }
+        var segmentIndex: Int {
+            // 0/1/2 = 좌/우/미정 (각 축의 좌/우에 맞춰 배치)
+            switch self {
+            case .i, .n, .t, .p: return 0
+            case .e, .s, .f, .j: return 1
+            default: return 2
+            }
+        }
+        enum Pair { case ie, ns, tf, pj }
+        static func fromSegmentIndex(_ idx: Int, pair: Pair) -> MBTITraitOption {
+            switch pair {
+            case .ie:
+                return idx == 0 ? .i : (idx == 1 ? .e : .unspecifiedIE)
+            case .ns:
+                return idx == 0 ? .n : (idx == 1 ? .s : .unspecifiedNS)
+            case .tf:
+                return idx == 0 ? .t : (idx == 1 ? .f : .unspecifiedTF)
+            case .pj:
+                return idx == 0 ? .p : (idx == 1 ? .j : .unspecifiedPJ)
+            }
         }
     }
 }
