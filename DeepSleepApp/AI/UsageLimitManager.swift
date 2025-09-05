@@ -214,21 +214,27 @@ public class UsageLimitManager {
         let premium = SubscriptionStatusCenter.shared.isPremium
         let candidates = limitKeyCandidates(for: mode, isPremium: premium)
         // 1) 번들에서 직접 조회 (가장 신선한 값)
+        var resolved: Int? = nil
         for key in candidates {
-            if let v = readInt(key) { return max(0, v) }
+            if let v = readInt(key) { resolved = max(0, v); break }
         }
         // 2) 캐시에 없다면 한 번만 로드 시도 (지연 로딩)
-        if cachedLimits.isEmpty {
-            let loaded = loadLimitsFromBundle()
-            for key in candidates {
-                if let cached = loaded[key] { return max(0, cached) }
-            }
-        } else {
-            for key in candidates {
-                if let cached = cachedLimits[key] { return max(0, cached) }
+        if resolved == nil {
+            if cachedLimits.isEmpty {
+                let loaded = loadLimitsFromBundle()
+                for key in candidates {
+                    if let cached = loaded[key] { resolved = max(0, cached); break }
+                }
+            } else {
+                for key in candidates {
+                    if let cached = cachedLimits[key] { resolved = max(0, cached); break }
+                }
             }
         }
-        return 0
+        let base = resolved ?? 0
+        // 정책: 감정 일기 분석은 1일 1회로 강제 제한
+        if mode == .emotionDiaryAnalysis { return min(base == 0 ? 1 : base, 1) }
+        return base
     }
     
     /// AIMode를 사용량 키로 변환 (UserDefaults용)

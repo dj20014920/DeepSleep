@@ -1015,16 +1015,13 @@ extension EmotionCalendarViewController {
             self.present(responseAlert, animated: true)
         })
         
-        // ✅ 일기 분석 대화 버튼 - 남은 횟수 표시 (n/total 형식 통일)
+        // ✅ 일기 분석 대화 버튼 - 카운트 표기 제거
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let totalCount = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
-        let diaryAnalysisTitle = remainingCount > 0 ?
-            "💬 이 일기를 AI와 깊이 분석 (\(remainingCount)/\(totalCount))" :
-            "💬 일기 분석 대화 (오늘 사용 완료)"
-        
-        alert.addAction(UIAlertAction(title: diaryAnalysisTitle, style: .default) { _ in
-            self.startDiaryConversation(with: entry)
-        })
+        let diaryAnalysisAction = UIAlertAction(title: remainingCount > 0 ? "💬 이 일기를 AI와 깊이 분석" : "💬 일기 분석 대화 (오늘 사용 완료)", style: .default) { _ in
+            if remainingCount > 0 { self.startDiaryConversation(with: entry) }
+        }
+        if remainingCount <= 0 { diaryAnalysisAction.isEnabled = false }
+        alert.addAction(diaryAnalysisAction)
         
         // 일기 전체 내용 보기 버튼 (긴 일기인 경우)
         if entry.userMessage.count > 100 {
@@ -1084,6 +1081,15 @@ extension EmotionCalendarViewController {
         print("  - AI 응답 길이: \(verifiedAIResponse.count)자")
         print("  - 날짜: \(entry.date)")
         
+        // ⏳ 최근 3일 제한 확인
+        let cal = Calendar.current
+        if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()), entry.date < threeDaysAgo {
+            let alert = UIAlertController(title: "최근 3일 제한", message: "최근 3일 이내의 일기만 대나무숲에서 분석할 수 있어요.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
         // ✅ 사용 횟수 증가 (실제 대화 시작 직전에)
         AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
         
@@ -1184,9 +1190,9 @@ extension EmotionCalendarViewController {
         
         // ✅ 대나무숲 버튼도 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let totalCount = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
-        let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석 (\(remainingCount)/\(totalCount))" : "💬 분석 완료"
+        let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석" : "💬 분석 완료"
         let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
+        chatButton.isEnabled = remainingCount > 0
         
         detailVC.navigationItem.leftBarButtonItem = closeButton
         detailVC.navigationItem.rightBarButtonItem = chatButton

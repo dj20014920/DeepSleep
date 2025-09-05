@@ -419,6 +419,14 @@ class DiaryWriteViewController: UIViewController {
     
     private func startAIChat() {
         guard let diaryEntry = savedDiaryEntry else { return }
+        // ⏳ 최근 3일 제한 확인 (작성 직후 일반적으로 충족하지만 안전망)
+        let cal = Calendar.current
+        if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()), diaryEntry.date < threeDaysAgo {
+            let alert = UIAlertController(title: "최근 3일 제한", message: "최근 3일 이내의 일기만 대나무숲에서 분석할 수 있어요.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
         
         // 요구사항: #Todays_Mood의 일반 채팅을 열고 그 안에서 분석을 요청
         let chatVC = ChatRouter.chatViewController()
@@ -560,12 +568,11 @@ class DiaryWriteViewController: UIViewController {
 
     private func updateAIChatButtonUI() {
         let remain = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
         if aiChatButton.isHidden == false {
             if remain > 0 {
                 aiChatButton.isEnabled = true
                 aiChatButton.backgroundColor = .systemGreen
-                aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (\(remain)/\(total))", for: .normal)
+                aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기", for: .normal)
             } else {
                 aiChatButton.isEnabled = false
                 aiChatButton.backgroundColor = .systemGray3

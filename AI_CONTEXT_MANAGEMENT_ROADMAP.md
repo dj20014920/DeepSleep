@@ -20,7 +20,7 @@
 
 요약(현재 상태)
 - 클라이언트: 프리셋 추천 파이프라인이 DRY하게 중앙 파서(AIResponseParser.parsePresetRecommendation)를 사용. ChatViewController는 해당 훅으로 파싱하고, Gemini 우선 → 실패 시 OpenAI(Structured Outputs/JSON 스키마) 폴백을 수행. 토큰 절약을 위해 시간대 기반 Top‑K(최대 5개) 사운드 캡슐만 프롬프트에 포함. 추천 사용량 카운트는 파싱 성공 시에만 증가.
-- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → naver → claude.
+- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver.
 - 배포: dev 환경 배포 완료. URL: https://emozleep.vinny4920-081.workers.dev (Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3). dev 기본 CANARY_PERCENT=100, production 오버라이드는 wrangler.toml에서 5%로 설정됨(명시적 배포 필요).
 
 검증 체크리스트(9/03)

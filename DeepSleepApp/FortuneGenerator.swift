@@ -25,9 +25,9 @@ struct FortuneCategory {
 // MARK: - Fortune Generator
 class FortuneGenerator {
     static let shared = FortuneGenerator()
-    
+
     init() {}
-    
+
     // MARK: - Fortune Templates (Expanded to 3000+ entries each)
     private let generalFortunes = [
         // 일반운 1000개 추가 (1/3 분할)
@@ -353,7 +353,7 @@ class FortuneGenerator {
         "새로운 목표와 비전의 설정이 삶에 무한한 동력과 희망을 제공할 것입니다.",
         "오늘의 모든 경험이 자기 발견과 성장의 여정을 더욱 풍부하고 의미있게 만들어줄 것입니다."
     ]
-    
+
     private let relationshipFortunes = [
         // 일반 인간관계운 (가족, 친구, 동료 등)
         "가족과의 소통이 더욱 원활해지는 날입니다.",
@@ -387,9 +387,9 @@ class FortuneGenerator {
         "인간관계에서 균형감을 찾을 수 있는 날입니다.",
         "새로운 관점으로 사람들을 이해하게 될 것입니다."
     ]
-    
 
-    
+
+
     private let workFortunes = [
         // 직장운 1000개 추가 (1/3 분할)
         "동료들과의 협력이 중요한 성과를 가져다줄 것입니다.",
@@ -497,7 +497,7 @@ class FortuneGenerator {
         "동료들과의 업무 관련 소통에서 진정한 팀워크를 경험할 것입니다.",
         "업무 관련 새로운 도전이 자신감 향상으로 이어질 것입니다.",
         "오늘은 업무 성과가 회사의 미래 방향에 영향을 미칠 수 있습니다.",
-        
+
         // 활동운 400개 추가 (직업/학습/취미 통합)
         "새로운 활동에 도전하면 예상치 못한 재능을 발견할 수 있습니다.",
         "꾸준한 학습이 큰 성장의 발판이 될 것입니다.",
@@ -667,7 +667,7 @@ class FortuneGenerator {
         "새로운 활동 패러다임의 창조가 분야 전체의 발전을 이끌어내는 선구적 역할을 하게 될 것입니다.",
         "활동에서의 모든 경험과 학습이 인생 전체의 방향성을 긍정적으로 변화시키는 결정적 계기가 될 것입니다."
     ]
-    
+
     private let healthFortunes = [
         // 건강운 1000개 추가 (1/3 분할)
         "충분한 수분 섭취를 잊지 마세요.",
@@ -776,7 +776,7 @@ class FortuneGenerator {
         "오늘은 건강한 혈액을 위해 엽록소가 풍부한 음식을 섭취하세요.",
         "규칙적인 생활로 생체 리듬을 정상화시키세요.",
         "오늘은 건강한 호르몬 균형을 위해 충분한 수면을 취하세요.",
-        
+
         // 건강운 200개 추가 (1/2)
         "새로운 운동 루틴을 만들어 체력을 체계적으로 강화해보세요.",
         "마음의 건강을 위해 좋아하는 취미에 시간을 할애해보세요.",
@@ -877,7 +877,7 @@ class FortuneGenerator {
         "평생에 걸친 건강 관리의 여정이 단순한 신체 관리를 넘어 인생 전체의 방향성과 가치를 재정립하는 소중한 기회가 되도록 해보세요.",
         "오늘은 건강이라는 가장 기본적이면서도 소중한 자산을 통해 인생의 모든 꿈과 목표를 현실로 만들어가는 힘을 기르는 특별한 날이 되어보세요.",
         "건강 관리의 모든 순간이 자기 사랑과 자기 돌봄의 실천이며, 이를 통해 더욱 풍요롭고 의미있는 인생을 창조해나가는 여정임을 깊이 깨달아보세요.",
-        
+
         // 건강운 100개 추가 (2/4)
         "새로운 통증 관리 방법을 시도해보세요.",
         "오늘은 체온 조절 능력을 향상시킬 수 있습니다.",
@@ -936,7 +936,7 @@ class FortuneGenerator {
         "전체적 체력 밸런스를 위해 다양한 단련을 고르게 조합해보세요.",
         "오늘은 마음의 고요함이 삶에 미치는 예상치 못한 이점들을 발견해보세요."
     ]
-    
+
     private let moneyFortunes = [
         // 금전운 200개 신규 추가 (1/2)
         "새로운 수입원을 발견할 수 있는 기회가 찾아올 것입니다.",
@@ -1000,7 +1000,7 @@ class FortuneGenerator {
         "단기적 손실에 너무 실망하지 말고 장기적 관점을 유지하세요.",
         "오늘은 사랑하는 사람들과 재정 계획을 나눌 수 있는 날입니다.",
         "예상보다 빠르게 수익이 나올 수도 있으니 차근차근 진행하세요.",
-        
+
         // 금전운 메시지 추가 (201-400)
         "돈에 대한 새로운 관점을 갖게 되는 하루입니다.",
         "경제적 안정을 위한 기반이 더욱 탄탄해질 것입니다.",
@@ -1152,7 +1152,7 @@ class FortuneGenerator {
         "금전적 안정감이 더 큰 꿈을 추구할 수 있는 든든한 뒷받침이 됩니다.",
         "새로운 경제적 비전이 삶의 모든 측면에서 긍정적 변화를 이끌어냅니다.",
         "돈에 대한 현명한 선택들이 미래의 무한한 가능성을 열어줄 것입니다.",
-        
+
         // 성별별 특화 금전운 메시지 추가
         "리더십을 발휘하여 경제적 성공을 이룰내세요.",
         "결단력 있는 투자 결정이 큰 성과를 가져다줍니다.",
@@ -1170,7 +1170,7 @@ class FortuneGenerator {
         "조화로운 재정 관리로 가정의 행복을 지킬 수 있습니다.",
         "설득력 있는 협상으로 더 나은 금융 조건을 얻을 수 있습니다."
     ]
-    
+
     private let luckyColors = [
         "빨강", "주황", "노랑", "초록", "파랑", "남색", "보라",
         "분홍", "하늘색", "연두", "금색", "은색", "하얀색", "검정",
@@ -1178,10 +1178,90 @@ class FortuneGenerator {
         "마젠타", "올리브", "네이비", "크림", "아이보리", "차콜", "와인",
         "로즈골드", "플래티넘"
     ]
-    
-    private let luckyItems = [
-        "향이 좋은 차", "작은 화분", "예쁜 펜", "따뜻한 양말",
-        "좋아하는 책", "달콤한 과자", "부드러운 스카프", "향수",
+
+    private let luckyItemsData: [String: [String: [String]]] = [
+        "어린이": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "새 연필", "색연필 세트", "예쁜 지우개", "귀여운 스티커", "작은 장난감",
+                "좋아하는 캐릭터 용품", "컬러풀한 양말", "반짝이는 머리핀", "작은 인형", "미니카"
+            ],
+            "남성": [
+                "로봇 장난감", "공", "미니카", "블록", "퍼즐"
+            ],
+            "여성": [
+                "인형", "머리핀", "예쁜 스티커", "색칠공부", "작은 가방"
+            ]
+        ],
+        "청소년": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "좋아하는 음악 앨범", "헤드폰", "스마트폰 케이스", "예쁜 다이어리", "볼펜 세트",
+                "마스킹 테이프", "포토카드", "키링", "브레슬릿", "목걸이"
+            ],
+            "남성": [
+                "운동화", "백팩", "게임", "스포츠용품", "기술 관련 책"
+            ],
+            "여성": [
+                "액세서리", "향수", "립밤", "핸드크림", "예쁜 노트"
+            ]
+        ],
+        "청년": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "고급 볼펜", "노트북", "플래너", "명함 케이스", "지갑",
+                "시계", "향수", "커피", "차", "건강기능식품"
+            ],
+            "남성": [
+                "시계", "지갑", "넥타이", "커프스 단추", "면도기"
+            ],
+            "여성": [
+                "액세서리", "화장품", "핸드크림", "스카프", "가방"
+            ]
+        ],
+        "중년": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "건강차", "영양제", "마사지 도구", "아로마 오일", "편안한 쿠션",
+                "독서용 돋보기", "혈압계", "만보기", "요가 매트", "등산용품"
+            ],
+            "남성": [
+                "골프용품", "낚시용품", "공구 세트", "차량용품", "전자제품"
+            ],
+            "여성": [
+                "스킨케어 제품", "주얼리", "헤어 액세서리", "캔들", "아로마 제품"
+            ]
+        ],
+        "시니어": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "건강차", "따뜻한 담요", "편안한 방석", "돋보기", "혈압계",
+                "혈당측정기", "만보기", "라디오", "손자녀 사진", "가족 앨범"
+            ],
+            "남성": [
+                "지팡이", "모자", "편안한 신발", "라디오", "신문"
+            ],
+            "여성": [
+                "따뜻한 담요", "편안한 방석", "건강차", "마사지 기계", "일기장"
+            ]
+        ],
+        "성인": [
+            "기본": [
+                "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
+                "운동용품", "요가 매트", "텀블러", "블루투스 이어폰", "스마트워치",
+                "책", "와인", "선물용 꽃다발", "캔들", "디퓨저"
+            ],
+            "남성": [
+                "시계", "지갑", "향수", "운동용품", "전자제품"
+            ],
+            "여성": [
+                "액세서리", "화장품", "꽃", "캔들", "스킨케어 제품"
+            ]
+        ]
+    ]
+
+    // Legacy lucky items array (kept for compatibility)
+    private let legacyLuckyItems = [
         "작은 거울", "캔들", "예쁜 머그컵", "향이 좋은 비누",
         "작은 쿠션", "따뜻한 담요", "예쁜 노트", "좋아하는 음악",
         "수정", "반지", "목걸이", "팔찌", "귀걸이", "시계",
@@ -1207,7 +1287,7 @@ class FortuneGenerator {
             return "성인"
         }
     }
-    
+
     private func selectAgeAppropriateMessage(from messages: [String], ageGroup: String, random: inout SeededRandom) -> String {
         // 나이대별 메시지 필터링 키워드
         let ageKeywords: [String: [String]] = [
@@ -1217,28 +1297,28 @@ class FortuneGenerator {
             "중년": ["안정", "가족", "책임", "경험", "지혜", "균형", "관리", "성숙", "리더십", "멘토링"],
             "시니어": ["지혜", "경험", "평화", "건강", "가족", "전수", "성찰", "여유", "감사", "유산"]
         ]
-        
+
         let keywords = ageKeywords[ageGroup] ?? ageKeywords["성인"] ?? []
-        
+
         // 나이대에 적합한 메시지 우선 선택
         let appropriateMessages = messages.filter { message in
             keywords.contains { keyword in
                 message.contains(keyword)
             }
         }
-        
+
         // 적합한 메시지가 있으면 그 중에서 선택, 없으면 전체에서 선택
         let targetMessages = appropriateMessages.isEmpty ? messages : appropriateMessages
         return targetMessages[random.nextInt(in: 0..<targetMessages.count)]
     }
-    
+
     private func selectGenderAndAgeAppropriateMessage(from messages: [String], ageGroup: String, gender: Int, random: inout SeededRandom) -> String {
         // 성별 + 나이대별 메시지 필터링 키워드
         let genderKeywords: [Int: [String]] = [
             0: ["리더십", "독립", "도전", "성취", "경쟁", "전략", "목표", "성공", "협력", "결단"], // 남성
             1: ["소통", "공감", "균형", "배려", "조화", "직가", "감성", "다정", "사랑", "채념"] // 여성
         ]
-        
+
         let ageKeywords: [String: [String]] = [
             "어린이": ["놀이", "학습", "호기심", "탐험", "친구", "가족", "성장", "발견", "새로운", "재미"],
             "청소년": ["도전", "꿈", "미래", "성장", "학습", "친구", "자신감", "발견", "가능성", "열정"],
@@ -1246,55 +1326,57 @@ class FortuneGenerator {
             "중년": ["안정", "가족", "책임", "경험", "지혜", "균형", "관리", "성숙", "리더십", "멘토링"],
             "시니어": ["지혜", "경험", "평화", "건강", "가족", "전수", "성찰", "여유", "감사", "유산"]
         ]
-        
+
         let genderKeys = genderKeywords[gender] ?? []
         let ageKeys = ageKeywords[ageGroup] ?? ageKeywords["성인"] ?? []
-        
+
         let allKeywords = genderKeys + ageKeys
-        
+
         // 성별 + 나이대에 적합한 메시지 우선 선택
         let appropriateMessages = messages.filter { message in
             allKeywords.contains { keyword in
                 message.contains(keyword)
             }
         }
-        
+
         // 적합한 메시지가 없으면 나이대만 고려
         if !appropriateMessages.isEmpty {
             return appropriateMessages[random.nextInt(in: 0..<appropriateMessages.count)]
         }
-        
+
         // fallback: 나이대별 선택
         return selectAgeAppropriateMessage(from: messages, ageGroup: ageGroup, random: &random)
     }
-    
+
     // MARK: - Main Generation Function
     func generateDailyFortune(for date: Date, birthDate: Date? = nil, gender: Int = 0) -> DailyFortune {
         let zodiacSign = getZodiacSign(from: birthDate ?? Date())
-        
+
         // Calculate age and age group for personalized messages
         let age = calculateAge(from: birthDate ?? Date())
         let ageGroup = getAgeGroup(age: age)
-        
+
         // Use date as seed for consistent daily fortune
         let calendar = Calendar.current
         let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
         let seed = dayOfYear + calendar.component(.year, from: date) + gender + age
-        
+
         var random = SeededRandom(seed: seed)
-        
+
         // Select age and gender-appropriate messages
         let generalFortune = selectGenderAndAgeAppropriateMessage(from: generalFortunes, ageGroup: ageGroup, gender: gender, random: &random)
         let loveFortune = selectGenderAndAgeAppropriateMessage(from: relationshipFortunes, ageGroup: ageGroup, gender: gender, random: &random)
         let workFortune = selectGenderAndAgeAppropriateMessage(from: workFortunes, ageGroup: ageGroup, gender: gender, random: &random)
         let healthFortune = selectGenderAndAgeAppropriateMessage(from: healthFortunes, ageGroup: ageGroup, gender: gender, random: &random)
         let moneyFortune = selectGenderAndAgeAppropriateMessage(from: moneyFortunes, ageGroup: ageGroup, gender: gender, random: &random)
-        
+
         let luckyColor = luckyColors[random.nextInt(in: 0..<luckyColors.count)]
         let luckyNumber = random.nextInt(in: 1...99)
-        let luckyItem = luckyItems[random.nextInt(in: 0..<luckyItems.count)]
+
+        // Generate personalized lucky item based on age and gender
+        let luckyItem = generatePersonalizedLuckyItem(ageGroup: ageGroup, gender: gender)
         let overallScore = random.nextInt(in: 3...5) // Generally positive fortune
-        
+
         return DailyFortune(
             date: date,
             zodiacSign: zodiacSign,
@@ -1309,20 +1391,20 @@ class FortuneGenerator {
             overallScore: overallScore
         )
     }
-    
+
     private func calculateAge(from birthDate: Date) -> Int {
         let calendar = Calendar.current
         let now = Date()
         let ageComponents = calendar.dateComponents([.year], from: birthDate, to: now)
         return ageComponents.year ?? 0
     }
-    
+
     // MARK: - Zodiac Sign Calculator
     private func getZodiacSign(from birthDate: Date) -> String {
         let calendar = Calendar.current
         let month = calendar.component(.month, from: birthDate)
         let day = calendar.component(.day, from: birthDate)
-        
+
         switch (month, day) {
         case (1, 20...31), (2, 1...18):
             return "♒ 물병자리"
@@ -1352,7 +1434,29 @@ class FortuneGenerator {
             return "♒ 물병자리" // Fallback
         }
     }
-    
+
+    // MARK: - Lucky Item Generation
+    private func generatePersonalizedLuckyItem(ageGroup: String, gender: Int) -> String {
+        let genderKey = gender == 0 ? "남성" : (gender == 1 ? "여성" : "기본")
+
+        // Get age-specific items
+        let ageItems = luckyItemsData[ageGroup] ?? luckyItemsData["성인"]!
+
+        // Try gender-specific items first, then fall back to basic items
+        let genderItems = ageItems[genderKey] ?? ageItems["기본"]!
+        let basicItems = ageItems["기본"]!
+
+        // Combine items with preference for gender-specific ones
+        let allItems = genderItems + basicItems
+
+        // Use seeded random to ensure consistency for the same date
+        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
+        let seed = dayOfYear + gender
+        var random = SeededRandom(seed: seed)
+
+        return allItems[random.nextInt(in: 0..<allItems.count)]
+    }
+
     // MARK: - Fortune Categories
     func getFortuneCategories(from fortune: DailyFortune) -> [FortuneCategory] {
         return [
@@ -1387,20 +1491,20 @@ class FortuneGenerator {
 // MARK: - Seeded Random Generator
 struct SeededRandom {
     private var state: UInt64
-    
+
     init(seed: Int) {
         self.state = UInt64(seed)
     }
-    
+
     mutating func nextInt(in range: Range<Int>) -> Int {
         state = state &* 1103515245 &+ 12345
         let value = Int(state >> 16) % range.count
         return range.lowerBound + value
     }
-    
+
     mutating func nextInt(in range: ClosedRange<Int>) -> Int {
         state = state &* 1103515245 &+ 12345
         let value = Int(state >> 16) % (range.count)
         return range.lowerBound + value
     }
-} 
+}

@@ -479,6 +479,17 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     
     /// 일기 분석 요청 처리
 func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
+        // 최근 3일 이내 일기만 분석 허용
+        if let d = diary.date {
+            let cal = Calendar.current
+            if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()) {
+                if d < threeDaysAgo {
+                    appendChat(ChatMessage(text: "⏳ 최근 3일 이내의 일기만 분석할 수 있어요. 더 최근 일기를 선택해 주세요.", sender: .ai, type: .bot))
+                    return
+                }
+            }
+        }
+
         appendChat(ChatMessage(text: "분석하고 있어요...", sender: .ai, type: .loading))
         
         Task {

@@ -23,7 +23,7 @@
 - Dev vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
 - Dev/Prod vars는 wrangler.toml에 정의. 프로덕션은 CANARY_PERCENT=100으로 캐싱 전면 적용.
 - 엄격 JSON(Strict JSON) 집행: mode === 'preset_recommendation' && STRICT_JSON_ONLY=1이면 responseMimeType을 application/json으로 강제. 클라이언트가 responseSchema를 보내면 OpenAI/Anthropic에 JSON Schema 기반 구조화 출력 강제. 응답 헤더 X-Strict-JSON=(schema|json;mime=application/json) 노출.
-- 폴백 체인(엄격 JSON 시): gemini → openai → naver → claude (openrouter는 스킵)
+- 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver (openrouter는 스킵)
 - 다음 액션: prod 배포(wrangler deploy --env production) + 캐나리 5%로 시작 후 지표 안정 시 점진 상향(10→25→50→100)
 
 

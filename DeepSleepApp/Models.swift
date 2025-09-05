@@ -420,12 +420,14 @@ public struct PresetRecommendationResponse {
 struct DiaryContext {
     let content: String
     let emotion: String?
+    let date: Date?
 }
 
 extension DiaryContext {
     init(from diary: EmotionDiary) {
         self.content = diary.userMessage
         self.emotion = diary.selectedEmotion
+        self.date = diary.date
     }
 }
 
