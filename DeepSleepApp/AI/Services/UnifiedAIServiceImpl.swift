@@ -1399,6 +1399,13 @@ case .presetRecommendation:
             responseFormat: base.responseFormat
         )
     }
+
+#if DEBUG
+    /// 테스트 전용 헬퍼: 사용자 페르소나 튜닝 결과 노출(네트워크 호출 없이 검증용)
+    internal func _testApplyUserPersonaTuning(_ base: TokenConfiguration, mode: AIMode) -> TokenConfiguration {
+        return applyUserPersonaTuning(base, mode: mode)
+    }
+#endif
     
     /// DEBUG 전용: 로컬 직접 서비스 사용 가능 여부
     private func hasAnyDirectServiceAvailable() -> Bool {

@@ -404,7 +404,6 @@
 		E084F1182E33ACB3002F75E6 /* README 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README 2.md"; sourceTree = "<group>"; };
 		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
 		E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
-		E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md; sourceTree = "<group>"; };
 		E0899C882E5CB6FE006AD307 /* CentralNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentralNotificationScheduler.swift; sourceTree = "<group>"; };
 		E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
 		E0899C912E5EE8B1006AD307 /* AdsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsManager.swift; sourceTree = "<group>"; };
@@ -441,7 +440,6 @@
 		E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
-		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
 		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
 		E0E7BC982E53664B00FF7073 /* AIContextManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextManager.swift; sourceTree = "<group>"; };
@@ -454,8 +452,6 @@
 		E0E7BCAC2E53696900FF7073 /* DailySummaryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummaryViewController.swift; sourceTree = "<group>"; };
 		E0E7BCB12E54706A00FF7073 /* ConfigReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigReader.swift; sourceTree = "<group>"; };
 		E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
-		E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IOS_GUIDE.md; sourceTree = "<group>"; };
-		E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IOS_IAP_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BCBA2E561B2D00FF7073 /* PaywallViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallViewController.swift; sourceTree = "<group>"; };
 		E0E7BCBD2E561B3800FF7073 /* AppFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeature.swift; sourceTree = "<group>"; };
 		E0E7BCBE2E561B3800FF7073 /* EntitlementGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementGate.swift; sourceTree = "<group>"; };
@@ -496,12 +492,8 @@
 				E09CD6E02E45E048007C133E /* .gitignore */,
 				E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */,
 				E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */,
-				E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */,
 				E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */,
-				E0E7BCB82E559CEA00FF7073 /* IOS_GUIDE.md */,
-				E0E7BCB92E55BA3D00FF7073 /* IOS_IAP_ROADMAP.md */,
 				E084F1182E33ACB3002F75E6 /* README 2.md */,
-				E0899C872E5C88DE006AD307 /* SETTINGS_BIG_BANG_ROLLOUT_PLAN_KR.md */,
 				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
 				E0B5625B2E6AA9F300D334F1 /* Frameworks */,

@@ -14,45 +14,29 @@ class OnboardingManager {
     // MARK: - Onboarding States
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
-        case appIntroduction
-        case aiPersonaSetup
         case mainFeatures
-        case soundExperience
-        case emotionDiary
-        case subscriptionIntro
-        case completion
+        case bamboofriend
+        case getStarted
 
         var title: String {
             switch self {
-            case .welcome: return "EmoZleep에 오신 것을 환영합니다"
-            case .appIntroduction: return "앱 소개"
-            case .aiPersonaSetup: return "대나무숲 친구 설정"
-            case .mainFeatures: return "주요 기능 안내"
-            case .soundExperience: return "사운드 체험"
-            case .emotionDiary: return "감정 일기"
-            case .subscriptionIntro: return "프리미엄 기능"
-            case .completion: return "설정 완료"
+            case .welcome: return "반가워요! 😊"
+            case .mainFeatures: return "이런 것들을 할 수 있어요"
+            case .bamboofriend: return "특별한 친구를 소개할게요"
+            case .getStarted: return "이제 시작해볼까요?"
             }
         }
 
         var description: String {
             switch self {
             case .welcome:
-                return "대나무숲 친구와 함께하는 감정 기록과 일상 앱입니다"
-            case .appIntroduction:
-                return "EmoZleep은 당신의 감정을 이해하고 편안한 환경을 제공합니다 "
-            case .aiPersonaSetup:
-                return "나만의 대나무숲 친구를 설정하여 더 개인적인 대화를 나눠보세요 \n#Todays_Mood를 누르면 대나무숲(채팅창)으로 진입합니다"
+                return "여기서는 대나무숲 친구와 함께\n마음을 나누고 일상을 기록할 수 있어요"
             case .mainFeatures:
-                return "감정 분석, 수면 사운드 추천, 일기 작성 분석, 할 일 조언 등 다양한 기능을 만나보세요"
-            case .soundExperience:
-                return "현재 감정에 맞는 사운드를 대나무숲 친구가 추천해드립니다"
-            case .emotionDiary:
-                return "감정을 기록하고 대나무숲 친구와 함께 분석하며 마음의 안정을 찾으세요"
-            case .subscriptionIntro:
-                return "프리미엄 기능을 통해 더 많은 대나무숲 친구와 고급 기능을 이용해보세요"
-            case .completion:
-                return "이제 EmoZleep을 시작해보세요!"
+                return "🎵 편안한 수면 사운드\n📓 감정 일기 쓰기\n✨ 매일 새로운 운세\n⚙️ 나만의 설정\n\n모든 게 여러분을 위해 준비되어 있어요"
+            case .bamboofriend:
+                return "대나무숲 친구는 여러분의 마음을 이해하고\n따뜻한 조언을 해주는 특별한 친구예요\n\n#Todays_Mood 버튼을 눌러서\n언제든 대화를 나눠보세요!\n\n✨ 설정 탭의 '친구 말투 설정'에서\n친구의 MBTI를 바꿀 수 있어요"
+            case .getStarted:
+                return "준비가 모두 끝났어요! 🎉\n이제 대나무숲 친구와 함께\n따뜻하고 평온한 하루를 만들어가요"
             }
         }
     }

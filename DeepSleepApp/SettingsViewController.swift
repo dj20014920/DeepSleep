@@ -79,14 +79,8 @@ class SettingsViewController: UIViewController {
         title = "설정"
         navigationController?.navigationBar.prefersLargeTitles = true
         
-        // 저장 버튼 추가
-        let saveButton = UIBarButtonItem(
-            title: "저장",
-            style: .done,
-            target: self,
-            action: #selector(saveButtonTapped)
-        )
-        navigationItem.rightBarButtonItem = saveButton
+        // 메인 설정 화면은 저장 버튼을 두지 않습니다(각 세부 화면에서 즉시 저장).
+        navigationItem.rightBarButtonItem = nil
     }
     
     private func createSections() {
@@ -138,8 +132,7 @@ class SettingsViewController: UIViewController {
         ))
         // 친구 말투 설정
         aiModelSection.addItem(SettingsItem(
-            title: "친구 말투 설정",
-            subtitle: "친근/전문/MBTI 다이얼(선택형)",
+            title: "친구 성격 설정",
             type: .navigation,
             action: { [weak self] in
                 self?.showFriendToneSettings()
@@ -279,28 +272,7 @@ class SettingsViewController: UIViewController {
     
     // MARK: - Action Methods
     
-    @objc private func saveButtonTapped() {
-        // 설정 저장 - SettingsManager 사용
-        SettingsManager.shared.selectedLLM = selectedAIModel
-        userInfo.saveToUserDefaults()
-        
-        // 이벤트 기반 캐시 무효화 (8/18 정책)
-        AIContextManager.shared.clearCache(reason: .personaChanged, caller: "SettingsVC.save")
-        
-        // 저장 완료 알림
-        showSaveConfirmation()
-    }
-    
-    private func showSaveConfirmation() {
-        let alert = UIAlertController(
-            title: "저장 완료",
-            message: "설정이 성공적으로 저장되었습니다.",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "확인", style: .default))
-        present(alert, animated: true)
-    }
+    // 메인 화면에서는 저장/확인 다이얼로그를 표시하지 않습니다.
 }
 
 // MARK: - Navigation Methods

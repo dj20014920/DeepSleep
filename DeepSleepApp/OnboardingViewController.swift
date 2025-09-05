@@ -28,9 +28,26 @@ class OnboardingViewController: UIViewController {
         updateUI()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        // 입장 애니메이션
+        animateEntrance()
+    }
+
     // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
+
+        // 배경에 미세한 그라데이션 추가
+        let backgroundGradient = CAGradientLayer()
+        backgroundGradient.colors = [
+            UIColor.systemBackground.cgColor,
+            UIColor.systemGray6.withAlphaComponent(0.3).cgColor
+        ]
+        backgroundGradient.locations = [0.0, 1.0]
+        backgroundGradient.frame = view.bounds
+        view.layer.insertSublayer(backgroundGradient, at: 0)
 
         // ScrollView 설정
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -47,14 +64,19 @@ class OnboardingViewController: UIViewController {
         pageControl.translatesAutoresizingMaskIntoConstraints = false
         pageControl.numberOfPages = totalPages
         pageControl.currentPage = 0
-        pageControl.pageIndicatorTintColor = .systemGray3
+        pageControl.pageIndicatorTintColor = .systemGray4
         pageControl.currentPageIndicatorTintColor = .systemBlue
+        pageControl.preferredIndicatorImage = UIImage(systemName: "circle.fill")?.withConfiguration(UIImage.SymbolConfiguration(pointSize: 8))
+        if #available(iOS 14.0, *) {
+            pageControl.backgroundStyle = .minimal
+        }
         view.addSubview(pageControl)
 
         // Skip Button
         skipButton.translatesAutoresizingMaskIntoConstraints = false
         skipButton.setTitle("건너뛰기", for: .normal)
-        skipButton.setTitleColor(.systemGray, for: .normal)
+        skipButton.setTitleColor(.systemGray2, for: .normal)
+        skipButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         skipButton.addTarget(self, action: #selector(skipTapped), for: .touchUpInside)
         view.addSubview(skipButton)
 
@@ -62,10 +84,20 @@ class OnboardingViewController: UIViewController {
         nextButton.translatesAutoresizingMaskIntoConstraints = false
         nextButton.setTitle("다음", for: .normal)
         nextButton.setTitleColor(.white, for: .normal)
-        nextButton.backgroundColor = .systemBlue
+        nextButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+
+        // 파란색 배경으로 통일
+        nextButton.backgroundColor = UIColor.systemBlue
         nextButton.layer.cornerRadius = 25
+        nextButton.layer.shadowColor = UIColor.systemBlue.cgColor
+        nextButton.layer.shadowOffset = CGSize(width: 0, height: 4)
+        nextButton.layer.shadowRadius = 12
+        nextButton.layer.shadowOpacity = 0.3
+
         nextButton.addTarget(self, action: #selector(nextTapped), for: .touchUpInside)
         view.addSubview(nextButton)
+
+
 
         setupConstraints()
     }
@@ -117,18 +149,33 @@ class OnboardingViewController: UIViewController {
         let pageView = UIView()
         pageView.translatesAutoresizingMaskIntoConstraints = false
 
+        // 페이지별 미세한 배경 효과
+        let pageBackgroundView = UIView()
+        pageBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        pageBackgroundView.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.6)
+        pageBackgroundView.layer.cornerRadius = 20
+        pageView.addSubview(pageBackgroundView)
+
         // 아이콘 이미지뷰
         let iconImageView = UIImageView()
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.image = getIconForStep(step)
+        iconImageView.tintColor = .systemBlue
+
+        // 아이콘에 미세한 그림자 효과
+        iconImageView.layer.shadowColor = UIColor.systemBlue.cgColor
+        iconImageView.layer.shadowOffset = CGSize(width: 0, height: 2)
+        iconImageView.layer.shadowRadius = 6
+        iconImageView.layer.shadowOpacity = 0.2
+
         pageView.addSubview(iconImageView)
 
         // 타이틀 레이블
         let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.text = step.title
-        titleLabel.font = UIFont.systemFont(ofSize: 24, weight: .bold)
+        titleLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
         titleLabel.textColor = .label
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 0
@@ -142,6 +189,46 @@ class OnboardingViewController: UIViewController {
         descriptionLabel.textColor = .secondaryLabel
         descriptionLabel.textAlignment = .center
         descriptionLabel.numberOfLines = 0
+        descriptionLabel.lineBreakMode = .byWordWrapping
+
+        // 줄간격 설정으로 가독성 향상 및 #Todays_Mood 파란색 그라데이션
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 4
+        paragraphStyle.alignment = .center
+
+        let attributedText = NSMutableAttributedString(
+            string: step.description,
+            attributes: [
+                .paragraphStyle: paragraphStyle,
+                .font: UIFont.systemFont(ofSize: 16, weight: .regular),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+        )
+
+        // #Todays_Mood 부분에 예쁜 파란색 그라데이션 효과 적용
+        if step == .bamboofriend {
+            let todaysMoodRange = (step.description as NSString).range(of: "#Todays_Mood")
+            if todaysMoodRange.location != NSNotFound {
+                // 더 밝고 생생한 파란색과 그림자 효과
+                attributedText.addAttributes([
+                    .foregroundColor: UIColor.systemBlue,
+                    .font: UIFont.systemFont(ofSize: 17, weight: .black),
+                    .strokeColor: UIColor.systemBlue.withAlphaComponent(0.3),
+                    .strokeWidth: -2.0,
+                    .shadow: NSShadow()
+                ], range: todaysMoodRange)
+
+                // 그림자 효과 설정
+                let shadow = NSShadow()
+                shadow.shadowColor = UIColor.systemBlue.withAlphaComponent(0.4)
+                shadow.shadowOffset = CGSize(width: 0, height: 1)
+                shadow.shadowBlurRadius = 2
+                attributedText.addAttribute(.shadow, value: shadow, range: todaysMoodRange)
+            }
+        }
+
+        descriptionLabel.attributedText = attributedText
+
         pageView.addSubview(descriptionLabel)
 
         // 추가 컨텐츠 (특정 단계용)
@@ -152,26 +239,26 @@ class OnboardingViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             iconImageView.centerXAnchor.constraint(equalTo: pageView.centerXAnchor),
-            iconImageView.centerYAnchor.constraint(equalTo: pageView.centerYAnchor, constant: -80),
-            iconImageView.widthAnchor.constraint(equalToConstant: 120),
-            iconImageView.heightAnchor.constraint(equalToConstant: 120),
+            iconImageView.centerYAnchor.constraint(equalTo: pageView.centerYAnchor, constant: -120),
+            iconImageView.widthAnchor.constraint(equalToConstant: 100),
+            iconImageView.heightAnchor.constraint(equalToConstant: 100),
 
-            titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 40),
-            titleLabel.leadingAnchor.constraint(equalTo: pageView.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: pageView.trailingAnchor, constant: -20),
+            titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 32),
+            titleLabel.leadingAnchor.constraint(equalTo: pageView.leadingAnchor, constant: 30),
+            titleLabel.trailingAnchor.constraint(equalTo: pageView.trailingAnchor, constant: -30),
 
-            descriptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            descriptionLabel.leadingAnchor.constraint(equalTo: pageView.leadingAnchor, constant: 20),
-            descriptionLabel.trailingAnchor.constraint(equalTo: pageView.trailingAnchor, constant: -20)
+            descriptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            descriptionLabel.leadingAnchor.constraint(equalTo: pageView.leadingAnchor, constant: 30),
+            descriptionLabel.trailingAnchor.constraint(equalTo: pageView.trailingAnchor, constant: -30)
         ])
 
         // 추가 컨텐츠 제약조건
         if let additionalView = additionalContent {
             NSLayoutConstraint.activate([
-                additionalView.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 30),
+                additionalView.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 24),
                 additionalView.leadingAnchor.constraint(equalTo: pageView.leadingAnchor, constant: 20),
                 additionalView.trailingAnchor.constraint(equalTo: pageView.trailingAnchor, constant: -20),
-                additionalView.bottomAnchor.constraint(lessThanOrEqualTo: pageView.bottomAnchor, constant: -20)
+                additionalView.bottomAnchor.constraint(lessThanOrEqualTo: pageView.bottomAnchor, constant: -40)
             ])
         }
 
@@ -182,138 +269,242 @@ class OnboardingViewController: UIViewController {
         switch step {
         case .welcome:
             return UIImage(systemName: "moon.stars.fill")
-        case .appIntroduction:
-            return UIImage(systemName: "sparkles")
-        case .aiPersonaSetup:
-            return UIImage(systemName: "person.fill")
         case .mainFeatures:
-            return UIImage(systemName: "star.fill")
-        case .soundExperience:
-            return UIImage(systemName: "speaker.wave.2.fill")
-        case .emotionDiary:
-            return UIImage(systemName: "book.fill")
-        case .subscriptionIntro:
-            return UIImage(systemName: "crown.fill")
-        case .completion:
+            return UIImage(systemName: "square.grid.2x2.fill")
+        case .bamboofriend:
+            return UIImage(systemName: "message.circle.fill")
+        case .getStarted:
             return UIImage(systemName: "checkmark.circle.fill")
         }
     }
 
     private func createAdditionalContent(for step: OnboardingManager.OnboardingStep) -> UIView? {
         switch step {
-        case .aiPersonaSetup:
-            return createPersonaPreview()
         case .mainFeatures:
-            return createFeaturesList()
-        case .subscriptionIntro:
-            return createSubscriptionPreview()
+            return createFeaturesPreview()
+        case .bamboofriend:
+            return nil  // 버블카드 제거하고 텍스트만 표시
         default:
             return nil
         }
     }
 
-    private func createPersonaPreview() -> UIView {
+    private func createFeaturesPreview() -> UIView {
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
 
-        // 미리보기(비활성) 버튼 + 설명 캡션
-        let previewButton = UIButton(type: .system)
-        previewButton.translatesAutoresizingMaskIntoConstraints = false
-        previewButton.setTitle("대나무숲 친구 선택하기", for: .normal)
-        previewButton.setTitleColor(.white, for: .normal)
-        previewButton.backgroundColor = .systemBlue
-        previewButton.layer.cornerRadius = 8
-        previewButton.isEnabled = false
-        previewButton.isUserInteractionEnabled = false
-        previewButton.alpha = 0.5
-
-        let previewCaption = UILabel()
-        previewCaption.translatesAutoresizingMaskIntoConstraints = false
-        previewCaption.text = "설정 창에 있는 대나무숲 친구 설정을 누르면 친구를 고를 수 있어요"
-        previewCaption.font = UIFont.systemFont(ofSize: 12, weight: .regular)
-        previewCaption.textColor = .secondaryLabel
-        previewCaption.textAlignment = .center
-        previewCaption.numberOfLines = 0
-
-        let previewStack = UIStackView(arrangedSubviews: [previewButton, previewCaption])
-        previewStack.axis = .vertical
-        previewStack.alignment = .center
-        previewStack.spacing = 8
-        previewStack.translatesAutoresizingMaskIntoConstraints = false
-
-        container.addSubview(previewStack)
-
-        NSLayoutConstraint.activate([
-            // 미리보기 버튼 크기
-            previewButton.widthAnchor.constraint(equalToConstant: 200),
-            previewButton.heightAnchor.constraint(equalToConstant: 44),
-
-            // 미리보기 스택 배치
-            previewStack.topAnchor.constraint(equalTo: container.topAnchor),
-            previewStack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-
-             ])
-
-        return container
-    }
-
-    private func createFeaturesList() -> UIView {
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .vertical
-        stackView.spacing = 10
-        stackView.alignment = .leading
-
+        // 기능 미리보기 그리드 - 더 매력적인 디자인
         let features = [
-            "• 감정 분석 및 대나무숲 친구 대화",
-            "• 개인 맞춤 수면 사운드",
-            "• 감정 일기 및 캘린더",
-            "• 할 일 관리 및 리마인더"
+            ("speaker.wave.2.fill", "수면 사운드", "편안한 잠자리를 위한\n다양한 사운드", UIColor.systemBlue),
+            ("book.fill", "미니 다이어리", "감정 기록과\n친구의 분석", UIColor.systemGreen),
+            ("sparkles", "오늘의 운세", "하루를 시작하는\n특별한 메시지", UIColor.systemOrange),
+            ("gearshape.fill", "설정", "나만의 맞춤\n환경 설정", UIColor.systemPurple)
         ]
 
-        for feature in features {
-            let label = UILabel()
-            label.text = feature
-            label.font = UIFont.systemFont(ofSize: 14)
-            label.textColor = .label
-            stackView.addArrangedSubview(label)
+        let gridStackView = UIStackView()
+        gridStackView.translatesAutoresizingMaskIntoConstraints = false
+        gridStackView.axis = .vertical
+        gridStackView.spacing = 16
+        gridStackView.alignment = .fill
+        gridStackView.distribution = .fillEqually
+
+        // 2x2 그리드로 배치
+        for i in stride(from: 0, to: features.count, by: 2) {
+            let rowStackView = UIStackView()
+            rowStackView.axis = .horizontal
+            rowStackView.spacing = 20
+            rowStackView.alignment = .top
+            rowStackView.distribution = .fillEqually
+
+            for j in i..<min(i+2, features.count) {
+                let feature = features[j]
+                let featureView = createFeatureItem(icon: feature.0, title: feature.1, description: feature.2, color: feature.3)
+                rowStackView.addArrangedSubview(featureView)
+            }
+
+            gridStackView.addArrangedSubview(rowStackView)
         }
 
-        return stackView
-    }
-
-    private func createSubscriptionPreview() -> UIView {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let freeLabel = UILabel()
-        freeLabel.translatesAutoresizingMaskIntoConstraints = false
-        freeLabel.text = BrandingCopy.subscriptionFreeLabel
-        freeLabel.font = UIFont.systemFont(ofSize: 14)
-        freeLabel.textColor = .secondaryLabel
-
-        let proLabel = UILabel()
-        proLabel.translatesAutoresizingMaskIntoConstraints = false
-        proLabel.text = BrandingCopy.subscriptionProLabel
-        proLabel.font = UIFont.systemFont(ofSize: 14)
-        proLabel.textColor = .systemBlue
-        proLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-
-        container.addSubview(freeLabel)
-        container.addSubview(proLabel)
+        container.addSubview(gridStackView)
 
         NSLayoutConstraint.activate([
-            freeLabel.topAnchor.constraint(equalTo: container.topAnchor),
-            freeLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            freeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-
-            proLabel.topAnchor.constraint(equalTo: freeLabel.bottomAnchor, constant: 8),
-            proLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            proLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+            gridStackView.topAnchor.constraint(equalTo: container.topAnchor),
+            gridStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            gridStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            gridStackView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
 
         return container
     }
+
+    private func createFeatureItem(icon: String, title: String, description: String, color: UIColor) -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        // 원형 배경 뷰 추가
+        let iconBackgroundView = UIView()
+        iconBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        iconBackgroundView.backgroundColor = color.withAlphaComponent(0.1)
+        iconBackgroundView.layer.cornerRadius = 22
+
+        let iconImageView = UIImageView()
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+        iconImageView.image = UIImage(systemName: icon)
+        iconImageView.contentMode = .scaleAspectFit
+        iconImageView.tintColor = color
+
+        // 아이콘에 미세한 그림자 효과
+        iconImageView.layer.shadowColor = color.cgColor
+        iconImageView.layer.shadowOffset = CGSize(width: 0, height: 1)
+        iconImageView.layer.shadowRadius = 3
+        iconImageView.layer.shadowOpacity = 0.3
+
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = title
+        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .bold)
+        titleLabel.textColor = color
+        titleLabel.textAlignment = .center
+
+        let descLabel = UILabel()
+        descLabel.translatesAutoresizingMaskIntoConstraints = false
+        descLabel.text = description
+        descLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        descLabel.textColor = .secondaryLabel
+        descLabel.textAlignment = .center
+        descLabel.numberOfLines = 0
+
+        container.addSubview(iconBackgroundView)
+        iconBackgroundView.addSubview(iconImageView)
+        container.addSubview(titleLabel)
+        container.addSubview(descLabel)
+
+        NSLayoutConstraint.activate([
+            iconBackgroundView.topAnchor.constraint(equalTo: container.topAnchor),
+            iconBackgroundView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            iconBackgroundView.widthAnchor.constraint(equalToConstant: 44),
+            iconBackgroundView.heightAnchor.constraint(equalToConstant: 44),
+
+            iconImageView.centerXAnchor.constraint(equalTo: iconBackgroundView.centerXAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: iconBackgroundView.centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 24),
+            iconImageView.heightAnchor.constraint(equalToConstant: 24),
+
+            titleLabel.topAnchor.constraint(equalTo: iconBackgroundView.bottomAnchor, constant: 12),
+            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            descLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            descLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            descLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            descLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+
+        return container
+    }
+
+    private func createBambooFriendPreview() -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        // 대나무숲 친구 미리보기 카드
+        let cardView = UIView()
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+        cardView.backgroundColor = UIColor.systemGray6
+        cardView.layer.cornerRadius = 16
+        cardView.layer.shadowColor = UIColor.black.cgColor
+        cardView.layer.shadowOffset = CGSize(width: 0, height: 2)
+        cardView.layer.shadowRadius = 8
+        cardView.layer.shadowOpacity = 0.1
+
+        let chatBubbleView = UIView()
+        chatBubbleView.translatesAutoresizingMaskIntoConstraints = false
+        chatBubbleView.backgroundColor = .systemBlue
+        chatBubbleView.layer.cornerRadius = 12
+
+        let messageLabel = UILabel()
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.text = "안녕하세요! 😊\n저는 여러분의 대나무숲 친구예요\n오늘은 어떤 하루를 보내셨나요?\n\n💡 설정 탭에서 친구 말투 설정을 통해\n제 MBTI 성격을 바꿀 수 있어요!"
+        messageLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+        messageLabel.textColor = .white
+        messageLabel.textAlignment = .left
+        messageLabel.numberOfLines = 0
+
+        // 줄간격 설정
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 3
+        let attributedText = NSAttributedString(
+            string: messageLabel.text ?? "",
+            attributes: [
+                .paragraphStyle: paragraphStyle,
+                .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+                .foregroundColor: UIColor.white
+            ]
+        )
+        messageLabel.attributedText = attributedText
+
+        let actionButton = UIButton(type: .system)
+        actionButton.translatesAutoresizingMaskIntoConstraints = false
+        actionButton.setTitle("💬 #Todays_Mood", for: .normal)
+        actionButton.setTitleColor(.white, for: .normal)
+
+        // 그라데이션 배경 설정
+        let buttonGradient = CAGradientLayer()
+        buttonGradient.colors = [UIColor.systemGreen.cgColor, UIColor.systemTeal.cgColor]
+        buttonGradient.startPoint = CGPoint(x: 0, y: 0)
+        buttonGradient.endPoint = CGPoint(x: 1, y: 0)
+        buttonGradient.cornerRadius = 20
+        actionButton.layer.insertSublayer(buttonGradient, at: 0)
+
+        actionButton.layer.cornerRadius = 20
+        actionButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .bold)
+        actionButton.isEnabled = false
+        actionButton.alpha = 0.9
+
+        // 버튼 그림자 효과
+        actionButton.layer.shadowColor = UIColor.systemGreen.cgColor
+        actionButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        actionButton.layer.shadowRadius = 6
+        actionButton.layer.shadowOpacity = 0.3
+
+        cardView.addSubview(chatBubbleView)
+        chatBubbleView.addSubview(messageLabel)
+        cardView.addSubview(actionButton)
+        container.addSubview(cardView)
+
+        NSLayoutConstraint.activate([
+            cardView.topAnchor.constraint(equalTo: container.topAnchor),
+            cardView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 15),
+            cardView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -15),
+            cardView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+
+            chatBubbleView.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 20),
+            chatBubbleView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20),
+            chatBubbleView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20),
+
+            messageLabel.topAnchor.constraint(equalTo: chatBubbleView.topAnchor, constant: 16),
+            messageLabel.leadingAnchor.constraint(equalTo: chatBubbleView.leadingAnchor, constant: 16),
+            messageLabel.trailingAnchor.constraint(equalTo: chatBubbleView.trailingAnchor, constant: -16),
+            messageLabel.bottomAnchor.constraint(equalTo: chatBubbleView.bottomAnchor, constant: -16),
+
+            actionButton.topAnchor.constraint(equalTo: chatBubbleView.bottomAnchor, constant: 16),
+            actionButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
+            actionButton.widthAnchor.constraint(equalToConstant: 160),
+            actionButton.heightAnchor.constraint(equalToConstant: 44),
+            actionButton.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -20)
+        ])
+
+        // 버튼 그라데이션 레이어 크기 설정
+        DispatchQueue.main.async {
+            if let buttonGradient = actionButton.layer.sublayers?.first as? CAGradientLayer {
+                buttonGradient.frame = actionButton.bounds
+            }
+        }
+
+        return container
+    }
+
+
 
     // MARK: - Actions
     @objc private func skipTapped() {
@@ -348,17 +539,108 @@ class OnboardingViewController: UIViewController {
 
     private func scrollToPage(_ page: Int) {
         let offset = CGPoint(x: CGFloat(page) * view.frame.width, y: 0)
-        scrollView.setContentOffset(offset, animated: true)
+
+        // 부드러운 스크롤 애니메이션
+        UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.3, options: .curveEaseInOut) {
+            self.scrollView.setContentOffset(offset, animated: false)
+        }
     }
 
     private func updateUI() {
-        pageControl.currentPage = currentPage
+        UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0.1, options: .curveEaseInOut) {
+            self.pageControl.currentPage = self.currentPage
+        }
 
         let isLastPage = currentPage == totalPages - 1
-        nextButton.setTitle(isLastPage ? "시작하기" : "다음", for: .normal)
+        let buttonTitle = isLastPage ? "시작하기 🚀" : "다음"
 
-        // 마지막 페이지에서는 스킵 버튼 숨김
-        skipButton.isHidden = isLastPage
+        // 버튼 텍스트 애니메이션
+        UIView.transition(with: nextButton, duration: 0.3, options: .transitionCrossDissolve) {
+            self.nextButton.setTitle(buttonTitle, for: .normal)
+        }
+
+        // 마지막 페이지에서는 스킵 버튼 부드럽게 숨김
+        UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: .curveEaseInOut) {
+            self.skipButton.alpha = isLastPage ? 0 : 1
+            self.skipButton.transform = isLastPage ? CGAffineTransform(scaleX: 0.8, y: 0.8) : .identity
+        } completion: { _ in
+            self.skipButton.isHidden = isLastPage
+        }
+
+        // 버튼 스케일 애니메이션
+        UIView.animate(withDuration: 0.4, delay: 0.1, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.3, options: .curveEaseInOut) {
+            self.nextButton.transform = isLastPage ? CGAffineTransform(scaleX: 1.05, y: 1.05) : .identity
+        }
+
+        // 파란색 버튼은 별도 레이어 업데이트 불필요
+
+        // 페이지별 색상 테마 변경
+        updatePageTheme()
+    }
+
+    // MARK: - Animations
+    private func animateEntrance() {
+        // 초기 상태 설정
+        nextButton.alpha = 0
+        nextButton.transform = CGAffineTransform(translationX: 0, y: 50)
+        skipButton.alpha = 0
+        skipButton.transform = CGAffineTransform(translationX: 0, y: -30)
+        pageControl.alpha = 0
+        pageControl.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+
+        // 순차적 입장 애니메이션
+        UIView.animate(withDuration: 0.6, delay: 0.3, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: .curveEaseOut) {
+            self.skipButton.alpha = 1
+            self.skipButton.transform = .identity
+        }
+
+        UIView.animate(withDuration: 0.6, delay: 0.4, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: .curveEaseOut) {
+            self.pageControl.alpha = 1
+            self.pageControl.transform = .identity
+        }
+
+        UIView.animate(withDuration: 0.7, delay: 0.5, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.3, options: .curveEaseOut) {
+            self.nextButton.alpha = 1
+            self.nextButton.transform = .identity
+        }
+
+        // 첫 번째 페이지 콘텐츠 애니메이션
+        animatePageContent(at: 0)
+    }
+
+    private func animatePageContent(at pageIndex: Int) {
+        guard pageIndex < contentView.subviews.count else { return }
+
+        let pageView = contentView.subviews[pageIndex]
+
+        // 페이지 콘텐츠 애니메이션
+        pageView.subviews.forEach { subview in
+            if subview is UIImageView {
+                subview.alpha = 0
+                subview.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+
+                UIView.animate(withDuration: 0.8, delay: 0.1, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.4, options: .curveEaseOut) {
+                    subview.alpha = 1
+                    subview.transform = .identity
+                }
+            } else if subview is UILabel {
+                subview.alpha = 0
+                subview.transform = CGAffineTransform(translationX: 0, y: 20)
+
+                UIView.animate(withDuration: 0.6, delay: 0.2, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: .curveEaseOut) {
+                    subview.alpha = 1
+                    subview.transform = .identity
+                }
+            }
+        }
+    }
+
+    private func updatePageTheme() {
+        // 모든 페이지에서 파란색으로 통일
+        UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.2, options: .curveEaseInOut) {
+            self.pageControl.currentPageIndicatorTintColor = UIColor.systemBlue
+            // 버튼은 이미 파란색으로 설정되어 있으므로 별도 변경 불필요
+        }
     }
 }
 
@@ -366,8 +648,23 @@ class OnboardingViewController: UIViewController {
 extension OnboardingViewController: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let pageIndex = round(scrollView.contentOffset.x / view.frame.width)
-        currentPage = Int(pageIndex)
-        pageControl.currentPage = currentPage
-        updateUI()
+        let newPage = Int(pageIndex)
+
+        if newPage != currentPage {
+            currentPage = newPage
+
+            // 페이지 변경시 햅틱 피드백
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+
+            // 부드러운 UI 업데이트
+            DispatchQueue.main.async {
+                self.updateUI()
+            }
+        }
+
+        // 스크롤 진행률에 따른 시각적 효과
+        let progress = scrollView.contentOffset.x / scrollView.contentSize.width
+        pageControl.alpha = 0.6 + (0.4 * (1.0 - abs(progress - 0.5) * 2))
     }
 }

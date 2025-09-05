@@ -328,24 +328,25 @@ extension UserSettingsModel {
             }
         }
         var segmentIndex: Int {
-            // 0/1/2 = 좌/우/미정 (각 축의 좌/우에 맞춰 배치)
+            // 0/1/2 = 좌/기본/우 (중앙=기본=미정)
             switch self {
             case .i, .n, .t, .p: return 0
-            case .e, .s, .f, .j: return 1
-            default: return 2
+            case .e, .s, .f, .j: return 2
+            default: return 1
             }
         }
         enum Pair { case ie, ns, tf, pj }
         static func fromSegmentIndex(_ idx: Int, pair: Pair) -> MBTITraitOption {
+            // 중앙(1) = 미정
             switch pair {
             case .ie:
-                return idx == 0 ? .i : (idx == 1 ? .e : .unspecifiedIE)
+                return idx == 0 ? .i : (idx == 2 ? .e : .unspecifiedIE)
             case .ns:
-                return idx == 0 ? .n : (idx == 1 ? .s : .unspecifiedNS)
+                return idx == 0 ? .n : (idx == 2 ? .s : .unspecifiedNS)
             case .tf:
-                return idx == 0 ? .t : (idx == 1 ? .f : .unspecifiedTF)
+                return idx == 0 ? .t : (idx == 2 ? .f : .unspecifiedTF)
             case .pj:
-                return idx == 0 ? .p : (idx == 1 ? .j : .unspecifiedPJ)
+                return idx == 0 ? .p : (idx == 2 ? .j : .unspecifiedPJ)
             }
         }
     }

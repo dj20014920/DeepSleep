@@ -20,7 +20,6 @@ extension ViewController {
         
         // 접근성 및 사용자 가이던스 개선
         hashtagButton.accessibilityLabel = "오늘의 기분"
-        hashtagButton.accessibilityHint = "AI와 대화하며 나의 감정을 표현해보세요"
 
         view.addSubview(hashtagButton)
         // 정렬 참조를 위해 저장

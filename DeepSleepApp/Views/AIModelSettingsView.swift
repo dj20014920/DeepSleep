@@ -68,11 +68,8 @@ struct AIModelSettingsView: View {
     }
     
     private func saveSelection() {
-        // SettingsManager에 저장
-        SettingsManager.shared.selectedLLM = selectedModel
-        
-        // UserDefaults에 저장 - SettingsManager의 키와 통일
-        UserDefaults.standard.set(selectedModel.rawValue, forKey: "selectedLLM")
+        // 단일 진입점으로 원자 저장(+캐시 무효화 브로드캐스트)
+        SettingsManager.shared.updateSelectedModelAtomically(selectedModel)
         
         // 화면 닫기
         dismiss()

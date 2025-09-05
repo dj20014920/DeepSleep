@@ -3,13 +3,19 @@ import UIKit
 /// 친구 말투 설정 화면 (대나무숲 친구 말투/MBTI 빠른 선택)
 final class FriendToneSettingsViewController: UIViewController {
     // MARK: UI
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
     private let stack = UIStackView()
 
-    // 빠른 톤 선택(멀티 선택)
-    private let toneChipsContainer = UIStackView()
-    private var toneChipButtons: [UIButton] = []
+    // 빠른 톤 선택(멀티 선택) — 4x2 그리드(스크롤 없음)
+    private var selectedTones = Set<UserSettingsModel.FriendTonePreset>()
+    private var toneButtons: [UIButton] = []
+    private let gridTones: [UserSettingsModel.FriendTonePreset] = [
+        // 상단 3개
+        .friendly, .professional, .calm,
+        // 중단 3개
+        .concise, .supportive, .analytical,
+        // 하단 2개(글자 긴 항목)
+        .humorous, .playful
+    ]
 
     // MBTI 다이얼
     private let ieSegment = UISegmentedControl(items: ["I", "E", "미정"])
@@ -39,88 +45,84 @@ final class FriendToneSettingsViewController: UIViewController {
     }
 
     private func setupLayout() {
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
-
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
-        ])
-
         stack.axis = .vertical
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(stack)
+        view.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -24)
+            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16)
         ])
 
         // 섹션: 빠른 말투 선택
         let toneCard = buildCard(title: "빠른 말투 선택", subtitle: "여러 개 선택 가능(선택하지 않아도 됩니다)")
-        toneChipsContainer.axis = .horizontal
-        toneChipsContainer.spacing = 8
-        toneChipsContainer.alignment = .leading
-        toneChipsContainer.distribution = .fillProportionally
-        toneChipsContainer.translatesAutoresizingMaskIntoConstraints = false
-        toneChipsContainer.wrapInto(container: toneCard)
-        stack.addArrangedSubview(toneCard)
-
-        // 토글 칩 생성
-        toneChipButtons = UserSettingsModel.FriendTonePreset.allCases.map { preset in
+        let grid = UIStackView(); grid.axis = .vertical; grid.spacing = 8; grid.translatesAutoresizingMaskIntoConstraints = false
+        let row1 = UIStackView(); row1.axis = .horizontal; row1.spacing = 8; row1.distribution = .fillEqually
+        let row2 = UIStackView(); row2.axis = .horizontal; row2.spacing = 8; row2.distribution = .fillEqually
+        let row3 = UIStackView(); row3.axis = .horizontal; row3.spacing = 8; row3.distribution = .fillEqually
+        toneCard.addSubview(grid)
+        grid.addArrangedSubview(row1)
+        grid.addArrangedSubview(row2)
+        grid.addArrangedSubview(row3)
+        NSLayoutConstraint.activate([
+            grid.topAnchor.constraint(equalTo: toneCard.topAnchor, constant: 56),
+            grid.leadingAnchor.constraint(equalTo: toneCard.leadingAnchor, constant: 12),
+            grid.trailingAnchor.constraint(equalTo: toneCard.trailingAnchor, constant: -12),
+            grid.bottomAnchor.constraint(equalTo: toneCard.bottomAnchor, constant: -12)
+        ])
+        // 버튼 생성(4x2)
+        toneButtons = gridTones.enumerated().map { idx, preset in
             let b = UIButton(type: .system)
             b.setTitle(preset.displayName, for: .normal)
             b.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-            b.setTitleColor(.label, for: .normal)
-            b.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-            b.backgroundColor = UIColor.systemGray6
+            b.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
             b.layer.cornerRadius = 16
-            b.layer.borderWidth = 0
-            b.accessibilityIdentifier = "tone_\(preset.rawValue)"
-            b.addTarget(self, action: #selector(toneChipTapped(_:)), for: .touchUpInside)
+            b.tag = idx
+            b.addTarget(self, action: #selector(toneButtonTapped(_:)), for: .touchUpInside)
+            styleToneButton(b, selected: false)
             return b
         }
-        toneChipButtons.forEach { toneChipsContainer.addArrangedSubview($0) }
+        for i in 0..<3 { row1.addArrangedSubview(toneButtons[i]) }
+        for i in 3..<6 { row2.addArrangedSubview(toneButtons[i]) }
+        for i in 6..<8 { row3.addArrangedSubview(toneButtons[i]) }
+        stack.addArrangedSubview(toneCard)
 
         // 섹션: MBTI 다이얼
-        let mbtiCard = buildCard(title: "MBTI 다이얼", subtitle: "하나만 골라도 됩니다 (예: T/F만 F 선택)")
-        let grid = UIStackView()
-        grid.axis = .vertical
-        grid.spacing = 12
-        grid.translatesAutoresizingMaskIntoConstraints = false
-        mbtiCard.addSubview(grid)
+        let mbtiCard = buildCard(title: "MBTI 다이얼", subtitle: "선택사항입니다!(예: T/F 다이얼의 F 만 선택)")
+        let mbtiGrid = UIStackView()
+        mbtiGrid.axis = .vertical
+        mbtiGrid.spacing = 12
+        mbtiGrid.translatesAutoresizingMaskIntoConstraints = false
+        mbtiCard.addSubview(mbtiGrid)
         NSLayoutConstraint.activate([
-            grid.topAnchor.constraint(equalTo: mbtiCard.topAnchor, constant: 56),
-            grid.leadingAnchor.constraint(equalTo: mbtiCard.leadingAnchor, constant: 12),
-            grid.trailingAnchor.constraint(equalTo: mbtiCard.trailingAnchor, constant: -12),
-            grid.bottomAnchor.constraint(equalTo: mbtiCard.bottomAnchor, constant: -12)
+            mbtiGrid.topAnchor.constraint(equalTo: mbtiCard.topAnchor, constant: 56),
+            mbtiGrid.leadingAnchor.constraint(equalTo: mbtiCard.leadingAnchor, constant: 12),
+            mbtiGrid.trailingAnchor.constraint(equalTo: mbtiCard.trailingAnchor, constant: -12),
+            mbtiGrid.bottomAnchor.constraint(equalTo: mbtiCard.bottomAnchor, constant: -12)
         ])
 
-        grid.addArrangedSubview(buildDialRow(title: "I/E", control: ieSegment))
-        grid.addArrangedSubview(buildDialRow(title: "N/S", control: nsSegment))
-        grid.addArrangedSubview(buildDialRow(title: "T/F", control: tfSegment))
-        grid.addArrangedSubview(buildDialRow(title: "P/J", control: pjSegment))
+        // 세그먼트 중앙 "기본" 배치 및 동일폭
+        ieSegment.removeAllSegments(); ["I","기본","E"].enumerated().forEach { ieSegment.insertSegment(withTitle: $0.element, at: $0.offset, animated: false) }
+        nsSegment.removeAllSegments(); ["N","기본","S"].enumerated().forEach { nsSegment.insertSegment(withTitle: $0.element, at: $0.offset, animated: false) }
+        tfSegment.removeAllSegments(); ["T","기본","F"].enumerated().forEach { tfSegment.insertSegment(withTitle: $0.element, at: $0.offset, animated: false) }
+        pjSegment.removeAllSegments(); ["P","기본","J"].enumerated().forEach { pjSegment.insertSegment(withTitle: $0.element, at: $0.offset, animated: false) }
 
         [ieSegment, nsSegment, tfSegment, pjSegment].forEach { seg in
-            seg.selectedSegmentIndex = 2 // 기본: 미정
+            seg.selectedSegmentIndex = 1 // 기본: 중앙
+            seg.apportionsSegmentWidthsByContent = false // 동일폭
             seg.addTarget(self, action: #selector(mbtiChanged), for: .valueChanged)
         }
+
+        mbtiGrid.addArrangedSubview(buildDialRow(title: "I/E", control: ieSegment))
+        mbtiGrid.addArrangedSubview(buildDialRow(title: "N/S", control: nsSegment))
+        mbtiGrid.addArrangedSubview(buildDialRow(title: "T/F", control: tfSegment))
+        mbtiGrid.addArrangedSubview(buildDialRow(title: "P/J", control: pjSegment))
         stack.addArrangedSubview(mbtiCard)
 
         // 섹션: 미리보기
-        let previewCard = buildCard(title: "적용 미리보기", subtitle: "시스템 프롬프트 일부와 톤 반영 예시")
+        let previewCard = buildCard(title: "대나무숲 친구의 성격", subtitle: nil)
         previewLabel.numberOfLines = 0
         previewLabel.font = UIFont.systemFont(ofSize: 13)
         previewLabel.textColor = UIDesignSystem.Colors.secondaryText
@@ -173,17 +175,18 @@ final class FriendToneSettingsViewController: UIViewController {
         control.translatesAutoresizingMaskIntoConstraints = false
         row.addArrangedSubview(label)
         row.addArrangedSubview(control)
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        control.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        control.heightAnchor.constraint(greaterThanOrEqualToConstant: 32).isActive = true
         return row
     }
 
     private func applyCurrentValues() {
         // 칩 상태
-        let selected = Set(workingSettings.preferredFriendTones)
-        for b in toneChipButtons {
-            if let raw = b.accessibilityIdentifier?.replacingOccurrences(of: "tone_", with: ""),
-               let preset = UserSettingsModel.FriendTonePreset(rawValue: raw) {
-                setChip(b, selected: selected.contains(preset))
-            }
+        selectedTones = Set(workingSettings.preferredFriendTones.filter { gridTones.contains($0) })
+        for (idx, b) in toneButtons.enumerated() {
+            let preset = gridTones[idx]
+            styleToneButton(b, selected: selectedTones.contains(preset))
         }
         // MBTI 세그먼트
         let mbti = workingSettings.mbti
@@ -193,22 +196,6 @@ final class FriendToneSettingsViewController: UIViewController {
         pjSegment.selectedSegmentIndex = mbti.pj.segmentIndex
     }
 
-    @objc private func toneChipTapped(_ sender: UIButton) {
-        guard let raw = sender.accessibilityIdentifier?.replacingOccurrences(of: "tone_", with: ""),
-              let preset = UserSettingsModel.FriendTonePreset(rawValue: raw) else { return }
-        var set = Set(workingSettings.preferredFriendTones)
-        if set.contains(preset) { set.remove(preset) } else { set.insert(preset) }
-        workingSettings.preferredFriendTones = Array(set)
-        setChip(sender, selected: set.contains(preset))
-        updatePreview()
-    }
-
-    private func setChip(_ b: UIButton, selected: Bool) {
-        b.layer.borderWidth = selected ? 1.5 : 0
-        b.layer.borderColor = (selected ? UIColor.systemBlue : UIColor.clear).cgColor
-        b.backgroundColor = selected ? UIColor.systemBlue.withAlphaComponent(0.12) : UIColor.systemGray6
-        b.setTitleColor(selected ? .systemBlue : .label, for: .normal)
-    }
 
     @objc private func mbtiChanged() {
         workingSettings.mbti.ie = UserSettingsModel.MBTITraitOption.fromSegmentIndex(ieSegment.selectedSegmentIndex, pair: .ie)
@@ -219,8 +206,7 @@ final class FriendToneSettingsViewController: UIViewController {
     }
 
     private func updatePreview() {
-        let snippet = workingSettings.generateAIContext()
-        previewLabel.text = snippet
+        previewLabel.text = makePersonaPreviewText()
     }
 
     @objc private func cancelTapped() { dismiss(animated: true) }
@@ -238,17 +224,36 @@ final class FriendToneSettingsViewController: UIViewController {
     }
 }
 
-private extension UIStackView {
-    /// 수평 래핑 모사: 단순히 컨테이너에 addSubview로 넣고 제약만 잡는다(간단 버전)
-    func wrapInto(container: UIView) {
-        translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(self)
-        NSLayoutConstraint.activate([
-            topAnchor.constraint(equalTo: container.topAnchor, constant: 56),
-            leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12)
-        ])
+// MARK: - Preview Builder
+private extension FriendToneSettingsViewController {
+    func makePersonaPreviewText() -> String {
+        let tones = selectedTones.map { $0.displayName }.sorted()
+        let toneLine = tones.isEmpty ? "선택된 말투: 기본" : "선택된 말투: " + tones.joined(separator: ", ")
+        let mb = workingSettings.mbti
+        // MBTI를 형용사로 요약: I/E, N/S, T/F, P/J 순서
+        var adj: [String] = []
+        switch mb.ie { case .i: adj.append("낯가리는"); case .e: adj.append("에너지 넘치는"); default: break }
+        switch mb.ns { case .n: adj.append("직관적인"); case .s: adj.append("현실적인"); default: break }
+        switch mb.tf { case .t: adj.append("논리적인"); case .f: adj.append("공감적인"); default: break }
+        switch mb.pj { case .p: adj.append("유연한"); case .j: adj.append("체계적인"); default: break }
+        let mbtiLine = adj.isEmpty ? "기본" : adj.joined(separator: ", ")
+        return """
+        • \(toneLine)
+        • \(mbtiLine)
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    @objc private func toneButtonTapped(_ sender: UIButton) {
+        let preset = gridTones[sender.tag]
+        if selectedTones.contains(preset) { selectedTones.remove(preset) } else { selectedTones.insert(preset) }
+        workingSettings.preferredFriendTones = Array(selectedTones)
+        styleToneButton(sender, selected: selectedTones.contains(preset))
+        updatePreview()
+    }
+
+    private func styleToneButton(_ b: UIButton, selected: Bool) {
+        b.layer.borderWidth = selected ? 1.5 : 0
+        b.layer.borderColor = (selected ? UIColor.systemBlue : UIColor.clear).cgColor
+        b.backgroundColor = selected ? UIColor.systemBlue.withAlphaComponent(0.12) : UIColor.systemGray6
+        b.setTitleColor(selected ? .systemBlue : .label, for: .normal)
     }
 }
-
