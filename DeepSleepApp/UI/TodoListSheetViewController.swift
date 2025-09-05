@@ -31,7 +31,7 @@ final class TodoListSheetViewController: UIViewController, UITableViewDataSource
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.register(TodoTableViewCell.self, forCellReuseIdentifier: TodoTableViewCell.identifier)
+        // UITableViewCell의 기본 스타일 사용
         tableView.separatorStyle = .singleLine
         view.addSubview(tableView)
     }
@@ -63,8 +63,14 @@ final class TodoListSheetViewController: UIViewController, UITableViewDataSource
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { todos.count }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: TodoTableViewCell.identifier, for: indexPath) as! TodoTableViewCell
-        cell.configure(with: todos[indexPath.row])
+        let cell = tableView.dequeueReusableCell(withIdentifier: "TodoCell") ?? UITableViewCell(style: .subtitle, reuseIdentifier: "TodoCell")
+        let todo = todos[indexPath.row]
+
+        cell.textLabel?.text = todo.title
+        cell.detailTextLabel?.text = "마감: \(DateFormatter.localizedString(from: todo.dueDate, dateStyle: .short, timeStyle: .short))"
+        cell.accessoryType = todo.isCompleted ? .checkmark : .none
+        cell.textLabel?.textColor = todo.isCompleted ? .systemGray : .label
+
         return cell
     }
 
@@ -72,15 +78,15 @@ final class TodoListSheetViewController: UIViewController, UITableViewDataSource
     @objc private func didTapAdvice() {
         // 권한 및 사용량은 SessionManager/AIUsageManager 내부에서 처리
         let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion
-        let prompt = TodoCalendarViewController.buildOverallAdvicePrompt(date: date,
-                                                                         todos: todos,
-                                                                         allTodos: allTodosProvider(),
-                                                                         weeklyContext: weeklyContext)
+        let prompt = TodoManager.buildOverallAdvicePrompt(date: date,
+                                                         todos: todos,
+                                                         allTodos: allTodosProvider(),
+                                                         weeklyContext: weeklyContext)
         Task {
             do {
                 let advice = try await SessionManager.shared.sendMessage(
                     content: prompt,
-                    model: .claude,
+                    model: .gemini,
                     mode: .taskAdvice,
                     saveMessages: false
                 )

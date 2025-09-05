@@ -47,6 +47,8 @@ public class UsageLimitManager {
     /// UserDefaults 키 접두사
     private let usageKeyPrefix = "ai_usage_"
     private let lastResetDateKey = "ai_usage_last_reset_date"
+    private let dailyCountPrefix = "daily_key_count_" // daily_key_count_<key>_<yyyy-MM-dd>
+    private let dailyFPsPrefix = "daily_key_fps_"     // daily_key_fps_<namespace>_<yyyy-MM-dd>
     
     // MARK: - 📊 사용량 제한 체크 (메인 API)
     
@@ -105,6 +107,41 @@ public class UsageLimitManager {
         }
         
         return status
+    }
+
+    // MARK: - 🔑 일일 키 기반 제한(커스텀 기능용)
+    public func canUseDailyKeyedFeature(key: String, limit: Int) -> (canUse: Bool, remaining: Int, resetAt: Date) {
+        checkAndResetIfNewDay()
+        let countKey = dailyCountPrefix + key + "_" + currentDate
+        let used = UserDefaults.standard.integer(forKey: countKey)
+        let can = used < max(0, limit)
+        let remaining = max(0, limit - used)
+        let resetAt = nextDailyResetAt()
+        return (can, remaining, resetAt)
+    }
+
+    public func incrementDailyKeyedFeature(key: String) {
+        checkAndResetIfNewDay()
+        let countKey = dailyCountPrefix + key + "_" + currentDate
+        let used = UserDefaults.standard.integer(forKey: countKey)
+        UserDefaults.standard.set(used + 1, forKey: countKey)
+    }
+
+    public func hasUsedDailyFingerprint(namespace: String, fingerprint: String) -> Bool {
+        checkAndResetIfNewDay()
+        let k = dailyFPsPrefix + namespace + "_" + currentDate
+        let arr = UserDefaults.standard.stringArray(forKey: k) ?? []
+        return arr.contains(fingerprint)
+    }
+
+    public func markDailyFingerprintUsed(namespace: String, fingerprint: String) {
+        checkAndResetIfNewDay()
+        let k = dailyFPsPrefix + namespace + "_" + currentDate
+        var arr = UserDefaults.standard.stringArray(forKey: k) ?? []
+        if !arr.contains(fingerprint) {
+            arr.append(fingerprint)
+            UserDefaults.standard.set(arr, forKey: k)
+        }
     }
     
     // MARK: - 🔧 내부 구현
@@ -197,6 +234,9 @@ public class UsageLimitManager {
             return ["DAILY_DIARY_ANALYSIS_LIMIT", "AI_LIMITS_DIARY_ANALYSIS"]
         case .taskAdvice:
             return ["DAILY_TODO_ADVICE_LIMIT", "AI_LIMITS_TODO_ADVICE"]
+        case .taskAdviceOverall:
+            // 별도 키-기반 제한 사용하므로 여기서는 빈 배열 반환(0)
+            return []
         case .presetRecommendation:
             return ["DAILY_PRESET_RECOMMENDATION_LIMIT", "AI_LIMITS_PRESET_RECOMMENDATION"]
         case .monthlyStatistics:
@@ -316,6 +356,15 @@ public class UsageLimitManager {
         
         Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { [weak self] _ in
             self?.resetDailyUsage()
+            // 커스텀 일일 키/지문도 자정에 함께 초기화
+            // (별도 키 스페이스를 사용하므로 resetDailyUsage로 일괄 지우기 어렵다)
+            let ud = UserDefaults.standard
+            let all = ud.dictionaryRepresentation().keys
+            for key in all {
+                if key.hasPrefix(self?.dailyCountPrefix ?? "daily_key_count_") || key.hasPrefix(self?.dailyFPsPrefix ?? "daily_key_fps_") {
+                    ud.removeObject(forKey: key)
+                }
+            }
             self?.startDailyResetTimer() // 다음 날을 위한 타이머 재설정
             print("🌅 [UsageLimitManager] 자정 자동 초기화 완료")
         }

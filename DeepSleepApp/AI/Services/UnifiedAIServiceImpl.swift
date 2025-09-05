@@ -220,10 +220,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         
         // 0. 일일 사용량 한도 체크 (통합 진입점에서 강제)
-        let usage = UsageLimitManager.shared.canUseAIFeature(mode)
-        guard usage.canUse else {
-            ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
-            throw AIServiceError.configurationError("USAGE_LIMIT_EXCEEDED: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
+        if mode == .taskAdviceOverall {
+            // 별도 일일 1회 제한 (Info.plist → Secrets.xcconfig: DAILY_TODO_OVERALL_ADVICE_LIMIT, 기본 1)
+            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            let status = UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit)
+            guard status.canUse else {
+                ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
+                throw AIServiceError.configurationError("USAGE_LIMIT_EXCEEDED: task_advice_overall 0/\(limit)")
+            }
+        } else {
+            let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+            guard usage.canUse else {
+                ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: false, duration: Date().timeIntervalSince(overallStart))
+                throw AIServiceError.configurationError("USAGE_LIMIT_EXCEEDED: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
+            }
         }
         
         // 1. 보안 검증
@@ -254,7 +264,11 @@ AICallLogger.shared.logAICallSuccess(
                 processingTime: elapsedMs,
                 tokenUsage: response.usage
             )
-            UsageLimitManager.shared.incrementUsage(for: mode)
+            if mode == .taskAdviceOverall {
+                UsageLimitManager.shared.incrementDailyKeyedFeature(key: "todo_overall_advice")
+            } else {
+                UsageLimitManager.shared.incrementUsage(for: mode)
+            }
             ContextMetrics.shared.logRequestEnd(id: reqId, model: model.rawValue, mode: mode.rawValue, success: true, duration: Date().timeIntervalSince(overallStart))
             return response
         } catch {
@@ -1089,7 +1103,7 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
             - 위로/격려 한 줄(의료 조언 아님)
             """
             
-        case .taskAdvice:
+        case .taskAdvice, .taskAdviceOverall:
             return """
             실행 코치.
             - 목표/제약 파악 → 3단계 실행 계획

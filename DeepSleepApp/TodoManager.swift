@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import EventKit
+import CryptoKit
 
 // MARK: - Custom Errors for TodoManager
 enum TodoManagerError: LocalizedError {
@@ -26,7 +27,7 @@ enum TodoManagerError: LocalizedError {
             return "캘린더 이벤트 삭제에 실패했습니다: \\(underlyingError.localizedDescription)"
         }
     }
-    
+
     var recoverySuggestion: String? {
         switch self {
         case .calendarAccessDenied, .calendarAccessRestricted, .calendarWriteOnlyAccess:
@@ -76,7 +77,7 @@ class TodoManager {
             completion(false, TodoManagerError.unknownCalendarAuthorization("알 수 없는 캘린더 접근 권한 상태입니다."))
         }
     }
-    
+
     private func handleCalendarAccessResponse(granted: Bool, error: Error?, completion: (Bool, Error?) -> Void) {
         if granted {
             print("✅ EKEventStore: 접근 권한 허용됨")
@@ -93,7 +94,7 @@ class TodoManager {
     func addTodo(title: String, dueDate: Date, startTime: Date? = nil, endTime: Date? = nil, notes: String? = nil, priority: Int = 0, completion: @escaping (TodoItem?, Error?) -> Void) {
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
             guard let self = self else { return }
-            
+
             var currentTodos = self.loadTodos()
             var newTodo = TodoItem(title: title, dueDate: dueDate, endDate: endTime, priority: priority, notes: notes)
 
@@ -137,15 +138,15 @@ class TodoManager {
     func updateTodo(_ todoToUpdate: TodoItem, completion: @escaping (TodoItem?, Error?) -> Void) {
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
             guard let self = self else { return }
-            
+
             var currentTodos = self.loadTodos()
             guard let index = currentTodos.firstIndex(where: { $0.id == todoToUpdate.id }) else {
                 completion(nil, NSError(domain: "TodoManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "수정할 할 일을 찾을 수 없습니다."]))
                 return
             }
-            
+
             self.removeNotification(for: currentTodos[index])
-            
+
             var mutableTodo = todoToUpdate
 
             if granted {
@@ -200,7 +201,7 @@ class TodoManager {
     func deleteTodo(withId id: UUID, completion: @escaping (Bool, Error?) -> Void) {
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
             guard let self = self else { return }
-            
+
             var currentTodos = self.loadTodos()
             guard let todoToDelete = currentTodos.first(where: { $0.id == id }) else {
                 completion(false, NSError(domain: "TodoManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "삭제할 할 일을 찾을 수 없습니다."]))
@@ -208,7 +209,7 @@ class TodoManager {
             }
 
             self.removeNotification(for: todoToDelete)
-            
+
             if granted, let eventIdentifier = todoToDelete.calendarEventIdentifier {
                 self.removeEventFromCalendar(identifier: eventIdentifier) { success, eventError in
                     if let eventError = eventError {
@@ -230,31 +231,31 @@ class TodoManager {
             }
         }
     }
-    
+
     func toggleCompletion(for todoId: UUID, completion: @escaping (TodoItem?, Error?) -> Void) {
         var currentTodos = loadTodos()
         guard let index = currentTodos.firstIndex(where: { $0.id == todoId }) else {
             completion(nil, NSError(domain: "TodoManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "완료 상태를 변경할 할 일을 찾을 수 없습니다."]))
             return
         }
-        
+
             currentTodos[index].isCompleted.toggle()
         let todo = currentTodos[index]
         saveTodos(currentTodos) // 로컬 저장 먼저
-            
+
         // 알림 업데이트
             if todo.isCompleted {
                 removeNotification(for: todo)
             } else {
                 scheduleNotification(for: todo)
             }
-        
+
         // 캘린더 이벤트 제목 업데이트
         if let eventIdentifier = todo.calendarEventIdentifier {
             requestCalendarAccessIfNeeded { [weak self] granted, accessError in
-                guard let self = self else { 
-                    completion(todo, NSError(domain: "TodoManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "내부 오류 발생"])) 
-                    return 
+                guard let self = self else {
+                    completion(todo, NSError(domain: "TodoManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "내부 오류 발생"]))
+                    return
                 }
                 if granted {
                     self.updateCalendarEventTitleForCompletion(eventIdentifier: eventIdentifier, todo: todo) { updateError in
@@ -279,7 +280,135 @@ class TodoManager {
             UnifiedLogger.shared.logTodo("Error encoding todos: \(error)")
         }
     }
-    
+
+    // MARK: - AI Advice Helper
+    static func buildOverallAdvicePrompt(
+        date: Date,
+        todos: [TodoItem],
+        allTodos: [TodoItem],
+        weeklyContext: String?,
+        diaryEmotion: String? = nil,
+        diaryExcerpt: String? = nil
+    ) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "ko_KR")
+        dateFormatter.dateFormat = "yyyy년 M월 d일 a h:mm"
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.locale = Locale(identifier: "ko_KR")
+        dayFormatter.dateFormat = "yyyy년 M월 d일"
+        let dateString = dayFormatter.string(from: date)
+
+        // 상세 항목 블록(각 할 일의 모든 정보 포함)
+        let detailBlocks: [String] = todos.enumerated().map { (idx, item) in
+            let priority = item.priority == 2 ? "높음" : item.priority == 1 ? "중간" : "낮음"
+            let category = item.category?.displayName ?? "미지정"
+            let notes = (item.notes?.isEmpty == false) ? item.notes! : "없음"
+            let start = dateFormatter.string(from: item.dueDate)
+            let end = item.endDate != nil ? dateFormatter.string(from: item.endDate!) : "없음"
+            let type = item.isAllDayQuickRegistration ? "할 일" : (item.endDate != nil ? "일정" : "할 일")
+
+            // UX: '하루종일 버튼'으로 등록된 빠른 할 일은 시간 대신 "오늘 중"으로 간략화
+            if item.isAllDayQuickRegistration {
+                return """
+                \(idx+1)) 제목: \(item.title)
+                   유형: \(type) (하루종일)
+                   시간: 오늘 중
+                   우선순위: \(priority)
+                   카테고리: \(category)
+                   메모: \(notes)
+                """.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                return """
+                \(idx+1)) 제목: \(item.title)
+                   유형: \(type)
+                   시작: \(start)
+                   종료: \(end)
+                   우선순위: \(priority)
+                   카테고리: \(category)
+                   메모: \(notes)
+                """.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        var header = "오늘(\(dateString)) '오늘의 할 일'에 대한 조언을 부탁드립니다."
+
+        // 선택적으로 가벼운 분위기 보강(일기 본문은 절대 포함하지 않음)
+        var contextBlock = ""
+        if let context = weeklyContext, !context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            contextBlock = "최근 감정 경향(요약): \(context)"
+        }
+
+        let statsBlock = """
+        전체 할 일 수: \(allTodos.count)개
+        오늘 등록된 할 일 수: \(todos.count)개
+        완료된 오늘의 할 일: \(todos.filter { $0.isCompleted }.count)개
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let itemsBlock = detailBlocks.isEmpty ? "오늘 등록된 할 일이 없습니다." : detailBlocks.joined(separator: "\n")
+
+        let askBlock = """
+        요청: 각 항목의 시간, 카테고리, 우선순위, 메모를 종합하여 실질적으로 도움이 되는 구체적 실행 조언을 3가지 이내로 제안해주세요. 가능하면 시간대/맥락에 맞추어 우선순위를 반영해 주세요.
+        (참고: 일기/캐시/추가 컨텍스트는 제공하지 않습니다.)
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return ([header, contextBlock, itemsBlock, statsBlock, askBlock]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: "\n\n"))
+    }
+
+    static func buildIndividualAdvicePrompt(item: TodoItem) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "ko_KR")
+        dateFormatter.dateFormat = "yyyy년 M월 d일 a h:mm"
+
+        let priority = item.priority == 2 ? "높음" : item.priority == 1 ? "중간" : "낮음"
+        let category = item.category?.displayName ?? "미지정"
+        let notes = (item.notes?.isEmpty == false) ? item.notes! : "없음"
+        let start = dateFormatter.string(from: item.dueDate)
+        let end = item.endDate != nil ? dateFormatter.string(from: item.endDate!) : "없음"
+        let type = item.isAllDayQuickRegistration ? "할 일" : (item.endDate != nil ? "일정" : "할 일")
+
+        let prompt = """
+        아래의 단일 할 일에 대해 실질적으로 도움이 되는 실행 조언을 2-3가지 이내로 제안해주세요.
+
+        제목: \(item.title)
+        유형: \(type)
+        시작: \(start)
+        종료: \(end)
+        우선순위: \(priority)
+        카테고리: \(category)
+        메모: \(notes)
+
+        (참고: 일기/캐시/추가 컨텍스트는 제공하지 않습니다.)
+        """
+
+        return prompt
+    }
+
+    // MARK: - Fingerprint
+    /// 삭제 후 재등록 악용 방지를 위한 일일 고유 지문 생성(제목/시간/유형/우선순위/카테고리 기반)
+    static func adviceFingerprint(for item: TodoItem) -> String {
+        let cal = Calendar.current
+        let fmt: (Date) -> String = { d in
+            let comp = cal.dateComponents([.year,.month,.day,.hour,.minute], from: d)
+            return String(format: "%04d-%02d-%02d %02d:%02d",
+                          comp.year ?? 0, comp.month ?? 0, comp.day ?? 0, comp.hour ?? 0, comp.minute ?? 0)
+        }
+        let type = item.isAllDayQuickRegistration ? "todo" : (item.endDate != nil ? "event" : "todo")
+        let start = fmt(item.dueDate)
+        let end = item.endDate.map(fmt) ?? "none"
+        let category = item.category?.rawValue ?? "none"
+        let base = [
+            item.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines),
+            type, start, end,
+            String(item.priority), category
+        ].joined(separator: "|")
+        let hash = SHA256.hash(data: Data(base.utf8)).map { String(format: "%02x", $0) }.joined()
+        return String(hash.prefix(32))
+    }
+
+
     // MARK: - Filtering (예시)
     func getTodos(for date: Date) -> [TodoItem] {
         let allTodos = loadTodos()
@@ -288,24 +417,24 @@ class TodoManager {
             if Calendar.current.isDate(todo.dueDate, inSameDayAs: date) {
                 return true
             }
-            
+
             // 연속 일정인 경우 날짜 범위 내에 있는지 확인
             if let endDate = todo.endDate {
                 let calendar = Calendar.current
                 let startDay = calendar.startOfDay(for: todo.dueDate)
                 let endDay = calendar.startOfDay(for: endDate)
                 let checkDay = calendar.startOfDay(for: date)
-                
+
                 // 끝 경계를 배타적으로 처리하여 [startDay, endDay) 구간으로 간주
                 // 이유: 하루 종일(00:00~24:00) 일정(Quick Register)이 다음날 00:00을 end로 가지므로 다음날 표시를 방지
                 // 기존 다일 범위 일정도 논리적으로 endDay의 시작 시각은 포함되지 않는 것이 자연스러움
                 return checkDay >= startDay && checkDay < endDay
             }
-            
+
             return false
         }
     }
-    
+
     func getIncompleteTodos() -> [TodoItem] {
         return loadTodos().filter { !$0.isCompleted }
     }
@@ -318,7 +447,7 @@ class TodoManager {
     private func removeNotification(for todo: TodoItem) {
         CentralNotificationScheduler.shared.cancelTodoNotification(id: todo.id)
     }
-    
+
     func rescheduleAllNotifications() {
         let todos = loadTodos()
         CentralNotificationScheduler.shared.rescheduleTodos(todos)
@@ -328,7 +457,7 @@ class TodoManager {
     private func addEventToCalendar(todo: TodoItem, completion: @escaping (String?, Error?) -> Void) {
         let event = EKEvent(eventStore: eventStore)
         event.title = todo.isCompleted ? "[완료] \(todo.title)" : todo.title
-        
+
         // 시간 설정 처리
         if let endDate = todo.endDate {
             // 여러 날 일정
@@ -342,7 +471,7 @@ class TodoManager {
             // 1시간 이벤트로 설정
             event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate) ?? todo.dueDate
         }
-        
+
         event.notes = todo.notes
         event.calendar = eventStore.defaultCalendarForNewEvents
 
@@ -357,7 +486,7 @@ class TodoManager {
     }
 
     private func updateEventInCalendar(todo: TodoItem, completion: @escaping (Bool, String?, Error?) -> Void) {
-        guard let eventIdentifier = todo.calendarEventIdentifier, 
+        guard let eventIdentifier = todo.calendarEventIdentifier,
               let event = eventStore.event(withIdentifier: eventIdentifier) else {
             // 기존 이벤트 ID가 없거나, ID로 이벤트를 찾을 수 없는 경우 새로 추가 시도 (선택적)
             // 여기서는 그냥 실패 처리 또는 새 이벤트 추가 로직 호출
@@ -369,9 +498,9 @@ class TodoManager {
             }
             return
         }
-        
+
         event.title = todo.isCompleted ? "[완료] \(todo.title)" : todo.title
-        
+
         // 시간 설정 처리
         if let endDate = todo.endDate {
             // 여러 날 일정
@@ -385,7 +514,7 @@ class TodoManager {
             // 1시간 이벤트로 설정
             event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: todo.dueDate) ?? todo.dueDate
         }
-        
+
         event.notes = todo.notes
             do {
                 try eventStore.save(event, span: .thisEvent)
@@ -419,10 +548,10 @@ class TodoManager {
             completion(TodoManagerError.eventFetchFailed("캘린더에서 해당 일정을 찾을 수 없습니다."))
             return
         }
-        
+
         let originalTitle = event.title?.replacingOccurrences(of: "[완료] ", with: "") ?? todo.title // 원본 제목 최대한 복원
         event.title = todo.isCompleted ? "[완료] \(originalTitle)" : originalTitle
-        
+
         do {
             try eventStore.save(event, span: .thisEvent)
             print("✅ EKEventStore: 이벤트 완료 상태('제목') 업데이트 성공 - \(event.title ?? "")")
@@ -448,7 +577,7 @@ class TodoManager {
         let group = DispatchGroup()
 
         requestCalendarAccessIfNeeded { [weak self] granted, accessError in
-            guard let self = self else { 
+            guard let self = self else {
                 completion?(0, [NSError(domain: "TodoManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "내부 오류."])])
                 return
             }
@@ -467,9 +596,9 @@ class TodoManager {
                         errors.append(error)
                     } else if let eventIdentifier = eventIdentifier {
                         // 캘린더 이벤트 ID를 포함하여 저장할 새 TodoItem 인스턴스 생성
-                        var todoToUpdateInStorage = todoFromLoop 
+                        var todoToUpdateInStorage = todoFromLoop
                         todoToUpdateInStorage.calendarEventIdentifier = eventIdentifier
-                        
+
                         var allCurrentTodos = self.loadTodos()
                         if let indexInStorage = allCurrentTodos.firstIndex(where: { $0.id == todoToUpdateInStorage.id }) {
                             allCurrentTodos[indexInStorage] = todoToUpdateInStorage

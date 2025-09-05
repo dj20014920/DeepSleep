@@ -30,7 +30,8 @@ class AIUsageManager {
         case .diaryAnalysis:
             return UsageLimitManager.shared.canUseAIFeature(.emotionDiaryAnalysis).canUse
         case .overallTodoAdvice:
-            return UsageLimitManager.shared.canUseAIFeature(.taskAdvice).canUse
+            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            return UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit).canUse
         case .individualTodoAdvice:
             return UsageLimitManager.shared.canUseAIFeature(.taskAdvice).canUse
         }
@@ -52,7 +53,10 @@ class AIUsageManager {
         case .diaryAnalysis:
             let s = UsageLimitManager.shared.canUseAIFeature(.emotionDiaryAnalysis)
             return max(0, s.dailyLimit - s.currentUsage)
-        case .overallTodoAdvice, .individualTodoAdvice:
+        case .overallTodoAdvice:
+            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            return UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit).remaining
+        case .individualTodoAdvice:
             let s = UsageLimitManager.shared.canUseAIFeature(.taskAdvice)
             return max(0, s.dailyLimit - s.currentUsage)
         }
@@ -70,7 +74,9 @@ class AIUsageManager {
             UsageLimitManager.shared.incrementUsage(for: .presetRecommendation)
         case .diaryAnalysis:
             UsageLimitManager.shared.incrementUsage(for: .emotionDiaryAnalysis)
-        case .overallTodoAdvice, .individualTodoAdvice:
+        case .overallTodoAdvice:
+            UsageLimitManager.shared.incrementDailyKeyedFeature(key: "todo_overall_advice")
+        case .individualTodoAdvice:
             UsageLimitManager.shared.incrementUsage(for: .taskAdvice)
         }
         // 🛰️ 변경 브로드캐스트 (기존 의존성 유지)
@@ -106,7 +112,9 @@ extension AIUsageManager {
             return UsageLimitManager.shared.canUseAIFeature(.presetRecommendation).dailyLimit
         case .diaryAnalysis:
             return UsageLimitManager.shared.canUseAIFeature(.emotionDiaryAnalysis).dailyLimit
-        case .overallTodoAdvice, .individualTodoAdvice:
+        case .overallTodoAdvice:
+            return ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+        case .individualTodoAdvice:
             return UsageLimitManager.shared.canUseAIFeature(.taskAdvice).dailyLimit
         }
     }

@@ -36,6 +36,7 @@ public enum AIMode: String, CaseIterable, Codable {
     case generalConversation = "general_conversation"
     case emotionDiaryAnalysis = "emotion_diary_analysis"
     case taskAdvice = "task_advice"
+    case taskAdviceOverall = "task_advice_overall"
     case presetRecommendation = "preset_recommendation"
     case monthlyStatistics = "monthly_statistics"
     case fortuneTelling = "fortune_telling"
@@ -45,7 +46,8 @@ public enum AIMode: String, CaseIterable, Codable {
         switch self {
         case .generalConversation: return "일반 대화"
         case .emotionDiaryAnalysis: return "감정 일기 분석"
-        case .taskAdvice: return "할일 조언"
+        case .taskAdvice: return "할일 조언(개별)"
+        case .taskAdviceOverall: return "할일 조언(전체)"
         case .presetRecommendation: return "프리셋 추천"
         case .monthlyStatistics: return "월간 통계"
         case .fortuneTelling: return "운세"
@@ -67,6 +69,11 @@ public enum AIMode: String, CaseIterable, Codable {
                 responseFormat: .text
             )
         case .taskAdvice:
+            return TokenConfiguration(
+                maxTokens: ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 800) ?? 800,
+                temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75) ?? 0.75
+            )
+        case .taskAdviceOverall:
             return TokenConfiguration(
                 maxTokens: ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 800) ?? 800,
                 temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75) ?? 0.75
@@ -502,7 +509,7 @@ extension AIMode {
             return .general
         case .emotionDiaryAnalysis, .emotionAnalysis:
             return .emotional
-        case .taskAdvice:
+        case .taskAdvice, .taskAdviceOverall:
             return .task
         case .presetRecommendation, .monthlyStatistics, .fortuneTelling:
             return .analysis
@@ -540,7 +547,7 @@ public enum ConversationType: String, CaseIterable {
             self = .general
         case "emotional", "emotion_diary_analysis", "emotion_analysis":
             self = .emotional
-        case "task", "task_advice":
+        case "task", "task_advice", "task_advice_overall":
             self = .task
         case "analysis", "pattern_analysis", "monthly_statistics":
             self = .analysis

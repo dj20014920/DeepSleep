@@ -8,6 +8,7 @@ protocol TodoListCellDelegate: AnyObject {
     func todoListCellDidRequestAddItem(_ cell: TodoListCell)
     func todoListCellDidRequestDailyAdvice(_ cell: TodoListCell, for items: [TodoItem], on date: Date)
     func todoListCellDidRequestIndividualAdvice(_ cell: TodoListCell, for item: TodoItem)
+    func todoListCell(_ cell: TodoListCell, didTapAdviceFor item: TodoItem)
 }
 
 /// 할 일 목록을 표시하는 컬렉션 뷰 셀
@@ -44,6 +45,9 @@ class TodoListCell: UICollectionViewCell {
         label.textColor = UIDesignSystem.Colors.primaryText
         label.translatesAutoresizingMaskIntoConstraints = false
         label.adjustsFontForContentSizeCategory = true
+        // 버튼 텍스트가 잘리지 않도록 타이틀은 수평 압축 저항을 낮춤
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
     }()
     
@@ -60,12 +64,15 @@ class TodoListCell: UICollectionViewCell {
 
     private let dailyAdviceButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("💬 오늘 할 일 조언", for: .normal)
+        button.setTitle("오늘 전체 조언 받기", for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .medium)
         button.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
         button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
         button.layer.cornerRadius = 8
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
         return button
     }()
     
@@ -131,7 +138,7 @@ class TodoListCell: UICollectionViewCell {
 
             dailyAdviceButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             dailyAdviceButton.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -8),
-            dailyAdviceButton.widthAnchor.constraint(equalToConstant: 100),
+            // 너비는 내용에 맞게 자동 확장 (기존 텍스트 잘림 방지)
             dailyAdviceButton.heightAnchor.constraint(equalToConstant: 32),
 
             addButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
@@ -212,6 +219,22 @@ class TodoListCell: UICollectionViewCell {
         // 테이블뷰 상태 로깅
         UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \\(tableView.dataSource != nil), 델리게이트: \\(tableView.delegate != nil)", category: .ui)
         UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \\(tableView.isUserInteractionEnabled), 선택가능: \\(tableView.allowsSelection)", category: .ui)
+
+        // UX: 오늘 전체 조언 버튼 상태 갱신 (일일 1회 제한 반영)
+        let remainingOverall = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
+        if remainingOverall > 0 {
+            dailyAdviceButton.isEnabled = true
+            dailyAdviceButton.setTitle("오늘 전체 조언 받기", for: .normal)
+            dailyAdviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+            dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+            dailyAdviceButton.alpha = 1.0
+        } else {
+            dailyAdviceButton.isEnabled = false
+            dailyAdviceButton.setTitle("오늘 전체 조언 사용 완료", for: .disabled)
+            dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+            dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
+            dailyAdviceButton.alpha = 0.9
+        }
     }
     
     // 외부에서 카드 헤더 타이틀을 동적으로 지정하기 위한 API
@@ -321,12 +344,17 @@ extension TodoListCell: TodoItemCellDelegate {
     func todoItemCell(_ cell: TodoItemTableViewCell, didTapTitle item: TodoItem, at index: Int) {
         delegate?.todoListCellDidRequestIndividualAdvice(self, for: item)
     }
+
+    func todoItemCell(_ cell: TodoItemTableViewCell, didTapAdvice item: TodoItem, at index: Int) {
+        delegate?.todoListCell(self, didTapAdviceFor: item)
+    }
 }
 
 // MARK: - TodoItemTableViewCell
 protocol TodoItemCellDelegate: AnyObject {
     func todoItemCell(_ cell: TodoItemTableViewCell, didToggleItem item: TodoItem, at index: Int)
     func todoItemCell(_ cell: TodoItemTableViewCell, didTapTitle item: TodoItem, at index: Int)
+    func todoItemCell(_ cell: TodoItemTableViewCell, didTapAdvice item: TodoItem, at index: Int)
 }
 
 class TodoItemTableViewCell: UITableViewCell {
@@ -370,6 +398,20 @@ class TodoItemTableViewCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
+
+    private let adviceButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("조언 받기", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+        button.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
+        button.setTitleColor(.systemBlue, for: .normal)
+        button.layer.cornerRadius = 6
+        button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return button
+    }()
     
     // MARK: - Initialization
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -393,6 +435,7 @@ class TodoItemTableViewCell: UITableViewCell {
         contentView.addSubview(titleLabel)
         contentView.addSubview(dueDateLabel)
         contentView.addSubview(priorityIndicator)
+        contentView.addSubview(adviceButton)
         
         NSLayoutConstraint.activate([
             checkboxButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
@@ -407,13 +450,16 @@ class TodoItemTableViewCell: UITableViewCell {
             
             dueDateLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             dueDateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            dueDateLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            dueDateLabel.trailingAnchor.constraint(lessThanOrEqualTo: adviceButton.leadingAnchor, constant: -8),
             dueDateLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-            
+
             priorityIndicator.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
             priorityIndicator.widthAnchor.constraint(equalToConstant: 8),
             priorityIndicator.heightAnchor.constraint(equalToConstant: 8),
-            priorityIndicator.centerYAnchor.constraint(equalTo: titleLabel.firstBaselineAnchor)
+            priorityIndicator.centerYAnchor.constraint(equalTo: titleLabel.firstBaselineAnchor),
+
+            adviceButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            adviceButton.centerYAnchor.constraint(equalTo: dueDateLabel.centerYAnchor)
         ])
     }
     
@@ -424,6 +470,7 @@ class TodoItemTableViewCell: UITableViewCell {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(titleLabelTapped))
         titleLabel.addGestureRecognizer(tapGesture)
         titleLabel.isUserInteractionEnabled = true
+        adviceButton.addTarget(self, action: #selector(adviceButtonTapped), for: .touchUpInside)
     }
     
     // MARK: - Configuration
@@ -477,6 +524,17 @@ class TodoItemTableViewCell: UITableViewCell {
         default:
             priorityIndicator.isHidden = true
         }
+
+        // 조언 버튼 상태 갱신
+        if let adv = item.aiAdvices?.last, !adv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            adviceButton.setTitle("조언 내용 보기", for: .normal)
+            adviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.08)
+            adviceButton.setTitleColor(.systemGreen, for: .normal)
+        } else {
+            adviceButton.setTitle("조언 받기", for: .normal)
+            adviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
+            adviceButton.setTitleColor(.systemBlue, for: .normal)
+        }
     }
     
     // MARK: - Actions
@@ -491,6 +549,12 @@ class TodoItemTableViewCell: UITableViewCell {
         delegate?.todoItemCell(self, didTapTitle: item, at: itemIndex)
         UnifiedLogger.shared.logTodo("TodoItem title tapped: \(item.title)")
     }
+
+    @objc private func adviceButtonTapped() {
+        guard let item = todoItem else { return }
+        delegate?.todoItemCell(self, didTapAdvice: item, at: itemIndex)
+        UnifiedLogger.shared.logTodo("TodoItem advice button tapped: \(item.title)")
+    }
     
     // MARK: - Lifecycle
     override func prepareForReuse() {
@@ -500,5 +564,8 @@ class TodoItemTableViewCell: UITableViewCell {
         titleLabel.text = nil
         checkboxButton.isSelected = false
         priorityIndicator.isHidden = true
+        adviceButton.setTitle("조언 받기", for: .normal)
+        adviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
+        adviceButton.setTitleColor(.systemBlue, for: .normal)
     }
 }

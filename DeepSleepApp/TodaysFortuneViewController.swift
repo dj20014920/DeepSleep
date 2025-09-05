@@ -1,7 +1,7 @@
 import UIKit
 
 class TodaysFortuneViewController: UIViewController {
-    
+
     // MARK: - UI Components
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -9,21 +9,33 @@ class TodaysFortuneViewController: UIViewController {
         scrollView.showsVerticalScrollIndicator = true
         return scrollView
     }()
-    
+
     private let contentView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     private let headerView: UIView = {
         let view = UIView()
         view.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
         view.layer.cornerRadius = 16
         view.translatesAutoresizingMaskIntoConstraints = false
+
+        // 그라데이션 배경 추가
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.colors = [
+            UIColor.systemBlue.withAlphaComponent(0.2).cgColor,
+            UIColor.systemPurple.withAlphaComponent(0.1).cgColor
+        ]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        gradientLayer.cornerRadius = 16
+        view.layer.insertSublayer(gradientLayer, at: 0)
+
         return view
     }()
-    
+
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "🔮 오늘의 운세"
@@ -32,7 +44,7 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     private let dateLabel: UILabel = {
         let label = UILabel()
         let formatter = DateFormatter()
@@ -45,20 +57,25 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     // 사용자 정보 입력
     private let userInfoCardView: UIView = {
         let view = UIView()
         view.backgroundColor = UIDesignSystem.Colors.cardBackground
-        view.layer.cornerRadius = 12
-        view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOffset = CGSize(width: 0, height: 2)
-        view.layer.shadowRadius = 4
-        view.layer.shadowOpacity = 0.1
+        view.layer.cornerRadius = 16
+        view.layer.shadowColor = UIColor.systemBlue.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 4)
+        view.layer.shadowRadius = 8
+        view.layer.shadowOpacity = 0.15
         view.translatesAutoresizingMaskIntoConstraints = false
+
+        // 미세한 테두리 추가
+        view.layer.borderWidth = 1
+        view.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.1).cgColor
+
         return view
     }()
-    
+
     private let ageInfoLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 14, weight: .medium)
@@ -67,7 +84,7 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     private let birthDatePicker: UIDatePicker = {
         let picker = UIDatePicker()
         picker.datePickerMode = .date
@@ -76,27 +93,56 @@ class TodaysFortuneViewController: UIViewController {
         picker.maximumDate = Date()
         picker.minimumDate = Calendar.current.date(byAdding: .year, value: -100, to: Date())
         picker.translatesAutoresizingMaskIntoConstraints = false
+
+        // 더 예쁜 스타일링
+        picker.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+        picker.layer.cornerRadius = 12
+        picker.tintColor = UIColor.systemBlue
+
         return picker
     }()
-    
+
     private let genderSegmentedControl: UISegmentedControl = {
         let control = UISegmentedControl(items: ["남성", "여성", "기타"])
         control.selectedSegmentIndex = 0
         control.translatesAutoresizingMaskIntoConstraints = false
+
+        // 더 예쁜 스타일링
+        control.backgroundColor = UIColor.systemGray6
+        control.selectedSegmentTintColor = UIColor.systemBlue
+        control.layer.cornerRadius = 8
+
         return control
     }()
-    
+
     private let getFortuneButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("✨ 오늘의 운세 보기", for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-        button.backgroundColor = UIDesignSystem.Colors.primary
         button.tintColor = .white
-        button.layer.cornerRadius = 12
+        button.layer.cornerRadius = 16
         button.translatesAutoresizingMaskIntoConstraints = false
+
+        // 그라데이션 배경
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.colors = [
+            UIColor.systemBlue.cgColor,
+            UIColor.systemPurple.cgColor
+        ]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 0)
+        gradientLayer.cornerRadius = 16
+        button.layer.insertSublayer(gradientLayer, at: 0)
+
+        // 그림자 효과
+        button.layer.shadowColor = UIColor.systemBlue.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
+        button.layer.shadowOpacity = 0.3
+
         return button
     }()
-    
+
     // 운세 결과 표시
     private let fortuneResultView: UIView = {
         let view = UIView()
@@ -110,7 +156,7 @@ class TodaysFortuneViewController: UIViewController {
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     private let zodiacInfoLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.boldSystemFont(ofSize: 20)
@@ -119,7 +165,7 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     private let fortuneStackView: UIStackView = {
         let stackView = UIStackView()
         stackView.axis = .vertical
@@ -128,7 +174,7 @@ class TodaysFortuneViewController: UIViewController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         return stackView
     }()
-    
+
     private let shareButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("📱 운세 공유하기", for: .normal)
@@ -152,11 +198,11 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     // MARK: - Data
     private var currentFortune: DailyFortune?
     private let fortuneGenerator = FortuneGenerator()
-    
+
     // MARK: - Fortune Data Collections
     private let ageGroupAdvice: [String: [String]] = [
         "어린이": [
@@ -201,7 +247,7 @@ class TodaysFortuneViewController: UIViewController {
             "꾸준히 독서하는 습관을 만들어보세요.",
             "자연 속에서 뛰어놀며 건강함을 키우세요."
         ],
-        
+
         "청소년": [
             "자신만의 꿈과 목표를 설정해보세요.",
             "친구들과의 우정을 소중히 여기세요.",
@@ -244,7 +290,7 @@ class TodaysFortuneViewController: UIViewController {
             "자신의 감정을 솔직하게 표현하는 용기를 가지세요.",
             "미래의 자신을 위한 투자를 시작하세요."
         ],
-        
+
         "청년": [
             "인생의 방향성을 고민하며 성장하세요.",
             "다양한 경험을 통해 자신을 발견하세요.",
@@ -287,7 +333,7 @@ class TodaysFortuneViewController: UIViewController {
             "지혜로운 선택을 위한 판단력을 기르세요.",
             "미래 사회에 필요한 역량을 개발하세요."
         ],
-        
+
         "중년": [
             "가족과의 시간을 소중히 여기세요.",
             "건강 관리에 더욱 신경 쓰세요.",
@@ -330,7 +376,7 @@ class TodaysFortuneViewController: UIViewController {
             "내면의 평화와 안정을 추구하세요.",
             "다음 세대를 위한 기반을 마련하세요."
         ],
-        
+
         "시니어": [
             "건강을 최우선으로 생각하세요.",
             "가족, 친구들과의 소중한 시간을 보내세요.",
@@ -373,7 +419,7 @@ class TodaysFortuneViewController: UIViewController {
             "건강한 노년을 위한 생활 패턴을 만드세요.",
             "인생의 지혜를 다음 세대와 나누세요."
         ],
-        
+
         "성인": [
             "일과 생활의 균형을 맞추세요.",
             "꾸준한 자기계발에 투자하세요.",
@@ -417,7 +463,7 @@ class TodaysFortuneViewController: UIViewController {
             "미래 사회에 필요한 역량을 개발하세요."
         ]
     ]
-    
+
     private let positiveMessages: [String] = [
         "오늘도 당신의 밝은 미소가 세상을 아름답게 만듭니다.",
         "작은 것에서 기쁨을 찾는 하루가 되길 바랍니다.",
@@ -470,7 +516,7 @@ class TodaysFortuneViewController: UIViewController {
         "오늘도 당신답게 솔직하고 진실되게 살아가세요.",
         "당신의 따뜻한 말 한마디가 기적을 만들어낼 것입니다."
     ]
-    
+
     private let personalizationScores: [String: [String]] = [
         "어린이": ["매우 높음", "높음", "우수", "뛰어남", "탁월함"],
         "청소년": ["매우 높음", "높음", "우수", "뛰어남", "최고"],
@@ -480,7 +526,7 @@ class TodaysFortuneViewController: UIViewController {
         "성인": ["매우 높음", "높음", "우수", "전문적", "효과적"],
         "기본": ["우수", "높음", "매우 높음"]
     ]
-    
+
     private let zodiacTraits: [String: String] = [
         "♈ 양자리": "열정적이고 도전적인 에너지",
         "♉ 황소자리": "안정적이고 인내심 강한 모습",
@@ -495,7 +541,7 @@ class TodaysFortuneViewController: UIViewController {
         "♒ 물병자리": "독창적이고 미래 지향적인 에너지",
         "♓ 물고기자리": "감성적이고 직관적인 성향"
     ]
-    
+
     private let ageSpecificTraits: [String: [String]] = [
         "어린이": [
             "순수함과 호기심이 빛을 발하며",
@@ -540,7 +586,7 @@ class TodaysFortuneViewController: UIViewController {
             "개인적 성취와 사회적 책임이 조화롭게 어우러져"
         ]
     ]
-    
+
     private let genderSpecificTraits: [String: [String]] = [
         "남성": [
             "강인한 의지력과 추진력이 더욱 강화되고",
@@ -564,7 +610,7 @@ class TodaysFortuneViewController: UIViewController {
             "자유로운 사고로 혁신적인 아이디어를 만들어내고"
         ]
     ]
-    
+
     private let zodiacTraitDescriptions: [String] = [
         "이러한 특성을 활용해 좋은 하루를 만들어보세요.",
         "오늘은 이런 면이 특히 도움이 될 것입니다.",
@@ -577,7 +623,7 @@ class TodaysFortuneViewController: UIViewController {
         "이 특별한 에너지로 멋진 하루를 만들어가세요.",
         "오늘은 이런 면에서 특별한 성과를 거둘 수 있을 것입니다."
     ]
-    
+
     private let todaysActivities: [String: [String]] = [
         "어린이": [
             "친구들과 재미있게 놀기", "새로운 책 읽어보기", "그림 그리기나 만들기", "가족과 함께 시간 보내기",
@@ -591,7 +637,7 @@ class TodaysFortuneViewController: UIViewController {
             "음악 감상하기", "악기 배우기", "만화 그리기", "종이접기하기",
             "레고 조립하기", "보드게임하기", "카드놀이하기", "인형놀이하기"
         ],
-        
+
         "청소년": [
             "좋아하는 음악 듣기", "친구들과 대화하기", "새로운 취미 찾아보기", "운동이나 스포츠 하기",
             "독서하며 상상력 키우기", "영화 감상하기", "게임하기", "그림이나 만화 그리기",
@@ -604,7 +650,7 @@ class TodaysFortuneViewController: UIViewController {
             "패션 스타일링하기", "헤어스타일 바꿔보기", "새로운 메이크업 시도하기", "옷 리폼하기",
             "펜팔 친구 만들기", "언어교환 파트너 찾기", "문화 체험하기", "전시회 관람하기"
         ],
-        
+
         "청년": [
             "자기계발 도서 읽기", "새로운 사람들과 네트워킹", "운동이나 헬스장 가기", "여행 계획 세우기",
             "온라인 강의 수강하기", "전문 세미나 참석하기", "업계 컨퍼런스 참가하기", "멘토 만나기",
@@ -617,7 +663,7 @@ class TodaysFortuneViewController: UIViewController {
             "사진 전시회 가기", "연극 관람하기", "콘서트 참석하기", "뮤지컬 보기",
             "독서 모임 참여하기", "토론 클럽 가입하기", "철학 카페 방문하기", "인문학 강의 듣기"
         ],
-        
+
         "중년": [
             "가족과 함께하는 시간", "건강 관리 활동", "새로운 취미 개발", "재테크 공부하기",
             "정기 건강검진 받기", "운동 루틴 만들기", "식단 관리하기", "충분한 수면 취하기",
@@ -631,7 +677,7 @@ class TodaysFortuneViewController: UIViewController {
             "여행 계획 세우기", "국내 여행하기", "해외여행 준비하기", "캠핑 가기",
             "맛집 탐방하기", "전통시장 구경하기", "박물관 관람하기", "전시회 보기"
         ],
-        
+
         "시니어": [
             "산책이나 가벼운 운동", "친구들과 만남", "문화 활동 참여", "손자녀와 시간 보내기",
             "공원에서 산책하기", "태극권 배우기", "게이트볼 하기", "수영하기",
@@ -647,7 +693,7 @@ class TodaysFortuneViewController: UIViewController {
             "종교 활동 참여하기", "명상하기", "108배하기", "기도하기",
             "문화센터 프로그램 참여하기", "평생교육 강좌 듣기", "컴퓨터 배우기", "스마트폰 사용법 익히기"
         ],
-        
+
         "성인": [
             "운동이나 건강 관리", "독서나 학습 활동", "사람들과 만남", "취미 활동 즐기기",
             "헬스장에서 운동하기", "홈트레이닝하기", "러닝하기", "사이클링하기",
@@ -664,7 +710,7 @@ class TodaysFortuneViewController: UIViewController {
             "악기 연주하기", "노래 배우기", "춤 배우기", "글쓰기하기"
         ]
     ]
-    
+
     private let luckyItems: [String: [String]] = [
         "기본": [
             "긍정적인 마음", "밝은 웃음", "따뜻한 말", "친절한 행동", "감사하는 마음",
@@ -713,7 +759,7 @@ class TodaysFortuneViewController: UIViewController {
             "아로마 제품", "스킨케어 제품", "주얼리", "헤어 액세서리", "네일용품"
         ]
     ]
-    
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -722,90 +768,113 @@ class TodaysFortuneViewController: UIViewController {
         setupActions()
         loadUserPreferences()
     }
-    
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateGradientFrames()
+    }
+
     // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         navigationItem.title = "오늘의 운세"
-        
+
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
-        
+
         contentView.addSubview(headerView)
         headerView.addSubview(titleLabel)
         headerView.addSubview(dateLabel)
-        
+
         contentView.addSubview(userInfoCardView)
         setupUserInfoCard()
-        
+
         contentView.addSubview(fortuneResultView)
         setupFortuneResultView()
-        
+
         contentView.addSubview(disclaimerLabel)
         contentView.addSubview(shareButton)
     }
-    
+
     private func setupUserInfoCard() {
         let birthDateLabel = createLabel(text: "🎂 생년월일", font: .boldSystemFont(ofSize: 16))
         let genderLabel = createLabel(text: "👤 성별", font: .boldSystemFont(ofSize: 16))
-        
+
         userInfoCardView.addSubview(birthDateLabel)
         userInfoCardView.addSubview(birthDatePicker)
         userInfoCardView.addSubview(ageInfoLabel)
         userInfoCardView.addSubview(genderLabel)
         userInfoCardView.addSubview(genderSegmentedControl)
         userInfoCardView.addSubview(getFortuneButton)
-        
+
         // 생년월일 변경 시 나이 업데이트
         birthDatePicker.addTarget(self, action: #selector(birthDateChanged), for: .valueChanged)
-        
+
+        // 성별 변경 시 저장
+        genderSegmentedControl.addTarget(self, action: #selector(genderChanged), for: .valueChanged)
+
         NSLayoutConstraint.activate([
             birthDateLabel.topAnchor.constraint(equalTo: userInfoCardView.topAnchor, constant: 20),
             birthDateLabel.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
-            
-            birthDatePicker.topAnchor.constraint(equalTo: birthDateLabel.bottomAnchor, constant: 8),
-            birthDatePicker.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
-            birthDatePicker.trailingAnchor.constraint(equalTo: userInfoCardView.trailingAnchor, constant: -20),
-            
+
+            birthDatePicker.topAnchor.constraint(equalTo: birthDateLabel.bottomAnchor, constant: 12),
+            birthDatePicker.centerXAnchor.constraint(equalTo: userInfoCardView.centerXAnchor),
+            birthDatePicker.widthAnchor.constraint(equalToConstant: 200),
+            birthDatePicker.heightAnchor.constraint(equalToConstant: 44),
+
             ageInfoLabel.topAnchor.constraint(equalTo: birthDatePicker.bottomAnchor, constant: 8),
             ageInfoLabel.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
             ageInfoLabel.trailingAnchor.constraint(equalTo: userInfoCardView.trailingAnchor, constant: -20),
-            
+
             genderLabel.topAnchor.constraint(equalTo: ageInfoLabel.bottomAnchor, constant: 16),
             genderLabel.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
-            
+
             genderSegmentedControl.topAnchor.constraint(equalTo: genderLabel.bottomAnchor, constant: 8),
             genderSegmentedControl.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
             genderSegmentedControl.trailingAnchor.constraint(equalTo: userInfoCardView.trailingAnchor, constant: -20),
-            
+
             getFortuneButton.topAnchor.constraint(equalTo: genderSegmentedControl.bottomAnchor, constant: 20),
             getFortuneButton.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
             getFortuneButton.trailingAnchor.constraint(equalTo: userInfoCardView.trailingAnchor, constant: -20),
             getFortuneButton.bottomAnchor.constraint(equalTo: userInfoCardView.bottomAnchor, constant: -20),
             getFortuneButton.heightAnchor.constraint(equalToConstant: 50)
         ])
-        
+
         // 초기 나이 설정
         updateAgeInfo()
     }
-    
+
     @objc private func birthDateChanged() {
         updateAgeInfo()
+        saveUserPreferences()
     }
-    
+
+    @objc private func genderChanged() {
+        saveUserPreferences()
+    }
+
     private func updateAgeInfo() {
         let age = calculateAge(from: birthDatePicker.date)
         let ageGroup = getAgeGroup(age: age)
-        ageInfoLabel.text = "만 \(age)세 (\(ageGroup))"
+        ageInfoLabel.text = "✨ 만 \(age)세 (\(ageGroup))"
+
+        // 나이 정보에 색상 추가
+        let attributedText = NSMutableAttributedString(string: ageInfoLabel.text ?? "")
+        let range = (ageInfoLabel.text! as NSString).range(of: "만 \(age)세")
+        attributedText.addAttributes([
+            .foregroundColor: UIColor.systemBlue,
+            .font: UIFont.boldSystemFont(ofSize: 16)
+        ], range: range)
+        ageInfoLabel.attributedText = attributedText
     }
-    
+
     private func calculateAge(from birthDate: Date) -> Int {
         let calendar = Calendar.current
         let now = Date()
         let ageComponents = calendar.dateComponents([.year], from: birthDate, to: now)
         return ageComponents.year ?? 0
     }
-    
+
     private func getAgeGroup(age: Int) -> String {
         switch age {
         case 0...12:
@@ -822,23 +891,59 @@ class TodaysFortuneViewController: UIViewController {
             return "성인"
         }
     }
-    
+
     private func setupFortuneResultView() {
         fortuneResultView.addSubview(zodiacInfoLabel)
         fortuneResultView.addSubview(fortuneStackView)
-        
+
         NSLayoutConstraint.activate([
             zodiacInfoLabel.topAnchor.constraint(equalTo: fortuneResultView.topAnchor, constant: 20),
             zodiacInfoLabel.leadingAnchor.constraint(equalTo: fortuneResultView.leadingAnchor, constant: 20),
             zodiacInfoLabel.trailingAnchor.constraint(equalTo: fortuneResultView.trailingAnchor, constant: -20),
-            
+
             fortuneStackView.topAnchor.constraint(equalTo: zodiacInfoLabel.bottomAnchor, constant: 20),
             fortuneStackView.leadingAnchor.constraint(equalTo: fortuneResultView.leadingAnchor, constant: 20),
             fortuneStackView.trailingAnchor.constraint(equalTo: fortuneResultView.trailingAnchor, constant: -20),
             fortuneStackView.bottomAnchor.constraint(equalTo: fortuneResultView.bottomAnchor, constant: -20)
         ])
     }
-    
+
+    private func updateGradientFrames() {
+        // 헤더뷰 그라데이션 업데이트
+        if let gradientLayer = headerView.layer.sublayers?.first as? CAGradientLayer {
+            gradientLayer.frame = headerView.bounds
+        }
+
+        // 버튼 그라데이션 업데이트
+        if let gradientLayer = getFortuneButton.layer.sublayers?.first as? CAGradientLayer {
+            gradientLayer.frame = getFortuneButton.bounds
+        }
+    }
+
+    private func saveUserPreferences() {
+        let userDefaults = UserDefaults.standard
+        userDefaults.set(birthDatePicker.date, forKey: "fortune_birth_date")
+        userDefaults.set(genderSegmentedControl.selectedSegmentIndex, forKey: "fortune_gender")
+    }
+
+    private func loadUserPreferences() {
+        let userDefaults = UserDefaults.standard
+
+        // 생년월일 로드
+        if let savedDate = userDefaults.object(forKey: "fortune_birth_date") as? Date {
+            birthDatePicker.date = savedDate
+        }
+
+        // 성별 로드
+        let savedGender = userDefaults.integer(forKey: "fortune_gender")
+        if savedGender >= 0 && savedGender < genderSegmentedControl.numberOfSegments {
+            genderSegmentedControl.selectedSegmentIndex = savedGender
+        }
+
+        // 나이 정보 업데이트
+        updateAgeInfo()
+    }
+
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             // ScrollView
@@ -846,38 +951,38 @@ class TodaysFortuneViewController: UIViewController {
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
+
             // ContentView
             contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            
+
             // HeaderView
             headerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
             headerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             headerView.heightAnchor.constraint(equalToConstant: 120),
-            
+
             titleLabel.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 20),
             titleLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -20),
-            
+
             dateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
             dateLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 20),
             dateLabel.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -20),
-            
+
             // UserInfoCardView
             userInfoCardView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 20),
             userInfoCardView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             userInfoCardView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            
+
             // FortuneResultView
             fortuneResultView.topAnchor.constraint(equalTo: userInfoCardView.bottomAnchor, constant: 20),
             fortuneResultView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             fortuneResultView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            
+
             // ShareButton
             // Disclaimer
             disclaimerLabel.topAnchor.constraint(equalTo: fortuneResultView.bottomAnchor, constant: 12),
@@ -892,36 +997,22 @@ class TodaysFortuneViewController: UIViewController {
             shareButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
-    
+
     private func setupActions() {
         getFortuneButton.addTarget(self, action: #selector(getFortuneButtonTapped), for: .touchUpInside)
         shareButton.addTarget(self, action: #selector(shareButtonTapped), for: .touchUpInside)
     }
-    
-    private func loadUserPreferences() {
-        if let savedBirthDate = UserDefaults.standard.object(forKey: "userBirthDate") as? Date {
-            birthDatePicker.date = savedBirthDate
-        }
-        
-        let savedGender = UserDefaults.standard.integer(forKey: "userGender")
-        genderSegmentedControl.selectedSegmentIndex = savedGender
-    }
-    
-    private func saveUserPreferences() {
-        UserDefaults.standard.set(birthDatePicker.date, forKey: "userBirthDate")
-        UserDefaults.standard.set(genderSegmentedControl.selectedSegmentIndex, forKey: "userGender")
-    }
-    
+
     // MARK: - Actions
     @objc private func getFortuneButtonTapped() {
         saveUserPreferences()
-        
+
         let gender = genderSegmentedControl.selectedSegmentIndex
         let fortune = fortuneGenerator.generateDailyFortune(for: Date(), birthDate: birthDatePicker.date, gender: gender)
-        
+
         currentFortune = fortune
         displayFortune(fortune)
-        
+
         UIView.animate(withDuration: 0.5, delay: 0.2, options: .curveEaseInOut) {
             self.fortuneResultView.isHidden = false
             self.shareButton.isHidden = false
@@ -930,44 +1021,44 @@ class TodaysFortuneViewController: UIViewController {
             self.shareButton.alpha = 1.0
             self.disclaimerLabel.alpha = 1.0
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             self.scrollView.scrollRectToVisible(self.fortuneResultView.frame, animated: true)
         }
     }
-    
+
     @objc private func shareButtonTapped() {
         guard let fortune = currentFortune else { return }
-        
+
         let shareText = generateShareText(fortune: fortune)
         let masked = SettingsManager.shared.maskPIIForExport(shareText)
         let activityController = UIActivityViewController(
             activityItems: [masked],
             applicationActivities: nil
         )
-        
+
         if let popover = activityController.popoverPresentationController {
             popover.sourceView = shareButton
             popover.sourceRect = shareButton.bounds
         }
-        
+
         present(activityController, animated: true)
     }
-    
+
     // MARK: - Enhanced Fortune Display
     private func displayFortune(_ fortune: DailyFortune) {
         fortuneStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        
+
         let age = calculateAge(from: birthDatePicker.date)
         let ageGroup = getAgeGroup(age: age)
-        
+
         // 개선된 별자리 및 개인 정보 표시
         let genderText = genderSegmentedControl.selectedSegmentIndex == 0 ? "남성" : (genderSegmentedControl.selectedSegmentIndex == 1 ? "여성" : "기타")
         zodiacInfoLabel.text = """
         \(fortune.zodiacSign) • 만 \(age)세 (\(ageGroup)) • \(genderText)
         🎯 나이와 성별을 고려한 맞춤형 운세입니다
         """
-        
+
         // 나이별 맞춤 운세 카드들 - 개선된 레이아웃
         let fortuneCards = [
             ("🌟 총운 (\(ageGroup) 맞춤)", fortune.generalFortune, UIDesignSystem.Colors.primary),
@@ -976,10 +1067,10 @@ class TodaysFortuneViewController: UIViewController {
             ("💪 건강운 ", fortune.healthFortune, UIDesignSystem.Colors.success),
             ("💰 금전운 ", fortune.moneyFortune, UIDesignSystem.Colors.warning)
         ]
-        
+
         for (index, (title, content, color)) in fortuneCards.enumerated() {
             let card = createEnhancedFortuneCard(title: title, content: content, accentColor: color)
-            
+
             // 금전운 카드에 특별한 표시 추가
             // if index == 4 { // 금전운
             //     let badge = createNewFeatureBadge()
@@ -989,15 +1080,15 @@ class TodaysFortuneViewController: UIViewController {
             //         badge.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -8)
             //     ])
             // }
-            
+
             fortuneStackView.addArrangedSubview(card)
         }
-        
+
         // 별자리별 특성 정보 - 개선된 버전
         let traitInfo = generateZodiacTraits(zodiacSign: fortune.zodiacSign, ageGroup: ageGroup, gender: genderText)
         let traitCard = createEnhancedFortuneCard(title: "🔮 \(fortune.zodiacSign) 특성 (맞춤형 분석)", content: traitInfo, accentColor: UIDesignSystem.Colors.accent)
         fortuneStackView.addArrangedSubview(traitCard)
-        
+
         // 행운 정보 (개선된 버전)
         let luckyInfo = """
         🎨 행운의 색: \(fortune.luckyColor)
@@ -1008,49 +1099,49 @@ class TodaysFortuneViewController: UIViewController {
         """
         let luckyCard = createEnhancedFortuneCard(title: "🍀 오늘의 행운 정보", content: luckyInfo, accentColor: UIDesignSystem.Colors.success)
         fortuneStackView.addArrangedSubview(luckyCard)
-        
+
         // 나이별 맞춤 조언 - 강화된 버전
         let adviceContent = generateAdviceForAge(ageGroup: ageGroup)
         let adviceCard = createEnhancedFortuneCard(title: "💡 \(ageGroup)을 위한 전문 조언", content: adviceContent, accentColor: UIDesignSystem.Colors.warning)
         fortuneStackView.addArrangedSubview(adviceCard)
-        
+
         // 개인 맞춤 메시지
         let messageContent = generatePositiveMessage()
         let messageCard = createEnhancedFortuneCard(title: "💝 당신에게 전하는 메시지", content: messageContent)
         messageCard.backgroundColor = UIDesignSystem.Colors.info.withAlphaComponent(0.1)
         fortuneStackView.addArrangedSubview(messageCard)
-        
+
         // 오늘의 추천 활동
         let activityCard = createEnhancedFortuneCard(title: "🎯 오늘의 추천 활동", content: generateTodaysActivity(ageGroup: ageGroup))
         activityCard.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.08)
         fortuneStackView.addArrangedSubview(activityCard)
     }
-    
+
     private func generateLuckyScore() -> Int {
         return Int.random(in: 75...95) // 긍정적인 점수 범위
     }
-    
+
     private func generatePersonalizationScore(ageGroup: String) -> String {
         let scores = personalizationScores[ageGroup] ?? personalizationScores["기본"]!
         return scores.randomElement() ?? "우수"
     }
-    
+
     private func generateZodiacTraits(zodiacSign: String, ageGroup: String, gender: String) -> String {
         let baseTrait = zodiacTraits[zodiacSign] ?? "특별한 에너지와 매력"
         let ageSpecific = ageSpecificTraits[ageGroup] ?? []
         let genderSpecific = genderSpecificTraits[gender] ?? []
-        
+
         let additionalTrait = (ageSpecific + genderSpecific).randomElement() ?? ""
         let traitDescription = zodiacTraitDescriptions.randomElement() ?? "이러한 특성을 활용해 좋은 하루를 만들어보세요."
-        
+
         return "오늘은 \(baseTrait)이 \(ageGroup) \(gender)에게 특히 잘 나타날 것입니다. \(additionalTrait) \(traitDescription)"
     }
-    
+
     private func generateTodaysActivity(ageGroup: String) -> String {
         let activities = todaysActivities[ageGroup] ?? todaysActivities["성인"]!
         return activities.randomElement() ?? "긍정적인 마음으로 하루 보내기"
     }
-    
+
     private func createFortuneCard(title: String, content: String) -> UIView {
         let cardView = UIView()
         cardView.backgroundColor = UIDesignSystem.Colors.cardBackground
@@ -1059,31 +1150,31 @@ class TodaysFortuneViewController: UIViewController {
         cardView.layer.shadowOffset = CGSize(width: 0, height: 2)
         cardView.layer.shadowRadius = 4
         cardView.layer.shadowOpacity = 0.1
-        
+
         let titleLabel = createLabel(text: title, font: .boldSystemFont(ofSize: 16))
         titleLabel.textColor = UIDesignSystem.Colors.primary
-        
+
         let contentLabel = createLabel(text: content, font: .systemFont(ofSize: 14))
         contentLabel.numberOfLines = 0
         contentLabel.textColor = UIDesignSystem.Colors.primaryText
-        
+
         cardView.addSubview(titleLabel)
         cardView.addSubview(contentLabel)
-        
+
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 16),
             titleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
             titleLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
-            
+
             contentLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
             contentLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
             contentLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
             contentLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -16)
         ])
-        
+
         return cardView
     }
-    
+
     private func createEnhancedFortuneCard(title: String, content: String, accentColor: UIColor? = nil) -> UIView {
         let cardView = UIView()
         cardView.backgroundColor = UIDesignSystem.Colors.cardBackground
@@ -1092,63 +1183,63 @@ class TodaysFortuneViewController: UIViewController {
         cardView.layer.shadowOffset = CGSize(width: 0, height: 4)
         cardView.layer.shadowRadius = 8
         cardView.layer.shadowOpacity = 0.12
-        
+
         // 제목 부분
         let titleContainer = UIView()
         let color = accentColor ?? UIDesignSystem.Colors.primary
         titleContainer.backgroundColor = color.withAlphaComponent(0.1)
         titleContainer.layer.cornerRadius = 12
         titleContainer.translatesAutoresizingMaskIntoConstraints = false
-        
+
         let titleLabel = createLabel(text: title, font: .boldSystemFont(ofSize: 17))
         titleLabel.textColor = color
         titleLabel.textAlignment = .left
-        
+
         titleContainer.addSubview(titleLabel)
-        
+
         // 내용 부분
         let contentLabel = createLabel(text: content, font: .systemFont(ofSize: 15, weight: .medium))
         contentLabel.numberOfLines = 0
         contentLabel.textColor = UIDesignSystem.Colors.primaryText
         contentLabel.lineBreakMode = .byWordWrapping
-        
+
         // 장식용 분리선
         let separatorView = UIView()
         separatorView.backgroundColor = color.withAlphaComponent(0.2)
         separatorView.translatesAutoresizingMaskIntoConstraints = false
-        
+
         cardView.addSubview(titleContainer)
         cardView.addSubview(separatorView)
         cardView.addSubview(contentLabel)
-        
+
         NSLayoutConstraint.activate([
             // 제목 컨테이너
             titleContainer.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 16),
             titleContainer.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
             titleContainer.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
-            
+
             // 제목 라벨
             titleLabel.topAnchor.constraint(equalTo: titleContainer.topAnchor, constant: 8),
             titleLabel.leadingAnchor.constraint(equalTo: titleContainer.leadingAnchor, constant: 12),
             titleLabel.trailingAnchor.constraint(equalTo: titleContainer.trailingAnchor, constant: -12),
             titleLabel.bottomAnchor.constraint(equalTo: titleContainer.bottomAnchor, constant: -8),
-            
+
             // 분리선
             separatorView.topAnchor.constraint(equalTo: titleContainer.bottomAnchor, constant: 12),
             separatorView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 24),
             separatorView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -24),
             separatorView.heightAnchor.constraint(equalToConstant: 1),
-            
+
             // 내용 라벨
             contentLabel.topAnchor.constraint(equalTo: separatorView.bottomAnchor, constant: 12),
             contentLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20),
             contentLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20),
             contentLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -20)
         ])
-        
+
         return cardView
     }
-    
+
     private func createLabel(text: String, font: UIFont) -> UILabel {
         let label = UILabel()
         label.text = text
@@ -1156,7 +1247,7 @@ class TodaysFortuneViewController: UIViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
-    
+
     private func generateShareText(fortune: DailyFortune) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
@@ -1202,7 +1293,7 @@ class TodaysFortuneViewController: UIViewController {
         #오늘의운세 #DeepSleep #맞춤운세
         """
     }
-    
+
     private func generateAdviceForAge(ageGroup: String) -> String {
         let adviceList = ageGroupAdvice[ageGroup]
         ?? ageGroupAdvice["청년"]
@@ -1210,16 +1301,16 @@ class TodaysFortuneViewController: UIViewController {
         ?? []
         return adviceList.randomElement() ?? "긍정적인 마음가짐으로 하루를 시작하세요."
     }
-    
+
     private func generatePositiveMessage() -> String {
         return positiveMessages.randomElement() ?? "행복한 하루 되세요!"
     }
-    
+
     private func getLuckyItem(ageGroup: String, gender: String) -> String {
         let baseItems = luckyItems["기본"] ?? []
         let ageItems = luckyItems[ageGroup] ?? []
         let genderItems = luckyItems[gender] ?? []
-        
+
         let allItems = baseItems + ageItems + genderItems
         return allItems.randomElement() ?? "긍정적인 마음"
     }

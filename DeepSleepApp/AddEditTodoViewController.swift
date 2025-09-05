@@ -32,6 +32,7 @@ class AddEditTodoViewController: UIViewController {
     private let notesLabel = UILabel()
     private let notesTextView = UITextView()
     private let notesPlaceholderLabel = UILabel()
+    private let calendarHintLabel = UILabel()
     
     private var isLoading = false
 
@@ -151,6 +152,14 @@ class AddEditTodoViewController: UIViewController {
         notesPlaceholderLabel.translatesAutoresizingMaskIntoConstraints = false
         notesPlaceholderLabel.isUserInteractionEnabled = false
         notesTextView.addSubview(notesPlaceholderLabel)
+
+        // Calendar permission hint (subtle)
+        calendarHintLabel.text = "설정 > 앱 > 캘린더 권한을 켜면 아이폰 캘린더에도 동기화됩니다."
+        calendarHintLabel.textColor = .secondaryLabel
+        calendarHintLabel.font = .systemFont(ofSize: 12)
+        calendarHintLabel.numberOfLines = 0
+        calendarHintLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(calendarHintLabel)
     }
     
     private func setupConstraints() {
@@ -230,12 +239,17 @@ class AddEditTodoViewController: UIViewController {
             notesTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             notesTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             notesTextView.heightAnchor.constraint(equalToConstant: 100),
-            notesTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
+
+            // Hint label just below memo
+            calendarHintLabel.topAnchor.constraint(equalTo: notesTextView.bottomAnchor, constant: 6),
+            calendarHintLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            calendarHintLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            calendarHintLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
             
             // Notes Placeholder (텍스트뷰 내부 패딩 고려하여 약간의 inset 적용)
             notesPlaceholderLabel.topAnchor.constraint(equalTo: notesTextView.topAnchor, constant: 8),
-            notesPlaceholderLabel.leadingAnchor.constraint(equalTo: notesTextView.leadingAnchor, constant: 5),
-            notesPlaceholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: notesTextView.trailingAnchor, constant: -5)
+        notesPlaceholderLabel.leadingAnchor.constraint(equalTo: notesTextView.leadingAnchor, constant: 5),
+        notesPlaceholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: notesTextView.trailingAnchor, constant: -5)
         ])
     }
     
@@ -380,11 +394,12 @@ class AddEditTodoViewController: UIViewController {
                     self?.isLoading = false
                     self?.navigationItem.rightBarButtonItem?.isEnabled = true
                     
-                    if let error = error {
-                        self?.showAlert(message: "저장 실패: \(error.localizedDescription)")
-                    } else if let todo = todo {
+                    if let todo = todo {
+                        // 네이티브 캘린더 오류가 있어도 로컬 저장은 성공했으므로 성공 처리
                         self?.delegate?.didSaveTodoItem(todo)
                         self?.dismiss(animated: true)
+                    } else if let error = error {
+                        self?.showAlert(message: "저장 실패: \(error.localizedDescription)")
                     }
                 }
             }
@@ -402,9 +417,7 @@ class AddEditTodoViewController: UIViewController {
                     self?.isLoading = false
                     self?.navigationItem.rightBarButtonItem?.isEnabled = true
                     
-                    if let error = error {
-                        self?.showAlert(message: "저장 실패: \(error.localizedDescription)")
-                    } else if let todo = todo {
+                    if let todo = todo {
                         // 카테고리 설정 (TodoManager.addTodo에서 지원하지 않으므로 별도 업데이트)
                         var updatedTodo = todo
                         updatedTodo.category = selectedCategory
@@ -412,12 +425,14 @@ class AddEditTodoViewController: UIViewController {
                         TodoManager.shared.updateTodo(updatedTodo) { [weak self] finalTodo, updateError in
                             DispatchQueue.main.async {
                                 if let updateError = updateError {
-                                    print("카테고리 업데이트 실패: \(updateError)")
+                                    print("카테고리 업데이트 실패(무시 가능): \(updateError)")
                                 }
                                 self?.delegate?.didSaveTodoItem(finalTodo ?? updatedTodo)
                                 self?.dismiss(animated: true)
                             }
                         }
+                    } else if let error = error {
+                        self?.showAlert(message: "저장 실패: \(error.localizedDescription)")
                     }
                 }
             }

@@ -153,6 +153,8 @@
 	<string>$(DAILY_DIARY_ANALYSIS_LIMIT)</string>
 	<key>DAILY_TODO_ADVICE_LIMIT</key>
 	<string>$(DAILY_TODO_ADVICE_LIMIT)</string>
+	<key>DAILY_TODO_OVERALL_ADVICE_LIMIT</key>
+	<string>$(DAILY_TODO_OVERALL_ADVICE_LIMIT)</string>
 	<key>DAILY_FORTUNE_LIMIT</key>
 	<string>$(DAILY_FORTUNE_LIMIT)</string>
 	<key>DAILY_EMOTION_ANALYSIS_LIMIT</key>
