@@ -200,6 +200,8 @@
 		E0B5624D2E6567BB00D334F1 /* TodayEmotionCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */; };
 		E0B562552E67E8A100D334F1 /* TodoAutoCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */; };
 		E0B562572E683E3700D334F1 /* SimpleAdviceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */; };
+		E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */; };
+		E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -434,6 +436,8 @@
 		E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayEmotionCell.swift; sourceTree = "<group>"; };
 		E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoAutoCompleter.swift; sourceTree = "<group>"; };
 		E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAdviceViewController.swift; sourceTree = "<group>"; };
+		E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFlags.swift; sourceTree = "<group>"; };
+		E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC932E4F16A500FF7073 /* DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_REFACTORING_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
@@ -477,6 +481,7 @@
 				E0899C8E2E5EE505006AD307 /* GoogleMobileAds in Frameworks */,
 				E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */,
 				E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */,
+				E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -497,6 +502,7 @@
 				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
 				E084F1182E33ACB3002F75E6 /* README 2.md */,
+				E0B5625B2E6AA9F300D334F1 /* Frameworks */,
 				A011 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -681,6 +687,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */,
 				E0B562542E67E8A100D334F1 /* Services */,
 				E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */,
 				E0B562482E65649600D334F1 /* PermissionManager.swift */,
@@ -871,6 +878,14 @@
 				E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		E0B5625B2E6AA9F300D334F1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		E0E7BC9B2E53664B00FF7073 /* Context */ = {
@@ -1089,6 +1104,7 @@
 				E084F17E2E33ACB3002F75E6 /* PresetListViewController.swift in Sources */,
 				E084F17F2E33ACB3002F75E6 /* FortuneGenerator.swift in Sources */,
 				E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */,
+				E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */,
 				E084F1812E33ACB3002F75E6 /* ChatRouter.swift in Sources */,
 				E084F1822E33ACB3002F75E6 /* UsageAnalyticsViewController.swift in Sources */,
 				E0E7BCBC2E561B2D00FF7073 /* PaywallViewController.swift in Sources */,

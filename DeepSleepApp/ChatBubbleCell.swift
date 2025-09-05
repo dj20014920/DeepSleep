@@ -170,9 +170,10 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         let stackView = UIStackView()
         stackView.axis = .vertical
         stackView.spacing = 8
-        stackView.distribution = .fillEqually
+        stackView.distribution = .fillProportionally
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.isHidden = true
+        stackView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         return stackView
     }()
     
@@ -278,9 +279,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         messageLabelBottomConstraint = messageLabel.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
         // 고정 높이 대신 최소 높이로 설정하여 AutoLayout 경고 방지
         applyButtonHeightConstraint = applyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
+        applyButtonHeightConstraint.priority = .defaultLow
         messageLabelToButtonConstraint = applyButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 12)
         applyButtonBottomConstraint = applyButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -12)
-        optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -16)
+        optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(lessThanOrEqualTo: bubbleView.bottomAnchor, constant: -16)
+        optionStackBottomConstraint.priority = .defaultHigh
         
         // 버블뷰 기본 제약조건 (동적으로 변경될 예정)
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
@@ -321,6 +324,7 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
             thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
         ])
+        contentView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         
         // 로딩 컨테이너 최소 높이(우선순위 낮춤)로 초기 계산 단계 경고 방지
         let loadingMinHeight = loadingContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
@@ -1028,8 +1032,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             self?.handleQuickAction(action)
         }, for: .touchUpInside)
         
-        // 버튼 최소 높이만 보장하여 셀 고정 높이와 충돌 방지
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+        // 버튼 최소 높이만 보장(완화): 초기 레이아웃 추정 높이 충돌 방지를 위해 36로 하향
+        let minH = button.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
+        minH.priority = .defaultLow
+        minH.isActive = true
+        button.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         
         // 버튼이 레이아웃된 후 그라데이션 크기 조정
         DispatchQueue.main.async {

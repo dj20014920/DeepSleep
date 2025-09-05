@@ -135,7 +135,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
 
 - 단일 진입점: 모든 외부 AI 호출은 SessionManager.sendMessage(...) 경로만 허용됩니다. UnifiedAIServiceImpl에 대한 직접 호출은 금지(내부 전용)되었으며, sendMessageStream도 동일한 assembledPrompt 경로로 중앙집중화했습니다.
 - 컨텍스트 조립(assembledPrompt):
-  - 구성 순서: [시스템 프롬프트(캐시)] → [핵심 기억 요약(있으면)] → [최근 대화 16턴(사용자 8 + AI 8)] → [현재 입력]
+- 구성 순서: [시스템 프롬프트(캐시)] → [핵심 기억 요약(있으면)] → [최근 대화 6턴(사용자 3 + AI 3)] → [최근 대화 롤링 요약(사용자 메시지로 전달)] → [현재 입력]
   - TokenOptimizer로 모델별 토큰 예산 내 적합화(시스템>기억>최근대화 우선순위 유지)
 - 시스템 프롬프트 캐시: AIContextManager.getSystemPrompt(personaSignature:generator:)
   - TTL=3시간(10800초), ConfigReader로 오버라이드 가능
@@ -207,7 +207,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
   - 선별 로직: SessionManager.buildBalancedRecent(raw, userMax: 8, assistantMax: 8)
 - 핵심 기억 요약(fallback) 정책
   - MemoryManager.getMemorySummary()가 비어있으면 summarizeRecent(recent)로 경량 요약 생성
-  - 요약 포맷: 역할 라벨(User/AI) + 키 문장, 최신순 상위 16개만 압축
+- 요약 포맷: 역할 라벨(User/AI) + 키 문장, 최신순 상위 16개만 압축 (앱에서 user 메시지로 첨부해 캐시 프리픽스와 분리)
 - 시스템 프롬프트 캐시(페르소나) 정책
   - AIContextManager.getSystemPrompt(personaSignature:generator:) 캐시 TTL=3시간(기본 10800초)
   - personaSignature가 동일하면 100% 캐시 HIT, 모델을 바꾸면 시그니처가 달라져 최초 1회 MISS 후 HIT

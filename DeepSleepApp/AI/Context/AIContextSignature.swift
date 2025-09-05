@@ -48,5 +48,19 @@ public enum AIContextSignature {
         let joined = "p:\(p)|mode:\(md)|mem:\(mem)"
         return sha256(joined)
     }
-}
 
+    // MARK: - SSOT helpers for consistent base key across the app
+    /// Stable fingerprint for current memory summary (sha256 of normalized summary). Returns nil if empty.
+    public static func currentMemorySummaryFP(maxItems: Int = 5) -> String? {
+        let summary = MemoryManager.shared.getMemorySummary(maxItems: maxItems)
+        if summary.isEmpty { return nil }
+        return sha256(norm(summary))
+    }
+
+    /// Single Source of Truth: compute base cache key for the current user + mode.
+    public static func computeBaseKeyForCurrentUser(mode: AIMode, maxItems: Int = 5) -> String {
+        let personaCore = UserRulesManager.shared.personaCoreSignature()
+        let memFP = currentMemorySummaryFP(maxItems: maxItems)
+        return buildBase(personaSignature: personaCore, mode: mode, memorySummaryFP: memFP)
+    }
+}

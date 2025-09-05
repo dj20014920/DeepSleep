@@ -293,12 +293,25 @@ if EnvironmentConfig.shared.useProxy {
                 let preferredForMode = getOptimalModelForMode(mode: mode, userPreferred: model)
                 var roleMessages: [RoleMessage] = []
                 if let assembled = assembledPrompt, !assembled.isEmpty {
+                    // assembledPrompt가 시스템 프롬프트(안정 프리픽스) 전체를 포함하므로
+                    // 별도 히스토리를 중복 추가하지 않는다. 변동 정보는 아래에서 요약(user)과 현재 입력(user)로 전달.
                     roleMessages.append(RoleMessage(role: .system, content: assembled))
-                    // 정책: 최근 나+모델의 16개 턴을 원본 그대로 포함(역할/타임스탬프 유지)
+                    // 최근 대화 요약을 변동 정보로 user 메시지로 추가(캐시 키 오염 방지)
                     if let history = context?.conversationHistory, !history.isEmpty {
-                        let recent = Array(history.suffix(16))
-                        for turn in recent {
-                            roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+                        let lite = history.map { ChatMessageLite(role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp) }
+                        // 남은 예산 기반 목표 토큰 산정
+                        let optimizer = TokenOptimizer.shared
+                        let sysT = optimizer.estimateTokens(for: assembled)
+                        let userT = optimizer.estimateTokens(for: content)
+                        let recentTail = Array(history.suffix(6))
+                        let recentTokens = recentTail.reduce(0) { $0 + optimizer.estimateTokens(for: $1.content) }
+                        let effCfg = tokenConfig ?? mode.recommendedTokenConfig
+                        let budget = effCfg.maxTokens
+                        let remaining = max(100, budget - sysT - userT - recentTokens)
+                        let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
+                        let summary = AIContextBuilder.shared.summarizeRecentAdaptive(lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
+                        if !summary.isEmpty {
+                            roleMessages.append(RoleMessage(role: .user, content: summary))
                         }
                     }
                     // 현재 사용자 입력은 별도의 user 역할로 명확히 전달
@@ -306,8 +319,24 @@ if EnvironmentConfig.shared.useProxy {
                 } else {
                     let sys = generateOptimizedSystemPrompt(for: mode, model: preferredForMode)
                     roleMessages.append(RoleMessage(role: .system, content: sys))
+                    // 최근 대화 요약을 먼저 user로 전달
                     if let history = context?.conversationHistory, !history.isEmpty {
-                        let recent = Array(history.suffix(16))
+                        let lite = history.map { ChatMessageLite(role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp) }
+                        let optimizer = TokenOptimizer.shared
+                        let sysT = optimizer.estimateTokens(for: sys)
+                        let userT = optimizer.estimateTokens(for: content)
+                        let recentTail = Array(history.suffix(6))
+                        let recentTokens = recentTail.reduce(0) { $0 + optimizer.estimateTokens(for: $1.content) }
+                        let effCfg = tokenConfig ?? mode.recommendedTokenConfig
+                        let budget = effCfg.maxTokens
+                        let remaining = max(100, budget - sysT - userT - recentTokens)
+                        let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
+                        let summary = AIContextBuilder.shared.summarizeRecentAdaptive(lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
+                        if !summary.isEmpty {
+                            roleMessages.append(RoleMessage(role: .user, content: summary))
+                        }
+                        // 최근 턴은 3+3 정책에 맞춰 최대 6개만 포함
+                        let recent = Array(history.suffix(6))
                         for turn in recent { roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)) }
                     }
                     roleMessages.append(RoleMessage(role: .user, content: content))
@@ -540,7 +569,23 @@ if EnvironmentConfig.shared.useProxy {
         // 추가 히스토리를 중복해서 붙이지 않습니다.
         var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
         if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
-            let recent = Array(history.suffix(16))
+            // 최근 대화 요약을 user 메시지로 먼저 전달 (캐시 프리픽스와 분리)
+            let lite = history.map { ChatMessageLite(role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp) }
+            let optimizer = TokenOptimizer.shared
+            let sysT = optimizer.estimateTokens(for: systemPrompt)
+            let userT = optimizer.estimateTokens(for: content)
+            let recentTail = Array(history.suffix(6))
+            let recentTokens = recentTail.reduce(0) { $0 + optimizer.estimateTokens(for: $1.content) }
+            let effCfg = tokenConfig ?? mode.recommendedTokenConfig
+            let budget = effCfg.maxTokens
+            let remaining = max(100, budget - sysT - userT - recentTokens)
+            let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
+            let summary = AIContextBuilder.shared.summarizeRecentAdaptive(lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
+            if !summary.isEmpty {
+                roleMessages.append(RoleMessage(role: .user, content: summary))
+            }
+            // 최근 턴은 3+3 정책(최대 6개)만 포함
+            let recent = Array(history.suffix(6))
             for turn in recent {
                 roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
             }
@@ -949,30 +994,32 @@ private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIM
         let basePromptText = getBaseSystemPromptForMode(mode)
         let generalGuidelines = """
         핵심 지침:
-        - 한국어, 따뜻하지만 간결. 첫 응답만 짧은 인사 허용, 이후 인사/서두 반복 금지.
-        - 공감 → 요약 → 실행 제안(필요 시 구체 예시 1–2개/새 관점 1개).
-        - 불확실하면 모호함을 표시하고 추가 질문 1–2개로 명확화.
-        - 프라이버시: 외부 저장 금지. 제공된 히스토리 범위에서만 일관성 유지. 메타발화(기억 못함 등) 금지.
-        - 반복/상투어 금지. 이 시스템 텍스트를 그대로 복사/반영하지 말 것.
+        - 당신은 역할은 우리 어플(EmoZleep)의 대나무숲(채팅창) 친구임
+        - 한국어로 사용자의 말투와 상황의 따라 유연하게 대답할 것
+        - 시스템 텍스트를 그대로 복사/반영하지 말 것.
         - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트로 답변.
         """
-        
-        // 페르소나 코어 시그니처(모델 불문) 구성 (외부 전송 금지, 캐시 키로만 사용)
-        let memorySummaryFP: String = {
-            let summary = MemoryManager.shared.getMemorySummary(maxItems: 5)
-            return summary.isEmpty ? "none" : String(summary.hashValue)
-        }()
-        let baseKey = AIContextSignature.buildBase(
-            personaSignature: UserRulesManager.shared.personaCoreSignature(),
-            mode: mode,
-            memorySummaryFP: memorySummaryFP
-        )
+        // 사용자 프로필 컨텍스트(개인화) 주입: 캐시 키는 persona+memoryFP로 관리되므로 안전
+        let userSettings = UserSettingsModel.loadFromUserDefaults()
+        let userContext = userSettings.generateAIContext()
+
+        // SSOT: 페르소나/모드/메모리 요약 기반 base key를 단일 경로에서 생성
+        let baseKey = AIContextSignature.computeBaseKeyForCurrentUser(mode: mode, maxItems: 5)
         
         // 3시간 TTL 캐시 활용: 모델 불문 베이스 프롬프트만 캐시
         let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
-            return "\(basePromptText)\n\n\(generalGuidelines)"
+            var prompt = "\(basePromptText)\n\n\(generalGuidelines)\n\n사용자 컨텍스트:\n\(userContext)"
+            if mode == .presetRecommendation {
+                // 안정 프리픽스로 카탈로그 요약(짧게) 제공: 변동 정보는 user 메시지에서 별도 전달
+                let names = SoundPresetCatalog.dynamicCategoryNames
+                let emojis = SoundPresetCatalog.dynamicCategoryEmojis
+                let pairs = Array(zip(emojis, names).prefix(13))
+                let lines = pairs.map { "- \($0) \($1)" }.joined(separator: "\n")
+                prompt += "\n\n앱 사운드 카탈로그 요약(이름/버전만 사용, 다른 이름 생성 금지):\n\(lines)\n\n출력 규칙: JSON만, items[{soundName, versionName?, volume0..100}] 또는 volumes[0..100] 중 하나를 채움. presetName/reason/confidence 포함."
+            }
+            return prompt
         }
-    /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
+        /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
         let modelSpecific = getModelSpecificOptimization(for: model)
         return basePrompt + "\n\n" + modelSpecific
     }
@@ -1439,13 +1486,28 @@ extension UnifiedAIServiceImpl {
         // 서버 공급자 캐싱 활성화
         // 주의: 캐시 키를 클라이언트에서 강제 지정하지 않는다.
         //       서버가 system 텍스트와 모델을 해시하여 모드별/프롬프트별로 안전하게 분리된 캐시를 생성한다.
-        body["providerCaching"] = [
+        // 클라이언트 측 지난 7일 사용량 기반 동적 임계 힌트 계산
+        let clientAssistant7d = SessionManager.shared.countAssistantMessages(lastNDays: 7)
+        let clientMinOverride: Int? = {
+            // 근사 맵핑: 사용량이 많을수록 캐시 생성 임계를 낮춰 재사용 기대를 반영
+            if clientAssistant7d >= 100 { return 512 }
+            if clientAssistant7d >= 50 { return 640 }
+            if clientAssistant7d >= 20 { return 768 }
+            return nil
+        }()
+        var providerCaching: [String: Any] = [
             "enable": true,
             "strategy": "auto",
             "ttlSeconds": providerCacheTTLSeconds(for: mode)
         ]
-        // New: providerCaching config log (no explicit cacheKey)
-        print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode))")
+        if let override = clientMinOverride { providerCaching["clientMinTokensOverride"] = override }
+        body["providerCaching"] = providerCaching
+        // New: providerCaching config log
+        if let ov = clientMinOverride {
+            print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) clientMinTokensOverride=\(ov) (7d assistant msgs=\(clientAssistant7d))")
+        } else {
+            print("🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) clientMinTokensOverride=nil (7d assistant msgs=\(clientAssistant7d))")
+        }
         // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
         let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
         

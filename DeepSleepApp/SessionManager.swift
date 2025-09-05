@@ -250,6 +250,25 @@ public class SessionManager {
         
         return cachedSessions
     }
+
+    /// 지난 N일 동안 저장된 AI 응답(assistant role) 메시지 개수
+    /// - Note: 모드 정보가 메시지 단위로 저장되지 않으므로, 전체 AI 사용량의 근사치로 사용
+    public func countAssistantMessages(lastNDays days: Int = 7) -> Int {
+        let now = SettingsManager.shared.currentDate()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
+        let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "role == %@", "assistant"),
+            NSPredicate(format: "timestamp >= %@", cutoff as NSDate)
+        ])
+        do {
+            let count = try context.count(for: request)
+            return max(0, count)
+        } catch {
+            print("❌ [SessionManager] countAssistantMessages 실패: \(error)")
+            return 0
+        }
+    }
     
     /// 최근 N개 세션 조회
     public func getRecentSessions(limit: Int = 20) -> [UnifiedSession] {
@@ -383,8 +402,8 @@ public class SessionManager {
                 // 최신순으로 정렬 후 경량 메시지 구성
                 let sorted = messageEntities.sorted { ($0.timestamp) > ($1.timestamp) }
                 let recentLite: [ChatMessageLite] = sorted.map { ChatMessageLite(role: $0.role, content: $0.content, createdAt: $0.timestamp) }
-                // 요약 생성 (파일 내부 전용 유틸)
-                let summary = SessionManager.summarizeRecent(recentLite)
+                // 요약 생성 (중앙 유틸 사용)
+                let summary = AIContextBuilder.shared.summarizeRecent(recentLite, maxItems: 16)
                 // 기존 메시지 제거
                 for m in messageEntities { context.delete(m) }
                 // 요약 메시지 1건 추가
@@ -835,8 +854,8 @@ public class SessionManager {
     private func buildAIContext(for mode: AIMode, sessionId: String) async throws -> AIContext {
         print("🏗️ [SessionManager] AI 컨텍스트 구성 시작 - 모드: \(mode.rawValue)")
         
-        // 최근 대화 내역 조회 (균형잡힌 8:8 구성)
-        let recentMessages = buildBalancedRecent(sessionId: sessionId, userMax: 8, assistantMax: 8)
+        // 최근 대화 내역 조회 (3+3 구성으로 축소: UX 유지 + 토큰 절감)
+        let recentMessages = buildBalancedRecent(sessionId: sessionId, userMax: 3, assistantMax: 3)
         
         // 사용자 프로필 정보
         let userSettings = UserSettingsModel.loadFromUserDefaults()
@@ -857,7 +876,7 @@ public class SessionManager {
         return context
     }
     
-    /// 균형잡힌 최근 대화 구성 (사용자 8개, AI 8개)
+    /// 균형잡힌 최근 대화 구성 (사용자 3개, AI 3개)
     private func buildBalancedRecent(sessionId: String, userMax: Int, assistantMax: Int) -> [StoredChatMessage] {
         let messages = getChatMessages(forSessionId: sessionId, limit: 50) // 충분한 양 조회
         
@@ -1301,7 +1320,7 @@ public class SessionManager {
         return []
     }
     
-    /// 사용자 8턴 + AI 8턴으로 균형 있게 최신순 16개를 생성
+    /// 사용자 3턴 + AI 3턴으로 균형 있게 최신순 6개를 생성
     static func buildBalancedRecent(_ raw: [StoredChatMessage], userMax: Int, assistantMax: Int) -> [ChatMessageLite] {
         // 최신 메시지를 우선 고려하기 위해 역순(최신부터)로 순회
         let sortedDesc = raw.sorted { $0.timestamp > $1.timestamp }
@@ -1328,28 +1347,7 @@ public class SessionManager {
     }
 }
 
-private extension SessionManager {
-    /// 최근 대화를 기반으로 경량 요약을 생성합니다. (개인정보/토큰 최소화)
-    /// - Note: 최신순 상위 16개(사용자/AI 합계)를 한 문단으로 압축
-    static func summarizeRecent(_ recent: [ChatMessageLite]) -> String {
-        guard !recent.isEmpty else { return "" }
-        // 최신순으로 정렬되어 온 입력을 상정하고 상위 16개만 사용
-        let top = Array(recent.prefix(16))
-        var bullets: [String] = []
-        for item in top {
-            let role = (item.role == "assistant") ? "AI" : (item.role == "system" ? "시스템" : "사용자")
-            let text = item.content
-                .replacingOccurrences(of: "\n", with: " ")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if text.isEmpty { continue }
-            // 너무 긴 문장은 축약
-            let trimmed = text.count > 80 ? String(text.prefix(80)) + "…" : text
-            bullets.append("- \(role): \(trimmed)")
-        }
-        let joined = bullets.joined(separator: "\n")
-        return joined.isEmpty ? "" : "최근 대화 요약:\n" + joined
-    }
-}
+// 요약 유틸은 AIContextBuilder로 이동(단일 출처)
 
 // MARK: - Data Models
 // All data models moved to SharedModels.swift as Single Source of Truth
@@ -1449,24 +1447,17 @@ extension SessionManager {
         }
         
         do {
-            // 2) 최근 대화(사용자 8/AI 8) 균형 구성 → 컨텍스트 조립
+            // 2) 최근 대화(사용자 3/AI 3) 균형 구성 → 컨텍스트 조립
             let rawMessages = getRecentChatMessages(limit: 60)
-            let recent: [ChatMessageLite] = Self.buildBalancedRecent(rawMessages, userMax: 8, assistantMax: 8)
+            let recent: [ChatMessageLite] = Self.buildBalancedRecent(rawMessages, userMax: 3, assistantMax: 3)
             
             let personaSignature = UserRulesManager.shared.personaSignature()
             let coreSummary = MemoryManager.shared.getMemorySummary(maxItems: 10)
             let effectiveSummary: String? = {
                 if !coreSummary.isEmpty { return coreSummary }
-                let summary = Self.summarizeRecent(recent)
+                let summary = AIContextBuilder.shared.summarizeRecent(recent, maxItems: 16)
                 return summary.isEmpty ? nil : summary
             }()
-            let assembled = AIContextBuilder.shared.buildPrompt(
-                for: mode,
-                personaSignature: personaSignature,
-                recentMessages: recent,
-                coreMemorySummary: effectiveSummary,
-                currentUserMessage: content
-            )
             
             // 멀티-메시지 경로를 위한 역할 기반 히스토리 구성
             let historyTurns: [AIConversationTurn] = recent.map { lite in
@@ -1487,7 +1478,7 @@ extension SessionManager {
                 mode: mode,
                 context: aiContext,
                 tokenConfig: nil,
-                assembledPrompt: assembled.text
+                assembledPrompt: nil
             )
             let response = aiResponse.content
             

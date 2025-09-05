@@ -56,6 +56,17 @@ public class UsageLimitManager {
     public func canUseAIFeature(_ mode: AIMode) -> (canUse: Bool, currentUsage: Int, dailyLimit: Int) {
         checkAndResetIfNewDay()
         
+        // 디버그: 프리셋 추천 무제한 모드(디버깅용 일시 해제)
+        if DebugFlags.unlimitedPresetRecommendation {
+            let currentUsage = getCurrentUsage(for: mode)
+            if mode == .presetRecommendation {
+                #if DEBUG
+                print("🧪 [UsageLimitManager] DEBUG 무제한 프리셋 추천 활성화: \(currentUsage)/∞ (사용가능: true)")
+                #endif
+                return (true, currentUsage, Int.max)
+            }
+        }
+
         let dailyLimit = resolvedDailyLimit(for: mode)
         let currentUsage = getCurrentUsage(for: mode)
         let canUse = currentUsage < dailyLimit

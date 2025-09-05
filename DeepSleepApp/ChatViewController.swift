@@ -2097,7 +2097,13 @@ func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
         // 현재 표시 중인 메시지 중 추천 선택(.recommendationSelector) 버블이 있으면 제목 갱신
         let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
         let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
-        let aiTitle = "대나무숲 분석 추천받기 (\(remaining)/\(total))"
+        let aiTitle: String = {
+            if DebugFlags.unlimitedPresetRecommendation || total > 1_000_000_000 {
+                return "대나무숲 분석 추천받기 (무제한)"
+            } else {
+                return "대나무숲 분석 추천받기 (\(remaining)/\(total))"
+            }
+        }()
 
         // 최신 recommendationSelector 메시지를 찾아 quickActions 업데이트
         if let idx = displayMessages.lastIndex(where: { $0.type == .recommendationSelector }) {
@@ -2473,7 +2479,13 @@ extension ChatViewController {
         // 남은 횟수/총 한도를 실시간 반영 (무료 3회/유료 7회)
         let remaining = AIUsageManager.shared.getRemainingCount(for: .presetRecommendation)
         let total = AIUsageManager.shared.getTotalLimit(for: .presetRecommendation)
-        let aiTitle = "대나무숲 분석 추천받기 (\(remaining)/\(total))"
+        let aiTitle: String = {
+            if DebugFlags.unlimitedPresetRecommendation || total > 1_000_000_000 {
+                return "대나무숲 분석 추천받기 (무제한)"
+            } else {
+                return "대나무숲 분석 추천받기 (\(remaining)/\(total))"
+            }
+        }()
 
         // 퀵액션을 보여주는 메시지 생성
         let quickActions = [

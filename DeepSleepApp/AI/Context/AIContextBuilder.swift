@@ -26,6 +26,47 @@ public final class AIContextBuilder {
 
     private init() {}
 
+    // 최근 대화 요약(롤링 요약): 변동 정보는 시스템 프롬프트가 아닌 사용자 메시지로 전달하기 위해 사용
+    // - 최신순 상위 maxItems만 압축, 개인정보/토큰 최소화를 위해 1줄 요약형으로 구성
+    public func summarizeRecent(_ recent: [ChatMessageLite], maxItems: Int = 16) -> String {
+        guard !recent.isEmpty else { return "" }
+        let top = Array(recent.prefix(maxItems))
+        var bullets: [String] = []
+        for item in top {
+            let role: String = (item.role == "assistant") ? "AI" : (item.role == "system" ? "시스템" : "사용자")
+            let text = item.content
+                .replacingOccurrences(of: "\n", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { continue }
+            let trimmed = text.count > 80 ? String(text.prefix(80)) + "…" : text
+            bullets.append("- \(role): \(trimmed)")
+        }
+        let joined = bullets.joined(separator: "\n")
+        return joined.isEmpty ? "" : "최근 대화 요약:\n" + joined
+    }
+
+    // 적응형 요약: 목표 토큰 예산에 맞춰 항목 수를 동적으로 조절
+    public func summarizeRecentAdaptive(_ recent: [ChatMessageLite], targetTokens: Int, maxItemsLimit: Int = 20) -> String {
+        guard !recent.isEmpty else { return "" }
+        let safeTarget = max(80, min(280, targetTokens))
+        var bullets: [String] = []
+        var accTokens = 0
+        // 최신순 상위 maxItemsLimit만 후보로
+        let top = Array(recent.prefix(maxItemsLimit))
+        for item in top {
+            let role: String = (item.role == "assistant") ? "AI" : (item.role == "system" ? "시스템" : "사용자")
+            var text = item.content.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.count > 80 { text = String(text.prefix(80)) + "…" }
+            let line = "- \(role): \(text)"
+            let lineTokens = TokenOptimizer.shared.estimateTokens(for: line)
+            if bullets.count >= 3 && accTokens + lineTokens > safeTarget { break }
+            bullets.append(line)
+            accTokens += lineTokens
+        }
+        let joined = bullets.joined(separator: "\n")
+        return joined.isEmpty ? "" : "최근 대화 요약:\n" + joined
+    }
+
     public func buildPrompt(for mode: AIMode,
                             personaSignature: String,
                             recentMessages: [ChatMessageLite],
@@ -43,15 +84,8 @@ public final class AIContextBuilder {
         // DRY: 중앙 유틸 기반 시그니처로 캐시 키 통일
         let selectedModel = SettingsManager.shared.selectedLLM
         _ = AIContextSignature.mapModel(from: selectedModel) // retained for parity, not used in base key
-        let memorySummaryFP: String? = {
-            let s = MemoryManager.shared.getMemorySummary(maxItems: 5)
-            return s.isEmpty ? nil : String(s.hashValue)
-        }()
-        let unifiedSignature = AIContextSignature.buildBase(
-            personaSignature: UserRulesManager.shared.personaCoreSignature(),
-            mode: mode,
-            memorySummaryFP: memorySummaryFP
-        )
+        // SSOT: base key는 AIContextSignature.computeBaseKeyForCurrentUser를 통해 일관 생성
+        let unifiedSignature = AIContextSignature.computeBaseKeyForCurrentUser(mode: mode, maxItems: 5)
         
         let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: unifiedSignature) {
             // UserSettingsModel에서 AI 컨텍스트 생성
