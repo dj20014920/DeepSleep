@@ -202,6 +202,7 @@
 		E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */; };
 		E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */; };
 		E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */; };
+		E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -437,6 +438,7 @@
 		E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFlags.swift; sourceTree = "<group>"; };
 		E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
+		E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingOverlay.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
 		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
@@ -652,6 +654,7 @@
 		E084F0882E33ACB3002F75E6 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */,
 				E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */,
 				E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */,
 				E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */,
@@ -1240,6 +1243,7 @@
 				E084F1E72E33ACB3002F75E6 /* CompilerFixStubs.swift in Sources */,
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,
+				E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */,
 				E084F1EA2E33ACB3002F75E6 /* EmotionInputViewController.swift in Sources */,
 				E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */,
 				E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */,

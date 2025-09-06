@@ -386,6 +386,99 @@ class TodoManager {
         return prompt
     }
 
+    // MARK: - Advice Helpers (display semantics)
+    /// 최신 개별 조언(오늘 전체 조언이 아닌)을 우선 선택. 없으면 nil
+    static func latestIndividualAdvice(in advices: [String]?) -> String? {
+        guard let arr = advices else { return nil }
+        for s in arr.reversed() {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if t.isEmpty { continue }
+            if t.hasPrefix("[오늘 전체 조언]") { continue }
+            return t
+        }
+        return nil
+    }
+
+    /// 사용자에게 보여줄 최신 조언 문자열. 개별 > 전체 순으로 우선순위.
+    static func latestReadableAdvice(for item: TodoItem) -> String? {
+        if let indiv = latestIndividualAdvice(in: item.aiAdvices) { return indiv }
+        // fallback: 마지막 전체 조언 포함 어떤 조언이든
+        return item.aiAdvices?.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? item.aiAdvices?.last : nil
+    }
+
+    // MARK: - Overall Advice Utilities (detection/extraction/retrieval/distribution)
+    private static let overallAdvicePrefix = "[오늘 전체 조언]"
+
+    /// 주어진 문자열이 '오늘 전체 조언' 형식인지 여부
+    static func isOverallAdviceText(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.hasPrefix(overallAdvicePrefix)
+    }
+
+    /// 전체 조언 접두사를 제거하고 본문만 추출
+    static func stripOverallAdvice(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.hasPrefix(overallAdvicePrefix) {
+            let dropped = t.dropFirst(overallAdvicePrefix.count)
+            return dropped.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return t
+    }
+
+    /// 가장 최신의 '전체 조언' 원문(접두사 포함)을 찾음
+    static func latestOverallAdviceRaw(in advices: [String]?) -> String? {
+        guard let arr = advices else { return nil }
+        for s in arr.reversed() {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if t.isEmpty { continue }
+            if t.hasPrefix(overallAdvicePrefix) { return t }
+        }
+        return nil
+    }
+
+    /// 가장 최신의 '전체 조언' 본문(접두사 제거)을 찾음
+    static func latestOverallAdviceContent(in advices: [String]?) -> String? {
+        guard let raw = latestOverallAdviceRaw(in: advices) else { return nil }
+        return stripOverallAdvice(raw)
+    }
+
+    /// 다수의 할 일에서 가장 최근의 '전체 조언' 본문을 선택 (생성일 기준, 없으면 nil)
+    static func latestOverallAdviceContent(from items: [TodoItem]) -> String? {
+        var best: (date: Date, content: String)?
+        for it in items {
+            guard let raw = latestOverallAdviceRaw(in: it.aiAdvices) else { continue }
+            let content = stripOverallAdvice(raw)
+            let d = it.aiAdvicesGeneratedAt ?? .distantPast
+            if let current = best {
+                if d > current.date { best = (d, content) }
+            } else {
+                best = (d, content)
+            }
+        }
+        return best?.content
+    }
+
+    /// 오늘 날짜의 '전체 조언'이 존재하는지 여부
+    static func hasOverallAdviceToday(in items: [TodoItem], on date: Date = Date(), calendar: Calendar = .current) -> Bool {
+        for it in items {
+            guard latestOverallAdviceRaw(in: it.aiAdvices) != nil else { continue }
+            guard let genAt = it.aiAdvicesGeneratedAt else { continue }
+            if calendar.isDate(genAt, inSameDayAs: date) { return true }
+        }
+        return false
+    }
+
+    /// 전체 조언 접두사 부여
+    static func stampOverallAdvice(_ advice: String) -> String {
+        return overallAdvicePrefix + "\n" + advice
+    }
+
+    /// 동일한 전체 조언을 여러 할 일에 분배(저장)
+    static func distributeOverallAdvice(_ advice: String, to items: [TodoItem]) {
+        let stamped = stampOverallAdvice(advice)
+        items.forEach { TodoManager.shared.appendAdvice(to: $0.id, advice: stamped) }
+    }
+
     // MARK: - Fingerprint
     /// 삭제 후 재등록 악용 방지를 위한 일일 고유 지문 생성(제목/시간/유형/우선순위/카테고리 기반)
     static func adviceFingerprint(for item: TodoItem) -> String {

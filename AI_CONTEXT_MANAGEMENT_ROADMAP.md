@@ -768,3 +768,48 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 실측 헤더: `X-Cache-Tokens=writeIn=…;readIn=…` 수집 → 프리픽스 규모·히트율 기반으로 T를 점진 조정.
 - 예) 일반 대화에서 readIn≈1200이 반복되는데 write가 드물면 T를 1024로 낮춰 write 기회↑.
  - 진단 헤더: `X-Cache-Policy-Min`(공급자 바닥), `X-Cache-Client-Override`(클라이언트 하향 요청값)도 함께 기록해 의도 vs 적용치를 비교.
+## 2025-09-06 동기화: 할 일 조언 정책(티어/일일/지문) + 프록시 집행
+
+개요
+- 개별 조언(task_advice): Free 3회/일, Premium/Max 7회/일 + 동일 항목 지문 1회/일.
+- 전체 조언(task_advice_overall): 1회/일(Keyed Feature: todo_overall_advice).
+- 클라이언트는 SessionManager 단일 진입점에서만 호출하고, UnifiedAIServiceImpl가 프록시에 모드/정책 메타를 전달.
+- 프록시는 KV 기반으로 일일 카운터/지문을 집행하고, 응답 헤더로 남은 횟수/리셋 시각을 노출.
+
+클라이언트 변경(요지)
+- SessionManager.sendMessage(..., policyMeta: [String:String]?) 추가. UI는 모드별로 아래 policy를 전달:
+  - 개별: { feature: "task_advice", fingerprint: "<32hex>" }
+  - 전체: { keyedFeature: "todo_overall_advice" }
+- UnifiedAIServiceImpl:
+  - 프록시 경로에서 헤더 `X-Emozleep-Mode` 전송, 바디 `policy` 포함.
+  - 프로토콜 호환 오버로드 유지(정책 메타 없는 기존 호출 영향 없음).
+- UI/UX:
+  - TodoListCell: 전체 조언 버튼은 잔여량 0이면 “오늘 전체 조언 사용 완료”(비활성).
+  - 아이템 버튼: 조언이 있으면 “조언 내용 보기”, 없으면 “조언 받기”.
+  - 하루종일(퀵) 항목은 프롬프트에 “시간: 오늘 중” 표기(시작/종료 라인 제외).
+
+프록시(Cloudflare Workers) 변경(요지)
+- 요청 계약: 헤더 `X-Emozleep-Mode`, 바디 `policy` 수용.
+- 서버 집행:
+  - 일일 카운터 키(KST):
+    - 개별: `task_advice:<uid>:YYYY-MM-DD`
+    - 전체: `todo_overall_advice:<uid>:YYYY-MM-DD`
+  - 지문 1회/일: `fp:todo_individual_advice:<uid>:YYYY-MM-DD:<fingerprint>`
+  - ENV 기본값: `TODO_ADVICE_LIMIT_FREE=3`, `TODO_ADVICE_LIMIT_PREMIUM=7`, `TODO_OVERALL_ADVICE_LIMIT=1`
+  - 응답 헤더: `X-Policy-TaskAdvice-Remaining`, `X-Policy-ResetAt`, `X-Policy-Tier`, `X-Provider` 등
+  - 초과 응답: 429 usage_exceeded(일일 초과), 409 fingerprint_reused(지문 재사용)
+- 구독 동기화: `/v1/subscription/report` 수신 시 tier:<uid> KV에 pro/max 저장 → /v1/chat에서 저장 tier를 우선 사용(헤더 tier 오버라이드)
+
+구성/키 동기화
+- iOS(Secrets.xcconfig → Info.plist):
+  - DAILY_TODO_ADVICE_LIMIT_FREE=3, DAILY_TODO_ADVICE_LIMIT_PREMIUM=7
+  - DAILY_TODO_OVERALL_ADVICE_LIMIT=1
+- 서버(wrangler.toml):
+  - TODO_ADVICE_LIMIT_FREE=3, TODO_ADVICE_LIMIT_PREMIUM=7, TODO_OVERALL_ADVICE_LIMIT=1
+
+테스트/검증
+- 단위 테스트 추가:
+  - AIUsageIsolationTests: 프리셋/일기/전체/개별 카운터 교차 간섭 없음 검증
+  - TodoAdviceTierLimitTests: Free=3, Premium=7 일일 한도 검증
+  - TodoAdvicePromptFormatTests: 하루종일 vs 시간지정 프롬프트 포맷 검증
+- 수동 확인: 첫 개별 조언 성공 후 `X-Policy-TaskAdvice-Remaining` 감소, 동일 지문 재요청 409, 전체 조언 1회 후 429

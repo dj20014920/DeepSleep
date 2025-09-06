@@ -192,7 +192,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         mode: AIMode,
         context: AIContext?,
         tokenConfig: TokenConfiguration?,
-        assembledPrompt: String? = nil
+        assembledPrompt: String? = nil,
+        policyMeta: [String: String]? = nil
 ) async throws -> AIResponse {
         let reqId = UUID().uuidString
         ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
@@ -253,7 +254,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         
         do {
             // 2. 실제 호출 (성공 시에만 사용량 증가)
-            let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt)
+            let response = try await sendMessageInternal(cleaned, model, mode, context, tokenConfig, assembledPrompt, policyMeta)
             // Call logging success (mode/model 포함)
             let elapsedMs = Int(Date().timeIntervalSince(overallStart) * 1000)
 AICallLogger.shared.logAICallSuccess(
@@ -286,6 +287,26 @@ AICallLogger.shared.logAICallFailure(
             throw error
         }
     }
+
+    // Backward-compatible overload to satisfy UnifiedAIService protocol
+    public func sendMessage(
+        content: String,
+        model: AIModel,
+        mode: AIMode,
+        context: AIContext?,
+        tokenConfig: TokenConfiguration?,
+        assembledPrompt: String?
+    ) async throws -> AIResponse {
+        return try await sendMessage(
+            content: content,
+            model: model,
+            mode: mode,
+            context: context,
+            tokenConfig: tokenConfig,
+            assembledPrompt: assembledPrompt,
+            policyMeta: nil
+        )
+    }
     
     /// 내부 메시지 전송 로직 (보안 검증 후)
     private func sendMessageInternal(
@@ -294,7 +315,8 @@ AICallLogger.shared.logAICallFailure(
         _ mode: AIMode,
         _ context: AIContext?,
         _ tokenConfig: TokenConfiguration?,
-        _ assembledPrompt: String?
+        _ assembledPrompt: String?,
+        _ policyMeta: [String:String]?
 ) async throws -> AIResponse {
         
         let startTime = Date()
@@ -365,7 +387,8 @@ if EnvironmentConfig.shared.useProxy {
                 print("🧩 [AICallPrep] preferred=\(preferredForMode.rawValue) mode=\(mode.rawValue) assembledPrompt=\(usedAssembled) sysLen=\(sysLen) histTurns=\(histTurns) userLen=\(userLen) ctx=\(ctxSnap)")
                 // Effective token/generation config for proxy path
                 let effTokenConfig = optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: preferredForMode, mode: mode)
-                let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: preferredForMode, proxyURL: proxyURL, tokenConfig: effTokenConfig)
+                let outgoingPolicy = policyMeta
+                let rawResp = try await sendViaProxy(messages: roleMessages, mode: mode, preferred: preferredForMode, proxyURL: proxyURL, tokenConfig: effTokenConfig, policyMeta: outgoingPolicy)
                 let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                 let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                     response: rawResp.content,
@@ -548,7 +571,7 @@ if EnvironmentConfig.shared.useProxy {
             // Compute effective token config for proxy
             let effTokenConfig = optimizeTokenConfigForModel(tokenConfig, model: model, mode: mode)
             // Call proxy inline (avoid project membership issues)
-            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL, tokenConfig: effTokenConfig)
+            return try await sendViaProxy(messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL, tokenConfig: effTokenConfig, policyMeta: nil)
         }
 
         // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
@@ -1540,12 +1563,13 @@ extension UnifiedAIServiceImpl {
         }
     }
 
-    private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL, tokenConfig: TokenConfiguration) async throws -> AIResponse {
+    private func sendViaProxy(messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL, tokenConfig: TokenConfiguration, policyMeta: [String:String]?) async throws -> AIResponse {
         var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
             "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
             "mode": mode.rawValue
         ]
+        if let pm = policyMeta, !pm.isEmpty { body["policy"] = pm }
         // Generation parameters (optionally used by the proxy)
         body["temperature"] = tokenConfig.temperature
         body["maxTokens"] = tokenConfig.maxTokens
@@ -1605,6 +1629,8 @@ extension UnifiedAIServiceImpl {
             r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
             r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
             if let n = nonce { r.setValue(n, forHTTPHeaderField: "X-Emozleep-Nonce") }
+            // Mode hint for server-side per-feature policy enforcement
+            r.setValue(mode.rawValue, forHTTPHeaderField: "X-Emozleep-Mode")
             if let inv = contextInvalidation, !inv.isEmpty { r.setValue(inv, forHTTPHeaderField: "X-Context-Invalidation") }
             // Pass idempotency key for server-side dedup
             r.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")

@@ -118,6 +118,42 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 - 이벤트 전달: EmotionCalendarViewController.onDateSelected 콜백으로 부모가 선택 날짜를 수신하고, TodoManager를 통해 해당 날짜의 투두를 로드하여 테이블뷰 갱신
 - 안정성 정책: 테이블뷰 페이지네이션/무한 스크롤은 reloadData를 기본으로 사용(배치 삽입은 사전/사후 카운트 검증 체계 도입 시에만 허용)
 - 효과: DRY/KISS/YAGNI 준수, 화면 간 캘린더 완전 일관성, 유지보수성 향상
+
+### 2.10 할 일 조언(개별/전체) — UX & 정책(Single Source of Truth)
+
+사용자 경험(UX)
+- 아이템 버튼: 조언이 없으면 “조언 받기”, 생성 후에는 “조언 내용 보기”로 자동 전환.
+- 전체 조언 버튼: 1회/일 사용 후 “오늘 전체 조언 사용 완료”(비활성)로 전환.
+- 하루종일(퀵 등록) 항목: 프롬프트에 “시간: 오늘 중”으로 표기(시작/종료 라인 제거) → 불필요한 시간 정보 전달 최소화.
+
+단일 진입점 · 정책 전달
+- 모든 호출은 `SessionManager.sendMessage(mode:, policyMeta:)` 단일 진입점을 사용.
+- 정책 메타(policyMeta):
+  - 개별(task_advice): `{ feature: "task_advice", fingerprint: "<32hex>" }`
+  - 전체(task_advice_overall): `{ keyedFeature: "todo_overall_advice" }`
+- `UnifiedAIServiceImpl`는 프록시로 `X-Emozleep-Mode` 헤더 + 바디 `policy`를 전송.
+
+일일/지문 제한(클라이언트)
+- 개별 조언(일일 총량): Free=3, Premium/Max=7 (UsageLimitManager가 티어별 키로 산정)
+- 개별 조언(항목당): fingerprint 1회/일(삭제-재등록 악용 방지)
+- 전체 조언: 1회/일(Keyed Feature)
+
+일일/지문 제한(서버)
+- 서버는 Cloudflare Workers에서 동일 정책을 KV 기준으로 재집행(SSoT 군더더기 없이 일관성 유지).
+- 응답 헤더(`X-Policy-TaskAdvice-Remaining`, `X-Policy-ResetAt`)로 남은 횟수/리셋 시각을 제공 → UI 반영 근거.
+
+구독 동기화
+- iOS가 `/v1/subscription/report` 호출 시 productId를 서버에 보고.
+- 서버는 tier:<uid>에 pro/max를 저장, /v1/chat에서 저장 tier를 우선 사용(헤더 tier 오버라이드) → 구독 상태 중앙집중.
+
+구성 키(요약)
+- iOS: `DAILY_TODO_ADVICE_LIMIT_FREE=3`, `DAILY_TODO_ADVICE_LIMIT_PREMIUM=7`, `DAILY_TODO_OVERALL_ADVICE_LIMIT=1`
+- 서버: `TODO_ADVICE_LIMIT_FREE=3`, `TODO_ADVICE_LIMIT_PREMIUM=7`, `TODO_OVERALL_ADVICE_LIMIT=1`
+
+테스트
+- `AIUsageIsolationTests`: 기능별 카운터 간섭 방지 검증
+- `TodoAdviceTierLimitTests`: Free/Premium 일일 한도 검증
+- `TodoAdvicePromptFormatTests`: 하루종일 포맷 검증
 - ContextMetrics/AICallLogger: 요청/모델/모드/처리시간 요약 로그
 - Proxy 응답 헤더(X-Provider/X-Policy-*) 수집 후 메타데이터로 보존(필요 시 UI 반영)
 

@@ -807,15 +807,26 @@ public class SessionManager {
         content: String,
         mode: AIMode,
         saveMessages: Bool = true,
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        policyMeta: [String:String]? = nil
     ) async throws -> AIResponse {
         print("🚀 [SessionManager] AI 호출 시작 - 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
         
-        // 1. 사용량 한도 확인
-        let usage = UsageLimitManager.shared.canUseAIFeature(mode)
-        guard usage.canUse else {
-            print("❌ [SessionManager] 사용량 한도 초과: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
-            throw AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+        // 1. 사용량 한도 확인 (모드별 정책)
+        if mode == .taskAdviceOverall {
+            // 전체 조언은 별도 키드 제한을 사용
+            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            let status = UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit)
+            guard status.canUse else {
+                print("❌ [SessionManager] 사용량 한도 초과: task_advice_overall 0/\(limit)")
+                throw AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+            }
+        } else {
+            let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+            guard usage.canUse else {
+                print("❌ [SessionManager] 사용량 한도 초과: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)")
+                throw AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+            }
         }
         
         // 2. 세션 ID 결정
@@ -833,7 +844,8 @@ public class SessionManager {
             mode: mode,
             context: aiContext,
             tokenConfig: mode.recommendedTokenConfig,
-            assembledPrompt: nil // AIContextBuilder에서 자동 생성
+            assembledPrompt: nil, // AIContextBuilder에서 자동 생성
+            policyMeta: policyMeta
         )
         
         // 5. 메시지 저장 (옵션)
@@ -848,6 +860,22 @@ public class SessionManager {
         
         print("✅ [SessionManager] AI 호출 완료 - 응답 길이: \(response.content.count)자")
         return response
+    }
+
+    // Backward-compatible overload (no policyMeta)
+    public func sendMessage(
+        content: String,
+        mode: AIMode,
+        saveMessages: Bool = true,
+        sessionId: String? = nil
+    ) async throws -> AIResponse {
+        return try await sendMessage(
+            content: content,
+            mode: mode,
+            saveMessages: saveMessages,
+            sessionId: sessionId,
+            policyMeta: nil
+        )
     }
     
     /// AI 컨텍스트 구성 (3시간 캐싱 적용)
@@ -1426,7 +1454,8 @@ extension SessionManager {
         content: String,
         model: AIModel = .claude,
         mode: AIMode,
-        saveMessages: Bool = true
+        saveMessages: Bool = true,
+        policyMeta: [String:String]? = nil
     ) async throws -> String {
         print("🎯 [SessionManager] 중앙집중 AI 호출 - 모델: \(model.rawValue), 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
         
@@ -1478,7 +1507,8 @@ extension SessionManager {
                 mode: mode,
                 context: aiContext,
                 tokenConfig: nil,
-                assembledPrompt: nil
+                assembledPrompt: nil,
+                policyMeta: policyMeta
             )
             let response = aiResponse.content
             
@@ -1519,6 +1549,22 @@ extension SessionManager {
             
             throw error
         }
+    }
+
+    // Backward-compatible overload (no policyMeta)
+    public func sendMessage(
+        content: String,
+        model: AIModel = .claude,
+        mode: AIMode,
+        saveMessages: Bool = true
+    ) async throws -> String {
+        return try await sendMessage(
+            content: content,
+            model: model,
+            mode: mode,
+            saveMessages: saveMessages,
+            policyMeta: nil
+        )
     }
     
     /// 저장 정책: 프리셋 모드에서 요약 저장, 그 외 원문 저장

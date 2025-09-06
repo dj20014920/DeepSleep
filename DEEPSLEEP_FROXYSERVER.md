@@ -387,6 +387,24 @@ C. 서명된 채팅(비스트리밍)
 - 보정: Router가 diaryContext를 설정하여 ChatViewController 경로로 통합(legacy initialDiaryData만으로는 트리거 안 되는 오류 예방)
 - 중복 방지: didStartDiaryAnalysis 플래그로 다중 호출 차단
 - 서버 호출: /v1/chat (프록시) 고정, HMAC(+Nonce) 헤더, 정책 헤더 UI 반영
+
+### 신규: 할 일 조언 정책(티어/일일/지문) — 클라이언트/서버 동기화
+
+- 목적: Free/Premium 티어에 따라 “할 일 개별 조언” 일일 횟수와 “항목별 1회/일”을 서버에서 보조 집행합니다. “오늘 전체 조언”은 일일 1회로 서버에서 병행 집행합니다.
+- 요청 계약(추가):
+  - 헤더 `X-Emozleep-Mode`: iOS 클라이언트가 전송하는 AI 모드(raw), 예) `task_advice`, `task_advice_overall`.
+  - 바디 `policy` 오브젝트(선택):
+    - 개별 조언(`task_advice`): `{ "feature": "task_advice", "fingerprint": "<32hex>" }`
+    - 전체 조언(`task_advice_overall`): `{ "keyedFeature": "todo_overall_advice" }` (클라이언트는 생략 가능; 서버는 모드 기반으로 처리)
+- 서버 집행(Cloudflare Worker):
+  - 일일 카운터 키: `task_advice:<uid>:YYYY-MM-DD`, `todo_overall_advice:<uid>:YYYY-MM-DD` (KST 기준)
+  - 개별 지문 키: `fp:todo_individual_advice:<uid>:YYYY-MM-DD:<fingerprint>`
+  - 한도(ENV, 기본값):
+    - `TODO_ADVICE_LIMIT_FREE=3`, `TODO_ADVICE_LIMIT_PREMIUM=7`, `TODO_OVERALL_ADVICE_LIMIT=1`
+  - 응답 헤더:
+    - 공통: `X-Policy-ResetAt`(KST 자정), `X-Policy-Tier`
+    - 개별: `X-Policy-TaskAdvice-Remaining`(남은 횟수)
+  - 초과 시: `429 usage_exceeded`(일일), `409 fingerprint_reused`(지문 재사용) 반환
 - 모델 정책: 감정일기 분석(emotion_diary_analysis)은 iOS에서 model=gemini로 고정 전송하며, 서버는 해당 선호를 우선 적용합니다.
 - 적용 화면: DiaryWriteViewController/ EditDiaryViewController 모두 Router(.diaryAnalysis)로 통일
 - 클라이언트와 서버 간 서명·헤더는 프로토콜 계약입니다. 작은 오타/순서 변경도 인증 실패를 유발합니다.

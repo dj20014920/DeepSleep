@@ -76,6 +76,15 @@ final class TodoListSheetViewController: UIViewController, UITableViewDataSource
 
     // MARK: - Actions
     @objc private func didTapAdvice() {
+        // 이미 오늘 생성된 전체 조언이 있으면 바로 보기로 전환
+        if TodoManager.hasOverallAdviceToday(in: todos, on: date),
+           let content = TodoManager.latestOverallAdviceContent(from: todos) {
+            let vc = SimpleAdviceViewController(titleText: "💡 오늘의 할 일 조언", adviceText: content)
+            vc.modalPresentationStyle = .overFullScreen
+            self.present(vc, animated: true)
+            return
+        }
+
         // 권한 및 사용량은 SessionManager/AIUsageManager 내부에서 처리
         let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion
         let prompt = TodoManager.buildOverallAdvicePrompt(date: date,
@@ -87,11 +96,16 @@ final class TodoListSheetViewController: UIViewController, UITableViewDataSource
                 let advice = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: .gemini,
-                    mode: .taskAdvice,
-                    saveMessages: false
+                    mode: .taskAdviceOverall,
+                    saveMessages: false,
+                    policyMeta: [
+                        "keyedFeature": "todo_overall_advice"
+                    ]
                 )
+                // 전체 조언 저장: 공용 유틸리티로 일원화
+                TodoManager.distributeOverallAdvice(advice, to: todos)
                 await MainActor.run {
-                    let vc = SimpleAdviceViewController(titleText: "💡 오늘의 조언", adviceText: advice)
+                    let vc = SimpleAdviceViewController(titleText: "💡 오늘의 할 일 조언", adviceText: advice)
                     vc.modalPresentationStyle = .overFullScreen
                     self.present(vc, animated: true)
                 }

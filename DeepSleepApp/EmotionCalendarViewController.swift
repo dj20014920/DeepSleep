@@ -402,7 +402,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             let todos = todoManager.getTodos(for: selectedDate)
             var adviceLines: [String] = []
             for t in todos {
-                if let adv = t.aiAdvices?.last, !adv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if let adv = TodoManager.latestIndividualAdvice(in: t.aiAdvices), !adv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     adviceLines.append("• \(t.title): \(adv)")
                 }
             }
@@ -875,8 +875,8 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
 
     func todoListCell(_ cell: TodoListCell, didTapAdviceFor item: TodoItem) {
         // 버튼 직접 동작: 조언이 있으면 보기, 없으면 생성
-        if let last = item.aiAdvices?.last, !last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let vc = SimpleAdviceViewController(titleText: "'\(item.title)' 조언", adviceText: last)
+        if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices), !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let vc = SimpleAdviceViewController(titleText: "'\(item.title)' 조언", adviceText: indiv)
             vc.modalPresentationStyle = .overFullScreen
             present(vc, animated: true)
         } else {
@@ -892,17 +892,21 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             present(alert, animated: true)
             return
         }
+        LoadingOverlay.show(in: self)
         Task { [weak self] in
             do {
                 let advice = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: .gemini,
                     mode: .taskAdviceOverall,
-                    saveMessages: false
+                    saveMessages: false,
+                    policyMeta: [
+                        "keyedFeature": "todo_overall_advice"
+                    ]
                 )
-                let stampedAdvice = "[오늘 전체 조언]\n" + advice
-                items.forEach { TodoManager.shared.appendAdvice(to: $0.id, advice: stampedAdvice) }
+                TodoManager.distributeOverallAdvice(advice, to: items)
                 await MainActor.run {
+                    LoadingOverlay.hide(from: self)
                     let vc = SimpleAdviceViewController(titleText: "💡 오늘의 할 일 조언", adviceText: advice)
                     vc.modalPresentationStyle = .overFullScreen
                     self?.present(vc, animated: true)
@@ -912,6 +916,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                 }
             } catch {
                 await MainActor.run {
+                    LoadingOverlay.hide(from: self)
                     let alert = UIAlertController(title: "AI 조언 오류", message: error.localizedDescription, preferredStyle: .alert)
                     alert.addAction(UIAlertAction(title: "확인", style: .default))
                     self?.present(alert, animated: true)
@@ -928,13 +933,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             present(alert, animated: true)
             return
         }
-        // per-item today check (동일 항목/지문 1회)
-        if let genAt = item.aiAdvicesGeneratedAt, Calendar.current.isDateInToday(genAt), let last = item.aiAdvices?.last, !last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let alert = UIAlertController(title: "오늘은 이미 이 할 일의 조언을 받았습니다", message: nil, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "확인", style: .default))
-            present(alert, animated: true)
-            return
-        }
+        // per-item today check 제거: fingerprint 기반 제한만 사용
         let fp = TodoManager.adviceFingerprint(for: item)
         if UsageLimitManager.shared.hasUsedDailyFingerprint(namespace: "todo_individual_advice", fingerprint: fp) {
             let alert = UIAlertController(title: "오늘은 이미 유사한 할 일의 조언을 받았습니다", message: "삭제 후 재등록 방식은 1일 1회 제한에 포함됩니다.", preferredStyle: .alert)
@@ -944,17 +943,23 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
         }
         let prompt = TodoManager.buildIndividualAdvicePrompt(item: item)
 
+        LoadingOverlay.show(in: self)
         Task { [weak self] in
             do {
                 let advice = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: .gemini,
                     mode: .taskAdvice,
-                    saveMessages: false
+                    saveMessages: false,
+                    policyMeta: [
+                        "feature": "task_advice",
+                        "fingerprint": fp
+                    ]
                 )
                 TodoManager.shared.appendAdvice(to: item.id, advice: advice)
                 UsageLimitManager.shared.markDailyFingerprintUsed(namespace: "todo_individual_advice", fingerprint: fp)
                 await MainActor.run {
+                    LoadingOverlay.hide(from: self)
                     let vc = SimpleAdviceViewController(titleText: "'\(item.title)' 조언", adviceText: advice)
                     vc.modalPresentationStyle = .overFullScreen
                     self?.present(vc, animated: true)
@@ -964,6 +969,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                 }
             } catch {
                 await MainActor.run {
+                    LoadingOverlay.hide(from: self)
                     let alert = UIAlertController(title: "AI 조언 오류", message: error.localizedDescription, preferredStyle: .alert)
                     alert.addAction(UIAlertAction(title: "확인", style: .default))
                     self?.present(alert, animated: true)

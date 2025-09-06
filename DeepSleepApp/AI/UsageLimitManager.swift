@@ -157,6 +157,8 @@ public class UsageLimitManager {
             "DAILY_PRESET_RECOMMENDATION_LIMIT",
             "DAILY_DIARY_ANALYSIS_LIMIT",
             "DAILY_TODO_ADVICE_LIMIT",
+            "DAILY_TODO_ADVICE_LIMIT_FREE",
+            "DAILY_TODO_ADVICE_LIMIT_PREMIUM",
             "DAILY_FORTUNE_LIMIT",
             "DAILY_EMOTION_ANALYSIS_LIMIT",
             "DAILY_MONTHLY_STATISTICS_LIMIT",
@@ -174,6 +176,8 @@ public class UsageLimitManager {
             "AI_LIMITS_DIARY_ANALYSIS",
             "AI_LIMITS_MONTHLY_STATISTICS",
             "AI_LIMITS_TODO_ADVICE",
+            "AI_LIMITS_TODO_ADVICE_FREE",
+            "AI_LIMITS_TODO_ADVICE_PREMIUM",
             "AI_LIMITS_TODO_ADVICE_EACH",
             "AI_LIMITS_FORTUNE",
             "AI_LIMITS_EMOTION_ANALYSIS",
@@ -233,7 +237,22 @@ public class UsageLimitManager {
         case .emotionDiaryAnalysis:
             return ["DAILY_DIARY_ANALYSIS_LIMIT", "AI_LIMITS_DIARY_ANALYSIS"]
         case .taskAdvice:
-            return ["DAILY_TODO_ADVICE_LIMIT", "AI_LIMITS_TODO_ADVICE"]
+            // 유/무료 티어별 차등 제한 우선 적용
+            if isPremium {
+                return [
+                    "DAILY_TODO_ADVICE_LIMIT_PREMIUM",
+                    "AI_LIMITS_TODO_ADVICE_PREMIUM",
+                    "DAILY_TODO_ADVICE_LIMIT",
+                    "AI_LIMITS_TODO_ADVICE"
+                ]
+            } else {
+                return [
+                    "DAILY_TODO_ADVICE_LIMIT_FREE",
+                    "AI_LIMITS_TODO_ADVICE_FREE",
+                    "DAILY_TODO_ADVICE_LIMIT",
+                    "AI_LIMITS_TODO_ADVICE"
+                ]
+            }
         case .taskAdviceOverall:
             // 별도 키-기반 제한 사용하므로 여기서는 빈 배열 반환(0)
             return []

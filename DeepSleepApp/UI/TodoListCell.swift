@@ -18,7 +18,7 @@ class TodoListCell: UICollectionViewCell {
     weak var delegate: TodoListCellDelegate?
     private var todoItems: [TodoItem] = []
     private var currentDate: Date = Date()
-    
+
     // MARK: - UI Components
     private let containerView: UIView = {
         let view = UIView()
@@ -31,13 +31,13 @@ class TodoListCell: UICollectionViewCell {
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     private let headerView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "오늘의 할 일"
@@ -50,7 +50,7 @@ class TodoListCell: UICollectionViewCell {
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
     }()
-    
+
     private let addButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("+ 추가", for: .normal)
@@ -75,7 +75,7 @@ class TodoListCell: UICollectionViewCell {
         button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
         return button
     }()
-    
+
     private let tableView: UITableView = {
         let table = UITableView()
         table.backgroundColor = .clear
@@ -84,7 +84,7 @@ class TodoListCell: UICollectionViewCell {
         table.translatesAutoresizingMaskIntoConstraints = false
         return table
     }()
-    
+
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
         label.text = "할 일을 추가해보세요! 😊"
@@ -95,7 +95,7 @@ class TodoListCell: UICollectionViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     // MARK: - Initialization
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -103,14 +103,14 @@ class TodoListCell: UICollectionViewCell {
         setupTableView()
         setupActions()
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupUI()
         setupTableView()
         setupActions()
     }
-    
+
     // MARK: - Setup
     private func setupUI() {
         contentView.addSubview(containerView)
@@ -155,37 +155,37 @@ class TodoListCell: UICollectionViewCell {
             emptyStateLabel.centerYAnchor.constraint(equalTo: tableView.centerYAnchor)
         ])
     }
-    
+
     private func setupTableView() {
         tableView.dataSource = self
         tableView.delegate = self
         tableView.register(TodoItemTableViewCell.self, forCellReuseIdentifier: TodoItemTableViewCell.reuseIdentifier)
-        
+
         // 테이블뷰 스와이프 액션이 부모 스와이프보다 우선되도록 설정
         tableView.delaysContentTouches = false
         tableView.canCancelContentTouches = true
-        
+
         // 스와이프 액션이 확실히 작동하도록 추가 설정
         tableView.allowsSelection = true
         tableView.isScrollEnabled = true
         tableView.isUserInteractionEnabled = true
-        
+
         // 동적 셀 높이 활성화
         tableView.estimatedRowHeight = 60
         tableView.rowHeight = UITableView.automaticDimension
-        
+
         // iOS 11+ 스와이프 액션 지원 확인
         if #available(iOS 11.0, *) {
             // iOS 11+에서는 기본적으로 스와이프 액션이 지원됨
             UnifiedLogger.shared.debug("UITableView 스와이프 액션이 활성화되었습니다", category: .ui)
         }
     }
-    
+
     private func setupActions() {
         addButton.addTarget(self, action: #selector(addButtonTapped), for: .touchUpInside)
         dailyAdviceButton.addTarget(self, action: #selector(dailyAdviceButtonTapped), for: .touchUpInside)
     }
-    
+
     // MARK: - Configuration
     func configure(with items: [TodoItem]) {
         self.currentDate = Date()
@@ -221,29 +221,54 @@ class TodoListCell: UICollectionViewCell {
         UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \\(tableView.isUserInteractionEnabled), 선택가능: \\(tableView.allowsSelection)", category: .ui)
 
         // UX: 오늘 전체 조언 버튼 상태 갱신 (일일 1회 제한 반영)
-        let remainingOverall = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
-        if remainingOverall > 0 {
+        // UX: 오늘 전체 조언 버튼 상태 갱신 (있으면 '내용 보기' 우선)
+        let hasOverallToday = TodoManager.hasOverallAdviceToday(in: self.todoItems, on: self.currentDate)
+        if hasOverallToday {
             dailyAdviceButton.isEnabled = true
-            dailyAdviceButton.setTitle("오늘 전체 조언 받기", for: .normal)
-            dailyAdviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
-            dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+            dailyAdviceButton.setTitle("오늘 전체 조언 내용 보기", for: .normal)
+            dailyAdviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
+            dailyAdviceButton.setTitleColor(.systemGreen, for: .normal)
             dailyAdviceButton.alpha = 1.0
         } else {
-            dailyAdviceButton.isEnabled = false
-            dailyAdviceButton.setTitle("오늘 전체 조언 사용 완료", for: .disabled)
-            dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-            dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
-            dailyAdviceButton.alpha = 0.9
+            let remainingOverall = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
+            if remainingOverall > 0 {
+                dailyAdviceButton.isEnabled = true
+                dailyAdviceButton.setTitle("오늘 전체 조언 받기", for: .normal)
+                dailyAdviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+                dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+                dailyAdviceButton.alpha = 1.0
+            } else {
+                dailyAdviceButton.isEnabled = false
+                dailyAdviceButton.setTitle("오늘 전체 조언 사용 완료", for: .disabled)
+                dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+                dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
+                dailyAdviceButton.alpha = 0.9
+            }
         }
     }
-    
+
     // 외부에서 카드 헤더 타이틀을 동적으로 지정하기 위한 API
     func setHeaderTitle(_ title: String) {
         titleLabel.text = title
     }
-    
+
     @objc private func dailyAdviceButtonTapped() {
-        delegate?.todoListCellDidRequestDailyAdvice(self, for: todoItems, on: currentDate)
+        if TodoManager.hasOverallAdviceToday(in: todoItems, on: currentDate),
+           let advice = TodoManager.latestOverallAdviceContent(from: todoItems) {
+            // 바로 보기 모드: 기존 생성된 '오늘 전체 조언' 표시
+            var responder: UIResponder? = self
+            while let r = responder {
+                if let vc = r as? UIViewController {
+                    let viewer = SimpleAdviceViewController(titleText: "💡 오늘의 할 일 조언", adviceText: advice)
+                    viewer.modalPresentationStyle = .overFullScreen
+                    vc.present(viewer, animated: true)
+                    break
+                }
+                responder = r.next
+            }
+        } else {
+            delegate?.todoListCellDidRequestDailyAdvice(self, for: todoItems, on: currentDate)
+        }
         UnifiedLogger.shared.debug("TodoListCell daily advice button tapped", category: .ui)
     }
 
@@ -252,14 +277,14 @@ class TodoListCell: UICollectionViewCell {
         delegate?.todoListCellDidRequestAddItem(self)
         UnifiedLogger.shared.debug("TodoListCell add button tapped", category: .ui)
     }
-    
+
     // MARK: - Helper Methods
     private func updateEmptyState() {
         let isEmpty = todoItems.isEmpty
         emptyStateLabel.isHidden = !isEmpty
         tableView.isHidden = isEmpty
     }
-    
+
     // MARK: - Lifecycle
     override func prepareForReuse() {
         super.prepareForReuse()
@@ -274,7 +299,7 @@ extension TodoListCell: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return todoItems.count
     }
-    
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: TodoItemTableViewCell.reuseIdentifier, for: indexPath) as! TodoItemTableViewCell
         let item = todoItems[indexPath.row]
@@ -288,19 +313,19 @@ extension TodoListCell: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return UITableView.automaticDimension
     }
-    
+
     // 스와이프 액션 메뉴 구현 (수정/삭제)
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         UnifiedLogger.shared.debug("스와이프 액션 요청: indexPath=\(indexPath.row), 전체 아이템 \(todoItems.count)개", category: .ui)
-        
-        guard indexPath.row < todoItems.count else { 
+
+        guard indexPath.row < todoItems.count else {
             UnifiedLogger.shared.debug("인덱스 범위 초과: \(indexPath.row) >= \(todoItems.count)", category: .ui)
-            return nil 
+            return nil
         }
-        
+
         let item = todoItems[indexPath.row]
         UnifiedLogger.shared.debug("스와이프 액션 대상 아이템: \(item.title)", category: .ui)
-        
+
         // 삭제 액션
         let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
             UnifiedLogger.shared.debug("삭제 액션 실행: \(item.title)", category: .ui)
@@ -313,7 +338,7 @@ extension TodoListCell: UITableViewDelegate {
         }
         deleteAction.backgroundColor = .systemRed
         deleteAction.image = UIImage(systemName: "trash")
-        
+
         // 수정 액션
         let editAction = UIContextualAction(style: .normal, title: "수정") { [weak self] _, _, completion in
             UnifiedLogger.shared.debug("수정 액션 실행: \(item.title)", category: .ui)
@@ -326,10 +351,10 @@ extension TodoListCell: UITableViewDelegate {
         }
         editAction.backgroundColor = .systemBlue
         editAction.image = UIImage(systemName: "pencil")
-        
+
         let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
         configuration.performsFirstActionWithFullSwipe = false // 전체 스와이프로 삭제 방지
-        
+
         UnifiedLogger.shared.debug("스와이프 액션 구성 완료", category: .ui)
         return configuration
     }
@@ -359,11 +384,11 @@ protocol TodoItemCellDelegate: AnyObject {
 
 class TodoItemTableViewCell: UITableViewCell {
     static let reuseIdentifier = "TodoItemTableViewCell"
-    
+
     weak var delegate: TodoItemCellDelegate?
     private var todoItem: TodoItem?
     private var itemIndex: Int = 0
-    
+
     // MARK: - UI Components
     private let checkboxButton: UIButton = {
         let button = UIButton(type: .system)
@@ -373,7 +398,7 @@ class TodoItemTableViewCell: UITableViewCell {
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
-    
+
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 16, weight: .regular)
@@ -382,14 +407,14 @@ class TodoItemTableViewCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
-    
+
     private let priorityIndicator: UIView = {
         let view = UIView()
         view.layer.cornerRadius = 4
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     private let dueDateLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 12, weight: .regular)
@@ -412,42 +437,42 @@ class TodoItemTableViewCell: UITableViewCell {
         button.setContentCompressionResistancePriority(.required, for: .horizontal)
         return button
     }()
-    
+
     // MARK: - Initialization
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
         setupActions()
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupUI()
         setupActions()
     }
-    
+
     // MARK: - Setup
     private func setupUI() {
         backgroundColor = .clear
         selectionStyle = .none
-        
+
         contentView.addSubview(checkboxButton)
         contentView.addSubview(titleLabel)
         contentView.addSubview(dueDateLabel)
         contentView.addSubview(priorityIndicator)
         contentView.addSubview(adviceButton)
-        
+
         NSLayoutConstraint.activate([
             checkboxButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
             checkboxButton.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 12),
             checkboxButton.widthAnchor.constraint(equalToConstant: 24),
             checkboxButton.heightAnchor.constraint(equalToConstant: 24),
             checkboxButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            
+
             titleLabel.leadingAnchor.constraint(equalTo: checkboxButton.trailingAnchor, constant: 12),
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             titleLabel.trailingAnchor.constraint(equalTo: priorityIndicator.leadingAnchor, constant: -8),
-            
+
             dueDateLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             dueDateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
             dueDateLabel.trailingAnchor.constraint(lessThanOrEqualTo: adviceButton.leadingAnchor, constant: -8),
@@ -462,7 +487,7 @@ class TodoItemTableViewCell: UITableViewCell {
             adviceButton.centerYAnchor.constraint(equalTo: dueDateLabel.centerYAnchor)
         ])
     }
-    
+
     private func setupActions() {
         checkboxButton.addTarget(self, action: #selector(checkboxTapped), for: .touchUpInside)
 
@@ -472,17 +497,17 @@ class TodoItemTableViewCell: UITableViewCell {
         titleLabel.isUserInteractionEnabled = true
         adviceButton.addTarget(self, action: #selector(adviceButtonTapped), for: .touchUpInside)
     }
-    
+
     // MARK: - Configuration
     func configure(with item: TodoItem, delegate: TodoItemCellDelegate, index: Int) {
         self.todoItem = item
         self.delegate = delegate
         self.itemIndex = index
-        
+
         let rawTitle = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let safeTitle = rawTitle.isEmpty ? "제목 없음" : rawTitle
         checkboxButton.isSelected = item.isCompleted
-        
+
         // 상태별 텍스트/스타일 지정
         if item.isCompleted {
             // 완료: 취소선 + 흐린 색상
@@ -507,10 +532,10 @@ class TodoItemTableViewCell: UITableViewCell {
             dueDateLabel.alpha = 0.95
             checkboxButton.tintColor = .label
         }
-        
+
         // 마감 시간은 한국어 표기로 항상 표시
         dueDateLabel.text = item.dueDateString
-        
+
         // 우선순위 표시 (Int 타입으로 변경)
         switch item.priority {
         case 2: // high
@@ -525,8 +550,8 @@ class TodoItemTableViewCell: UITableViewCell {
             priorityIndicator.isHidden = true
         }
 
-        // 조언 버튼 상태 갱신
-        if let adv = item.aiAdvices?.last, !adv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // 조언 버튼 상태 갱신 (개별 조언만 고려; 전체 조언은 제외)
+        if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices), !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             adviceButton.setTitle("조언 내용 보기", for: .normal)
             adviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.08)
             adviceButton.setTitleColor(.systemGreen, for: .normal)
@@ -536,7 +561,7 @@ class TodoItemTableViewCell: UITableViewCell {
             adviceButton.setTitleColor(.systemBlue, for: .normal)
         }
     }
-    
+
     // MARK: - Actions
     @objc private func checkboxTapped() {
         guard let item = todoItem else { return }
@@ -555,7 +580,7 @@ class TodoItemTableViewCell: UITableViewCell {
         delegate?.todoItemCell(self, didTapAdvice: item, at: itemIndex)
         UnifiedLogger.shared.logTodo("TodoItem advice button tapped: \(item.title)")
     }
-    
+
     // MARK: - Lifecycle
     override func prepareForReuse() {
         super.prepareForReuse()
