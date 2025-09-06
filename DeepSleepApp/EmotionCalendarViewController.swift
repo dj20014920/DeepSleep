@@ -5,11 +5,11 @@
 //  Created by dj on 2024/06/18.
 //
 
-import UIKit
-import FSCalendar
-import CoreData
 import Combine
+import CoreData
+import FSCalendar
 import ObjectiveC
+import UIKit
 
 // MARK: - Section Header View (Local Implementation)
 final class SectionHeaderView: UICollectionReusableView {
@@ -47,7 +47,8 @@ final class SectionHeaderView: UICollectionReusableView {
             addButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             addButton.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: addButton.leadingAnchor, constant: -8)
+            titleLabel.trailingAnchor.constraint(
+                lessThanOrEqualTo: addButton.leadingAnchor, constant: -8),
         ])
     }
 }
@@ -65,7 +66,7 @@ final class CalendarHostCell: UICollectionViewCell {
                 calendar.topAnchor.constraint(equalTo: contentView.topAnchor),
                 calendar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
                 calendar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-                calendar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+                calendar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             ])
         }
     }
@@ -88,7 +89,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             switch self {
             case .calendar:
                 return ""
-        case .todayEmotion:
+            case .todayEmotion:
                 return "오늘의 감정"
             case .insight:
                 return "대나무숲 친구 대화"
@@ -174,10 +175,15 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         if !calendarOnlyMode {
             resetInsightPaginationAndLoadFirstPage(for: selectedDate)
             // 실시간 반영 알림 구독 (calendarOnlyMode에서는 불필요하므로 등록하지 않음)
-            NotificationCenter.default.addObserver(self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
-            NotificationCenter.default.addObserver(self, selector: #selector(handleEmotionDiaryUpdated(_:)), name: .emotionDiaryUpdated, object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleTodosUpdated), name: .todosUpdated, object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleEmotionDiaryUpdated(_:)),
+                name: .emotionDiaryUpdated, object: nil)
             // 📡 오늘의 일기 분석 로그 갱신 수신 → 인사이트 즉시 반영
-            NotificationCenter.default.addObserver(self, selector: #selector(handleDiaryAnalysisUpdated(_:)), name: .diaryAnalysisUpdated, object: nil)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(handleDiaryAnalysisUpdated(_:)),
+                name: .diaryAnalysisUpdated, object: nil)
         }
     }
 
@@ -273,7 +279,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         calendar.appearance.headerDateFormat = "yyyy년 MM월"
 
         // 커스텀 데이 셀 등록 (이모지 + 그라데이션 테두리)
-        calendar.register(EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
+        calendar.register(
+            EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
 
         view.addSubview(calendar)
 
@@ -281,7 +288,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             calendar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             calendar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             calendar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            calendar.heightAnchor.constraint(equalToConstant: 300)
+            calendar.heightAnchor.constraint(equalToConstant: 300),
         ])
     }
 
@@ -304,10 +311,10 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             calendar.appearance.titleSelectionColor = .label
             calendar.appearance.eventDefaultColor = .systemGreen
             calendar.appearance.headerDateFormat = "yyyy년 MM월"
-            calendar.register(EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
+            calendar.register(
+                EmotionCalendarDayCell.self, forCellReuseIdentifier: "EmotionCalendarDayCell")
         }
     }
-
 
     private func setupCollectionView() {
         let layout = UICollectionViewFlowLayout()
@@ -323,11 +330,18 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         collectionView.delegate = self
 
         // 셀 등록
-        collectionView.register(CalendarHostCell.self, forCellWithReuseIdentifier: CalendarHostCell.reuseIdentifier)
-        collectionView.register(TodayEmotionCell.self, forCellWithReuseIdentifier: TodayEmotionCell.reuseIdentifier)
-        collectionView.register(InsightCell.self, forCellWithReuseIdentifier: InsightCell.reuseIdentifier)
-        collectionView.register(TodoListCell.self, forCellWithReuseIdentifier: TodoListCell.reuseIdentifier)
-        collectionView.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "SectionHeaderView")
+        collectionView.register(
+            CalendarHostCell.self, forCellWithReuseIdentifier: CalendarHostCell.reuseIdentifier)
+        collectionView.register(
+            TodayEmotionCell.self, forCellWithReuseIdentifier: TodayEmotionCell.reuseIdentifier)
+        collectionView.register(
+            InsightCell.self, forCellWithReuseIdentifier: InsightCell.reuseIdentifier)
+        collectionView.register(
+            TodoListCell.self, forCellWithReuseIdentifier: TodoListCell.reuseIdentifier)
+        collectionView.register(
+            SectionHeaderView.self,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+            withReuseIdentifier: "SectionHeaderView")
 
         view.addSubview(collectionView)
 
@@ -335,7 +349,7 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             collectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
     }
 
@@ -356,7 +370,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     }
 
     private func diaryFor(date: Date) -> EmotionDiary? {
-        let dateKeyFormatter = DateFormatter(); dateKeyFormatter.dateFormat = "yyyy-MM-dd"
+        let dateKeyFormatter = DateFormatter()
+        dateKeyFormatter.dateFormat = "yyyy-MM-dd"
         let dateKey = dateKeyFormatter.string(from: date)
         return diaryDataForCalendar[dateKey]
     }
@@ -381,12 +396,16 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         do {
             var diaryLines: [String] = []
             if loadedAnalyses.isEmpty {
-                let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: 0, limit: 1)
+                let (records, hasMore) = SettingsManager.shared.loadDiaryAnalyses(
+                    for: selectedDate, offset: 0, limit: 1)
                 analysisHasMore = hasMore
                 if records.isEmpty {
                     // 일기 없음이면 아예 블록을 추가하지 않음
                 } else {
-                    diaryLines.append(contentsOf: records.map { "• " + $0.text.trimmingCharacters(in: .whitespacesAndNewlines) })
+                    diaryLines.append(
+                        contentsOf: records.map {
+                            "• " + $0.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        })
                 }
             } else {
                 for rec in loadedAnalyses {
@@ -397,20 +416,10 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             }
             if !diaryLines.isEmpty { blocks.append("일기:\n" + diaryLines.joined(separator: "\n")) }
         }
-        // 2) 할 일 조언(오늘 날짜의 각 Todo의 최신 조언 노출)
-        do {
-            let todos = todoManager.getTodos(for: selectedDate)
-            var adviceLines: [String] = []
-            for t in todos {
-                if let adv = TodoManager.latestIndividualAdvice(in: t.aiAdvices), !adv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    adviceLines.append("• \(t.title): \(adv)")
-                }
-            }
-            if !adviceLines.isEmpty { blocks.append("할 일 조언:\n" + adviceLines.joined(separator: "\n")) }
-        }
+
         if blocks.isEmpty {
             // 기본 문구
-            return "아직 대화 내역이 없습니다. 일기를 작성하거나 오늘의 할 일에 대해 조언을 받아보세요."
+            return "아직 대화 내역이 없습니다. 일기를 작성해보세요."
         }
         return blocks.joined(separator: "\n\n")
     }
@@ -418,7 +427,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     private func loadMoreAnalysesIfNeeded(force: Bool = false) {
         guard force || (!isLoadingMoreAnalysis && analysisHasMore) else { return }
         isLoadingMoreAnalysis = true
-        let (page, hasMore) = SettingsManager.shared.loadDiaryAnalyses(for: selectedDate, offset: analysisOffset, limit: analysisPageSize)
+        let (page, hasMore) = SettingsManager.shared.loadDiaryAnalyses(
+            for: selectedDate, offset: analysisOffset, limit: analysisPageSize)
         analysisOffset += page.count
         analysisHasMore = hasMore
         if !page.isEmpty {
@@ -439,7 +449,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         }
 
         let text = buildInsightText()
-        if let idx = sections.firstIndex(where: { if case .insight = $0 { return true } else { return false } }) {
+        if let idx = sections.firstIndex(where: {
+            if case .insight = $0 { return true } else { return false }
+        }) {
             // 기존 인사이트 섹션 갱신 → 섹션 리로드만 사용(배치 삽입 없음)
             sections[idx] = .insight(text)
             collectionView.reloadSections(IndexSet(integer: idx))
@@ -472,7 +484,9 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         return sections.count
     }
 
-    @objc func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    @objc func collectionView(
+        _ collectionView: UICollectionView, numberOfItemsInSection section: Int
+    ) -> Int {
         switch sections[section] {
         case .calendar:
             return 1
@@ -485,21 +499,32 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         }
     }
 
-    @objc func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    @objc func collectionView(
+        _ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath
+    ) -> UICollectionViewCell {
         switch sections[indexPath.section] {
         case .calendar:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CalendarHostCell.reuseIdentifier, for: indexPath) as! CalendarHostCell
+            let cell =
+                collectionView.dequeueReusableCell(
+                    withReuseIdentifier: CalendarHostCell.reuseIdentifier, for: indexPath)
+                as! CalendarHostCell
             ensureCalendarInitialized()
             cell.attach(calendar: calendar)
             return cell
         case .todayEmotion(let diary):
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodayEmotionCell.reuseIdentifier, for: indexPath) as! TodayEmotionCell
+            let cell =
+                collectionView.dequeueReusableCell(
+                    withReuseIdentifier: TodayEmotionCell.reuseIdentifier, for: indexPath)
+                as! TodayEmotionCell
             cell.onWriteAction = { [weak self] in self?.openDiaryWriteFromCalendar() }
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
             cell.configure(with: diary, isToday: isToday)
             return cell
         case .insight:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath) as! InsightCell
+            let cell =
+                collectionView.dequeueReusableCell(
+                    withReuseIdentifier: InsightCell.reuseIdentifier, for: indexPath)
+                as! InsightCell
             // 분석 리스트 모드로 구성 (타이틀 숨김) + CTA (오늘/선택일 일기 O & 분석 없음)
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
             let diaryForDate = diaryFor(date: selectedDate)
@@ -507,10 +532,14 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
             cell.onPrimaryAction = { [weak self] in
                 if let entry = diaryForDate { self?.startDiaryConversation(with: entry) }
             }
-            cell.configureAnalysisList(buildInsightText(), showCTA: showCTA, ctaTitle: "오늘 일기 분석 시작")
+            cell.configureAnalysisList(
+                buildInsightText(), showCTA: showCTA, ctaTitle: "오늘 일기 분석 시작")
             return cell
         case .todo(let items):
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath) as! TodoListCell
+            let cell =
+                collectionView.dequeueReusableCell(
+                    withReuseIdentifier: TodoListCell.reuseIdentifier, for: indexPath)
+                as! TodoListCell
             cell.configure(with: items, for: selectedDate)
             // 동적 헤더 타이틀 구성: 오늘이면 "오늘의 할 일", 아니면 "M.d일의 할 일"
             let isToday = Calendar.current.isDate(selectedDate, inSameDayAs: Date())
@@ -527,11 +556,17 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
         }
     }
 
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+    func collectionView(
+        _ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String,
+        at indexPath: IndexPath
+    ) -> UICollectionReusableView {
         guard kind == UICollectionView.elementKindSectionHeader else {
             return UICollectionReusableView()
         }
-        let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "SectionHeaderView", for: indexPath) as! SectionHeaderView
+        let header =
+            collectionView.dequeueReusableSupplementaryView(
+                ofKind: kind, withReuseIdentifier: "SectionHeaderView", for: indexPath)
+            as! SectionHeaderView
         let section = sections[indexPath.section]
         // Todo 섹션의 외부 헤더 텍스트는 숨김 (카드 내부의 "오늘의 할 일" 헤더만 사용)
         switch section {
@@ -582,8 +617,13 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
 // MARK: - FSCalendarDelegate, FSCalendarDataSource
 
 extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSource {
-    func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition) -> FSCalendarCell {
-        let cell = calendar.dequeueReusableCell(withIdentifier: "EmotionCalendarDayCell", for: date, at: position) as! EmotionCalendarDayCell
+    func calendar(_ calendar: FSCalendar, cellFor date: Date, at position: FSCalendarMonthPosition)
+        -> FSCalendarCell
+    {
+        let cell =
+            calendar.dequeueReusableCell(
+                withIdentifier: "EmotionCalendarDayCell", for: date, at: position)
+            as! EmotionCalendarDayCell
         // 오늘 표시: 우상단 모서리 접힘 마크
         cell.setTodayCornerVisible(Calendar.current.isDate(date, inSameDayAs: Date()))
         // 날짜별 할 일 상태를 계산하여 그라데이션 테두리 지정
@@ -601,7 +641,9 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
         }
         return cell
     }
-    func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
+    func calendar(
+        _ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition
+    ) {
         selectedDate = date
 
         // calendarOnlyMode인 경우 상위에서 날짜 변경을 처리하도록 콜백만 호출
@@ -615,14 +657,17 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
         collectionView.reloadData()
 
         // UX: Todo 섹션으로 스크롤(존재 시)
-        if let todoSectionIndex = sections.firstIndex(where: { if case .todo = $0 { return true } else { return false } }) {
+        if let todoSectionIndex = sections.firstIndex(where: {
+            if case .todo = $0 { return true } else { return false }
+        }) {
             let indexPath = IndexPath(item: 0, section: todoSectionIndex)
             collectionView.scrollToItem(at: indexPath, at: .top, animated: true)
         }
     }
 
     private func presentTodosSheet(for date: Date, todos: [TodoItem]) {
-        let vc = TodoListSheetViewController(date: date, todos: todos, allTodosProvider: { TodoManager.shared.loadTodos() })
+        let vc = TodoListSheetViewController(
+            date: date, todos: todos, allTodosProvider: { TodoManager.shared.loadTodos() })
         let nav = UINavigationController(rootViewController: vc)
         nav.modalPresentationStyle = .pageSheet
         if let sheet = nav.sheetPresentationController {
@@ -661,7 +706,7 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
             return getEmotionEmoji(for: diary.selectedEmotion)
         }
 
-        return nil // 기본 날짜 숫자 표시
+        return nil  // 기본 날짜 숫자 표시
     }
 
     // 공통 유틸을 통한 감정→이모지 변환
@@ -674,8 +719,11 @@ extension EmotionCalendarViewController: FSCalendarDelegate, FSCalendarDataSourc
 
 // MARK: - UICollectionViewDelegateFlowLayout
 extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        let width = collectionView.frame.width - 32 // 양쪽 패딩
+    func collectionView(
+        _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout,
+        sizeForItemAt indexPath: IndexPath
+    ) -> CGSize {
+        let width = collectionView.frame.width - 32  // 양쪽 패딩
         switch sections[indexPath.section] {
         case .calendar:
             return CGSize(width: width, height: 300)
@@ -688,15 +736,15 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
             return CGSize(width: width, height: height)
         case .todo(let items):
             // 동적 행 높이 계산: 제목 멀티라인 + 마감시간 서브타이틀 반영
-            let headerHeight: CGFloat = 40 // TodoListCell.headerView 고정 높이
+            let headerHeight: CGFloat = 40  // TodoListCell.headerView 고정 높이
             let topPadding: CGFloat = 16
             let betweenHeaderAndTable: CGFloat = 8
             let bottomPadding: CGFloat = 16
 
             // 텍스트 가용 폭 계산 (컨테이너 좌우 16, 셀 내부 체크박스/인디케이터 여백 고려)
-            let containerInnerLR: CGFloat = 32 // 16 + 16
-            let checkboxAndGaps: CGFloat = 8 + 24 + 12 // 좌측 여백 + 체크 + 간격
-            let indicatorAndRight: CGFloat = 8 + 8 // 인디케이터 + 우측 여백
+            let containerInnerLR: CGFloat = 32  // 16 + 16
+            let checkboxAndGaps: CGFloat = 8 + 24 + 12  // 좌측 여백 + 체크 + 간격
+            let indicatorAndRight: CGFloat = 8 + 8  // 인디케이터 + 우측 여백
             let textWidth = max(80, width - containerInnerLR - checkboxAndGaps - indicatorAndRight)
 
             let titleFont = UIFont.systemFont(ofSize: 16, weight: .regular)
@@ -717,22 +765,26 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
                     attributes: [.font: dueFont],
                     context: nil
                 )
-                let rowBaseSpacing: CGFloat = 8 + 4 + 8 // top + between + bottom
-                let rowHeight = max(56, ceil(titleBox.height) + ceil(dueBox.height) + rowBaseSpacing)
+                let rowBaseSpacing: CGFloat = 8 + 4 + 8  // top + between + bottom
+                let rowHeight = max(
+                    56, ceil(titleBox.height) + ceil(dueBox.height) + rowBaseSpacing)
                 rowsTotal += rowHeight
             }
             // 빈 목록일 경우 최소 높이 확보(빈 상태 라벨 노출)
             if items.isEmpty { rowsTotal = 60 }
 
-            let computed = topPadding + headerHeight + betweenHeaderAndTable + rowsTotal + bottomPadding
+            let computed =
+                topPadding + headerHeight + betweenHeaderAndTable + rowsTotal + bottomPadding
             let height = max(120, computed)
             return CGSize(width: width, height: height)
         }
     }
 
     // 동적 높이 계산: 오늘의 감정 카드
-    private func estimatedTodayEmotionHeight(diary: EmotionDiary?, isToday: Bool, width: CGFloat) -> CGFloat {
-        let contentWidth = width - 48 // 내부 패딩 보정 (24*2)
+    private func estimatedTodayEmotionHeight(diary: EmotionDiary?, isToday: Bool, width: CGFloat)
+        -> CGFloat
+    {
+        let contentWidth = width - 48  // 내부 패딩 보정 (24*2)
         var total: CGFloat = 0
         // 이모지 + 감정명 기본 높이
         total += 32 /*emoji*/ + 8 + 20 /*name*/
@@ -747,7 +799,7 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
                     style.lineBreakMode = .byWordWrapping
                     style.alignment = .center
                     return style
-                }()
+                }(),
             ]
             let box = (text as NSString).boundingRect(
                 with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
@@ -756,9 +808,9 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
                 context: nil
             )
             // 텍스트 높이에 충분한 여백 추가
-            total += 8 + ceil(box.height) + 8 // 위아래 여백 추가
+            total += 8 + ceil(box.height) + 8  // 위아래 여백 추가
             if isToday {
-                total += 8 + 44 // 버튼 영역 + 여백
+                total += 8 + 44  // 버튼 영역 + 여백
             }
         }
         // 컨테이너 상하 여백 (16*2)
@@ -770,7 +822,7 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
     // 동적 높이 계산: 인사이트 텍스트 길이에 따라 높이를 유연하게 조정
     private func estimatedInsightHeight(for text: String, width: CGFloat) -> CGFloat {
         // InsightCell 내부 패딩 및 구성 요소 높이를 고려한 대략치
-        let contentWidth = width - 24 // container 내부 좌우 여백 보정
+        let contentWidth = width - 24  // container 내부 좌우 여백 보정
         let attributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 14)
         ]
@@ -786,14 +838,17 @@ extension EmotionCalendarViewController: UICollectionViewDelegateFlowLayout {
         return max(120, total)
     }
 
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
+    func collectionView(
+        _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout,
+        referenceSizeForHeaderInSection section: Int
+    ) -> CGSize {
         switch sections[section] {
         case .calendar:
             return .zero
         case .todayEmotion:
             return CGSize(width: collectionView.frame.width, height: 50)
         case .todo:
-            return .zero // 카드 내부 헤더만 사용하므로 숨김
+            return .zero  // 카드 내부 헤더만 사용하므로 숨김
         default:
             return CGSize(width: collectionView.frame.width, height: 50)
         }
@@ -833,7 +888,8 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                     self?.collectionView.reloadData()
                     UnifiedLogger.shared.logTodo("Todo item deleted: \(item.title)")
                 } else if let error = error {
-                    UnifiedLogger.shared.error("Failed to delete todo: \(error.localizedDescription)")
+                    UnifiedLogger.shared.error(
+                        "Failed to delete todo: \(error.localizedDescription)")
                 }
             }
         }
@@ -849,11 +905,14 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
         presentAddEditTodoViewController(todoItem: nil)
     }
 
-    func todoListCellDidRequestDailyAdvice(_ cell: TodoListCell, for items: [TodoItem], on date: Date) {
+    func todoListCellDidRequestDailyAdvice(
+        _ cell: TodoListCell, for items: [TodoItem], on date: Date
+    ) {
         UnifiedLogger.shared.logTodo("Daily advice requested for \(items.count) items on \(date)")
 
         // 원래 로직 준수: 오늘의 할 일 조언 버튼은 '할 일 정보'만 전송(일기 포함 금지), 없으면 주간 컨텍스트로만 보강
-        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?.emotion
+        let weeklyContext = SessionManager.shared.buildRichContextForLocalAI().emotionHistory.first?
+            .emotion
         let allTodos = todoManager.loadTodos()
         let prompt = TodoManager.buildOverallAdvicePrompt(
             date: date,
@@ -875,7 +934,9 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
 
     func todoListCell(_ cell: TodoListCell, didTapAdviceFor item: TodoItem) {
         // 버튼 직접 동작: 조언이 있으면 보기, 없으면 생성
-        if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices), !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices),
+            !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             let vc = SimpleAdviceViewController(titleText: "'\(item.title)' 조언", adviceText: indiv)
             vc.modalPresentationStyle = .overFullScreen
             present(vc, animated: true)
@@ -887,7 +948,9 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
     private func requestOverallTodoAdvice(prompt: String, applyTo items: [TodoItem]) {
         let remaining = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
         guard remaining > 0 else {
-            let alert = UIAlertController(title: "AI 조언 한도 초과", message: "오늘의 AI 조언 사용 한도를 모두 사용하셨습니다.\n내일 다시 이용해주세요.", preferredStyle: .alert)
+            let alert = UIAlertController(
+                title: "AI 조언 한도 초과", message: "오늘의 AI 조언 사용 한도를 모두 사용하셨습니다.\n내일 다시 이용해주세요.",
+                preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "확인", style: .default))
             present(alert, animated: true)
             return
@@ -907,7 +970,8 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                 TodoManager.distributeOverallAdvice(advice, to: items)
                 await MainActor.run {
                     LoadingOverlay.hide(from: self)
-                    let vc = SimpleAdviceViewController(titleText: "💡 오늘의 할 일 조언", adviceText: advice)
+                    let vc = SimpleAdviceViewController(
+                        titleText: "💡 오늘의 할 일 조언", adviceText: advice)
                     vc.modalPresentationStyle = .overFullScreen
                     self?.present(vc, animated: true)
                     self?.updateInsightSection()
@@ -917,7 +981,9 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             } catch {
                 await MainActor.run {
                     LoadingOverlay.hide(from: self)
-                    let alert = UIAlertController(title: "AI 조언 오류", message: error.localizedDescription, preferredStyle: .alert)
+                    let alert = UIAlertController(
+                        title: "AI 조언 오류", message: error.localizedDescription,
+                        preferredStyle: .alert)
                     alert.addAction(UIAlertAction(title: "확인", style: .default))
                     self?.present(alert, animated: true)
                 }
@@ -928,15 +994,21 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
     private func requestIndividualTodoAdvice(for item: TodoItem) {
         let remaining = AIUsageManager.shared.getRemainingCount(for: .individualTodoAdvice)
         guard remaining > 0 else {
-            let alert = UIAlertController(title: "AI 조언 한도 초과", message: "오늘의 AI 조언 사용 한도를 모두 사용하셨습니다.\n내일 다시 이용해주세요.", preferredStyle: .alert)
+            let alert = UIAlertController(
+                title: "AI 조언 한도 초과", message: "오늘의 AI 조언 사용 한도를 모두 사용하셨습니다.\n내일 다시 이용해주세요.",
+                preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "확인", style: .default))
             present(alert, animated: true)
             return
         }
         // per-item today check 제거: fingerprint 기반 제한만 사용
         let fp = TodoManager.adviceFingerprint(for: item)
-        if UsageLimitManager.shared.hasUsedDailyFingerprint(namespace: "todo_individual_advice", fingerprint: fp) {
-            let alert = UIAlertController(title: "오늘은 이미 유사한 할 일의 조언을 받았습니다", message: "삭제 후 재등록 방식은 1일 1회 제한에 포함됩니다.", preferredStyle: .alert)
+        if UsageLimitManager.shared.hasUsedDailyFingerprint(
+            namespace: "todo_individual_advice", fingerprint: fp)
+        {
+            let alert = UIAlertController(
+                title: "오늘은 이미 유사한 할 일의 조언을 받았습니다", message: "삭제 후 재등록 방식은 1일 1회 제한에 포함됩니다.",
+                preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "확인", style: .default))
             present(alert, animated: true)
             return
@@ -953,14 +1025,16 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                     saveMessages: false,
                     policyMeta: [
                         "feature": "task_advice",
-                        "fingerprint": fp
+                        "fingerprint": fp,
                     ]
                 )
                 TodoManager.shared.appendAdvice(to: item.id, advice: advice)
-                UsageLimitManager.shared.markDailyFingerprintUsed(namespace: "todo_individual_advice", fingerprint: fp)
+                UsageLimitManager.shared.markDailyFingerprintUsed(
+                    namespace: "todo_individual_advice", fingerprint: fp)
                 await MainActor.run {
                     LoadingOverlay.hide(from: self)
-                    let vc = SimpleAdviceViewController(titleText: "'\(item.title)' 조언", adviceText: advice)
+                    let vc = SimpleAdviceViewController(
+                        titleText: "'\(item.title)' 조언", adviceText: advice)
                     vc.modalPresentationStyle = .overFullScreen
                     self?.present(vc, animated: true)
                     self?.updateInsightSection()
@@ -970,7 +1044,9 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
             } catch {
                 await MainActor.run {
                     LoadingOverlay.hide(from: self)
-                    let alert = UIAlertController(title: "AI 조언 오류", message: error.localizedDescription, preferredStyle: .alert)
+                    let alert = UIAlertController(
+                        title: "AI 조언 오류", message: error.localizedDescription,
+                        preferredStyle: .alert)
                     alert.addAction(UIAlertAction(title: "확인", style: .default))
                     self?.present(alert, animated: true)
                 }
@@ -992,12 +1068,12 @@ extension EmotionCalendarViewController {
         let dateString = dateFormatter.string(from: date)
 
         let _ = """
-        Analyze the user's data for \(dateString).
-        - Sleep data: ...
-        - Diary entries: ...
-        - Completed todos: ...
-        Provide a brief insight into their well-being and suggest one positive action.
-        """
+            Analyze the user's data for \(dateString).
+            - Sleep data: ...
+            - Diary entries: ...
+            - Completed todos: ...
+            Provide a brief insight into their well-being and suggest one positive action.
+            """
 
         // Example:
         // Task {
@@ -1053,7 +1129,8 @@ extension EmotionCalendarViewController {
 
         guard let entry = targetEntries.first else { return }
 
-        let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
+        let dateString = DateFormatter.localizedString(
+            from: date, dateStyle: .medium, timeStyle: .none)
 
         let alert = UIAlertController(
             title: "\(emotion) \(dateString)",
@@ -1062,19 +1139,23 @@ extension EmotionCalendarViewController {
         )
 
         // AI 응답 보기 버튼
-        alert.addAction(UIAlertAction(title: "AI 응답 보기", style: .default) { _ in
-            let responseAlert = UIAlertController(
-                title: "AI 응답",
-                message: entry.aiResponse,
-                preferredStyle: .alert
-            )
-            responseAlert.addAction(UIAlertAction(title: "확인", style: .default))
-            self.present(responseAlert, animated: true)
-        })
+        alert.addAction(
+            UIAlertAction(title: "AI 응답 보기", style: .default) { _ in
+                let responseAlert = UIAlertController(
+                    title: "AI 응답",
+                    message: entry.aiResponse,
+                    preferredStyle: .alert
+                )
+                responseAlert.addAction(UIAlertAction(title: "확인", style: .default))
+                self.present(responseAlert, animated: true)
+            })
 
         // ✅ 일기 분석 대화 버튼 - 카운트 표기 제거
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let diaryAnalysisAction = UIAlertAction(title: remainingCount > 0 ? "💬 이 일기를 AI와 깊이 분석" : "💬 일기 분석 대화 (오늘 사용 완료)", style: .default) { _ in
+        let diaryAnalysisAction = UIAlertAction(
+            title: remainingCount > 0 ? "💬 이 일기를 AI와 깊이 분석" : "💬 일기 분석 대화 (오늘 사용 완료)",
+            style: .default
+        ) { _ in
             if remainingCount > 0 { self.startDiaryConversation(with: entry) }
         }
         if remainingCount <= 0 { diaryAnalysisAction.isEnabled = false }
@@ -1082,9 +1163,10 @@ extension EmotionCalendarViewController {
 
         // 일기 전체 내용 보기 버튼 (긴 일기인 경우)
         if entry.userMessage.count > 100 {
-            alert.addAction(UIAlertAction(title: "📖 전체 내용 보기", style: .default) { _ in
-                self.showFullDiaryContent(entry: entry)
-            })
+            alert.addAction(
+                UIAlertAction(title: "📖 전체 내용 보기", style: .default) { _ in
+                    self.showFullDiaryContent(entry: entry)
+                })
         }
 
         alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
@@ -1101,12 +1183,12 @@ extension EmotionCalendarViewController {
             let limitAlert = UIAlertController(
                 title: "📝 일기 분석 한도 도달",
                 message: """
-                오늘 일기 분석 대화의 일일 한도(총 \(totalCount)회)를 모두 사용하셨습니다.
+                    오늘 일기 분석 대화의 일일 한도(총 \(totalCount)회)를 모두 사용하셨습니다.
 
-                내일 다시 이용해 주세요. 😊
+                    내일 다시 이용해 주세요. 😊
 
-                💡 더 많은 대화를 원하시면 일반 채팅을 이용해 보세요.
-                """,
+                    💡 더 많은 대화를 원하시면 일반 채팅을 이용해 보세요.
+                    """,
                 preferredStyle: .alert
             )
 
@@ -1140,8 +1222,12 @@ extension EmotionCalendarViewController {
 
         // ⏳ 최근 3일 제한 확인
         let cal = Calendar.current
-        if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()), entry.date < threeDaysAgo {
-            let alert = UIAlertController(title: "최근 3일 제한", message: "최근 3일 이내의 일기만 대나무숲에서 분석할 수 있어요.", preferredStyle: .alert)
+        if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()),
+            entry.date < threeDaysAgo
+        {
+            let alert = UIAlertController(
+                title: "최근 3일 제한", message: "최근 3일 이내의 일기만 대나무숲에서 분석할 수 있어요.",
+                preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "확인", style: .default))
             present(alert, animated: true)
             return
@@ -1197,7 +1283,7 @@ extension EmotionCalendarViewController {
             userInfo: [
                 "volumes": preset.volumes,
                 "presetName": preset.name,
-                "versions": preset.compatibleVersions
+                "versions": preset.compatibleVersions,
             ]
         )
     }
@@ -1213,15 +1299,15 @@ extension EmotionCalendarViewController {
         textView.translatesAutoresizingMaskIntoConstraints = false
 
         textView.text = """
-        날짜: \(DateFormatter.localizedString(from: entry.date, dateStyle: .full, timeStyle: .short))
-        감정: \(entry.selectedEmotion)
+            날짜: \(DateFormatter.localizedString(from: entry.date, dateStyle: .full, timeStyle: .short))
+            감정: \(entry.selectedEmotion)
 
-        일기 내용:
-        \(entry.userMessage)
+            일기 내용:
+            \(entry.userMessage)
 
-        AI 응답:
-        \(entry.aiResponse)
-        """
+            AI 응답:
+            \(entry.aiResponse)
+            """
 
         textView.font = .systemFont(ofSize: 16)
         textView.isEditable = false
@@ -1234,28 +1320,33 @@ extension EmotionCalendarViewController {
             scrollView.topAnchor.constraint(equalTo: detailVC.view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: detailVC.view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: detailVC.view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: detailVC.view.safeAreaLayoutGuide.bottomAnchor),
+            scrollView.bottomAnchor.constraint(
+                equalTo: detailVC.view.safeAreaLayoutGuide.bottomAnchor),
 
             textView.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 16),
             textView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 16),
             textView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -16),
             textView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -16),
-            textView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32)
+            textView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32),
         ])
 
-        let closeButton = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeDiaryDetail))
+        let closeButton = UIBarButtonItem(
+            title: "닫기", style: .plain, target: self, action: #selector(closeDiaryDetail))
 
         // ✅ 대나무숲 버튼도 제한 체크
         let remainingCount = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
         let chatButtonTitle = remainingCount > 0 ? "💬 대나무숲 분석" : "💬 분석 완료"
-        let chatButton = UIBarButtonItem(title: chatButtonTitle, style: .plain, target: self, action: #selector(startChatFromDetail))
+        let chatButton = UIBarButtonItem(
+            title: chatButtonTitle, style: .plain, target: self,
+            action: #selector(startChatFromDetail))
         chatButton.isEnabled = remainingCount > 0
 
         detailVC.navigationItem.leftBarButtonItem = closeButton
         detailVC.navigationItem.rightBarButtonItem = chatButton
 
         // 연관 객체 저장 (안전한 키 사용)
-        objc_setAssociatedObject(detailVC, &AssociatedKeys.diaryEntryKey, entry, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        objc_setAssociatedObject(
+            detailVC, &AssociatedKeys.diaryEntryKey, entry, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 
         let navController = UINavigationController(rootViewController: detailVC)
         present(navController, animated: true)
@@ -1267,8 +1358,10 @@ extension EmotionCalendarViewController {
 
     @objc func startChatFromDetail() {
         guard let presentedNav = presentedViewController as? UINavigationController,
-              let detailVC = presentedNav.topViewController,
-              let entry = objc_getAssociatedObject(detailVC, &AssociatedKeys.diaryEntryKey) as? EmotionDiary else { return }
+            let detailVC = presentedNav.topViewController,
+            let entry = objc_getAssociatedObject(detailVC, &AssociatedKeys.diaryEntryKey)
+                as? EmotionDiary
+        else { return }
 
         presentedNav.dismiss(animated: true) { [weak self] in
             self?.startDiaryConversation(with: entry)

@@ -369,13 +369,23 @@ class TodoManager {
         let end = item.endDate != nil ? dateFormatter.string(from: item.endDate!) : "없음"
         let type = item.isAllDayQuickRegistration ? "할 일" : (item.endDate != nil ? "일정" : "할 일")
 
+        // UX: '하루종일 버튼'으로 등록된 빠른 할 일은 시간 대신 "오늘 중"으로 간략화
+        let typeLine: String
+        let timeBlock: String
+        if item.isAllDayQuickRegistration {
+            typeLine = "유형: \(type) (하루종일)"
+            timeBlock = "시간: 오늘 중"
+        } else {
+            typeLine = "유형: \(type)"
+            timeBlock = "시작: \(start)\n종료: \(end)"
+        }
+
         let prompt = """
         아래의 단일 할 일에 대해 실질적으로 도움이 되는 실행 조언을 2-3가지 이내로 제안해주세요.
 
         제목: \(item.title)
-        유형: \(type)
-        시작: \(start)
-        종료: \(end)
+        \(typeLine)
+        \(timeBlock)
         우선순위: \(priority)
         카테고리: \(category)
         메모: \(notes)

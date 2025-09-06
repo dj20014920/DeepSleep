@@ -157,8 +157,16 @@
 	<string>$(DAILY_TODO_ADVICE_LIMIT_FREE)</string>
 	<key>DAILY_TODO_ADVICE_LIMIT_PREMIUM</key>
 	<string>$(DAILY_TODO_ADVICE_LIMIT_PREMIUM)</string>
+	<key>DAILY_TODO_ADVICE_LIMIT_MAX</key>
+	<string>15</string>
 	<key>DAILY_TODO_OVERALL_ADVICE_LIMIT</key>
 	<string>$(DAILY_TODO_OVERALL_ADVICE_LIMIT)</string>
+	<key>DAILY_TODO_OVERALL_ADVICE_LIMIT_FREE</key>
+	<string>1</string>
+	<key>DAILY_TODO_OVERALL_ADVICE_LIMIT_PREMIUM</key>
+	<string>1</string>
+	<key>DAILY_TODO_OVERALL_ADVICE_LIMIT_MAX</key>
+	<string>1</string>
 	<key>DAILY_FORTUNE_LIMIT</key>
 	<string>$(DAILY_FORTUNE_LIMIT)</string>
 	<key>DAILY_EMOTION_ANALYSIS_LIMIT</key>
