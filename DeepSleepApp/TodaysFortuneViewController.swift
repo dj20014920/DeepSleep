@@ -18,27 +18,24 @@ class TodaysFortuneViewController: UIViewController {
 
     private let headerView: UIView = {
         let view = UIView()
-        view.backgroundColor = UIDesignSystem.Colors.primary.withAlphaComponent(0.1)
+        view.backgroundColor = UIDesignSystem.Colors.cardBackground
         view.layer.cornerRadius = 16
         view.translatesAutoresizingMaskIntoConstraints = false
 
-        // 그라데이션 배경 추가
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.colors = [
-            UIColor.systemBlue.withAlphaComponent(0.2).cgColor,
-            UIColor.systemPurple.withAlphaComponent(0.1).cgColor
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
-        gradientLayer.cornerRadius = 16
-        view.layer.insertSublayer(gradientLayer, at: 0)
+        // 카드 톤 일관화: 보더/섀도우 적용
+        view.layer.borderWidth = 1
+        view.layer.borderColor = UIColor.systemGray4.withAlphaComponent(0.4).cgColor
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 4)
+        view.layer.shadowRadius = 8
+        view.layer.shadowOpacity = 0.1
 
         return view
     }()
 
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "🔮 오늘의 운세"
+        label.text = "🔮 오늘의 운세 🔮"
         label.font = UIFont.boldSystemFont(ofSize: 24)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -63,15 +60,15 @@ class TodaysFortuneViewController: UIViewController {
         let view = UIView()
         view.backgroundColor = UIDesignSystem.Colors.cardBackground
         view.layer.cornerRadius = 16
-        view.layer.shadowColor = UIColor.systemBlue.cgColor
+        view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowOffset = CGSize(width: 0, height: 4)
         view.layer.shadowRadius = 8
-        view.layer.shadowOpacity = 0.15
+        view.layer.shadowOpacity = 0.1
         view.translatesAutoresizingMaskIntoConstraints = false
 
         // 미세한 테두리 추가
         view.layer.borderWidth = 1
-        view.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.1).cgColor
+        view.layer.borderColor = UIColor.systemGray4.withAlphaComponent(0.4).cgColor
 
         return view
     }()
@@ -88,16 +85,17 @@ class TodaysFortuneViewController: UIViewController {
     private let birthDatePicker: UIDatePicker = {
         let picker = UIDatePicker()
         picker.datePickerMode = .date
-        picker.preferredDatePickerStyle = .compact
+        picker.preferredDatePickerStyle = .wheels
         picker.locale = Locale(identifier: "ko_KR")
         picker.maximumDate = Date()
         picker.minimumDate = Calendar.current.date(byAdding: .year, value: -100, to: Date())
         picker.translatesAutoresizingMaskIntoConstraints = false
 
         // 더 예쁜 스타일링
-        picker.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
-        picker.layer.cornerRadius = 12
-        picker.tintColor = UIColor.systemBlue
+                picker.backgroundColor = UIColor.white
+                picker.layer.cornerRadius = 12
+                picker.clipsToBounds = true
+                picker.tintColor = UIColor.systemBlue
 
         return picker
     }()
@@ -108,8 +106,12 @@ class TodaysFortuneViewController: UIViewController {
         control.translatesAutoresizingMaskIntoConstraints = false
 
         // 더 예쁜 스타일링
-        control.backgroundColor = UIColor.systemGray6
-        control.selectedSegmentTintColor = UIColor.systemBlue
+        control.backgroundColor = UIColor.white
+        control.layer.borderWidth = 1
+        control.layer.borderColor = UIColor.systemGray4.withAlphaComponent(0.4).cgColor
+        control.selectedSegmentTintColor = UIColor.white
+        control.setTitleTextAttributes([.foregroundColor: UIColor.label], for: .normal)
+        control.setTitleTextAttributes([.foregroundColor: UIColor.systemBlue], for: .selected)
         control.layer.cornerRadius = 8
 
         return control
@@ -119,26 +121,21 @@ class TodaysFortuneViewController: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("✨ 오늘의 운세 보기", for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-        button.tintColor = .white
+        button.tintColor = UIColor.systemBlue
         button.layer.cornerRadius = 16
         button.translatesAutoresizingMaskIntoConstraints = false
 
-        // 그라데이션 배경
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.colors = [
-            UIColor.systemBlue.cgColor,
-            UIColor.systemPurple.cgColor
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 0)
-        gradientLayer.cornerRadius = 16
-        button.layer.insertSublayer(gradientLayer, at: 0)
+        // 화이트 카드 톤 버튼
+        button.backgroundColor = UIColor.white
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.systemGray4.withAlphaComponent(0.4).cgColor
+        button.setTitleColor(UIColor.systemBlue, for: .normal)
 
         // 그림자 효과
-        button.layer.shadowColor = UIColor.systemBlue.cgColor
+        button.layer.shadowColor = UIColor.black.cgColor
         button.layer.shadowOffset = CGSize(width: 0, height: 4)
         button.layer.shadowRadius = 8
-        button.layer.shadowOpacity = 0.3
+        button.layer.shadowOpacity = 0.1
 
         return button
     }()
@@ -153,6 +150,8 @@ class TodaysFortuneViewController: UIViewController {
         view.layer.shadowRadius = 8
         view.layer.shadowOpacity = 0.1
         view.isHidden = true
+        view.layer.borderWidth = 1
+        view.layer.borderColor = UIColor.systemGray4.withAlphaComponent(0.4).cgColor
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
@@ -771,7 +770,7 @@ class TodaysFortuneViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        updateGradientFrames()
+        // updateGradientFrames() removed: unified white card tone
     }
 
     // MARK: - Setup
@@ -818,9 +817,9 @@ class TodaysFortuneViewController: UIViewController {
             birthDateLabel.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
 
             birthDatePicker.topAnchor.constraint(equalTo: birthDateLabel.bottomAnchor, constant: 12),
-            birthDatePicker.centerXAnchor.constraint(equalTo: userInfoCardView.centerXAnchor),
-            birthDatePicker.widthAnchor.constraint(equalToConstant: 200),
-            birthDatePicker.heightAnchor.constraint(equalToConstant: 44),
+            birthDatePicker.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
+            birthDatePicker.trailingAnchor.constraint(equalTo: userInfoCardView.trailingAnchor, constant: -20),
+            birthDatePicker.heightAnchor.constraint(equalToConstant: 132),
 
             ageInfoLabel.topAnchor.constraint(equalTo: birthDatePicker.bottomAnchor, constant: 8),
             ageInfoLabel.leadingAnchor.constraint(equalTo: userInfoCardView.leadingAnchor, constant: 20),
@@ -910,14 +909,7 @@ class TodaysFortuneViewController: UIViewController {
 
     private func updateGradientFrames() {
         // 헤더뷰 그라데이션 업데이트
-        if let gradientLayer = headerView.layer.sublayers?.first as? CAGradientLayer {
-            gradientLayer.frame = headerView.bounds
-        }
-
-        // 버튼 그라데이션 업데이트
-        if let gradientLayer = getFortuneButton.layer.sublayers?.first as? CAGradientLayer {
-            gradientLayer.frame = getFortuneButton.bounds
-        }
+        // 그라데이션 제거됨: 일관된 화이트 카드 톤 적용으로 별도 프레임 업데이트 불필요
     }
 
     private func saveUserPreferences() {

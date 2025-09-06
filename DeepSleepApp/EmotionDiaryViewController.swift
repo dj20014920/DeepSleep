@@ -6,7 +6,7 @@
 import UIKit
 
 class EmotionDiaryViewController: UIViewController {
-    
+
     // MARK: - UI Components
     private let segmentedControl: UISegmentedControl = {
         // Todo 탭 제거: 일기/캘린더/인사이트 3개만 유지
@@ -16,8 +16,8 @@ class EmotionDiaryViewController: UIViewController {
         control.translatesAutoresizingMaskIntoConstraints = false
         return control
     }()
-    
-    
+
+
     // 일기 뷰
     internal let tableView: UITableView = {
         let tableView = UITableView()
@@ -28,7 +28,7 @@ class EmotionDiaryViewController: UIViewController {
         tableView.backgroundColor = .clear
         return tableView
     }()
-    
+
     // 캘린더 뷰 - 동적 로딩(모듈명 자동 감지)으로 안정화
     private let calendarViewController: UIViewController = {
         let moduleName = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "DeepSleep"
@@ -59,7 +59,7 @@ class EmotionDiaryViewController: UIViewController {
     }()
 
     // Todo 탭은 삭제됨(캘린더 뷰 내부에 융합 완료)
-    
+
     // 인사이트 뷰
     internal let insightStackView: UIStackView = {
         let stackView = UIStackView()
@@ -73,23 +73,11 @@ class EmotionDiaryViewController: UIViewController {
         stackView.setContentCompressionResistancePriority(.init(1000), for: .vertical)
         return stackView
     }()
-    
-    // 대나무숲 분석 버튼들
-    private let aiAnalyzeSelectedDiaryButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("선택 일기 대나무숲 분석", for: .normal)
-        button.isEnabled = false // 처음에는 비활성화
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
 
-    private let aiAnalyzeMonthlyEmotionsButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("최근 30일 감정 대나무숲 분석", for: .normal)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
+
+
+
+
     // MARK: - Properties
     internal var diaryEntries: [EmotionDiary] = []
     // ✅ 무한스크롤 표시용 가시 리스트(페이지네이션)
@@ -102,19 +90,19 @@ class EmotionDiaryViewController: UIViewController {
     internal var currentView: Int = 0 // 0=일기, 1=캘린더, 2=인사이트
     private var selectedDiaryForAnalysis: EmotionDiary? // 선택된 일기 저장
     private var recommendationHistory: [RecommendationData] = []
-    
+
     // 🔧 단순화된 제약조건 시스템 - 하나의 동적 제약조건만 사용
     internal var dynamicHeightConstraint: NSLayoutConstraint?
-    
+
     // 🔧 Bottom constraints for each segment; activate only the one for the visible view
     internal var tableBottomConstraint: NSLayoutConstraint?
     internal var calendarBottomConstraint: NSLayoutConstraint?
     internal var insightBottomConstraint: NSLayoutConstraint?
-    
+
     // ✅ 화면 높이 고정용(탭별 내부 스크롤 활성화)
     private var calendarHeightConstraint: NSLayoutConstraint?
     private var diaryHeightConstraint: NSLayoutConstraint?
-    
+
     // Insights 탭 전용 내부 스크롤뷰 구성 요소
     internal let insightScrollView: UIScrollView = {
         let sv = UIScrollView()
@@ -129,7 +117,7 @@ class EmotionDiaryViewController: UIViewController {
         return v
     }()
     private var insightHeightConstraint: NSLayoutConstraint?
-    
+
     // UI 컴포넌트들을 internal로 변경하여 익스텐션에서 접근 가능하게 함
     internal let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -138,76 +126,75 @@ class EmotionDiaryViewController: UIViewController {
         scrollView.alwaysBounceVertical = true // 수직 바운스 활성화
         return scrollView
     }()
-    
+
     internal let contentView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         loadDiaryData()
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         loadDiaryData()
-        updateAIButtonsRemainingLabels()
     }
-    
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
         // 튜토리얼 표시 (최초 방문 시)
         showTutorialIfNeeded()
     }
-    
+
     // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = UIDesignSystem.Colors.adaptiveBackground
         title = "미니 다이어리"
-        
+
         // 상단 버튼은 일기 탭에서만 노출 (showCurrentView에서 설정)
-        
+
         setupSegmentedControl()
         setupScrollView()
         setupTableView()
         setupCalendarView()
         setupInsightView()
-        
+
         showCurrentView()
     }
-    
+
     private func setupSegmentedControl() {
         view.addSubview(segmentedControl)
         segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
-        
+
         NSLayoutConstraint.activate([
             segmentedControl.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             segmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             segmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
         ])
     }
-    
+
     private func setupScrollView() {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
-        
+
         // 🔧 단순화된 제약조건 시스템 - 최소 높이만 보장
         dynamicHeightConstraint = contentView.heightAnchor.constraint(
             greaterThanOrEqualTo: scrollView.frameLayoutGuide.heightAnchor
         )
         dynamicHeightConstraint?.priority = .init(750) // 중간 우선순위
-        
+
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            
+
             contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
@@ -217,27 +204,27 @@ class EmotionDiaryViewController: UIViewController {
             dynamicHeightConstraint!
         ])
     }
-    
+
     private func setupTableView() {
         contentView.addSubview(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        
+
         // Prepare bottom constraint to activate only when the Diary tab is visible
         tableBottomConstraint = tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         tableBottomConstraint?.isActive = false
-        
+
         // ✅ 일기 탭 내부 스크롤 활성화를 위해 화면 높이 제약 사전 생성(활성화는 탭 전환 시)
         diaryHeightConstraint = tableView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
         diaryHeightConstraint?.isActive = false
-        
+
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: contentView.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
     }
-    
+
     private func setupCalendarView() {
         addChild(calendarViewController)
         contentView.addSubview(calendarViewController.view)
@@ -247,11 +234,11 @@ class EmotionDiaryViewController: UIViewController {
         // Prepare bottom constraint to activate only when the Calendar tab is visible
         calendarBottomConstraint = calendarViewController.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         calendarBottomConstraint?.isActive = false
-        
+
         // ✅ 고정값(750) 제거하고 화면 높이와 동일하게(활성화는 탭 전환 시)
         calendarHeightConstraint = calendarViewController.view.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
         calendarHeightConstraint?.isActive = false
-        
+
         NSLayoutConstraint.activate([
             calendarViewController.view.topAnchor.constraint(equalTo: contentView.topAnchor),
             calendarViewController.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -264,40 +251,29 @@ class EmotionDiaryViewController: UIViewController {
         contentView.addSubview(insightScrollView)
         insightScrollView.addSubview(insightContentView)
         insightContentView.addSubview(insightStackView)
-        
-        // AI 분석 버튼 액션 연결
-        aiAnalyzeSelectedDiaryButton.addTarget(self, action: #selector(analyzeSelectedDiaryTapped), for: .touchUpInside)
-        aiAnalyzeMonthlyEmotionsButton.addTarget(self, action: #selector(analyzeMonthlyEmotionsTapped), for: .touchUpInside)
 
-        // 버튼들을 스택뷰에 추가
-        let aiButtonStackView = UIStackView(arrangedSubviews: [aiAnalyzeSelectedDiaryButton, aiAnalyzeMonthlyEmotionsButton])
-        aiButtonStackView.axis = .vertical
-        aiButtonStackView.spacing = 10
-        aiButtonStackView.distribution = .fillEqually
-        insightStackView.addArrangedSubview(aiButtonStackView)
-        
         // Bottom 연결은 스크롤뷰 기준으로 contentView와 연결해 컨텐츠 높이 결정
         insightBottomConstraint = insightScrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         insightBottomConstraint?.priority = .init(999)
         insightBottomConstraint?.isActive = false
-        
+
         // 내부 스크롤 활성화를 위한 높이 고정 (탭 전환 시 활성화)
         insightHeightConstraint = insightScrollView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
         insightHeightConstraint?.isActive = false
-        
+
         NSLayoutConstraint.activate([
             // insightScrollView 크기
             insightScrollView.topAnchor.constraint(equalTo: contentView.topAnchor),
             insightScrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             insightScrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            
+
             // insightContentView는 스크롤뷰 contentLayout에 붙임
             insightContentView.topAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.topAnchor),
             insightContentView.leadingAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.leadingAnchor),
             insightContentView.trailingAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.trailingAnchor),
             insightContentView.bottomAnchor.constraint(equalTo: insightScrollView.contentLayoutGuide.bottomAnchor),
             insightContentView.widthAnchor.constraint(equalTo: insightScrollView.frameLayoutGuide.widthAnchor),
-            
+
             // insightStackView는 콘텐츠 내부에 여백을 두고 배치
             insightStackView.topAnchor.constraint(equalTo: insightContentView.topAnchor, constant: 20),
             insightStackView.leadingAnchor.constraint(equalTo: insightContentView.leadingAnchor, constant: 16),
@@ -305,28 +281,12 @@ class EmotionDiaryViewController: UIViewController {
             insightStackView.bottomAnchor.constraint(equalTo: insightContentView.bottomAnchor, constant: -20)
         ])
 
-        // 초기 버튼 타이틀에 남은 횟수 표시 적용
-        updateAIButtonsRemainingLabels()
     }
 
     // 중복된 viewWillAppear 제거: 위에서 일괄 처리
 
-    /// 남은 횟수 라벨을 버튼 타이틀에 반영(일관된 UX)
-    private func updateAIButtonsRemainingLabels() {
-        // 일기 개별 분석(일일 한도)
-        let remainDiary = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        let totalDiary = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
-        let diaryTitle = remainDiary > 0 ? "선택 일기 대나무숲 분석 (\(remainDiary)/\(totalDiary))" : "선택 일기 대나무숲 분석 (오늘 사용 완료)"
-        aiAnalyzeSelectedDiaryButton.setTitle(diaryTitle, for: .normal)
-        aiAnalyzeSelectedDiaryButton.isEnabled = remainDiary > 0 && selectedDiaryForAnalysis != nil
 
-        // 최근 30일 감정 패턴 분석(주간 1회)
-        let weekly = UsageLimitManager.shared.canUseWeeklyLimitedFeature(anchor: .kstMonday, key: "monthly_statistics")
-        let monthTitle = weekly.canUse ? "최근 30일 감정 대나무숲 분석 (이번주 \(weekly.remaining)/1)" : "최근 30일 감정 대나무숲 분석 (이번주 사용 완료)"
-        aiAnalyzeMonthlyEmotionsButton.setTitle(monthTitle, for: .normal)
-        aiAnalyzeMonthlyEmotionsButton.isEnabled = weekly.canUse
-    }
-    
+
     // MARK: - Data Loading
     internal func loadDiaryData() {
         // 🔧 메인 스레드에서 실행 보장
@@ -336,35 +296,35 @@ class EmotionDiaryViewController: UIViewController {
             }
             return
         }
-        
+
         // 전체 데이터 로드
         self.diaryEntries = SettingsManager.shared.loadEmotionDiary()
         // 최신순 정렬(필요시) 후 페이지네이션 초기화
         // self.diaryEntries.sort { $0.date > $1.date }
         resetDiaryPaginationAndLoadFirstPage()
-        
+
         self.tableView.reloadData()
         self.updateInsightView()
     }
-    
+
     // ✅ 페이지네이션 초기화 및 첫 페이지 로드
     private func resetDiaryPaginationAndLoadFirstPage() {
         diaryOffset = 0
         isLoadingMoreDiaries = false
         hasMoreDiaries = true
         visibleDiaryEntries.removeAll()
-        
+
         // ✅ 기존 셀 상태를 즉시 0행으로 동기화(초기 로드/리셋 시 필수)
         tableView.reloadData()
-        
+
         loadMoreDiariesIfNeeded(force: true)
     }
-    
+
     // ✅ 추가 페이지 로드
     internal func loadMoreDiariesIfNeeded(force: Bool = false) {
         guard force || (!isLoadingMoreDiaries && hasMoreDiaries) else { return }
         isLoadingMoreDiaries = true
-        
+
         let start = diaryOffset
         let end = min(diaryEntries.count, diaryOffset + diaryPageSize)
         if start < end {
@@ -373,7 +333,7 @@ class EmotionDiaryViewController: UIViewController {
             visibleDiaryEntries.append(contentsOf: nextSlice)
             diaryOffset = end
             hasMoreDiaries = diaryOffset < diaryEntries.count
-            
+
             // ✅ 초기 로드(0에서 시작)일 때는 insertRows 대신 reload로 일관성 보장
             if startIndex == 0 {
                 tableView.reloadData()
@@ -389,7 +349,7 @@ class EmotionDiaryViewController: UIViewController {
         }
         isLoadingMoreDiaries = false
     }
-    
+
     // MARK: - View Switching
     @objc private func segmentChanged() {
         currentView = segmentedControl.selectedSegmentIndex
@@ -400,10 +360,10 @@ class EmotionDiaryViewController: UIViewController {
             }
             return
         }
-        
+
         showCurrentView()
     }
-    
+
     private func showCurrentView() {
         // 🔧 UI 업데이트를 메인 스레드에서 보장
         guard Thread.isMainThread else {
@@ -412,15 +372,15 @@ class EmotionDiaryViewController: UIViewController {
             }
             return
         }
-        
+
         // 모든 뷰 숨기기
         tableView.isHidden = true
         calendarViewController.view.isHidden = true
         insightScrollView.isHidden = true
-        
+
         // 🔧 단순화된 탭 전환 처리 - 더 이상 복잡한 제약조건 전환 불필요
         print("🔍 [탭 전환] 현재 탭: \(currentView)")
-        
+
         // 선택된 뷰만 보이기
         switch currentView {
         case 0: tableView.isHidden = false
@@ -428,12 +388,12 @@ class EmotionDiaryViewController: UIViewController {
         case 2: insightScrollView.isHidden = false
         default: break
         }
-        
+
         // 🔧 Activate only the bottom constraint for the visible view to let Auto Layout drive content height
         tableBottomConstraint?.isActive = false
         calendarBottomConstraint?.isActive = false
         insightBottomConstraint?.isActive = false
-        
+
         // ✅ 탭별 내부 스크롤 동작 설정
         configureScrollingForCurrentTab()
 
@@ -453,7 +413,7 @@ class EmotionDiaryViewController: UIViewController {
             navigationItem.rightBarButtonItems = nil
         }
     }
-    
+
     private func configureScrollingForCurrentTab() {
         // 부모 스크롤 활성/비활성 및 높이 제약 활성화로 자식 스크롤 독립 동작
         switch currentView {
@@ -479,7 +439,7 @@ class EmotionDiaryViewController: UIViewController {
             break
         }
     }
-    
+
     func updateScrollViewContentSize() {
         // 🔧 UI 업데이트를 메인 스레드에서 보장
         guard Thread.isMainThread else {
@@ -488,16 +448,16 @@ class EmotionDiaryViewController: UIViewController {
             }
             return
         }
-        
+
         // 인사이트 탭에서는 Auto Layout이 자동으로 처리
         if currentView == 2 {
             updateInsightScrollViewContentSize()
             return
         }
-        
+
         // 다른 탭에서는 기본 처리
         var contentHeight: CGFloat = 0
-        
+
         switch currentView {
         case 0: // 일기
             contentHeight = max(tableView.contentSize.height, scrollView.bounds.height)
@@ -506,10 +466,10 @@ class EmotionDiaryViewController: UIViewController {
         default:
             contentHeight = scrollView.bounds.height
         }
-        
+
         scrollView.contentSize = CGSize(width: scrollView.bounds.width, height: contentHeight)
     }
-    
+
     // MARK: - Actions
     @objc private func writeNewDiary() {
         let diaryWriteVC = DiaryWriteViewController()
@@ -519,91 +479,44 @@ class EmotionDiaryViewController: UIViewController {
         let navController = UINavigationController(rootViewController: diaryWriteVC)
         present(navController, animated: true)
     }
-    
+
     @objc private func clearAllData() {
         let alert = UIAlertController(
             title: "⚠️ 전체 삭제",
             message: "모든 감정 일기를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
             preferredStyle: .alert
         )
-        
+
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
         alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
             // 감정 일기 데이터 삭제
             SettingsManager.shared.resetAllDiaryEntries() // (가정) SettingsManager에 해당 함수 필요
             self?.loadDiaryData()
             self?.selectedDiaryForAnalysis = nil // 선택된 일기 초기화
-            self?.aiAnalyzeSelectedDiaryButton.isEnabled = false // 버튼 비활성화
             print("🗑️ 모든 일기 삭제됨")
         })
-        
+
         present(alert, animated: true)
     }
-    
+
     internal func showAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         present(alert, animated: true)
     }
-    
+
     // MARK: - AI 분석 액션
 
-    @objc private func analyzeSelectedDiaryTapped() {
-        guard let diary = selectedDiaryForAnalysis else {
-            // 사용자에게 알림 (예: print)
-            print("분석할 일기를 먼저 선택해주세요.")
-            return
-        }
 
-        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
-        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diary))
-        chatVC.initialUserText = "선택된 일기 심층 분석"
-        
-        // 프리셋 적용 콜백 설정
-        chatVC.onPresetApply = { [weak self] preset in
-            self?.applyRecommendationAndReturn(preset)
-        }
 
-        navigationController?.pushViewController(chatVC, animated: true)
-    }
 
-    @objc private func analyzeMonthlyEmotionsTapped() {
-        let allEntries = SettingsManager.shared.loadEmotionDiary()
-        let calendar = Calendar.current
-        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date()) else {
-            print("날짜 계산 오류")
-            return
-        }
-
-        let recentEntries = allEntries.filter { $0.date >= thirtyDaysAgo }
-        if recentEntries.isEmpty {
-            print("최근 30일간의 일기 데이터가 없습니다.")
-            return
-        }
-
-        // emotionPatternData 생성 (예: "2023-10-27:😊,2023-10-26:😢")
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let patternData = recentEntries.map { "\(dateFormatter.string(from: $0.date)):\($0.selectedEmotion)" }.joined(separator: ",")
-
-        // ChatRouter를 사용하여 ChatViewController 생성 (내부에서 ChatManager 자동 설정)
-        let chatVC = ChatRouter.chatViewController(context: .monthlyPattern(data: patternData))
-        chatVC.initialUserText = "최근 30일 감정 패턴 분석"
-        
-        // 프리셋 적용 콜백 설정
-        chatVC.onPresetApply = { [weak self] preset in
-            self?.applyRecommendationAndReturn(preset)
-        }
-        
-        navigationController?.pushViewController(chatVC, animated: true)
-    }
 
     private func applyRecommendationAndReturn(_ preset: SoundPreset) {
         print("✅ 프리셋 적용 콜백 수신:", preset.presetName)
-        
+
         // ChatVC를 pop하여 이전 화면으로 돌아감
         navigationController?.popViewController(animated: true)
-        
+
         // 전역 함수를 호출하여 메인 VC에 프리셋 적용
         forceSyncViewControllerPreset(
             volumes: preset.volumes,
@@ -622,29 +535,29 @@ class EmotionDiaryViewController: UIViewController {
             versions: [], // versions 속성 제거
             timestamp: Date()
         )
-        
+
         // 추천 데이터 저장
         recommendationHistory.append(recommendationData)
         saveRecommendationHistory()
-        
+
         // UI 업데이트
         updateRecommendationUI(with: recommendationData)
     }
-    
+
     // MARK: - Recommendation Methods
     private func saveRecommendationHistory() {
         if let encoded = try? JSONEncoder().encode(recommendationHistory) {
             UserDefaults.standard.set(encoded, forKey: "recommendationHistory")
         }
     }
-    
+
     private func loadRecommendationHistory() {
         if let data = UserDefaults.standard.data(forKey: "recommendationHistory"),
            let decoded = try? JSONDecoder().decode([RecommendationData].self, from: data) {
             recommendationHistory = decoded
         }
     }
-    
+
     private func updateRecommendationUI(with recommendation: RecommendationData) {
         // UI 업데이트 로직
         DispatchQueue.main.async {
