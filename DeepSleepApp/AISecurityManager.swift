@@ -16,7 +16,11 @@ class AISecurityManager {
     static let shared = AISecurityManager()
     
     // MARK: - 🔒 보안 설정 (프로덕션 보안 강화)
-    private let maxPromptLength = 2000          // 프롬프트 길이 제한 (보안 강화)
+    // DRY: 하드코딩 금지. xcconfig → Info.plist → AppConfig 경로를 단일 SSoT로 사용
+    private var maxPromptLength: Int { 
+        let v = AppConfig.Security.maxPromptLength
+        return v > 0 ? v : 2000
+    }
     private let maxDailyRequests = 100          // 일일 요청 제한 (남용 방지)
     private let maxConversationTurns = 200      // 대화 턴 제한 (리소스 보호)
     private let allowedLanguages: Set<String> = ["ko", "en"]

@@ -88,6 +88,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         // 앱 시작 시 모든 알림 재스케줄링
         TodoManager.shared.rescheduleAllNotifications()
+        // 운세 알림도 스케줄링
+        CentralNotificationScheduler.shared.scheduleFortuneNotification()
         
         // ⏱️ 시간 지정된 할 일 자동 완료 모니터 시작
         TodoAutoCompleter.shared.start()
@@ -108,6 +110,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             fallbackWindow.makeKeyAndVisible()
             self.window = fallbackWindow
             print("📱 iOS 12 이하 - Fallback UI 설정")
+        }
+        
+        // 프록시 인증 메모리 캐시 워밍(앱 시작 시 1회)
+        Task.detached { [useProxy = EnvironmentConfig.shared.useProxy,
+                         base = EnvironmentConfig.shared.proxyBaseURL] in
+            guard useProxy, let url = URL(string: base),
+                  let uid = UIDevice.current.identifierForVendor?.uuidString else { return }
+            do {
+                _ = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: url)
+                print("✅ [AppLaunch] Proxy secret warmed in memory")
+            } catch {
+                print("⚠️ [AppLaunch] Proxy secret warm-up failed: \(error)")
+            }
         }
         
         return true
@@ -170,8 +185,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
-        // TODO: 알림을 통해 특정 Todo 항목으로 이동하는 등의 액션 처리
         print("🔔 알림 탭: \(userInfo)")
+        
+        // 운세 알림인지 확인
+        if response.notification.request.identifier == "DeepSleep.fortune" {
+            // 운세 탭으로 이동하도록 알림
+            NotificationCenter.default.post(name: NSNotification.Name("GoToFortuneTab"), object: nil)
+        }
+        // TODO: 알림을 통해 특정 Todo 항목으로 이동하는 등의 액션 처리
         
         completionHandler()
     }

@@ -422,8 +422,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         if !summary.isEmpty {
                             roleMessages.append(RoleMessage(role: .user, content: summary))
                         }
-                        // 최근 턴은 3+3 정책에 맞춰 최대 6개만 포함
-                        let recent = Array(history.suffix(6))
+                        // 최근 턴은 3+3 정책(사용자 3 + 어시스턴트 3)만 포함
+                        let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
                         for turn in recent {
                             roleMessages.append(
                                 RoleMessage(
@@ -446,9 +446,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 let effTokenConfig = optimizeTokenConfigForModel(
                     tokenConfig ?? mode.recommendedTokenConfig, model: preferredForMode, mode: mode)
                 let outgoingPolicy = policyMeta
+                let personaCore = UserRulesManager.shared.personaCoreSignature()
                 let rawResp = try await sendViaProxy(
                     messages: roleMessages, mode: mode, preferred: preferredForMode,
-                    proxyURL: proxyURL, tokenConfig: effTokenConfig, policyMeta: outgoingPolicy)
+                    proxyURL: proxyURL, tokenConfig: effTokenConfig, policyMeta: outgoingPolicy,
+                    personaCoreKey: personaCore)
                 let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                 let (processedText, reason) =
                     AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
@@ -669,7 +671,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             // Call proxy inline (avoid project membership issues)
             return try await sendViaProxy(
                 messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL,
-                tokenConfig: effTokenConfig, policyMeta: nil)
+                tokenConfig: effTokenConfig, policyMeta: nil,
+                personaCoreKey: UserRulesManager.shared.personaCoreSignature())
         }
 
         // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
@@ -727,8 +730,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             if !summary.isEmpty {
                 roleMessages.append(RoleMessage(role: .user, content: summary))
             }
-            // 최근 턴은 3+3 정책(최대 6개)만 포함
-            let recent = Array(history.suffix(6))
+            // 최근 턴은 3+3 정책(사용자 3 + 어시스턴트 3)만 포함
+            let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
             for turn in recent {
                 roleMessages.append(
                     RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
@@ -1757,7 +1760,8 @@ extension UnifiedAIServiceImpl {
 
     private func sendViaProxy(
         messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL,
-        tokenConfig: TokenConfiguration, policyMeta: [String: String]?
+        tokenConfig: TokenConfiguration, policyMeta: [String: String]?,
+        personaCoreKey: String
     ) async throws -> AIResponse {
         var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
@@ -1795,6 +1799,8 @@ extension UnifiedAIServiceImpl {
             "enable": true,
             "strategy": "auto",
             "ttlSeconds": providerCacheTTLSeconds(for: mode),
+            // SSOT: 서버 캐시 키 힌트(안정키). 모드 차원을 포함하여 캐시 오염 방지.
+            "cacheKey": "\(personaCoreKey):\(mode.rawValue)",
         ]
         if let override = clientMinOverride {
             providerCaching["clientMinTokensOverride"] = override
@@ -1815,13 +1821,11 @@ extension UnifiedAIServiceImpl {
 
         // Compose client idempotency key (same scheme as sendMessage)
         let contentConcat = messages.last?.content ?? ""
-        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap {
-            String(format: "%02x", $0)
-        }.joined()
-        // Idempotency key: mode + persona signature + content hash (no PII)
-        let personaKeyForIdem = UserRulesManager.shared.personaCoreSignature()
-        let idemKey = String(
-            (mode.rawValue + ":" + personaKeyForIdem + ":" + contentHash).prefix(64))
+        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+        // Idempotency key: 64-char hex SHA256 of (mode + personaCore + SHA256(content))
+        let personaKeyForIdem = personaCoreKey
+        let baseForIdem = mode.rawValue + personaKeyForIdem + contentHash
+        let idemKey = String(SHA256.hash(data: Data(baseForIdem.utf8)).compactMap { String(format: "%02x", $0) }.joined().prefix(64))
 
         // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
         func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
@@ -1924,6 +1928,7 @@ extension UnifiedAIServiceImpl {
             if http.statusCode == 401 && attempt == 0 {
                 print("↻ [UnifiedAIService] 401 감지 → 시크릿 삭제 후 재등록 시도")
                 ProxySecretStore.delete(for: uid)
+                ProxyAuthClient.invalidateMemoryCache(for: uid)
                 effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(
                     uid: uid, proxyBase: proxyURL)
                 attempt += 1
@@ -2032,5 +2037,34 @@ private func mapPreferredModelForProxy(_ preferred: AIModel) -> String {
     case .claude: return "claude"
     case .naver: return "naver"
     case .freeModel: return "openrouter"  // 통합 무료 모델은 서버에서 openrouter로 시작
+    }
+}
+
+// MARK: - Recent turns selector (3+3 균형 선택)
+extension UnifiedAIServiceImpl {
+    /// 최근 대화에서 사용자/어시스턴트 균형을 맞춰 최대 개수만 선택
+    /// - Parameters:
+    ///   - history: 전체 대화(turn) 배열
+    ///   - userMax: 사용자 턴 최대 개수
+    ///   - assistantMax: 어시스턴트 턴 최대 개수
+    /// - Returns: 시간순(오래된→최근) 정렬된 턴 배열
+    static func selectBalancedRecent(_ history: [AIConversationTurn], userMax: Int, assistantMax: Int) -> [AIConversationTurn] {
+        guard !history.isEmpty else { return [] }
+        var users: [AIConversationTurn] = []
+        var assists: [AIConversationTurn] = []
+        // 최신부터 스캔하며 역할별 상한까지 채움
+        for t in history.reversed() {
+            switch t.role {
+            case .user:
+                if users.count < userMax { users.append(t) }
+            case .assistant:
+                if assists.count < assistantMax { assists.append(t) }
+            default:
+                break
+            }
+            if users.count >= userMax && assists.count >= assistantMax { break }
+        }
+        // 합쳐서 시간순으로 재정렬
+        return (users + assists).sorted { $0.timestamp < $1.timestamp }
     }
 }

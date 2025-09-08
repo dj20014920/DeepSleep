@@ -98,6 +98,9 @@ public class SettingsManager {
         static let notificationsTimerEnabled = "notificationsTimerEnabled"
         static let notificationsTodoEnabled = "notificationsTodoEnabled"
         static let notificationsTodoOneHourBeforeEnabled = "notificationsTodoOneHourBeforeEnabled"
+        // Fortune notification preferences
+        static let fortuneNotificationEnabled = "fortuneNotificationEnabled"
+        static let fortuneNotificationTime = "fortuneNotificationTime"
         // Time and retention controls
         static let serverTimeOffsetSeconds = "serverTimeOffsetSeconds"
         static let protectedWeekdays = "protectedWeekdays"
@@ -240,6 +243,48 @@ public class SettingsManager {
         set {
             userDefaults.set(newValue, forKey: Keys.notificationsTodoOneHourBeforeEnabled)
             NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "todo1h", "value": newValue])
+        }
+    }
+    
+    // MARK: - Fortune Notification Preferences
+    /// 운세 알림 사용 여부
+    var fortuneNotificationEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: Keys.fortuneNotificationEnabled) == nil {
+                return true // 기본값은 활성화
+            }
+            return userDefaults.bool(forKey: Keys.fortuneNotificationEnabled)
+        }
+        set {
+            userDefaults.set(newValue, forKey: Keys.fortuneNotificationEnabled)
+            // 설정 변경 시 알림 재스케줄링
+            if newValue {
+                CentralNotificationScheduler.shared.scheduleFortuneNotification()
+            } else {
+                CentralNotificationScheduler.shared.cancelFortuneNotification()
+            }
+        }
+    }
+    
+    /// 운세 알림 시간
+    var fortuneNotificationTime: DateComponents {
+        get {
+            if let data = userDefaults.data(forKey: Keys.fortuneNotificationTime),
+               let decoded = try? JSONDecoder().decode(DateComponents.self, from: data) {
+                return decoded
+            }
+            // 기본값: 오전 10시
+            var components = DateComponents()
+            components.hour = 10
+            components.minute = 0
+            return components
+        }
+        set {
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                userDefaults.set(encoded, forKey: Keys.fortuneNotificationTime)
+                // 시간 변경 시 알림 재스케줄링
+                CentralNotificationScheduler.shared.scheduleFortuneNotification()
+            }
         }
     }
 
@@ -728,6 +773,21 @@ public class SettingsManager {
         if userDefaults.object(forKey: Keys.userSettings) == nil {
             let defaultSettings = UserSettings()
             settings = defaultSettings
+        }
+        
+        // 운세 알림 설정 기본값 설정
+        if userDefaults.object(forKey: Keys.fortuneNotificationEnabled) == nil {
+            userDefaults.set(true, forKey: Keys.fortuneNotificationEnabled)
+        }
+        
+        if userDefaults.object(forKey: Keys.fortuneNotificationTime) == nil {
+            // 기본값: 오전 10시
+            var components = DateComponents()
+            components.hour = 10
+            components.minute = 0
+            if let encoded = try? JSONEncoder().encode(components) {
+                userDefaults.set(encoded, forKey: Keys.fortuneNotificationTime)
+            }
         }
     }
 

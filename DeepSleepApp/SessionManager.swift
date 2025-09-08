@@ -832,7 +832,8 @@ public class SessionManager {
         mode: AIMode,
         saveMessages: Bool = true,
         sessionId: String? = nil,
-        policyMeta: [String: String]? = nil
+        policyMeta: [String: String]? = nil,
+        tokenConfigOverride: TokenConfiguration? = nil
     ) async throws -> AIResponse {
         print("🚀 [SessionManager] AI 호출 시작 - 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
 
@@ -875,12 +876,13 @@ public class SessionManager {
         // 4. AI 서비스 호출
         let selectedModelType = SettingsManager.shared.selectedLLM
         let selectedModel = mapAIModelTypeToAIModel(selectedModelType)
+        let effectiveTokenConfig = tokenConfigOverride ?? mode.recommendedTokenConfig
         let response = try await UnifiedAIServiceImpl.shared.sendMessage(
             content: content,
             model: selectedModel,
             mode: mode,
             context: aiContext,
-            tokenConfig: mode.recommendedTokenConfig,
+            tokenConfig: effectiveTokenConfig,
             assembledPrompt: nil,  // AIContextBuilder에서 자동 생성
             policyMeta: policyMeta
         )
@@ -904,14 +906,16 @@ public class SessionManager {
         content: String,
         mode: AIMode,
         saveMessages: Bool = true,
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        tokenConfigOverride: TokenConfiguration? = nil
     ) async throws -> AIResponse {
         return try await sendMessage(
             content: content,
             mode: mode,
             saveMessages: saveMessages,
             sessionId: sessionId,
-            policyMeta: nil
+            policyMeta: nil,
+            tokenConfigOverride: tokenConfigOverride
         )
     }
 

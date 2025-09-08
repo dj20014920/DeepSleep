@@ -51,6 +51,8 @@ class EmotionAnalysisChatViewController: UIViewController, UIGestureRecognizerDe
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         inputTextField.becomeFirstResponder()
+        // 채팅 유사 화면: 상단 배너 부착 (뒤로/내보내기 아래)
+        AdsBannerCoordinator.shared.attachTopBannerUnderNavBar(to: self, autoLoad: true)
     }
     
     // MARK: - Bindings

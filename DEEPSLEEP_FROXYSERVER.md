@@ -1,6 +1,13 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-05
+최종 업데이트: 2025-09-08
+
+## 2025-09-08 동기화: 인증 워밍 · 일반대화 토큰 상한 · 스트리밍 현황
+- 클라이언트(App): 앱 기동 시 ProxyAuthClient.loadSecretOrEnroll 1회 호출로 프록시 시크릿 메모리 캐시 워밍(목표: auth;dur P50 0.2~0.4s). 운영 계약(/v1/enroll, HMAC 원문, X-Emozleep-*) 불변.
+- 클라이언트(App): 일반 대화(general_conversation) 기본 maxTokens를 256으로 타이트화(구성 키가 있으면 우선). 목적은 provider 처리시간 단축과 체감 응답 가속. 장문이 필요한 화면은 Info/xcconfig 키로 상향 가능(SSoT 유지).
+- 서버(Workers): 현재 text/event-stream(SSE) 미배포 상태. §14 스트리밍 계획에 따라 스테이징에서 구현/검증 후 단계적 롤아웃 예정.
+- 관측 정합성: X-Cache-Action=bypass, X-Cache-Error=too-small(1024)은 안정 프리픽스 길이(≥1024 토큰) 미달 시 공급자 캐시 생략이 의도대로 동작하는 것임. 비용·지연 최적화에는 영향 없음(앱 캐시와 무관).
+- KPI 리마인드: first_token_ui(P50)<800ms(향후 SSE 적용 시), total(P50)<4.0s, auth;dur 평균<300ms, provider;dur 지속 모니터링.
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
 

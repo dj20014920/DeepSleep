@@ -147,7 +147,8 @@ class EmotionDiaryViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-
+        // 미니 다이어리: 하단 배너는 레이아웃이 안정된 뒤에 부착
+        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
         // 튜토리얼 표시 (최초 방문 시)
         showTutorialIfNeeded()
     }

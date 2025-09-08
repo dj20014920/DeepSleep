@@ -768,6 +768,12 @@ class TodaysFortuneViewController: UIViewController {
         loadUserPreferences()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // 오늘의 운세: 하단 배너는 레이아웃이 안정된 뒤에 부착해야 적응형 사이즈가 정확함
+        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         // updateGradientFrames() removed: unified white card tone

@@ -49,6 +49,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             presentedVC.dismiss(animated: true)
             print("✅ 모달 뷰 dismiss 완료")
         }
+        
+        // 운세 알림을 통해 앱이 시작된 경우 처리
+        if connectionOptions.notificationResponse?.notification.request.identifier == "DeepSleep.fortune" {
+            print("🔔 운세 알림을 통해 앱 시작됨")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.handleGoToFortuneTab()
+            }
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -74,6 +82,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             self, 
             selector: #selector(handleGoToMainScreen), 
             name: NSNotification.Name("GoToMainScreen"), 
+            object: nil
+        )
+        
+        // 운세 탭 이동 노티피케이션 관찰
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleGoToFortuneTab),
+            name: NSNotification.Name("GoToFortuneTab"),
             object: nil
         )
     }
@@ -124,6 +140,44 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 // 탭바 컨트롤러가 아니라면 메인 인터페이스로 전환
                 print("🔄 탭바 컨트롤러가 아니므로 메인 인터페이스로 전환")
                 self.showMainInterface()
+            }
+        }
+    }
+    
+    // 운세 탭으로 이동하는 함수
+    @objc private func handleGoToFortuneTab() {
+        print("📢 SceneDelegate에서 운세 탭 이동 노티피케이션 수신")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self,
+                  let window = self.window else {
+                print("❌ window 없음")
+                return
+            }
+            
+            // 현재 루트 뷰컨트롤러가 탭바 컨트롤러인지 확인
+            if let tabBarController = window.rootViewController as? UITabBarController {
+                // 세 번째 탭 (오늘의 운세)으로 이동
+                tabBarController.selectedIndex = 2
+                print("✅ 탭바 세 번째 탭(오늘의 운세)으로 이동 완료")
+                
+                // 만약 presented view controller가 있다면 dismiss
+                if let presentedVC = tabBarController.presentedViewController {
+                    presentedVC.dismiss(animated: true)
+                    print("✅ 모달 뷰 dismiss 완료")
+                }
+            } else {
+                // 탭바 컨트롤러가 아니라면 메인 인터페이스로 전환 후 운세 탭으로 이동
+                print("🔄 탭바 컨트롤러가 아니므로 메인 인터페이스로 전환 후 운세 탭으로 이동")
+                self.showMainInterface()
+                
+                // 전환 후 운세 탭으로 이동
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if let tabBarController = window.rootViewController as? UITabBarController {
+                        tabBarController.selectedIndex = 2
+                        print("✅ 탭바 세 번째 탭(오늘의 운세)으로 이동 완료")
+                    }
+                }
             }
         }
     }

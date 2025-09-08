@@ -1,6 +1,7 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
 ..*
+.serena
 *.sh
 *.disabled
 CLAUDE.md

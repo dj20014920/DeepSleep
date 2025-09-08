@@ -58,8 +58,9 @@ public enum AIMode: String, CaseIterable, Codable {
     var recommendedTokenConfig: TokenConfiguration {
         switch self {
         case .generalConversation:
+            // 기본값을 256으로 타이트화(구성에서 키가 있으면 우선)
             return TokenConfiguration(
-                maxTokens: ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 1200) ?? 1200,
+                maxTokens: ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256,
                 temperature: ConfigReader.double("AI_GENERAL_CONVERSATION_TEMPERATURE", default: 0.85) ?? 0.85
             )
         case .emotionDiaryAnalysis:

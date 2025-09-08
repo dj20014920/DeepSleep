@@ -44,6 +44,8 @@ class SettingsViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        // 설정 화면: 하단 배너는 레이아웃이 안정된 뒤에 부착
+        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
         // Settings 화면은 별도의 튜토리얼을 표시하지 않습니다(KISS/YAGNI).
     }
 

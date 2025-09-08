@@ -102,6 +102,12 @@ class DiaryWriteViewController: UIViewController {
         setupTapGesture() // ✅ 탭 제스처 추가
         configureForEditing() // <--- 추가된 메서드 호출
     }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // 미니 다이어리(작성 화면): 하단 배너는 레이아웃이 안정된 뒤에 부착, 키보드 시 자동 숨김 처리됨
+        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
+    }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)

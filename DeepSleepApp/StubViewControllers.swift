@@ -330,6 +330,21 @@ class NotificationSettingsViewController: UIViewController {
     private let timerSwitch = UISwitch()
     private let todoSwitch = UISwitch()
     private let todoOneHourSwitch = UISwitch()
+    // 운세 알림 관련 UI 요소들
+    private let fortuneSwitch = UISwitch()
+    private let fortuneTimeLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16)
+        label.textColor = UIDesignSystem.Colors.primaryText
+        label.text = "10:00"
+        return label
+    }()
+    private let fortuneTimeButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("시간 설정", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16)
+        return button
+    }()
     
     private let openSettingsButton: UIButton = {
         let btn = UIButton(type: .system)
@@ -337,6 +352,8 @@ class NotificationSettingsViewController: UIViewController {
         btn.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
         return btn
     }()
+    
+    private var fortuneTimePickerController: UIDatePicker?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -364,12 +381,18 @@ class NotificationSettingsViewController: UIViewController {
         stackView.addArrangedSubview(makeRow(title: "타이머 알림", control: timerSwitch))
         stackView.addArrangedSubview(makeRow(title: "할 일 미리 알림", control: todoSwitch))
         stackView.addArrangedSubview(makeRow(title: "할 일 1시간 전 알림", control: todoOneHourSwitch))
+        // 운세 알림 UI 추가
+        stackView.addArrangedSubview(makeRow(title: "오늘의 운세 알림", control: fortuneSwitch))
+        stackView.addArrangedSubview(makeFortuneTimeRow())
         stackView.addArrangedSubview(openSettingsButton)
         
         masterSwitch.addTarget(self, action: #selector(masterChanged(_:)), for: .valueChanged)
         timerSwitch.addTarget(self, action: #selector(timerChanged(_:)), for: .valueChanged)
         todoSwitch.addTarget(self, action: #selector(todoChanged(_:)), for: .valueChanged)
         todoOneHourSwitch.addTarget(self, action: #selector(todoOneHourChanged(_:)), for: .valueChanged)
+        // 운세 알림 관련 이벤트 추가
+        fortuneSwitch.addTarget(self, action: #selector(fortuneChanged(_:)), for: .valueChanged)
+        fortuneTimeButton.addTarget(self, action: #selector(fortuneTimeButtonTapped), for: .touchUpInside)
         openSettingsButton.addTarget(self, action: #selector(openSystemSettingsTapped), for: .touchUpInside)
         
         NSLayoutConstraint.activate([
@@ -411,13 +434,61 @@ class NotificationSettingsViewController: UIViewController {
         return container
     }
     
+    private func makeFortuneTimeRow() -> UIView {
+        let container = UIView()
+        let label = UILabel()
+        label.text = "운세 알림 시간"
+        label.font = .systemFont(ofSize: 16)
+        label.textColor = UIDesignSystem.Colors.primaryText
+        label.translatesAutoresizingMaskIntoConstraints = false
+        
+        fortuneTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+        fortuneTimeButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        container.addSubview(label)
+        container.addSubview(fortuneTimeLabel)
+        container.addSubview(fortuneTimeButton)
+        
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: container.topAnchor),
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            label.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            
+            fortuneTimeLabel.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            fortuneTimeLabel.trailingAnchor.constraint(equalTo: fortuneTimeButton.leadingAnchor, constant: -8),
+            
+            fortuneTimeButton.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            fortuneTimeButton.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+        ])
+        
+        return container
+    }
+    
     private func loadCurrentValues() {
         let sm = SettingsManager.shared
         masterSwitch.isOn = sm.notificationsMasterEnabled
         timerSwitch.isOn = sm.notificationsTimerEnabled
         todoSwitch.isOn = sm.notificationsTodoEnabled
         todoOneHourSwitch.isOn = sm.notificationsTodoOneHourBeforeEnabled
+        // 운세 알림 설정 로드
+        fortuneSwitch.isOn = sm.fortuneNotificationEnabled
+        // 시간 표시 업데이트
+        updateTimeLabel(with: sm.fortuneNotificationTime)
         updateEnabledStates()
+    }
+    
+    private func updateTimeLabel(with components: DateComponents) {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "HH:mm"
+        
+        var dateComponents = DateComponents()
+        dateComponents.hour = components.hour ?? 10
+        dateComponents.minute = components.minute ?? 0
+        
+        if let date = Calendar.current.date(from: dateComponents) {
+            fortuneTimeLabel.text = formatter.string(from: date)
+        }
     }
     
     private func updateEnabledStates() {
@@ -425,6 +496,10 @@ class NotificationSettingsViewController: UIViewController {
         timerSwitch.isEnabled = enabled
         todoSwitch.isEnabled = enabled
         todoOneHourSwitch.isEnabled = enabled && todoSwitch.isOn
+        // 운세 알림 스위치도 마스터 스위치에 따라 활성화/비활성화
+        fortuneSwitch.isEnabled = enabled
+        fortuneTimeButton.isEnabled = enabled && fortuneSwitch.isOn
+        fortuneTimeLabel.isEnabled = enabled && fortuneSwitch.isOn
     }
     
     @objc private func masterChanged(_ sender: UISwitch) {
@@ -437,11 +512,17 @@ class NotificationSettingsViewController: UIViewController {
             if sm.notificationsTodoEnabled {
                 TodoManager.shared.rescheduleAllNotifications()
             }
+            // 운세 알림도 재스케줄링
+            if sm.fortuneNotificationEnabled {
+                CentralNotificationScheduler.shared.scheduleFortuneNotification()
+            }
         } else {
             // Cancel all pending notifications we manage (timer + todos)
             CentralNotificationScheduler.shared.cancelTimerNotification()
             let todos = TodoManager.shared.loadTodos()
             todos.forEach { CentralNotificationScheduler.shared.cancelTodoNotification(id: $0.id) }
+            // 운세 알림도 취소
+            CentralNotificationScheduler.shared.cancelFortuneNotification()
         }
     }
     
@@ -481,6 +562,81 @@ class NotificationSettingsViewController: UIViewController {
         }
     }
     
+    // 운세 알림 관련 이벤트 핸들러
+    @objc private func fortuneChanged(_ sender: UISwitch) {
+        SettingsManager.shared.fortuneNotificationEnabled = sender.isOn
+        updateEnabledStates()
+        let sm = SettingsManager.shared
+        if sender.isOn && sm.notificationsMasterEnabled {
+            // 운세 알림 스케줄링
+            CentralNotificationScheduler.shared.scheduleFortuneNotification()
+        } else {
+            // 운세 알림 취소
+            CentralNotificationScheduler.shared.cancelFortuneNotification()
+        }
+    }
+    
+    @objc private func fortuneTimeButtonTapped() {
+        // 시간 선택을 위한 UIAlertController 생성
+        let alert = UIAlertController(title: "운세 알림 시간 설정", message: "\n\n\n\n\n\n\n\n", preferredStyle: .actionSheet)
+        
+        // UIDatePicker 생성
+        let datePicker = UIDatePicker()
+        datePicker.datePickerMode = .time
+        datePicker.preferredDatePickerStyle = .wheels
+        datePicker.locale = Locale(identifier: "ko_KR")
+        
+        // 현재 설정된 시간으로 datePicker 초기화
+        let sm = SettingsManager.shared
+        var dateComponents = DateComponents()
+        dateComponents.hour = sm.fortuneNotificationTime.hour ?? 10
+        dateComponents.minute = sm.fortuneNotificationTime.minute ?? 0
+        if let date = Calendar.current.date(from: dateComponents) {
+            datePicker.date = date
+        }
+        
+        // datePicker를 alert에 추가
+        alert.view.addSubview(datePicker)
+        datePicker.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            datePicker.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 50),
+            datePicker.leadingAnchor.constraint(equalTo: alert.view.leadingAnchor, constant: 20),
+            datePicker.trailingAnchor.constraint(equalTo: alert.view.trailingAnchor, constant: -20),
+            datePicker.heightAnchor.constraint(equalToConstant: 150)
+        ])
+        
+        // datePicker 참조 저장
+        fortuneTimePickerController = datePicker
+        
+        // 확인 버튼 추가
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+            guard let self = self, let datePicker = self.fortuneTimePickerController else { return }
+            
+            let sm = SettingsManager.shared
+            let components = Calendar.current.dateComponents([.hour, .minute], from: datePicker.date)
+            sm.fortuneNotificationTime = components
+            
+            // 시간 표시 업데이트
+            self.updateTimeLabel(with: components)
+            
+            // 시간 변경 시 알림 재스케줄링
+            if sm.fortuneNotificationEnabled && sm.notificationsMasterEnabled {
+                CentralNotificationScheduler.shared.scheduleFortuneNotification()
+            }
+        })
+        
+        // 취소 버튼 추가
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        
+        // iPad에서 action sheet가 올바르게 표시되도록 설정
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = fortuneTimeButton
+            popover.sourceRect = fortuneTimeButton.bounds
+        }
+        
+        present(alert, animated: true)
+    }
+    
     @objc private func openSystemSettingsTapped() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
@@ -506,9 +662,7 @@ class ThemeSettingsViewController: UIViewController {
         view.addSubview(label)
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 32),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32)
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
     }
 }
@@ -670,5 +824,4 @@ class StorageManagementViewController: UIViewController {
             label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32)
         ])
     }
-}}
-*/
+ }}*/

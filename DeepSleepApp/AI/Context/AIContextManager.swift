@@ -1,12 +1,12 @@
 import Foundation
-import Foundation
 import CryptoKit
 
 public final class AIContextManager {
     public static let shared = AIContextManager()
 
     private let queue = DispatchQueue(label: "ai.context.manager.queue", qos: .userInitiated, attributes: .concurrent)
-    private var cachedSystemPrompt: (prompt: String, timestamp: Date, personaHash: String)?
+    // Monotonic uptime을 함께 저장하여 시계 변경에 의한 음수 age 방지
+    private var cachedSystemPrompt: (prompt: String, timestamp: Date, uptime: TimeInterval, personaHash: String)?
     // 서버 캐시 무효화 헤더 전송을 위한 보류(reason) 저장소
     private var pendingInvalidationReason: String?
 
@@ -25,7 +25,9 @@ public final class AIContextManager {
         
         // 읽기 경로
         if let cached = queue.sync(execute: { cachedSystemPrompt }) {
-            let age = Date().timeIntervalSince(cached.timestamp)
+            // Monotonic 기반 age 계산
+            var age = ProcessInfo.processInfo.systemUptime - cached.uptime
+            if age < 0 { age = 0 }
             print("📦 [AIContextManager] Cache found:")
             print("   - Cached personaHash: \(String(cached.personaHash.prefix(16)))...")
             print("   - Current personaSignature: \(String(personaSignature.prefix(16)))...")
@@ -52,8 +54,10 @@ public final class AIContextManager {
         print("📝 [AIContextManager] New prompt generated (length: \(newPrompt.count))")
         print("📝 New prompt preview: \(String(newPrompt.prefix(200)))...")
         
+        let nowUptime = ProcessInfo.processInfo.systemUptime
+        let now = Date()
         queue.async(flags: .barrier) { [weak self] in
-            self?.cachedSystemPrompt = (newPrompt, Date(), personaSignature)
+            self?.cachedSystemPrompt = (newPrompt, now, nowUptime, personaSignature)
             print("💾 [AIContextManager] Cache updated with new prompt and personaSignature: \(String(personaSignature.prefix(16)))...")
         }
         metrics.logCache(event: .miss, reason: .expiredOrPersonaChanged, age: nil)
@@ -93,7 +97,9 @@ public final class AIContextManager {
         return queue.sync {
             if let c = cachedSystemPrompt {
                 let fp = fingerprint(c.personaHash)
-                return "AIContextManager(cache: true, age: \(Int(Date().timeIntervalSince(c.timestamp)))s, personaFP:\(fp))"
+                var age = ProcessInfo.processInfo.systemUptime - c.uptime
+                if age < 0 { age = 0 }
+                return "AIContextManager(cache: true, age: \(Int(age))s, personaFP:\(fp))"
             } else {
                 return "AIContextManager(cache: false)"
             }

@@ -154,10 +154,45 @@ final class CentralNotificationScheduler {
         }
         print("🔔 모든 알림 재스케줄링 완료")
     }
+    
+    // MARK: - Fortune Notification
+    func scheduleFortuneNotification() {
+        // 운세 알림이 활성화되어 있는지 확인
+        if !SettingsManager.shared.fortuneNotificationEnabled {
+            print("🔕 운세 알림 비활성화 상태 - 스케줄링 생략")
+            return
+        }
+        
+        // 기존 운세 알림 제거
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune])
+        
+        let content = UNMutableNotificationContent()
+        content.title = "오늘의 운세를 확인해보세요! 🔮"
+        content.body = "새로운 하루, 새로운 기회가 당신을 기다리고 있습니다."
+        content.sound = .default
+        content.badge = 1
+        
+        // 운세 알림 시간 가져오기
+        let notificationTime = SettingsManager.shared.fortuneNotificationTime
+        let trigger = UNCalendarNotificationTrigger(dateMatching: notificationTime, repeats: true)
+        let request = UNNotificationRequest(identifier: NotificationIdentifier.fortune, content: content, trigger: trigger)
+        
+        center.add(request) { error in
+            if let error = error {
+                print("운세 알림 스케줄링 실패: \(error)")
+            } else {
+                print("운세 알림 스케줄링 성공: \(notificationTime)")
+            }
+        }
+    }
+    
+    func cancelFortuneNotification() {
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune])
+    }
 }
 
 // MARK: - Identifiers
 private enum NotificationIdentifier {
     static let timer = "DeepSleep.timer"
+    static let fortune = "DeepSleep.fortune"
 }
-

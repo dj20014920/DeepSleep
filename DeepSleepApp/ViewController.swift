@@ -99,7 +99,7 @@ class ViewController: UIViewController {
 
         // 광고 배너 호스트(높이 0으로 시작, 탭바 바로 위에 고정)
         setupAdsBannerContainer()
-        
+
         // 기본 슬라이더만 먼저 표시 (데이터 로딩 없이)
         setupBasicSliderUI()
         
@@ -296,10 +296,12 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         // 튜토리얼 표시 (최초 방문 시)
         showTutorialIfNeeded()
 
-        // 광고 배너는 화면 표시 후 1회만 로드(중복 로드 방지)
+        // 광고 배너 전역 코디네이터로 통일 (DRY). 사운드 탭: 하단 배너는 레이아웃이 안정된 뒤에 부착
         if !hasLoadedBannerOnce {
             hasLoadedBannerOnce = true
-            adsBannerContainer?.loadBanner(in: self)
+            AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
+        } else {
+            AdsBannerCoordinator.shared.refreshLayoutIfNeeded(for: self)
         }
     }
     
@@ -701,20 +703,12 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
     
     // MARK: - 광고 배너 배치 및 콘텐츠 하단 앵커 제공
     private func setupAdsBannerContainer() {
-        let banner = BannerAdContainerView()
-        banner.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(banner)
-        NSLayoutConstraint.activate([
-            banner.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            banner.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            banner.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
-        ])
-        self.adsBannerContainer = banner
+        // 전역 코디네이터 사용으로 개별 배너 컨테이너는 생성하지 않음
     }
 
-    /// 배너가 존재하면 그 상단을, 없으면 기본 안전영역 하단을 반환
+    /// 배너가 존재하면 그 상단을, 없으면 기본 안전영역 하단을 반환(하위 호환용)
     internal func contentBottomAnchor() -> NSLayoutYAxisAnchor {
-        return adsBannerContainer?.topAnchor ?? view.safeAreaLayoutGuide.bottomAnchor
+        return view.safeAreaLayoutGuide.bottomAnchor
     }
     
     // MARK: - 오류 처리 및 복구

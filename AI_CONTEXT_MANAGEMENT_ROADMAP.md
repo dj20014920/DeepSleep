@@ -1,3 +1,10 @@
+## 2025-09-08 동기화: 컨텍스트/토큰 상한 · 프록시 인증 워밍 · 스트리밍(SSE) 현황
+- 일반 대화(general_conversation) 기본 maxTokens를 256으로 타이트화(구성 키가 있으면 그 값을 우선). 컨텍스트 예산을 시스템/요약/최근 대화 중 “현재 입력과 요약”에 우선 배분하여 provider 처리시간 단축과 UX 가속을 목표로 함(SSOT는 AIMode.recommendedTokenConfig).
+- 앱 기동 시 프록시 시크릿 메모리 캐시 워밍(App): ProxyAuthClient.loadSecretOrEnroll를 1회 호출하여 키체인 접근 비용을 제거하고 auth;dur P50 0.2~0.4s 목표. 프로토콜 계약(/v1/enroll, HMAC 원문, X-Emozleep-*)은 불변.
+- 서버(Workers) 현재 text/event-stream(SSE) 미배포 상태. 로드맵 §14(스트리밍 계획)에 따라 스테이징에서 구현/검증 후 단계적 롤아웃 예정.
+- 관측 정합성: X-Cache-Action=bypass와 X-Cache-Error=too-small(1024)은 안정 프리픽스 토큰(<1024) 시 공급자 캐시 우회가 의도대로 작동함을 의미. 비용/지연 최적화에는 영향 없음.
+- KPI 리마인드: first_token_ui(P50)<800ms(향후 SSE 적용 시), total(P50)<4.0s, auth;dur 평균<300ms, provider;dur 지속 모니터링.
+
 # 2025-09-03 동기화: 프리셋 추천 JSON-Only 강제 · 중앙 파서 DRY · Gemini→OpenAI 폴백 · 서버 배포 현황
 
 ## 2025-09-05 추가: 프리셋 추천 v2(창의적 타이틀 + 버전 인덱스 + 토큰 최적)
