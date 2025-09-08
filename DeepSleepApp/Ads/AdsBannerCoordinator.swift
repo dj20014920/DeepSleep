@@ -256,16 +256,9 @@ final class AdsBannerCoordinator {
                 // 하단 스크롤 inset은 더 이상 만지지 않아 이중 여백 방지 (topUnderNavBar만 조정)
 
             case .topUnderNavBar:
-                // 상단 배너 높이만큼 스크롤뷰 컨텐츠 인셋/스크롤 인디케이터 인셋을 증가
-                handle.trackedScrolls.forEach { info in
-                    guard let scroll = info.scrollView else { return }
-                    var contentInset = info.baseContentInset
-                    var indicatorInset = info.baseIndicatorInset
-                    contentInset.top = info.baseContentInset.top + height
-                    indicatorInset.top = info.baseIndicatorInset.top + height
-                    scroll.contentInset = contentInset
-                    scroll.scrollIndicatorInsets = indicatorInset
-                }
+                // 상단 배너는 안전영역 top을 배너 높이만큼 밀어 전체 컨텐츠를 아래로 이동
+                vc.additionalSafeAreaInsets.top = height
+                // 스크롤 inset(top)은 조정하지 않음(이중 여백 방지)
             }
             vc.view.setNeedsLayout()
             vc.view.layoutIfNeeded()

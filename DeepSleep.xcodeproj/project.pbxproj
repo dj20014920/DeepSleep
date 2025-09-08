@@ -15,6 +15,7 @@
 		E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */; };
 		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
 		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
+		E04980D22E6F08E300343E29 /* AdTopContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */; };
 		E068E3602E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */; };
 		E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */; };
 		E07FBA932E6ED07200375FC0 /* AdsBannerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */; };
@@ -245,6 +246,7 @@
 		E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSelectionViewController.swift; sourceTree = "<group>"; };
 		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
+		E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdTopContainerViewController.swift; sourceTree = "<group>"; };
 		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBannerCoordinator.swift; sourceTree = "<group>"; };
@@ -840,6 +842,7 @@
 		E0899C922E5EE8B1006AD307 /* Ads */ = {
 			isa = PBXGroup;
 			children = (
+				E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */,
 				E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */,
 				E0899C912E5EE8B1006AD307 /* AdsManager.swift */,
 			);
@@ -1134,6 +1137,7 @@
 				E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */,
 				E0B562432E647F1A00D334F1 /* OnboardingViewController.swift in Sources */,
 				E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */,
+				E04980D22E6F08E300343E29 /* AdTopContainerViewController.swift in Sources */,
 				E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */,
 				E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */,
 				E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */,

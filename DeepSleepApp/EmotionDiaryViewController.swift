@@ -477,8 +477,9 @@ class EmotionDiaryViewController: UIViewController {
         diaryWriteVC.onDiarySaved = { [weak self] in
             self?.loadDiaryData()
         }
-        let navController = UINavigationController(rootViewController: diaryWriteVC)
-        present(navController, animated: true)
+        // 상단 배너 컨테이너로 감싸서 광고를 네비게이션 바 위에 배치
+        let container = AdTopContainerViewController(rootViewController: diaryWriteVC, prefersLargeTitles: false, autoLoadBanner: true)
+        present(container, animated: true)
     }
 
     @objc private func clearAllData() {

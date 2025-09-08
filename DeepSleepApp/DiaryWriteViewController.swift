@@ -105,8 +105,8 @@ class DiaryWriteViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        // 미니 다이어리(작성 화면): 세이프박스 없이 바닥에 딱 붙이기(reserveSpace: false)
-        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true, reserveSpace: false)
+        // 상단 컨테이너에서 광고를 노출하므로, 이 화면 자체에서는 배너를 붙이지 않음
+        // (AdTopContainerViewController가 상단 광고를 관리)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
