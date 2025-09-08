@@ -34,21 +34,17 @@ final class TodoAutoCompleter {
             let incompletes = TodoManager.shared.getIncompleteTodos()
             guard !incompletes.isEmpty else { return }
 
-            var toComplete: [TodoItem] = []
-            for t in incompletes {
-                // 간편등록(하루 종일)은 제외, 구체적 시간 지정만 자동 완료
-                if !t.isAllDayQuickRegistration && t.dueDate <= now {
-                    toComplete.append(t)
-                }
-            }
+            // 단일 출처 규칙 적용: TodoItem.shouldAutoComplete(at:) 사용
+            let toComplete: [TodoItem] = incompletes.filter { $0.shouldAutoComplete(at: now) }
             guard !toComplete.isEmpty else { return }
 
-            // 완료 처리 수행
+            // 완료 처리 수행 (경쟁 상태 대비 3중 가드)
             for var item in toComplete {
+                // 최종 안전성 체크: 여전히 자동완료 조건을 만족하는지(완료됨 제외, 하루종일 제외, 마감 도달) 확인
+                if item.isCompleted || !item.shouldAutoComplete(at: now) { continue }
                 item.complete()
                 TodoManager.shared.updateTodo(item) { _, _ in /* no-op */ }
             }
         }
     }
 }
-

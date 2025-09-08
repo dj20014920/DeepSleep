@@ -49,60 +49,85 @@ struct UserSettingsModel: Codable {
         }
     }
     
-    /// AI에게 전달할 컨텍스트 문자열 생성
+    /// AI에게 전달할 컨텍스트 문자열 생성(선택/입력된 항목만 포함)
     func generateAIContext() -> String {
-        var context = "\n[사용자 페르소나]\n"
-        
+        var personaLines: [String] = []
+        var preferenceLines: [String] = []
+
         // 기본 정보
         if !nickname.isEmpty {
-            context += "• 이름: \(nickname)\n"
+            personaLines.append("• 이름: \(nickname)")
         }
         if let age = age {
-            context += "• 나이: \(age)세\n"
+            personaLines.append("• 나이: \(age)세")
         }
-        
-        // 자유로운 자기소개
         if !personalityDescription.isEmpty {
-            context += "• 자기소개: \(personalityDescription)\n"
+            personaLines.append("• 자기소개: \(personalityDescription)")
         }
-        
-        // 성격 특성
         if !personalityTraits.isEmpty {
-            context += "• 성격 특성: \(personalityTraits.joined(separator: ", "))\n"
+            personaLines.append("• 성격 특성: \(personalityTraits.joined(separator: ", "))")
         }
-        
-        // 선호하는 대화 스타일
         if !conversationTones.isEmpty {
-            context += "• 선호 대화 스타일: \(conversationTones.joined(separator: ", "))\n"
+            personaLines.append("• 선호 대화 스타일: \(conversationTones.joined(separator: ", "))")
         }
-        // 친구 톤 프리셋
         if !preferredFriendTones.isEmpty {
             let tones = preferredFriendTones.map { $0.displayName }.joined(separator: ", ")
-            context += "• 친구 말투 프리셋: \(tones)\n"
+            personaLines.append("• 친구 말투 프리셋: \(tones)")
         }
-        // MBTI 요약(선택한 축만)
-        let mbtiBrief = mbti.briefString()
-        if !mbtiBrief.isEmpty {
-            context += "• MBTI 경향: \(mbtiBrief)\n"
-            context += mbti.guidelineSnippet()
+
+        // MBTI: 축별로 선택된 경우에만 자연어로 해석하여 전달(문자 라벨 I/E/N/S/T/F/P/J는 사용하지 않음)
+        var mbtiDescriptors: [String] = []
+        if mbti.ie.isSpecified {
+            mbtiDescriptors.append(mbti.ie == .i ? "내성적(조용·사려 깊음)" : "외향적(에너제틱·격려적)")
         }
-        
-        // 음악/소리 선호도
-        context += "\n[선호도]\n"
-        context += "• 대화 스타일: \(conversationStyle.description)\n"
-        context += "• 감정 민감도: \(emotionalSensitivity.description)\n"
-        context += "• AI 응답 길이: \(aiResponseLength.description)\n"
-        context += "• AI 성격: \(aiPersonality.description)\n"
-        
+        if mbti.ns.isSpecified {
+            mbtiDescriptors.append(mbti.ns == .n ? "직관적(큰그림·비유)" : "현실적(구체·사실 중심)")
+        }
+        if mbti.tf.isSpecified {
+            mbtiDescriptors.append(mbti.tf == .t ? "사고형(논리 중심)" : "감정형(공감 중심)")
+        }
+        if mbti.pj.isSpecified {
+            mbtiDescriptors.append(mbti.pj == .p ? "유연한/탐색형" : "계획형/결정형")
+        }
+        if !mbtiDescriptors.isEmpty {
+            personaLines.append("• (AI 친구) 성향 선호: \(mbtiDescriptors.joined(separator: ", "))")
+            let guide = mbti.guidelineSnippet().trimmingCharacters(in: .whitespacesAndNewlines)
+            if !guide.isEmpty {
+                // 가이드를 '(AI 친구) 응답 스타일 가이드'로 명확화
+                personaLines.append("• (AI 친구) 응답 스타일 가이드:\n\(guide)")
+            }
+        }
+
+        // 선호도: 기본값과 다른 경우에만 포함
+        // 기본값 가정: conversationStyle=.balanced, emotionalSensitivity=.medium, aiResponseLength=.medium, aiPersonality=.empathetic
+        if conversationStyle != .balanced {
+            preferenceLines.append("• 대화 스타일: \(conversationStyle.description)")
+        }
+        if emotionalSensitivity != .medium {
+            preferenceLines.append("• 감정 민감도: \(emotionalSensitivity.description)")
+        }
+        if aiResponseLength != .medium {
+            preferenceLines.append("• AI 응답 길이: \(aiResponseLength.description)")
+        }
+        if aiPersonality != .empathetic {
+            preferenceLines.append("• AI 성격: \(aiPersonality.description)")
+        }
         if !musicPreferences.isEmpty {
-            context += "• 선호 음악: \(musicPreferences.map { $0.description }.joined(separator: ", "))\n"
+            preferenceLines.append("• 선호 음악: \(musicPreferences.map { $0.description }.joined(separator: ", "))")
         }
-        
         if !soundPreferences.isEmpty {
-            context += "• 선호 소리: \(soundPreferences.map { $0.description }.joined(separator: ", "))\n"
+            preferenceLines.append("• 선호 소리: \(soundPreferences.map { $0.description }.joined(separator: ", "))")
         }
-        
-        return context
+
+        // 섹션 조립: 내용이 있을 때만 섹션 헤더를 추가
+        var sections: [String] = []
+        if !personaLines.isEmpty {
+            sections.append("[사용자 페르소나]\n" + personaLines.joined(separator: "\n"))
+        }
+        if !preferenceLines.isEmpty {
+            sections.append("[선호도]\n" + preferenceLines.joined(separator: "\n"))
+        }
+        return sections.joined(separator: "\n")
     }
 }
 

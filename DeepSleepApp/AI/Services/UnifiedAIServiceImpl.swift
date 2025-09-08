@@ -1169,7 +1169,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
         // 3시간 TTL 캐시 활용: 모델 불문 베이스 프롬프트만 캐시
         let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
-            var prompt = "\(basePromptText)\n\n\(generalGuidelines)\n\n사용자 컨텍스트:\n\(userContext)"
+            var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
+            if !userContext.isEmpty {
+                prompt += "\n\n사용자 컨텍스트:\n\(userContext)"
+            }
             if mode == .presetRecommendation {
                 // 프리셋: 모델이 자유롭게 조합/제목 생성하되, 토큰 최소화를 위해 카탈로그 전체를 실어 나르지 않음.
                 // 대신 총 카테고리 수와 버전 개수만 제공 → 모델은 volumes(13), versions(13)로 출력.
@@ -1240,15 +1243,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private func getBaseSystemPromptForMode(_ mode: AIMode) -> String {
         switch mode {
         case .generalConversation:
-            return "친근한 한국어 어시스턴트. 사용자의 의도/목표를 파악해 핵심부터 간결하게 도움을 주세요. 불필요한 인사/장식은 피합니다."
+            return ""
 
         case .emotionDiaryAnalysis:
             return """
-                감정 일기 분석가.
-                - 핵심 감정 1–2개 + 근거 문장(짧게) 제시
-                - 맥락/원인 가설 1–2개
-                - 부드러운 재프레이밍 + 구체 행동 제안 2–3개
-                - 위로/격려 한 줄(의료 조언 아님)
+                일기 기반 위로/격려/칭찬/공감대화를 진행하세요 유연하게 응대하세요.
                 """
 
         case .taskAdvice, .taskAdviceOverall:
@@ -1334,26 +1333,26 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         switch model {
         case .claude:
             return """
-                Claude 최적화: 맥락 깊이+우아함, 그러나 간결·명료.
+                맥락 깊이+우아함, 그러나 간결·명료.
                 """
 
         case .openAI:
             return """
-                OpenAI 최적화: 구조화·단계적 사고, JSON 스키마 엄수.
+                구조화·단계적 사고, JSON 스키마 엄수.
                 """
 
         case .gemini:
             return """
-                Gemini 최적화: 속도·효율·안전, 폭넓은 관점 제시.
+                맥락 깊이+우아함, 그러나 간결·명료.
                 """
 
         case .naver:
             return """
-                Naver 최적화: 한국 문화·정서 반영, 정중한 존댓말.
+                한국 문화·정서 반영, 정중한 존댓말.
                 """
         case .freeModel:
             return """
-                무료 모델 최적화: 간결·정확, JSON 스키마 준수.
+                간결·정확, JSON 스키마 준수.
                 """
         }
     }

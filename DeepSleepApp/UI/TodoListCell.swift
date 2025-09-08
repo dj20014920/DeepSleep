@@ -197,6 +197,14 @@ class TodoListCell: UICollectionViewCell {
         configureInternal(with: items)
     }
 
+    /// Check if a date is in the past (before today)
+    private func isDateInPast(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let checkDate = calendar.startOfDay(for: date)
+        return checkDate < today
+    }
+
     private func configureInternal(with items: [TodoItem]) {
         // 제목이 비어있는 항목은 '제목 없음'으로 보정
         self.todoItems = items.map { it in
@@ -220,29 +228,41 @@ class TodoListCell: UICollectionViewCell {
         UnifiedLogger.shared.debug("테이블뷰 설정 - 데이터소스: \\(tableView.dataSource != nil), 델리게이트: \\(tableView.delegate != nil)", category: .ui)
         UnifiedLogger.shared.debug("테이블뷰 인터랙션 - 사용자인터랙션: \\(tableView.isUserInteractionEnabled), 선택가능: \\(tableView.allowsSelection)", category: .ui)
 
+        // Check if the current date is in the past
+        let isPastDate = isDateInPast(currentDate)
+
         // UX: 오늘 전체 조언 버튼 상태 갱신 (일일 1회 제한 반영)
         // UX: 오늘 전체 조언 버튼 상태 갱신 (있으면 '내용 보기' 우선)
-        let hasOverallToday = TodoManager.hasOverallAdviceToday(in: self.todoItems, on: self.currentDate)
-        if hasOverallToday {
-            dailyAdviceButton.isEnabled = true
-            dailyAdviceButton.setTitle("오늘 전체 조언 내용 보기", for: .normal)
-            dailyAdviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
-            dailyAdviceButton.setTitleColor(.systemGreen, for: .normal)
-            dailyAdviceButton.alpha = 1.0
+        if isPastDate {
+            // Disable button for past dates
+            dailyAdviceButton.isEnabled = false
+            dailyAdviceButton.setTitle("기간이 지났어요", for: .disabled)
+            dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+            dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
+            dailyAdviceButton.alpha = 0.9
         } else {
-            let remainingOverall = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
-            if remainingOverall > 0 {
+            let hasOverallToday = TodoManager.hasOverallAdviceToday(in: self.todoItems, on: self.currentDate)
+            if hasOverallToday {
                 dailyAdviceButton.isEnabled = true
-                dailyAdviceButton.setTitle("오늘 전체 조언 받기", for: .normal)
-                dailyAdviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
-                dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+                dailyAdviceButton.setTitle("오늘 전체 조언 내용 보기", for: .normal)
+                dailyAdviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
+                dailyAdviceButton.setTitleColor(.systemGreen, for: .normal)
                 dailyAdviceButton.alpha = 1.0
             } else {
-                dailyAdviceButton.isEnabled = false
-                dailyAdviceButton.setTitle("오늘 전체 조언 사용 완료", for: .disabled)
-                dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
-                dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
-                dailyAdviceButton.alpha = 0.9
+                let remainingOverall = AIUsageManager.shared.getRemainingCount(for: .overallTodoAdvice)
+                if remainingOverall > 0 {
+                    dailyAdviceButton.isEnabled = true
+                    dailyAdviceButton.setTitle("오늘 전체 조언 받기", for: .normal)
+                    dailyAdviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+                    dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.primaryText, for: .normal)
+                    dailyAdviceButton.alpha = 1.0
+                } else {
+                    dailyAdviceButton.isEnabled = false
+                    dailyAdviceButton.setTitle("오늘 전체 조언 사용 완료", for: .disabled)
+                    dailyAdviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+                    dailyAdviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
+                    dailyAdviceButton.alpha = 0.9
+                }
             }
         }
     }
@@ -253,6 +273,12 @@ class TodoListCell: UICollectionViewCell {
     }
 
     @objc private func dailyAdviceButtonTapped() {
+        // Check if the current date is in the past
+        if isDateInPast(currentDate) {
+            // Do nothing for past dates
+            return
+        }
+        
         if TodoManager.hasOverallAdviceToday(in: todoItems, on: currentDate),
            let advice = TodoManager.latestOverallAdviceContent(from: todoItems) {
             // 바로 보기 모드: 기존 생성된 '오늘 전체 조언' 표시
@@ -303,7 +329,7 @@ extension TodoListCell: UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: TodoItemTableViewCell.reuseIdentifier, for: indexPath) as! TodoItemTableViewCell
         let item = todoItems[indexPath.row]
-        cell.configure(with: item, delegate: self, index: indexPath.row)
+        cell.configure(with: item, delegate: self, index: indexPath.row, isDateInPast: isDateInPast(currentDate))
         return cell
     }
 }
@@ -388,6 +414,7 @@ class TodoItemTableViewCell: UITableViewCell {
     weak var delegate: TodoItemCellDelegate?
     private var todoItem: TodoItem?
     private var itemIndex: Int = 0
+    private var isForPastDate: Bool = false
 
     // MARK: - UI Components
     private let checkboxButton: UIButton = {
@@ -499,10 +526,11 @@ class TodoItemTableViewCell: UITableViewCell {
     }
 
     // MARK: - Configuration
-    func configure(with item: TodoItem, delegate: TodoItemCellDelegate, index: Int) {
+    func configure(with item: TodoItem, delegate: TodoItemCellDelegate, index: Int, isDateInPast: Bool = false) {
         self.todoItem = item
         self.delegate = delegate
         self.itemIndex = index
+        self.isForPastDate = isDateInPast
 
         let rawTitle = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let safeTitle = rawTitle.isEmpty ? "제목 없음" : rawTitle
@@ -550,8 +578,14 @@ class TodoItemTableViewCell: UITableViewCell {
             priorityIndicator.isHidden = true
         }
 
-        // 조언 버튼 상태 갱신 (개별 조언만 고려; 전체 조언은 제외)
-        if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices), !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // 조언 버튼 상태 갱신
+        if isForPastDate {
+            // Disable button for past dates
+            adviceButton.isEnabled = false
+            adviceButton.setTitle("기간이 지났어요", for: .disabled)
+            adviceButton.backgroundColor = UIDesignSystem.Colors.adaptiveSecondaryBackground
+            adviceButton.setTitleColor(UIDesignSystem.Colors.secondaryText, for: .disabled)
+        } else if let indiv = TodoManager.latestIndividualAdvice(in: item.aiAdvices), !indiv.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             adviceButton.setTitle("조언 내용 보기", for: .normal)
             adviceButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.08)
             adviceButton.setTitleColor(.systemGreen, for: .normal)
@@ -576,6 +610,12 @@ class TodoItemTableViewCell: UITableViewCell {
     }
 
     @objc private func adviceButtonTapped() {
+        // Check if this is for a past date
+        if isForPastDate {
+            // Do nothing for past dates
+            return
+        }
+        
         guard let item = todoItem else { return }
         delegate?.todoItemCell(self, didTapAdvice: item, at: itemIndex)
         UnifiedLogger.shared.logTodo("TodoItem advice button tapped: \(item.title)")
@@ -592,5 +632,7 @@ class TodoItemTableViewCell: UITableViewCell {
         adviceButton.setTitle("조언 받기", for: .normal)
         adviceButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
         adviceButton.setTitleColor(.systemBlue, for: .normal)
+        adviceButton.isEnabled = true
+        isForPastDate = false
     }
 }
