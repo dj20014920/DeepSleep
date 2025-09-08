@@ -194,7 +194,7 @@ class EmotionDiaryViewController: UIViewController {
             scrollView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
             contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),

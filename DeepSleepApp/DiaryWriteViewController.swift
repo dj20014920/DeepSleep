@@ -105,8 +105,8 @@ class DiaryWriteViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        // 미니 다이어리(작성 화면): 하단 배너는 레이아웃이 안정된 뒤에 부착, 키보드 시 자동 숨김 처리됨
-        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
+        // 미니 다이어리(작성 화면): 세이프박스 없이 바닥에 딱 붙이기(reserveSpace: false)
+        AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true, reserveSpace: false)
     }
     
     override func viewWillDisappear(_ animated: Bool) {

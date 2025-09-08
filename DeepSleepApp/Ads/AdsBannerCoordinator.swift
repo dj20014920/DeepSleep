@@ -106,7 +106,8 @@ final class AdsBannerCoordinator {
     func attachBanner(
         to viewController: UIViewController,
         position: BannerPosition = .bottom,
-        autoLoad: Bool = true
+        autoLoad: Bool = true,
+        reserveSpace: Bool = true // 하단 배너 시 컨텐츠 여백(세이프박스) 확보 여부
     ) {
         // 이미 같은 포지션으로 붙어 있으면 재사용
         if let existing = getHandle(from: viewController),
@@ -114,6 +115,7 @@ final class AdsBannerCoordinator {
             existing.bannerView.superview != nil
         {
             // 갱신만
+            existing.viewController = viewController // 최신 VC 보장
             refreshInsets(for: existing, animated: false)
             return
         }
@@ -142,12 +144,21 @@ final class AdsBannerCoordinator {
                 ])
                 container.bringSubviewToFront(banner)
             } else {
-                NSLayoutConstraint.activate([
-                    banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
-                    banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
-                    // 탭바가 없으면 안전영역 하단에 부착
-                    banner.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor)
-                ])
+                if reserveSpace {
+                    NSLayoutConstraint.activate([
+                        banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
+                        banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
+                        // 탭바가 없고 세이프박스를 사용하는 경우: 안전영역 하단에 부착
+                        banner.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor)
+                    ])
+                } else {
+                    NSLayoutConstraint.activate([
+                        banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
+                        banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
+                        // 세이프박스 없이 완전 하단에 부착(홈 인디케이터 영역 포함)
+                        banner.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor)
+                    ])
+                }
                 viewController.view.bringSubviewToFront(banner)
             }
 
@@ -162,6 +173,8 @@ final class AdsBannerCoordinator {
         let handle = AttachedBannerHandle(
             viewController: viewController, bannerView: banner, position: position)
         setHandle(handle, to: viewController)
+        // reserveSpace 플래그를 bannerView에 연관 저장 (간단 전달)
+        objc_setAssociatedObject(banner, Unmanaged.passUnretained(self).toOpaque(), reserveSpace, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 
         // 스크롤뷰 추적 (상단/하단 모두에서 필요: 겹침 방지용으로 contentInset 조정)
         handle.trackedScrolls = captureTopLevelScrollViews(of: viewController.view).map {
@@ -227,23 +240,20 @@ final class AdsBannerCoordinator {
     private func refreshInsets(for handle: AttachedBannerHandle, animated: Bool) {
         guard let vc = handle.viewController else { return }
         let height = handle.lastBannerHeight
+        // 연관 객체로 저장한 reserveSpace를 읽어 하단 여백 처리 여부 결정 (일기쓰기 탭에서만 false로 전달)
+        let reserveSpace = (objc_getAssociatedObject(handle.bannerView, Unmanaged.passUnretained(self).toOpaque()) as? Bool) ?? true
 
         let applyChanges = {
             switch handle.position {
             case .bottom:
-                // 배너는 뷰의 바닥에 붙이고, 컨텐츠는 SafeArea를 통해 위로 밀어 올림
-                // 기존 inset 누적을 피하기 위해 정확히 배너 높이로 설정
-                vc.additionalSafeAreaInsets.bottom = height
-                // 스크롤뷰가 있는 화면에서는 contentInset.bottom도 정확히 배너 높이로 덮어써 겹침 방지
-                handle.trackedScrolls.forEach { info in
-                    guard let scroll = info.scrollView else { return }
-                    var contentInset = info.baseContentInset
-                    var indicatorInset = info.baseIndicatorInset
-                    contentInset.bottom = height
-                    indicatorInset.bottom = height
-                    scroll.contentInset = contentInset
-                    scroll.scrollIndicatorInsets = indicatorInset
+                if reserveSpace {
+                    // 배너는 탭바 바로 위에 고정, 컨텐츠는 SafeArea를 통해 위로 밀어 올림
+                    vc.additionalSafeAreaInsets.bottom = height
+                } else {
+                    // 일기쓰기 탭 전용: 세이프박스(여백) 없이 배너를 바닥에 붙이고 컨텐츠 여백도 0으로 유지
+                    vc.additionalSafeAreaInsets.bottom = 0
                 }
+                // 하단 스크롤 inset은 더 이상 만지지 않아 이중 여백 방지 (topUnderNavBar만 조정)
 
             case .topUnderNavBar:
                 // 상단 배너 높이만큼 스크롤뷰 컨텐츠 인셋/스크롤 인디케이터 인셋을 증가
@@ -338,13 +348,18 @@ final class AdsBannerCoordinator {
 // MARK: - 편의 API (채팅/일반 화면용)
 
 extension AdsBannerCoordinator {
-    /// 일반 화면: 하단 배너
+    /// 일반 화면: 하단 배너 (세이프박스 기본 확보)
     func attachBottomBanner(to vc: UIViewController, autoLoad: Bool = true) {
-        attachBanner(to: vc, position: .bottom, autoLoad: autoLoad)
+        attachBanner(to: vc, position: .bottom, autoLoad: autoLoad, reserveSpace: true)
+    }
+
+    /// 일반 화면: 하단 배너 (세이프박스 확보 여부 제어)
+    func attachBottomBanner(to vc: UIViewController, autoLoad: Bool = true, reserveSpace: Bool) {
+        attachBanner(to: vc, position: .bottom, autoLoad: autoLoad, reserveSpace: reserveSpace)
     }
 
     /// 채팅 화면: 상단(네비게이션 바 아래) 배너
     func attachTopBannerUnderNavBar(to vc: UIViewController, autoLoad: Bool = true) {
-        attachBanner(to: vc, position: .topUnderNavBar, autoLoad: autoLoad)
+        attachBanner(to: vc, position: .topUnderNavBar, autoLoad: autoLoad, reserveSpace: true)
     }
 }
