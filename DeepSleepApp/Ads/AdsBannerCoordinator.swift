@@ -256,8 +256,10 @@ final class AdsBannerCoordinator {
                 // 하단 스크롤 inset은 더 이상 만지지 않아 이중 여백 방지 (topUnderNavBar만 조정)
 
             case .topUnderNavBar:
-                // 상단 배너는 안전영역 top을 배너 높이만큼 밀어 전체 컨텐츠를 아래로 이동
-                vc.additionalSafeAreaInsets.top = height
+                // A 옵션: 배너는 safeAreaLayoutGuide.top 에 고정 + 추가 top inset 제거 → 배너를 Safe Area 내부에 자연스럽게 포함
+                // 기존 구현(추가 inset = 배너 높이)으로 발생하던 이중 여백 제거.
+                // 필요시(특정 화면) 개별 tableView/scrollView contentInset.top 조정으로 후속 세밀 제어 가능.
+                vc.additionalSafeAreaInsets.top = 0
                 // 스크롤 inset(top)은 조정하지 않음(이중 여백 방지)
             }
             vc.view.setNeedsLayout()
@@ -346,13 +348,29 @@ extension AdsBannerCoordinator {
         attachBanner(to: vc, position: .bottom, autoLoad: autoLoad, reserveSpace: true)
     }
 
-    /// 일반 화면: 하단 배너 (세이프박스 확보 여부 제어)
-    func attachBottomBanner(to vc: UIViewController, autoLoad: Bool = true, reserveSpace: Bool) {
-        attachBanner(to: vc, position: .bottom, autoLoad: autoLoad, reserveSpace: reserveSpace)
-    }
 
-    /// 채팅 화면: 상단(네비게이션 바 아래) 배너
-    func attachTopBannerUnderNavBar(to vc: UIViewController, autoLoad: Bool = true) {
+
+    /// 채팅 전용 단일 상단 배너 정책: 다른 탭/스택의 잔존 배너 제거 후 상단 배너 1개만 유지
+    /// - 사용처: ChatViewController(대나무숲), EmotionAnalysisChatViewController 등 Top-only 화면
+    /// - 구현 철학: KISS/DRY (중복 제거), YAGNI (불필요한 상태 저장 회피)
+    /// - 동작:
+    ///   1. 동일 탭바 컨트롤러 내 다른 VC 및 그 내비 스택 자식에서 배너 분리(detach)
+    ///   2. 대상 VC에 topUnderNavBar 배너 1개 부착
+    func attachExclusiveTopBannerUnderNavBar(to vc: UIViewController, autoLoad: Bool = true) {
+        if let tbc = vc.tabBarController {
+            let vcs = tbc.viewControllers ?? []
+            for root in vcs {
+                if root !== vc { detachBanner(from: root) }
+                if let nav = root as? UINavigationController {
+                    for inner in nav.viewControllers where inner !== vc {
+                        detachBanner(from: inner)
+                    }
+                }
+            }
+        }
         attachBanner(to: vc, position: .topUnderNavBar, autoLoad: autoLoad, reserveSpace: true)
     }
+
+
+
 }

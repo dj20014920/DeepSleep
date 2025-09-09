@@ -305,6 +305,7 @@ F. 로그/테일
   - PROXY_AUTH_USE_NONCE = YES(선택)
   - CLIENT_PROXY_HMAC_SECRET(디버그용 Fallback)
 - UnifiedAIServiceImpl.swift
+  - 시스템 프롬프트 단일 소스(SSOT): makeSystemPrompt(for:model:) 공개 래퍼로 통일
   - /v1/chat로 프록시 우선 경로, 헤더: Origin, X-Emozleep-UID/Tier/Timestamp/Nonce?, X-Emozleep-Sig
   - /v1/enroll 호출 후 기기 시크릿을 키체인 저장
   - X-Policy-* 헤더가 있으면 남은 횟수/리셋 시각 등 UI에 반영

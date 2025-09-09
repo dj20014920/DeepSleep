@@ -10,29 +10,29 @@ import Foundation
 /// 무료 AI 모델 정의
 public enum FreeAIModel: String, CaseIterable {
     // Tier 1 - 최우선
+    case openAIGPTOSS = "openai/gpt-oss-120b:free"
     case qwenCoder32B = "qwen/qwen-2.5-coder-32b-instruct:free"
     case llamaUltra405B = "meta-llama/llama-3.1-405b-instruct:free"
     case qwen72B = "qwen/qwen-2.5-72b-instruct:free"
-    
+
     // Tier 2 - 백업
     case geminiFlash = "google/gemini-2.0-flash-exp:free"
     case deepseekR1 = "deepseek/deepseek-r1:free"
     case nemotronUltra = "nvidia/llama-3.1-nemotron-ultra-253b-v1:free"
-    
+
     // Tier 3 - 추가 폴백
     case mistralSmall = "mistralai/mistral-small-3.2-24b-instruct:free"
     case llama70B = "meta-llama/llama-3.3-70b-instruct:free"
     case gemma27B = "google/gemma-3-27b-it:free"
     case qwq32B = "qwen/qwq-32b:free"
-    
+
     // 추가 모델들 (필요시 활성화)
     case deepseekR1Distill14B = "deepseek/deepseek-r1-distill-qwen-14b:free"
     case deepseekR1Distill70B = "deepseek/deepseek-r1-distill-llama-70b:free"
     case gemini2Flash = "google/gemini-2.5-flash-exp:free"
-    case openAIGPTOSS = "openai/gpt-oss-20b:free"
     case glm4Air = "z-ai/glm-4.5-air:free"
     case kimiDev72B = "moonshotai/kimi-dev-72b:free"
-    
+
     var displayName: String {
         switch self {
         case .qwenCoder32B: return "Qwen 2.5 Coder (32B)"
@@ -48,12 +48,12 @@ public enum FreeAIModel: String, CaseIterable {
         case .deepseekR1Distill14B: return "DeepSeek R1 Distill (14B)"
         case .deepseekR1Distill70B: return "DeepSeek R1 Distill (70B)"
         case .gemini2Flash: return "Gemini 2.5 Flash"
-        case .openAIGPTOSS: return "GPT-OSS (20B)"
+        case .openAIGPTOSS: return "GPT-OSS (120B)"
         case .glm4Air: return "GLM 4.5 Air"
         case .kimiDev72B: return "Kimi Dev (72B)"
         }
     }
-    
+
     var priority: Int {
         switch self {
         // Tier 0 - 최우선: GPT-OSS
@@ -75,7 +75,7 @@ public enum FreeAIModel: String, CaseIterable {
         default: return 99
         }
     }
-    
+
     /// 특정 용도에 최적화된 모델 선택
     static func recommendedModel(for mode: AIMode) -> FreeAIModel {
         switch mode {
@@ -103,44 +103,45 @@ public enum FreeAIModel: String, CaseIterable {
 /// 무료 모델 사용량 추적
 public class FreeModelUsageTracker {
     static let shared = FreeModelUsageTracker()
-    
+
     private var modelUsageCount: [String: Int] = [:]
     private var modelLastUsed: [String: Date] = [:]
     private var modelFailureCount: [String: Int] = [:]
-    
+
     private let userDefaults = UserDefaults.standard
     private let usageKey = "freeModelUsage"
     private let failureKey = "freeModelFailures"
-    
+
     private init() {
         loadUsageData()
     }
-    
+
     func incrementUsage(for model: FreeAIModel) {
         let key = model.rawValue
         modelUsageCount[key] = (modelUsageCount[key] ?? 0) + 1
         modelLastUsed[key] = Date()
         saveUsageData()
     }
-    
+
     func incrementFailure(for model: FreeAIModel) {
         let key = model.rawValue
         modelFailureCount[key] = (modelFailureCount[key] ?? 0) + 1
         saveUsageData()
     }
-    
+
     func resetFailures(for model: FreeAIModel) {
         modelFailureCount[model.rawValue] = 0
         saveUsageData()
     }
-    
+
     func canUseModel(_ model: FreeAIModel) -> Bool {
         let failureCount = modelFailureCount[model.rawValue] ?? 0
-        
+
         // 5회 이상 실패한 모델은 1시간 동안 사용 불가
         if failureCount >= 5 {
             if let lastUsed = modelLastUsed[model.rawValue],
-               Date().timeIntervalSince(lastUsed) < 3600 {
+                Date().timeIntervalSince(lastUsed) < 3600
+            {
                 return false
             } else {
                 // 1시간 지났으면 실패 카운트 리셋
@@ -148,39 +149,41 @@ public class FreeModelUsageTracker {
                 return true
             }
         }
-        
+
         return true
     }
-    
+
     func getNextAvailableModel(excluding: [FreeAIModel] = []) -> FreeAIModel? {
         let sortedModels = FreeAIModel.allCases.sorted { $0.priority < $1.priority }
-        
+
         for model in sortedModels {
             if !excluding.contains(model) && canUseModel(model) {
                 return model
             }
         }
-        
+
         return nil
     }
-    
+
     private func loadUsageData() {
         if let data = userDefaults.data(forKey: usageKey),
-           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            let decoded = try? JSONDecoder().decode([String: Int].self, from: data)
+        {
             modelUsageCount = decoded
         }
-        
+
         if let data = userDefaults.data(forKey: failureKey),
-           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            let decoded = try? JSONDecoder().decode([String: Int].self, from: data)
+        {
             modelFailureCount = decoded
         }
     }
-    
+
     private func saveUsageData() {
         if let encoded = try? JSONEncoder().encode(modelUsageCount) {
             userDefaults.set(encoded, forKey: usageKey)
         }
-        
+
         if let encoded = try? JSONEncoder().encode(modelFailureCount) {
             userDefaults.set(encoded, forKey: failureKey)
         }

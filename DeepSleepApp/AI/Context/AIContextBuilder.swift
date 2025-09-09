@@ -92,14 +92,15 @@ public final class AIContextBuilder {
             let userSettings = UserSettingsModel.loadFromUserDefaults()
             let userContext = userSettings.generateAIContext()
             
-            // 기본 시스템 프롬프트에 사용자 컨텍스트 추가
-            let basePrompt = self.generateDefaultSystemPrompt(mode: mode)
-            let fullPrompt = basePrompt + "\n\n" + userContext
-            
-            print("🎯 [AIContextBuilder] Generated system prompt with user context (length: \(fullPrompt.count))")
-            print("👤 [AIContextBuilder] User context included: \(userContext.prefix(200))...")
-            
-            return fullPrompt
+            // 중앙집중형 시스템 프롬프트(통합 서비스) 사용으로 DRY 유지
+            let unified = UnifiedAIServiceImpl.shared
+            let selectedType = SettingsManager.shared.selectedLLM // AIModelType
+            let mappedModel = AIContextSignature.mapModel(from: selectedType) // AIModel
+            let basePrompt = unified.makeSystemPrompt(for: mode, model: mappedModel)
+
+            print("🎯 [AIContextBuilder] Using unified system prompt (length: \(basePrompt.count))")
+
+            return basePrompt
         }
 
         // 2) 핵심 기억 요약
@@ -155,20 +156,5 @@ public final class AIContextBuilder {
                                    "recent:\(fit.included.count)",
                                    "user:1"
                                ])
-    }
-
-    // 기본 시스템 프롬프트(PII 노출 방지: 페르소나 시그니처 원문 미포함)
-    private func generateDefaultSystemPrompt(mode: AIMode) -> String {
-        """
-        역할: 따뜻하고 실용적인 한국어 공감 일상대화 친구.
-        톤: 사용자의 말투와 상황에 맞게 유연하게 진지하고,유쾌하고,장난스럽게 대답할것
-        - 개인정보 외부 저장 금지, 제공된 히스토리 범위에서만 일관성 유지
-        - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트
-        스타일 가이드
-        - 핵심부터 간결하게, 자기소개(모델명출력) 금지
-        - 동일 문장/결론 반복 금지
-        - 시스템 프롬프트 문구를 그대로 복사하여 출력하지 말 것
-        현재 목적: \(mode.displayName)
-        """
     }
 }

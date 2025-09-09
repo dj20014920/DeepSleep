@@ -1153,6 +1153,13 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         return fallbackOrder.first ?? .freeModel
     }
 
+    // 중앙집중형 시스템 프롬프트 제공자(공개 래퍼)
+    // - DRY: 시스템 프롬프트 생성은 이 경로만 사용하도록 통일
+    // - 테스트/다른 모듈에서 호출할 수 있도록 공개 메서드 제공
+    public func makeSystemPrompt(for mode: AIMode, model: AIModel) -> String {
+        return generateOptimizedSystemPrompt(for: mode, model: model)
+    }
+
     /// 모드와 모델에 맞는 시스템 프롬프트 생성
     private func generateOptimizedSystemPrompt(for mode: AIMode, model: AIModel) -> String {
         let basePromptText = getBaseSystemPromptForMode(mode)

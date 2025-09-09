@@ -1401,7 +1401,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         super.viewDidAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
         // 대나무숯(채팅창): 상단바 바로 아래 배너 부착
-        AdsBannerCoordinator.shared.attachTopBannerUnderNavBar(to: self, autoLoad: true)
+        AdsBannerCoordinator.shared.attachExclusiveTopBannerUnderNavBar(to: self, autoLoad: true)
         scrollToBottom()
 
         // ✅ swipe back 제스처 재활성화 (혹시 비활성화되었을 경우)

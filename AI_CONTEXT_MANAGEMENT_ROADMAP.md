@@ -736,9 +736,10 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 배포 후 헤더 관찰: `X-Cache-Action=write|read`, `X-Cache-Tokens=writeIn/readIn`.
 
 요약
-- 시스템 프롬프트 경량화(클라이언트):
-  - AIContextBuilder.generateDefaultSystemPrompt를 간결한 지시문으로 축약.
-  - UnifiedAIServiceImpl의 getBaseSystemPromptForMode / getModelSpecificOptimization 지침을 한 줄/핵심 요점으로 정리.
+- 시스템 프롬프트 경량화(클라이언트) [업데이트]:
+  - 시스템 프롬프트의 단일 소스(SSOT)는 UnifiedAIServiceImpl.makeSystemPrompt 입니다.
+  - AIContextBuilder.generateDefaultSystemPrompt(제거됨), DRY).
+  - UnifiedAIServiceImpl의 getBaseSystemPromptForMode / getModelSpecificOptimization를 통해 모드/모델별 지침이 일관 제공됩니다.
   - 지시 강화: 첫 응답만 인사 허용, 이후 인사/서두 반복 금지, 시스템 텍스트 복사 금지, 결론/문장 반복 금지, 새 관점 또는 구체 예시 1개 포함.
 - 프록시 generation 파라미터 전달(클라이언트):
   - UnifiedAIServiceImpl.sendViaProxy가 temperature / maxTokens / topP / frequencyPenalty / presencePenalty / responseFormat을 /v1/chat 바디에 포함.
@@ -749,8 +750,8 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 품질 개선: 반복 인사/상투어 억제, 공감→요약→실행 제안 루틴 고정으로 일관 품질 상승.
 
 코드 반영(요약)
-- DeepSleepApp/AI/Context/AIContextBuilder.swift: generateDefaultSystemPrompt 경량화.
-- DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift: 모드/모델별 지침 축약, sendViaProxy 바디에 generation 파라미터 추가.
+- DeepSleepApp/AI/Context/AIContextBuilder.swift: generateDefaultSystemPrompt 제거(중앙집중형 경로로 통일).
+- DeepSleepApp/AI/Services/UnifiedAIServiceImpl.swift: 모드/모델별 지침 유지, makeSystemPrompt 공개 래퍼로 단일 진입점 제공.
 
 서버/문서 정합성
 - DEEPSLEEP_FROXYSERVER.md에 /v1/chat 요청 스키마 선택 필드(topP, frequencyPenalty, presencePenalty, responseFormat)를 추가해 클라이언트 변경을 문서화.
