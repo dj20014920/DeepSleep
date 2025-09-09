@@ -298,9 +298,7 @@ vendor/bundle/
 
 # ===== Development Guide Files =====
 # Guide and documentation files (개발 가이드 파일들)
-*GUIDE*.md
-*_GUIDE.md
-*guide*.md
+
 *ANALYSIS*.md
 *REPORT*.md
 *PLAN*.md

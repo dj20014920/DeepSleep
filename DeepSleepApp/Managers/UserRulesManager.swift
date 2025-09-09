@@ -28,6 +28,35 @@ private struct CachedPersonaSignature {
 // MARK: - Persona Signature (캐시/무효화 전용 해시)
 extension UserRulesManager {
 
+    // 세분화된 페르소나/모델/모드/톤 구성요소 (캐시 미스 이유 세분화 용도)
+    struct PersonaSignatureComponents {
+        let composite: String
+        let coreHash: String
+        let modeHash: String
+        let modelHash: String
+        let toneHash: String
+    }
+
+    /// 새 세분화 컴포넌트 계산 (모드/모델/톤 독립 해시)
+    /// - Parameters:
+    ///   - currentMode: AIMode (채팅/일기 등)
+    ///   - model: AIModel (선택된 LLM)
+    ///   - conversationTones: 현재 설정된 톤 목록
+    /// - Returns: PersonaSignatureComponents (composite = core + mode + model + tone 결합 해시)
+    public func personaSignatureComponents(currentMode: AIMode, model: AIModel, conversationTones: [String]) -> PersonaSignatureComponents {
+        let coreHash = personaCoreSignature()
+        let sortedTones = conversationTones.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.sorted()
+        let toneBase = "tones:" + sortedTones.joined(separator: ",")
+        let toneHash = sha256(toneBase)
+        let modeHash = sha256("mode:\(currentMode.rawValue)")
+        let modelHash = sha256("model:\(model.rawValue)")
+        let composite = sha256(coreHash + ":" + modeHash + ":" + modelHash + ":" + toneHash)
+        #if DEBUG
+        print("🧩 [UserRulesManager] personaSignatureComponents 생성: core=\(coreHash.prefix(8)) mode=\(modeHash.prefix(8)) model=\(modelHash.prefix(8)) tone=\(toneHash.prefix(8)) composite=\(composite.prefix(12))")
+        #endif
+        return PersonaSignatureComponents(composite: composite, coreHash: coreHash, modeHash: modeHash, modelHash: modelHash, toneHash: toneHash)
+    }
+
     /// 페르소나/설정/환경을 요약하여 생성하는 해시 지문.
     /// - 목적: 캐시 키/무효화 트리거 전용. 외부 LLM에 절대 전달하지 않음.
     /// - 원칙: 온디바이스에서 간단 PII 필터링을 적용하고 의미 보존형 특성만 요약에 사용.

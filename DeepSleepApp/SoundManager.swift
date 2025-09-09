@@ -1,10 +1,10 @@
-import Foundation
 import AVFoundation
+import Foundation
 import MediaPlayer
 
 /// 오디오 재생 모드
 enum AudioPlaybackMode: Int, CaseIterable {
-    case exclusive = 0      // 독점 재생 (다른 음악 정지, Now Playing 표시됨)
+    case exclusive = 0  // 독점 재생 (다른 음악 정지, Now Playing 표시됨)
     case mixWithOthers = 1  // 다른 음악과 혼합 재생 (Now Playing 표시 안됨)
 
     var displayName: String {
@@ -116,34 +116,30 @@ final class SoundManager {
         setupRemoteTransportControls()
     }
 
-    // MARK: - 🆕 사운드 카탈로그 로딩
+    // MARK: - 🆕 사운드 카탈로그 로딩 (Deprecated JSON Path)
     private func loadSoundCatalog() {
-        guard let url = Bundle.main.url(forResource: "sound_catalog", withExtension: "json"),
-              let data = try? Data(contentsOf: url) else {
-            UnifiedLogger.shared.warning("sound_catalog.json 파일을 찾을 수 없습니다. 기본 설정을 사용합니다.")
-            loadFallbackCatalog()
-            return
-        }
-
-        do {
-            soundCatalog = try JSONDecoder().decode([SoundCatalog].self, from: data)
-            // 카테고리 인덱스 순으로 정렬
-            soundCatalog.sort { $0.categoryIndex < $1.categoryIndex }
-            UnifiedLogger.shared.debug("사운드 카탈로그 로드 완료: \(soundCatalog.count)개 카테고리", category: .audio)
-
-            // 로드된 카탈로그 검증
-            validateSoundCatalog()
-        } catch {
-            UnifiedLogger.shared.warning("sound_catalog.json 파싱 실패: \(error). 기본 설정을 사용합니다.")
+        // ✅ 사유:
+        // 기존 sound_catalog.json 기반 로딩은 SoundCatalogManager(동적/확장 관리)로 대체됨.
+        // - 중복 경고(파일 없음) 스팸 제거
+        // - 불필요한 파일 I/O 제거 (KISS / DRY)
+        // - YAGNI: JSON 미사용 시 굳이 실패 로그 남기지 않음
+        //
+        // 정책:
+        // 1) 현재 메모리 soundCatalog가 비어있으면 하드코딩 폴백만 1회 로드
+        // 2) 향후 SoundCatalogManager와 직접 연동 시 여기서 manager를 통해 로드하도록 전환
+        if soundCatalog.isEmpty {
             loadFallbackCatalog()
         }
+        // 더 이상 JSON 존재 여부를 강제로 확인하거나 경고 로그를 남기지 않는다.
+        return
     }
 
     /// 🆕 사운드 카탈로그 검증
     private func validateSoundCatalog() {
         for catalog in soundCatalog {
             for version in catalog.versions {
-                guard Bundle.main.url(forResource: version.fileName, withExtension: nil) != nil else {
+                guard Bundle.main.url(forResource: version.fileName, withExtension: nil) != nil
+                else {
                     UnifiedLogger.shared.warning("음원 파일 누락: \(version.fileName)")
                     continue
                 }
@@ -167,7 +163,7 @@ final class SoundManager {
             ("space", "우주", "🌌", ["우주.mp3"]),
             ("fan", "쿨링팬", "❄️", ["쿨링팬.mp3"]),
             ("keyboard", "키보드", "⌨️", ["키보드1.mp3", "키보드2.mp3"]),
-            ("waves", "파도", "🌊", ["파도.mp3", "파도2.mp3"])
+            ("waves", "파도", "🌊", ["파도.mp3", "파도2.mp3"]),
         ]
 
         soundCatalog = fallbackData.enumerated().map { index, data in
@@ -175,7 +171,8 @@ final class SoundManager {
                 SoundVersion(
                     version: versionIndex == 0 ? "1.0" : "2.0",
                     fileName: fileName,
-                    displayName: "\(data.2) \(data.1)" + (versionIndex > 0 ? " v\(versionIndex + 1)" : ""),
+                    displayName: "\(data.2) \(data.1)"
+                        + (versionIndex > 0 ? " v\(versionIndex + 1)" : ""),
                     emoji: data.2,
                     description: "\(data.1) 소리",
                     isDefault: versionIndex == (data.3.count > 1 ? 1 : 0)
@@ -220,8 +217,6 @@ final class SoundManager {
             defaultIndex: defaultIndex
         )
     }
-
-
 
     // MARK: - 초기 설정
     private func setupSelectedVersions() {
@@ -285,7 +280,8 @@ final class SoundManager {
             }
 
             let version = catalog.versions[versionIndex]
-            guard let url = Bundle.main.url(forResource: version.fileName, withExtension: nil) else {
+            guard let url = Bundle.main.url(forResource: version.fileName, withExtension: nil)
+            else {
                 print("⚠️ 사운드 파일을 찾을 수 없습니다: \(version.fileName)")
                 continue
             }
@@ -304,8 +300,6 @@ final class SoundManager {
         print("✅ \(players.count)개 사운드 로드 완료")
     }
 
-
-
     /// 카테고리의 이모지 + 이름
     func getCategoryDisplay(at index: Int) -> String {
         guard let catalog = getSoundCatalog(at: index) else { return "Unknown" }
@@ -316,11 +310,16 @@ final class SoundManager {
     /// 현재 선택된 버전 정보
     func getCurrentVersion(at categoryIndex: Int) -> SoundVersion {
         guard let catalog = getSoundCatalog(at: categoryIndex) else {
-            return SoundVersion(version: "1.0", fileName: "unknown.mp3", displayName: "Unknown", emoji: "❓", description: "Unknown sound", isDefault: true)
+            return SoundVersion(
+                version: "1.0", fileName: "unknown.mp3", displayName: "Unknown", emoji: "❓",
+                description: "Unknown sound", isDefault: true)
         }
         let versionIndex = selectedVersions[categoryIndex]
         guard versionIndex < catalog.versions.count else {
-            return catalog.versions.first ?? SoundVersion(version: "1.0", fileName: "unknown.mp3", displayName: "Unknown", emoji: "❓", description: "Unknown sound", isDefault: true)
+            return catalog.versions.first
+                ?? SoundVersion(
+                    version: "1.0", fileName: "unknown.mp3", displayName: "Unknown", emoji: "❓",
+                    description: "Unknown sound", isDefault: true)
         }
         return catalog.versions[versionIndex]
     }
@@ -388,7 +387,8 @@ final class SoundManager {
 
         // 호환성 체크 결과 출력
         if let compatibility = recommendation["compatibility"] as? [String: Any],
-           let score = compatibility["score"] as? Int {
+            let score = compatibility["score"] as? Int
+        {
             print("🔍 프리셋 호환성 점수: \(score)/100")
 
             if let warnings = compatibility["warnings"] as? [String], !warnings.isEmpty {
@@ -429,14 +429,18 @@ final class SoundManager {
     /// 현재 감정 상태에 맞는 즉석 추천 생성 및 적용
     func applyEmotionalPreset(emotion: String, completion: @escaping (String) -> Void) {
         // 하이브리드 추천 생성 (온디바이스 + 외부 AI)
-        generateHybridRecommendation(emotion: emotion, situation: "", existingPresets: [], completion: { [weak self] preset in
-            DispatchQueue.main.async {
-                if let preset = preset {
-                    self?.applyExpertPreset(recommendation: ["volumes": preset.volumes, "category": preset.name])
+        generateHybridRecommendation(
+            emotion: emotion, situation: "", existingPresets: [],
+            completion: { [weak self] preset in
+                DispatchQueue.main.async {
+                    if let preset = preset {
+                        self?.applyExpertPreset(recommendation: [
+                            "volumes": preset.volumes, "category": preset.name,
+                        ])
+                    }
+                    completion("")
                 }
-                completion("")
-            }
-        })
+            })
     }
 
     // MARK: - 전문가 프리셋 카탈로그 접근
@@ -467,7 +471,9 @@ final class SoundManager {
         // 기본 감정을 시간대에 맞게 설정
         let baseEmotion = getDefaultEmotionForTime(timeOfDay: timeOfDay)
 
-        if let preset = generateLocalPresetRecommendation(emotion: baseEmotion, situation: timeOfDay) {
+        if let preset = generateLocalPresetRecommendation(
+            emotion: baseEmotion, situation: timeOfDay)
+        {
             return ["volumes": preset.volumes, "category": preset.name]
         } else {
             return ["volumes": Array(repeating: 0.3, count: 13), "category": "기본"]
@@ -498,8 +504,6 @@ final class SoundManager {
         default: return "평온"
         }
     }
-
-
 
     // MARK: - 버전 선택 관리
 
@@ -603,17 +607,17 @@ final class SoundManager {
 
         do {
             previewPlayer = try AVAudioPlayer(contentsOf: url)
-            previewPlayer?.numberOfLoops = -1 // 무한 반복 설정
-            previewPlayer?.volume = 0.6      // 미리듣기 볼륨
-            previewPlayer?.currentTime = fromTime // 재생 시작 시간 설정
+            previewPlayer?.numberOfLoops = -1  // 무한 반복 설정
+            previewPlayer?.volume = 0.6  // 미리듣기 볼륨
+            previewPlayer?.currentTime = fromTime  // 재생 시작 시간 설정
             previewPlayer?.prepareToPlay()
             previewPlayer?.play()
-            previewingCategoryIndex = categoryIndex // 현재 미리듣기 중인 카테고리 인덱스 저장
+            previewingCategoryIndex = categoryIndex  // 현재 미리듣기 중인 카테고리 인덱스 저장
 
             print("🔊 미리듣기 시작 (무한 반복): \(fileName) at \(fromTime)s")
         } catch {
             print("⚠️ 미리듣기 플레이어 생성 실패: \(error.localizedDescription) - 파일: \(fileName)")
-            previewPlayer = nil // 실패 시 nil로 확실히 설정
+            previewPlayer = nil  // 실패 시 nil로 확실히 설정
             previewingCategoryIndex = nil
         }
     }
@@ -695,7 +699,7 @@ final class SoundManager {
         }
 
         if playedSomething {
-            updateNowPlayingPlaybackStatus() // 전체 재생 상태 업데이트
+            updateNowPlayingPlaybackStatus()  // 전체 재생 상태 업데이트
             print("  - NowPlayingInfo 업데이트 완료")
         }
     }
@@ -703,7 +707,9 @@ final class SoundManager {
     // MARK: - Phase 2: 피드백 시스템 통합
 
     /// 피드백 세션 시작 (SessionManager 통합)
-    private func startFeedbackSession(presetName: String, volumes: [Float], versions: [Int], emotion: String) {
+    private func startFeedbackSession(
+        presetName: String, volumes: [Float], versions: [Int], emotion: String
+    ) {
         Task { @MainActor in
             let recommendation = EnhancedRecommendationResponse(
                 presetName: presetName,
@@ -732,7 +738,9 @@ final class SoundManager {
     }
 
     /// 피드백 세션 종료 (SessionManager 통합)
-    private func endCurrentFeedbackSession(finalVolumes: [Float], wasSaved: Bool, satisfaction: Int = 0) {
+    private func endCurrentFeedbackSession(
+        finalVolumes: [Float], wasSaved: Bool, satisfaction: Int = 0
+    ) {
         Task { @MainActor in
             let duration = SessionManager.shared.currentSessionDuration
 
@@ -756,9 +764,9 @@ final class SoundManager {
         // 조건 2: 2분 이상 청취한 경우 (충분한 경험)
         // 조건 3: 랜덤하게 10% 확률 (강제성 방지)
 
-        let shouldRequestFeedback = (duration >= 30.0 && !wasSaved && duration < 120.0) ||
-                                   (duration >= 120.0) ||
-                                   (duration >= 30.0 && Double.random(in: 0...1) < 0.1)
+        let shouldRequestFeedback =
+            (duration >= 30.0 && !wasSaved && duration < 120.0) || (duration >= 120.0)
+            || (duration >= 30.0 && Double.random(in: 0...1) < 0.1)
 
         if shouldRequestFeedback {
             // 현재 세션의 프리셋 이름과 추천 타입 가져오기
@@ -772,8 +780,9 @@ final class SoundManager {
     @MainActor private func requestUserFeedback() {
         // 현재 메인 뷰컨트롤러 찾기
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }),
-              let rootViewController = keyWindow.rootViewController else {
+            let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }),
+            let rootViewController = keyWindow.rootViewController
+        else {
             print("⚠️ [FeedbackRequest] 메인 뷰컨트롤러를 찾을 수 없음")
             return
         }
@@ -802,8 +811,11 @@ final class SoundManager {
     }
 
     /// 추천 타입 결정 (SessionManager 통합)
-    @MainActor private func determineRecommendationType() -> FeedbackPromptViewController.RecommendationType {
-        let recentFeedback = SessionManager.shared.getRecentFeedback(limit: AppConfig.Pagination.recentFeedbackForRecommendationLimit)
+    @MainActor private func determineRecommendationType()
+        -> FeedbackPromptViewController.RecommendationType
+    {
+        let recentFeedback = SessionManager.shared.getRecentFeedback(
+            limit: AppConfig.Pagination.recentFeedbackForRecommendationLimit)
 
         // PresetFeedback에 recommendationSource가 없으므로 기본값 사용
         // 추후 모델 업데이트 시 개선 예정
@@ -822,18 +834,18 @@ final class SoundManager {
         endCurrentFeedbackSession(
             finalVolumes: currentVolumes,
             wasSaved: true,
-            satisfaction: 2 // 좋아요
+            satisfaction: 2  // 좋아요
         )
     }
 
     /// 사용자가 명시적으로 만족도를 표시할 때 호출
     func setUserSatisfaction(_ satisfaction: Int) {
         #if canImport(FeedbackManager)
-        if #available(iOS 17.0, *) {
-            Task { @MainActor in
-                FeedbackManager.shared.setExplicitFeedback(satisfaction: satisfaction)
+            if #available(iOS 17.0, *) {
+                Task { @MainActor in
+                    FeedbackManager.shared.setExplicitFeedback(satisfaction: satisfaction)
+                }
             }
-        }
         #endif
     }
 
@@ -865,7 +877,7 @@ final class SoundManager {
                 wasSaved: false,
                 satisfaction: 0
             )
-            updateNowPlayingPlaybackStatus() // 전체 정지 상태 업데이트
+            updateNowPlayingPlaybackStatus()  // 전체 정지 상태 업데이트
         }
     }
 
@@ -887,7 +899,7 @@ final class SoundManager {
             if !player.isPlaying {
                 player.play()
                 print("사운드 \(index) 재생 시작")
-                updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
+                updateNowPlayingPlaybackStatus()  // NowPlayingInfo 업데이트
             } else {
                 print("사운드 \(index) 이미 재생 중 (볼륨: \(player.volume))")
             }
@@ -902,7 +914,7 @@ final class SoundManager {
         if player.isPlaying {
             player.pause()
             print("사운드 \(index) 일시정지")
-            updateNowPlayingPlaybackStatus() // NowPlayingInfo 업데이트
+            updateNowPlayingPlaybackStatus()  // NowPlayingInfo 업데이트
         }
     }
 
@@ -916,14 +928,16 @@ final class SoundManager {
     /// 슬라이더나 프리셋에서 설정한 볼륨을 반영합니다. volume 은 0~100 사이. (피드백 실시간 업데이트)
     func setVolume(at index: Int, volume: Float, forUIUpdate: Bool = false) {
         guard index >= 0, index < players.count else { return }
-        
+
         // 🆕 이전 볼륨 저장 (추적용)
         let oldVolume = players[index].volume * 100.0
-        
+
         let normalizedVolume = volume / 100.0
         players[index].volume = normalizedVolume
 
-        print("🔊 SoundManager.setVolume(at: \(index), volume: \(volume)) → 정규화된 볼륨: \(normalizedVolume), UI업데이트: \(forUIUpdate), 전체멈춤: \(isGloballyPaused)")
+        print(
+            "🔊 SoundManager.setVolume(at: \(index), volume: \(volume)) → 정규화된 볼륨: \(normalizedVolume), UI업데이트: \(forUIUpdate), 전체멈춤: \(isGloballyPaused)"
+        )
 
         // 🆕 UI 업데이트 목적이거나 전체 멈춤 상태면 재생하지 않음
         if !forUIUpdate && !isGloballyPaused {
@@ -957,41 +971,42 @@ final class SoundManager {
             completion(false)
             return
         }
-        
+
         // 프리셋의 볼륨 값을 적용
         for (index, volume) in volumes.enumerated() {
             if index < players.count {
                 players[index].volume = volume
             }
         }
-        
+
         // 프리셋 이름 업데이트
         currentPresetName = preset.name
-        
+
         // Now Playing 정보 업데이트
         updateNowPlayingInfo(presetName: currentPresetName)
-        
+
         completion(true)
     }
-    
+
     func applySounds(soundIds: [String], volumes: [Float], completion: @escaping (Bool) -> Void) {
         // 모든 플레이어의 볼륨을 0으로 설정
         for player in players {
             player.volume = 0
         }
-        
+
         // 지정된 사운드의 볼륨 설정
         for (index, soundId) in soundIds.enumerated() {
             if let catalogIndex = soundCatalog.firstIndex(where: { $0.id == soundId }),
-               catalogIndex < players.count,
-               index < volumes.count {
+                catalogIndex < players.count,
+                index < volumes.count
+            {
                 players[catalogIndex].volume = volumes[index]
             }
         }
-        
+
         // Now Playing 정보 업데이트
         updateNowPlayingInfo(presetName: currentPresetName)
-        
+
         completion(true)
     }
 
@@ -1055,16 +1070,17 @@ final class SoundManager {
             "Fire": "fire",
             "Steam": "stream",
             "WindowRain": "rain",
-            "Forest": "cat",    // 자연 소리로 매핑
+            "Forest": "cat",  // 자연 소리로 매핑
             "Wind": "wind",
             "Night": "night",
-            "Lullaby": "space", // 잔잔한 소리
+            "Lullaby": "space",  // 잔잔한 소리
             "Fan": "fan",
-            "WhiteNoise": "keyboard" // 화이트노이즈 대체
+            "WhiteNoise": "keyboard",  // 화이트노이즈 대체
         ]
 
         if let mappedId = legacyMapping[soundName],
-           let index = soundCatalog.firstIndex(where: { $0.id == mappedId }) {
+            let index = soundCatalog.firstIndex(where: { $0.id == mappedId })
+        {
             return index
         }
 
@@ -1080,8 +1096,9 @@ final class SoundManager {
 
     @objc private func handleInterruption(_ notif: Notification) {
         guard let info = notif.userInfo,
-              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+            let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
 
         switch type {
         case .began:
@@ -1090,7 +1107,8 @@ final class SoundManager {
             print("오디오 인터럽션 시작 - 일시정지")
         case .ended:
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
-               AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
+                AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume)
+            {
                 playAll()
                 print("오디오 인터럽션 종료 - 재생 재시작")
             }
@@ -1114,7 +1132,7 @@ final class SoundManager {
 
         // 🔧 0-100 범위 값을 0.0-1.0으로 정규화
         let normalizedVolume = volume / 100.0
-        let newVolume = max(0, min(1, normalizedVolume)) // 0.0 ~ 1.0
+        let newVolume = max(0, min(1, normalizedVolume))  // 0.0 ~ 1.0
         players[index].volume = newVolume
 
         if newVolume > 0 && !players[index].isPlaying {
@@ -1124,7 +1142,7 @@ final class SoundManager {
             players[index].pause()
             print("⏸️ SoundManager: 카테고리 \(index) 일시정지 (볼륨 0)")
         }
-        updateNowPlayingPlaybackStatus() // 재생 상태 변경 시 항상 호출
+        updateNowPlayingPlaybackStatus()  // 재생 상태 변경 시 항상 호출
         print("🔊 SoundManager: 카테고리 \(index) 볼륨 설정 → 원본: \(volume) → 정규화: \(newVolume)")
     }
 
@@ -1132,9 +1150,9 @@ final class SoundManager {
     func stopAllPlayers() {
         for player in players {
             player.stop()
-            player.currentTime = 0 // 필요시 처음으로 되감기
+            player.currentTime = 0  // 필요시 처음으로 되감기
         }
-        currentPresetName = nil // 프리셋 이름 초기화
+        currentPresetName = nil  // 프리셋 이름 초기화
         updateNowPlayingPlaybackStatus()
         print("⏹️ 모든 사운드 중지")
     }
@@ -1201,17 +1219,20 @@ final class SoundManager {
         // 재생 위치 변경 명령
         commandCenter.changePlaybackPositionCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-            guard let self = self, let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            guard let self = self, let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
 
-            if let firstActivePlayer = self.players.first(where: { $0.isPlaying && $0.volume > 0 }) {
+            if let firstActivePlayer = self.players.first(where: { $0.isPlaying && $0.volume > 0 })
+            {
                 firstActivePlayer.currentTime = event.positionTime
-                self.updateNowPlayingPlaybackStatus() // 시간 변경 후 즉시 NowPlayingInfo 업데이트
+                self.updateNowPlayingPlaybackStatus()  // 시간 변경 후 즉시 NowPlayingInfo 업데이트
             }
             return .success
         }
 
         // 사용하지 않는 명령 비활성화
-        commandCenter.stopCommand.isEnabled = false // 또는 필요시 구현
+        commandCenter.stopCommand.isEnabled = false  // 또는 필요시 구현
         commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.previousTrackCommand.isEnabled = false
         commandCenter.skipForwardCommand.isEnabled = false
@@ -1228,38 +1249,44 @@ final class SoundManager {
 
     /// NowPlayingInfo를 현재 재생 상태에 따라 업데이트합니다.
     /// 이 함수는 외부(예: ViewController)에서도 호출될 수 있도록 public으로 변경
-    public func updateNowPlayingInfo(presetName: String?,isPlayingOverride: Bool? = nil) {
-        self.currentPresetName = presetName // 외부에서 설정한 프리셋 이름 저장
+    public func updateNowPlayingInfo(presetName: String?, isPlayingOverride: Bool? = nil) {
+        self.currentPresetName = presetName  // 외부에서 설정한 프리셋 이름 저장
         updateNowPlayingPlaybackStatus(isPlayingOverride: isPlayingOverride)
     }
 
     /// 내부 재생 상태 변화에 따라 NowPlayingInfo 업데이트
     private func updateNowPlayingPlaybackStatus(isPlayingOverride: Bool? = nil) {
-        print("🔵 [NowPlayingInfo DEBUG] updateNowPlayingPlaybackStatus 시작. isPlayingOverride: \(String(describing: isPlayingOverride)), currentPresetName: \(currentPresetName ?? "nil")")
+        print(
+            "🔵 [NowPlayingInfo DEBUG] updateNowPlayingPlaybackStatus 시작. isPlayingOverride: \(String(describing: isPlayingOverride)), currentPresetName: \(currentPresetName ?? "nil")"
+        )
 
         var nowPlayingInfo = [String: Any]()
         let actuallyPlaying = activePlayerCount > 0
         let isEffectivelyPlaying = isPlayingOverride ?? actuallyPlaying
 
-        print("🔵 [NowPlayingInfo DEBUG] actuallyPlaying: \(actuallyPlaying), isEffectivelyPlaying: \(isEffectivelyPlaying), activePlayerCount: \(activePlayerCount)")
+        print(
+            "🔵 [NowPlayingInfo DEBUG] actuallyPlaying: \(actuallyPlaying), isEffectivelyPlaying: \(isEffectivelyPlaying), activePlayerCount: \(activePlayerCount)"
+        )
 
         if let presetName = self.currentPresetName, !presetName.isEmpty {
             nowPlayingInfo[MPMediaItemPropertyTitle] = presetName
             print("🔵 [NowPlayingInfo DEBUG] Title 설정: \(presetName)")
-        } else if isEffectivelyPlaying { // 재생 중일 때만 기본 제목 설정
-            nowPlayingInfo[MPMediaItemPropertyTitle] = "EmoZleep 사운드" // 앱 이름 변경 반영
+        } else if isEffectivelyPlaying {  // 재생 중일 때만 기본 제목 설정
+            nowPlayingInfo[MPMediaItemPropertyTitle] = "EmoZleep 사운드"  // 앱 이름 변경 반영
             print("🔵 [NowPlayingInfo DEBUG] Title 기본값 설정: EmoZleep 사운드")
         } else {
             // 재생 중이 아니고 프리셋 이름도 없으면 정보센터 클리어
             DispatchQueue.main.async {
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-                print("🔵 [NowPlayingInfo DEBUG] nowPlayingInfo를 nil로 설정 (메인 스레드). 조건: !isEffectivelyPlaying AND currentPresetName is empty or nil.")
+                print(
+                    "🔵 [NowPlayingInfo DEBUG] nowPlayingInfo를 nil로 설정 (메인 스레드). 조건: !isEffectivelyPlaying AND currentPresetName is empty or nil."
+                )
             }
             // iOS 8+ 정보 사라짐 문제 해결 시도 부분도 여기서는 실행될 필요 없음
             return
         }
 
-        nowPlayingInfo[MPMediaItemPropertyArtist] = "EmoZleep" // 앱 이름 변경 반영
+        nowPlayingInfo[MPMediaItemPropertyArtist] = "EmoZleep"  // 앱 이름 변경 반영
         print("🔵 [NowPlayingInfo DEBUG] Artist 설정: EmoZleep")
 
         // 앨범 아트
@@ -1279,17 +1306,24 @@ final class SoundManager {
         print("🔵 [NowPlayingInfo DEBUG] PlaybackRate 설정: \(playbackRate)")
 
         if isEffectivelyPlaying,
-           let firstActivePlayer = players.first(where: { $0.isPlaying && $0.volume > 0 }) {
-            print("🔵 [NowPlayingInfo DEBUG] firstActivePlayer 정보: duration=\(firstActivePlayer.duration), currentTime=\(firstActivePlayer.currentTime), isPlaying=\(firstActivePlayer.isPlaying), volume=\(firstActivePlayer.volume)")
+            let firstActivePlayer = players.first(where: { $0.isPlaying && $0.volume > 0 })
+        {
+            print(
+                "🔵 [NowPlayingInfo DEBUG] firstActivePlayer 정보: duration=\(firstActivePlayer.duration), currentTime=\(firstActivePlayer.currentTime), isPlaying=\(firstActivePlayer.isPlaying), volume=\(firstActivePlayer.volume)"
+            )
             nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = firstActivePlayer.duration
-            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = firstActivePlayer.currentTime
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
+                firstActivePlayer.currentTime
             print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 설정: \(firstActivePlayer.duration)")
-            print("🔵 [NowPlayingInfo DEBUG] ElapsedPlaybackTime 설정: \(firstActivePlayer.currentTime)")
+            print(
+                "🔵 [NowPlayingInfo DEBUG] ElapsedPlaybackTime 설정: \(firstActivePlayer.currentTime)")
         } else {
             // 재생 중이 아니거나 활성 플레이어가 없으면 재생 시간 관련 정보를 0 또는 nil로 설정
             nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = 0
             nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
-            print("🔵 [NowPlayingInfo DEBUG] PlaybackDuration 및 ElapsedPlaybackTime을 0으로 설정 (활성 플레이어 없음 또는 재생 중 아님). isEffectivelyPlaying: \(isEffectivelyPlaying)")
+            print(
+                "🔵 [NowPlayingInfo DEBUG] PlaybackDuration 및 ElapsedPlaybackTime을 0으로 설정 (활성 플레이어 없음 또는 재생 중 아님). isEffectivelyPlaying: \(isEffectivelyPlaying)"
+            )
         }
 
         print("🔵 [NowPlayingInfo DEBUG] 최종 nowPlayingInfo 딕셔셔너리 (설정 전):")
@@ -1308,7 +1342,9 @@ final class SoundManager {
         // 실제로 재생 중인 플레이어가 없으면 NowPlayingInfo 설정하지 않음
         let actualPlayingPlayers = players.filter { $0.isPlaying && $0.volume > 0 }
         if actualPlayingPlayers.isEmpty && isEffectivelyPlaying {
-            print("⚠️ [NowPlayingInfo DEBUG] 실제 재생 중인 플레이어가 없음에도 isEffectivelyPlaying=true. NowPlayingInfo 설정 취소")
+            print(
+                "⚠️ [NowPlayingInfo DEBUG] 실제 재생 중인 플레이어가 없음에도 isEffectivelyPlaying=true. NowPlayingInfo 설정 취소"
+            )
             return
         }
 
@@ -1338,12 +1374,14 @@ final class SoundManager {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 // 현재 상태를 다시 가져와서 설정 (nowPlayingInfo 변수는 클로저 캡처 시점의 값일 수 있음)
                 let currentInfoToResend = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-                if !currentInfoToResend.isEmpty { // nil이 아닌 경우에만 재설정
-                   MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfoToResend
-                   // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분, 딕셔너리는 String(describing:) 사용 (컴파일 오류 방지)
-                   print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 (0.2초 후, 메인 스레드). 재설정 값:", String(describing: currentInfoToResend))
+                if !currentInfoToResend.isEmpty {  // nil이 아닌 경우에만 재설정
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfoToResend
+                    // print 문 수정: 문자열 보간 대신 쉼표로 인자 구분, 딕셔너리는 String(describing:) 사용 (컴파일 오류 방지)
+                    print(
+                        "🔵 [NowPlayingInfo DEBUG] 정보 재설정 (0.2초 후, 메인 스레드). 재설정 값:",
+                        String(describing: currentInfoToResend))
                 } else {
-                   print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 건너뜀 (0.2초 후, 현재 infoCenter가 nil임).")
+                    print("🔵 [NowPlayingInfo DEBUG] 정보 재설정 건너뜀 (0.2초 후, 현재 infoCenter가 nil임).")
                 }
             }
         }
@@ -1415,27 +1453,30 @@ final class SoundManager {
     // MARK: - 🧠 AI 추천 시스템 (리팩토링 완료)
 
     /// 하이브리드 추천 생성 (ChatManager 통합 완료)
-    func generateHybridRecommendation(emotion: String, situation: String, existingPresets: [SoundPreset], completion: @escaping (SoundPreset?) -> Void) {
+    func generateHybridRecommendation(
+        emotion: String, situation: String, existingPresets: [SoundPreset],
+        completion: @escaping (SoundPreset?) -> Void
+    ) {
 
         let contextPrompt = """
-        사용자의 현재 감정은 '\(emotion)'이고, 상황은 '\(situation)'입니다.
-        기존에 사용자가 가지고 있는 프리셋 목록은 다음과 같습니다:
-        \(existingPresets.map { "- \($0.name)" }.joined(separator: "\n"))
+            사용자의 현재 감정은 '\(emotion)'이고, 상황은 '\(situation)'입니다.
+            기존에 사용자가 가지고 있는 프리셋 목록은 다음과 같습니다:
+            \(existingPresets.map { "- \($0.name)" }.joined(separator: "\n"))
 
-        이 모든 정보를 종합하여, 사용자에게 가장 필요할 것 같은 새로운 사운드 조합을 추천해주세요.
-        
-        응답 형식 (JSON):
-        {
-            "name": "추천 프리셋 이름",
-            "description": "프리셋 설명",
-            "emotion": "감정 상태",
-            "volumes": {
-                "비": 0.6,
-                "백색소음": 0.4,
-                "새소리": 0.2
+            이 모든 정보를 종합하여, 사용자에게 가장 필요할 것 같은 새로운 사운드 조합을 추천해주세요.
+
+            응답 형식 (JSON):
+            {
+                "name": "추천 프리셋 이름",
+                "description": "프리셋 설명",
+                "emotion": "감정 상태",
+                "volumes": {
+                    "비": 0.6,
+                    "백색소음": 0.4,
+                    "새소리": 0.2
+                }
             }
-        }
-        """
+            """
 
         Task {
             do {
@@ -1446,20 +1487,21 @@ final class SoundManager {
                     mode: .presetRecommendation,
                     saveMessages: false
                 )
-                
+
                 // JSON 파싱하여 SoundPreset 객체 생성
                 let preset = try parsePresetFromJSON(response, emotion: emotion)
-                
+
                 await MainActor.run {
                     completion(preset)
                 }
-                
+
             } catch {
                 print("❌ [SoundManager] 하이브리드 추천 생성 실패: \(error)")
-                
+
                 await MainActor.run {
                     // AI 실패 시 로컬 추천으로 폴백
-                    let fallbackPreset = generateLocalPresetRecommendation(emotion: emotion, situation: situation)
+                    let fallbackPreset = generateLocalPresetRecommendation(
+                        emotion: emotion, situation: situation)
                     completion(fallbackPreset)
                 }
             }
@@ -1469,18 +1511,20 @@ final class SoundManager {
     /// AI JSON 응답을 SoundPreset 객체로 파싱
     private func parsePresetFromJSON(_ jsonString: String, emotion: String) throws -> SoundPreset? {
         guard let data = jsonString.data(using: .utf8) else {
-            throw NSError(domain: "SoundManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON data"])
+            throw NSError(
+                domain: "SoundManager", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid JSON data"])
         }
-        
+
         do {
             let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            
+
             let name = jsonObject?["name"] as? String ?? "AI 추천 프리셋"
             let description = jsonObject?["description"] as? String ?? "AI가 추천한 개인화된 사운드 조합입니다."
             let presetEmotion = jsonObject?["emotion"] as? String ?? emotion
-            
+
             // volumes 파싱
-            var volumes: [Float] = Array(repeating: 0.0, count: 8) // 기본 8개 사운드
+            var volumes: [Float] = Array(repeating: 0.0, count: 8)  // 기본 8개 사운드
             if let volumesDict = jsonObject?["volumes"] as? [String: Any] {
                 // 사운드 이름을 인덱스로 매핑
                 let soundMapping: [String: Int] = [
@@ -1491,55 +1535,56 @@ final class SoundManager {
                     "바람": 4, "wind": 4,
                     "벌레": 5, "insects": 5, "cricket": 5,
                     "모닥불": 6, "fire": 6, "bonfire": 6,
-                    "천둥": 7, "thunder": 7
+                    "천둥": 7, "thunder": 7,
                 ]
-                
+
                 for (soundName, volumeValue) in volumesDict {
                     if let index = soundMapping[soundName.lowercased()],
-                       let volume = volumeValue as? NSNumber {
-                        volumes[index] = min(max(volume.floatValue, 0.0), 1.0) // 0.0~1.0 범위로 제한
+                        let volume = volumeValue as? NSNumber
+                    {
+                        volumes[index] = min(max(volume.floatValue, 0.0), 1.0)  // 0.0~1.0 범위로 제한
                     }
                 }
             }
-            
+
             // 빈 볼륨이면 기본 조합 설정
             if volumes.allSatisfy({ $0 == 0.0 }) {
                 volumes = generateDefaultVolumesForEmotion(emotion)
             }
-            
+
             return SoundPreset(
                 name: name,
                 volumes: volumes,
-                selectedVersions: Array(repeating: 0, count: 8), // 기본 버전 사용
+                selectedVersions: Array(repeating: 0, count: 8),  // 기본 버전 사용
                 emotion: presetEmotion,
                 isAIGenerated: true,
                 scientificBasis: description
             )
-            
+
         } catch {
             print("⚠️ [SoundManager] JSON 파싱 실패, 기본 추천으로 대체: \(error)")
             return generateDefaultPresetForEmotion(emotion)
         }
     }
-    
+
     /// 감정에 따른 기본 볼륨 조합 생성
     private func generateDefaultVolumesForEmotion(_ emotion: String) -> [Float] {
         switch emotion.lowercased() {
         case "스트레스", "불안", "긴장":
-            return [0.6, 0.3, 0.0, 0.5, 0.2, 0.0, 0.0, 0.0] // 비, 백색소음, 파도 중심
+            return [0.6, 0.3, 0.0, 0.5, 0.2, 0.0, 0.0, 0.0]  // 비, 백색소음, 파도 중심
         case "슬픔", "우울":
-            return [0.7, 0.2, 0.1, 0.4, 0.1, 0.0, 0.0, 0.0] // 비 중심의 차분한 조합
+            return [0.7, 0.2, 0.1, 0.4, 0.1, 0.0, 0.0, 0.0]  // 비 중심의 차분한 조합
         case "분노", "화남":
-            return [0.5, 0.4, 0.0, 0.6, 0.3, 0.0, 0.0, 0.1] // 파도와 바람 중심
+            return [0.5, 0.4, 0.0, 0.6, 0.3, 0.0, 0.0, 0.1]  // 파도와 바람 중심
         case "기쁨", "행복":
-            return [0.3, 0.1, 0.6, 0.2, 0.2, 0.1, 0.0, 0.0] // 새소리 중심의 밝은 조합
+            return [0.3, 0.1, 0.6, 0.2, 0.2, 0.1, 0.0, 0.0]  // 새소리 중심의 밝은 조합
         case "피곤", "졸림":
-            return [0.4, 0.5, 0.0, 0.3, 0.1, 0.0, 0.0, 0.0] // 백색소음 중심
-        default: // 평온, 기본
-            return [0.5, 0.3, 0.2, 0.3, 0.1, 0.0, 0.0, 0.0] // 균형 잡힌 조합
+            return [0.4, 0.5, 0.0, 0.3, 0.1, 0.0, 0.0, 0.0]  // 백색소음 중심
+        default:  // 평온, 기본
+            return [0.5, 0.3, 0.2, 0.3, 0.1, 0.0, 0.0, 0.0]  // 균형 잡힌 조합
         }
     }
-    
+
     /// 감정에 따른 기본 프리셋 생성
     private func generateDefaultPresetForEmotion(_ emotion: String) -> SoundPreset {
         return SoundPreset(

@@ -118,15 +118,30 @@ public final class UsageGate {
         queue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
 
-            // 1. 사용량 증가
+            // 기존 사용량 스냅샷 (변화 없을 경우 불필요한 캐시 무효화 방지)
+            let before = self.usageLimitManager.canUseAIFeature(mode)
+
+            // 증가 시도
             self.usageLimitManager.incrementUsage(for: mode)
 
-            // 2. 해당 모드의 캐시 무효화
-            self.invalidateCache(for: mode)
+            // 증가 후 스냅샷
+            let after = self.usageLimitManager.canUseAIFeature(mode)
 
-            #if DEBUG
-                print("⬆️ [UsageGate] 사용량 증가: \(mode.displayName)")
-            #endif
+            // 사용량이 실제로 변한 경우에만 캐시 무효화 (DRY / 불필요한 churn 방지)
+            if after.currentUsage != before.currentUsage {
+                self.invalidateCache(for: mode)
+                #if DEBUG
+                    print(
+                        "⬆️ [UsageGate] 사용량 증가: \(mode.displayName) \(after.currentUsage)/\(after.dailyLimit) → 캐시 무효화"
+                    )
+                #endif
+            } else {
+                #if DEBUG
+                    print(
+                        "ℹ️ [UsageGate] incrementUsage 호출됐지만 카운트 변화 없음: \(mode.displayName) \(after.currentUsage)/\(after.dailyLimit) → 캐시 유지"
+                    )
+                #endif
+            }
         }
     }
 

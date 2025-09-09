@@ -617,11 +617,40 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 - 성능: 캐시 TTL 짧음(3s) + fast path hit → UI 차단 영향 무시 가능
 - 메시지 상한: 최근 N 제거로 SessionManager 영구 저장(백엔드 용) 영향 없음
 
-### 7) 롤백 전략
-- 문제 발생 시: Wrapper 도입 이전 커밋에서 UsageLimitManager 직접 호출 복원 (단, Phase-2 이후 코드 의존도 상승 → 장기적으로 비권장)
-- 안전 가드: DEBUG 모드에서 UsageGate.printCacheStatus() + debugEnforceCacheCapPreview() 수동 점검
+### 2025-09-09 추가(세분화/메모리 윈도우 재정렬)
+1) In-memory Chat Window vs Persistent Retention (정책 재확인)
+- In-memory window: ChatViewController.enforceMemoryWindow → 최대 150개 메시지만 메모리에 유지 (UI 퍼포먼스 / 셀 재사용 효율 목적).
+- Persistent retention: SessionManager.cleanupOldSessions(30일 기본) + 보호(즐겨찾기 날짜 / 보호 요일 / 최근 N일) 정책이 ‘영구 보존’ 관할.
+- 분리 원칙: UI trim 은 Core Data 삭제가 아니며, loadSavedMessages 완료 후 1회 비동기 cleanupOldSessions() 호출로 장기 데이터 정리.
+- 로그 예시:
+  - UI 윈도우 초과: 🧹 [ChatViewController] 윈도우 초과 제거 N개 (cap=150)
+  - 초기 세션 정리: 🧹 [ChatInit] 초기 세션 정리 수행 removed=X
 
-(이 섹션은 2025-09-09 이후 변경이 있을 경우 반드시 동기화합니다.)
+2) Memory Guard (2-Phase Logging)
+- 즉시: currentUsageMB 180/190MB 구간에서 SOFT/HIGH 경고 로그
+- 추상화: MemoryProfiler.checkMemoryWarning() 결과 threshold 경고 출력
+- 지연 측정: 0.4s post-runloop 디바운스 로그로 순간 피크 vs 안정 상태 구분
+- 목표: trim 정책을 ‘단일 오탐 스파이크’에 반응하지 않고 실측 기반 튜닝 가능하도록 관측성 확보
+
+3) Persona Prompt Cache Miss Reason 세분화
+- 기존: expired | personaChanged (준비중) → 개선:
+  expired > modelSelectionChanged > modeChanged > toneChanged > personaChanged > manual
+- 해시 구성 (UserRulesManager.PersonaSignatureComponents):
+  coreHash (모델 비독립 핵심) / modelHash / modeHash / toneHash / composite(조합)
+- AIContextManager.cachedSystemPrompt 확장: (prompt, timestamp, uptime, composite, coreHash, modeHash, modelHash, toneHash)
+- LEGACY 경로: getSystemPrompt(personaSignature:) → Deprecated (내부에서 모든 해시를 동일하게 채운 단일 composite 호환)
+- 로그 예시: ⚠️ [AIContextManager] Cache MISS reason=modelSelectionChanged
+
+4) DRY 정리 (메시지 추가 경로)
+- addMessageToChat / addBotMessage → appendBatch 단일 경로 통일
+- appendChat는 래퍼 역할 (단일 메시지 shorthands)
+- enforceMemoryWindow 중복(2개 정의) 제거: 하나로 통합
+
+5) 위험 감소 / 추적성
+- 과거 windowCap/ maxMessages 이원화 → SSOT maxMessages=150
+- MemoryLog throttle로 로그 스팸 방지
+- LEGACY cache API 호출 지속 감시(⚠️ LEGACY 로그) → 호출 제거 후 후속 제거 예정
+
 
 
 ## 🆕 2025-08-19 업데이트 (컨텍스트/한도/UX 정합 · 빌드 안정화)

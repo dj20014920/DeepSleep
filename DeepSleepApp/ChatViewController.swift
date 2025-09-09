@@ -72,7 +72,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     var onPresetApply: ((SoundPreset) -> Void)?
     private var sessionStartTime: Date?
     private var messageCount = 0
-    private let maxMessages = 50  // 메모리 최적화: 75 → 50
+    private let maxMessages = 150  // ✅ 사용자 요구 반영: 한 화면 유지 최대 150개 (동적 윈도우)
     private var bottomConstraint: NSLayoutConstraint?
     var chatHistory: [(isUser: Bool, message: String)] = []
 
@@ -111,10 +111,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var isLoadingMessages = false
     private var hasMoreMessages = true
 
+    // 동적 페이징 상태
+    private var lastPaginationTime: Date?
+    private var consecutiveFastPaginations: Int = 0
+
     // UI/메인스레드 디바운스(100ms 내 합치기)
     private var reloadDebounceWorkItem: DispatchWorkItem?
     private var showLoadingDebounceWorkItem: DispatchWorkItem?
     private let uiDebounceInterval: TimeInterval = 0.1
+    private var memoryLogWorkItem: DispatchWorkItem? // throttled post-runloop memory logging
 
     // 구독 상태에 따른 UI 갱신
     private func updateUIForSubscriptionStatus() {
@@ -800,32 +805,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
     }
 
-    /// 🎯 중앙집중형 메시지 추가 메서드 - 모든 메시지는 이 메서드를 통해 추가됨
-    /// ChatMessage 객체를 채팅에 추가하고 UI를 업데이트합니다
+    /// 🎯 중앙집중형 메시지 추가 메서드 (단일) - 통합 appendBatch(allowLoading/scroll 옵션) 사용
     private func appendChat(_ message: ChatMessage) {
-        // 메인 스레드에서 안전하게 처리
-        DispatchQueue.main.async { [self] in
-            // 1. UI 메시지 배열에 추가
-            self.messages.append(message)
-
-            // 1.1 메시지 상한 즉시 집행 (메모리 누수/과도한 셀 생성 방지)
-            if self.messages.count > self.maxMessages {
-                let overflow = self.messages.count - self.maxMessages
-                if overflow > 0 {
-                    let removed = Array(self.messages.prefix(overflow))
-                    self.messages.removeFirst(overflow)
-                    #if DEBUG
-                        print(
-                            "🧹 [ChatViewController] 메시지 상한 초과 → \(removed.count)개 제거 (cap=\(self.maxMessages))"
-                        )
-                    #endif
-                }
-            }
-
-            // 2. UI 업데이트만 수행 (저장은 SessionManager에서 일괄 처리)
-            self.debouncedReload()
-        }
+        appendBatch([message], allowLoading: true, scrollToBottom: true)
     }
+
+    /* DEPRECATED (Merged into unified enforceMemoryWindow below)
+     기존 1차 enforceMemoryWindow 구현 제거됨. 새 구현은 파일 하단(두 번째 정의 위치)에 통합.
+     - 기능: 메시지 개수 상한 + 메모리 경고 + runloop 지연 측정
+     */
 
     private func handleAIResponse(_ text: String) {
         Task { @MainActor in
@@ -865,31 +853,27 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     /// 채팅 메시지를 추가하고 UI를 업데이트합니다
     private func addMessageToChat(message: String, fromUser: Bool) {
-        print(
-            "🟡 [ChatViewController] addMessageToChat 호출됨 - 메시지: '\(message)', fromUser: \(fromUser)"
-        )
-        let messageType: ChatMessageType = fromUser ? .user : .bot
-        let sender: MessageSender = fromUser ? .user : .ai
-        let chatMessage = ChatMessage(
+        // Centralized wrapper → always routes through appendBatch for DRY
+        print("🟡 [ChatViewController] addMessageToChat 호출됨 - fromUser=\(fromUser) len=\(message.count)")
+        let msg = ChatMessage(
             text: message,
             date: Date(),
-            sender: sender,
-            type: messageType
+            sender: fromUser ? .user : .ai,
+            type: fromUser ? .user : .bot
         )
-        print("🟡 [ChatViewController] ChatMessage 생성됨 - ID: \(chatMessage.id)")
-        appendChat(chatMessage)
+        appendBatch([msg], allowLoading: false, scrollToBottom: true)
     }
 
     /// 봇 메시지를 채팅에 추가합니다
     override func addBotMessage(_ message: String) {
-        print("🤖 [ChatViewController] addBotMessage 호출됨 - 메시지: \(message.prefix(50))")
+        print("🤖 [ChatViewController] addBotMessage 호출됨 - len=\(message.count)")
         let botMessage = ChatMessage(
             text: message,
             date: Date(),
             sender: .ai,
             type: .bot
         )
-        appendChat(botMessage)
+        appendBatch([botMessage], allowLoading: false, scrollToBottom: true)
     }
 
     /// 로딩 상태를 표시하거나 숨깁니다
@@ -899,12 +883,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             if show {
                 print("⏳ [ChatViewController] 로딩 메시지 추가")
                 let loadingMessage = ChatMessage(
-                    text: "",  // 빈 텍스트로 변경 - 고양이.gif만 표시
+                    text: "",
                     date: Date(),
                     sender: .ai,
                     type: .loading
                 )
-                self.appendChat(loadingMessage)
+                self.appendBatch([loadingMessage], allowLoading: true, scrollToBottom: false)
                 print("⏳ [ChatViewController] 로딩 메시지 추가됨 - 메시지 수: \(self.messages.count)")
             } else {
                 // 중앙집중식 로딩 메시지 제거
@@ -918,15 +902,27 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     /// 테이블뷰를 맨 아래로 스크롤합니다
     private func scrollToBottom(animated: Bool = true) {
-        DispatchQueue.main.async {
-            // 스크롤 하단으로 이동
-            guard !self.messages.isEmpty else {
-                print("🔴 [ChatViewController] 메시지가 없어서 스크롤하지 않음")
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            // 최신 테이블 데이터 소스 기준(이미 reload 이전이면 rows는 이전 상태)
+            let rows = self.tableView.numberOfRows(inSection: 0)
+            guard rows > 0 else {
+                print("🔴 [ChatViewController] (scrollToBottom) 행이 없어 스크롤 생략")
                 return
             }
-            let indexPath = IndexPath(row: self.messages.count - 1, section: 0)
+            let lastRow = rows - 1
+            // 방어: out-of-bounds 예방 (메시지 추가 직후 trim/삭제 경쟁 상황 대비)
+            if lastRow < 0 { return }
+            let indexPath = IndexPath(row: lastRow, section: 0)
+            // 추가 방어: indexPath 검증
+            if lastRow >= self.tableView.numberOfRows(inSection: 0) {
+                print("⚠️ [ChatViewController] 스크롤 시도 시 행 개수 변동 감지 → 재시도 예약")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    self?.scrollToBottom(animated: animated)
+                }
+                return
+            }
             self.tableView.scrollToRow(at: indexPath, at: .bottom, animated: animated)
-            // 스크롤 완료
         }
     }
 
@@ -937,6 +933,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             let work = DispatchWorkItem { [weak self] in
                 guard let self = self else { return }
                 self.tableView.reloadData()
+                // reload 직후 실제 표시 row 수 기반으로 안전 스크롤
                 self.scrollToBottom()
             }
             self.reloadDebounceWorkItem = work
@@ -957,7 +954,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                         sender: .ai,
                         type: .loading
                     )
-                    self.appendChat(loadingMessage)
+                    self.appendBatch([loadingMessage], allowLoading: true, scrollToBottom: false)
                 } else {
                     self.removeAllLoadingMessages()
                 }
@@ -1180,48 +1177,59 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             MemoryProfiler.shared.logMemoryUsage(context: "loadSavedMessages 완료")
         #endif
 
-        // 6. 테이블뷰 리로드 및 하단으로 스크롤
+        // 6. 테이블뷰 리로드 및 하단으로 스크롤 + 초기 세션 정리(비동기)
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.debouncedReload()
             if !self.messages.isEmpty { self.scrollToBottom(animated: false) }
+            // 🔄 Persistent retention: in-memory window != persistent pruning
+            DispatchQueue.global(qos: .utility).async {
+                let removed = SessionManager.shared.cleanupOldSessions()
+                #if DEBUG
+                print("🧹 [ChatInit] 초기 세션 정리 수행 removed=\(removed)")
+                #endif
+            }
         }
     }
 
-    /// 이전 메시지를 페이징으로 로드 - 스크롤 시 추가 메시지 로드
+    /// 이전 메시지를 페이징으로 로드 - 동적 페이지 크기 + 배치 append + 메모리 가드
     private func paginateOlderMessages() {
         guard hasMoreMessages && !isLoadingMessages else {
             #if DEBUG
                 print(
-                    "💾 [ChatPersistence] 페이징 스킵 - hasMore: \(hasMoreMessages), loading: \(isLoadingMessages)"
+                    "💾 [ChatPersistence] 페이징 스킵 - hasMore: \\(hasMoreMessages), loading: \\(isLoadingMessages)"
                 )
             #endif
             return
         }
 
         isLoadingMessages = true
-        #if DEBUG
-            print("💾 [ChatPersistence] 이전 메시지 페이징 시작 - 현재 페이지: \(currentPage)")
-        #endif
 
-        // 📊 페이징 전 메모리 체크
+        // 동적 페이지 크기: 빠른 연속 상단 스크롤 시 40, 기본 20
+        let now = Date()
+        if let last = lastPaginationTime, now.timeIntervalSince(last) < 1.0 {
+            consecutiveFastPaginations += 1
+        } else {
+            consecutiveFastPaginations = 0
+        }
+        lastPaginationTime = now
+        let baseSize = pageSize
+        let dynamicPageSize = (consecutiveFastPaginations >= 1) ? min(baseSize * 2, 40) : baseSize
+
         #if DEBUG
-            MemoryProfiler.shared.logMemoryUsage(context: "페이징 전 (페이지: \(currentPage))")
+            print(
+                "💾 [ChatPersistence] 이전 메시지 페이징 시작 - 현재 페이지: \\(currentPage) dynSize=\\(dynamicPageSize) fastCount=\\(consecutiveFastPaginations)"
+            )
+            MemoryProfiler.shared.logMemoryUsage(context: "페이징 전 (페이지: \\(currentPage))")
         #endif
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
-            // 실제 저장소에서 추가 메시지 로드 (메모리 최적화)
-            let nextPageSize = self.pageSize
-            let currentMessageCount = self.messages.count
-            let skipCount = currentMessageCount
-
-            // SessionManager에서 추가 메시지 로드 (현재보다 더 많은 양을 요청해서 이전 메시지 확보)
-            let totalRequestSize = currentMessageCount + nextPageSize
+            let currentCount = self.messages.count
+            let totalRequestSize = currentCount + dynamicPageSize
             let allMessages = self.sessionManager.getRecentChatMessages(limit: totalRequestSize)
 
-            // 메시지 매핑 및 중복 제거
             let mappedMessages = allMessages.map { storedMessage in
                 let sender: MessageSender = {
                     switch storedMessage.role {
@@ -1248,10 +1256,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
             }
 
-            let deduplicatedMessages = self.deduplicateMessages(mappedMessages)
-
-            // 새로 로드할 메시지가 있는지 확인
-            guard deduplicatedMessages.count > currentMessageCount else {
+            let dedup = self.deduplicateMessages(mappedMessages)
+            guard dedup.count > currentCount else {
                 DispatchQueue.main.async {
                     self.hasMoreMessages = false
                     self.isLoadingMessages = false
@@ -1260,51 +1266,127 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 return
             }
 
-            // 새 메시지들 추출 (현재 표시된 것보다 이전 것들)
-            let totalAvailable = deduplicatedMessages.count
-            let newDisplayCount = min(currentMessageCount + nextPageSize, totalAvailable)
-            let newMessages = Array(deduplicatedMessages.suffix(newDisplayCount))
+            let totalAvailable = dedup.count
+            let newDisplayCount = min(currentCount + dynamicPageSize, totalAvailable)
+            let newMessagesSlice = Array(dedup.suffix(newDisplayCount))
+            let deltaMessages = Array(
+                newMessagesSlice.prefix(newMessagesSlice.count - currentCount))
 
             DispatchQueue.main.async {
-                // 현재 스크롤 위치 저장
-                let previousContentHeight = self.tableView.contentSize.height
-                let previousContentOffset = self.tableView.contentOffset.y
+                // 스크롤 위치 유지 위한 이전 height
+                let prevHeight = self.tableView.contentSize.height
+                let prevOffsetY = self.tableView.contentOffset.y
 
-                // 메시지 교체
-                self.messages = newMessages
+                // 배치 append (기존 메시지 앞에 과거 메시지가 추가되는 형태 → 여기선 전체 교체 대신 diff append)
+                self.messages = newMessagesSlice
                 self.currentPage += 1
 
-                // 메모리 정리 수행
-                self.performPagingMemoryCleanup()
+                // 메모리 가드 & trim
+                self.enforceMemoryWindow(reason: "pagination")
 
-                // 스크롤 위치 유지
                 self.tableView.layoutIfNeeded()
-                let newContentHeight = self.tableView.contentSize.height
-                let contentHeightDiff = newContentHeight - previousContentHeight
-                self.tableView.contentOffset = CGPoint(
-                    x: 0, y: previousContentOffset + contentHeightDiff)
+                let newHeight = self.tableView.contentSize.height
+                let diff = newHeight - prevHeight
+                self.tableView.contentOffset = CGPoint(x: 0, y: prevOffsetY + diff)
 
-                // 상태 업데이트
                 self.hasMoreMessages = totalAvailable > newDisplayCount
                 self.isLoadingMessages = false
 
                 #if DEBUG
-                    print("💾 [ChatPersistence] 페이징 완료:")
-                    print("   - 현재 표시 메시지: \(self.messages.count)")
-                    print("   - 전체 사용 가능: \(totalAvailable)")
-                    print("   - 더 있음: \(self.hasMoreMessages)")
+                    print(
+                        "💾 [ChatPersistence] 페이징 완료: now=\\(self.messages.count) added=\\(deltaMessages.count) totalAvail=\\(totalAvailable) more=\\(self.hasMoreMessages)"
+                    )
                     MemoryProfiler.shared.logMemoryUsage(
-                        context: "페이징 후 (현재 표시: \(self.messages.count)개)")
+                        context: "페이징 후 (현재 표시: \\(self.messages.count)개)")
 
-                    // 50MB 초과 시 경고
                     if MemoryProfiler.shared.checkMemoryWarning() {
-                        print("⚠️ 메모리 사용량이 50MB를 초과했습니다!")
-                        // 필요시 오래된 메시지 정리
-                        self.cleanupOldMessages()
+                        print("⚠️ 메모리 사용량 경고(threshold over) → 소프트 경고만 출력 (자동 강제 trim 없음)")
                     }
                 #endif
             }
         }
+    }
+
+    // MARK: - 📦 Message Batch & Memory Window (Added)
+
+    /// 배치로 메시지를 추가하고 (옵션) 로딩 메시지 중복을 정리한 뒤 메모리 윈도우(150) 적용
+    /// - Parameters:
+    ///   - newMessages: 추가할 메시지 배열 (이미 정렬: 과거→현재 가정)
+    ///   - allowLoading: .loading 타입을 그대로 허용할지
+    ///   - scrollToBottom: 추가 후 하단 스크롤 여부 (사용자 메시지/AI 응답 시 true, 과거 페이징은 false)
+    private func appendBatch(
+        _ newMessages: [ChatMessage],
+        allowLoading: Bool = true,
+        scrollToBottom: Bool = true
+    ) {
+        guard !newMessages.isEmpty else { return }
+
+        // 1) .loading 중복 제거 (allowLoading=false 이면 완전히 제거)
+        var filtered = newMessages
+        if !allowLoading {
+            filtered.removeAll { $0.type == .loading }
+        } else {
+            // allowLoading = true 인 경우: 기존에 남아있는 과거 loading 메시지 모두 제거 후 맨 끝 1개만 허용
+            // (중복 로딩 버블 누적 방지)
+            if filtered.contains(where: { $0.type == .loading }) {
+                messages.removeAll { $0.type == .loading }
+            }
+        }
+
+        // 2) 실제 추가
+        messages.append(contentsOf: filtered)
+
+        // 3) 메모리 윈도우/사용량 가드
+        enforceMemoryWindow(reason: "appendBatch")
+
+        // 4) UI 갱신
+        debouncedReload()
+        if scrollToBottom {
+            self.scrollToBottom(animated: true) // self. 명시로 메서드 참조 (파라미터 이름과 충돌 방지)
+        }
+    }
+
+    /// Unified Memory Window Enforcement
+    /// - Maintains a max in-memory chat window (policy: 150 messages) separate from persistence retention (30일 세션 보존 정책)
+    /// - Provides layered memory warnings (usageMB thresholds + MemoryProfiler.checkMemoryWarning())
+    /// - Throttles a post-runloop memory log (0.4s) to distinguish transient spikes vs steady-state
+    /// - reason: call path identifier (appendBatch / pagination / manual)
+    private func enforceMemoryWindow(reason: String) {
+        let cap = maxMessages // Single source of truth
+        if messages.count > cap {
+            let overflow = messages.count - cap
+            if overflow > 0 {
+                messages.removeFirst(overflow)
+                #if DEBUG
+                print("🧹 [ChatViewController] 윈도우 초과 제거 \(overflow)개 (cap=\(cap)) reason=\(reason)")
+                #endif
+            }
+        }
+
+        #if DEBUG
+        // Direct usage inspection (immediate)
+        let usage = MemoryProfiler.shared.getCurrentMemoryUsage()
+        // 사용자의 '강제 종료·메모리 제한' 불원 정책 반영: 경고 레벨 완화 (로그 레벨=debug) / 강제 trim 없음
+        if usage > 190 {
+            print("ℹ️ [MemoryGuard] usage=\(String(format: "%.2f", usage))MB (HIGH segment, no enforce, reason=\(reason), count=\(messages.count))")
+        } else if usage > 180 {
+            print("ℹ️ [MemoryGuard] usage=\(String(format: "%.2f", usage))MB (SOFT segment, no enforce, reason=\(reason), count=\(messages.count))")
+        }
+        if MemoryProfiler.shared.checkMemoryWarning() {
+            print("ℹ️ [MemoryGuard] threshold segment (warn-only, no action) reason=\(reason) count=\(messages.count)")
+        }
+        #endif
+
+        // Post-runloop throttled measurement
+        #if DEBUG
+        memoryLogWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            MemoryProfiler.shared.logMemoryUsage(context: "post-runloop \(reason)")
+        }
+        memoryLogWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: item)
+        #endif
     }
 
     // MARK: - 🔄 StorageManagement 변경 사항 처리
