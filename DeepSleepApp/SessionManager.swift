@@ -19,6 +19,9 @@ public class SessionManager {
     private let cacheQueue = DispatchQueue(
         label: "com.deepsleep.sessionmanager", attributes: .concurrent)
 
+    // MARK: - 중앙집중형 사용량 관리
+    private let usageGate = UsageGate.shared
+
     // MARK: - 피드백 세션 관리 (FeedbackManager 통합)
     private var currentFeedbackSession: FeedbackSession?
     private let feedbackQueue = DispatchQueue(
@@ -851,14 +854,14 @@ public class SessionManager {
                 }
             }()
             let limit = ConfigReader.int(tierKey, default: base) ?? base
-            let status = UsageLimitManager.shared.canUseDailyKeyedFeature(
+            let status = usageGate.canUseDailyKeyedFeature(
                 key: "todo_overall_advice", limit: limit)
             guard status.canUse else {
                 print("❌ [SessionManager] 사용량 한도 초과: task_advice_overall 0/\(limit)")
                 throw AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
             }
         } else {
-            let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+            let usage = usageGate.checkUsage(for: mode)
             guard usage.canUse else {
                 print(
                     "❌ [SessionManager] 사용량 한도 초과: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)"

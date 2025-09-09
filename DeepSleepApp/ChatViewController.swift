@@ -48,7 +48,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var didStartDiaryAnalysis: Bool = false
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
+    // usageGate 제거: ChatViewController는 직접 UsageLimitManager를 경유 (빌드 타겟 미포함/스코프 문제 회피)
     var messages: [ChatMessage] = []
+    /// displayMessages 호환용 (기존 코드 참조 유지) - 실제 저장은 messages 단일화
+    private var displayMessages: [ChatMessage] {
+        get { messages }
+        set { messages = newValue }
+    }
 
     /// 특정 세션을 불러와 이어서 대화하기 위한 ID (옵션)
     var resumeSessionId: String?
@@ -66,7 +72,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     var onPresetApply: ((SoundPreset) -> Void)?
     private var sessionStartTime: Date?
     private var messageCount = 0
-    private let maxMessages = 75
+    private let maxMessages = 50  // 메모리 최적화: 75 → 50
     private var bottomConstraint: NSLayoutConstraint?
     var chatHistory: [(isUser: Bool, message: String)] = []
 
@@ -112,12 +118,13 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     // 구독 상태에 따른 UI 갱신
     private func updateUIForSubscriptionStatus() {
-        let (canAccess, _) = EntitlementGate.canAccess(.chat)
+        // 중앙 UsageGate 경유 (SSOT)
+        let status = UsageGate.shared.checkUsage(for: .generalConversation)
+        let canAccess = status.canUse
         sendButton.isEnabled = canAccess
         inputTextField.isEnabled = canAccess
     }
-    private var displayMessages: [ChatMessage] = []
-    private var allMessagesCache: [ChatMessage] = []
+    // displayMessages 제거 - messages 배열로 통합 (DRY 원칙)
 
     // MARK: - Model Switching Properties
     // TODO: 임시 주석 처리 - 컴파일 오류 해결 후 활성화
@@ -195,6 +202,54 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private func markDailyOnceExtensionUsed() {
         let key = "prompt_len_once_extension_used_" + todayKey()
         UserDefaults.standard.set(true, forKey: key)
+    }
+
+    // MARK: - 메모리 관리 최적화
+
+    /// 메모리 정리: 오래된 메시지 제거 및 가비지 컬렉션
+    private func performMemoryCleanup() {
+        #if DEBUG
+            print("🧹 [ChatViewController] 메모리 정리 시작")
+        #endif
+
+        // 1. 메시지 수가 maxMessages를 초과하면 오래된 메시지 제거
+        if messages.count > maxMessages {
+            let excessCount = messages.count - maxMessages
+            let removedMessages = Array(messages.prefix(excessCount))
+            messages.removeFirst(excessCount)
+
+            #if DEBUG
+                print("🧹 [ChatViewController] \(excessCount)개 오래된 메시지 제거됨")
+            #endif
+        }
+
+        // 2. 프리셋 페이로드 정리 (1시간 이상 된 것)
+        let oneHourAgo = Date().addingTimeInterval(-3600)
+        presetPayloads = presetPayloads.filter { _, payload in
+            // EnhancedRecommendationResponse에 timestamp가 없으므로 전체 정리
+            false  // 모든 오래된 페이로드 제거
+        }
+
+        // 3. 활성 추천 프리셋 정리
+        activeRecommendationPresets.removeAll()
+
+        // 4. 피드백 대기 프리셋 정리
+        feedbackPendingPresets.removeAll()
+
+        #if DEBUG
+            print("🧹 [ChatViewController] 메모리 정리 완료 - 현재 메시지 수: \(messages.count)")
+        #endif
+    }
+
+    /// 페이징 로드 시 메모리 정리
+    private func performPagingMemoryCleanup() {
+        // 페이징으로 새 메시지가 추가된 후 메모리 정리
+        performMemoryCleanup()
+
+        // 테이블뷰 셀 재사용을 위한 명시적 리로드
+        DispatchQueue.main.async { [weak self] in
+            self?.tableView.reloadData()
+        }
     }
 
     private func todayKey() -> String {
@@ -753,6 +808,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             // 1. UI 메시지 배열에 추가
             self.messages.append(message)
 
+            // 1.1 메시지 상한 즉시 집행 (메모리 누수/과도한 셀 생성 방지)
+            if self.messages.count > self.maxMessages {
+                let overflow = self.messages.count - self.maxMessages
+                if overflow > 0 {
+                    let removed = Array(self.messages.prefix(overflow))
+                    self.messages.removeFirst(overflow)
+                    #if DEBUG
+                        print(
+                            "🧹 [ChatViewController] 메시지 상한 초과 → \(removed.count)개 제거 (cap=\(self.maxMessages))"
+                        )
+                    #endif
+                }
+            }
+
             // 2. UI 업데이트만 수행 (저장은 SessionManager에서 일괄 처리)
             self.debouncedReload()
         }
@@ -1090,23 +1159,28 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             return ChatMessage(
                 text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
-
-        // 3. 인접 중복 제거 (과거 이중 저장 대응)
         mapped = deduplicateMessages(mapped)
-        allMessagesCache = mapped
 
-        // 4. 초기 페이지 설정 (최근 pageSize개만 표시)
+        // 4. 메모리 최적화: 직접 messages 배열 사용 (allMessagesCache 제거)
         currentPage = 0
-        let initialCount = min(pageSize, allMessagesCache.count)
-        messages = Array(allMessagesCache.suffix(initialCount))
-        hasMoreMessages = allMessagesCache.count > pageSize
+        let totalCount = mapped.count
+        let initialCount = min(pageSize, totalCount)
+        messages = Array(mapped.suffix(initialCount))
+        hasMoreMessages = totalCount > pageSize
+
+        // 5. 메모리 정리 수행
+        if totalCount > maxMessages {
+            performMemoryCleanup()
+        }
 
         #if DEBUG
-            print(
-                "💾 [ChatPersistence] 전체 \(allMessagesCache.count)개 중 \(messages.count)개 메시지 UI에 표시")
+            print("💾 [ChatPersistence] loadSavedMessages 완료:")
+            print("   - 로드된 메시지 수: \(messages.count)")
+            print("   - 더 많은 메시지 있음: \(hasMoreMessages)")
+            MemoryProfiler.shared.logMemoryUsage(context: "loadSavedMessages 완료")
         #endif
 
-        // 5. 테이블뷰 리로드 및 하단으로 스크롤
+        // 6. 테이블뷰 리로드 및 하단으로 스크롤
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.debouncedReload()
@@ -1138,12 +1212,46 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
 
-            // 다음 페이지 계산
-            let nextPage = self.currentPage + 1
-            let startIndex = max(0, self.allMessagesCache.count - (nextPage + 1) * self.pageSize)
-            let endIndex = max(0, self.allMessagesCache.count - nextPage * self.pageSize)
+            // 실제 저장소에서 추가 메시지 로드 (메모리 최적화)
+            let nextPageSize = self.pageSize
+            let currentMessageCount = self.messages.count
+            let skipCount = currentMessageCount
 
-            guard startIndex < endIndex else {
+            // SessionManager에서 추가 메시지 로드 (현재보다 더 많은 양을 요청해서 이전 메시지 확보)
+            let totalRequestSize = currentMessageCount + nextPageSize
+            let allMessages = self.sessionManager.getRecentChatMessages(limit: totalRequestSize)
+
+            // 메시지 매핑 및 중복 제거
+            let mappedMessages = allMessages.map { storedMessage in
+                let sender: MessageSender = {
+                    switch storedMessage.role {
+                    case "assistant": return .ai
+                    case "user": return .user
+                    case "system": return .system
+                    default: return .user
+                    }
+                }()
+                let fixedType: ChatMessageType = {
+                    if storedMessage.type == .text {
+                        switch sender {
+                        case .user: return .user
+                        case .ai: return .bot
+                        case .system: return .system
+                        }
+                    }
+                    return storedMessage.type
+                }()
+                let finalText =
+                    (sender == .ai)
+                    ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+                return ChatMessage(
+                    text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
+            }
+
+            let deduplicatedMessages = self.deduplicateMessages(mappedMessages)
+
+            // 새로 로드할 메시지가 있는지 확인
+            guard deduplicatedMessages.count > currentMessageCount else {
                 DispatchQueue.main.async {
                     self.hasMoreMessages = false
                     self.isLoadingMessages = false
@@ -1152,20 +1260,22 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 return
             }
 
-            // 이전 메시지들 추출
-            let olderMessages = Array(self.allMessagesCache[startIndex..<endIndex])
+            // 새 메시지들 추출 (현재 표시된 것보다 이전 것들)
+            let totalAvailable = deduplicatedMessages.count
+            let newDisplayCount = min(currentMessageCount + nextPageSize, totalAvailable)
+            let newMessages = Array(deduplicatedMessages.suffix(newDisplayCount))
 
             DispatchQueue.main.async {
                 // 현재 스크롤 위치 저장
                 let previousContentHeight = self.tableView.contentSize.height
                 let previousContentOffset = self.tableView.contentOffset.y
 
-                // 메시지 추가 (앞쪽에 삽입)
-                self.messages.insert(contentsOf: olderMessages, at: 0)
-                self.currentPage = nextPage
+                // 메시지 교체
+                self.messages = newMessages
+                self.currentPage += 1
 
-                // 테이블 뷰 업데이트
-                self.debouncedReload()
+                // 메모리 정리 수행
+                self.performPagingMemoryCleanup()
 
                 // 스크롤 위치 유지
                 self.tableView.layoutIfNeeded()
@@ -1175,17 +1285,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     x: 0, y: previousContentOffset + contentHeightDiff)
 
                 // 상태 업데이트
-                self.hasMoreMessages = startIndex > 0
+                self.hasMoreMessages = totalAvailable > newDisplayCount
                 self.isLoadingMessages = false
 
                 #if DEBUG
-                    print(
-                        "💾 [ChatPersistence] 페이징 완료 - 추가된 메시지: \(olderMessages.count), 전체: \(self.messages.count)"
-                    )
-                #endif
-
-                // 📊 페이징 후 메모리 체크
-                #if DEBUG
+                    print("💾 [ChatPersistence] 페이징 완료:")
+                    print("   - 현재 표시 메시지: \(self.messages.count)")
+                    print("   - 전체 사용 가능: \(totalAvailable)")
+                    print("   - 더 있음: \(self.hasMoreMessages)")
                     MemoryProfiler.shared.logMemoryUsage(
                         context: "페이징 후 (현재 표시: \(self.messages.count)개)")
 
@@ -1493,9 +1600,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             mode == AIMode.generalConversation.rawValue
         else { return }
 
-        let status = UsageLimitManager.shared.canUseAIFeature(.generalConversation)
-        let remaining = max(0, status.dailyLimit - status.currentUsage)
-        let resetAt = UsageLimitManager.shared.nextDailyResetAt()
+        let status = UsageGate.shared.checkUsage(for: .generalConversation)
+        let remaining = status.remaining
+        let resetAt = status.resetTime
         let df = DateFormatter()
         df.locale = Locale(identifier: "ko_KR")
         df.dateFormat = "M월 d일 a h시 m분"
@@ -2364,7 +2471,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }()
 
         // 최신 recommendationSelector 메시지를 찾아 quickActions 업데이트
-        if let idx = displayMessages.lastIndex(where: { $0.type == .recommendationSelector }) {
+        if let idx = displayMessages.lastIndex(where: {
+            $0.type == ChatMessageType.recommendationSelector
+        }) {
             var msg = displayMessages[idx]
             if let qas = msg.quickActions {
                 let newQAs = qas.map { qa in

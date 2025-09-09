@@ -145,14 +145,12 @@ final class CentralNotificationScheduler {
 
     func cancelTodoNotification(id: UUID) {
         center.removePendingNotificationRequests(withIdentifiers: [id.uuidString])
-        print("🔔 예정된 알림 제거: \(id.uuidString)")
     }
 
     func rescheduleTodos(_ todos: [TodoItem]) {
         for todo in todos {
             scheduleTodoNotification(for: todo)
         }
-        print("🔔 모든 알림 재스케줄링 완료")
     }
     
     // MARK: - Fortune Notification

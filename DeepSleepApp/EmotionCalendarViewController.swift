@@ -1003,7 +1003,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
         }
         // per-item today check 제거: fingerprint 기반 제한만 사용
         let fp = TodoManager.adviceFingerprint(for: item)
-        if UsageLimitManager.shared.hasUsedDailyFingerprint(
+        if UsageGate.shared.hasUsedDailyFingerprint(
             namespace: "todo_individual_advice", fingerprint: fp)
         {
             let alert = UIAlertController(
@@ -1029,7 +1029,7 @@ extension EmotionCalendarViewController: TodoListCellDelegate {
                     ]
                 )
                 TodoManager.shared.appendAdvice(to: item.id, advice: advice)
-                UsageLimitManager.shared.markDailyFingerprintUsed(
+                UsageGate.shared.markDailyFingerprintUsed(
                     namespace: "todo_individual_advice", fingerprint: fp)
                 await MainActor.run {
                     LoadingOverlay.hide(from: self)

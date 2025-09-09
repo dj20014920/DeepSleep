@@ -237,6 +237,68 @@ DeepSleep은 iOS에서 AI 대화, 감정 일기 분석, 개인화 사운드 추�
 > 
 > **2025-08-25 업데이트**: 모델 선택 게이팅(무료=freeModel+gemini, Pro/Trial=전체), Paywall 카피(“Pro에는 대나무숲 친구 선택 가능”), 프리미엄 배지(Trial 토글/D-카운트다운) 반영. 2025-08-21: StoreKit2 결제 플로우 정상 연결, PaywallViewController 통합, Trial 배지 UI, SubscriptionUIBinder 전역 상태 관리 완성
 
+---
+
+## 10. 2025-09-09 Phase-2: UsageGate 전면 적용 & 메모리 상한 즉시 집행
+
+본 섹션은 Phase-2 구조 정비(Usage / Memory / Weekly & Fingerprint Wrappers)를 반영하며, AI_CONTEXT_MANAGEMENT_ROADMAP 동기화(2025-09-09)와 일치합니다.
+
+### 10.1 UsageGate 100% 적용(직접 호출 수렴)
+- 교체 대상: EntitlementGate, AIUsageManager, ChatViewController, EmotionCalendarViewController (개별 Todo 조언 fingerprint)
+- 추가 Wrapper:
+  - Weekly: `canUseWeeklyFeature(anchor:key:)`, `incrementWeeklyFeature(anchor:key:)`
+  - Fingerprint 1회 제한: `hasUsedDailyFingerprint(namespace:fingerprint:)`, `markDailyFingerprintUsed(namespace:fingerprint:)`
+- 남은 UsageLimitManager 직접 호출: (a) 내부 주석/가이드 예시, (b) 타이머/리셋 시스템 로직
+- 효과: 정책/티어 조정 시 UsageGate 단일 수정으로 즉시 전파 (DRY, SSOT 강화)
+
+### 10.2 메시지 상한 즉시 집행
+- `ChatViewController.appendChat` 내부에서 `messages.count > maxMessages` 시 초과분 선제 제거
+- 기존 지연형 `performMemoryCleanup()` 의존 축소 → 장시간 세션에서 셀/메모리 증가 억제
+- DEBUG 로그: `🧹 [ChatViewController] 메시지 상한 초과 → N개 제거`
+
+### 10.3 UsageGate 캐시 메모리 상한
+- 내부 캐시 엔트리 수 초과 시 (기본 32) 가장 오래된 항목 정리: `enforceCacheMemoryCap`
+- DEBUG 로그: `🧹 [UsageGate] 캐시 메모리 상한 적용`
+- 목적: 향후 AIMode 확장(실험 모드 등) 시 캐시 누적 방지
+
+### 10.4 리팩터 표 (Before → After)
+
+| Concern | Before | After | 결과 |
+|--------|--------|-------|------|
+| 일일/주간/키드 체크 | 다수 컴포넌트가 `UsageLimitManager` 직접 호출 | 모든 공용 경로 UsageGate Wrapper 통일 | DRY / 테스트 용이 |
+| 메시지 메모리 상한 | 수동/지연 정리 | appendChat 즉시 상한 집행 | 예측 가능/누수 위험 감소 |
+| Weekly 제한 | 직접 호출 산재 | UsageGate weekly wrapper | 정책 교체 단일화 |
+| Fingerprint per-day | 직접 호출 | UsageGate fingerprint wrapper | 도메인 규칙 집중화 |
+| 캐시 메모리 관리 | 무제한 (소규모 전제) | 상한 32 + LRU(시간정렬 기반) | 방어적 안정성 |
+
+### 10.5 운영/관측 영향
+- 캐시 HIT/MISS 패턴 변화 없음(Validity Window 동일: 3초)
+- 단일 게이트 전환으로 로그 noise 감소 (이중 경로 제거)
+- 성능: Wrapper 추가로 인라인 호출 1회 증가하지만 O(μs) 수준 (무시 가능)
+
+### 10.6 회귀 테스트 권장
+1. 일반 대화 한도 초과 시 ChatView 버튼 비활성 확인  
+2. 월간 통계(weekly) 1회 사용 후 Gate 차단/ResetAt 표시 확인  
+3. 동일 Todo 항목 조언 2회 연속 시 fingerprint 차단  
+4. 60개 이상 메시지 빠르게 추가 → 상위 10개 제거 확인(max=50)  
+5. 캐시 상태: DEBUG `UsageGate.printCacheStatus()` + 필요 시 `debugEnforceCacheCapPreview()` 호출
+
+### 10.7 향후 Phase-3 제안 (요약)
+- Constraint 충돌 제거(높이 0 + top/bottom 12 패턴 교정)
+- ChatViewController SRP 분리(View / MessageStore / AIOrchestrator)
+- Persona hash mismatch reason 세분화(.modeChanged vs .personaChanged)
+- UsageGate hit-rate 메트릭 추가 / A/B 한도 UX 튜닝
+- Unit Tests: Weekly & Fingerprint wrappers / AppendChat cap enforcement
+
+### 10.8 위험 및 롤백
+| 리스크 | 설명 | 롤백 전략 |
+|--------|------|-----------|
+| Wrapper 동시성 | barrier queue로 안전, 이슈 적음 | 이전 직접 호출 revert (낮은 비용) |
+| 메시지 상한 제거 실수 | UI 최근 맥락 손실 | SessionManager 저장본 재로딩 |
+| Weekly 기능 확장 시 스키마 변경 | Wrapper 시그니처 영향 | Wrapper에 default param 확장 |
+
+Phase-2 변경은 아키텍처 원칙(DRY/KISS/SOLID/SSOT)을 한층 강화하며, Phase-3에서 UI/Constraint 및 세분화된 관측성 개선의 토대를 마련합니다.
+
 
 ---
 

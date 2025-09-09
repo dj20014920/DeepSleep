@@ -28,6 +28,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private let securityManager = AISecurityManager.shared
     private let settingsManager = SettingsManager.shared
     private let contextManager = AIContextManager.shared
+    private let usageGate = UsageGate.shared
 
     // Idempotency/inflight dedup
     private var isSending: Bool = false
@@ -245,7 +246,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 }
             }()
             let limit = ConfigReader.int(tierKey, default: base) ?? base
-            let status = UsageLimitManager.shared.canUseDailyKeyedFeature(
+            let status = usageGate.canUseDailyKeyedFeature(
                 key: "todo_overall_advice", limit: limit)
             guard status.canUse else {
                 ContextMetrics.shared.logRequestEnd(
@@ -255,7 +256,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     "USAGE_LIMIT_EXCEEDED: task_advice_overall 0/\(limit)")
             }
         } else {
-            let usage = UsageLimitManager.shared.canUseAIFeature(mode)
+            let usage = usageGate.checkUsage(for: mode)
             guard usage.canUse else {
                 ContextMetrics.shared.logRequestEnd(
                     id: reqId, model: model.rawValue, mode: mode.rawValue, success: false,
@@ -299,9 +300,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 tokenUsage: response.usage
             )
             if mode == .taskAdviceOverall {
-                UsageLimitManager.shared.incrementDailyKeyedFeature(key: "todo_overall_advice")
+                usageGate.incrementDailyKeyedFeature(key: "todo_overall_advice")
             } else {
-                UsageLimitManager.shared.incrementUsage(for: mode)
+                usageGate.incrementUsage(for: mode)
             }
             ContextMetrics.shared.logRequestEnd(
                 id: reqId, model: model.rawValue, mode: mode.rawValue, success: true,
@@ -1828,11 +1829,15 @@ extension UnifiedAIServiceImpl {
 
         // Compose client idempotency key (same scheme as sendMessage)
         let contentConcat = messages.last?.content ?? ""
-        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap {
+            String(format: "%02x", $0)
+        }.joined()
         // Idempotency key: 64-char hex SHA256 of (mode + personaCore + SHA256(content))
         let personaKeyForIdem = personaCoreKey
         let baseForIdem = mode.rawValue + personaKeyForIdem + contentHash
-        let idemKey = String(SHA256.hash(data: Data(baseForIdem.utf8)).compactMap { String(format: "%02x", $0) }.joined().prefix(64))
+        let idemKey = String(
+            SHA256.hash(data: Data(baseForIdem.utf8)).compactMap { String(format: "%02x", $0) }
+                .joined().prefix(64))
 
         // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
         func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
@@ -2055,7 +2060,9 @@ extension UnifiedAIServiceImpl {
     ///   - userMax: 사용자 턴 최대 개수
     ///   - assistantMax: 어시스턴트 턴 최대 개수
     /// - Returns: 시간순(오래된→최근) 정렬된 턴 배열
-    static func selectBalancedRecent(_ history: [AIConversationTurn], userMax: Int, assistantMax: Int) -> [AIConversationTurn] {
+    static func selectBalancedRecent(
+        _ history: [AIConversationTurn], userMax: Int, assistantMax: Int
+    ) -> [AIConversationTurn] {
         guard !history.isEmpty else { return [] }
         var users: [AIConversationTurn] = []
         var assists: [AIConversationTurn] = []

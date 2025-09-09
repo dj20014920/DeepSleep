@@ -569,6 +569,61 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 
 # 🧠 DeepSleep AI 컨텍스트 관리 시스템 로드맵
 
+## 2025-09-09 동기화: UsageGate 전면 적용 단계(Phase-2) · 메시지 상한 즉시 집행 · Weekly/Fingerprint Wrapper 도입
+이번 스프린트에서 아래 구조적 정리가 반영되었습니다. (기존 2025-08-19~09-08 작업 위 상위 단계)
+
+### 1) UsageGate 100% 적용(잔존 직접 호출 수렴)
+- 목적: 사용량 한도/증가/캐시/주간·특수 키·지문(fingerprint) 제한을 단일 게이트에서 관리 (DRY + SSOT)
+- 새 Wrapper 추가:
+  - canUseWeeklyFeature(anchor:key:) / incrementWeeklyFeature(anchor:key:)
+  - hasUsedDailyFingerprint(namespace:fingerprint:) / markDailyFingerprintUsed(namespace:fingerprint:)
+- 교체 대상 정리:
+  - EntitlementGate: 주간(monthlyStatistics) 직접 UsageLimitManager 호출 → UsageGate.weekly wrapper로 교체
+  - AIUsageManager: weekly / keyed feature 체크 및 증가 경로 UsageGate로 전환
+  - EmotionCalendarViewController: 개별 Todo 조언 fingerprint 하루 1회 제한 → UsageGate fingerprint wrapper로 교체
+  - ChatViewController: 일반 대화 한도 UI 업데이트 시 UsageLimitManager 직접 호출 → UsageGate.checkUsage(for:) 사용
+- 남은 UsageLimitManager 직접 호출 범위:
+  - UsageLimitManager 내부 예시/주석 블록(문서용)
+  - 시스템 레벨(타이머·리셋) 로직 (→ Public API는 Gate가 래핑)
+- 효과: 정책 변경(예: 구독 티어별 동적 한도 조정, 캐시 전략) 시 UsageGate 단일 수정으로 전체 반영 가능
+
+### 2) 메시지 상한(메모리) 즉시 집행
+- ChatViewController.appendChat 내부에서 self.messages.count > maxMessages 시 초과분 선제 삭제
+- 기존 performMemoryCleanup 의존 제거 (페이징/지연 정리 → 실시간 정리)
+- 로그: 🧹 [ChatViewController] 메시지 상한 초과 → N개 제거
+- 위험도 감소: 대화 길어질 때 셀/메모리 증가로 인한 스크롤 퍼포먼스 저하 방지
+
+### 3) UsageGate 내부 캐시 메모리 상한
+- enforceCacheMemoryCap(maxEntries=32) 추가: 과도한 모드/실험적 AIMode 증가 시 캐시 메모리 누적 방지
+- setCachedResult 시 자동 호출
+- DEBUG 로그: 🧹 [UsageGate] 캐시 메모리 상한 적용
+
+### 4) Weekly / Fingerprint Wrapper 설계 근거
+- Weekly: 기존 도메인(.monthlyStatistics) 확장 시 새 기능은 UsageGate만 의존 → 호출부 단순화
+- Fingerprint: 개별 항목(할 일 단위 조언 등) 1회 제한 로직을 UsageLimitManager 상세 구현으로부터 격리 → 교체/확장 용이
+
+### 5) 후속 예정(Phase-3 제안)
+| 범주 | 작업 | 목표 |
+|------|------|------|
+| Constraint 안정화 | dropdown height=0 + top/bottom 12 충돌 제거 | 콘솔 노이즈/성능 향상 |
+| Persona Prompt Cache | hash mismatch reason 세분화(.modeChanged/.personaChanged) | 관측성 향상 |
+| ChatView 분리 | View(입출력) / MessageStore / AI Orchestrator 분리 | SRP 강화 |
+| 테스트 | UsageGate weekly/fingerprint 단위 테스트 | 회귀 예방 |
+| Metric | UsageGate cache hit/miss 지표 수집 | 한도 체감 UX 튜닝 |
+
+### 6) 위험 분석 & 대응
+- 잔존 직접 호출: 제거 완료 (EntitlementGate, AIUsageManager, ChatVC 주요 경로) → 회귀 테스트 필요
+- 동시성: UsageGate.queue(.concurrent + barrier) → 주/일일 증가 경합 안전. Fingerprint wrapper barrier 적용.
+- 성능: 캐시 TTL 짧음(3s) + fast path hit → UI 차단 영향 무시 가능
+- 메시지 상한: 최근 N 제거로 SessionManager 영구 저장(백엔드 용) 영향 없음
+
+### 7) 롤백 전략
+- 문제 발생 시: Wrapper 도입 이전 커밋에서 UsageLimitManager 직접 호출 복원 (단, Phase-2 이후 코드 의존도 상승 → 장기적으로 비권장)
+- 안전 가드: DEBUG 모드에서 UsageGate.printCacheStatus() + debugEnforceCacheCapPreview() 수동 점검
+
+(이 섹션은 2025-09-09 이후 변경이 있을 경우 반드시 동기화합니다.)
+
+
 ## 🆕 2025-08-19 업데이트 (컨텍스트/한도/UX 정합 · 빌드 안정화)
 
 이번 업데이트는 컨텍스트 캐시의 실제 적용, AIMode/시그니처 정합성, 사용량 한도 정책 통일, 채팅버블 UX 개선, 스트리밍 API의 중앙집중형 호출 일관화 적용, 구성 접근 보안 일원화(ConfigReader), 모델 전환 단일 진입점 확립을 반영합니다.
