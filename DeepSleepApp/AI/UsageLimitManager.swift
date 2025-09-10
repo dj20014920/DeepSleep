@@ -78,9 +78,9 @@ public class UsageLimitManager {
         let canUse = currentUsage < dailyLimit
 
         #if DEBUG
-            print(
-                "🛡️ [UsageLimitManager] \(mode.displayName): \(currentUsage)/\(dailyLimit) (사용가능: \(canUse))"
-            )
+        if DebugFlags.internalUsageVerbose {
+            print("🛡️ [UsageLimitManager] (internal) \(mode.displayName): \(currentUsage)/\(dailyLimit) canUse=\(canUse)")
+        }
         #endif
 
         return (canUse: canUse, currentUsage: currentUsage, dailyLimit: dailyLimit)

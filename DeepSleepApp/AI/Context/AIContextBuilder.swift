@@ -81,13 +81,22 @@ public final class AIContextBuilder {
         print("   - Current message: \(currentUserMessage.prefix(100))...")
 
 // 1) 시스템 프롬프트 (캐시)
-        // DRY: 중앙 유틸 기반 시그니처로 캐시 키 통일
-        let selectedModel = SettingsManager.shared.selectedLLM
-        _ = AIContextSignature.mapModel(from: selectedModel) // retained for parity, not used in base key
-        // SSOT: base key는 AIContextSignature.computeBaseKeyForCurrentUser를 통해 일관 생성
-        let unifiedSignature = AIContextSignature.computeBaseKeyForCurrentUser(mode: mode, maxItems: 5)
-        
-        let systemPrompt = AIContextManager.shared.getSystemPrompt(personaSignature: unifiedSignature) {
+        // 🔄 리팩터: memorySummaryFP 제거 + 세분화 페르소나 컴포넌트 기반 캐시
+        let selectedModelType = SettingsManager.shared.selectedLLM
+        let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
+        let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+        let components = UserRulesManager.shared.personaSignatureComponents(
+            currentMode: mode,
+            model: mappedModel,
+            conversationTones: userSettingsForTones.conversationTones
+        )
+        let systemPrompt = AIContextManager.shared.getSystemPrompt(components: (
+            composite: components.composite,
+            coreHash: components.coreHash,
+            modeHash: components.modeHash,
+            modelHash: components.modelHash,
+            toneHash: components.toneHash
+        )) {
             // UserSettingsModel에서 AI 컨텍스트 생성
             let userSettings = UserSettingsModel.loadFromUserDefaults()
             let userContext = userSettings.generateAIContext()

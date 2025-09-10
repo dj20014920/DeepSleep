@@ -61,17 +61,8 @@ public final class AIContextManager {
     private init() {}
 
     // LEGACY: 단일 signature 기반 API (Deprecated) → 내부에서 세분화 컴포넌트 계산 후 새 로직 경유
-    @available(*, deprecated, message: "Use getSystemPrompt(components:generator:) for granular miss reasons")
-    public func getSystemPrompt(personaSignature: String, generator: () -> String) -> String {
-        print("⚠️ [AIContextManager] LEGACY getSystemPrompt(personaSignature:) 경로 호출")
-        // 임시: 모든 해시를 동일 signature로 간주하여 최소 호환
-        let legacy = (composite: personaSignature,
-                      coreHash: personaSignature,
-                      modeHash: personaSignature,
-                      modelHash: personaSignature,
-                      toneHash: personaSignature)
-        return getSystemPrompt(components: legacy, generator: generator)
-    }
+    // LEGACY API 제거됨: getSystemPrompt(personaSignature:) 사용자는 모두 components 기반으로 마이그레이션 완료.
+    // (호출 필요 시 컴파일 오류로 인지 → 새 API 적용)
 
     // 신규: 세분화 컴포넌트 기반 (UserRulesManager.PersonaSignatureComponents 호환)
     public func getSystemPrompt(components: (composite: String, coreHash: String, modeHash: String, modelHash: String, toneHash: String), generator: () -> String) -> String {

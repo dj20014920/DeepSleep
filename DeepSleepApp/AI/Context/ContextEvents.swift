@@ -7,7 +7,6 @@ public enum InvalidationReason: String, Codable {
     case modeChanged  // 대화/AI 모드 전환
     case coreMemoryUpdated  // 핵심 기억(메모리) 업데이트
     case modelSelectionChanged  // 모델(LMM) 변경
-    case appVersionUpdated  // 앱 버전 갱신
     case manual  // 수동 무효화(사용자/관리자 트리거)
     case expired  // TTL 만료 (이전 expiredOrPersonaChanged 분리)
     @available(*, deprecated, message: "이전 통합 사유. 이제 .expired / .personaChanged / modelSelectionChanged / modeChanged / toneChanged 세분화 사용.")

@@ -48,7 +48,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var didStartDiaryAnalysis: Bool = false
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
-    // usageGate 제거: ChatViewController는 직접 UsageLimitManager를 경유 (빌드 타겟 미포함/스코프 문제 회피)
+    // (정리) 과거 'UsageGate 제거' 주석 제거. SSOT: UsageGate를 통해서만 사용량 확인/증가.
     var messages: [ChatMessage] = []
     /// displayMessages 호환용 (기존 코드 참조 유지) - 실제 저장은 messages 단일화
     private var displayMessages: [ChatMessage] {

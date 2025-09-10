@@ -10,7 +10,6 @@
 		E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */; };
 		E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */; };
 		E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */; };
-		E01798122E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */; };
 		E01798142E35FF71002F178C /* UnifiedLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798132E35FF71002F178C /* UnifiedLogger.swift */; };
 		E01798162E3641FA002F178C /* AIModelSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */; };
 		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
@@ -161,9 +160,6 @@
 		E084F2B22E33AE9B002F75E6 /* 파도2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E084F07F2E33ACB3002F75E6 /* 파도2.mp3 */; };
 		E084F2B32E33AE9B002F75E6 /* cat.gif in Resources */ = {isa = PBXBuildFile; fileRef = E084F0802E33ACB3002F75E6 /* cat.gif */; };
 		E084F2B62E33AE9B002F75E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E084F09A2E33ACB3002F75E6 /* Assets.xcassets */; };
-		E084F2B72E33AE9B002F75E6 /* gemini.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */; };
-		E084F2B82E33AE9B002F75E6 /* gpt.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */; };
-		E084F2BA2E33AE9B002F75E6 /* naver.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = E084F0DC2E33ACB3002F75E6 /* naver.xcconfig */; };
 		E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D22E33B2CC002F75E6 /* FSCalendar */; };
 		E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = E084F2D52E33B2ED002F75E6 /* GoogleGenerativeAI */; };
 		E0899C7F2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */; };
@@ -239,7 +235,6 @@
 
 /* Begin PBXFileReference section */
 		A000 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PERFORMANCE_SYSTEM_GUIDE.md; sourceTree = "<group>"; };
 		E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceManagementProtocols.swift; sourceTree = "<group>"; };
 		E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceSystemBootstrap.swift; sourceTree = "<group>"; };
 		E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedPerformanceManager.swift; sourceTree = "<group>"; };
@@ -353,8 +348,6 @@
 		E084F0C92E33ACB3002F75E6 /* FeedbackVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackVisualizationViewController.swift; sourceTree = "<group>"; };
 		E084F0CA2E33ACB3002F75E6 /* forceSyncMainViewControllerPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = forceSyncMainViewControllerPreset.swift; sourceTree = "<group>"; };
 		E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FortuneGenerator.swift; sourceTree = "<group>"; };
-		E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = gemini.xcconfig; sourceTree = "<group>"; };
-		E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = gpt.xcconfig; sourceTree = "<group>"; };
 		E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationCharts.swift; sourceTree = "<group>"; };
 		E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationViewController.swift; sourceTree = "<group>"; };
 		E084F0D12E33ACB3002F75E6 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
@@ -366,7 +359,6 @@
 		E084F0D82E33ACB3002F75E6 /* MemoryOptimizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryOptimizationManager.swift; sourceTree = "<group>"; };
 		E084F0D92E33ACB3002F75E6 /* MessageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageStore.swift; sourceTree = "<group>"; };
 		E084F0DA2E33ACB3002F75E6 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		E084F0DC2E33ACB3002F75E6 /* naver.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = naver.xcconfig; sourceTree = "<group>"; };
 		E084F0DE2E33ACB3002F75E6 /* PerformanceOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceOptimizer.swift; sourceTree = "<group>"; };
 		E084F0DF2E33ACB3002F75E6 /* PersonalizedHarmonyLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalizedHarmonyLearner.swift; sourceTree = "<group>"; };
 		E084F0E02E33ACB3002F75E6 /* PresetListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetListViewController.swift; sourceTree = "<group>"; };
@@ -518,7 +510,6 @@
 		E017980E2E35FF51002F178C /* Performance */ = {
 			isa = PBXGroup;
 			children = (
-				E017980A2E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md */,
 				E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */,
 				E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */,
 				E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */,
@@ -807,9 +798,6 @@
 				E084F1062E33ACB3002F75E6 /* ViewController+Utilities.swift */,
 				E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */,
 				E084F09A2E33ACB3002F75E6 /* Assets.xcassets */,
-				E084F0CC2E33ACB3002F75E6 /* gemini.xcconfig */,
-				E084F0CE2E33ACB3002F75E6 /* gpt.xcconfig */,
-				E084F0DC2E33ACB3002F75E6 /* naver.xcconfig */,
 				E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */,
 				E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */,
 				E0899C922E5EE8B1006AD307 /* Ads */,
@@ -1075,7 +1063,6 @@
 				E084F2A12E33AE9B002F75E6 /* 바람2.mp3 in Resources */,
 				E084F2A22E33AE9B002F75E6 /* 발걸음-눈.mp3 in Resources */,
 				E084F2A32E33AE9B002F75E6 /* 발걸음-눈2.mp3 in Resources */,
-				E01798122E35FF51002F178C /* PERFORMANCE_SYSTEM_GUIDE.md in Resources */,
 				E084F2A42E33AE9B002F75E6 /* 밤.mp3 in Resources */,
 				E084F2A52E33AE9B002F75E6 /* 밤2.mp3 in Resources */,
 				E09CD6E12E45E048007C133E /* .gitignore in Resources */,
@@ -1096,9 +1083,6 @@
 				E084F2B22E33AE9B002F75E6 /* 파도2.mp3 in Resources */,
 				E084F2B32E33AE9B002F75E6 /* cat.gif in Resources */,
 				E084F2B62E33AE9B002F75E6 /* Assets.xcassets in Resources */,
-				E084F2B72E33AE9B002F75E6 /* gemini.xcconfig in Resources */,
-				E084F2B82E33AE9B002F75E6 /* gpt.xcconfig in Resources */,
-				E084F2BA2E33AE9B002F75E6 /* naver.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

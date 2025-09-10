@@ -16,4 +16,12 @@ enum DebugFlags {
         }
         set { UserDefaults.standard.set(newValue, forKey: "debug_unlimited_preset_recommendation") }
     }
+    /// 내부 UsageLimitManager 상세 로그 출력 (기본 비활성). DEBUG에서 UserDefaults 토글 가능.
+    static var internalUsageVerbose: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "debug_internal_usage_verbose")
+        #else
+        return false
+        #endif
+    }
 }

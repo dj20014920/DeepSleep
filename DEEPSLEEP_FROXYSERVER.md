@@ -11,14 +11,14 @@
 
 이 문서는 iOS 앱이 프록시 모드에서 사용하는 Cloudflare Workers 기반 AI 프록시의 단일 진실(SSOT) 가이드입니다. 아키텍처, 엔드포인트, 인증(HMAC+Nonce), 환경 변수/시크릿, KV 바인딩, 배포/테스트, 트러블슈팅을 모두 포함합니다. 서버 코드와 iOS 연동이 변경되면 본 문서도 반드시 동기화합니다.
 
-## 2025-09-05 동기화: 캐시 임계/경로/폴백/헤더 정리
-- 동적 임계 T 적용: 일반=1024(장세션 512 시도 가능), 프리셋=2048(STRICT JSON), 분석/월간=1536. 공급자 바닥으로 클램프(Gemini=1024, Anthropic=512).
-- countTokens 경로: Vertex/GL 모두 `:countTokens` 리소스 사용(오류 404/405 방지).
-- 헤더 추가: `X-Cache-Policy-Min`(적용된 바닥)과 `X-Cache-Client-Override`(클라이언트 하향 요청값) 노출.
-- 폴백 순서(일반): gemini → openai → naver → claude → openrouter.
-- 폴백 순서(엄격 JSON): gemini → openai → naver → claude(OPENROUTER는 스킵; `STRICT_JSON_SKIP_OPENROUTER=1`).
-- 버스트 프리캐시: preset needCount=1, general needCount=2로 빠른 write 유도(이후 바닥/임계 정책 적용).
+$1
 
+### 2025-09-10 iOS 동기화(클라이언트 캐시 설계 변경)
+- iOS System Prompt 캐시 키에서 memory summary fingerprint 제거(서버 캐싱과 역할 분리)
+- 클라이언트는 components 기반(composite=core+mode+model+tone) 캐시로 통일
+- 레거시 personaSignature 기반 키 경로 삭제, 헤더/메트릭스에서 legacyPath 이유도 제거
+- 앱 버전 갱신 캐시 무효화는 .manual + caller로 전달(분석 시 caller 기준 분류)
+- 사용량 게이트: UsageGate 단일 경로, 내부 UsageLimitManager 로그는 verbose 토글로만
 ## 2025-09-04 동기화: GL API(Key) 고정 + 캐싱 정책 정리
 - Prod vars: CANARY_PERCENT=100, STRICT_JSON_ONLY=1, STRICT_JSON_SKIP_OPENROUTER=1
 - 인증: Generative Language API + API Key(x-goog-api-key). 시크릿 이름은 `GEMINI_VERTEX_API_KEY`로 일원화(서버 전용).

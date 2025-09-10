@@ -34,7 +34,7 @@ public class SessionManager {
     }
 
     private init() {
-        print("🎯 [SessionManager] 초기화 시작")
+        print("[SessionManager][INIT] start")
 
         // Core Data 변경 알림 구독 (캐시 동기화)
         setupCoreDataNotifications()
@@ -1143,7 +1143,7 @@ public class SessionManager {
                 }
             }
 
-            print("🎯 [SessionManager] 세션 로드 완료 - 총 \(sessionEntities.count)개")
+            print("[SessionManager][LOAD] fetched=\(sessionEntities.count)")
 
         } catch {
             print("❌ [SessionManager] 세션 로드 실패: \(error)")

@@ -52,7 +52,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let lastSeenKey = "app_version_last_seen"
         let lastSeenVersion = UserDefaults.standard.string(forKey: lastSeenKey)
         if lastSeenVersion == nil || lastSeenVersion != currentVersion {
-            AIContextManager.shared.clearCache(reason: .appVersionUpdated, caller: "AppDelegate")
+            // 버전 변경 캐시 무효화: 단순화 정책으로 .manual 사용
+            AIContextManager.shared.clearCache(reason: .manual, caller: "AppDelegate.appVersionChange")
             UserDefaults.standard.set(currentVersion, forKey: lastSeenKey)
             UnifiedLogger.shared.info("앱 버전 변경 감지 → 캐시 무효화 수행", category: .appLifecycle)
         }

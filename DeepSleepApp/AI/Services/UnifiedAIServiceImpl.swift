@@ -1175,11 +1175,22 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let userSettings = UserSettingsModel.loadFromUserDefaults()
         let userContext = userSettings.generateAIContext()
 
-        // SSOT: 페르소나/모드/메모리 요약 기반 base key를 단일 경로에서 생성
-        let baseKey = AIContextSignature.computeBaseKeyForCurrentUser(mode: mode, maxItems: 5)
+        // 🔄 리팩터: components 기반 캐시 키 사용 (memory 요약 비포함)
+        let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+        let components = UserRulesManager.shared.personaSignatureComponents(
+            currentMode: mode,
+            model: model,
+            conversationTones: userSettingsForTones.conversationTones
+        )
 
         // 3시간 TTL 캐시 활용: 모델 불문 베이스 프롬프트만 캐시
-        let basePrompt = contextManager.getSystemPrompt(personaSignature: baseKey) {
+        let basePrompt = contextManager.getSystemPrompt(components: (
+            composite: components.composite,
+            coreHash: components.coreHash,
+            modeHash: components.modeHash,
+            modelHash: components.modelHash,
+            toneHash: components.toneHash
+        )) {
             var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
             if !userContext.isEmpty {
                 prompt += "\n\n사용자 컨텍스트:\n\(userContext)"
