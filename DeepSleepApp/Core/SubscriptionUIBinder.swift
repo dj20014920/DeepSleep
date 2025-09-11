@@ -12,6 +12,19 @@ public final class SubscriptionUIBinder {
     private var token: NSObjectProtocol?
     private var handler: UpdateHandler?
 
+    /// 공통 CTA 버튼 타이틀에 가격을 포함하여 설정하는 헬퍼(KISS/DRY)
+    public static func setPriceTitle(button: UIButton, title: String, price: String?) {
+        if let price = price { button.setTitle("\(title)  \(price)", for: .normal) }
+        else { button.setTitle(title, for: .normal) }
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.separator.cgColor
+        button.backgroundColor = UIColor.secondarySystemBackground
+        button.accessibilityLabel = button.titleLabel?.text
+    }
+
     private init(host: AnyObject, handler: @escaping UpdateHandler) {
         self.host = host
         self.handler = handler

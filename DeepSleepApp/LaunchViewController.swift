@@ -37,22 +37,34 @@ class LaunchViewController: UIViewController {
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        
-        
-            setupGradientBackground()
-        
+        setupGradientBackground()
     }
     
     private func setupGradientBackground() {
-        
+        // 사용자 인터페이스 스타일(라이트/다크)에 따라 동적 그라데이션 적용
+        let style = traitCollection.userInterfaceStyle
+        if style == .dark {
+            // 기존 다크 모드용 그라데이션 유지
             gradientLayer.colors = [
                 UIColor.systemPink.withAlphaComponent(0.6).cgColor,
                 UIColor.systemPurple.withAlphaComponent(0.5).cgColor,
                 UIColor.systemBlue.withAlphaComponent(0.4).cgColor,
                 UIColor.systemTeal.withAlphaComponent(0.3).cgColor
             ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+            gradientLayer.locations = nil
+        } else {
+            // 라이트 모드용: 하얀색부터 시작하는 3스텝 그라데이션
+            let c0 = UIColor(red: 248.0/255.0, green: 249.0/255.0, blue: 250.0/255.0, alpha: 1.0) // #F8F9FA (거의 하얀색)
+            let c55 = UIColor(red: 138.0/255.0, green: 211.0/255.0, blue: 232.0/255.0, alpha: 1.0) // #8AD3E8 (밝은 스카이 블루)
+            let c100 = UIColor(red: 51.0/255.0, green: 193.0/255.0, blue: 227.0/255.0, alpha: 1.0) // #33C1E3 (선명한 시안 블루)
+            // 밝은 영역(하얀색 계열) 비율 확대: 0%→70%까지 밝은 영역, 70%→100%만 진한 파란색
+            gradientLayer.colors = [c0.cgColor, c55.cgColor, c100.cgColor]
+            gradientLayer.locations = [0.0, 0.70, 1.0] as [NSNumber]
+        }
+        // 전체 화면을 덮는 확실한 대각선 그라데이션 (왼쪽 위 → 오른쪽 아래)
+        gradientLayer.type = .axial
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)    // 왼쪽 위
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)      // 오른쪽 아래
         
         // 기존 그라데이션 레이어 제거 후 새로 추가
         gradientLayer.removeFromSuperlayer()
@@ -60,9 +72,11 @@ class LaunchViewController: UIViewController {
     }
     
     private func setupViews() {
-        // 앱 아이콘 이미지뷰 (달을 하얀색으로)
-        iconImageView.image = UIImage(named: "AppIcon") ?? UIImage(systemName: "moon.fill")
+        // 앱 아이콘 이미지뷰 (에셋에 라이트/다크 변형이 있다면 자동 적용됨)
+        // 권장: Assets.xcassets에 "LaunchLogo" 이미지셋을 만들고 Appearances(Any, Dark)로 변형을 넣으면 자동 동기화됨
+        iconImageView.image = (UIImage(named: "LaunchLogo") ?? UIImage(systemName: "moon.fill"))?.withRenderingMode(.alwaysTemplate)
         iconImageView.contentMode = .scaleAspectFit
+        // 요청: 라이트/다크 상관없이 아이콘은 흰색
         iconImageView.tintColor = .white
         iconImageView.layer.cornerRadius = 20
         iconImageView.layer.shadowColor = UIColor.black.cgColor
@@ -74,14 +88,14 @@ class LaunchViewController: UIViewController {
         // 메인 타이틀
         titleLabel.text = "EmoZleep"
         titleLabel.font = UIFont.systemFont(ofSize: 36, weight: .light)
-        titleLabel.textColor = .white
+        titleLabel.textColor = .white // 라이트/다크 상관없이 흰색 고정
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 서브타이틀 추가
         subtitleLabel.text = "대나무숲 친구와 함께하는 감정 기록"
         subtitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .light)
-        subtitleLabel.textColor = .white.withAlphaComponent(0.8)
+        subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.9) // 라이트/다크 상관없이 흰색 고정
         subtitleLabel.textAlignment = .center
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         

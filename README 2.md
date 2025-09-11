@@ -2,6 +2,8 @@
 
 ## 📋 개요
 
+[참고] 구독/결제/환불/복원/7일 무료체험 정책의 단일 SSOT는 SUB_GUIDE.md 입니다. Paywall/UI 문구/링크/동작은 SUB_GUIDE.md 기준으로 유지하세요.
+
 DeepSleep 앱을 위한 4개 AI 모델 통합 시스템입니다. Claude, OpenAI, Gemini, Naver HyperCLOVA X를 하나의 인터페이스로 통합하여 사용할 수 있습니다.
 
 ## 🎯 주요 특징

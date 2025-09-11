@@ -1,4 +1,6 @@
 ## 2025-09-08 동기화: 컨텍스트/토큰 상한 · 프록시 인증 워밍 · 스트리밍(SSE) 현황
+
+[정책 SSOT 공지] 구독/결제/환불/복원/7일 무료체험 정책은 SUB_GUIDE.md에 중앙화되어 있습니다. UI 문구/링크는 해당 문서를 기준으로 일관 유지하십시오.
 - 일반 대화(general_conversation) 기본 maxTokens를 256으로 타이트화(구성 키가 있으면 그 값을 우선). 컨텍스트 예산을 시스템/요약/최근 대화 중 “현재 입력과 요약”에 우선 배분하여 provider 처리시간 단축과 UX 가속을 목표로 함(SSOT는 AIMode.recommendedTokenConfig).
 - 앱 기동 시 프록시 시크릿 메모리 캐시 워밍(App): ProxyAuthClient.loadSecretOrEnroll를 1회 호출하여 키체인 접근 비용을 제거하고 auth;dur P50 0.2~0.4s 목표. 프로토콜 계약(/v1/enroll, HMAC 원문, X-Emozleep-*)은 불변.
 - 서버(Workers) 현재 text/event-stream(SSE) 미배포 상태. 로드맵 §14(스트리밍 계획)에 따라 스테이징에서 구현/검증 후 단계적 롤아웃 예정.

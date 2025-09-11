@@ -1,5 +1,7 @@
 $1
 
+[정책 SSOT] 구독/결제/환불/복원/7일 무료체험 관련 최신 정책·문구는 SUB_GUIDE.md를 참조하십시오. 모든 UI/링크/문구는 SUB_GUIDE.md 기준으로 유지합니다.
+
 ### 🆕 2025-09-10 동기화: 신경망 피드백→추천 플로우 완성 + BGTask 학습 스케줄러
 - 세션 시작/중간저장/종료 흐름을 SessionManager로 일원화: PresetFeedback/BehaviorEvent가 실행 중에도 안전하게 저장되며 체인 무결성 보장
 - FeedbackCollectionViewController 제출 시 중간 스냅샷(PresetFeedback) 저장 및 즉시 학습 트리거 경로 확립

@@ -43,6 +43,21 @@ public enum SubscriptionUIMessageFormatter {
         return isTrialEligible ? "무료 • 첫 구독자 7일 체험 가능" : "무료 • 7일 무료체험은 첫 구독자 대상"
     }
 
+    /// 페이월: 혜택 요약(상단 짧은 문구)
+    public static func summaryBenefitsKO() -> String {
+        return "광고 제거 • 고음질 사운드 • 프리셋 무제한 저장 • 우선 처리"
+    }
+
+    /// 페이월: 하단 자동갱신/취소 고지(KO)
+    public static func autoRenewNoticeKO() -> String {
+        return "구독은 사용자가 취소하지 않는 한 자동으로 갱신됩니다. 체험 기간 종료 24시간 전까지 취소하지 않으면 결제가 발생합니다. 결제는 Apple ID로 청구되며, 구독 및 자동 갱신은 iOS 설정 > Apple ID > 구독에서 관리/취소할 수 있습니다. 무료 체험은 계정당 1회 제공될 수 있으며, 구독 구매 시 미사용 체험 기간은 소멸될 수 있습니다. 가격은 국가/지역에 따라 다를 수 있습니다."
+    }
+
+    /// 페이월: 하단 자동갱신/취소 고지(EN)
+    public static func autoRenewNoticeEN() -> String {
+        return "Subscriptions auto-renew unless canceled at least 24 hours before the end of the period. Payment is charged to your Apple ID. Manage/cancel in Settings > Apple ID > Subscriptions. Free trial may be offered once per account; any unused portion is forfeited upon purchase. Prices vary by region."
+    }
+
     /// 툴팁: 월간 통계 주간 1회 제한(KST)
     public static func monthlyStatsWeeklyTooltip(resetAt: Date) -> String {
         let d = format(date: resetAt, format: "M월 d일 (E) 00:00")

@@ -1,4 +1,5 @@
 import UIKit
+import StoreKit
 
 public protocol PaywallViewControllerDelegate: AnyObject {
     func paywallDidRequestPurchaseMonthly(_ controller: PaywallViewController)
@@ -55,12 +56,32 @@ public final class PaywallViewController: UIViewController {
         return l
     }()
 
+    private let benefitsLabel: UILabel = {
+        let l = UILabel()
+        l.textAlignment = .center
+        l.font = .systemFont(ofSize: 14, weight: .semibold)
+        l.numberOfLines = 0
+        l.text = SubscriptionUIMessageFormatter.summaryBenefitsKO()
+        return l
+    }()
+
+    private let usageSummaryLabel: UILabel = {
+        let l = UILabel()
+        l.textAlignment = .center
+        l.font = .systemFont(ofSize: 13, weight: .semibold)
+        l.numberOfLines = 0
+        l.textColor = .label
+        l.text = "일일 채팅: 더 많은 채팅\n채팅 모델 설정 가능"
+        return l
+    }()
+
     private let descriptionLabel: UILabel = {
         let l = UILabel()
         l.textAlignment = .center
-        l.font = .systemFont(ofSize: 14)
+        l.font = .systemFont(ofSize: 13)
         l.numberOfLines = 0
-        l.text = "체험 종료 후 자동으로 선택한 구독으로 갱신됩니다. 체험 중 언제든 취소하면 결제되지 않습니다."
+        l.textColor = .secondaryLabel
+        l.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true)
         return l
     }()
 
@@ -74,6 +95,12 @@ public final class PaywallViewController: UIViewController {
         let b = UIButton(type: .system)
         b.setTitle("월간 구독", for: .normal)
         b.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        b.layer.cornerRadius = 12
+        b.layer.borderWidth = 1
+        b.layer.borderColor = UIColor.separator.cgColor
+        b.backgroundColor = UIColor.secondarySystemBackground
+        b.accessibilityLabel = "월간 구독"
         return b
     }()
 
@@ -81,13 +108,57 @@ public final class PaywallViewController: UIViewController {
         let b = UIButton(type: .system)
         b.setTitle("연간 구독", for: .normal)
         b.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        b.layer.cornerRadius = 12
+        b.layer.borderWidth = 1
+        b.layer.borderColor = UIColor.separator.cgColor
+        b.backgroundColor = UIColor.secondarySystemBackground
+        b.accessibilityLabel = "연간 구독"
         return b
+    }()
+
+    private let annualDiscountLabel: UILabel = {
+        let l = UILabel()
+        l.text = "연간은 월 대비 할인 (-33%)"
+        l.font = .systemFont(ofSize: 12, weight: .semibold)
+        l.textColor = .systemGreen
+        l.textAlignment = .center
+        return l
     }()
 
     private let restoreButton: UIButton = {
         let b = UIButton(type: .system)
         b.setTitle("구매 복원", for: .normal)
+        b.accessibilityLabel = "구매 복원"
         return b
+    }()
+
+    private let termsButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("개인정보 처리방침", for: .normal)
+        b.titleLabel?.font = .systemFont(ofSize: 13)
+        b.setTitleColor(.link, for: .normal)
+        b.accessibilityLabel = "개인정보 처리방침"
+        return b
+    }()
+
+    private let privacyChoicesButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("개인정보 선택사항", for: .normal)
+        b.titleLabel?.font = .systemFont(ofSize: 13)
+        b.setTitleColor(.link, for: .normal)
+        b.accessibilityLabel = "개인정보 선택사항"
+        return b
+    }()
+
+    private let autoRenewNoticeLabel: UILabel = {
+        let l = UILabel()
+        l.textAlignment = .center
+        l.numberOfLines = 0
+        l.font = .systemFont(ofSize: 11)
+        l.textColor = .secondaryLabel
+        l.text = SubscriptionUIMessageFormatter.autoRenewNoticeKO()
+        return l
     }()
 
     private let closeButton: UIButton = {
@@ -131,6 +202,8 @@ public override func viewDidLoad() {
         yearlyButton.addTarget(self, action: #selector(didTapYearly), for: .touchUpInside)
         restoreButton.addTarget(self, action: #selector(didTapRestore), for: .touchUpInside)
         closeButton.addTarget(self, action: #selector(didTapClose), for: .touchUpInside)
+        termsButton.addTarget(self, action: #selector(openPrivacy), for: .touchUpInside)
+        privacyChoicesButton.addTarget(self, action: #selector(openPrivacyChoices), for: .touchUpInside)
 
         // 초기에는 제품이 로드될 때까지 구매 버튼 비활성화
         updatePurchaseButtonsEnabled()
@@ -140,7 +213,7 @@ public override func viewDidLoad() {
     }
 
     private func configureLayout() {
-        [titleLabel, closeButton, trialBadgeLabel, descriptionLabel, priceLabel, tierControl, monthlyButton, yearlyButton, restoreButton].forEach {
+        [titleLabel, closeButton, trialBadgeLabel, benefitsLabel, usageSummaryLabel, descriptionLabel, priceLabel, tierControl, monthlyButton, yearlyButton, annualDiscountLabel, restoreButton, termsButton, privacyChoicesButton, autoRenewNoticeLabel].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -157,25 +230,49 @@ public override func viewDidLoad() {
             trialBadgeLabel.heightAnchor.constraint(equalToConstant: 24),
             trialBadgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
 
-            descriptionLabel.topAnchor.constraint(equalTo: trialBadgeLabel.bottomAnchor, constant: 12),
+            benefitsLabel.topAnchor.constraint(equalTo: trialBadgeLabel.bottomAnchor, constant: 12),
+            benefitsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            benefitsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+
+            usageSummaryLabel.topAnchor.constraint(equalTo: benefitsLabel.bottomAnchor, constant: 6),
+            usageSummaryLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            usageSummaryLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+
+            descriptionLabel.topAnchor.constraint(equalTo: usageSummaryLabel.bottomAnchor, constant: 8),
             descriptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             descriptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
 
-            priceLabel.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 16),
+            priceLabel.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 12),
             priceLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             priceLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
 
-            tierControl.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 16),
+            tierControl.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 12),
             tierControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             monthlyButton.topAnchor.constraint(equalTo: tierControl.bottomAnchor, constant: 16),
             monthlyButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            monthlyButton.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
 
             yearlyButton.topAnchor.constraint(equalTo: monthlyButton.bottomAnchor, constant: 12),
             yearlyButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            yearlyButton.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
 
-            restoreButton.topAnchor.constraint(equalTo: yearlyButton.bottomAnchor, constant: 20),
-            restoreButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+            annualDiscountLabel.topAnchor.constraint(equalTo: yearlyButton.bottomAnchor, constant: 4),
+            annualDiscountLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+
+            restoreButton.topAnchor.constraint(equalTo: annualDiscountLabel.bottomAnchor, constant: 16),
+            restoreButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+
+            termsButton.topAnchor.constraint(equalTo: restoreButton.bottomAnchor, constant: 12),
+            termsButton.trailingAnchor.constraint(equalTo: view.centerXAnchor, constant: -8),
+
+            privacyChoicesButton.centerYAnchor.constraint(equalTo: termsButton.centerYAnchor),
+            privacyChoicesButton.leadingAnchor.constraint(equalTo: view.centerXAnchor, constant: 8),
+
+            autoRenewNoticeLabel.topAnchor.constraint(equalTo: termsButton.bottomAnchor, constant: 12),
+            autoRenewNoticeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            autoRenewNoticeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            autoRenewNoticeLabel.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12)
         ])
     }
 
@@ -188,6 +285,9 @@ public override func viewDidLoad() {
         if let m = monthlyDisplayPrice { priceText.append("월간: \(m)") }
         if let y = yearlyDisplayPrice { priceText.append("연간: \(y)") }
         priceLabel.text = priceText.joined(separator: "\n")
+        // 버튼 라벨에 가격 포함(접근성/CTA 명확성)
+        SubscriptionUIBinder.setPriceTitle(button: monthlyButton, title: "월간 구독", price: monthlyDisplayPrice)
+        SubscriptionUIBinder.setPriceTitle(button: yearlyButton,  title: "연간 구독",  price: yearlyDisplayPrice)
 
         // Trial 배지 및 설명 카피(중앙 포맷터 사용)
         if let days = trialDaysRemaining, days >= 0 {
@@ -205,8 +305,31 @@ public override func viewDidLoad() {
             descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible) + "\nPro에는 대나무숲 친구 선택 가능"
         }
 
+        // 사용량 요약 업데이트(일일 채팅 한도 및 모델 설정 안내)
+        updateUsageSummary()
+
         // 제품 로딩 상태에 따라 버튼 활성화
         updatePurchaseButtonsEnabled()
+    }
+
+    private func updateUsageSummary() {
+        let free = readFirstInt(["AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"])
+        let premium = readFirstInt(["AI_LIMITS_CHAT_PRO", "DAILY_CHAT_LIMIT_PREMIUM"])
+        let chatLine: String
+        if let f = free, let p = premium, (f > 0 || p > 0) {
+            chatLine = "일일 채팅: 무료 \(f)회 · 프리미엄 \(p)회"
+        } else {
+            chatLine = "일일 채팅: 더 많은 채팅"
+        }
+        let modelLine = "채팅 모델 설정 가능"
+        usageSummaryLabel.text = chatLine + "\n" + modelLine
+    }
+
+    private func readFirstInt(_ keys: [String]) -> Int? {
+        for k in keys {
+            if let v = ConfigReader.int(k) { return v }
+        }
+        return nil
     }
 
     private func refreshPricesIfNeeded() {
@@ -251,9 +374,10 @@ public override func viewDidLoad() {
         yearlyButton.isEnabled = hasYearly
         // 복원은 항상 가능
         restoreButton.isEnabled = true
-        // 가격 라벨이 없고 제품도 없으면 로딩 유도 텍스트
+        // 가격 라벨이 없고 제품도 없으면 로딩 유도 텍스트(단, 스크린샷 모드에서는 금지)
         if !enabled && (monthlyDisplayPrice == nil && yearlyDisplayPrice == nil) {
-            priceLabel.text = "상품 정보를 불러오는 중..."
+            // StoreKitSubscriptionManager가 스크린샷 모드면 displayPrice가 존재하도록 하므로 통상 여기 오지 않음
+            priceLabel.text = ""
         }
     }
 
@@ -272,7 +396,7 @@ public override func viewDidLoad() {
         updatePurchaseButtonsEnabled()
     }
     @objc private func didTapMonthly() {
-        print("[Paywall] Monthly button tapped")
+        UnifiedLogger.shared.logUI("paywall_select_term term=monthly tier=\(selectedTier == .pro ? "pro" : "max")")
         if let d = delegate { d.paywallDidRequestPurchaseMonthly(self); return }
         // 기본 동작: StoreKit2 구매 진행
         Task { @MainActor in
@@ -284,15 +408,16 @@ public override func viewDidLoad() {
                 case .max:
                     try await StoreKitSubscriptionManager.shared.purchase(.maxMonthly)
                 }
-                print("[Paywall] Monthly purchase flow initiated")
+                UnifiedLogger.shared.logUI("purchase_started productId=\(selectedTier == .pro ? "com.emozleep.pro.monthly" : "com.emozleep.max.monthly")")
             } catch {
-                print("[Paywall][Error] Monthly purchase failed: \(error.localizedDescription)")
+                UnifiedLogger.shared.error("purchase_fail monthly: \(error.localizedDescription)", category: .ui)
+                presentRetry(error: error)
             }
         }
     }
 
     @objc private func didTapYearly() {
-        print("[Paywall] Yearly button tapped")
+        UnifiedLogger.shared.logUI("paywall_select_term term=yearly tier=\(selectedTier == .pro ? "pro" : "max")")
         if let d = delegate { d.paywallDidRequestPurchaseYearly(self); return }
         Task { @MainActor in
             do {
@@ -303,19 +428,19 @@ public override func viewDidLoad() {
                 case .max:
                     try await StoreKitSubscriptionManager.shared.purchase(.maxYearly)
                 }
-                print("[Paywall] Yearly purchase flow initiated")
+                UnifiedLogger.shared.logUI("purchase_started productId=\(selectedTier == .pro ? "com.emozleep.pro.yearly" : "com.emozleep.max.yearly")")
             } catch {
-                print("[Paywall][Error] Yearly purchase failed: \(error.localizedDescription)")
+                UnifiedLogger.shared.error("purchase_fail yearly: \(error.localizedDescription)", category: .ui)
+                presentRetry(error: error)
             }
         }
     }
 
     @objc private func didTapRestore() {
-        print("[Paywall] Restore button tapped")
+        UnifiedLogger.shared.logUI("paywall_restore")
         if let d = delegate { d.paywallDidRequestRestore(self); return }
-        Task {
+        Task { @MainActor in
             await StoreKitSubscriptionManager.shared.restore()
-            print("[Paywall] Restore flow initiated")
         }
     }
 
@@ -325,16 +450,40 @@ public override func viewDidLoad() {
     }
     @objc private func didChangeTier() {
         selectedTier = (tierControl.selectedSegmentIndex == 0) ? .pro : .max
+        UnifiedLogger.shared.logUI("paywall_select_plan plan=\(selectedTier == .pro ? "pro" : "max")")
+    }
+
+    @objc private func openPrivacy() {
+        guard let url = URL(string: "https://emozleep.space/legal/privacy/") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    @objc private func openPrivacyChoices() {
+        guard let url = URL(string: "https://emozleep.space/legal/privacy-choices/") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func presentRetry(error: Error) {
+        let alert = UIAlertController(title: "오류", message: error.localizedDescription, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        alert.addAction(UIAlertAction(title: "재시도", style: .default, handler: { [weak self] _ in
+            self?.refreshPricesIfNeeded()
+        }))
+        present(alert, animated: true)
     }
 
     private func updatePricesForSelectedTier() {
         switch selectedTier {
         case .pro:
-            self.monthlyDisplayPrice = proMonthlyPriceCache
-            self.yearlyDisplayPrice  = proYearlyPriceCache
+            self.monthlyDisplayPrice = proMonthlyPriceCache ?? StoreKitSubscriptionManager.shared.displayPrice(for: .proMonthly)
+            self.yearlyDisplayPrice  = proYearlyPriceCache  ?? StoreKitSubscriptionManager.shared.displayPrice(for: .proYearly)
         case .max:
-            self.monthlyDisplayPrice = maxMonthlyPriceCache
-            self.yearlyDisplayPrice  = maxYearlyPriceCache
+            self.monthlyDisplayPrice = maxMonthlyPriceCache ?? StoreKitSubscriptionManager.shared.displayPrice(for: .maxMonthly)
+            self.yearlyDisplayPrice  = maxYearlyPriceCache  ?? StoreKitSubscriptionManager.shared.displayPrice(for: .maxYearly)
         }
+        SubscriptionUIBinder.setPriceTitle(button: monthlyButton, title: "월간 구독", price: monthlyDisplayPrice)
+        SubscriptionUIBinder.setPriceTitle(button: yearlyButton,  title: "연간 구독",  price: yearlyDisplayPrice)
+        // 단순 할인 안내 라벨 유지(정확 할인율 계산은 로컬/실서버 가격 구성이 다를 수 있으므로 문구형)
+        annualDiscountLabel.isHidden = (yearlyDisplayPrice == nil)
     }
 }
