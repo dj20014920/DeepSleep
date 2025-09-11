@@ -395,12 +395,14 @@ public final class AICallLogger {
         var masked = input
         
         // 이메일 패턴 마스킹
-        let emailRegex = try! NSRegularExpression(pattern: #"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"#)
-        masked = emailRegex.stringByReplacingMatches(in: masked, options: [], range: NSRange(location: 0, length: masked.count), withTemplate: "***@***.***")
+        if let emailRegex = try? NSRegularExpression(pattern: #"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"#) {
+            masked = emailRegex.stringByReplacingMatches(in: masked, options: [], range: NSRange(location: 0, length: masked.count), withTemplate: "***@***.***")
+        }
         
         // 전화번호 패턴 마스킹
-        let phoneRegex = try! NSRegularExpression(pattern: #"\d{3}-\d{4}-\d{4}"#)
-        masked = phoneRegex.stringByReplacingMatches(in: masked, options: [], range: NSRange(location: 0, length: masked.count), withTemplate: "***-****-****")
+        if let phoneRegex = try? NSRegularExpression(pattern: #"\d{3}-\d{4}-\d{4}"#) {
+            masked = phoneRegex.stringByReplacingMatches(in: masked, options: [], range: NSRange(location: 0, length: masked.count), withTemplate: "***-****-****")
+        }
         
         // 긴 개인 정보성 텍스트는 일부만 표시
         if masked.count > 200 {

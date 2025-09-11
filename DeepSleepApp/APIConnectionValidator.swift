@@ -103,7 +103,17 @@ class APIConnectionValidator {
         
         UnifiedLogger.shared.logAPIStart("Claude")
         
-        var request = URLRequest(url: URL(string: APIEndpoints.claude)!)
+        guard let claudeURL = URL(string: APIEndpoints.claude) else {
+            return ConnectionStatus(
+                apiType: .claude,
+                isConnected: false,
+                responseTime: nil,
+                statusCode: nil,
+                errorMessage: "Invalid Claude endpoint URL",
+                timestamp: Date()
+            )
+        }
+        var request = URLRequest(url: claudeURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -172,7 +182,17 @@ class APIConnectionValidator {
         
         UnifiedLogger.shared.logAPIStart("OpenAI")
         
-        var request = URLRequest(url: URL(string: APIEndpoints.openai)!)
+        guard let openaiURL = URL(string: APIEndpoints.openai) else {
+            return ConnectionStatus(
+                apiType: .openai,
+                isConnected: false,
+                responseTime: nil,
+                statusCode: nil,
+                errorMessage: "Invalid OpenAI endpoint URL",
+                timestamp: Date()
+            )
+        }
+        var request = URLRequest(url: openaiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

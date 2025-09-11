@@ -31,7 +31,7 @@ public struct CacheLogEntry: Codable {
         self.timestamp = Date()
         self.event = event
         self.reason = reason
-        self.ageSeconds = age != nil ? Int(age!) : nil
+        self.ageSeconds = age.map { Int($0) }
         self.caller = caller
     }
 }

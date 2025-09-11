@@ -296,12 +296,11 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         // 튜토리얼 표시 (최초 방문 시)
         showTutorialIfNeeded()
 
-        // 광고 배너 전역 코디네이터로 통일 (DRY). 사운드 탭: 하단 배너는 레이아웃이 안정된 뒤에 부착
-        if !hasLoadedBannerOnce {
-            hasLoadedBannerOnce = true
-            AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
-        } else {
-            AdsBannerCoordinator.shared.refreshLayoutIfNeeded(for: self)
+        // 광고 배너 보장: 채팅 등에서 분리되었더라도 사운드 탭으로 복귀 시 자동 재부착/새로고침
+        // 전환 직후 AutoLayout 내부 검사 시점과 겹치지 않도록 다음 런루프로 지연
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            AdsBannerCoordinator.shared.ensureBottomBannerAttached(to: self, autoLoad: true)
         }
     }
     

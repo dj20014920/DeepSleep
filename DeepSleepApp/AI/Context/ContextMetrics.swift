@@ -40,7 +40,8 @@ public final class ContextMetrics {
                 self?.cacheMisses += 1
             }
         }
-        debugPrint("🧠 [AIContext] Cache \(event.rawValue.uppercased()) reason=\(reason.rawValue) age=\(age != nil ? Int(age!) : -1)s caller=\(caller ?? "-")")
+        let ageDesc = age.map { String(Int($0)) } ?? "-1"
+        debugPrint("🧠 [AIContext] Cache \(event.rawValue.uppercased()) reason=\(reason.rawValue) age=\(ageDesc)s caller=\(caller ?? "-")")
     }
 
     public func logInvalidation(reason: InvalidationReason, caller: String?) {

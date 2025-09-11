@@ -192,7 +192,7 @@ class SettingsViewController: UIViewController {
         // 앱 정보 항목들
         aboutSection.addItem(SettingsItem(
             title: "버전 정보",
-            subtitle: "EmoZleep v1.0.0",
+            //subtitle: "EmoZleep \(AppVersionInfo.formatted())",
             type: .info,
             action: nil
         ))

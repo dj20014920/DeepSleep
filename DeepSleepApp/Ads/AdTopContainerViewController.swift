@@ -62,7 +62,11 @@ final class AdTopContainerViewController: UIViewController {
 
         if autoLoadBanner {
             // 컨테이너(self)를 배너의 rootViewController로 사용 (GMA 정책 상 컨텐츠 표시 주체가 자신이면 안전)
-            topBannerView.loadBanner(in: self)
+            // 전환 직후 1 프레임 지연하여 Auto Layout 안정 시점에서 로드
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.topBannerView.loadBanner(in: self)
+            }
         }
     }
 
@@ -90,6 +94,7 @@ final class AdTopContainerViewController: UIViewController {
 
     private func setupEmbeddedNavigation() {
         let navView = embeddedNavigationController.view!
+        navView.translatesAutoresizingMaskIntoConstraints = false
         embeddedNavigationController.view.translatesAutoresizingMaskIntoConstraints = false
 
         // 자식으로 추가

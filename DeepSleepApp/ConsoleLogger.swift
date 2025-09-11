@@ -77,7 +77,8 @@ class ConsoleLogger {
         // 로그 파일 설정 (선택적)
         setupLogFile()
         
-        print("🖥️ [ConsoleLogger] 로깅 시스템 초기화 완료")
+        // 초기화 로그는 UnifiedLogger로 위임
+        UnifiedLogger.shared.info("🖥️ [ConsoleLogger] 로깅 시스템 초기화 완료", category: .system)
     }
     
     private func setupLogFile() {
@@ -103,31 +104,34 @@ class ConsoleLogger {
         line: Int = #line
     ) {
         guard isLoggingEnabled else { return }
+
+        // UnifiedLogger로 위임하여 중복 출력 방지 및 일관성 유지
+        let ucat: UnifiedLogger.Category = {
+            switch category {
+            case .appLifecycle: return .appLifecycle
+            case .apiConnection: return .api
+            case .security: return .security
+            case .performance: return .performance
+            case .userInterface: return .ui
+            case .dataStorage: return .storage
+            case .networking: return .network
+            case .audio: return .audio
+            case .ai: return .ai
+            }
+        }()
         
-        let timestamp = formatTimestamp(Date())
-        let filename = URL(fileURLWithPath: file).lastPathComponent
-        let logMessage = formatLogMessage(
-            message: message,
-            level: level,
-            category: category,
-            timestamp: timestamp,
-            file: filename,
-            function: function,
-            line: line
-        )
-        
-        // 콘솔 출력
-        print(logMessage)
-        
-        // OS 로그 출력 (iOS 12+)
-        if #available(iOS 12.0, *) {
-            logToOSLog(message, level: level, category: category)
+        switch level {
+        case .debug:
+            UnifiedLogger.shared.debug(message, category: ucat, file: file, function: function, line: line)
+        case .info, .success, .api, .performance:
+            UnifiedLogger.shared.info(message, category: ucat, file: file, function: function, line: line)
+        case .warning:
+            UnifiedLogger.shared.warning(message, category: ucat, file: file, function: function, line: line)
+        case .error, .security:
+            UnifiedLogger.shared.error(message, category: ucat, file: file, function: function, line: line)
         }
         
-        // 파일 로그 출력 (디버그 모드)
-        if shouldLogToFile {
-            writeToLogFile(logMessage)
-        }
+        // 별도의 print / OSLog / 파일로그를 추가로 하지 않음(중복 방지)
     }
     
     // MARK: - 편의 메서드들

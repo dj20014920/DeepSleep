@@ -77,6 +77,16 @@ public final class UnifiedLogger {
     private var shouldLogToFile = false
     private var includeContext = true
     private var logFileURL: URL?
+
+    // 출력 채널 제어 (중복 방지용)
+    // - DEBUG에서는 print만 사용하고 OSLog는 끄면 Xcode 콘솔 중복 출력이 크게 줄어듭니다.
+    // - RELEASE에서는 OSLog 위주 사용 권장.
+    private var enableConsolePrint: Bool = true
+    private var enableOSLog: Bool = false
+
+    // 간단한 중복 로그 억제 (같은 메시지가 짧은 시간에 연속 발생 시 스킵)
+    private var dedupInterval: TimeInterval = 0.5 // 초
+    private var lastLogTimestamps: [String: TimeInterval] = [:]
     
     // MARK: - OS 로그 (iOS 12+)
     @available(iOS 12.0, *)
@@ -103,10 +113,14 @@ public final class UnifiedLogger {
         isLoggingEnabled = true
         minimumLogLevel = .debug    // 디버그 모드에서는 디버그까지 모두 출력
         shouldLogToFile = true
+        enableConsolePrint = true
+        enableOSLog = false
         #else
         isLoggingEnabled = true
         minimumLogLevel = .error    // 릴리즈 모드에서는 에러만 출력
         shouldLogToFile = false
+        enableConsolePrint = false
+        enableOSLog = true
         #endif
         
         setupLogFile()
@@ -174,11 +188,21 @@ public final class UnifiedLogger {
         
         let logMessage = "\(timestampString) \(level.emoji) \(category.prefix) \(fileName):\(line) \(function) - \(enrichedMessage)"
         
-        // 콘솔 출력
-        print(logMessage)
+        // 간단한 중복 억제: 같은 카테고리/레벨/본문이 dedupInterval 이내 반복되면 스킵
+        let dedupKey = "\(level.rawValue)|\(category.rawValue)|\(message)"
+        let now = timestamp.timeIntervalSince1970
+        if let last = lastLogTimestamps[dedupKey], now - last < dedupInterval {
+            return
+        }
+        lastLogTimestamps[dedupKey] = now
+
+        // 콘솔 출력 (선택)
+        if enableConsolePrint {
+            print(logMessage)
+        }
         
-        // OS 로그
-        if #available(iOS 12.0, *) {
+        // OS 로그 (선택)
+        if enableOSLog, #available(iOS 12.0, *) {
             let osLogType: OSLogType
             switch level {
             case .debug: osLogType = .debug
@@ -328,17 +352,24 @@ public final class UnifiedLogger {
     // MARK: - 설정 메서드
     
     /// 로그 레벨 설정
-    func setMinimumLogLevel(_ level: LogLevel) {
+    func setMinimumLogLevel(_ level: LogLevel, suppressNotice: Bool = false) {
         minimumLogLevel = level
-        info("📊 최소 로그 레벨 변경: \(level.prefix)", category: .system)
+        if !suppressNotice { info("📊 최소 로그 레벨 변경: \(level.prefix)", category: .system) }
     }
     
     /// 로깅 활성화/비활성화
-    func setLoggingEnabled(_ enabled: Bool) {
+    func setLoggingEnabled(_ enabled: Bool, suppressNotice: Bool = false) {
         isLoggingEnabled = enabled
-        if enabled {
+        if enabled, !suppressNotice {
             info("✅ 로깅 시스템 활성화", category: .system)
         }
+    }
+
+    /// 출력 채널 동적 제어 (중복 출력 억제 조정)
+    func configureOutputs(console: Bool? = nil, oslog: Bool? = nil, dedupInterval: TimeInterval? = nil) {
+        if let console = console { self.enableConsolePrint = console }
+        if let oslog = oslog { self.enableOSLog = oslog }
+        if let dedup = dedupInterval { self.dedupInterval = max(0, dedup) }
     }
     
     // MARK: - 정리 메서드
