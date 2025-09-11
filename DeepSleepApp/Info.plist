@@ -337,6 +337,10 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.deepsleep.feedback.learning</string>
+	</array>
 	<key>NSCalendarsUsageDescription</key>
 	<string>This app integrates your todos with the system calendar to help you stay organized. You can manage todo events and sync your schedule. You can change this anytime in Calendar permissions.</string>
 	<key>NSUserNotificationsUsageDescription</key>

@@ -745,13 +745,20 @@ public class SessionManager {
     /// 피드백 세션 시작 (FeedbackManager.startSession 대체)
     public func startSession(presetName: String, recommendation: Any?, contextEmotion: String) {
         feedbackQueue.async(flags: .barrier) {
+            var recVolumes: [Float] = []
+            var recVersions: [Int] = []
+            if let rec = recommendation as? EnhancedRecommendationResponse {
+                recVolumes = rec.volumes
+                recVersions = rec.versions
+            }
             let session = FeedbackSession(
                 id: UUID().uuidString,
                 presetName: presetName,
                 startTime: Date(),
                 contextEmotion: contextEmotion,
-                recommendedVolumes: [],
-                currentVolumes: []
+                recommendedVolumes: recVolumes,
+                recommendedVersions: recVersions,
+                currentVolumes: recVolumes
             )
             self.currentFeedbackSession = session
 
@@ -1135,15 +1142,20 @@ public class SessionManager {
         do {
             let sessionEntities = try context.fetch(request)
 
+            // ⚠️ NSManagedObject는 스레드-세이프하지 않음. fetch한 스레드(현재 스레드)에서
+            // value type으로 변환을 완료한 뒤, 캐시에 저장만 배리어 큐에서 수행한다.
+            let sessions: [UnifiedSession] = sessionEntities.map { entity in
+                return self.convertToUnifiedSession(from: entity)
+            }
+
             cacheQueue.async(flags: .barrier) {
                 self.sessionCache.removeAll()
-                for entity in sessionEntities {
-                    let session = self.convertToUnifiedSession(from: entity)
+                for session in sessions {
                     self.sessionCache[session.id] = session
                 }
             }
 
-            print("[SessionManager][LOAD] fetched=\(sessionEntities.count)")
+            print("[SessionManager][LOAD] fetched=\(sessions.count)")
 
         } catch {
             print("❌ [SessionManager] 세션 로드 실패: \(error)")
@@ -1829,5 +1841,6 @@ private struct FeedbackSession {
     let startTime: Date
     let contextEmotion: String
     var recommendedVolumes: [Float]
+    var recommendedVersions: [Int]
     var currentVolumes: [Float]
 }

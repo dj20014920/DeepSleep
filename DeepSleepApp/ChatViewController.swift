@@ -1358,7 +1358,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             if overflow > 0 {
                 messages.removeFirst(overflow)
                 #if DEBUG
-                print("🧹 [ChatViewController] 윈도우 초과 제거 \(overflow)개 (cap=\(cap)) reason=\(reason)")
+                    UnifiedLogger.shared.info("[ChatViewController] 윈도우 초과 제거 \(overflow)개 (cap=\(cap)) reason=\(reason)", category: .memory)
                 #endif
             }
         }
@@ -1368,12 +1368,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         let usage = MemoryProfiler.shared.getCurrentMemoryUsage()
         // 사용자의 '강제 종료·메모리 제한' 불원 정책 반영: 경고 레벨 완화 (로그 레벨=debug) / 강제 trim 없음
         if usage > 190 {
-            print("ℹ️ [MemoryGuard] usage=\(String(format: "%.2f", usage))MB (HIGH segment, no enforce, reason=\(reason), count=\(messages.count))")
+            UnifiedLogger.shared.warning("[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (HIGH segment, no enforce, reason=\(reason), count=\(messages.count))", category: .memory)
         } else if usage > 180 {
-            print("ℹ️ [MemoryGuard] usage=\(String(format: "%.2f", usage))MB (SOFT segment, no enforce, reason=\(reason), count=\(messages.count))")
+            UnifiedLogger.shared.info("[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (SOFT segment, no enforce, reason=\(reason), count=\(messages.count))", category: .memory)
         }
         if MemoryProfiler.shared.checkMemoryWarning() {
-            print("ℹ️ [MemoryGuard] threshold segment (warn-only, no action) reason=\(reason) count=\(messages.count)")
+            UnifiedLogger.shared.warning("[MemoryGuard] threshold segment (warn-only, no action) reason=\(reason) count=\(messages.count)", category: .memory)
         }
         #endif
 
@@ -2044,9 +2044,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         cognitiveState: Any, socialContext: Any
     ) {
         // 간단한 감정 분석
-        let emotions = ["행복", "슬픔", "불안", "평온", "스트레스"]
-        let primaryEmotion = emotions.randomElement() ?? "평온"
-        let intensity = Float.random(in: 0.3...0.9)
+        let primaryEmotion = EmotionAnalyzer().extractBasicEmotion(from: message)
+        // 결정적 강도 규칙: 텍스트 길이 기반 간단 휴리스틱 (랜덤 금지)
+        let clampedLength = min(max(message.count, 0), 400)
+        let intensity = Float(0.3 + (Double(clampedLength) / 400.0) * 0.6) // 0.3...0.9
 
         let physicalState = analyzePhysicalState(from: message)
         let environmentContext = analyzeEnvironmentalContext(from: message)
@@ -2339,8 +2340,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     private func getWeatherMood() -> Float {
-        // 간단한 시뮬레이션 (실제로는 날씨 API 사용)
-        return Float.random(in: 0.3...0.8)
+        // 결정적 날씨 점수 근사(위치/시간 부재 시): 시간대 기반 고정값
+        // 밤(22-6): 0.4, 아침(6-10): 0.7, 낮(10-18): 0.6, 저녁(18-22): 0.5
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 22...23, 0...5: return 0.4
+        case 6...9: return 0.7
+        case 10...17: return 0.6
+        default: return 0.5
+        }
     }
 
     private func getConsecutiveUsageCount() -> Int {
@@ -3692,12 +3700,12 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         // SoundPresetCatalog의 기존 프리셋 이름 확인
         let catalogPresets = SoundPresetCatalog.samplePresets.keys.filter { $0.contains(emotion) }
         if !catalogPresets.isEmpty {
-            return catalogPresets.randomElement() ?? "맞춤형 사운드"
+            return catalogPresets.sorted().first ?? "맞춤형 사운드"
         }
 
         // 위의 poeticNames에서 선택
         let names = poeticNames[emotion] ?? ["맞춤형 사운드"]
-        return names.randomElement() ?? "맞춤형 사운드"
+        return names.sorted().first ?? "맞춤형 사운드"
     }
 
     // 로컬 추천 설명 생성 - CommonUtilities 활용
@@ -4259,22 +4267,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
 
     // 프리셋 내부 선택된 버전 계산(간단 규칙)
     private func generateOptimalVersions(volumes: [Float]) -> [Int] {
-        var versions = SoundPresetCatalog.defaultVersions
-        for (index, volume) in volumes.enumerated() {
-            if SoundPresetCatalog.hasMultipleVersions(at: index) {
-                switch index {
-                case 1: versions[index] = volume > 60 ? 1 : 0
-                case 2: versions[index] = volume > 70 ? 1 : 0
-                case 4: versions[index] = volume > 50 ? 1 : 0
-                case 9: versions[index] = volume > 65 ? 1 : 0
-                case 10: versions[index] = volume > 60 ? 1 : 0
-                case 11: versions[index] = volume > 55 ? 1 : 0
-                case 12: versions[index] = volume > 50 ? 1 : 0
-                default: break
-                }
-            }
-        }
-        return versions
+        // DRY 준수: 공통 유틸 호출로 대체
+        return SoundPresetUtilities.generateOptimalVersions(volumes: volumes)
     }
 
     // MARK: - 🧠 과학적 프리셋 추천 시스템
@@ -4305,15 +4299,16 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         let union = Set(recommendedSounds).union(Set(timeSounds))
 
         var finalSoundList = Array(intersection)
-        finalSoundList += union.filter { !intersection.contains($0) }.shuffled().prefix(
-            5 - intersection.count)
+        // 결정적 정렬로 랜덤 제거: 사운드명 사전순으로 정렬 후 부족분 보충
+        let deterministicRemainder = union.filter { !intersection.contains($0) }.sorted()
+        finalSoundList += deterministicRemainder.prefix(max(0, 5 - intersection.count))
 
         // 볼륨 생성 (주요 사운드는 높게, 나머지는 낮게)
         var volumes: [Float] = Array(repeating: 0, count: 13)
         for (index, soundName) in finalSoundList.enumerated() {
             if let categoryIndex = SoundPresetCatalog.findCategoryIndex(by: soundName) {
-                volumes[categoryIndex] =
-                    index < 3 ? Float.random(in: 60...90) : Float.random(in: 20...50)
+                // 결정적 볼륨 규칙: 상위 3개는 높은 고정값, 나머지는 낮은 고정값
+                volumes[categoryIndex] = index < 3 ? 80 : 35
             }
         }
 
@@ -4392,8 +4387,8 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     }
 
     private func safePresetName(_ name: String) -> String {
-        let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty ? "🎵 AI 추천" : cleaned
+        // DRY 준수: 공통 유틸 사용
+        return SoundPresetUtilities.safePresetName(name)
     }
 
     // MARK: - 슬라이더 변경 핸들러

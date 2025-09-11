@@ -58,6 +58,9 @@ final class AdsBannerCoordinator {
         // 최신 배너 높이
         var lastBannerHeight: CGFloat = 0
 
+        // 하단 배너 포지션에서 위치 유지를 위한 바텀 제약 저장(탭바/홈인디케이터 반영)
+        var bottomConstraint: NSLayoutConstraint?
+
         // 스크롤 뷰 기본 인셋(Top 포지션에서만 사용)
         struct WeakScrollInfo {
             weak var scrollView: UIScrollView?
@@ -126,52 +129,57 @@ final class AdsBannerCoordinator {
         // 새 배너 생성 및 부착
         let banner = BannerAdContainerView()
         banner.translatesAutoresizingMaskIntoConstraints = false
-        viewController.view.addSubview(banner)
-        // 어떤 화면에서도 배너가 항상 최상단으로 보이도록 보장
-        viewController.view.bringSubviewToFront(banner)
         print("🧩 [AdsAttach] vc=\(type(of: viewController)), pos=\(position)")
+
+        // 하단 제약 보관용 (키보드/회전 시 레이아웃 추적 가능)
+        var bottomConstraintRef: NSLayoutConstraint?
 
         switch position {
         case .bottom:
-            if let tbc = viewController.tabBarController {
+            // 탭바가 있고 reserveSpace가 true인 경우: 탭바 컨트롤러의 safeArea.bottom에 부착하되,
+            // z-order는 탭바 아래에 오도록 insertSubview(belowSubview:) 사용 → 탭바가 항상 가장 위
+            if let tbc = viewController.tabBarController, reserveSpace {
                 let container = tbc.view!
-                container.addSubview(banner)
+                container.insertSubview(banner, belowSubview: tbc.tabBar)
+                let bottom = banner.bottomAnchor.constraint(equalTo: tbc.tabBar.topAnchor)
                 NSLayoutConstraint.activate([
                     banner.leadingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.leadingAnchor),
                     banner.trailingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.trailingAnchor),
-                    // 탭바 바로 위에 배너를 부착
-                    banner.bottomAnchor.constraint(equalTo: tbc.tabBar.topAnchor)
+                    bottom
                 ])
-                container.bringSubviewToFront(banner)
+                // bottomConstraintRef는 유지 목적(현재 사용처는 없음)
+                bottomConstraintRef = bottom
             } else {
+                // 그 외 화면은 VC.view 기준 (세이프박스 유무에 따라 앵커 결정)
+                viewController.view.addSubview(banner)
+                NSLayoutConstraint.activate([
+                    banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
+                    banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor)
+                ])
+                let bottom: NSLayoutConstraint
                 if reserveSpace {
-                    NSLayoutConstraint.activate([
-                        banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
-                        banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
-                        // 탭바가 없고 세이프박스를 사용하는 경우: 안전영역 하단에 부착
-                        banner.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor)
-                    ])
+                    bottom = banner.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor)
                 } else {
-                    NSLayoutConstraint.activate([
-                        banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
-                        banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
-                        // 세이프박스 없이 완전 하단에 부착(홈 인디케이터 영역 포함)
-                        banner.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor)
-                    ])
+                    bottom = banner.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor)
                 }
+                bottom.isActive = true
+                bottomConstraintRef = bottom
                 viewController.view.bringSubviewToFront(banner)
             }
 
         case .topUnderNavBar:
+            viewController.view.addSubview(banner)
             NSLayoutConstraint.activate([
                 banner.leadingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.leadingAnchor),
                 banner.trailingAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.trailingAnchor),
                 banner.topAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.topAnchor),
             ])
+            viewController.view.bringSubviewToFront(banner)
         }
 
         let handle = AttachedBannerHandle(
             viewController: viewController, bannerView: banner, position: position)
+        handle.bottomConstraint = bottomConstraintRef
         setHandle(handle, to: viewController)
         // reserveSpace 플래그를 bannerView에 연관 저장 (간단 전달)
         objc_setAssociatedObject(banner, Unmanaged.passUnretained(self).toOpaque(), reserveSpace, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
@@ -185,11 +193,17 @@ final class AdsBannerCoordinator {
 
         // 배너 높이 변경 콜백 설정 → 인셋 즉시 반영
         banner.onHeightChange = { [weak self, weak handle] newHeight in
-            guard let self, let handle else { return }
+            guard let self, let handle, let vc = handle.viewController else { return }
             handle.lastBannerHeight = newHeight
-            // 배너를 항상 맨 위로 유지 (덮임 방지)
-            handle.viewController?.view.bringSubviewToFront(handle.bannerView)
-            print("📐 [AdsLayout] vc=\(type(of: handle.viewController!)), pos=\(handle.position), height=\(newHeight), safe=\(handle.viewController!.view.safeAreaInsets), addSafe=\(handle.viewController!.additionalSafeAreaInsets)")
+            // z-order 보정:
+            // - 탭바 컨테이너 경로: 배너를 항상 탭바 아래로 유지 (네비게이션/컨텐츠를 덮지 않도록)
+            // - VC.view 경로: 컨텐츠에 가리지 않도록 맨 앞으로 올림
+            if let tbc = vc.tabBarController, handle.bannerView.superview === tbc.view {
+                tbc.view.insertSubview(handle.bannerView, belowSubview: tbc.tabBar)
+            } else if handle.bannerView.superview === vc.view {
+                vc.view.bringSubviewToFront(handle.bannerView)
+            }
+            print("📐 [AdsLayout] vc=\(type(of: vc)), pos=\(handle.position), height=\(newHeight), safe=\(vc.view.safeAreaInsets), addSafe=\(vc.additionalSafeAreaInsets)")
             self.refreshInsets(for: handle, animated: true)
         }
 

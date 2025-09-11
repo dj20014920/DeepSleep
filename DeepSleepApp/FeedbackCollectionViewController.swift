@@ -4,7 +4,7 @@ import NaturalLanguage
 
 /// 📝 피드백 수집 전담 뷰 컨트롤러
 /// 프리셋 적용 후 자동으로 표시되어 사용자 피드백을 수집
-@available(iOS 17.0, *)
+
 class FeedbackCollectionViewController: UIViewController {
     
     // MARK: - Properties
@@ -653,7 +653,7 @@ class FeedbackCollectionViewController: UIViewController {
         processFeedback()
         
         // 피드백 데이터 저장 및 학습
-        saveFeedbackAndLearn()
+        saveFeedbackAndLearnAndSessionSave()
         
         // 성공 메시지 표시
         showSuccessMessage()
@@ -723,7 +723,7 @@ class FeedbackCollectionViewController: UIViewController {
         }
     }
     
-    private func saveFeedbackAndLearn() {
+    private func saveFeedbackAndLearnAndSessionSave() {
         // 기본 평점 설정: numericRating이 0 이하일 경우 기본값 할당
         if feedbackData.numericRating <= 0 {
             feedbackData.numericRating = 0.5 // 기본값
@@ -750,6 +750,40 @@ class FeedbackCollectionViewController: UIViewController {
                 print("✅ [FeedbackCollection] 학습 완료")
             }
         }
+        
+        // 🌟 세션 매니저에 간단 이벤트로도 기록 (BehaviorEvent)
+        let ratingInt = Int(round(feedbackData.numericRating * 10))
+        let event = BehaviorEvent(
+            type: .feedback,
+            data: [
+                "rating": "\(ratingInt)",
+                "quickResponse": feedbackData.quickResponse
+            ]
+        )
+        let sessionId = SessionManager.shared.getCurrentOrCreateSession().id
+        SessionManager.shared.addBehaviorEvent(to: sessionId, event: event)
+        
+        // 🌟 PresetFeedback로도 세션에 저장 (중간 저장)
+        let hour = Int16(Calendar.current.component(.hour, from: Date()))
+        let presetFeedback = PresetFeedback(
+            presetName: currentPreset?.name,
+            contextEmotion: currentPreset?.emotion ?? "",
+            contextTime: hour,
+            recommendedVolumes: [],
+            recommendedVersions: [],
+            finalVolumes: soundCombination.enumerated().reduce(into: Array(repeating: 0.0 as Float, count: SoundPresetCatalog.categoryCount)) { acc, item in
+                let (i, tuple) = item
+                if let idx = SoundPresetCatalog.findCategoryIndex(by: tuple.soundId) {
+                    acc[idx] = tuple.volume
+                }
+            },
+            listeningDuration: 0,
+            wasSkipped: false,
+            wasSaved: false,
+            userSatisfaction: ratingInt,
+            comment: feedbackData.naturalLanguageFeedback
+        )
+        SessionManager.shared.addFeedbackDataSafely(to: sessionId, feedback: presetFeedback)
     }
     
     private func getCurrentTimeOfDayFactor() -> Float {
@@ -775,7 +809,7 @@ class FeedbackCollectionViewController: UIViewController {
 
 // MARK: - UITextViewDelegate
 
-@available(iOS 17.0, *)
+
 extension FeedbackCollectionViewController: UITextViewDelegate {
     
     func textViewDidBeginEditing(_ textView: UITextView) {

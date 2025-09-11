@@ -13,7 +13,6 @@ import CoreData
 
 /// 🔗 피드백 데이터와 AI 학습 시스템 간 연결고리 통합 매니저
 /// 사용자 피드백이 실제 추천 시스템에 반영되도록 하는 핵심 브리지 역할
-@available(iOS 17.0, *)
 class FeedbackIntegrationManager: ObservableObject {
     static let shared = FeedbackIntegrationManager()
     
@@ -40,7 +39,7 @@ class FeedbackIntegrationManager: ObservableObject {
     }
     
     /// 증분 학습 수행
-    private func performIncrementalLearning() async {
+    func performIncrementalLearning() async {
         guard !learningInProgress else {
             print("⏳ [FeedbackIntegration] 학습이 이미 진행 중입니다")
             return

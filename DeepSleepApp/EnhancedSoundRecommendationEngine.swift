@@ -174,7 +174,7 @@ class EnhancedSoundRecommendationEngine {
         // JSON을 사용하지 않고 항상 앱 내 카탈로그로부터 동적 구성
         enhancedCatalog = buildEnhancedCatalogFromInMemory()
         lastCatalogSignature = currentCatalogSignature()
-        print("🧩 동적 카탈로그 구성 완료: \(enhancedCatalog.count)개 카테고리")
+        UnifiedLogger.shared.info("🧩 동적 카탈로그 구성 완료: \(enhancedCatalog.count)개 카테고리)", category: .preset)
     }
 
     /// JSON이 없을 때 SoundManager + SoundPresetCatalog로부터 고도화 메타데이터를 동적으로 구성
@@ -275,7 +275,7 @@ class EnhancedSoundRecommendationEngine {
         if sig != lastCatalogSignature {
             enhancedCatalog = buildEnhancedCatalogFromInMemory()
             lastCatalogSignature = sig
-            print("🔄 사운드 카탈로그 변경 감지 → 동적 메타데이터 재구성 완료 (\(enhancedCatalog.count) 카테고리)")
+            UnifiedLogger.shared.info("🔄 사운드 카탈로그 변경 감지 → 동적 메타데이터 재구성 완료 (\(enhancedCatalog.count) 카테고리)", category: .preset)
         }
     }
     
@@ -283,14 +283,14 @@ class EnhancedSoundRecommendationEngine {
         if let data = userDefaults.data(forKey: profileKey),
            let profile = try? JSONDecoder().decode(UserVolumeProfile.self, from: data) {
             userProfile = profile
-            print("✅ 사용자 볼륨 프로필 로드 완료")
+            UnifiedLogger.shared.debug("✅ 사용자 볼륨 프로필 로드 완료")
         }
     }
     
     private func saveUserProfile() {
         if let data = try? JSONEncoder().encode(userProfile) {
             userDefaults.set(data, forKey: profileKey)
-            print("💾 사용자 프로필 저장 완료")
+            UnifiedLogger.shared.debug("💾 사용자 프로필 저장 완료")
         }
     }
     
@@ -315,7 +315,7 @@ class EnhancedSoundRecommendationEngine {
         // 카탈로그가 최신인지 확인 (음원/버전 추가/삭제 자동 반영)
         ensureCatalogUpToDate()
         let currentTimeOfDay = timeOfDay ?? getCurrentTimeOfDay()
-        print("🔍 [EnhancedRecommendation] 감정: \(emotion), 시간: \(currentTimeOfDay), 강도: \(intensity)")
+        UnifiedLogger.shared.debug("🔍 [EnhancedRecommendation] 감정: \(emotion), 시간: \(currentTimeOfDay), 강도: \(intensity)")
         
         // 1. 감정별 후보 사운드 필터링 (동의어 정규화 포함)
         let normalizedEmotion = normalizeEmotion(emotion)
@@ -401,7 +401,7 @@ class EnhancedSoundRecommendationEngine {
     /// - Returns: 다양한 개수와 조합의 프리셋들
     func generateDiversePresets(
         emotion: String,
-        feedbackHistory: [PresetFeedback] = [],
+        feedbackHistory: [EnginePresetFeedback] = [],
         diversityLevel: Int = 3
     ) -> [PresetRecommendation] {
         
@@ -463,18 +463,8 @@ class EnhancedSoundRecommendationEngine {
         let version: String
         let volume: Float
     }
-    
-    struct PresetFeedback: Codable {
-        let presetId: String
-        let sounds: [SoundInfo]
-        let rating: Int // 1-5점
-        let emotion: String
-        let timeOfDay: String
-        let feedback: String?
-        let timestamp: Date
-    }
-    
-    struct PresetRecommendation: Codable {
+
+struct PresetRecommendation: Codable {
         let id: String
         let name: String
         let sounds: [SoundInfo]
@@ -493,7 +483,7 @@ class EnhancedSoundRecommendationEngine {
         var timeOfDayPreferences: [String: [String: Float]] = [:]
     }
     
-    private func analyzeFeedbackHistory(_ history: [PresetFeedback]) -> LearnedPreferences {
+    private func analyzeFeedbackHistory(_ history: [EnginePresetFeedback]) -> LearnedPreferences { // ENGINE-ONLY feedback type 사용
         var preferences = LearnedPreferences()
         
         for feedback in history {
@@ -591,7 +581,7 @@ class EnhancedSoundRecommendationEngine {
             }
         }
         
-        print("🎭 감정 '\(emotion)'에 매칭된 후보: \(candidates.count)개")
+        UnifiedLogger.shared.debug("🎭 감정 '\(emotion)'에 매칭된 후보: \(candidates.count)개")
         return candidates
     }
     
@@ -601,7 +591,7 @@ class EnhancedSoundRecommendationEngine {
             version.timeOfDayOptimal.contains("모든 시간")
         }
         
-        print("⏰ 시간대 '\(timeOfDay)'에 적합한 후보: \(filtered.count)개")
+        UnifiedLogger.shared.debug("⏰ 시간대 '\(timeOfDay)'에 적합한 후보: \(filtered.count)개")
         return filtered.isEmpty ? candidates : filtered
     }
     
@@ -751,7 +741,7 @@ class EnhancedSoundRecommendationEngine {
             }
         }
         
-        print("🎵 최종 선택된 조합: \(selectedSounds.count)개 (목표: \(targetCount)개)")
+        UnifiedLogger.shared.debug("🎵 최종 선택된 조합: \(selectedSounds.count)개 (목표: \(targetCount)개)")
         return selectedSounds
     }
     
@@ -905,15 +895,19 @@ class EnhancedSoundRecommendationEngine {
     
     private func getCurrentTimeOfDay() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<9: return "아침"
-        case 9..<12: return "오전"
-        case 12..<14: return "점심"
-        case 14..<18: return "오후"
-        case 18..<21: return "저녁"
-        case 21..<24: return "밤"
-        default: return "깊은밤"
-        }
+        return hourToTimeOfDay(hour)
+    }
+
+    // MARK: - 타입 브리징을 위한 단순 모델(엔진 내부 전용)
+    // NOTE: SharedModels의 PresetFeedback과 혼동을 피하기 위해 명시적 내부 타입 사용 권장
+    struct EnginePresetFeedback: Codable {
+        let presetId: String
+        let sounds: [SoundInfo]
+        let rating: Int
+        let emotion: String
+        let timeOfDay: String
+        let feedback: String?
+        let timestamp: Date
     }
     
     private func getSoundDisplayName(soundId: String, version: String) -> String {
@@ -947,23 +941,61 @@ class EnhancedSoundRecommendationEngine {
     func updateUserVolumePreference(soundId: String, volume: Float) {
         userProfile.updateVolumePreference(soundId: soundId, volume: volume)
         saveUserProfile()
-        print("📊 사용자 선호 볼륨 업데이트: \(soundId) = \(volume)")
+        UnifiedLogger.shared.debug("📊 사용자 선호 볼륨 업데이트: \(soundId) = \(volume)")
     }
     
     /// 🔄 사용자 프로필 업데이트 (피드백 데이터 기반)
     @available(iOS 17.0, *)
-    func updateUserProfile(_ profile: Any) { // TODO: UserProfileVector
-        // TODO: UserProfileVector 구조체 정의 필요
-        // 임시로 비활성화
+    func updateUserProfile(_ profile: Any) {
+        guard let vector = profile as? UserProfileVector else {
+            UnifiedLogger.shared.debug("⚠️ [EnhancedSoundRecommendationEngine] UserProfileVector 타입 아님: \(type(of: profile))")
+            return
+        }
+        // UserVolumeProfile와 UserProfileVector를 융합하는 간단한 규칙:
+        // - 높은 선호 사운드(>0.6)는 선호 볼륨을 0.7로 수렴
+        // - 시간대 선호도는 0.5 이상인 경우 소리별 timeOfDayPreference를 증가
+        // - 평균 만족도가 낮으면 전체 볼륨을 보수적으로 조정하는 경향 기록
+        let preferredThreshold: Float = 0.6
+        for (index, pref) in vector.soundPreferences.enumerated() where index < SoundPresetCatalog.categoryNames.count {
+            let soundId = SoundPresetCatalog.categoryNames[index]
+            if pref > preferredThreshold {
+                // 선호 사운드: 약간 높은 기준 볼륨으로 업데이트(0.6~0.8 클램프)
+                let target: Float = min(0.8, max(0.6, pref))
+                userProfile.updateVolumePreference(soundId: soundId, volume: target)
+            }
+        }
+        // 시간대 선호 반영: 가장 높은 상위 3개 시간대에 대해 선호 사운드 가중 강화
+        let topHours = vector.timePreferences.enumerated().sorted { $0.element > $1.element }.prefix(3).map { $0.offset }
+        for hour in topHours {
+            let time = hourToTimeOfDay(hour)
+            for (soundId, vol) in userProfile.preferredVolumes {
+                // 해당 시간대에 현재 선호도 존재 시 소폭 증가
+                userProfile.updateTimePreference(timeOfDay: time, soundId: soundId, preference: min(1.0, vol * 1.05))
+            }
+        }
+        // 평균 만족도 기반 전역 조정 메모(저장 시각 기록으로 충분)
+        userProfile.lastUpdated = Date()
         saveUserProfile()
-        print("🔄 [EnhancedSoundRecommendationEngine] 사용자 프로필 업데이트 (임시 비활성화)")
+        UnifiedLogger.shared.debug("✅ [EnhancedSoundRecommendationEngine] 사용자 프로필 업데이트 완료: avg=\(vector.averageSatisfaction), topHours=\(topHours)")
+    }
+
+    private func hourToTimeOfDay(_ hour: Int) -> String {
+        switch hour {
+        case 5..<9: return "아침"
+        case 9..<12: return "오전"
+        case 12..<14: return "점심"
+        case 14..<18: return "오후"
+        case 18..<21: return "저녁"
+        case 21..<24: return "밤"
+        default: return "깊은밤"
+        }
     }
     
     /// 사용자 프로필 리셋
     func resetUserProfile() {
         userProfile = UserVolumeProfile()
         saveUserProfile()
-        print("🔄 사용자 프로필이 리셋되었습니다.")
+        UnifiedLogger.shared.debug("🔄 사용자 프로필이 리셋되었습니다.")
     }
     
     /// 프로필 통계 조회
@@ -990,12 +1022,12 @@ class EnhancedSoundRecommendationEngine {
         emotion: String,
         intensity: Float,
         context: String?,
-        feedbackHistory: [PresetFeedback]
+        feedbackHistory: [EnginePresetFeedback]
     ) async throws -> SoundRecommendationResult {
-        print("🎵 Enhanced 사운드 추천 시작 (2025년 최신 알고리즘)")
-        print("  - 감정: \(emotion), 강도: \(intensity)")
-        print("  - 컨텍스트: \(context ?? "없음")")
-        print("  - 피드백 히스토리: \(feedbackHistory.count)개")
+        UnifiedLogger.shared.debug("🎵 Enhanced 사운드 추천 시작 (2025년 최신 알고리즘)")
+        UnifiedLogger.shared.debug("  - 감정: \(emotion), 강도: \(intensity)")
+        UnifiedLogger.shared.debug("  - 컨텍스트: \(context ?? "없음")")
+        UnifiedLogger.shared.debug("  - 피드백 히스토리: \(feedbackHistory.count)개")
         
         // 1. 감정 기반 기본 추천 생성
         let baseRecommendation = await generateEmotionBasedRecommendation(
@@ -1027,7 +1059,7 @@ class EnhancedSoundRecommendationEngine {
             sounds: contextOptimizedRecommendation
         )
         
-        print("✅ Enhanced 사운드 추천 완료: \(finalRecommendation.count)개 사운드")
+        UnifiedLogger.shared.debug("✅ Enhanced 사운드 추천 완료: \(finalRecommendation.count)개 사운드")
         
         return SoundRecommendationResult(sounds: finalRecommendation)
     }
@@ -1039,7 +1071,7 @@ class EnhancedSoundRecommendationEngine {
         emotion: String,
         intensity: Float
     ) async -> [SoundItem] {
-        print("🧠 감정 기반 추천 생성 시작")
+        UnifiedLogger.shared.info("🧠 감정 기반 추천 생성 시작", category: .preset)
         
         var recommendations: [SoundItem] = []
         
@@ -1075,7 +1107,7 @@ class EnhancedSoundRecommendationEngine {
             ]
         }
         
-        print("📊 기본 추천 생성 완료: \(recommendations.count)개")
+        UnifiedLogger.shared.debug("📊 기본 추천 생성 완료: \(recommendations.count)개")
         return recommendations
     }
     
@@ -1084,7 +1116,7 @@ class EnhancedSoundRecommendationEngine {
         baseRecommendation: [SoundItem],
         userProfile: UserVolumeProfile
     ) async -> [SoundItem] {
-        print("👤 사용자 프로필 기반 개인화 시작")
+        UnifiedLogger.shared.debug("👤 사용자 프로필 기반 개인화 시작")
         
         var personalizedRecommendation = baseRecommendation
         
@@ -1119,16 +1151,16 @@ class EnhancedSoundRecommendationEngine {
             }
         }
         
-        print("📊 개인화 완료: \(personalizedRecommendation.count)개")
+        UnifiedLogger.shared.debug("📊 개인화 완료: \(personalizedRecommendation.count)개")
         return personalizedRecommendation
     }
     
     /// 3. 피드백 히스토리 기반 학습 적용 (Reinforcement Learning)
     private func applyFeedbackLearning(
         recommendation: [SoundItem],
-        feedbackHistory: [PresetFeedback]
+        feedbackHistory: [EnginePresetFeedback]
     ) async -> [SoundItem] {
-        print("🎯 피드백 학습 적용 시작")
+        UnifiedLogger.shared.debug("🎯 피드백 학습 적용 시작")
         
         var learningEnhancedRecommendation = recommendation
         
@@ -1160,7 +1192,7 @@ class EnhancedSoundRecommendationEngine {
             }
         }
         
-        print("📊 피드백 학습 완료: 평균 조정률 적용")
+        UnifiedLogger.shared.debug("📊 피드백 학습 완료: 평균 조정률 적용")
         return learningEnhancedRecommendation
     }
     
@@ -1170,7 +1202,7 @@ class EnhancedSoundRecommendationEngine {
         context: String?,
         currentTime: Date
     ) async -> [SoundItem] {
-        print("🌍 컨텍스트 최적화 시작")
+        UnifiedLogger.shared.debug("🌍 컨텍스트 최적화 시작")
         
         var contextOptimizedRecommendation = recommendation
         let timeOfDay = getCurrentTimeOfDay()
@@ -1212,13 +1244,13 @@ class EnhancedSoundRecommendationEngine {
             )
         }
         
-        print("📊 컨텍스트 최적화 완료: \(timeOfDay) 시간대 적용")
+        UnifiedLogger.shared.debug("📊 컨텍스트 최적화 완료: \(timeOfDay) 시간대 적용")
         return contextOptimizedRecommendation
     }
     
     /// 5. 실시간 믹싱 최적화 (Psychoacoustic Optimization)
     private func optimizeMixingBalance(sounds: [SoundItem]) async -> [SoundItem] {
-        print("🎛️ 믹싱 밸런스 최적화 시작")
+        UnifiedLogger.shared.debug("🎛️ 믹싱 밸런스 최적화 시작")
         
         var optimizedSounds = sounds
         
@@ -1240,7 +1272,7 @@ class EnhancedSoundRecommendationEngine {
         // 주파수 충돌 방지 (간단한 구현)
         optimizedSounds = avoidFrequencyConflicts(sounds: optimizedSounds)
         
-        print("📊 믹싱 최적화 완료: 총 볼륨 \(optimizedSounds.map { $0.volume }.reduce(0, +))")
+        UnifiedLogger.shared.debug("📊 믹싱 최적화 완료: 총 볼륨 \(optimizedSounds.map { $0.volume }.reduce(0, +))")
         return optimizedSounds
     }
     

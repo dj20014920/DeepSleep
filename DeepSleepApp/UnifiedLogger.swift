@@ -75,6 +75,7 @@ public final class UnifiedLogger {
     private var isLoggingEnabled = true
     private var minimumLogLevel: LogLevel = .debug
     private var shouldLogToFile = false
+    private var includeContext = true
     private var logFileURL: URL?
     
     // MARK: - OS 로그 (iOS 12+)
@@ -100,7 +101,7 @@ public final class UnifiedLogger {
     private func setupLogger() {
         #if DEBUG
         isLoggingEnabled = true
-        minimumLogLevel = .warning  // 디버그 모드에서도 경고 이상만 출력
+        minimumLogLevel = .debug    // 디버그 모드에서는 디버그까지 모두 출력
         shouldLogToFile = true
         #else
         isLoggingEnabled = true
@@ -113,6 +114,12 @@ public final class UnifiedLogger {
     }
     
     private func setupLogFile() {
+        // 파일 로깅 opt-in 여부 환경설정 반영(필요 시 스위치)
+        #if DEBUG
+        shouldLogToFile = true
+        #else
+        shouldLogToFile = false
+        #endif
         guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return
         }
@@ -151,11 +158,21 @@ public final class UnifiedLogger {
         function: String,
         line: Int
     ) {
+        // 추가 컨텍스트(메모리, 스레드, 스레드ID, 세션ID 일부)를 로그 메시지에 포함
+        var enrichedMessage = message
+        if includeContext {
+            let memMB = String(format: "%.2f", MemoryProfiler.shared.getCurrentMemoryUsage())
+            let thread = Thread.isMainThread ? "main" : (Thread.current.name ?? "bg")
+            let tid = pthread_mach_thread_np(pthread_self())
+            let sessionIdSnippet = SessionManager.shared.getCurrentSessionId().prefix(6)
+            enrichedMessage = "[mem=\(memMB)MB thread=\(thread) tid=\(tid) sid=\(sessionIdSnippet)] \(message)"
+        }
+
         let fileName = (file as NSString).lastPathComponent
         let timestamp = Date()
         let timestampString = DateFormatter.unifiedTimestamp.string(from: timestamp)
         
-        let logMessage = "\(timestampString) \(level.emoji) \(category.prefix) \(fileName):\(line) \(function) - \(message)"
+        let logMessage = "\(timestampString) \(level.emoji) \(category.prefix) \(fileName):\(line) \(function) - \(enrichedMessage)"
         
         // 콘솔 출력
         print(logMessage)

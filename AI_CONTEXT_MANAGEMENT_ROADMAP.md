@@ -88,6 +88,23 @@
 ---
 
 # AI Context Management Roadmap
+### 2025-09-10 동기화: 신경망 피드백→추천 플로우 완성 + DRY 유틸 + BGTask 학습
+- SessionManager 일원화: 세션 시작/중간저장/종료의 PresetFeedback/BehaviorEvent 체인 무결성 강화
+- FeedbackCollectionViewController 제출 시 중간 스냅샷(PresetFeedback) 저장 및 즉시 학습 트리거 연계
+- EnhancedSoundRecommendationEngine.updateUserProfile(UserProfileVector) 실구현: 선호 볼륨/시간대 선호 반영, lastUpdated 관리
+- SoundPresetUtilities(safePresetName, generateOptimalVersions) 도입으로 결정성/DRY/SSoT 보장
+- RecommendationContext/UserProfileVector 기반 후보 생성/랭킹 로직 정합성 강화(외부 모델 프리셋 추천 재사용 준비)
+- AppDelegate에 BGTaskScheduler 등록/스케줄: 백그라운드에서 FeedbackIntegrationManager.performIncrementalLearning 실행
+- 로깅/저장 안정성: BehaviorEvent(.feedback) 정밀 기록, background 진입 시 SessionManager.flush로 저장 안전성 제고
+
+#### 검증/테스트 권장
+- Unit: SoundPresetUtilities(버전 임계값/이름 정리), updateUserProfile(볼륨/시간대 반영) 검증
+- Integration: 중간 저장/세션 종료 저장/증분 학습 전체 경로 검증
+
+#### 후속 로드맵
+- 엔진 내부 타입 충돌 완전 제거(EnginePresetFeedback → 공유 모델 일원화 여부 검토)
+- 결정적 다양성 전략 도입(랜덤 배제 유지하며 재현 가능한 다양성 확보)
+- BGTask 주기/조건 최적화 및 실패 핸들링 강화
 
 [Note: Existing content retained above]
 

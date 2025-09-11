@@ -362,25 +362,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     private func setupAIServices() {
         print("🚀 [SceneDelegate] AI 서비스 초기화 시작")
-        
-        // 1. SessionManager 초기화 (AI 서비스는 내부에서 필요 시 초기화)
-        let _ = SessionManager.shared
-        print("✅ [SceneDelegate] SessionManager 초기화 완료")
-        
-        // 3. SessionManager 초기화 (통합 데이터 관리)
-        let _ = SessionManager.shared
-        print("✅ [SceneDelegate] SessionManager 초기화 완료")
-        
-        // 4. iOS 17+ 전용 기능 (선택적)
+
+        // SessionManager 초기화는 메인 전환 이후 백그라운드로 지연하여 UI 전환을 방해하지 않음
+        DispatchQueue.global(qos: .background).async {
+            _ = SessionManager.shared
+            print("✅ [SceneDelegate] SessionManager 초기화 완료")
+        }
+
+        // iOS 17+ 전용 기능 (선택): 초기 화면 전환을 우선하기 위해 약간 지연 실행
         if #available(iOS 17.0, *) {
-            // PersonaMemoryManager 초기화 (iOS 17+ 전용 기능)
-            if NSClassFromString("PersonaMemoryManager") != nil {
-                let _ = PersonaMemoryManager()
-                print("✅ [SceneDelegate] PersonaMemoryManager 초기화 완료 (iOS 17+)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if NSClassFromString("PersonaMemoryManager") != nil {
+                    _ = PersonaMemoryManager()
+                    print("✅ [SceneDelegate] PersonaMemoryManager 초기화 완료 (iOS 17+)")
+                }
             }
         }
-        
-        print("🎉 [SceneDelegate] 모든 AI 서비스 초기화 완료")
+
+        print("🎉 [SceneDelegate] AI 서비스 초기화 예약 완료")
     }
     
     // MARK: - 🧹 레거시 스와이프 코드 모두 제거됨

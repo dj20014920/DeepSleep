@@ -231,6 +231,7 @@
 		E0NEW1012E70000100ABCDEF /* GradientPalettes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0NEW0012E70000100ABCDEF /* GradientPalettes.swift */; };
 		E0NEW1022E70000100ABCDEF /* EmotionCalendarDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0NEW0022E70000100ABCDEF /* EmotionCalendarDayCell.swift */; };
 		E0NEW1032E70000100ABCDEF /* TodoListSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */; };
+		E0FACE022E77777700ABCD01 /* SoundPresetUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0FACE012E77777700ABCD01 /* SoundPresetUtilities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -247,7 +248,6 @@
 		E068E35F2E56F90E00CA54A0 /* SubscriptionTierSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTierSelectionViewController.swift; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBannerCoordinator.swift; sourceTree = "<group>"; };
-		E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DeepSleep.xcodeproj; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
 		E084F0522E33ACB3002F75E6 /* AIServiceTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIServiceTypes.swift; sourceTree = "<group>"; };
@@ -467,6 +467,7 @@
 		E0NEW0012E70000100ABCDEF /* GradientPalettes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientPalettes.swift; sourceTree = "<group>"; };
 		E0NEW0022E70000100ABCDEF /* EmotionCalendarDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionCalendarDayCell.swift; sourceTree = "<group>"; };
 		E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListSheetViewController.swift; sourceTree = "<group>"; };
+		E0FACE012E77777700ABCD01 /* SoundPresetUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPresetUtilities.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -492,7 +493,6 @@
 				E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */,
 				E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */,
 				E084F1182E33ACB3002F75E6 /* README 2.md */,
-				E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
 				E0B5625B2E6AA9F300D334F1 /* Frameworks */,
 				A011 /* Products */,
@@ -776,6 +776,7 @@
 				E084F0EF2E33ACB3002F75E6 /* SoundHarmonyAnalyzer.swift */,
 				E084F0F02E33ACB3002F75E6 /* SoundManager.swift */,
 				E084F0F12E33ACB3002F75E6 /* SoundPresetCatalog.swift */,
+				E0FACE012E77777700ABCD01 /* SoundPresetUtilities.swift */,
 				E084F0F22E33ACB3002F75E6 /* StorageManagementViewController.swift */,
 				E084F0F32E33ACB3002F75E6 /* StubViewControllers.swift */,
 				E084F0F42E33ACB3002F75E6 /* TimerViewController.swift */,
@@ -1041,10 +1042,6 @@
 			productRefGroup = A011 /* Products */;
 			projectDirPath = "";
 			projectReferences = (
-				{
-					ProductGroup = E084F1762E33ACB3002F75E6 /* Products */;
-					ProjectRef = E084F04C2E33ACB3002F75E6 /* DeepSleep.xcodeproj */;
-				},
 			);
 			projectRoot = "";
 			targets = (
@@ -1277,6 +1274,7 @@
 				E0E7BCC62E561C8100FF7073 /* EntitlementUI.swift in Sources */,
 				E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */,
 				E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */,
+				E0FACE022E77777700ABCD01 /* SoundPresetUtilities.swift in Sources */,
 				E084F2002E33ACB3002F75E6 /* ConsoleLogger.swift in Sources */,
 				E0B562452E6488F800D334F1 /* FeatureTutorialManager.swift in Sources */,
 				E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */,

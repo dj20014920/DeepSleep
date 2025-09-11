@@ -57,7 +57,7 @@ public final class UsageGate {
     // MARK: - Initialization
     private init() {
         #if DEBUG
-            print("🚪 [UsageGate] 중앙집중형 사용량 게이트 초기화됨")
+            UnifiedLogger.shared.info("🚪 [UsageGate] 중앙집중형 사용량 게이트 초기화됨", category: .performance)
         #endif
 
         // 사용량 한도 도달 알림 구독
@@ -83,8 +83,9 @@ public final class UsageGate {
             // 1. 캐시 체크
             if let cached = getCachedResult(for: mode) {
                 #if DEBUG
-                    print(
-                        "🎯 [UsageGate] 캐시 히트: \(mode.displayName) - \(cached.currentUsage)/\(cached.dailyLimit)"
+                    UnifiedLogger.shared.info(
+                        "🎯 [UsageGate] 캐시 히트: \(mode.displayName) - \(cached.currentUsage)/\(cached.dailyLimit)",
+                        category: .performance
                     )
                 #endif
                 return cached
@@ -103,8 +104,9 @@ public final class UsageGate {
             setCachedResult(result, for: mode)
 
             #if DEBUG
-                print(
-                    "🚪 [UsageGate] 새 체크: \(mode.displayName) - \(result.currentUsage)/\(result.dailyLimit) (사용가능: \(result.canUse))"
+                UnifiedLogger.shared.info(
+                    "🚪 [UsageGate] 새 체크: \(mode.displayName) - \(result.currentUsage)/\(result.dailyLimit) (사용가능: \(result.canUse))",
+                    category: .performance
                 )
             #endif
 
@@ -131,13 +133,14 @@ public final class UsageGate {
             if after.currentUsage != before.currentUsage {
                 self.invalidateCache(for: mode)
                 #if DEBUG
-                    print(
-                        "⬆️ [UsageGate] 사용량 증가: \(mode.displayName) \(after.currentUsage)/\(after.dailyLimit) → 캐시 무효화"
+                    UnifiedLogger.shared.info(
+                        "⬆️ [UsageGate] 사용량 증가: \(mode.displayName) \(after.currentUsage)/\(after.dailyLimit) → 캐시 무효화",
+                        category: .performance
                     )
                 #endif
             } else {
                 #if DEBUG
-                    print(
+                    UnifiedLogger.shared.debug(
                         "ℹ️ [UsageGate] incrementUsage 호출됐지만 카운트 변화 없음: \(mode.displayName) \(after.currentUsage)/\(after.dailyLimit) → 캐시 유지"
                     )
                 #endif
@@ -156,7 +159,7 @@ public final class UsageGate {
         return queue.sync {
             let tuple = usageLimitManager.canUseDailyKeyedFeature(key: key, limit: limit)
             #if DEBUG
-                print(
+                UnifiedLogger.shared.debug(
                     "🗝️ [UsageGate] 일일 키 기능 체크: \(key) - 남은횟수 \(tuple.remaining)/\(limit) (사용가능: \(tuple.canUse))"
                 )
             #endif
@@ -173,7 +176,7 @@ public final class UsageGate {
             self.usageLimitManager.incrementDailyKeyedFeature(key: key)
 
             #if DEBUG
-                print("⬆️ [UsageGate] 일일 키 기능 사용량 증가: \(key)")
+                UnifiedLogger.shared.debug("⬆️ [UsageGate] 일일 키 기능 사용량 증가: \(key)")
             #endif
         }
     }
@@ -211,7 +214,7 @@ public final class UsageGate {
             self.lastCacheInvalidation = Date()
 
             #if DEBUG
-                print("🗑️ [UsageGate] 전체 캐시 무효화됨")
+                UnifiedLogger.shared.info("🗑️ [UsageGate] 전체 캐시 무효화됨", category: .performance)
             #endif
         }
     }
@@ -246,7 +249,7 @@ public final class UsageGate {
         cachedResults.removeValue(forKey: mode)
 
         #if DEBUG
-            print("🗑️ [UsageGate] 캐시 무효화: \(mode.displayName)")
+            UnifiedLogger.shared.info("🗑️ [UsageGate] 캐시 무효화: \(mode.displayName)", category: .performance)
         #endif
     }
 
@@ -262,7 +265,7 @@ public final class UsageGate {
         }
 
         #if DEBUG
-            print("⚠️ [UsageGate] 사용량 한도 도달 알림 처리: \(mode.displayName)")
+            UnifiedLogger.shared.debug("⚠️ [UsageGate] 사용량 한도 도달 알림 처리: \(mode.displayName)")
         #endif
     }
 
@@ -279,7 +282,7 @@ public final class UsageGate {
             cachedResults.removeValue(forKey: mode)
         }
         #if DEBUG
-            print("🧹 [UsageGate] 캐시 메모리 상한 적용 - 현재 \(cachedResults.count)개 (cap=\(maxEntries))")
+            UnifiedLogger.shared.debug("🧹 [UsageGate] 캐시 메모리 상한 적용 - 현재 \(cachedResults.count)개 (cap=\(maxEntries))")
         #endif
     }
 }
@@ -353,14 +356,14 @@ extension UsageGate {
         /// 현재 캐시 상태 출력 (디버깅용)
         public func printCacheStatus() {
             queue.sync {
-                print("📊 [UsageGate] 캐시 상태:")
-                print("   - 캐시된 모드 수: \(cachedResults.count)")
-                print("   - 캐시 유효 시간: \(cacheValidityInterval)초")
-                print("   - 마지막 무효화: \(lastCacheInvalidation)")
+                UnifiedLogger.shared.debug("📊 [UsageGate] 캐시 상태:")
+                UnifiedLogger.shared.debug("   - 캐시된 모드 수: \(cachedResults.count)")
+                UnifiedLogger.shared.debug("   - 캐시 유효 시간: \(cacheValidityInterval)초")
+                UnifiedLogger.shared.debug("   - 마지막 무효화: \(lastCacheInvalidation)")
 
                 for (mode, cached) in cachedResults {
                     let age = Date().timeIntervalSince(cached.timestamp)
-                    print(
+                    UnifiedLogger.shared.debug(
                         "   - \(mode.displayName): \(cached.result.currentUsage)/\(cached.result.dailyLimit) (age: \(String(format: "%.1f", age))s)"
                     )
                 }
@@ -385,11 +388,11 @@ extension UsageGate {
         public func debugEnforceCacheCapPreview(maxEntries: Int = 32) {
             queue.sync {
                 if cachedResults.count > maxEntries {
-                    print(
+                    UnifiedLogger.shared.debug(
                         "⚠️ [UsageGate] (preview) 캐시 항목 \(cachedResults.count)개 → 상한 \(maxEntries) 초과"
                     )
                 } else {
-                    print("✅ [UsageGate] (preview) 캐시 항목 \(cachedResults.count)/\(maxEntries)")
+                    UnifiedLogger.shared.debug("✅ [UsageGate] (preview) 캐시 항목 \(cachedResults.count)/\(maxEntries)")
                 }
             }
         }

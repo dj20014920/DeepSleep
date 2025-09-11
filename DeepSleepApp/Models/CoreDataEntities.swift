@@ -125,20 +125,40 @@ extension UnifiedSessionEntity {
             metadata = (try? JSONDecoder().decode(SessionMetadata.self, from: metadataData)) ?? SessionMetadata()
         }
         
-        // 채팅 메시지 변환
-        let chatMessages = (self.chatMessages?.allObjects as? [StoredChatMessageEntity])?.map { messageEntity in
-            messageEntity.toStruct()
-        } ?? []
+        // 채팅 메시지 변환 - 스레드/컨텍스트 안전: 현재 컨텍스트에서 Array로 복사 후 map
+        let chatMessages: [StoredChatMessage] = {
+            guard let set = self.chatMessages else { return [] }
+            let copied = Array(set) as NSArray
+            // 안전 캐스팅 시도
+            if let typed = copied as? [StoredChatMessageEntity] {
+                return typed.map { $0.toStruct() }
+            }
+            // NSSet의 임의 순서 → 정렬 안정성을 위해 id 기준으로 소팅 시도
+            let anyArray = copied.compactMap { $0 as? StoredChatMessageEntity }
+            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
+        }()
         
-        // 피드백 데이터 변환
-        let feedbackData = (self.feedbackData?.allObjects as? [PresetFeedbackEntity])?.map { feedbackEntity in
-            feedbackEntity.toStruct()
-        } ?? []
+        // 피드백 데이터 변환 - 동일 패턴 적용
+        let feedbackData: [PresetFeedback] = {
+            guard let set = self.feedbackData else { return [] }
+            let copied = Array(set) as NSArray
+            if let typed = copied as? [PresetFeedbackEntity] {
+                return typed.map { $0.toStruct() }
+            }
+            let anyArray = copied.compactMap { $0 as? PresetFeedbackEntity }
+            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
+        }()
         
-        // 행동 이벤트 변환
-        let behaviorEvents = (self.behaviorEvents?.allObjects as? [BehaviorEventEntity])?.map { eventEntity in
-            eventEntity.toStruct()
-        } ?? []
+        // 행동 이벤트 변환 - 동일 패턴 적용
+        let behaviorEvents: [BehaviorEvent] = {
+            guard let set = self.behaviorEvents else { return [] }
+            let copied = Array(set) as NSArray
+            if let typed = copied as? [BehaviorEventEntity] {
+                return typed.map { $0.toStruct() }
+            }
+            let anyArray = copied.compactMap { $0 as? BehaviorEventEntity }
+            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
+        }()
         
         return UnifiedSession(
             id: self.id.uuidString,

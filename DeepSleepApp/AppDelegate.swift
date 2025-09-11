@@ -3,6 +3,7 @@ import AVFoundation
 import UserNotifications
 import SwiftData
 import CoreData
+import BackgroundTasks
 
 // 타입 접근성 문제로 인해 임시 주석 처리
 
@@ -126,6 +127,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
         }
         
+        // BGTask 등록 (iOS13+)
+        if #available(iOS 13.0, *) {
+            BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.deepsleep.feedback.learning", using: nil) { task in
+                self.handleFeedbackLearningTask(task: task as! BGAppRefreshTask)
+            }
+        }
         return true
     }
 
@@ -240,6 +247,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     /// 앱이 백그라운드로 진입
     func applicationDidEnterBackground(_ application: UIApplication) {
+        // BGTask 스케줄
+        if #available(iOS 13.0, *) {
+            scheduleFeedbackLearningBGTask()
+        }
         UnifiedLogger.shared.info("앱 백그라운드 진입 - 추가 저장 처리", category: .appLifecycle)
         
         // 🎯 한번 더 SessionManager 플러시 (안전성 강화)
@@ -249,6 +260,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         UnifiedLogger.shared.info("SessionManager 백그라운드 플러시 완료", category: .appLifecycle)
     }
     
+    // MARK: - BGTask (Feedback Learning)
+    @available(iOS 13.0, *)
+    private func scheduleFeedbackLearningBGTask() {
+        let request = BGAppRefreshTaskRequest(identifier: "com.deepsleep.feedback.learning")
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15분 후 earliest
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            UnifiedLogger.shared.info("BGTask 스케줄 제출 완료", category: .appLifecycle)
+        } catch {
+            UnifiedLogger.shared.warning("BGTask 스케줄 제출 실패: \(error)", category: .appLifecycle)
+        }
+    }
+
+    @available(iOS 13.0, *)
+    private func handleFeedbackLearningTask(task: BGAppRefreshTask) {
+        UnifiedLogger.shared.info("BGTask 실행 - 피드백 학습", category: .appLifecycle)
+        scheduleFeedbackLearningBGTask() // 다음 실행도 예약
+        task.expirationHandler = {
+            UnifiedLogger.shared.warning("BGTask 만료", category: .appLifecycle)
+        }
+        Task {
+            if #available(iOS 17.0, *) {
+                await FeedbackIntegrationManager.shared.performIncrementalLearning()
+            }
+            task.setTaskCompleted(success: true)
+        }
+    }
+
     // MARK: - App Termination
     func applicationWillTerminate(_ application: UIApplication) {
         UnifiedLogger.shared.info("앱 종료 시작 - 리소스 정리", category: .appLifecycle)
