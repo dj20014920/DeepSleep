@@ -235,17 +235,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
         // 0. 일일 사용량 한도 체크 (통합 진입점에서 강제)
         if mode == .taskAdviceOverall {
-            // 별도 일일 1회 제한 (Info.plist → Secrets.xcconfig: DAILY_TODO_OVERALL_ADVICE_LIMIT, 기본 1)
-            let base = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            // SSOT: 티어별 전체 조언 제한은 Secrets의 AI_LIMITS_TODO_OVERALL_ADVICE_*만 사용
             let tier = StoreKitSubscriptionManager.shared.currentTier
             let tierKey: String = {
                 switch tier {
-                case .max: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_MAX"
-                case .pro: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_PREMIUM"
-                case .free: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_FREE"
+                case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"
+                case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"
+                case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE"
                 }
             }()
-            let limit = ConfigReader.int(tierKey, default: base) ?? base
+            let limit = ConfigReader.int(tierKey, default: 0) ?? 0
             let status = usageGate.canUseDailyKeyedFeature(
                 key: "todo_overall_advice", limit: limit)
             guard status.canUse else {
@@ -841,10 +840,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if EnvironmentConfig.shared.useProxy {
             return (true, 0, Int.max)
         }
-        let isPremium = SubscriptionStatusCenter.shared.isPremium
-        let key = isPremium ? "DAILY_CLAUDE_LIMIT_PREMIUM" : "DAILY_CLAUDE_LIMIT_FREE"
-        // 프록시 미사용(개발/offline)에서만 로컬 제한을 사용하며, 기본값은 0으로 둡니다.
-        let limit = ConfigReader.int(key, default: 0) ?? 0
+        // 프록시 미사용(개발/offline)에서만 로컬 제한을 사용하며, 기본값은 0(무제한)으로 둡니다.
+        let limit = 0
         let ud = UserDefaults.standard
         let dateKey = claudeDateKey()
         let today = todayString()

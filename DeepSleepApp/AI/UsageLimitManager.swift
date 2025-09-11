@@ -16,7 +16,7 @@ extension Notification.Name {
 /// 🛡️ AI 사용량 제한 관리자 (Secrets.xcconfig 연동)
 ///
 /// **목적**: 모든 AI 기능의 일일 사용량을 중앙에서 관리하여 API 비용 제어
-/// **데이터 소스**: Secrets.xcconfig의 DAILY_*_LIMIT 설정값들
+/// **데이터 소스**: Secrets.xcconfig의 AI_LIMITS_*_{FREE,PRO,MAX} 설정값들(SSOT)
 /// **저장소**: UserDefaults (앱 재설치 시 초기화)
 ///
 /// PERF-WARNING: 사용량 체크 시 UserDefaults 동기 I/O 발생
@@ -160,35 +160,28 @@ public class UsageLimitManager {
         // Info.plist에 매핑된 키에서 안전하게 로드 (Secrets.xcconfig -> Info.plist -> Bundle)
         var loaded: [String: Int] = [:]
         let keys = [
-            // 공통 키(구버전/권장)
-            "DAILY_CHAT_LIMIT",
-            "DAILY_PRESET_RECOMMENDATION_LIMIT",
-            "DAILY_DIARY_ANALYSIS_LIMIT",
-            "DAILY_TODO_ADVICE_LIMIT",
-            "DAILY_TODO_ADVICE_LIMIT_FREE",
-            "DAILY_TODO_ADVICE_LIMIT_PREMIUM",
-            "DAILY_TODO_ADVICE_LIMIT_MAX",
-            "DAILY_FORTUNE_LIMIT",
-            "DAILY_EMOTION_ANALYSIS_LIMIT",
-            "DAILY_MONTHLY_STATISTICS_LIMIT",
-            // 등급별 키(사용자 보유 파일 호환)
-            "DAILY_CHAT_LIMIT_FREE",
-            "DAILY_CHAT_LIMIT_PREMIUM",
-            "DAILY_CLAUDE_LIMIT_FREE",
-            "DAILY_CLAUDE_LIMIT_PREMIUM",
-            "DAILY_PATTERN_ANALYSIS_LIMIT",
-            // AppConfig 확장 키
+            // SSOT 키(Secrets.xcconfig → Info.plist)
             "AI_LIMITS_CHAT",
             "AI_LIMITS_CHAT_PRO",
             "AI_LIMITS_CHAT_MAX",
             "AI_LIMITS_PRESET_RECOMMENDATION",
+            "AI_LIMITS_PRESET_RECOMMENDATION_FREE",
+            "AI_LIMITS_PRESET_RECOMMENDATION_PRO",
+            "AI_LIMITS_PRESET_RECOMMENDATION_MAX",
             "AI_LIMITS_DIARY_ANALYSIS",
+            "AI_LIMITS_DIARY_ANALYSIS_FREE",
+            "AI_LIMITS_DIARY_ANALYSIS_PRO",
+            "AI_LIMITS_DIARY_ANALYSIS_MAX",
             "AI_LIMITS_MONTHLY_STATISTICS",
             "AI_LIMITS_TODO_ADVICE",
             "AI_LIMITS_TODO_ADVICE_FREE",
-            "AI_LIMITS_TODO_ADVICE_PREMIUM",
+            "AI_LIMITS_TODO_ADVICE_PRO",
+            "AI_LIMITS_TODO_ADVICE_PREMIUM", // 호환
             "AI_LIMITS_TODO_ADVICE_MAX",
             "AI_LIMITS_TODO_ADVICE_EACH",
+            "AI_LIMITS_TODO_OVERALL_ADVICE_FREE",
+            "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+            "AI_LIMITS_TODO_OVERALL_ADVICE_MAX",
             "AI_LIMITS_FORTUNE",
             "AI_LIMITS_EMOTION_ANALYSIS",
             "AI_LIMITS_MONTHLY_REPORT",
@@ -232,7 +225,8 @@ public class UsageLimitManager {
 
     // (제거됨) 하드코딩된 기본 제한값은 사용하지 않습니다. 모든 제한값은 Info.plist 매핑을 통해 설정되어야 합니다.
 
-    /// 주어진 모드에 대해 우선순위 키 목록을 반환(등급별/공통 키 모두 지원)
+    /// 주어진 모드에 대해 우선순위 키 목록을 반환(티어 우선 AI_LIMITS_*_{FREE,PRO,MAX} → AI_LIMITS_*)
+    /// - DRY: 모든 기능은 AI_LIMITS_* 스키마만 사용 (DAILY_* 폴백 제거)
     private func limitKeyCandidates(for mode: AIMode, isPremium: Bool) -> [String] {
         switch mode {
         case .generalConversation:
@@ -241,44 +235,58 @@ public class UsageLimitManager {
             switch tier {
             case .max:
                 return [
-                    "AI_LIMITS_CHAT_MAX", "DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT",
-                    "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE",
+                    "AI_LIMITS_CHAT_MAX",
+                    "AI_LIMITS_CHAT_PRO",
+                    "AI_LIMITS_CHAT",
                 ]
             case .pro:
                 return [
-                    "AI_LIMITS_CHAT_PRO", "DAILY_CHAT_LIMIT_PREMIUM", "AI_LIMITS_CHAT",
-                    "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE",
+                    "AI_LIMITS_CHAT_PRO",
+                    "AI_LIMITS_CHAT",
                 ]
             case .free:
-                return ["AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"]
+                return ["AI_LIMITS_CHAT"]
             }
         case .emotionDiaryAnalysis:
-            return ["DAILY_DIARY_ANALYSIS_LIMIT", "AI_LIMITS_DIARY_ANALYSIS"]
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            switch tier {
+            case .max:
+                return [
+                    "AI_LIMITS_DIARY_ANALYSIS_MAX",
+                    "AI_LIMITS_DIARY_ANALYSIS_PRO",
+                    "AI_LIMITS_DIARY_ANALYSIS",
+                ]
+            case .pro:
+                return [
+                    "AI_LIMITS_DIARY_ANALYSIS_PRO",
+                    "AI_LIMITS_DIARY_ANALYSIS",
+                ]
+            case .free:
+                return [
+                    "AI_LIMITS_DIARY_ANALYSIS",
+                    "AI_LIMITS_DIARY_ANALYSIS_FREE",
+                ]
+            }
         case .taskAdvice:
             // 티어별 차등 제한 (Max > Pro > Free)
             let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
             switch tier {
             case .max:
                 return [
-                    "DAILY_TODO_ADVICE_LIMIT_MAX",
                     "AI_LIMITS_TODO_ADVICE_MAX",
-                    "DAILY_TODO_ADVICE_LIMIT_PREMIUM",
-                    "AI_LIMITS_TODO_ADVICE_PREMIUM",
-                    "DAILY_TODO_ADVICE_LIMIT",
+                    "AI_LIMITS_TODO_ADVICE_PRO",
+                    "AI_LIMITS_TODO_ADVICE_PREMIUM", // 구명칭 호환
                     "AI_LIMITS_TODO_ADVICE",
                 ]
             case .pro:
                 return [
-                    "DAILY_TODO_ADVICE_LIMIT_PREMIUM",
+                    "AI_LIMITS_TODO_ADVICE_PRO",
                     "AI_LIMITS_TODO_ADVICE_PREMIUM",
-                    "DAILY_TODO_ADVICE_LIMIT",
                     "AI_LIMITS_TODO_ADVICE",
                 ]
             case .free:
                 return [
-                    "DAILY_TODO_ADVICE_LIMIT_FREE",
                     "AI_LIMITS_TODO_ADVICE_FREE",
-                    "DAILY_TODO_ADVICE_LIMIT",
                     "AI_LIMITS_TODO_ADVICE",
                 ]
             }
@@ -286,14 +294,31 @@ public class UsageLimitManager {
             // 별도 키-기반 제한 사용하므로 여기서는 빈 배열 반환(0)
             return []
         case .presetRecommendation:
-            return ["DAILY_PRESET_RECOMMENDATION_LIMIT", "AI_LIMITS_PRESET_RECOMMENDATION"]
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            switch tier {
+            case .max:
+                return [
+                    "AI_LIMITS_PRESET_RECOMMENDATION_MAX",
+                    "AI_LIMITS_PRESET_RECOMMENDATION_PRO",
+                    "AI_LIMITS_PRESET_RECOMMENDATION",
+                ]
+            case .pro:
+                return [
+                    "AI_LIMITS_PRESET_RECOMMENDATION_PRO",
+                    "AI_LIMITS_PRESET_RECOMMENDATION",
+                ]
+            case .free:
+                return [
+                    "AI_LIMITS_PRESET_RECOMMENDATION_FREE",
+                    "AI_LIMITS_PRESET_RECOMMENDATION",
+                ]
+            }
         case .monthlyStatistics:
-            // 일일 제한 키는 더 이상 사용하지 않지만, 하위 호환을 위해 0으로 유지
-            return ["DAILY_MONTHLY_STATISTICS_LIMIT", "AI_LIMITS_MONTHLY_STATISTICS"]
+            return ["AI_LIMITS_MONTHLY_STATISTICS"]
         case .fortuneTelling:
-            return ["DAILY_FORTUNE_LIMIT", "AI_LIMITS_FORTUNE"]
+            return ["AI_LIMITS_FORTUNE"]
         case .emotionAnalysis:
-            return ["DAILY_EMOTION_ANALYSIS_LIMIT", "AI_LIMITS_EMOTION_ANALYSIS"]
+            return ["AI_LIMITS_EMOTION_ANALYSIS"]
         }
     }
 
@@ -329,8 +354,6 @@ public class UsageLimitManager {
             }
         }
         let base = resolved ?? 0
-        // 정책: 감정 일기 분석은 1일 1회로 강제 제한
-        if mode == .emotionDiaryAnalysis { return min(base == 0 ? 1 : base, 1) }
         return base
     }
 
@@ -420,6 +443,7 @@ public class UsageLimitManager {
 
         Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { [weak self] _ in
             self?.resetDailyUsage()
+            _ = self?.loadLimitsFromBundle() // 자정 시 제한값 스냅샷 갱신(Secrets→Info값 재적용)
             // 커스텀 일일 키/지문도 자정에 함께 초기화
             // (별도 키 스페이스를 사용하므로 resetDailyUsage로 일괄 지우기 어렵다)
             let ud = UserDefaults.standard
@@ -557,6 +581,65 @@ extension UsageLimitManager {
             resetDailyUsage()
             print("🧪 [UsageLimitManager] 테스트용: 모든 사용량 강제 초기화")
         #endif
+    }
+}
+
+// MARK: - 📅 월간 제한 유틸 (KST 기준)
+
+extension UsageLimitManager {
+    public enum MonthAnchor { case kstMonth }
+
+    public func canUseMonthlyLimitedFeature(anchor: MonthAnchor, key: String, limit: Int) -> (
+        canUse: Bool, remaining: Int, resetAt: Date
+    ) {
+        let now = Date()
+        let (monthId, resetAt) = currentMonthIdAndResetTime(anchor: anchor, now: now)
+        let usageKey = monthlyUsageKey(key: key, monthId: monthId)
+        let used = UserDefaults.standard.integer(forKey: usageKey)
+        let lim = max(0, limit)
+        let canUse = used < lim
+        let lastSeenKey = monthlyLastSeenKey(key: key)
+        if let lastSeen = UserDefaults.standard.object(forKey: lastSeenKey) as? TimeInterval {
+            if now.timeIntervalSince1970 + 1 < lastSeen { // 시계 역행 방지
+                return (false, max(0, lim - used), resetAt)
+            }
+        }
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastSeenKey)
+        return (canUse, max(0, lim - used), resetAt)
+    }
+
+    public func incrementMonthlyLimitedFeature(anchor: MonthAnchor, key: String) {
+        let now = Date()
+        let (monthId, _) = currentMonthIdAndResetTime(anchor: anchor, now: now)
+        let usageKey = monthlyUsageKey(key: key, monthId: monthId)
+        let used = UserDefaults.standard.integer(forKey: usageKey)
+        UserDefaults.standard.set(used + 1, forKey: usageKey)
+        let lastSeenKey = monthlyLastSeenKey(key: key)
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastSeenKey)
+    }
+
+    private func currentMonthIdAndResetTime(anchor: MonthAnchor, now: Date) -> (String, Date) {
+        switch anchor {
+        case .kstMonth:
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 9 * 3600)!
+            // 이번 달의 1일 00:00
+            let comps = calendar.dateComponents([.year, .month], from: now)
+            let monthStart = calendar.date(from: comps) ?? now
+            // 다음 달 1일 00:00 = 리셋 시각
+            let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? now
+            let year = comps.year ?? 0
+            let month = comps.month ?? 0
+            let monthId = String(format: "%04d-%02d-KST", year, month)
+            return (monthId, nextMonthStart)
+        }
+    }
+
+    private func monthlyUsageKey(key: String, monthId: String) -> String {
+        return "monthly_usage_\(key)_\(monthId)"
+    }
+    private func monthlyLastSeenKey(key: String) -> String {
+        return "monthly_last_seen_\(key)"
     }
 }
 

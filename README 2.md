@@ -443,29 +443,27 @@ public func sendMessage(content: String, model: AIMode, mode: AIMode, context: A
 
 ### 사용량 제한 통합 시스템 (Secrets.xcconfig)
 ```xcconfig
-# Chat(티어별)
+# Chat(티어별, SSOT)
 AI_LIMITS_CHAT = 50
 AI_LIMITS_CHAT_PRO = 100
-AI_LIMITS_CHAT_MAX = 200
-DAILY_CHAT_LIMIT_FREE = 50
-DAILY_CHAT_LIMIT_PREMIUM = 50
+AI_LIMITS_CHAT_MAX = 150
 
-# Claude(일일 상한)
-DAILY_CLAUDE_LIMIT_FREE = 0
-DAILY_CLAUDE_LIMIT_PREMIUM = 30
-
-# 기능별 일일 제한
-DAILY_PRESET_RECOMMENDATION_LIMIT = 5
-DAILY_DIARY_ANALYSIS_LIMIT = 3
-DAILY_TODO_ADVICE_LIMIT = 5
-DAILY_FORTUNE_LIMIT = 1
-DAILY_EMOTION_ANALYSIS_LIMIT = $(AI_LIMITS_EMOTION_ANALYSIS)
-
-# 월간 통계(주간 1회 정책은 코드에서 처리)
-DAILY_MONTHLY_STATISTICS_LIMIT = 0
-
-# 할 일 ‘개별’ 조언 횟수(아이템당)
+# 기능별 일일 제한(SSOT)
+AI_LIMITS_PRESET_RECOMMENDATION_FREE = 3
+AI_LIMITS_PRESET_RECOMMENDATION_PRO  = 5
+AI_LIMITS_PRESET_RECOMMENDATION_MAX  = 7
+AI_LIMITS_DIARY_ANALYSIS_FREE = 3
+AI_LIMITS_DIARY_ANALYSIS_PRO  = 5
+AI_LIMITS_DIARY_ANALYSIS_MAX  = 5
+AI_LIMITS_TODO_ADVICE_FREE = 3
+AI_LIMITS_TODO_ADVICE_PRO  = 6
+AI_LIMITS_TODO_ADVICE_MAX  = 10
 AI_LIMITS_TODO_ADVICE_EACH = 1
+AI_LIMITS_TODO_OVERALL_ADVICE_FREE = 1
+AI_LIMITS_TODO_OVERALL_ADVICE_PRO  = 3
+AI_LIMITS_TODO_OVERALL_ADVICE_MAX  = 3
+AI_LIMITS_EMOTION_ANALYSIS = 0
+AI_LIMITS_MONTHLY_STATISTICS = 1
 
 # 전역 보안 제한
 MAX_DAILY_REQUESTS = 100
@@ -523,13 +521,12 @@ MAX_CONVERSATION_TURNS = 200
 - Claude 일일 30회(Premium) 상한 + 초과 시 자동 Gemini 라우팅
 - 월간 통계 → 주간 1회(KST, 월요일 00:00 리셋)로 정책 정합화
 4. **Claude 상한·자동 라우팅**:
-   - Premium도 `DAILY_CLAUDE_LIMIT_PREMIUM`(기본 30) 적용
+   - 프로덕션에서는 프록시 서버가 정책을 집행(클라이언트는 DAILY_* 미사용)
    - 초과 시 UnifiedAIServiceImpl이 자동으로 Gemini(또는 다음 폴백)로 라우팅(무경고, 자연스러운 UX)
 
 5. **티어별 채팅 한도**:
-   - Free/Pro/Max에 따라 Info 키 우선순위로 적용
+   - Free/Pro/Max에 따라 SSOT 키만 사용
      • Max: `AI_LIMITS_CHAT_MAX` / Pro: `AI_LIMITS_CHAT_PRO` / Free: `AI_LIMITS_CHAT`
-     • 하위 호환: `DAILY_CHAT_LIMIT_{FREE,PREMIUM}`
    - 80%/100% 도달 시 알림 브로드캐스트 → ChatViewController에서 Alert + “업그레이드” CTA 표시
 
 6. **월간 통계 정책(주간 1회, KST)**:

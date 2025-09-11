@@ -33,7 +33,7 @@ final class AIUsageIsolationTests: XCTestCase {
         let taskAdvice = UsageLimitManager.shared.canUseAIFeature(.taskAdvice)
         XCTAssertTrue(taskAdvice.canUse || taskAdvice.dailyLimit == 0) // 환경에 따라 0일 수 있음
 
-        let overallLimit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+        let overallLimit = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_PRO") ?? ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_FREE") ?? 0
         let overall = UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: overallLimit)
         XCTAssertTrue(overall.canUse)
     }
@@ -47,14 +47,14 @@ final class AIUsageIsolationTests: XCTestCase {
         let taskAdvice = UsageLimitManager.shared.canUseAIFeature(.taskAdvice)
         XCTAssertTrue(taskAdvice.canUse || taskAdvice.dailyLimit == 0)
 
-        let overallLimit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+        let overallLimit = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_PRO") ?? ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_FREE") ?? 0
         let overall = UsageLimitManager.shared.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: overallLimit)
         XCTAssertTrue(overall.canUse)
     }
 
     func testOverallTodoAdviceExhaustDoesNotAffectOthers() {
         // Given: 전체 조언을 한도까지 소진(키드 카운터)
-        let overallLimit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+        let overallLimit = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_PRO") ?? ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_FREE") ?? 0
         for _ in 0..<overallLimit { UsageLimitManager.shared.incrementDailyKeyedFeature(key: "todo_overall_advice") }
 
         // When/Then: 프리셋 추천과 개별 조언은 별도 제한을 사용
@@ -65,4 +65,3 @@ final class AIUsageIsolationTests: XCTestCase {
         XCTAssertTrue(taskAdvice.canUse || taskAdvice.dailyLimit == 0)
     }
 }
-

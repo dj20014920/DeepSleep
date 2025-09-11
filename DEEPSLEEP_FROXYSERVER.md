@@ -407,8 +407,10 @@ C. 서명된 채팅(비스트리밍)
 - 서버 집행(Cloudflare Worker):
   - 일일 카운터 키: `task_advice:<uid>:YYYY-MM-DD`, `todo_overall_advice:<uid>:YYYY-MM-DD` (KST 기준)
   - 개별 지문 키: `fp:todo_individual_advice:<uid>:YYYY-MM-DD:<fingerprint>`
-  - 한도(ENV, 기본값):
-    - `TODO_ADVICE_LIMIT_FREE=3`, `TODO_ADVICE_LIMIT_PREMIUM=7`, `TODO_OVERALL_ADVICE_LIMIT=1`
+  - 한도(ENV, 권장 SSOT 명명):
+    - `AI_LIMITS_TODO_ADVICE_FREE=3`, `AI_LIMITS_TODO_ADVICE_PRO=6`, `AI_LIMITS_TODO_ADVICE_MAX=10`
+    - `AI_LIMITS_TODO_OVERALL_ADVICE_FREE=1`, `AI_LIMITS_TODO_OVERALL_ADVICE_PRO=3`, `AI_LIMITS_TODO_OVERALL_ADVICE_MAX=3`
+    - (과거 `TODO_*` 변수는 사용 중지 권장)
   - 응답 헤더:
     - 공통: `X-Policy-ResetAt`(KST 자정), `X-Policy-Tier`
     - 개별: `X-Policy-TaskAdvice-Remaining`(남은 횟수)

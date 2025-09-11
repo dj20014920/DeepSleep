@@ -34,7 +34,28 @@ class AIUsageManager {
         case .diaryAnalysis:
             return usageGate.canUse(.emotionDiaryAnalysis)
         case .overallTodoAdvice:
-            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            // 티어별: AI_LIMITS_TODO_OVERALL_ADVICE_{FREE,PRO,MAX} (SSOT)
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            let candidates: [String]
+            switch tier {
+            case .max:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_MAX",
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .pro:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .free:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_FREE",
+                ]
+            }
+            var limit = 0
+            for key in candidates {
+                if let v = ConfigReader.int(key) { limit = max(0, v); break }
+            }
             return usageGate.canUseDailyKeyedFeature(
                 key: "todo_overall_advice", limit: limit
             ).canUse
@@ -58,7 +79,27 @@ class AIUsageManager {
         case .diaryAnalysis:
             return usageGate.remainingCount(for: .emotionDiaryAnalysis)
         case .overallTodoAdvice:
-            let limit = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            let candidates: [String]
+            switch tier {
+            case .max:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_MAX",
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .pro:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .free:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_FREE",
+                ]
+            }
+            var limit = 0
+            for key in candidates {
+                if let v = ConfigReader.int(key) { limit = max(0, v); break }
+            }
             return usageGate.canUseDailyKeyedFeature(
                 key: "todo_overall_advice", limit: limit
             ).remaining
@@ -70,21 +111,23 @@ class AIUsageManager {
     /// 특정 기능의 사용을 기록합니다.
     @discardableResult
     func recordUsage(for feature: AIFeatureType) -> Bool {
+        // 사전 가드: 한도 초과 시 중복 증가 방지
         switch feature {
         case .monthlyStatistics:
-            // 주간 한도 사용 기록 (UsageGate weekly wrapper)
-            usageGate.incrementWeeklyFeature(
-                anchor: UsageLimitManager.WeekAnchor.kstMonday, key: "monthly_statistics")
+            let status = usageGate.canUseWeeklyFeature(anchor: .kstMonday, key: "monthly_statistics")
+            if status.canUse { usageGate.incrementWeeklyFeature(anchor: .kstMonday, key: "monthly_statistics") } else { break }
         case .chat:
-            usageGate.incrementUsage(for: .generalConversation)
+            if usageGate.canUse(AIMode.generalConversation) { usageGate.incrementUsage(for: .generalConversation) } else { break }
         case .presetRecommendation:
-            usageGate.incrementUsage(for: .presetRecommendation)
+            if usageGate.canUse(AIMode.presetRecommendation) { usageGate.incrementUsage(for: .presetRecommendation) } else { break }
         case .diaryAnalysis:
-            usageGate.incrementUsage(for: .emotionDiaryAnalysis)
+            if usageGate.canUse(AIMode.emotionDiaryAnalysis) { usageGate.incrementUsage(for: .emotionDiaryAnalysis) } else { break }
         case .overallTodoAdvice:
-            usageGate.incrementDailyKeyedFeature(key: "todo_overall_advice")
+            let limit = getTotalLimit(for: .overallTodoAdvice)
+            let status = usageGate.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit)
+            if status.canUse { usageGate.incrementDailyKeyedFeature(key: "todo_overall_advice") } else { break }
         case .individualTodoAdvice:
-            usageGate.incrementUsage(for: .taskAdvice)
+            if usageGate.canUse(AIMode.taskAdvice) { usageGate.incrementUsage(for: .taskAdvice) } else { break }
         }
         // 🛰️ 변경 브로드캐스트 (기존 의존성 유지)
         let total = getTotalLimit(for: feature)
@@ -122,7 +165,27 @@ extension AIUsageManager {
         case .diaryAnalysis:
             return usageGate.dailyLimit(for: .emotionDiaryAnalysis)
         case .overallTodoAdvice:
-            return ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+            let tier: SubscriptionTier = StoreKitSubscriptionManager.shared.currentTier
+            let candidates: [String]
+            switch tier {
+            case .max:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_MAX",
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .pro:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_PRO",
+                ]
+            case .free:
+                candidates = [
+                    "AI_LIMITS_TODO_OVERALL_ADVICE_FREE",
+                ]
+            }
+            for key in candidates {
+                if let v = ConfigReader.int(key) { return max(0, v) }
+            }
+            return 0
         case .individualTodoAdvice:
             return usageGate.dailyLimit(for: .taskAdvice)
         }

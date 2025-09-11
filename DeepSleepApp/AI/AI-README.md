@@ -250,8 +250,12 @@ let response = try await aiService.sendMessage(
 - 적용 경로: UnifiedAIServiceImpl.sendMessageInternal(프록시/직접 모두)
 
 5) 구독 라벨·정책 일치 확인(Secrets.xcconfig)
-- 무료 50회/일 정책 확인: DAILY_CHAT_LIMIT_FREE=50, AI_LIMITS_CHAT=50
-- Pro/Max 등급 키는 UsageLimitManager가 우선순위에 따라 로드(Info.plist 매핑 경유)
+- 채팅(일일): AI_LIMITS_CHAT=50 / AI_LIMITS_CHAT_PRO=100 / AI_LIMITS_CHAT_MAX=150
+- 프리셋 추천: AI_LIMITS_PRESET_RECOMMENDATION_{FREE,PRO,MAX}=3/5/7
+- 일기 분석: AI_LIMITS_DIARY_ANALYSIS_{FREE,PRO,MAX}=3/5/5
+- 할일 조언(개별): AI_LIMITS_TODO_ADVICE_{FREE,PRO,MAX}=3/6/10, AI_LIMITS_TODO_ADVICE_EACH=1
+- 할일 조언(전체): AI_LIMITS_TODO_OVERALL_ADVICE_{FREE,PRO,MAX}=1/3/3
+- Pro/Max 등급 키는 UsageLimitManager/UsageGate가 Info.plist 매핑(Secrets 치환) 경유로 로드
 
 검증 체크리스트
 - [x] 온보딩 구독 미리보기는 BrandingCopy 상수로 표시됨

@@ -58,34 +58,34 @@ class SecurityConfig {
     
     // MARK: - 🤖 AI 기능별 일일 제한
     
-    /// 일반 채팅 일일 제한 횟수
+    /// 일반 채팅 일일 제한 횟수 (FREE 기본값)
     var dailyChatLimit: Int {
-        return readInt("DAILY_CHAT_LIMIT")
+        return readInt("AI_LIMITS_CHAT")
     }
     
-    /// 프리셋 추천 일일 제한 횟수
+    /// 프리셋 추천 일일 제한 횟수(공통 키 — 실제 티어별 한도는 게이트 경유)
     var dailyPresetRecommendationLimit: Int {
-        return readInt("DAILY_PRESET_RECOMMENDATION_LIMIT")
+        return readInt("AI_LIMITS_PRESET_RECOMMENDATION")
     }
     
-    /// 일기 분석 일일 제한 횟수
+    /// 일기 분석 일일 제한 횟수(공통 키 — 실제 티어별 한도는 게이트 경유)
     var dailyDiaryAnalysisLimit: Int {
-        return readInt("DAILY_DIARY_ANALYSIS_LIMIT")
+        return readInt("AI_LIMITS_DIARY_ANALYSIS")
     }
     
-    /// 패턴 분석 일일 제한 횟수
+    /// 패턴/월간 통계(표시용 스냅샷)
     var dailyPatternAnalysisLimit: Int {
-        return readInt("DAILY_PATTERN_ANALYSIS_LIMIT")
+        return readInt("AI_LIMITS_MONTHLY_STATISTICS")
     }
     
-    /// 할일 조언 일일 제한 횟수
+    /// 할일 조언 일일 제한 횟수(공통 키 — 실제 티어별 한도는 게이트 경유)
     var dailyTodoAdviceLimit: Int {
-        return readInt("DAILY_TODO_ADVICE_LIMIT")
+        return readInt("AI_LIMITS_TODO_ADVICE")
     }
     
-    /// 운세 일일 제한 횟수
+    /// 운세 일일 제한 횟수(미사용 시 0)
     var dailyFortuneLimit: Int {
-        return readInt("DAILY_FORTUNE_LIMIT")
+        return readInt("AI_LIMITS_FORTUNE")
     }
     
     // MARK: - 📝 사용자 경험 제한

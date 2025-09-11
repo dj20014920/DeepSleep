@@ -424,15 +424,15 @@ class EditDiaryViewController: UIViewController {
 
     private func updateAIChatButtonUI() {
         let remain = AIUsageManager.shared.getRemainingCount(for: .diaryAnalysis)
-        if remain > 0 {
-            aiChatButton.isEnabled = true
-            aiChatButton.backgroundColor = .systemGreen
-            aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기", for: .normal)
-        } else {
-            aiChatButton.isEnabled = false
-            aiChatButton.backgroundColor = .systemGray3
-            aiChatButton.setTitle("대나무숲에서 이 일기 이야기하기 (오늘 사용 완료)", for: .normal)
+        var usedForThisDiary = false
+        if let diary = diaryToEdit {
+            let ctx = DiaryContext(from: diary)
+            usedForThisDiary = DiaryUsagePolicy.hasUsedToday(ctx)
         }
+        let can = remain > 0 && !usedForThisDiary
+        aiChatButton.isEnabled = can
+        aiChatButton.backgroundColor = can ? .systemGreen : .systemGray3
+        aiChatButton.setTitle(can ? "대나무숲에서 이 일기 이야기하기" : "대나무숲에서 이 일기 이야기하기 (오늘 사용 완료)", for: .normal)
     }
 
     @objc private func handleAIUsageUpdated(_ note: Notification) {
@@ -443,6 +443,25 @@ class EditDiaryViewController: UIViewController {
     
     private func startAIChat() {
         guard let diaryEntry = diaryToEdit else { return }
+        // SSOT: 일기당 1회/일 + 총 한도 즉시 소진(버튼 즉시 비활성화 목적)
+        let ctx = DiaryContext(from: diaryEntry)
+        if DiaryUsagePolicy.hasUsedToday(ctx) {
+            let alert = UIAlertController(title: "오늘 사용 완료", message: "이 일기는 오늘 이미 분석하셨어요.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        guard AIUsageManager.shared.canUse(feature: .diaryAnalysis) else {
+            let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+            let alert = UIAlertController(title: "일일 한도 초과", message: "오늘 일기 분석 한도(총 \(total)회)를 모두 사용했어요.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        // 즉시 소비
+        DiaryUsagePolicy.markUsedToday(ctx)
+        _ = AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
+        updateAIChatButtonUI()
         // ⏳ 최근 3일 제한 확인
         let cal = Calendar.current
         if let threeDaysAgo = cal.date(byAdding: .day, value: -3, to: Date()), diaryEntry.date < threeDaysAgo {
@@ -455,6 +474,7 @@ class EditDiaryViewController: UIViewController {
         let chatVC = ChatRouter.chatViewController()
         chatVC.diaryContext = DiaryContext(from: diaryEntry)
         chatVC.initialUserText = "일기_분석_모드" // ChatVC에서 개인정보 안내 후 요청 진행
+        chatVC.diaryAnalysisPreConsumed = true
         chatVC.onPresetApply = { [weak self] recommendation in
             NotificationCenter.default.post(
                 name: NSNotification.Name("ApplyPresetFromChat"),

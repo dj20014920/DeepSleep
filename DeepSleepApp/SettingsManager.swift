@@ -3,12 +3,10 @@ import UserNotifications
 
 // MARK: - UserSettings Model
 public struct UserSettings: Codable {
-    var dailyEmotionLimit: Int = 5
     var enableAIRecommendations: Bool = true
     var preferredLLMService: String = "claude"
     var maxTokensPerRequest: Int = 1000
     var temperatureSetting: Float = 0.7
-    var dailyPresetLimit: Int = 10
     var enableNotifications: Bool = true
     var selectedTheme: String = "auto"
     var soundQuality: String = "high"
@@ -630,16 +628,7 @@ public class SettingsManager {
         }
     }
 
-    // MARK: - Usage Limits
-    func canUseChatToday() -> Bool {
-        let todayStats = getTodayStats()
-        return todayStats.chatCount < settings.dailyEmotionLimit
-    }
-
-    func canUsePresetRecommendationToday() -> Bool {
-        let todayStats = getTodayStats()
-        return todayStats.presetRecommendationCount < settings.dailyPresetLimit
-    }
+    // MARK: - Usage Limits (deprecated APIs removed; central gate 사용)
 
     func incrementChatUsage() {
         updateTodayStats { stats in

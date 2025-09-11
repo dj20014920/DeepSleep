@@ -293,7 +293,14 @@ public override func viewDidLoad() {
         if let days = trialDaysRemaining, days >= 0 {
             trialBadgeLabel.isHidden = false
             trialBadgeLabel.text = "D-\(days)  |  7일 무료체험"
-            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true) + "\nPro에는 대나무숲 친구 선택 가능"
+            let presetF = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_FREE") ?? 0
+            let presetP = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_PRO") ?? 0
+            let presetM = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_MAX") ?? 0
+            let todoF = ConfigReader.int("AI_LIMITS_TODO_ADVICE_FREE") ?? 0
+            let todoP = ConfigReader.int("AI_LIMITS_TODO_ADVICE_PRO") ?? 0
+            let todoM = ConfigReader.int("AI_LIMITS_TODO_ADVICE_MAX") ?? 0
+            let short = "대나무숲 친구 선택 가능 • 프리셋 \(presetF)→\(presetP)/\(presetM) • 할일조언 \(todoF)→\(todoP)/\(todoM)"
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: true) + "\n" + short
         } else {
             let eligible = StoreKitSubscriptionManager.shared.isTrialEligible
             if eligible {
@@ -302,7 +309,15 @@ public override func viewDidLoad() {
             } else {
                 trialBadgeLabel.isHidden = true
             }
-            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible) + "\nPro에는 대나무숲 친구 선택 가능"
+            // 간단 설명(동기화): 대나무숲 친구 선택 + 조언/프리셋 증분 요약
+            let presetF = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_FREE") ?? 0
+            let presetP = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_PRO") ?? 0
+            let presetM = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_MAX") ?? 0
+            let todoF = ConfigReader.int("AI_LIMITS_TODO_ADVICE_FREE") ?? 0
+            let todoP = ConfigReader.int("AI_LIMITS_TODO_ADVICE_PRO") ?? 0
+            let todoM = ConfigReader.int("AI_LIMITS_TODO_ADVICE_MAX") ?? 0
+            let short = "대나무숲 친구 선택 가능 • 프리셋 \(presetF)→\(presetP)/\(presetM) • 할일조언 \(todoF)→\(todoP)/\(todoM)"
+            descriptionLabel.text = SubscriptionUIMessageFormatter.free(isTrialEligible: eligible) + "\n" + short
         }
 
         // 사용량 요약 업데이트(일일 채팅 한도 및 모델 설정 안내)
@@ -313,22 +328,28 @@ public override func viewDidLoad() {
     }
 
     private func updateUsageSummary() {
-        let free = readFirstInt(["AI_LIMITS_CHAT", "DAILY_CHAT_LIMIT", "DAILY_CHAT_LIMIT_FREE"])
-        let premium = readFirstInt(["AI_LIMITS_CHAT_PRO", "DAILY_CHAT_LIMIT_PREMIUM"])
-        let chatLine: String
-        if let f = free, let p = premium, (f > 0 || p > 0) {
-            chatLine = "일일 채팅: 무료 \(f)회 · 프리미엄 \(p)회"
-        } else {
-            chatLine = "일일 채팅: 더 많은 채팅"
-        }
-        let modelLine = "채팅 모델 설정 가능"
-        usageSummaryLabel.text = chatLine + "\n" + modelLine
+        let free = ConfigReader.int("AI_LIMITS_CHAT") ?? 0
+        let pro  = ConfigReader.int("AI_LIMITS_CHAT_PRO") ?? 0
+        let max  = ConfigReader.int("AI_LIMITS_CHAT_MAX") ?? 0
+        var parts: [String] = []
+        if free > 0 { parts.append("무료 \(free)회") }
+        if pro  > 0 { parts.append("Pro \(pro)회") }
+        if max  > 0 { parts.append("Max \(max)회") }
+        let chatLine = parts.isEmpty ? "일일 채팅: 구성 필요" : ("일일 채팅: " + parts.joined(separator: " · "))
+        let modelLine = "대나무숲 친구(모델) 선택 가능"
+        // 업그레이드 요약(프리셋/할일조언): Free→Pro/Max 변화 강조
+        let presetF = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_FREE") ?? 0
+        let presetP = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_PRO") ?? 0
+        let presetM = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_MAX") ?? 0
+        let todoF = ConfigReader.int("AI_LIMITS_TODO_ADVICE_FREE") ?? 0
+        let todoP = ConfigReader.int("AI_LIMITS_TODO_ADVICE_PRO") ?? 0
+        let todoM = ConfigReader.int("AI_LIMITS_TODO_ADVICE_MAX") ?? 0
+        let diffLine = "프리셋 \(presetF)→\(presetP)/\(presetM), 할일조언 \(todoF)→\(todoP)/\(todoM)"
+        usageSummaryLabel.text = [chatLine, modelLine, diffLine].joined(separator: "\n")
     }
 
     private func readFirstInt(_ keys: [String]) -> Int? {
-        for k in keys {
-            if let v = ConfigReader.int(k) { return v }
-        }
+        for k in keys { if let v = ConfigReader.int(k) { return v } }
         return nil
     }
 

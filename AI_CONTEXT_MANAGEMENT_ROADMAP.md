@@ -487,7 +487,7 @@ Immutable Proxy Contract(절대 변경 금지) — 반드시 준수
 •  해야 할 일:
 •  모든 키를 xcconfig → Info.plist로 주입 후 Bundle.main.object(forInfoDictionaryKey:)로만 접근.
 •  하드코딩 제거. 누락될 기본값은 Info.plist에 명시(깃 노출 위험 방지).
-•  대상 키: AI_GENERAL_CONVERSATION_MAX_TOKENS, AI_GENERAL_CONVERSATION_TEMPERATURE, DAILY_TODO_ADVICE_LIMIT, AI_LIMITS_TODO_ADVICE, MAX_TODO_ITEMS 등.
+•  대상 키: AI_GENERAL_CONVERSATION_MAX_TOKENS, AI_GENERAL_CONVERSATION_TEMPERATURE, AI_LIMITS_TODO_ADVICE(_FREE/_PRO/_MAX), MAX_TODO_ITEMS 등. (DAILY_* 제거)
 •  완료 기준: 번들 참조 흐름 100%, 소스 내 비밀/상수 노출 0.
 
 11) Config 접근 유틸 공통화

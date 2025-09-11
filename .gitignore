@@ -1,6 +1,7 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
 ..*
+/Users/dj20014920/Desktop/DeepSleep/SUB_GUIDE.md
 .serena
 *.sh
 *.disabled
@@ -8,6 +9,7 @@ CLAUDE.md
 .specstory
 build_test
 *.xcconfig
+/Users/dj20014920/Desktop/DeepSleep/WARP.md
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gemini.xcconfig
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gpt.xcconfig
 /Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/naver.xcconfig

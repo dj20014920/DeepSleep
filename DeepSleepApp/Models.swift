@@ -417,6 +417,8 @@ public struct PresetRecommendationResponse {
     }
 }
 
+import CryptoKit
+
 struct DiaryContext {
     let content: String
     let emotion: String?
@@ -428,6 +430,39 @@ extension DiaryContext {
         self.content = diary.userMessage
         self.emotion = diary.selectedEmotion
         self.date = diary.date
+    }
+}
+
+// MARK: - Diary Usage Policy (SSOT)
+enum DiaryUsagePolicy {
+    static let namespace = "diary_analysis"
+
+    static func fingerprint(content: String, date: Date?) -> String {
+        let normalized = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let day: String = {
+            guard let d = date else { return "" }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "ko_KR")
+            f.dateFormat = "yyyy-MM-dd"
+            return f.string(from: d)
+        }()
+        let base = normalized + "#" + day
+        let digest = SHA256.hash(data: Data(base.utf8))
+        return digest.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    static func fingerprint(for diary: DiaryContext) -> String {
+        fingerprint(content: diary.content, date: diary.date)
+    }
+
+    static func hasUsedToday(_ diary: DiaryContext) -> Bool {
+        let fp = fingerprint(for: diary)
+        return UsageGate.shared.hasUsedDailyFingerprint(namespace: namespace, fingerprint: fp)
+    }
+
+    static func markUsedToday(_ diary: DiaryContext) {
+        let fp = fingerprint(for: diary)
+        UsageGate.shared.markDailyFingerprintUsed(namespace: namespace, fingerprint: fp)
     }
 }
 

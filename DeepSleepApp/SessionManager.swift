@@ -850,14 +850,15 @@ public class SessionManager {
         // 1. 사용량 한도 확인 (모드별 정책)
         if mode == .taskAdviceOverall {
             // 전체 조언은 별도 키드 제한을 사용
-            let base = ConfigReader.int("DAILY_TODO_OVERALL_ADVICE_LIMIT", default: 1) ?? 1
+        // SSOT: 전체 조언 기본치는 티어별 AI_LIMITS_TODO_OVERALL_ADVICE_* 에서만 관리
+        let base = 0
             // 티어별 키 우선 적용: MAX > PRO > FREE > 기본
             let tier = StoreKitSubscriptionManager.shared.currentTier
             let tierKey: String = {
                 switch tier {
-                case .max: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_MAX"
-                case .pro: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_PREMIUM"
-                case .free: return "DAILY_TODO_OVERALL_ADVICE_LIMIT_FREE"
+                case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"
+                case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"
+                case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE"
                 }
             }()
             let limit = ConfigReader.int(tierKey, default: base) ?? base

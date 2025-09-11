@@ -86,6 +86,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     var initialEmotion: String?
     var initialPatternData: String?
     var initialSystemMessage: String?
+    // 일기 분석 사전 소비 여부(버튼 즉시 반영용)
+    var diaryAnalysisPreConsumed: Bool = false
 
     // 🧠 Enhanced AI Properties
     private var currentSessionId = UUID()
@@ -645,6 +647,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     /// 일기 분석 요청 처리
     func requestDiaryAnalysisWithTracking(diary: DiaryContext) {
+        // 0) 사전 소비 플래그가 없는 경우에만 게이트 검사(지문/총 한도)
+        if !diaryAnalysisPreConsumed {
+            if DiaryUsagePolicy.hasUsedToday(diary) {
+                appendChat(ChatMessage(text: "✅ 오늘 이 일기에 대한 분석은 이미 진행했어요. 다른 일기를 선택해 보세요.", sender: .ai, type: .bot))
+                return
+            }
+            guard AIUsageManager.shared.canUse(feature: .diaryAnalysis) else {
+                let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
+                appendChat(ChatMessage(text: "⛔️ 오늘 일기 분석 한도(총 \(total)회)를 모두 사용했어요. 내일 다시 시도해 주세요.", sender: .ai, type: .bot))
+                return
+            }
+        }
         // 최근 3일 이내 일기만 분석 허용
         if let d = diary.date {
             let cal = Calendar.current
@@ -679,6 +693,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     // ✅ 오늘의 일기 분석 기록 저장 (캘린더 ‘대나무숲 친구 답변’에서 사용)
                     let parsed = self.parseAIResponse(response)
                     SettingsManager.shared.appendDiaryAnalysis(parsed, for: Date())
+                    // ✅ 사용량/지문 반영
+                    if !self.diaryAnalysisPreConsumed {
+                        DiaryUsagePolicy.markUsedToday(diary)
+                        _ = AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
+                    }
 
                     // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -2564,18 +2583,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         if let idx = displayMessages.lastIndex(where: {
             $0.type == ChatMessageType.recommendationSelector
         }) {
+            // 안전 경로: 부분 reload 대신 전체 디바운스 리로드(행 수 변동 경쟁 상태 회피)
             var msg = displayMessages[idx]
             if let qas = msg.quickActions {
                 let newQAs = qas.map { qa in
-                    if qa.action == "ai_recommendation" {
-                        return QuickAction(title: aiTitle, action: qa.action)
-                    } else {
-                        return qa
-                    }
+                    qa.action == "ai_recommendation" ? QuickAction(title: aiTitle, action: qa.action) : qa
                 }
                 msg.quickActions = newQAs
                 displayMessages[idx] = msg
-                tableView.reloadRows(at: [IndexPath(row: idx, section: 0)], with: .none)
+                debouncedReload()
             }
         }
     }
