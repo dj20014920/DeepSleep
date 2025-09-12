@@ -77,11 +77,12 @@ Subscriptions auto-renew unless canceled at least 24 hours before the end of the
 - 네트워크: Apple 서버 응답 필요. 실패 시 재시도 버튼·토스트 제공.
 - 서버 보고(선택): `ProxyTierReporter`가 `POST /v1/subscription/report`로 수동 보고(프록시 모드 운영 시).
 
-## 6. 페이월(Paywall) 화면 요건
-- 한 화면에 노출: 플랜(Pro/Max)·기간(월/연)·가격·7일 무료체험(대상 시)·복원·정책 링크(Privacy/Privacy Choices)·자동갱신 고지·닫기
+## 6. 구매 시트(간편 결제) 화면 요건
+- 한 화면에 노출: 플랜(Pro/Max)·기간(월/연)·가격·7일 무료체험(대상 시)·복원·정책 링크(Privacy/Privacy Choices/Trial)·자동갱신 고지·닫기
 - 가격/버튼: 항상 활성(로딩만 보이는 상태 금지). 실패 시 폴백 제공.
 - 접근성: 버튼 라벨에 가격 포함, 링크/배지에 접근성 라벨 지정.
 - 링크(내부):
+  - 구독/체험 안내: `https://emozleep.space/legal/trial/`
   - 개인정보 처리방침: `https://emozleep.space/legal/privacy/`
   - 개인정보 선택사항: `https://emozleep.space/legal/privacy-choices/`
 
@@ -97,6 +98,7 @@ Subscriptions auto-renew unless canceled at least 24 hours before the end of the
 - 스크린샷 모드(촬영 전용): 환경변수 `IAP_SCREENSHOT=1`
   - 가격/버튼 강제 활성(예시 가격 노출)
   - 심사용 촬영에서 로딩/비활성 화면 금지 조건 충족
+ - API 버전: StoreKit 2(Product) 사용 — SKProduct 계열은 Deprecated. 현지화 가격은 `Product.displayPrice` 사용.
 
 ## 8. 분석/로그(표준 이벤트)
 - 노출: `paywall_view`
@@ -111,7 +113,7 @@ Subscriptions auto-renew unless canceled at least 24 hours before the end of the
 - 지역/세금 변동: 표시 가격은 StoreKit의 현지화 가격(`Product.displayPrice`) 사용. Doc상의 예시는 참고값.
 
 ## 10. UI 표준 카피(재사용)
-- 혜택 요약(KO): “광고 제거 • 고음질 사운드 • 프리셋 무제한 저장 • 우선 처리”
+- 혜택 요약(KO): “일일 대화 상한 • 프리셋 • 할 일 조언 • 모델 선택”
 - 하단 고지: 상기 KO/EN 문구를 그대로 사용. UI 컴포넌트는 해당 카피를 SSOT로 참조.
 
 ## 11. 구현 포인터(코드 정합성)
@@ -120,7 +122,8 @@ Subscriptions auto-renew unless canceled at least 24 hours before the end of the
   - 알림: `Notification.Name.iapProductsUpdated`
 - 구독 상태: `SubscriptionStatusCenter` (전역 브로드캐스트)
 - 정책 카피: `SubscriptionUIMessageFormatter`(구독/상태) + 확장(페이월 고지/혜택 요약)
-- Paywall 구성: `PaywallViewController`, `PaywallPresenter`
+- 구매 시트 구성: `PurchaseOptionSheetViewController` + `PaywallPresenter.present(from:)`
+- 외부 링크: Trial/Privacy/Privacy Choices(위 6장 참조)
 
 ## 12. 검증 체크리스트(배포 전)
 - [ ] Pro/Max · 월/연 · 가격 · 7일 무료체험(대상) · 복원 · 정책 링크 · 자동갱신 고지가 한 화면에 표시됨

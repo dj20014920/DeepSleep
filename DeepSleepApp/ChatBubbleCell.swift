@@ -114,6 +114,8 @@ class GifCatView: UIView {
 }
 
 class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
+    // MARK: - 잉크 리빌(좌→우 그라데이션) 지원 유틸은 클래스 내부 하단에 정의됩니다.
+
     static let identifier = "ChatBubbleCell"
     
     private var messageLabelBottomConstraint: NSLayoutConstraint!
@@ -190,6 +192,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     private var currentCatPosition: CGFloat = 0
     private var catDirection: CGFloat = 1
     private var dotCount = 0
+    
+    // 🌊 스트리밍 오버레이 레이블(증분 텍스트 전용 애니메이션용)
+    private var streamingOverlayLabel: UILabel?
     
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
@@ -833,29 +838,131 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     /// - Parameters:
     ///   - text: 누적된 전체 텍스트
     ///   - fadeDuration: 페이드 시간(짧게 유지; 기본 0.08s)
-    func updateStreamingText(_ text: String, fadeDuration: TimeInterval = 0.08) {
-        // 너무 잦은 애니메이션은 잔상을 유발하므로, 0 길이/동일 텍스트는 무시
+    func updateStreamingText(_ text: String, fadeDuration: TimeInterval = 0.25) {
+        // 동일 텍스트는 무시
         guard messageLabel.text != text else { return }
-        let apply = { [weak self] in
-            guard let self = self else { return }
-            self.messageLabel.text = text
-            self.messageLabel.setNeedsLayout()
-            self.messageLabel.layoutIfNeeded()
+        let previous = messageLabel.text ?? ""
+        let commonPrefixLen = Self.longestCommonPrefixLength(previous, text)
+        let newlyAdded = String(text.dropFirst(commonPrefixLen))
+        guard !newlyAdded.isEmpty else {
+            messageLabel.text = text
+            return
         }
-        if fadeDuration > 0 {
-            UIView.transition(
-                with: messageLabel,
-                duration: fadeDuration,
-                options: [.transitionCrossDissolve, .allowUserInteraction, .beginFromCurrentState],
-                animations: apply,
-                completion: nil
-            )
-        } else {
-            apply()
+        // 베이스 텍스트 즉시 반영
+        messageLabel.text = text
+        // 첫 토큰(이전 텍스트가 없는 경우)에는 버블이 비어 있다가 드러나도록 라벨을 잠시 숨김
+        let isInitialReveal = previous.isEmpty
+        if isInitialReveal { messageLabel.alpha = 0.0 }
+        messageLabel.layoutIfNeeded()
+
+        // 오버레이 라벨 준비 (기존과 동일 레이아웃/폰트)
+        let overlay: UILabel = streamingOverlayLabel ?? {
+            let lbl = UILabel()
+            lbl.numberOfLines = 0
+            lbl.lineBreakMode = .byWordWrapping
+            lbl.translatesAutoresizingMaskIntoConstraints = false
+            bubbleView.addSubview(lbl)
+            NSLayoutConstraint.activate([
+                lbl.topAnchor.constraint(equalTo: messageLabel.topAnchor),
+                lbl.leadingAnchor.constraint(equalTo: messageLabel.leadingAnchor),
+                lbl.trailingAnchor.constraint(equalTo: messageLabel.trailingAnchor),
+                lbl.bottomAnchor.constraint(equalTo: messageLabel.bottomAnchor)
+            ])
+            streamingOverlayLabel = lbl
+            return lbl
+        }()
+        overlay.font = messageLabel.font
+        overlay.textAlignment = messageLabel.textAlignment
+        overlay.textColor = messageLabel.textColor
+        overlay.attributedText = buildOverlayAttributedText(base: previous, newlyAdded: newlyAdded)
+        overlay.layoutIfNeeded()
+
+        // 시작 x (신규 덩어리의 좌측 시작점) 계산
+        let startX = computeStartXForNewlyAdded(fullText: text, baseLen: commonPrefixLen, in: overlay)
+        let totalWidth = overlay.bounds.width
+        let height = overlay.bounds.height
+        let clampedStartX = max(0, min(startX, totalWidth))
+
+        // 마스크(그라데이션) 설정: 좌측 불투명, 우측 투명 → 좌→우로 번지는 잉크 효과
+        let gradientMask = CAGradientLayer()
+        gradientMask.colors = [UIColor.white.cgColor, UIColor.white.cgColor, UIColor.clear.cgColor]
+        gradientMask.locations = [0.0, 0.85, 1.0]
+        gradientMask.startPoint = CGPoint(x: 0, y: 0.5)
+        gradientMask.endPoint = CGPoint(x: 1, y: 0.5)
+        // 초깃값: 매우 좁은 폭에서 시작
+        gradientMask.frame = CGRect(x: clampedStartX, y: 0, width: 1, height: height)
+        overlay.layer.mask = gradientMask
+
+        // 목표 프레임: 신규 덩어리 오른쪽 끝까지(최소: 전체 폭까지)
+        let targetWidth = max(totalWidth - clampedStartX, 1)
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            // 초기 노출 케이스면 라벨 자체도 천천히 드러나도록 페이드인 마무리
+            if isInitialReveal {
+                UIView.animate(withDuration: 0.15) {
+                    self?.messageLabel.alpha = 1.0
+                }
+            }
+            // 완료 후 오버레이 제거 → 본문 라벨만 남김
+            overlay.layer.mask = nil
+            overlay.removeFromSuperview()
+            self?.streamingOverlayLabel = nil
         }
+        let anim = CABasicAnimation(keyPath: "bounds.size.width")
+        anim.fromValue = gradientMask.bounds.width
+        anim.toValue = targetWidth
+        anim.duration = min(max(fadeDuration, 0.12), 0.6)
+        anim.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        gradientMask.bounds.size.width = targetWidth // 모델값 갱신
+        gradientMask.add(anim, forKey: "inkRevealWidth")
+        CATransaction.commit()
+    }
+
+    /// 공통 접두사 길이 계산
+    private static func longestCommonPrefixLength(_ a: String, _ b: String) -> Int {
+        let sa = Array(a)
+        let sb = Array(b)
+        let n = min(sa.count, sb.count)
+        var i = 0
+        while i < n {
+            if sa[i] != sb[i] { break }
+            i += 1
+        }
+        return i
+    }
+
+    /// 오버레이용 AttributedText 구성: 기존 부분은 투명, 신규 덩어리만 보이게
+    private func buildOverlayAttributedText(base: String, newlyAdded: String) -> NSAttributedString {
+        let full = base + newlyAdded
+        let attr = NSMutableAttributedString(string: full)
+        // 공통(기존) 부분은 투명 처리하여 위치·개행은 동일하게 유지
+        let transparent = (messageLabel.textColor.withAlphaComponent(0.0))
+        attr.addAttribute(.foregroundColor, value: transparent, range: NSRange(location: 0, length: (base as NSString).length))
+        // 신규 부분은 원래 색상
+        attr.addAttribute(.foregroundColor, value: messageLabel.textColor as Any, range: NSRange(location: (base as NSString).length, length: (newlyAdded as NSString).length))
+        return attr
     }
     
-    // MARK: - ✅ 로딩 애니메이션 관련 함수들
+        /// 신규 덩어리를 잉크 효과 시작 위치로 매핑하기 위한 x 좌표 계산
+    /// - Parameters:
+    ///   - fullText: 전체 텍스트
+    ///   - baseLen: 기존(공통 접두) 길이
+    ///   - overlay: 레이아웃 기준 라벨
+    /// - Returns: overlay 좌표계의 시작 x
+    private func computeStartXForNewlyAdded(fullText: String, baseLen: Int, in overlay: UILabel) -> CGFloat {
+        let prior = String(fullText.prefix(baseLen))
+        let maxWidth = overlay.bounds.width
+        guard maxWidth > 0 else { return 0 }
+        let size = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
+        let options: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: overlay.font as Any
+        ]
+        let rect = (prior as NSString).boundingRect(with: size, options: options, attributes: attrs, context: nil)
+        return max(0, min(rect.width, maxWidth))
+    }
+
     
     /// 로딩 애니메이션 시작
     func startLoadingAnimation() {

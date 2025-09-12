@@ -8,6 +8,10 @@ The core of the application is its sophisticated AI system, which integrates mul
 
 The project is built using Swift and Xcode, and it leverages modern iOS technologies like SwiftUI and Combine. It also integrates with HealthKit to provide health-related insights and coaching.
 
+## 2025-09-12 Notes (Streaming & Cache)
+- Streaming: Use the proxy endpoint `POST /v1/chat/stream` with `Accept: text/event-stream`. The server normalizes Gemini streamGenerateContent (SSE/NDJSON) into pure `data: <text>` events.
+- Cache policy: Gemini cachedContents creation is skipped when the system prompt prefix is < 1024 tokens. Headers expose `X-Cache-Action=bypass:too-small(1024)` and `X-Cache-Tokens=readIn=…;min=1024;action=…`.
+
 ## 🏗️ Building and Running
 
 To build and run the DeepSleep project, you will need:

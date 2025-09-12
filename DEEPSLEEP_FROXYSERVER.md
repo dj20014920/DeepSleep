@@ -176,10 +176,18 @@ iOS 연동(변경점)
   - 관측 헤더: `X-Provider`, `Server-Timing: auth;dur=… ,authCache=hit|miss,parse;dur=…`
 
 - POST /v1/subscription/report
-  - 구독 상태 리포트 수신(예약)
+  - 구독 상태 리포트 수신(권장: 스텁이라도 수신/저장)
   - 인증: /v1/chat과 동일한 HMAC(+Nonce) 서명 사용. iOS 2025-08-31 패치로 적용됨
-  - 필수 헤더: X-Emozleep-UID/Tier/Timestamp/(Nonce?)/Sig
-  - 바디 예: { "productId": "com.emozleep.pro.monthly", "expiresAtMs": 1754340000000 }
+  - 헤더: X-Emozleep-UID / X-Emozleep-Tier / X-Emozleep-Timestamp / (선택)X-Emozleep-Nonce / X-Emozleep-Sig
+  - 요청 바디(JSON):
+    {
+      "productId": "com.emozleep.pro.monthly",
+      "purchaseDateMs": 1753735200000,   // 선택(앱에서 제공)
+      "expiresAtMs": 1754340000000,     // 선택(앱에서 제공)
+      "trialHeuristic": true            // 선택(구매~만료≈7일이면 true)
+    }
+  - 저장 권장(KV): key=sub:{uid} value={ productId, purchaseDateMs?, expiresAtMs?, trialHeuristic?, updatedAt }
+  - (선택) 게이팅 보강: /v1/chat 처리 시, 클라이언트 헤더 티어와 최근 보고 티어를 교차검증하여 상향 허위 신고를 클램프
 
 - OPTIONS (CORS 프리플라이트)
   - CORS 헤더 반환 + 커스텀 응답 헤더 노출(Expose-Headers)
