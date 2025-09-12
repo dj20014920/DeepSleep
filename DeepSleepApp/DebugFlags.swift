@@ -1,7 +1,16 @@
 import Foundation
 
 /// 전역 디버그 플래그(런타임 토글 가능). 배포 전 반드시 기본값을 false로 유지.
-enum DebugFlags {
+enum DebugFlags {    
+    /// 성능 상세 로깅 (DEBUG 전용). Console에 세부 단계별 타이밍 요약을 출력합니다.
+    static var performanceVerboseLogging: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "debug_performance_verbose")
+        #else
+        return false
+        #endif
+    }
+
     /// 프리셋 추천 일일 제한 해제(디버깅용). 기본 false. 배포 전/후 모두 기본값은 false 유지.
     static var unlimitedPresetRecommendation: Bool {
         get {

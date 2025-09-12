@@ -104,6 +104,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // 추천 메시지와 페이로드 연결(바로 적용하기용)
     private var presetPayloads: [UUID: EnhancedRecommendationResponse] = [:]
 
+    // 🌊 스트리밍 메시지 상태
+    private var currentStreamingMessageId: UUID?
+    private var hasReceivedFirstToken: Bool = false
+
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
 
@@ -758,35 +762,78 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - 🚀 AI 응답 처리 (신규 아키텍처)
 
     /// 사용자 메시지를 받아 AI에게 응답을 요청합니다.
+    private var currentStreamTask: Task<Void, Never>? // 스트림 취소용 핸들
+
     private func fetchAIResponse(for message: String) {
+        let perf = PerfTrace(flow: "ChatFlow")
+        perf.with(extra: "mode", determineAIModeFromContext().rawValue)
+            .with(extra: "model", SettingsManager.shared.selectedLLM.rawValue)
+            .with(extra: "userLen", String(message.count))
+        perf.mark("entered")
         addMessageToChat(message: message, fromUser: true)
+        perf.mark("ui:addUserMessage")
         showLoading(true)
+        perf.mark("ui:showLoading")
 
-        Task {
+        // 🌊 스트리밍 경로: 첫 토큰 도달 즉시 로딩 제거 및 버블 업데이트
+        hasReceivedFirstToken = false
+        currentStreamingMessageId = nil
+        let aiMode = determineAIModeFromContext()
+        let stream = SessionManager.shared.sendMessageStream(
+            content: message,
+            mode: aiMode,
+            saveMessages: true,
+            sessionId: nil,
+            tokenConfigOverride: nil
+        )
+        currentStreamTask?.cancel()
+        currentStreamTask = Task { [weak self] in
+            guard let self = self else { return }
+            var gotAnyDelta = false
             do {
-                // 🚀 ChatManager의 통합 AI 서비스를 통한 메시지 전송
-                // 현재 채팅 컨텍스트에 맞는 AI 모드 자동 결정
-                let aiMode = determineAIModeFromContext()
-                print(
-                    "🎯 [ChatViewController] 현재 컨텍스트: '\(chatContext.displayName)' → AI 모드: \(aiMode.rawValue)"
-                )
-
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
-                let response = try await SessionManager.shared.sendMessage(
-                    content: message,
-                    model: selectedModel,
-                    mode: aiMode,
-                    saveMessages: true
-                )
-
-                handleAIResponse(response)
-                print("✅ [ChatViewController] AI 응답 받음")
-
+                for try await piece in stream {
+                    if Task.isCancelled { break }
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
+                        if !self.hasReceivedFirstToken {
+                            self.removeAllLoadingMessages()
+                            let aiMsg = ChatMessage(text: "", date: Date(), sender: .ai, type: .bot)
+                            self.messages.append(aiMsg)
+                            self.currentStreamingMessageId = aiMsg.id
+                            self.hasReceivedFirstToken = true
+                        }
+                        if !piece.isComplete, let id = self.currentStreamingMessageId,
+                           let idx = self.messages.firstIndex(where: { $0.id == id }) {
+                            gotAnyDelta = true
+                            let prev = self.messages[idx].text ?? ""
+                            self.messages[idx].text = prev + piece.delta
+                            self.debouncedReload()
+                        }
+                        if piece.isComplete {
+                            self.debouncedReload()
+                        }
+                    }
+                }
+                // 스트림이 끝났는데 델타가 하나도 없으면 폴백으로 비스트리밍 호출
+                if !gotAnyDelta {
+                    // 스트리밍 첫 토큰이 없었다면 로딩 버블이 남아있을 수 있으니 선제 제거
+                    await MainActor.run { [weak self] in
+                        self?.removeAllLoadingMessages()
+                    }
+                    let response = try await SessionManager.shared.sendMessage(
+                        content: message,
+                        mode: aiMode,
+                        saveMessages: true
+                    )
+                    await MainActor.run { [weak self] in self?.handleAIResponse(response) }
+                }
+                perf.end("done")
             } catch {
-                handleAIError(error)
+                await MainActor.run { [weak self] in self?.handleAIError(error) }
             }
         }
     }
+
 
     /// 현재 채팅 컨텍스트를 기반으로 AI 모드 결정
     private func determineAIModeFromContext() -> AIMode {
@@ -1641,7 +1688,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         view.endEditing(true)
         AdsBannerCoordinator.shared.refreshLayoutIfNeeded(for: self)
         recordSessionTime()
-
+        // 진행 중 스트림 취소(메모리/수명 안전)
+        currentStreamTask?.cancel()
         // 📱 앱 종료/백그라운드 진입 시 채팅 기록 강제 저장
         saveChatHistory()
     }
@@ -2560,6 +2608,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     deinit {
+        currentStreamTask?.cancel()
         NotificationCenter.default.removeObserver(self)
         cleanup()
     }

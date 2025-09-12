@@ -206,6 +206,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String? = nil,
         policyMeta: [String: String]? = nil
     ) async throws -> AIResponse {
+        #if DEBUG
+        let perf = PerfTrace(flow: "UnifiedAIService")
+        perf.with(extra: "mode", mode.rawValue).with(extra: "model", model.rawValue)
+            .with(extra: "userLen", String(content.count))
+        #endif
         let reqId = UUID().uuidString
         ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
         let overallStart = Date()
@@ -266,6 +271,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
         }
 
+        #if DEBUG
+        perf.mark("validate:security")
+        #endif
         // 1. 보안 검증
         let validationResult = securityManager.validateAndSanitizeInput(
             content, userId: context?.userId ?? "unknown")
@@ -284,6 +292,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             cleaned = cleanInput
         }
 
+        #if DEBUG
+        perf.mark("svc:internal:start")
+        #endif
         do {
             // 2. 실제 호출 (성공 시에만 사용량 증가)
             let response = try await sendMessageInternal(
@@ -306,6 +317,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             ContextMetrics.shared.logRequestEnd(
                 id: reqId, model: model.rawValue, mode: mode.rawValue, success: true,
                 duration: Date().timeIntervalSince(overallStart))
+            #if DEBUG
+            perf.end("svc:internal:done")
+            #endif
             return response
         } catch {
             // Call logging failure
@@ -1049,7 +1063,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         )
     }
 
-    // MARK: - 🌊 스트리밍 응답 (미구현)
+    // MARK: - 🌊 스트리밍 응답 (프록시 SSE 사용)
 
     public func sendMessageStream(
         content: String,
@@ -1059,29 +1073,159 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         tokenConfig: TokenConfiguration?,
         assembledPrompt: String? = nil
     ) -> AsyncThrowingStream<AIStreamResponse, Error> {
-        // 중앙집중형 assembledPrompt 경로를 우선 사용한다.
+        // 프록시 스트리밍 우선. 비활성 시 기존 단일 청크로 폴백
+        guard EnvironmentConfig.shared.useProxy else {
+            return AsyncThrowingStream { continuation in
+                Task {
+                    do {
+                        let full = try await sendMessage(
+                            content: content, model: model, mode: mode,
+                            context: context, tokenConfig: tokenConfig,
+                            assembledPrompt: assembledPrompt
+                        )
+                        continuation.yield(AIStreamResponse(
+                            id: full.id, delta: full.content, isComplete: true,
+                            metadata: StreamMetadata(tokenCount: full.usage.totalTokens, timestamp: Date())
+                        ))
+                        continuation.finish()
+                    } catch { continuation.finish(throwing: error) }
+                }
+            }
+        }
+
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    // 현재는 단일 청크로 전달하지만, 서비스별 네이티브 스트리밍을 도입해도 인터페이스는 유지된다.
-                    let response = try await sendMessage(
-                        content: content,
-                        model: model,
-                        mode: mode,
-                        context: context,
-                        tokenConfig: tokenConfig,
-                        assembledPrompt: assembledPrompt
-                    )
+                    let proxyURL = try resolveProxyBaseURL()
+                    print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))")
+                    // 메시지 구성(프록시 경로와 동일 원칙)
+                    var roleMessages: [RoleMessage] = []
+                    if let assembled = assembledPrompt, !assembled.isEmpty {
+                        roleMessages.append(RoleMessage(role: .system, content: assembled))
+                    } else {
+                        let sys = generateOptimizedSystemPrompt(for: mode, model: model)
+                        roleMessages.append(RoleMessage(role: .system, content: sys))
+                        if let history = context?.conversationHistory, !history.isEmpty {
+                            let recent = Array(history.suffix(16))
+                            for turn in recent {
+                                roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+                            }
+                        }
+                    }
+                    roleMessages.append(RoleMessage(role: .user, content: content))
 
-                    let streamResponse = AIStreamResponse(
-                        id: response.id,
-                        delta: response.content,
-                        isComplete: true,
-                        metadata: StreamMetadata(
-                            tokenCount: response.usage.totalTokens, timestamp: Date())
-                    )
+                    // 바디 구성(프록시와 동일)
+                    let preferred = getOptimalModelForMode(mode: mode, userPreferred: model)
+                    let effCfg = optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: preferred, mode: mode)
+                    var body: [String: Any] = [
+                        "model": preferred.rawValue,
+                        "mode": mode.rawValue,
+                        "messages": roleMessages.map { [
+                            "role": $0.role.rawValue,
+                            "content": $0.content
+                        ] },
+                        "temperature": effCfg.temperature,
+                        "maxTokens": effCfg.maxTokens
+                    ]
+                    // providerCaching 힌트(서버 SSOT 기준 참고용)
+                    body["providerCaching"] = [
+                        "enable": true,
+                        "strategy": "auto",
+                        "ttlSeconds": providerCacheTTLSeconds(for: mode),
+                        "cacheKey": "\(UserRulesManager.shared.personaCoreSignature()):\(mode.rawValue)"
+                    ]
 
-                    continuation.yield(streamResponse)
+                    // 공통 인증 헤더
+                    let uid: String = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
+                    let tier: String = { switch StoreKitSubscriptionManager.shared.currentTier { case .free: return "free"; case .pro: return "pro"; case .max: return "max" } }()
+                    let proxyBase = proxyURL
+                    // enroll/secret 확보
+                    let effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyBase)
+                    // idempotency(간단): 마지막 user content 기반
+                    let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+                    let idemKey = String(SHA256.hash(data: Data((mode.rawValue + contentHash).utf8)).compactMap { String(format: "%02x", $0) }.joined().prefix(64))
+                    // 추정 캐시 토큰(4자≈1토큰)
+                    let estTokens: Int = (roleMessages.first?.content.count ?? 0) / 4
+
+                    // 요청 생성
+                    let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
+                    let signature = ProxyAuthSigner.hmacSHA256Hex(message: ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: nil), secret: effectiveSecret)
+                    var req = URLRequest(url: proxyBase.appendingPathComponent("v1/chat/stream"))
+                    req.httpMethod = "POST"
+                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                    req.setValue(ProxyAuthConfig.origin, forHTTPHeaderField: "Origin")
+                    req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
+                    req.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
+                    req.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
+                    req.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
+                    req.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
+                    req.setValue(mode.rawValue, forHTTPHeaderField: "X-Emozleep-Mode")
+                    if estTokens > 0 { req.setValue(String(estTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens") }
+                    req.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
+                    req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+                    // 스트리밍 수신
+                    let t0 = Date()
+                    let (bytes, response) = try await URLSession.shared.bytes(for: req)
+                    guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                        throw AIServiceError.serverError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
+                    }
+                    var aggregate = ""
+                    var emittedFirst = false
+                    for try await line in bytes.lines {
+                        if line.hasPrefix(":") { continue } // comment ping
+                        // SSE 형식: data: <payload>
+                        let payload = line.hasPrefix("data:") ? String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces) : line
+                        guard !payload.isEmpty else { continue }
+                        var delta = ""
+                        // 1) JSON 시도: candidates.delta.parts[].text 또는 candidates.content.parts[].text
+                        if payload.first == "{" {
+                            struct Part: Decodable { let text: String? }
+                            struct Content: Decodable { let parts: [Part]? }
+                            struct Candidate: Decodable { let content: Content?; let delta: Content? }
+                            struct Resp: Decodable { let candidates: [Candidate]? }
+                            if let data = payload.data(using: .utf8), let resp = try? JSONDecoder().decode(Resp.self, from: data), let cand = resp.candidates?.first {
+                                if let d = cand.delta?.parts?.compactMap({ $0.text }).joined(), !d.isEmpty {
+                                    delta = d
+                                } else if let c = cand.content?.parts?.compactMap({ $0.text }).joined(), !c.isEmpty {
+                                    delta = c
+                                }
+                            }
+                        }
+                        // 2) JSON 파싱 실패 또는 비 JSON: "text":"…" 정규식으로 추출(복수 매치 결합)
+                        if delta.isEmpty {
+                            let regex = try? NSRegularExpression(pattern: "\\\"text\\\"\\s*:\\s*\\\"([\\s\\S]*?)\\\"", options: [])
+                            if let re = regex {
+                                let ns = payload as NSString
+                                let matches = re.matches(in: payload, range: NSRange(location: 0, length: ns.length))
+                                if !matches.isEmpty {
+                                    delta = matches.map { ns.substring(with: $0.range(at: 1)) }
+                                        .joined()
+                                        .replacingOccurrences(of: "\\n", with: "\n")
+                                        .replacingOccurrences(of: "\\\"", with: "\"")
+                                }
+                            }
+                        }
+                        // 3) 여전히 비어있으면 순수 텍스트로 취급(서버가 텍스트만 보낼 때)
+                        if delta.isEmpty, payload.first != "{" && payload.first != "[" && payload.first != "(" {
+                            delta = payload
+                        }
+                        guard !delta.isEmpty else { continue }
+                        aggregate += delta
+                        if !emittedFirst {
+                            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                            print("⏱️ [UnifiedAIService] firstTokenMs=\(ms)")
+                            emittedFirst = true
+                        }
+                        continuation.yield(AIStreamResponse(
+                            id: UUID().uuidString,
+                            delta: delta,
+                            isComplete: false,
+                            metadata: StreamMetadata(tokenCount: 0, timestamp: Date())
+                        ))
+                    }
+                    continuation.yield(AIStreamResponse(id: UUID().uuidString, delta: "", isComplete: true, metadata: StreamMetadata(tokenCount: 0, timestamp: Date())))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -1207,7 +1351,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
         let modelSpecific = getModelSpecificOptimization(for: model)
-        return basePrompt + "\n\n" + modelSpecific
+        // 일반 대화 모드에서는 토큰 상한 내 완결 지시를 명시적으로 추가하여 모델이 스스로 마무리하도록 유도
+        let lengthRule: String = {
+            if mode == .generalConversation {
+                let cap = ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+                return "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지, 마지막에 한 줄 요약을 포함하세요."
+            } else {
+                return ""
+            }
+        }()
+        return basePrompt + lengthRule + "\n\n" + modelSpecific
     }
 
     // MARK: - Strict JSON Schema Builders
@@ -1557,6 +1710,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 responseFormat: optimizedConfig.responseFormat
             )
         }
+        // 최종 하드 캡: 일반 대화는 반드시 SSOT 상한을 준수(기본 256)
+        if mode == .generalConversation {
+            let hardCap = ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+            if optimizedConfig.maxTokens > hardCap {
+                optimizedConfig = TokenConfiguration(
+                    maxTokens: hardCap,
+                    temperature: optimizedConfig.temperature,
+                    topP: optimizedConfig.topP,
+                    frequencyPenalty: optimizedConfig.frequencyPenalty,
+                    presencePenalty: optimizedConfig.presencePenalty,
+                    responseFormat: optimizedConfig.responseFormat
+                )
+            }
+        }
         return optimizedConfig
     }
 
@@ -1779,6 +1946,14 @@ extension UnifiedAIServiceImpl {
         tokenConfig: TokenConfiguration, policyMeta: [String: String]?,
         personaCoreKey: String
     ) async throws -> AIResponse {
+        #if DEBUG
+        let perf = PerfTrace(flow: "ProxyCall")
+        perf.with(extra: "provider", preferred.rawValue)
+            .with(extra: "mode", mode.rawValue)
+            .with(extra: "sysLen", String(messages.first?.content.count ?? 0))
+            .with(extra: "userLen", String(messages.last?.content.count ?? 0))
+        perf.mark("build:req")
+        #endif
         var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
             "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
@@ -1848,6 +2023,15 @@ extension UnifiedAIServiceImpl {
                 .joined().prefix(64))
 
         // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
+        // 추정 가능한 캐시 prefix 토큰(시스템/페르소나/불변 컨텍스트) — 간단 근사(4자≈1토큰)
+        let estimatedCacheableTokens: Int = {
+            if let first = (body["messages"] as? [[String: Any]])?.first,
+               (first["role"] as? String)?.lowercased() == "system",
+               let sys = first["content"] as? String {
+                return max(0, sys.count / 4)
+            }
+            return 0
+        }()
         func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
             var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
             r.httpMethod = "POST"
@@ -1865,6 +2049,11 @@ extension UnifiedAIServiceImpl {
             // Pass idempotency key for server-side dedup
             r.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
+            // Provider cache 힌트(선택): 서버 SSOT 정책 하에서 참고용
+            if estimatedCacheableTokens > 0 {
+                r.setValue(String(estimatedCacheableTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
+            }
+            r.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             return r
         }
@@ -1934,6 +2123,9 @@ extension UnifiedAIServiceImpl {
                 "📤 [UnifiedAIService] 프록시 요청 전송(attempt=\(attempt+1)): \(proxyURL.absoluteString)/v1/chat"
             )
             let result = try await URLSession.shared.data(for: req)
+            #if DEBUG
+            perf.mark("net:await")
+            #endif
             data = result.0
             if let r = result.1 as? HTTPURLResponse {
                 http = r
@@ -1969,11 +2161,17 @@ extension UnifiedAIServiceImpl {
             }
             throw AIServiceError.serverError(statusCode: code)
         }
+        #if DEBUG
+        perf.mark("parse:headers")
+        #endif
         struct ProxyResp: Codable {
             let provider: String
             let content: String
         }
         let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
+        #if DEBUG
+        perf.mark("parse:body")
+        #endif
 
         // 정책/프로바이더/캐시 헤더 파싱
         if let st = header(http, "Server-Timing") {
@@ -2013,6 +2211,9 @@ extension UnifiedAIServiceImpl {
             print(
                 "⚠️ [AICallSummary] provider header mismatch: body=\(providerUsed) header=\(xProv)")
         }
+        #if DEBUG
+        perf.end("done")
+        #endif
 
         var addInfo: [String: Any] = ["provider": proxy.provider]
         if let r = polRemaining { addInfo["policyRemaining"] = r }

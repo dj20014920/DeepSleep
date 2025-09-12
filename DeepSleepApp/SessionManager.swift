@@ -830,6 +830,71 @@ public class SessionManager {
 
     // MARK: - AI 통합 호출 (단일 진입점)
 
+    /// 스트리밍 단일 진입점: 첫 토큰 즉시 UI 반영 + 완료 시 저장(옵션)
+    public func sendMessageStream(
+        content: String,
+        mode: AIMode,
+        saveMessages: Bool = true,
+        sessionId: String? = nil,
+        tokenConfigOverride: TokenConfiguration? = nil
+    ) -> AsyncThrowingStream<AIStreamResponse, Error> {
+        // 사용량/권한 게이트는 동기 확인 후 스트림 생성
+        if mode == .taskAdviceOverall {
+            let tier = StoreKitSubscriptionManager.shared.currentTier
+            let tierKey: String = {
+                switch tier { case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"; case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"; case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE" }
+            }()
+            let limit = ConfigReader.int(tierKey, default: 0) ?? 0
+            let status = usageGate.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit)
+            guard status.canUse else {
+                return AsyncThrowingStream { $0.finish(throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")) }
+            }
+        } else {
+            let usage = usageGate.checkUsage(for: mode)
+            guard usage.canUse else {
+                return AsyncThrowingStream { $0.finish(throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")) }
+            }
+        }
+
+        let targetSessionId = sessionId ?? getCurrentOrCreateSession().id
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
+                    let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                    let tokenCfg = tokenConfigOverride ?? mode.recommendedTokenConfig
+                    var aggregate = ""
+                    let stream = UnifiedAIServiceImpl.shared.sendMessageStream(
+                        content: content,
+                        model: selectedModel,
+                        mode: mode,
+                        context: aiContext,
+                        tokenConfig: tokenCfg,
+                        assembledPrompt: nil
+                    )
+                    for try await piece in stream {
+                        if piece.isComplete {
+                            if saveMessages {
+                                // 저장은 비동기로 수행하여 UI 스트림 지연 최소화
+                                Task { [aggregate] in
+                                    let aiResponse = AIResponse(id: UUID().uuidString, model: selectedModel, mode: mode, content: aggregate, metadata: ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0, additionalInfo: [:]), usage: TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0), timestamp: Date(), processingTime: 0)
+                                    try? await self.saveAIConversation(sessionId: targetSessionId, userMessage: content, aiResponse: aiResponse, mode: mode)
+                                }
+                            }
+                            continuation.yield(piece)
+                            continuation.finish()
+                        } else {
+                            aggregate += piece.delta
+                            continuation.yield(piece)
+                        }
+                    }
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
     /// 모든 AI 호출의 단일 진입점 - 3시간 캐싱 보장
     /// - Parameters:
     ///   - content: 사용자 입력
@@ -845,6 +910,15 @@ public class SessionManager {
         policyMeta: [String: String]? = nil,
         tokenConfigOverride: TokenConfiguration? = nil
     ) async throws -> AIResponse {
+        #if DEBUG
+        let __perfStart = ProcessInfo.processInfo.systemUptime
+        func __log(_ step: String) {
+            let now = ProcessInfo.processInfo.systemUptime
+            let ms = Int(((now - __perfStart) * 1000.0).rounded())
+            print("⏱️ [⚡ Performance] [SessionManager] \(step)=\(ms)ms mode=\(mode.rawValue) userLen=\(content.count)")
+        }
+        __log("gate:usage")
+        #endif
         print("🚀 [SessionManager] AI 호출 시작 - 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
 
         // 1. 사용량 한도 확인 (모드별 정책)
@@ -880,14 +954,23 @@ public class SessionManager {
 
         // 2. 세션 ID 결정
         let targetSessionId = sessionId ?? getCurrentOrCreateSession().id
+        #if DEBUG
+        __log("ctx:resolveSession")
+        #endif
 
         // 3. 컨텍스트 구성 (3시간 캐싱 적용)
         let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
+        #if DEBUG
+        __log("ctx:build")
+        #endif
 
         // 4. AI 서비스 호출
         let selectedModelType = SettingsManager.shared.selectedLLM
         let selectedModel = mapAIModelTypeToAIModel(selectedModelType)
         let effectiveTokenConfig = tokenConfigOverride ?? mode.recommendedTokenConfig
+        #if DEBUG
+        __log("svc:call:start")
+        #endif
         let response = try await UnifiedAIServiceImpl.shared.sendMessage(
             content: content,
             model: selectedModel,
@@ -897,6 +980,9 @@ public class SessionManager {
             assembledPrompt: nil,  // AIContextBuilder에서 자동 생성
             policyMeta: policyMeta
         )
+        #if DEBUG
+        __log("svc:call:done")
+        #endif
 
         // 5. 메시지 저장 (옵션)
         if saveMessages {
@@ -909,6 +995,9 @@ public class SessionManager {
         }
 
         print("✅ [SessionManager] AI 호출 완료 - 응답 길이: \(response.content.count)자")
+        #if DEBUG
+        __log("done")
+        #endif
         return response
     }
 

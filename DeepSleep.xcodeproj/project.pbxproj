@@ -169,6 +169,7 @@
 		E0899C932E5EE8B1006AD307 /* AdsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C912E5EE8B1006AD307 /* AdsManager.swift */; };
 		E0899CA22E6038A2006AD307 /* CalendarDayDecorLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899CA02E6038A2006AD307 /* CalendarDayDecorLogic.swift */; };
 		E098403F2E60B789005F5AD0 /* EmotionNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */; };
+		E09B92C42E73D4280090439A /* PerfTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09B92C32E73D4280090439A /* PerfTrace.swift */; };
 		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
 		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
@@ -409,6 +410,7 @@
 		E0899C912E5EE8B1006AD307 /* AdsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsManager.swift; sourceTree = "<group>"; };
 		E0899CA02E6038A2006AD307 /* CalendarDayDecorLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDayDecorLogic.swift; sourceTree = "<group>"; };
 		E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionNormalizer.swift; sourceTree = "<group>"; };
+		E09B92C32E73D4280090439A /* PerfTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfTrace.swift; sourceTree = "<group>"; };
 		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
 		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -521,6 +523,7 @@
 		E017980E2E35FF51002F178C /* Performance */ = {
 			isa = PBXGroup;
 			children = (
+				E09B92C32E73D4280090439A /* PerfTrace.swift */,
 				E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */,
 				E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */,
 				E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */,
@@ -1283,6 +1286,7 @@
 				E084F1F42E33ACB3002F75E6 /* TodoListCell.swift in Sources */,
 				E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */,
 				E0E7BCAD2E53696900FF7073 /* DailySummaryViewController.swift in Sources */,
+				E09B92C42E73D4280090439A /* PerfTrace.swift in Sources */,
 				E0NEW1012E70000100ABCDEF /* GradientPalettes.swift in Sources */,
 				E0NEW1022E70000100ABCDEF /* EmotionCalendarDayCell.swift in Sources */,
 				E0NEW1032E70000100ABCDEF /* TodoListSheetViewController.swift in Sources */,
