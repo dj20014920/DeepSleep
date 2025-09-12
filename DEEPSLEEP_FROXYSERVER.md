@@ -1,6 +1,13 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-최종 업데이트: 2025-09-08
+최종 업데이트: 2025-09-12
+
+## 2025-09-12 동기화: 스트리밍 롤아웃 · Gemini 캐시 SSOT · Auth LRU
+- 서버(Workers): `/v1/chat/stream` 정식 오픈. 업스트림(Gemini streamGenerateContent)의 SSE/CRLF/NDJSON 응답을 모두 표준 SSE(`data: <text>`)로 정규화하여 즉시 전송합니다. 첫 바이트로 `:ok` 코멘트를 내보내 버퍼링을 감소.
+- 서버(Workers): 인증 LRU(UID→secret, TTL 5~10분) 도입. `Server-Timing`에 `authCache=hit|miss` 포함. 일반 요청의 `auth;dur`가 안정적으로 낮아집니다.
+- 서버(Workers): Gemini 캐시 생성 하한을 SSOT로 1024 토큰 고정. 하한 미달 시 캐시 생성 시도 자체를 생략하고 `X-Cache-Action=bypass:too-small(1024)` 및 `X-Cache-Tokens=readIn=…;min=1024;action=…` 표준 헤더를 제공합니다.
+- iOS: 스트리밍 수신기 교체. 첫 델타에서 로딩 버블 제거 후 단일 버블에 델타 누적. 델타 0건 시 폴백 전 로딩 버블 강제 제거.
+- iOS: 테이블 전체 reload 제거. 보이는 셀만 경미한 CrossDissolve(0.08s)로 텍스트 갱신, 줄바꿈·문자 누적 간헐 reflow로 흔들림 제거.
 
 ## 2025-09-08 동기화: 인증 워밍 · 일반대화 토큰 상한 · 스트리밍 현황
 - 클라이언트(App): 앱 기동 시 ProxyAuthClient.loadSecretOrEnroll 1회 호출로 프록시 시크릿 메모리 캐시 워밍(목표: auth;dur P50 0.2~0.4s). 운영 계약(/v1/enroll, HMAC 원문, X-Emozleep-*) 불변.
@@ -159,6 +166,15 @@ iOS 연동(변경점)
     - X-Policy-ResetAt: 일일 한도 리셋(KST 00:00, +09:00) ISO 시각(예: 2025-09-01T00:00:00+09:00)
     - X-Policy-Claude-Remaining: Claude 잔여 일일 횟수(프리미엄 기준)
 
+- POST /v1/chat/stream
+  - 실시간 스트리밍 엔드포인트(Gemini 경로 표준화)
+  - 요청 JSON은 /v1/chat과 동일(필요한 최소 필드만). 헤더에 `Accept: text/event-stream` 권장.
+  - 응답: `Content-Type: text/event-stream; charset=utf-8`
+  - 전송 형식: `:ok`(초기 코멘트) → 반복되는 `data: <pure text>\n\n`
+    - 업스트림이 JSON 조각/NDJSON을 보낼 경우 서버가 후보 텍스트(candidates.delta.parts[].text 등)를 추출해 순수 텍스트로 변환.
+    - 클라이언트는 `bytes.lines`로 읽되, `data:` 접두만 제거하고 누적 표시.
+  - 관측 헤더: `X-Provider`, `Server-Timing: auth;dur=… ,authCache=hit|miss,parse;dur=…`
+
 - POST /v1/subscription/report
   - 구독 상태 리포트 수신(예약)
   - 인증: /v1/chat과 동일한 HMAC(+Nonce) 서명 사용. iOS 2025-08-31 패치로 적용됨
@@ -180,8 +196,10 @@ iOS 연동(변경점)
   - Nonce 사용 시: "{ts}:{uid}:{tier}:{nonce}"
   - Nonce 미사용 시: "{ts}:{uid}:{tier}"
 - 검증 순서(서버)
-  1) USAGE_KV에서 기기 시크릿 조회(/v1/enroll 발급)
-  2) 없으면 EDGE_SIGNING_SECRET로 검증
+  1) LRU 메모리 캐시에서 시크릿 조회(기본 TTL=600s)
+  2) 미스 시 USAGE_KV에서 조회(/v1/enroll 발급)
+  3) 최종적으로 EDGE_SIGNING_SECRET로 백업 검증(옵션)
+  - `Server-Timing`에 `authCache=hit|miss` 노출
 - iOS 동작
   - /v1/enroll로 기기 시크릿 발급 → 키체인 저장
   - DEBUG에서만 최후Fallback: CLIENT_PROXY_HMAC_SECRET
@@ -198,6 +216,12 @@ iOS 연동(변경점)
   - DEFAULT_NAVER_MODEL = "HCX-DASH-002"
 - 서버 폴백 체인(현행 구현)
   - gemini → openai → naver → claude → openrouter
+
+### 공급자 캐시 정책(SSOT)
+- Gemini: 캐시 생성 하한 1024토큰(고정). 하한 미달 시 캐시 생성 시도 자체 생략.
+  - 헤더 예시: `X-Cache-Action: bypass:too-small(1024)`
+  - 토큰 헤더: `X-Cache-Tokens: readIn=1179;min=1024;action=bypass:too-small(1024)`
+- Anthropic: 기본 하한 512(장세션/버스트 힌트로 일시 완화 가능). TTL=3600s, 30분 이상 경과 시 리라이트 허용.
   - 클라이언트가 claude를 지정해 실패해도 위 순서로 폴백 시도
 - Claude 일일 상한(프리미엄)
   - 키: claude:{uid}:{YYYY-MM-DD}

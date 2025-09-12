@@ -1,11 +1,11 @@
-## 2025-09-08 동기화: 컨텍스트/토큰 상한 · 프록시 인증 워밍 · 스트리밍(SSE) 현황
+## 2025-09-12 동기화: 스트리밍 실서비스 · 프롬프트 캐시 SSOT · 인증 LRU
 
 [정책 SSOT 공지] 구독/결제/환불/복원/7일 무료체험 정책은 SUB_GUIDE.md에 중앙화되어 있습니다. UI 문구/링크는 해당 문서를 기준으로 일관 유지하십시오.
-- 일반 대화(general_conversation) 기본 maxTokens를 256으로 타이트화(구성 키가 있으면 그 값을 우선). 컨텍스트 예산을 시스템/요약/최근 대화 중 “현재 입력과 요약”에 우선 배분하여 provider 처리시간 단축과 UX 가속을 목표로 함(SSOT는 AIMode.recommendedTokenConfig).
-- 앱 기동 시 프록시 시크릿 메모리 캐시 워밍(App): ProxyAuthClient.loadSecretOrEnroll를 1회 호출하여 키체인 접근 비용을 제거하고 auth;dur P50 0.2~0.4s 목표. 프로토콜 계약(/v1/enroll, HMAC 원문, X-Emozleep-*)은 불변.
-- 서버(Workers) 현재 text/event-stream(SSE) 미배포 상태. 로드맵 §14(스트리밍 계획)에 따라 스테이징에서 구현/검증 후 단계적 롤아웃 예정.
-- 관측 정합성: X-Cache-Action=bypass와 X-Cache-Error=too-small(1024)은 안정 프리픽스 토큰(<1024) 시 공급자 캐시 우회가 의도대로 작동함을 의미. 비용/지연 최적화에는 영향 없음.
-- KPI 리마인드: first_token_ui(P50)<800ms(향후 SSE 적용 시), total(P50)<4.0s, auth;dur 평균<300ms, provider;dur 지속 모니터링.
+- 스트리밍: `/v1/chat/stream` 운영 반영. 서버가 Gemini의 SSE/NDJSON을 표준 SSE로 정규화하여 `data: <text>`만 전송. iOS는 첫 델타에서 로딩 버블 제거 후 단일 버블에 누적, 흔들림 제거를 위해 보이는 셀만 미세 페이드로 갱신.
+- 일반 대화 기본 maxTokens=256 유지(구성 키 우선). 컨텍스트 예산은 시스템/요약/최근대화 중 “현재 입력과 요약” 우선 배분.
+- 인증 LRU: UID→secret 5~10분 TTL 캐시. `Server-Timing`에 `authCache=hit|miss` 노출.
+- Gemini 캐시 SSOT: 캐시 생성 하한 1024 토큰. 미달 시 `X-Cache-Action=bypass:too-small(1024)` 노출.
+- KPI 리마인드: first_token_ui(P50)<800ms(스트리밍), total(P50)<4.0s, auth;dur 평균<300ms, provider;dur 지속 모니터링.
 
 # 2025-09-03 동기화: 프리셋 추천 JSON-Only 강제 · 중앙 파서 DRY · Gemini→OpenAI 폴백 · 서버 배포 현황
 
@@ -183,7 +183,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
   - TokenOptimizer로 모델별 토큰 예산 내 적합화(시스템>기억>최근대화 우선순위 유지)
 - 시스템 프롬프트 캐시: AIContextManager.getSystemPrompt(personaSignature:generator:)
   - TTL=3시간(10800초), ConfigReader로 오버라이드 가능
-  - personaSignature = 모드 + 선택 모델 + 핵심기억 요약 지문(해시). 외부 전송 금지, 내부 캐시 키 전용
+  - 키 구성(최신): 사용자 coreHash + 모드 hash + 모델 hash(+선택 톤 hash)로 구성된 composite 키. 외부 전송 금지, 내부 캐시 키 전용
 - 캐시 무효화 트리거 (코드 반영 완료)
   - 모델 변경(SettingsManager.updateSelectedModelAtomically) → .modelSelectionChanged
   - 페르소나/규칙 변경(PersonaMemoryManager, UserRulesManager.addRule) → .personaChanged / .userRulesChanged
@@ -191,6 +191,7 @@ let vc = UIActivityViewController(activityItems: [safe], applicationActivities: 
   - 앱 버전/환경 중요 변경 시 → .environmentChanged
 - 보안/PII: 외부 AI에는 비식별 서술형 컨텍스트만 전달. 페르소나 해시는 캐시 식별에만 사용되며 외부로 절대 전송하지 않습니다.
 - 메트릭/관측성: ContextMetrics가 요청 시작/종료, 모델/모드 분포, Fallback 시도, 캐시 HIT/MISS, 품질 점수 경고를 통합 수집합니다.
+  - 서버 응답 헤더: `X-Cache-Tokens=readIn=…;min=1024;action=…` 표준화. `Server-Timing`에 auth/parse/provider 단계 노출.
 
 검증 체크리스트(8/23)
 - [x] Settings/Persona/Rules 변경 시 AIContextManager.clearCache(reason: …) 호출 경로 존재

@@ -1,5 +1,12 @@
 $1
 
+### 🆕 2025-09-12 동기화: 스트리밍 롤아웃·UX 개선·서버 캐시 SSOT
+- 프록시 `/v1/chat/stream` 운영 적용. 서버가 Gemini streamGenerateContent의 SSE/NDJSON을 표준 SSE(`data: <text>`)로 정규화하여 첫 토큰 즉시 UI 갱신 가능.
+- iOS ChatViewController: 스트리밍 중 테이블 전체 reload를 금지하고, 보이는 셀만 CrossDissolve(0.08s)로 텍스트 업데이트. 줄바꿈/문자 누적/시간 기준으로 간헐 reflow(begin/endUpdates) 수행해 화면 흔들림 제거.
+- 로딩 버블: 첫 델타에서 제거. 델타 0건(네트워크/업스트림 이슈) 시 폴백 호출 전 강제 제거로 이중 버블 방지.
+- 인증 LRU: 프록시가 UID→secret을 5~10분 TTL로 메모리 캐시. `Server-Timing`에 `authCache=hit|miss` 반영.
+- Gemini 캐시 SSOT: 캐시 생성은 1024 토큰 이상에서만 시도. 미달 시 `X-Cache-Action=bypass:too-small(1024)` 및 `X-Cache-Tokens=readIn=…;min=1024;action=…` 헤더로 가시화.
+
 [정책 SSOT] 구독/결제/환불/복원/7일 무료체험 관련 최신 정책·문구는 SUB_GUIDE.md를 참조하십시오. 모든 UI/링크/문구는 SUB_GUIDE.md 기준으로 유지합니다.
 
 ### 🆕 2025-09-10 동기화: 신경망 피드백→추천 플로우 완성 + BGTask 학습 스케줄러

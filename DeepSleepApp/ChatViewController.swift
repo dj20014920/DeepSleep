@@ -790,6 +790,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         currentStreamTask = Task { [weak self] in
             guard let self = self else { return }
             var gotAnyDelta = false
+            var pendingReflowChars = 0
+            var lastReflowAt = Date(timeIntervalSince1970: 0)
             do {
                 for try await piece in stream {
                     if Task.isCancelled { break }
@@ -806,10 +808,32 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                            let idx = self.messages.firstIndex(where: { $0.id == id }) {
                             gotAnyDelta = true
                             let prev = self.messages[idx].text ?? ""
-                            self.messages[idx].text = prev + piece.delta
-                            self.debouncedReload()
+                            let newText = prev + piece.delta
+                            self.messages[idx].text = newText
+
+                            // 1) 보이는 셀만 직접 업데이트(페이드 경미 적용), 테이블 전체 reload 금지
+                            let indexPath = IndexPath(row: idx, section: 0)
+                            if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
+                                cell.updateStreamingText(newText, fadeDuration: 0.25)
+                            }
+
+                            // 2) 행 높이 재계산은 과도한 레이아웃 점프를 막기 위해 드물게 수행
+                            pendingReflowChars += piece.delta.count
+                            let needReflow = newText.hasSuffix("\n") || piece.delta.contains("\n")
+                                || pendingReflowChars >= 24
+                                || Date().timeIntervalSince(lastReflowAt) > 0.25
+                            if needReflow {
+                                pendingReflowChars = 0
+                                lastReflowAt = Date()
+                                UIView.performWithoutAnimation {
+                                    self.tableView.beginUpdates()
+                                    self.tableView.endUpdates()
+                                    self.scrollToBottom(animated: false)
+                                }
+                            }
                         }
                         if piece.isComplete {
+                            // 최종 1회만 전체 리로드(상태 동기화)
                             self.debouncedReload()
                         }
                     }

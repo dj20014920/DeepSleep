@@ -16,9 +16,9 @@ DeepSleep 앱을 위한 4개 AI 모델 통합 시스템입니다. Claude, OpenAI
 - **보안 시스템**: 기존 AISecurityManager와 완전 통합
 - **비용 관리**: 실시간 비용 계산 및 모니터링
 - **에러 처리**: 포괄적인 에러 핸들링 및 사용자 친화적 메시지
+- **실시간 스트리밍**: `/v1/chat/stream` 기반. 첫 토큰에서 로딩 제거, 단일 버블에 텍스트 누적, 셀 내부 미세 페이드로 흔들림 최소화
 
 ### 🔄 향후 구현 예정
-- **실시간 스트리밍**: 현재는 일반 응답을 스트리밍으로 변환
 - **사용량 통계**: 상세한 사용량 분석 및 리포트
 - **모델 성능 모니터링**: 실시간 레이턴시 및 성공률 추적
 
@@ -82,6 +82,28 @@ let response = try await SessionManager.shared.sendMessage(
 
 print(response.content)
 ```
+
+### 🌊 스트리밍 사용법 (권장)
+
+```swift
+let stream = SessionManager.shared.sendMessageStream(
+    content: "오늘 저녁 뭐 먹을까?",
+    mode: .generalConversation
+)
+
+Task {
+    var aggregate = ""
+    do {
+        for try await piece in stream {
+            if piece.isComplete { break }
+            aggregate += piece.delta
+            // UI: 현재 보이는 셀만 부드럽게 갱신(페이드 0.08s)
+        }
+    } catch { /* 에러 처리 */ }
+}
+```
+
+서버는 Gemini의 streamGenerateContent를 표준 SSE(`data: <text>`)로 정규화합니다. 요청 헤더에 `Accept: text/event-stream`을 추가하면 중간 프록시의 버퍼링을 줄일 수 있습니다.
 
 ### 기존 사용법 (직접 호출 - 권장하지 않음)
 
@@ -192,6 +214,19 @@ class ChatViewController: UIViewController {
 let testUtil = UnifiedAIServiceTests()
 await testUtil.quickConnectionTest()
 ```
+
+### 1-1. 스트리밍 체감 테스트(curl)
+
+```bash
+curl -N -H "Accept: text/event-stream" \
+  https://<worker-domain>/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://emozleep.app" \
+  -H "X-Emozleep-UID: <uid>" -H "X-Emozleep-Tier: free" \
+  -H "X-Emozleep-Timestamp: <ms>" -H "X-Emozleep-Sig: <hmac>" \
+  -d '{"model":"gemini","mode":"general_conversation","messages":[{"role":"user","content":"한 줄 농담"}]}'
+```
+`:ok` 다음부터 `data: ...` 라인이 점차 출력되어야 정상입니다.
 
 ### 2. 전체 시스템 테스트
 

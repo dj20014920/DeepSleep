@@ -129,13 +129,31 @@ extension UnifiedSessionEntity {
         let chatMessages: [StoredChatMessage] = {
             guard let set = self.chatMessages else { return [] }
             let copied = Array(set) as NSArray
-            // 안전 캐스팅 시도
+            let entities: [StoredChatMessageEntity]
             if let typed = copied as? [StoredChatMessageEntity] {
-                return typed.map { $0.toStruct() }
+                entities = typed
+            } else {
+                entities = copied.compactMap { $0 as? StoredChatMessageEntity }
             }
-            // NSSet의 임의 순서 → 정렬 안정성을 위해 id 기준으로 소팅 시도
-            let anyArray = copied.compactMap { $0 as? StoredChatMessageEntity }
-            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
+            // 결정적 정렬: timestamp asc → role(user<assistant<system) → uuid asc
+            let roleRank: (String?) -> Int = { role in
+                switch (role ?? "user") {
+                case "user": return 0
+                case "assistant": return 1
+                case "system": return 2
+                default: return 3
+                }
+            }
+            let sorted = entities.sorted { a, b in
+                let ta = a.timestamp
+                let tb = b.timestamp
+                if ta != tb { return ta < tb }
+                let ra = roleRank(a.role)
+                let rb = roleRank(b.role)
+                if ra != rb { return ra < rb }
+                return a.id.uuidString < b.id.uuidString
+            }
+            return sorted.map { $0.toStruct() }
         }()
         
         // 피드백 데이터 변환 - 동일 패턴 적용

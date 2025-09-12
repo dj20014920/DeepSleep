@@ -620,9 +620,23 @@ public class SessionManager {
         do {
             // 1) 최신 N개를 가져옴 (내림차순)
             let fetched = try context.fetch(request)
-            // 2) 반환 전 시간순(오름차순)으로 재정렬하여 컨텍스트가 자연스럽게 이어지도록 함
-            let messageEntities = fetched.sorted {
-                ($0.timestamp ?? Date()) < ($1.timestamp ?? Date())
+            // 2) 반환 전 시간순(오름차순) + 동률 시 역할(user<assistant<system) + UUID 결정적 정렬
+            let roleRank: (String?) -> Int = { role in
+                switch (role ?? "user") {
+                case "user": return 0
+                case "assistant": return 1
+                case "system": return 2
+                default: return 3
+                }
+            }
+            let messageEntities = fetched.sorted { a, b in
+                let ta = a.timestamp ?? Date.distantPast
+                let tb = b.timestamp ?? Date.distantPast
+                if ta != tb { return ta < tb }
+                let ra = roleRank(a.role)
+                let rb = roleRank(b.role)
+                if ra != rb { return ra < rb }
+                return a.id.uuidString < b.id.uuidString
             }
             return messageEntities.map { entity in
                 StoredChatMessage(
@@ -650,7 +664,25 @@ public class SessionManager {
         if let limit = limit { request.fetchLimit = limit }
         do {
             let fetched = try context.fetch(request)
-            return fetched.map { entity in
+            // 동일 타임스탬프 동률 정렬(역할 → UUID)로 결정성 보장
+            let roleRank: (String?) -> Int = { role in
+                switch (role ?? "user") {
+                case "user": return 0
+                case "assistant": return 1
+                case "system": return 2
+                default: return 3
+                }
+            }
+            let sorted = fetched.sorted { a, b in
+                let ta = a.timestamp ?? Date.distantPast
+                let tb = b.timestamp ?? Date.distantPast
+                if ta != tb { return ta < tb }
+                let ra = roleRank(a.role)
+                let rb = roleRank(b.role)
+                if ra != rb { return ra < rb }
+                return a.id.uuidString < b.id.uuidString
+            }
+            return sorted.map { entity in
                 StoredChatMessage(
                     id: entity.id.uuidString,
                     timestamp: entity.timestamp ?? Date(),
@@ -1121,10 +1153,15 @@ public class SessionManager {
             return
         }
 
+        // 사용자/AI 타임스탬프 정합성 보장: 동일 시각이면 역할 우선 정렬이 적용되지만, 가독성을 위해 AI를 >= 사용자로 보정
+        let userTs = Date()
+        let aiTsBase = aiResponse.timestamp
+        let aiTs = aiTsBase < userTs ? userTs : aiTsBase
+
         // 사용자 메시지 저장
         let userStoredMessage = StoredChatMessage(
             id: UUID().uuidString,
-            timestamp: Date(),
+            timestamp: userTs,
             role: "user",
             content: userMessage,
             type: .text
@@ -1133,7 +1170,7 @@ public class SessionManager {
         // AI 응답 저장
         let aiStoredMessage = StoredChatMessage(
             id: aiResponse.id,
-            timestamp: aiResponse.timestamp,
+            timestamp: aiTs,
             role: "assistant",
             content: aiResponse.content,
             type: .text

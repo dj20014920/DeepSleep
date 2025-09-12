@@ -827,6 +827,33 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         optionButtonStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         optionButtonStackView.isHidden = true
     }
+
+    // MARK: - 🌊 Streaming 텍스트 업데이트 (미세 페이드 효과)
+    /// 스트리밍 중인 버블의 텍스트를 부드럽게 갱신합니다.
+    /// - Parameters:
+    ///   - text: 누적된 전체 텍스트
+    ///   - fadeDuration: 페이드 시간(짧게 유지; 기본 0.08s)
+    func updateStreamingText(_ text: String, fadeDuration: TimeInterval = 0.08) {
+        // 너무 잦은 애니메이션은 잔상을 유발하므로, 0 길이/동일 텍스트는 무시
+        guard messageLabel.text != text else { return }
+        let apply = { [weak self] in
+            guard let self = self else { return }
+            self.messageLabel.text = text
+            self.messageLabel.setNeedsLayout()
+            self.messageLabel.layoutIfNeeded()
+        }
+        if fadeDuration > 0 {
+            UIView.transition(
+                with: messageLabel,
+                duration: fadeDuration,
+                options: [.transitionCrossDissolve, .allowUserInteraction, .beginFromCurrentState],
+                animations: apply,
+                completion: nil
+            )
+        } else {
+            apply()
+        }
+    }
     
     // MARK: - ✅ 로딩 애니메이션 관련 함수들
     
