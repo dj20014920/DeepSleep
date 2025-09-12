@@ -814,7 +814,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                             // 1) 보이는 셀만 직접 업데이트(페이드 경미 적용), 테이블 전체 reload 금지
                             let indexPath = IndexPath(row: idx, section: 0)
                             if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
-                                cell.updateStreamingText(newText, fadeDuration: 0.25)
+                                cell.updateStreamingText(newText, fadeDuration: 0.4)
                             }
 
                             // 2) 행 높이 재계산은 과도한 레이아웃 점프를 막기 위해 드물게 수행

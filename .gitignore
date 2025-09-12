@@ -5,6 +5,7 @@
 .serena
 *.sh
 *.disabled
+GEMINI.md
 CLAUDE.md
 .specstory
 build_test

@@ -1480,7 +1480,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = EmoZleep;
+				INFOPLIST_KEY_CFBundleDisplayName = "리플릿(Leaflet)";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1510,7 +1510,7 @@
 				DEVELOPMENT_TEAM = D4P5YAD8CF;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DeepSleepApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = EmoZleep;
+				INFOPLIST_KEY_CFBundleDisplayName = "리플릿(Leaflet)";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
