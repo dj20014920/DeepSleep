@@ -91,7 +91,7 @@ class PermissionSettingsViewController: UIViewController {
         
         // 설명 라벨
         headerDescriptionLabel.translatesAutoresizingMaskIntoConstraints = false
-        headerDescriptionLabel.text = "DeepSleep이 제대로 작동하기 위해 필요한 권한들을 관리하세요.\n권한이 거부된 경우 해당 기능을 사용할 수 없습니다."
+        headerDescriptionLabel.text = "리플릿(Leaflet)이 제대로 작동하기 위해 필요한 권한들을 관리하세요.\n권한이 거부된 경우 해당 기능을 사용할 수 없습니다."
         headerDescriptionLabel.font = UIFont.systemFont(ofSize: 14)
         headerDescriptionLabel.textColor = UIDesignSystem.Colors.secondaryText
         headerDescriptionLabel.numberOfLines = 0
@@ -229,7 +229,7 @@ extension PermissionSettingsViewController: PermissionItemViewDelegate {
         
         switch permissionType {
         case .calendar:
-            message = "📅 캘린더 권한이 거부되었습니다.\n\n할 일을 시스템 캘린더에 동기화하려면 설정에서 직접 권한을 허용해주세요.\n\n설정 > 개인정보보호 > 캘린더 > DeepSleep"
+            message = "📅 캘린더 권한이 거부되었습니다.\n\n할 일을 시스템 캘린더에 동기화하려면 설정에서 직접 권한을 허용해주세요.\n\n설정 > 개인정보보호 > 캘린더 > 리플릿(Leaflet)"
         case .notification:
             message = "🔔 알림 권한이 거부되었습니다.\n\n할 일 미리 알림을 받으려면 설정에서 직접 권한을 허용해주세요."
         case .health:

@@ -1132,7 +1132,7 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         let alert = UIAlertController(
             title: "🎵 수면 사운드 시작하기",
             message: """
-            EmoZleep의 수면 사운드 기능을 만나보세요!
+            리플릿(Leaflet) 의 수면 사운드 기능을 만나보세요!
 
             ✨ 주요 기능:
             • 13가지 사운드 카테고리 (파도, 빗소리, 숲 등)

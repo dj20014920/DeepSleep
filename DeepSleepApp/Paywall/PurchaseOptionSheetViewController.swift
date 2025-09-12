@@ -28,6 +28,7 @@ final class PurchaseOptionSheetViewController: UIViewController {
     private let benefitsLabel = UILabel()
     private let usageSummaryLabel = UILabel()
     private let priceLabel = UILabel()
+    private let trialInfoButton = UIButton(type: .system)
     private let confirmButton = UIButton(type: .system)
     private let cancelButton = UIButton(type: .system)
 
@@ -98,7 +99,13 @@ final class PurchaseOptionSheetViewController: UIViewController {
         cancelButton.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
         cancelButton.addTarget(self, action: #selector(tapCancel), for: .touchUpInside)
 
-        [titleLabel, descLabel, benefitsLabel, usageSummaryLabel, tierSegment, termSegment, priceLabel, confirmButton, cancelButton].forEach { stack.addArrangedSubview($0) }
+        // 안내 링크(구독/체험 안내)
+        trialInfoButton.setTitle("구독/체험 안내", for: .normal)
+        trialInfoButton.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+        trialInfoButton.setTitleColor(.link, for: .normal)
+        trialInfoButton.addTarget(self, action: #selector(openTrialInfo), for: .touchUpInside)
+
+        [titleLabel, descLabel, benefitsLabel, usageSummaryLabel, tierSegment, termSegment, priceLabel, trialInfoButton, confirmButton, cancelButton].forEach { stack.addArrangedSubview($0) }
         view.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -191,4 +198,11 @@ final class PurchaseOptionSheetViewController: UIViewController {
     }
 
     @objc private func tapCancel() { dismiss(animated: true) }
+
+    @objc private func openTrialInfo() {
+        // 웹 문서(/legal/trial)로 이동 — 실제 배포 URL 확정 시 여기만 교체하면 됨
+        if let url = URL(string: "https://emozleep.space") {
+            UIApplication.shared.open(url)
+        }
+    }
 }

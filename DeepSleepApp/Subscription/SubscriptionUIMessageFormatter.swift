@@ -43,9 +43,10 @@ public enum SubscriptionUIMessageFormatter {
         return isTrialEligible ? "무료 • 첫 구독자 7일 체험 가능" : "무료 • 7일 무료체험은 첫 구독자 대상"
     }
 
-    /// 페이월: 혜택 요약(상단 짧은 문구)
+    /// 페이월/결제 시트: 혜택 요약(상단 짧은 문구)
+    /// 요구사항에 따라 '일일 대화 상한 · 프리셋 · 할 일 조언 · 대화 모델 선택'만 노출
     public static func summaryBenefitsKO() -> String {
-        return "광고 제거 • 고음질 사운드 • 프리셋 무제한 저장 • 우선 처리"
+        return "일일 대화 상한 • 프리셋 • 할 일 조언 • 모델 선택"
     }
 
     /// 페이월: 하단 자동갱신/취소 고지(KO)

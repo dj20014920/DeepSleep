@@ -1,6 +1,6 @@
 import UIKit
 
-/// 정책 모음집 허브 (DeepSleepApp 타겟 기본 경로)
+/// 정책 모음집 허브 (리플릿(Leaflet)App 타겟 기본 경로)
 /// - 개인정보처리방침/이용약관(앱 내 텍스트) / 구독 관리 딥링크 / 건강 면책 고지
 final class PolicyHubViewController: UITableViewController {
     private enum PolicyItem: Int, CaseIterable {
@@ -61,7 +61,7 @@ final class PolicyHubViewController: UITableViewController {
     private let privacyText: String = """
     [개인정보처리방침]
     
-    EmoZleep(이하 “앱”)은 개인정보 보호법 등 관련 법령을 준수하며, 서비스 제공에 필요한 최소한의 개인정보만을 처리합니다.
+    리플릿(Leaflet)(이하 “앱”)은 개인정보 보호법 등 관련 법령을 준수하며, 서비스 제공에 필요한 최소한의 개인정보만을 처리합니다.
     
     1) 수집 및 처리 항목
        - 필수: 앱 사용 기록(요청/응답 시각, 기능별 사용 횟수 등 비식별 통계)
@@ -93,7 +93,7 @@ final class PolicyHubViewController: UITableViewController {
     private let termsText: String = """
     [이용약관]
     
-    제1조(목적) 이 약관은 DeepSleep(이하 “앱”)이 제공하는 서비스의 이용 조건 및 절차, 권리·의무 등 기본 사항을 규정합니다.
+    제1조(목적) 이 약관은 리플릿(Leaflet)(이하 “앱”)이 제공하는 서비스의 이용 조건 및 절차, 권리·의무 등 기본 사항을 규정합니다.
     
     제2조(용어 정의) 주요 용어의 정의는 앱 내 안내에 따르며, 별도 정의가 없는 경우 관련 법령 및 일반 관례에 따릅니다.
     
@@ -123,7 +123,7 @@ final class PolicyHubViewController: UITableViewController {
     private let aiUsagePolicyText: String = """
     [대나무숲 친구 AI 사용 정책]
     
-    DeepSleep은 사용자에게 최고의 AI 경험을 제공하기 위해 다음과 같은 AI 정책을 운영합니다.
+    리플릿(Leaflet)은 사용자에게 최고의 AI 경험을 제공하기 위해 다음과 같은 AI 정책을 운영합니다.
     
     1) 대나무숲 친구 모델 시스템
        - 통합 모델: Claude 3.5 Haiku, OpenAI GPT-4o Mini, Google Gemini 2.0 Flash-Lite, Naver HyperCLOVA X
@@ -155,7 +155,7 @@ final class PolicyHubViewController: UITableViewController {
     private let securityPolicyText: String = """
     [보안 및 데이터 보호 정책]
     
-    DeepSleep은 사용자의 데이터 보안과 개인정보 보호를 최우선으로 하여 다음과 같은 보안 시스템을 운영합니다.
+    리플릿(Leaflet)은 사용자의 데이터 보안과 개인정보 보호를 최우선으로 하여 다음과 같은 보안 시스템을 운영합니다.
     
     1) API 키 보호 시스템
        - 프록시 서버: Cloudflare Workers 기반 중계 서버로 API 키 완전 보호
@@ -193,7 +193,7 @@ final class PolicyHubViewController: UITableViewController {
     private let contactSupportText: String = """
     [문의 및 지원]
     
-    DeepSleep 사용 중 궁금한 점이나 문제가 있으시면 언제든 연락해 주세요.
+    리플릿(Leaflet) 사용 중 궁금한 점이나 문제가 있으시면 언제든 연락해 주세요.
     
     1) 앱 내 문의
        - 경로: 설정 > 개발자 피드백
@@ -218,18 +218,18 @@ final class PolicyHubViewController: UITableViewController {
        - 앱 내 문의를 통해 [긴급] 표시하여 문의
     
     5) 개발자 정보
-       - 개발사: EmoZleep (개인사업자)
+       - 개발사: DJ (개인사업자)
        - 위치: 대한민국
        - 언어: 한국어, 영어 지원
     
-    사용자의 소중한 의견은 DeepSleep을 더 나은 앱으로 만드는 데 큰 도움이 됩니다. 
+    사용자의 소중한 의견은 리플릿(Leaflet)을 더 나은 앱으로 만드는 데 큰 도움이 됩니다. 
     언제든 편하게 문의해 주세요!
     """
 
     private let dataRetentionText: String = """
     [데이터 보존 및 자동 정리 정책]
     
-    DeepSleep은 사용자 경험과 성능 최적화를 위해 다음과 같은 보존 정책을 적용합니다.
+    리플릿(Leaflet)은 사용자 경험과 성능 최적화를 위해 다음과 같은 보존 정책을 적용합니다.
     
     1) 보존/정리 주기
        - 30일이 지난 대화 세션: 요약 메시지 1건으로 압축합니다(핵심 맥락만 보존).
@@ -253,7 +253,7 @@ final class PolicyHubViewController: UITableViewController {
     private let permissionsPolicyText: String = """
     [앱 권한 사용 정책]
     
-    DeepSleep은 앱 기능 제공을 위해 최소한의 권한만을 요청하며, 사용자의 동의 하에만 사용합니다.
+    리플릿(Leaflet)은 앱 기능 제공을 위해 최소한의 권한만을 요청하며, 사용자의 동의 하에만 사용합니다.
     
     1) 요력 권한
        - 사용 목적: 할 일을 시스템 얙륵에 동기화하여 다른 앱에서도 확인 및 알림 수신 가능
@@ -368,7 +368,7 @@ final class PolicyHubViewController: UITableViewController {
     private func showContactSupport() {
         let alert = UIAlertController(
             title: "문의 및 지원",
-            message: "DeepSleep 사용 중 궁금한 점이나 문제가 있으시면 언제든 연락해 주세요.",
+            message: "리플릿(Leaflet) 사용 중 궁금한 점이나 문제가 있으시면 언제든 연락해 주세요.",
             preferredStyle: .actionSheet
         )
         

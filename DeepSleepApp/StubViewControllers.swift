@@ -736,7 +736,7 @@ class FeedbackViewController: UIViewController, MFMailComposeViewControllerDeleg
             let composer = MFMailComposeViewController()
             composer.mailComposeDelegate = self
             composer.setToRecipients([recipient])
-            composer.setSubject("[DeepSleep] 피드백/문의")
+            composer.setSubject("[리플릿(Leaflet)] 피드백/문의")
             composer.setMessageBody(buildDefaultBody(), isHTML: false)
             
             if attachLogsSwitch.isOn, let logData = UnifiedLogger.shared.getLogFileContents()?.data(using: .utf8) {
@@ -745,7 +745,7 @@ class FeedbackViewController: UIViewController, MFMailComposeViewControllerDeleg
             present(composer, animated: true)
         } else {
             // 기본 메일 앱으로 이동 (mailto)
-            if let url = URL(string: "mailto:\(recipient)?subject=\"[DeepSleep]%20피드백/문의\"") {
+            if let url = URL(string: "mailto:\(recipient)?subject=\"[리플릿(Leaflet)]%20피드백/문의\"") {
                 UIApplication.shared.open(url)
             }
         }
@@ -757,7 +757,7 @@ class FeedbackViewController: UIViewController, MFMailComposeViewControllerDeleg
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
         return """
-        안녕하세요, DeepSleep 팀께.
+        안녕하세요, 리플릿(Leaflet) 팀께.
         
         [여기에 피드백/문의 내용을 작성해주세요]
         

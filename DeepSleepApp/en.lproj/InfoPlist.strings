@@ -1,0 +1,8 @@
+/* InfoPlist.strings (English - en.lproj)
+   Display name under the app icon
+*/
+
+"CFBundleDisplayName" = "Leaflet";
+
+/* Optional: App name in some system contexts */
+"CFBundleName" = "Leaflet";

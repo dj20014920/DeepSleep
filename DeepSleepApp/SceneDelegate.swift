@@ -392,7 +392,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 extension SceneDelegate {
     /// 🎯 온보딩 우선 표시
     func showOnboardingFirst() {
-        print("🎯 [SceneDelegate] EmoZleep 온보딩 화면 표시")
+        print("🎯 [SceneDelegate] 리플릿(Leaflet) 온보딩 화면 표시")
 
         let onboardingVC = OnboardingViewController()
         onboardingVC.modalPresentationStyle = .fullScreen

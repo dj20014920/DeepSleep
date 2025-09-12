@@ -561,16 +561,16 @@ class PresetSharingManager {
         
         switch result {
         case .success(let shareCode):
-            let appStoreURL = "https://apps.apple.com/app/deepsleep/id123456789" // 실제 배포 시 변경 필요
+            let appStoreURL = "https://apps.apple.com/app/deepsleep/id123456789" // 실제 배포 시 변경 필요 Todo
             
             let message = """
-            🎵 EmoZleep 프리셋: \(preset.name)
+            🎵 리플릿(Leaflet) 프리셋: \(preset.name)
             
-            아래 코드를 EmoZleep 앱에서 가져오기하여 프리셋을 사용하세요:
+            아래 코드를 리플릿(Leaflet) 앱에서 가져오기하여 프리셋을 사용하세요:
             
             \(shareCode)
             
-            📱 EmoZleep 앱이 없다면 여기서 다운로드:
+            📱 리플릿(Leaflet) 앱이 없다면 여기서 다운로드:
             \(appStoreURL)
             
             (이 코드는 24시간 후 만료됩니다)

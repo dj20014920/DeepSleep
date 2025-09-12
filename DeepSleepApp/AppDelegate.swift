@@ -540,7 +540,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     /// API 설정 안내 알림 스케줄링
     private func scheduleAPISetupNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "DeepSleep API 설정 필요"
+        content.title = "리플릿(Leaflet) API 설정 필요"
         content.body = "AI 기능을 사용하기 위해 API 키 설정이 필요합니다."
         content.sound = UNNotificationSound.default
         

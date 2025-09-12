@@ -199,7 +199,7 @@ final class UserFriendlyErrorHandler {
             권한 설정 방법:
             
             1. 설정 앱을 열어주세요
-            2. DeepSleep 앱을 찾아주세요
+            2. 리플릿(Leaflet) 앱을 찾아주세요
             3. 필요한 권한들을 허용해주세요
             4. 앱을 다시 시작해주세요
             

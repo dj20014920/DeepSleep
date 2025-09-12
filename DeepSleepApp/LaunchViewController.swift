@@ -1,6 +1,6 @@
 //
 //  LaunchViewController.swift
-//  EmoZleep
+//  Leaflet
 //
 //  Created on 2025-01-20.
 //
@@ -86,7 +86,7 @@ class LaunchViewController: UIViewController {
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         
         // 메인 타이틀
-        titleLabel.text = "EmoZleep"
+        titleLabel.text = "리플릿(Leaflet)"
         titleLabel.font = UIFont.systemFont(ofSize: 36, weight: .light)
         titleLabel.textColor = .white // 라이트/다크 상관없이 흰색 고정
         titleLabel.textAlignment = .center

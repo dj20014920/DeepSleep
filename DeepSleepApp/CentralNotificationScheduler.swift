@@ -66,7 +66,7 @@ final class CentralNotificationScheduler {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
 
         let content = UNMutableNotificationContent()
-        content.title = "EmoZleep 타이머 완료"
+        content.title = "리플릿(Leaflet) 타이머 완료"
         content.body = "설정하신 시간이 되었습니다. 사운드가 꺼집니다."
         content.sound = .default
         content.badge = 1
@@ -192,5 +192,5 @@ final class CentralNotificationScheduler {
 // MARK: - Identifiers
 private enum NotificationIdentifier {
     static let timer = "DeepSleep.timer"
-    static let fortune = "DeepSleep.fortune"
+    static let fortune = "Leaflet.fortune"
 }

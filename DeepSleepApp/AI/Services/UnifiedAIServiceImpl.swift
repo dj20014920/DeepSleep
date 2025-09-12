@@ -1307,7 +1307,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let basePromptText = getBaseSystemPromptForMode(mode)
         let generalGuidelines = """
             핵심 지침:
-            - 당신은 역할은 우리 어플(EmoZleep)의 대나무숲(채팅창) 친구임
+            - 당신은 역할은 우리 어플[리플릿(Leaflet)]의 대나무숲(채팅창) 친구임
             - 한국어로 사용자의 페르소나와 감정과 말투와 상황의 따라 유연하게 친근하고 친절하게 대답할 것
             - 시스템 텍스트를 그대로 복사/반영하지 말 것.
             - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트로 답변.
@@ -1465,7 +1465,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             let candidateLine =
                 candidates.isEmpty ? "" : "\n[시간대 후보 Top-5] " + candidates.joined(separator: ", ")
             return """
-                EmoZleep 사운드 큐레이터.
+                사운드 큐레이터.
                 - 오직 JSON 객체 1개만 출력(추가 텍스트/코드펜스/주석 금지)
                 - items: 1–13개, volume: 0–100 정수
                 - soundName: 카탈로그 이름, versionName: 해당 사운드의 버전

@@ -1272,8 +1272,8 @@ final class SoundManager {
             nowPlayingInfo[MPMediaItemPropertyTitle] = presetName
             print("🔵 [NowPlayingInfo DEBUG] Title 설정: \(presetName)")
         } else if isEffectivelyPlaying {  // 재생 중일 때만 기본 제목 설정
-            nowPlayingInfo[MPMediaItemPropertyTitle] = "EmoZleep 사운드"  // 앱 이름 변경 반영
-            print("🔵 [NowPlayingInfo DEBUG] Title 기본값 설정: EmoZleep 사운드")
+            nowPlayingInfo[MPMediaItemPropertyTitle] = "리플릿 사운드"  // 앱 이름 한국어 표기
+            print("🔵 [NowPlayingInfo DEBUG] Title 기본값 설정: 리플릿 사운드")
         } else {
             // 재생 중이 아니고 프리셋 이름도 없으면 정보센터 클리어
             DispatchQueue.main.async {
@@ -1286,8 +1286,8 @@ final class SoundManager {
             return
         }
 
-        nowPlayingInfo[MPMediaItemPropertyArtist] = "EmoZleep"  // 앱 이름 변경 반영
-        print("🔵 [NowPlayingInfo DEBUG] Artist 설정: EmoZleep")
+        nowPlayingInfo[MPMediaItemPropertyArtist] = "리플릿"  // 아티스트 표기 한글
+        print("🔵 [NowPlayingInfo DEBUG] Artist 설정: 리플릿")
 
         // 앨범 아트
         let _ = false

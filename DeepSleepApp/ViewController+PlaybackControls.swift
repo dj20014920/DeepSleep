@@ -24,7 +24,7 @@ extension ViewController {
         // SoundManager.shared.playAll() 내부의 개별 play()가 nowPlayingInfo를 업데이트하지만,
         // 여기서는 명시적으로 프리셋 이름과 전체 재생 상태를 한 번 더 업데이트합니다.
         print("▶️ ViewController: playAllTapped() - SoundManager.shared.updateNowPlayingInfo 호출 직전")
-        SoundManager.shared.updateNowPlayingInfo(presetName: "DeepSleep 믹스", isPlayingOverride: true)
+        SoundManager.shared.updateNowPlayingInfo(presetName: "Leaflet 믹스", isPlayingOverride: true)
         updatePlayButtonStates()
         provideMediumHapticFeedback()
 

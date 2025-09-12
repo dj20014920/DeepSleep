@@ -7,7 +7,7 @@ import os.log
 class RemoteLogger {
     static let shared = RemoteLogger()
     
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepSleep", category: "RemoteLogger")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "리플릿(Leaflet)", category: "RemoteLogger")
     private var logBuffer: [LogEntry] = []
     private let maxBufferSize = 100
     private let monitor = NWPathMonitor()

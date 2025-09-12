@@ -192,7 +192,7 @@ class SettingsViewController: UIViewController {
         // 앱 정보 항목들
         aboutSection.addItem(SettingsItem(
             title: "버전 정보",
-            //subtitle: "EmoZleep \(AppVersionInfo.formatted())",
+            subtitle: "리플릿(Leaflet) \(AppVersionInfo.formatted())",
             type: .info,
             action: nil
         ))
@@ -349,7 +349,7 @@ extension SettingsViewController {
 
     private func showOnboardingRestart() {
         let alert = UIAlertController(
-            title: "🎯 EmoZleep 둘러보기",
+            title: "리플릿(Leaflet) 둘러보기",
             message: "앱의 주요 기능들을 다시 한 번 살펴보시겠습니까?",
             preferredStyle: .alert
         )

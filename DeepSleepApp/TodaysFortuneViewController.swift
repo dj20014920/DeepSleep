@@ -1288,7 +1288,7 @@ class TodaysFortuneViewController: UIViewController {
 
         ⚠️ 본 콘텐츠는 엔터테인먼트 목적이며, 전문적 조언이 아닙니다. 재미로만 봐주세요.
 
-        #오늘의운세 #DeepSleep #맞춤운세
+        #오늘의운세 #리플릿 #맞춤운세
         """
     }
 

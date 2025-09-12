@@ -31,9 +31,19 @@ enum ProxyTierReporter {
         let signingMessage = ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: useNonce ? nonce : nil)
         let sig = ProxyAuthSigner.hmacSHA256Hex(message: signingMessage, secret: secret)
 
-        var body: [String: Any] = ["productId": transaction.productID]
+        var body: [String: Any] = [
+            "productId": transaction.productID
+        ]
+        let purchaseAt = transaction.purchaseDate
+        body["purchaseDateMs"] = Int64(purchaseAt.timeIntervalSince1970 * 1000)
         if let exp = transaction.expirationDate {
             body["expiresAtMs"] = Int64(exp.timeIntervalSince1970 * 1000)
+        }
+        // 휴리스틱: 구매~만료가 약 7일(5~8일) 범위면 트라이얼로 추정
+        if let e = transaction.expirationDate {
+            let days = e.timeIntervalSince(purchaseAt) / (24 * 3600)
+            let isTrial = (days >= 5.0 && days <= 8.0)
+            body["trialHeuristic"] = isTrial
         }
 
         var req = URLRequest(url: url)
