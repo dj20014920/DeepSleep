@@ -227,10 +227,8 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
         print("🎯 Trial badge tapped - presenting subscription tier selection")
         #endif
         
-        let tierVC = SubscriptionTierSelectionViewController()
-        let nav = UINavigationController(rootViewController: tierVC)
-        nav.modalPresentationStyle = .formSheet
-        present(nav, animated: true)
+        // 구독 선택 화면을 생략하고 간편 결제 시트로 직행
+        PaywallPresenter.present(from: self)
     }
     
     /// 기본 슬라이더 UI만 설정 (데이터 로딩 최소화)

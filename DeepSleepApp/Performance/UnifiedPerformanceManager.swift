@@ -132,7 +132,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
         lastOptimizationTime = Date()
         performanceOptimizer.endPerformanceMeasurement("optimizeForCurrentConditions")
         
-        UnifiedLogger.shared.info("현재 조건에 맞는 최적화 완료: \(status.performanceLevel.rawValue)", category: .performance)
     }
     
     func getSystemStatus() -> SystemPerformanceStatus {

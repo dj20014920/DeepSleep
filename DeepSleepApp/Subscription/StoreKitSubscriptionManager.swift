@@ -54,7 +54,10 @@ public final class StoreKitSubscriptionManager: NSObject {
     }
 
     /// 특정 상품이 로드되었는지
-    public func hasProduct(_ product: SubscriptionProduct) -> Bool { products[product] != nil }
+    public func hasProduct(_ product: SubscriptionProduct) -> Bool {
+        if products[product] != nil { return true }
+        return isScreenshotMode
+    }
 
     /// 첫 구독자 무료 체험 가능 여부(최소 정책): 과거 거래가 전무하면 eligible
     public var isTrialEligible: Bool {
@@ -293,8 +296,17 @@ private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
 
     // MARK: - Price Helpers
     public func displayPrice(for product: SubscriptionProduct) -> String? {
-        guard let p = products[product] else { return nil }
-        return p.displayPrice
+        if let p = products[product] { return p.displayPrice }
+        // 스크린샷 모드에서는 예시 가격 제공
+        if isScreenshotMode {
+            switch product {
+            case .proMonthly: return "₩6,600"
+            case .proYearly:  return "₩66,000"
+            case .maxMonthly: return "₩11,000"
+            case .maxYearly:  return "₩99,000"
+            }
+        }
+        return nil
     }
 
     public func trialDaysRemaining(for product: SubscriptionProduct) -> Int? {
@@ -303,6 +315,15 @@ private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         // 현재는 구매 전 안내 단계에서 항상 7일을 노출합니다(eligible 한 경우).
         return isTrialEligible ? 7 : nil
     }
+}
+
+// MARK: - Screenshot/Fallback helpers
+private extension StoreKitSubscriptionManager {
+    var isScreenshotMode: Bool {
+        ProcessInfo.processInfo.environment["IAP_SCREENSHOT"] == "1"
+    }
+    
+    // hasProduct가 공개되어 있어 확장 불가 → 기존 메서드를 대체하는 형식으로 상단 구현 유지
 }
 
 // MARK: - Proxy tier reporting helper (in-file to avoid project membership issues)

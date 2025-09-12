@@ -1795,10 +1795,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 title: "업그레이드", style: .default,
                 handler: { [weak self] _ in
                     guard let self = self else { return }
-                    let vc = PaywallViewController()
-                    let nav = UINavigationController(rootViewController: vc)
-                    nav.modalPresentationStyle = .formSheet
-                    self.present(nav, animated: true)
+                    PaywallPresenter.present(from: self)
                 }))
         present(alert, animated: true)
     }

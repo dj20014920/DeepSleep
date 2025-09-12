@@ -50,6 +50,13 @@
             ReferencedContainer = "container:DeepSleep.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "IAP_SCREENSHOT"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
       <StoreKitConfigurationFileReference
          identifier = "../../DeepSleepApp/StoreKit/DeepSleep.storekit">
       </StoreKitConfigurationFileReference>

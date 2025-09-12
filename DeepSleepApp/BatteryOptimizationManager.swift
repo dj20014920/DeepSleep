@@ -226,7 +226,6 @@ final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationPro
         // 백그라운드 작업 제한 플래그 설정
         UserDefaults.standard.set(true, forKey: "limit_background_ai_processing")
         
-        UnifiedLogger.shared.info("비필수 AI 기능 일시 비활성화 완료", category: .ai)
     }
     
     private func suspendNonCriticalBackgroundTasks() {
@@ -247,7 +246,6 @@ final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationPro
         // 네트워크 사용 제한
         UserDefaults.standard.set(false, forKey: "allow_cellular_data")
         
-        UnifiedLogger.shared.info("비중요 백그라운드 작업 일시 중단 완료", category: .system)
     }
     
     private func restoreFullFunctionality() {
@@ -273,12 +271,10 @@ final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationPro
         // 네트워크 설정 복원
         UserDefaults.standard.set(true, forKey: "allow_cellular_data")
         
-        UnifiedLogger.shared.info("전체 기능 복원 완료", category: .system)
     }
     
     // MARK: - Public Methods
     func requestBatteryOptimization() {
-        UnifiedLogger.shared.info("배터리 최적화 요청됨", category: .system)
         
         let currentLevel = calculateOptimizationLevel(
             batteryLevel: batteryLevel,
@@ -421,7 +417,6 @@ class MLInferenceOptimizer: MLInferenceOptimizationProtocol {
             self.applyPerformanceSettings(mode)
             
             DispatchQueue.main.async {
-                UnifiedLogger.shared.info("ML 추론 성능 모드 변경: \(mode.description)", category: .ai)
             }
         }
     }
@@ -698,7 +693,6 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
                 }
             }
             
-            UnifiedLogger.shared.warning("초과 백그라운드 작업 \(tasksToSuspend.count)개 종료", category: .system)
         }
     }
     
@@ -767,7 +761,6 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
             UserDefaults.standard.set(false, forKey: "suspend_\(taskType)")
         }
         
-        UnifiedLogger.shared.info("일시 중단된 작업 타입: \(disallowedTypes)", category: .system)
     }
     
     private func updateSystemSettings(for level: ThrottlingLevel) {
@@ -798,13 +791,11 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
     func scheduleBackgroundTask(type: BackgroundTaskType, task: @escaping () -> Void) -> Bool {
         // 현재 제한 레벨에서 이 작업이 허용되는지 확인
         guard currentThrottlingLevel.allowedTaskTypes.contains(type) else {
-            UnifiedLogger.shared.warning("작업 타입 \(type.rawValue)은 현재 제한 레벨에서 허용되지 않음", category: .system)
             return false
         }
         
         // 동시 실행 작업 수 확인
         guard activeBackgroundTasks.count < currentThrottlingLevel.maxConcurrentTasks else {
-            UnifiedLogger.shared.warning("최대 동시 실행 작업 수 초과", category: .system)
             return false
         }
         
@@ -814,7 +805,6 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
         }
         
         guard taskId != .invalid else {
-            UnifiedLogger.shared.error("백그라운드 작업 시작 실패", category: .system)
             return false
         }
         
@@ -835,7 +825,6 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
     }
     
     private func cleanupBackgroundTask(type: BackgroundTaskType) {
-        UnifiedLogger.shared.warning("백그라운드 작업 \(type.rawValue) 시간 초과로 정리", category: .system)
         
         // 작업 관련 리소스 정리
         NotificationCenter.default.post(
@@ -868,6 +857,5 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
             UserDefaults.standard.removeObject(forKey: "suspend_\(taskType.rawValue)")
         }
         
-        UnifiedLogger.shared.info("모든 백그라운드 작업 복원 완료", category: .system)
     }
 }

@@ -1,20 +1,22 @@
 import UIKit
 
-/// Paywall 표시를 중앙에서 관리(중복 방지)
+/// 간편 결제 시트를 중앙에서 표시(배지/게이트 공용 진입점)
 public enum PaywallPresenter {
-    public static func present(from host: UIViewController, reason: String? = nil,
+    public static func present(from host: UIViewController,
+                               reason: String? = nil,
                                monthlyPrice: String? = nil,
                                yearlyPrice: String? = nil,
                                trialDaysRemaining: Int? = nil,
-                               delegate: PaywallViewControllerDelegate? = nil) {
-        let vc = PaywallViewController()
-        vc.monthlyDisplayPrice = monthlyPrice
-        vc.yearlyDisplayPrice = yearlyPrice
-        vc.trialDaysRemaining = trialDaysRemaining
-        vc.delegate = delegate
-        vc.modalPresentationStyle = .formSheet
-        host.present(vc, animated: true)
-
-        // 가격/Trial은 Paywall 내부에서 자동 로딩됨
+                               delegate: AnyObject? = nil) {
+        let defaultTier: PurchaseOptionSheetViewController.Tier = .pro
+        let defaultTerm: PurchaseOptionSheetViewController.Term = .monthly
+        let sheet = PurchaseOptionSheetViewController(model: .init(
+            tier: defaultTier,
+            term: defaultTerm,
+            trialDays: trialDaysRemaining
+        ))
+        sheet.modalPresentationStyle = .pageSheet
+        UnifiedLogger.shared.logUI("paywall_view")
+        host.present(sheet, animated: true)
     }
 }

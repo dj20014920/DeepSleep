@@ -1244,7 +1244,6 @@ struct PresetRecommendation: Codable {
             )
         }
         
-        UnifiedLogger.shared.debug("📊 컨텍스트 최적화 완료: \(timeOfDay) 시간대 적용")
         return contextOptimizedRecommendation
     }
     

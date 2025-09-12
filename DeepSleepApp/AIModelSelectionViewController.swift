@@ -275,10 +275,7 @@ class AIModelSelectionViewController: UIViewController {
         return model == .freeModel || model == .gemini
     }
     private func presentPaywall() {
-        let paywall = PaywallViewController()
-        let nav = UINavigationController(rootViewController: paywall)
-        nav.modalPresentationStyle = .formSheet
-        present(nav, animated: true)
+        PaywallPresenter.present(from: self)
     }
 }
 
