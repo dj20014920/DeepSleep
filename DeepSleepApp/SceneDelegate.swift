@@ -70,12 +70,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Called when the scene has moved from an inactive state to an active state.
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
         print("🟢 [SceneDelegate] Scene이 활성화됨")
-        
+
         // SoundManager에게 Scene 활성화 알림
         SoundManager.shared.handleSceneStateChange(isActive: true)
-        
+
         // 재생 상태 복원 (필요시)
         SoundManager.shared.restorePlaybackStateIfNeeded()
+
+        // 홈 화면 아이콘은 항상 흰색으로 유지
+        AppIconManager.enforceWhiteIcon()
         
         // 메인 화면 이동 노티피케이션 관찰
         NotificationCenter.default.addObserver(

@@ -133,6 +133,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 self.handleFeedbackLearningTask(task: task as! BGAppRefreshTask)
             }
         }
+
+        // 초기 앱 실행 시 항상 흰색 아이콘 강제 적용
+        AppIconManager.enforceWhiteIcon()
         return true
     }
 

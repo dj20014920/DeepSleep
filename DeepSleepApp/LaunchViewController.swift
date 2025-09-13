@@ -14,6 +14,9 @@ class LaunchViewController: UIViewController {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private var hasSetupConstraints = false
+    private var iconWidthConstraint: NSLayoutConstraint?
+    private var iconHeightConstraint: NSLayoutConstraint?
+    private var iconCenterYConstraint: NSLayoutConstraint?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,6 +41,12 @@ class LaunchViewController: UIViewController {
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         setupGradientBackground()
+        // 앱 아이콘(홈 화면)도 라이트/다크에 따라 동기화
+        AppIconManager.updateForTraitCollection(traitCollection)
+        // 라이트/다크 변경 시 아이콘/크기/위치 동기화
+        updateIconForCurrentAppearance()
+        updateIconSizeForCurrentAppearance()
+        updateIconTransformForCurrentAppearance()
     }
     
     private func setupGradientBackground() {
@@ -72,12 +81,8 @@ class LaunchViewController: UIViewController {
     }
     
     private func setupViews() {
-        // 앱 아이콘 이미지뷰 (에셋에 라이트/다크 변형이 있다면 자동 적용됨)
-        // 권장: Assets.xcassets에 "LaunchLogo" 이미지셋을 만들고 Appearances(Any, Dark)로 변형을 넣으면 자동 동기화됨
-        iconImageView.image = (UIImage(named: "LaunchLogo") ?? UIImage(systemName: "moon.fill"))?.withRenderingMode(.alwaysTemplate)
+        // 앱 아이콘 이미지뷰 (이미지는 모드에 따라 동적으로 설정)
         iconImageView.contentMode = .scaleAspectFit
-        // 요청: 라이트/다크 상관없이 아이콘은 흰색
-        iconImageView.tintColor = .white
         iconImageView.layer.cornerRadius = 20
         iconImageView.layer.shadowColor = UIColor.black.cgColor
         iconImageView.layer.shadowOffset = CGSize(width: 0, height: 4)
@@ -93,7 +98,7 @@ class LaunchViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // 서브타이틀 추가
-        subtitleLabel.text = "대나무숲 친구와 함께하는 감정 기록"
+        subtitleLabel.text = "대나무숲 친구와 함께하는 미니 다이어리"
         subtitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .light)
         subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.9) // 라이트/다크 상관없이 흰색 고정
         subtitleLabel.textAlignment = .center
@@ -107,15 +112,25 @@ class LaunchViewController: UIViewController {
         view.addSubview(iconImageView)
         view.addSubview(titleLabel)
         view.addSubview(subtitleLabel)
+
+        // 초기 아이콘 적용
+        updateIconForCurrentAppearance()
     }
     
     private func setupConstraints() {
+        let w = iconImageView.widthAnchor.constraint(equalToConstant: 120)
+        let h = iconImageView.heightAnchor.constraint(equalToConstant: 120)
+        iconWidthConstraint = w
+        iconHeightConstraint = h
+        let cY = iconImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -150)
+        iconCenterYConstraint = cY
+
         NSLayoutConstraint.activate([
             // 아이콘을 화면 중앙보다 약간 위에 배치
             iconImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            iconImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -150),
-            iconImageView.widthAnchor.constraint(equalToConstant: 120),
-            iconImageView.heightAnchor.constraint(equalToConstant: 120),
+            cY,
+            w,
+            h,
             
             // 타이틀을 아이콘 아래에 배치
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -129,6 +144,10 @@ class LaunchViewController: UIViewController {
             subtitleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
             subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20)
         ])
+
+        // 라이트/다크에 따라 초기 크기/위치 반영
+        updateIconSizeForCurrentAppearance()
+        updateIconTransformForCurrentAppearance()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -214,6 +233,42 @@ class LaunchViewController: UIViewController {
             // 마지막 수단: 직접 화면 전환
             print("⚠️ SceneDelegate를 찾을 수 없어 직접 화면 전환을 시도합니다")
             fallbackTransition()
+        }
+    }
+
+    // MARK: - Appearance 기반 아이콘 스위칭
+    private func updateIconForCurrentAppearance() {
+        let style = traitCollection.userInterfaceStyle
+        if style == .dark {
+            // 다크 모드: 달 모양 + 흰색 단색
+            let moon = UIImage(systemName: "moon.fill")?.withRenderingMode(.alwaysTemplate)
+            iconImageView.image = moon
+            iconImageView.tintColor = .white
+        } else {
+            // 라이트 모드: SF Symbol 구름 아이콘(흰색 단색)
+            let cloud = UIImage(systemName: "cloud.fill")?.withRenderingMode(.alwaysTemplate)
+            iconImageView.image = cloud
+            iconImageView.tintColor = .white
+        }
+    }
+
+    /// 구름 아이콘(라이트 모드)만 1.3배로 확대, 달(다크 모드)은 기존 크기 유지
+    private func updateIconSizeForCurrentAppearance() {
+        let base: CGFloat = 120
+        let style = traitCollection.userInterfaceStyle
+        let target: CGFloat = (style == .dark) ? base : CGFloat(round(base * 1.3)) // 156
+        iconWidthConstraint?.constant = target
+        iconHeightConstraint?.constant = target
+        view.layoutIfNeeded()
+    }
+
+    /// 라이트 모드에서만 아이콘을 20pt 아래로 translate (제약과 무관하게 확실히 적용)
+    private func updateIconTransformForCurrentAppearance() {
+        let style = traitCollection.userInterfaceStyle
+        if style == .dark {
+            iconImageView.transform = .identity
+        } else {
+            iconImageView.transform = CGAffineTransform(translationX: 0, y: 30)
         }
     }
 

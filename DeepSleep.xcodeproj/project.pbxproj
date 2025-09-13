@@ -16,6 +16,9 @@
 		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
 		E04980D22E6F08E300343E29 /* AdTopContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */; };
 		E04980DA2E6FEA5200343E29 /* UsageGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04980D92E6FEA5200343E29 /* UsageGate.swift */; };
+		E05203302E754C450073BBF4 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = E052032E2E754C440073BBF4 /* InfoPlist.strings */; };
+		E05203332E754C4B0073BBF4 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = E05203312E754C4B0073BBF4 /* InfoPlist.strings */; };
+		E05203352E754C520073BBF4 /* AppIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05203342E754C520073BBF4 /* AppIconManager.swift */; };
 		E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */; };
 		E07FBA932E6ED07200375FC0 /* AdsBannerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
@@ -248,6 +251,9 @@
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdTopContainerViewController.swift; sourceTree = "<group>"; };
 		E04980D92E6FEA5200343E29 /* UsageGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageGate.swift; sourceTree = "<group>"; };
+		E052032F2E754C440073BBF4 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = InfoPlist.strings; sourceTree = "<group>"; };
+		E05203322E754C4B0073BBF4 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
+		E05203342E754C520073BBF4 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBannerCoordinator.swift; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
@@ -664,6 +670,7 @@
 		E084F0882E33ACB3002F75E6 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E05203342E754C520073BBF4 /* AppIconManager.swift */,
 				E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */,
 				E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */,
 				E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */,
@@ -692,8 +699,6 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
-				E0A644FF2E72B4D0004A7958 /* ko.lproj */,
-				E0A644FB2E72B4C7004A7958 /* en.lproj */,
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
 				E084F0D22E33ACB3002F75E6 /* Info.plist */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
@@ -821,6 +826,8 @@
 				E084F0602E33ACB3002F75E6 /* Chat */,
 				E0E7BCB22E54706A00FF7073 /* Config */,
 				E0E7BCC92E561E3300FF7073 /* Core */,
+				E0A644FB2E72B4C7004A7958 /* en.lproj */,
+				E0A644FF2E72B4D0004A7958 /* ko.lproj */,
 				E084F0D42E33ACB3002F75E6 /* LaunchScreen.storyboard */,
 				E084F0642E33ACB3002F75E6 /* Managers */,
 				E084F0672E33ACB3002F75E6 /* Models */,
@@ -869,6 +876,7 @@
 		E0A644FB2E72B4C7004A7958 /* en.lproj */ = {
 			isa = PBXGroup;
 			children = (
+				E05203312E754C4B0073BBF4 /* InfoPlist.strings */,
 				E0A644FA2E72B4C7004A7958 /* Paywall.strings */,
 			);
 			path = en.lproj;
@@ -877,6 +885,7 @@
 		E0A644FF2E72B4D0004A7958 /* ko.lproj */ = {
 			isa = PBXGroup;
 			children = (
+				E052032E2E754C440073BBF4 /* InfoPlist.strings */,
 				E0A644FE2E72B4D0004A7958 /* Paywall.strings */,
 			);
 			path = ko.lproj;
@@ -1081,6 +1090,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E084F29F2E33AE9B002F75E6 /* 고양이.mp3 in Resources */,
+				E05203302E754C450073BBF4 /* InfoPlist.strings in Resources */,
 				E0A644FC2E72B4C7004A7958 /* Paywall.strings in Resources */,
 				E084F2A02E33AE9B002F75E6 /* 바람.mp3 in Resources */,
 				E0A645002E72B4D0004A7958 /* Paywall.strings in Resources */,
@@ -1092,6 +1102,7 @@
 				E09CD6E12E45E048007C133E /* .gitignore in Resources */,
 				E084F2A62E33AE9B002F75E6 /* 불1.mp3 in Resources */,
 				E084F2A72E33AE9B002F75E6 /* 비.mp3 in Resources */,
+				E05203332E754C4B0073BBF4 /* InfoPlist.strings in Resources */,
 				E084F2A82E33AE9B002F75E6 /* 비-창문.mp3 in Resources */,
 				E084F2A92E33AE9B002F75E6 /* 새.mp3 in Resources */,
 				E084F2AA2E33AE9B002F75E6 /* 새-비.mp3 in Resources */,
@@ -1289,6 +1300,7 @@
 				E084F1F62E33ACB3002F75E6 /* ChatViewController.swift in Sources */,
 				E084F1F72E33ACB3002F75E6 /* SecurityConfig.swift in Sources */,
 				E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */,
+				E05203352E754C520073BBF4 /* AppIconManager.swift in Sources */,
 				E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */,
 				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
 				E0B562412E647F1200D334F1 /* OnboardingManager.swift in Sources */,
@@ -1320,6 +1332,22 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXVariantGroup section */
+		E052032E2E754C440073BBF4 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E052032F2E754C440073BBF4 /* ko */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		E05203312E754C4B0073BBF4 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E05203322E754C4B0073BBF4 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
 		E084F0D42E33ACB3002F75E6 /* LaunchScreen.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
