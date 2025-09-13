@@ -94,7 +94,7 @@ let response = try await aiService.sendMessage(
 ```
 
 🆕 2025-09-03 업데이트: 프리셋 추천 파서/서버/저장 정책
-- 중앙 파서: ChatViewController 등 화면 레이어의 임시 파싱 코드는 제거하고, AIResponseParser.parsePresetRecommendation만 사용합니다(DRY).
+- 중앙 파서: ChatViewController 등 화면 레이어의 임시 파싱 코드는 제거하고, AIResponseParser.parsePresetRecommendation만 사용합니다(DRY). 또한 채팅 UI는 잉크 퍼짐(왼→오) + 타이핑 파이프라인으로 스트리밍을 표시합니다(틱 0.083s/1자, 페이드 0.6s).
 - 서버 엄격 JSON: Cloudflare Worker에 STRICT_JSON_ONLY=1 설정. preset_recommendation 모드는 application/json만 허용하며, 파싱 실패 시 OpenAI(Structured Outputs/JSON Schema)로 폴백합니다.
 - 저장 정책: SessionManager는 mode == .presetRecommendation일 때 사용자/어시스턴트의 일반 텍스트 메시지 저장을 생략합니다(추천 카드는 UI 전용). 추천 사용량 카운트는 파싱 성공 시에만 증가합니다.
 

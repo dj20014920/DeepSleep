@@ -1,7 +1,7 @@
 ## 2025-09-12 동기화: 스트리밍 실서비스 · 프롬프트 캐시 SSOT · 인증 LRU
 
 [정책 SSOT 공지] 구독/결제/환불/복원/7일 무료체험 정책은 SUB_GUIDE.md에 중앙화되어 있습니다. UI 문구/링크는 해당 문서를 기준으로 일관 유지하십시오.
-- 스트리밍: `/v1/chat/stream` 운영 반영. 서버가 Gemini의 SSE/NDJSON을 표준 SSE로 정규화하여 `data: <text>`만 전송. iOS는 첫 델타에서 로딩 버블 제거 후 단일 버블에 누적, 흔들림 제거를 위해 보이는 셀만 미세 페이드로 갱신.
+- 스트리밍: `/v1/chat/stream` 운영 반영. 서버가 Gemini의 SSE/NDJSON을 표준 SSE로 정규화하여 `data: <text>`만 전송. iOS는 첫 델타에서 로딩 버블 제거 후 단일 버블에 누적, 흔들림 제거를 위해 보이는 셀만 잉크 퍼짐(왼→오) + 타이핑으로 갱신(틱 0.083s/1자, 페이드 0.6s).
 - 일반 대화 기본 maxTokens=256 유지(구성 키 우선). 컨텍스트 예산은 시스템/요약/최근대화 중 “현재 입력과 요약” 우선 배분.
 - 인증 LRU: UID→secret 5~10분 TTL 캐시. `Server-Timing`에 `authCache=hit|miss` 노출.
 - Gemini 캐시 SSOT: 캐시 생성 하한 1024 토큰. 미달 시 `X-Cache-Action=bypass:too-small(1024)` 노출.

@@ -44,6 +44,43 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
+    // 타이핑 타이머 구현
+    private func startTypingTimer() {
+        typingTimer?.invalidate()
+        typingTimer = Timer.scheduledTimer(withTimeInterval: typingTickInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            guard let id = self.currentStreamingMessageId,
+                  let idx = self.messages.firstIndex(where: { $0.id == id }) else { return }
+
+            if !self.typingBuffer.isEmpty {
+                let n = min(self.typingCharsPerTick, self.typingBuffer.count)
+                let chunk = self.typingBuffer.prefix(n)
+                self.typingBuffer.removeFirst(n)
+                let prev = self.messages[idx].text ?? ""
+                self.typingAccumulatedText = prev + String(chunk)
+                self.messages[idx].text = self.typingAccumulatedText
+
+                let indexPath = IndexPath(row: idx, section: 0)
+                if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
+                    cell.updateStreamingText(self.typingAccumulatedText, fadeDuration: 0.6)
+                }
+
+                if Date().timeIntervalSince(self.typingLastReflowAt) > 0.35 || self.typingAccumulatedText.hasSuffix("\n") {
+                    self.typingLastReflowAt = Date()
+                    UIView.performWithoutAnimation {
+                        self.tableView.beginUpdates()
+                        self.tableView.endUpdates()
+                        self.scrollToBottom(animated: false)
+                    }
+                }
+            } else if self.typingCompletedStream {
+                self.typingTimer?.invalidate()
+                self.typingTimer = nil
+                self.debouncedReload()
+            }
+        }
+    }
+
     // 중복 분석 트리거 방지
     private var didStartDiaryAnalysis: Bool = false
     // MARK: - Properties
@@ -107,6 +144,16 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // 🌊 스트리밍 메시지 상태
     private var currentStreamingMessageId: UUID?
     private var hasReceivedFirstToken: Bool = false
+
+    // ⌨️ 타이핑 애니메이션 상태
+    private var typingTimer: Timer?
+    private var typingBuffer: [Character] = []
+    private var typingAccumulatedText: String = ""
+    private var typingLastReflowAt: Date = Date(timeIntervalSince1970: 0)
+    private var typingCompletedStream: Bool = false
+    // ⌨️ 타이핑
+    private let typingTickInterval: TimeInterval = 0.065
+    private let typingCharsPerTick: Int = 3
 
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
@@ -778,6 +825,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 🌊 스트리밍 경로: 첫 토큰 도달 즉시 로딩 제거 및 버블 업데이트
         hasReceivedFirstToken = false
         currentStreamingMessageId = nil
+        // ⌨️ 타이핑 상태 초기화
+        typingTimer?.invalidate()
+        typingTimer = nil
+        typingBuffer = []
+        typingAccumulatedText = ""
+        typingCompletedStream = false
+        typingLastReflowAt = Date(timeIntervalSince1970: 0)
+
         let aiMode = determineAIModeFromContext()
         let stream = SessionManager.shared.sendMessageStream(
             content: message,
@@ -803,34 +858,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                             self.messages.append(aiMsg)
                             self.currentStreamingMessageId = aiMsg.id
                             self.hasReceivedFirstToken = true
+                            // 타이핑 타이머 시작(훨씬 느리게)
+                            self.startTypingTimer()
                         }
                         if !piece.isComplete, let id = self.currentStreamingMessageId,
                            let idx = self.messages.firstIndex(where: { $0.id == id }) {
                             gotAnyDelta = true
-                            let prev = self.messages[idx].text ?? ""
-                            let newText = prev + piece.delta
-                            self.messages[idx].text = newText
-
-                            // 1) 보이는 셀만 직접 업데이트(페이드 경미 적용), 테이블 전체 reload 금지
-                            let indexPath = IndexPath(row: idx, section: 0)
-                            if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
-                                cell.updateStreamingText(newText, fadeDuration: 0.6)
-                            }
-
-                            // 2) 행 높이 재계산은 과도한 레이아웃 점프를 막기 위해 드물게 수행
-                            pendingReflowChars += piece.delta.count
-                            let needReflow = newText.hasSuffix("\n") || piece.delta.contains("\n")
-                                || pendingReflowChars >= 24
-                                || Date().timeIntervalSince(lastReflowAt) > 0.25
-                            if needReflow {
-                                pendingReflowChars = 0
-                                lastReflowAt = Date()
-                                UIView.performWithoutAnimation {
-                                    self.tableView.beginUpdates()
-                                    self.tableView.endUpdates()
-                                    self.scrollToBottom(animated: false)
-                                }
-                            }
+                            // 타이핑 버퍼에 델타만 추가 (느리게 찍기)
+                            self.typingBuffer.append(contentsOf: piece.delta)
                         }
                         if piece.isComplete {
                             // 최종 1회만 전체 리로드(상태 동기화)
@@ -1714,6 +1749,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         recordSessionTime()
         // 진행 중 스트림 취소(메모리/수명 안전)
         currentStreamTask?.cancel()
+        // 타이핑 타이머 중지
+        typingTimer?.invalidate()
+        typingTimer = nil
         // 📱 앱 종료/백그라운드 진입 시 채팅 기록 강제 저장
         saveChatHistory()
     }
