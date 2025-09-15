@@ -3,7 +3,7 @@ on:
   workflow_dispatch: {}
   push:
     paths:
-      - 'scripts/make_ba_packs.zsh'
+      - 'scripts/make_ba_packs_no_tool.zsh'
       - 'manifests/**'
       - '.github/workflows/ba-packs.yml'
 
@@ -13,22 +13,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Tooling diagnostics
-        shell: bash
-        run: |
-          set -x
-          echo "$SHELL"
-          echo "$PATH"
-          /usr/bin/sw_vers
-          /usr/bin/xcodebuild -version
-          /usr/bin/xcrun --version || true
-          /usr/bin/xcrun -f backgroundassets || true
-          /usr/bin/xcrun backgroundassets --help || true
-          /usr/bin/which python3 || true
-          python3 --version || true
-          /bin/which chmod || true
-          /bin/ls -l
 
       - name: Python venv + HF CLI
         shell: bash
@@ -40,25 +24,13 @@ jobs:
           python -m pip install "huggingface_hub[cli]"
           .venv/bin/hf --help
 
-      - name: Build BA .aar packs (zsh)
+      - name: Build BA .aar with zip fallback (no Apple tool)
         shell: bash
         env:
-          PATH: ${{ github.workspace }}/.venv/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+          PATH: ${{ github.workspace }}/.venv/bin:/usr/local/bin:/usr/bin:/bin
         run: |
-          /bin/chmod +x scripts/make_ba_packs.zsh
-          /bin/zsh scripts/make_ba_packs.zsh
-
-      - name: List outputs
-        shell: bash
-        run: |
-          set -x
-          /bin/ls -lah out || true
-          if compgen -G "out/*.aar" > /dev/null; then
-            echo "AARs present"
-          else
-            echo "No AARs generated"
-            exit 1
-          fi
+          /bin/chmod +x scripts/make_ba_packs_no_tool.zsh
+          /bin/zsh scripts/make_ba_packs_no_tool.zsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
