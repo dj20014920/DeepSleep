@@ -25,20 +25,24 @@ jobs:
           which python3 || true
           python3 --version || true
 
-      - name: Ensure pip & HF CLI
+      - name: Python venv + HF CLI
         run: |
-          set -x
-          python3 -m pip install --upgrade pip
-          python3 -m pip install "huggingface_hub[cli]"
-          hf --help
+          set -euo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install "huggingface_hub[cli]"
+          .venv/bin/hf --help
 
-      - name: Build BA .aar packs (zsh script)
+      - name: Build BA .aar packs (zsh)
         shell: bash
+        env:
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         run: |
           chmod +x scripts/make_ba_packs.zsh
           scripts/make_ba_packs.zsh
 
-      - name: List outputs (if any)
+      - name: List outputs
         run: |
           set -x
           ls -lah out || true
