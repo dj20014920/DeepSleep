@@ -15,17 +15,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Tooling diagnostics
+        shell: bash
         run: |
           set -x
-          sw_vers
-          xcodebuild -version
-          xcrun --version || true
-          xcrun -f backgroundassets || true
-          xcrun backgroundassets --help || true
-          which python3 || true
+          echo "$SHELL"
+          echo "$PATH"
+          /usr/bin/sw_vers
+          /usr/bin/xcodebuild -version
+          /usr/bin/xcrun --version || true
+          /usr/bin/xcrun -f backgroundassets || true
+          /usr/bin/xcrun backgroundassets --help || true
+          /usr/bin/which python3 || true
           python3 --version || true
+          /bin/which chmod || true
+          /bin/ls -l
 
       - name: Python venv + HF CLI
+        shell: bash
         run: |
           set -euo pipefail
           python3 -m venv .venv
@@ -37,15 +43,16 @@ jobs:
       - name: Build BA .aar packs (zsh)
         shell: bash
         env:
-          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
+          PATH: ${{ github.workspace }}/.venv/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
         run: |
-          chmod +x scripts/make_ba_packs.zsh
-          scripts/make_ba_packs.zsh
+          /bin/chmod +x scripts/make_ba_packs.zsh
+          /bin/zsh scripts/make_ba_packs.zsh
 
       - name: List outputs
+        shell: bash
         run: |
           set -x
-          ls -lah out || true
+          /bin/ls -lah out || true
           if compgen -G "out/*.aar" > /dev/null; then
             echo "AARs present"
           else
