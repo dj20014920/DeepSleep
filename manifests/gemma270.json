@@ -1,0 +1,10 @@
+{
+  "id": "pack.model.gemma270.q8",
+  "resources": [
+    {
+      "source": "models/gemma-3-270m-it-Q8_0.gguf",
+      "destination": "gemma-3-270m-it-Q8_0.gguf",
+      "compression": "none"
+    }
+  ]
+}

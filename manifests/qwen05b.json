@@ -1,0 +1,10 @@
+{
+  "id": "pack.model.qwen05b.q4",
+  "resources": [
+    {
+      "source": "models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      "destination": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      "compression": "none"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "pack.model.gemma1b.iq4",
+  "resources": [
+    {
+      "source": "models/google_gemma-3-1b-it-IQ4_XS.gguf",
+      "destination": "google_gemma-3-1b-it-IQ4_XS.gguf",
+      "compression": "none"
+    }
+  ]
+}
