@@ -136,6 +136,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         // 초기 앱 실행 시 항상 흰색 아이콘 강제 적용
         AppIconManager.enforceWhiteIcon()
+        
+        // 앱 실행 직후 전달된 알림과 배지 초기화
+        CentralNotificationScheduler.shared.clearDeliveredNotificationsAndResetBadge()
+        
         return true
     }
 

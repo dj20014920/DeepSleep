@@ -71,6 +71,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
         print("🟢 [SceneDelegate] Scene이 활성화됨")
 
+        // 앱에 진입하면 배지/알림 센터의 알림을 정리
+        CentralNotificationScheduler.shared.clearDeliveredNotificationsAndResetBadge()
+
         // SoundManager에게 Scene 활성화 알림
         SoundManager.shared.handleSceneStateChange(isActive: true)
 

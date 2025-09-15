@@ -187,6 +187,15 @@ final class CentralNotificationScheduler {
     func cancelFortuneNotification() {
         center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune])
     }
+    // MARK: - Clearing delivered notifications & badge
+    func clearDeliveredNotificationsAndResetBadge() {
+        // Remove notifications that are already delivered (clears Notification Center list)
+        center.removeAllDeliveredNotifications()
+        // Reset the app icon badge
+        DispatchQueue.main.async {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
+    }
 }
 
 // MARK: - Identifiers
