@@ -6,21 +6,49 @@ on:
       - 'scripts/make_ba_packs.zsh'
       - 'manifests/**'
       - '.github/workflows/ba-packs.yml'
+
 jobs:
   build-asset-packs:
     runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Show Xcode version
+
+      - name: Tooling diagnostics
         run: |
+          set -x
+          sw_vers
           xcodebuild -version
           xcrun --version || true
-      - name: Build BA .aar packs
+          xcrun -f backgroundassets || true
+          xcrun backgroundassets --help || true
+          which python3 || true
+          python3 --version || true
+
+      - name: Ensure pip & HF CLI
+        run: |
+          set -x
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "huggingface_hub[cli]"
+          hf --help
+
+      - name: Build BA .aar packs (zsh script)
         shell: bash
         run: |
           chmod +x scripts/make_ba_packs.zsh
           scripts/make_ba_packs.zsh
+
+      - name: List outputs (if any)
+        run: |
+          set -x
+          ls -lah out || true
+          if compgen -G "out/*.aar" > /dev/null; then
+            echo "AARs present"
+          else
+            echo "No AARs generated"
+            exit 1
+          fi
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
