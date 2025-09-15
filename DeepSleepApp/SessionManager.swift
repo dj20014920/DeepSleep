@@ -1220,7 +1220,7 @@ public class SessionManager {
         case .freeModel:
             return .freeModel
         case .onDevice:
-            return .freeModel  // 온디바이스는 현재 무료 모델로 매핑
+            return .onDevice  // 온디바이스는 현재 무료 모델로 매핑
         case .testModel:
             return .freeModel  // 테스트 모델도 무료 모델로 매핑
         }

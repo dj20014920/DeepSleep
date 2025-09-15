@@ -24,7 +24,7 @@ public enum AIContextSignature {
         case .gpt4:     return .openAI
         case .gemini:   return .gemini
         case .naver:    return .naver
-        case .onDevice: return .freeModel
+        case .onDevice: return .onDevice
         case .freeModel:return .freeModel
         case .testModel:return .freeModel
         }

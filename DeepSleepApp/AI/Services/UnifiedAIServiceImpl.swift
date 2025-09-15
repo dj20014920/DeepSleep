@@ -177,7 +177,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if geminiService != nil { models.append(.gemini) }
         if naverService != nil { models.append(.naver) }
         if freeModelService != nil { models.append(.freeModel) }
-
+        #if os(iOS)
+            if #available(iOS 18.0, *) { models.append(.onDevice) }
+        #endif
         return models
     }
 
@@ -207,9 +209,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         policyMeta: [String: String]? = nil
     ) async throws -> AIResponse {
         #if DEBUG
-        let perf = PerfTrace(flow: "UnifiedAIService")
-        perf.with(extra: "mode", mode.rawValue).with(extra: "model", model.rawValue)
-            .with(extra: "userLen", String(content.count))
+            let perf = PerfTrace(flow: "UnifiedAIService")
+            perf.with(extra: "mode", mode.rawValue).with(extra: "model", model.rawValue)
+                .with(extra: "userLen", String(content.count))
         #endif
         let reqId = UUID().uuidString
         ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
@@ -272,7 +274,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
 
         #if DEBUG
-        perf.mark("validate:security")
+            perf.mark("validate:security")
         #endif
         // 1. 보안 검증
         let validationResult = securityManager.validateAndSanitizeInput(
@@ -293,7 +295,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
 
         #if DEBUG
-        perf.mark("svc:internal:start")
+            perf.mark("svc:internal:start")
         #endif
         do {
             // 2. 실제 호출 (성공 시에만 사용량 증가)
@@ -318,7 +320,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 id: reqId, model: model.rawValue, mode: mode.rawValue, success: true,
                 duration: Date().timeIntervalSince(overallStart))
             #if DEBUG
-            perf.end("svc:internal:done")
+                perf.end("svc:internal:done")
             #endif
             return response
         } catch {
@@ -753,6 +755,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         roleMessages.append(RoleMessage(role: .user, content: content))
 
+        if model == .onDevice {
+            return try await sendToOnDevice(
+                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenConfig)
+        }
+
         switch model {
         case .claude:
             guard let service = claudeService else {
@@ -844,6 +851,87 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 timestamp: Date(),
                 processingTime: 0
             )
+        }
+    }
+
+    private func sendToOnDevice(
+        messages: [RoleMessage],
+        mode: AIMode,
+        context: AIContext?,
+        tokenConfig: TokenConfiguration
+    ) async throws -> AIResponse {
+        // System prompt: 우선 messages의 첫 system, 없으면 통합 생성
+        let sys: String = {
+            if let first = messages.first, first.role == .system { return first.content }
+            return generateOptimizedSystemPrompt(for: mode, model: .onDevice)
+        }()
+        // Latest user content
+        guard let userText = messages.last?.content, !userText.isEmpty else {
+            throw AIServiceError.invalidRequest(reason: "EMPTY_INPUT")
+        }
+        // 온디바이스 생성(스트리밍 수집)
+        var buffer = ""
+        let start = Date()
+        do {
+            let summary = try await OnDeviceAdapter.shared.generate(
+                preferred: nil,
+                text: userText,
+                config: OnDeviceAdapter.StreamConfig(systemPrompt: sys, params: nil)
+            ) { delta in
+                buffer += delta
+            }
+            // 후처리(인사 제거)
+            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+            let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                response: buffer,
+                history: context?.conversationHistory,
+                nickname: nickname
+            )
+            var addInfo: [String: Any] = [
+                "provider": "ondevice",
+                "ondeviceModelID": summary.modelID.rawValue,
+                "ttiMs": summary.ttiMilliseconds,
+            ]
+            if let r = reason {
+                addInfo["greeting_stripped"] = true
+                addInfo["greeting_stripped_reason"] = r
+            } else {
+                addInfo["greeting_stripped"] = false
+            }
+            let meta = ResponseMetadata(
+                emotionAnalysis: nil,
+                recommendations: nil,
+                confidenceScore: 0.0,
+                additionalInfo: addInfo
+            )
+            let usage = TokenUsage(
+                promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+            return AIResponse(
+                id: UUID().uuidString,
+                model: .onDevice,
+                mode: mode,
+                content: processedText,
+                metadata: meta,
+                usage: usage,
+                timestamp: Date(),
+                processingTime: Int(Date().timeIntervalSince(start) * 1000)
+            )
+        } catch let e as OnDeviceAdapter.AdapterError {
+            // 정책적 폴백 신호면 상위로 전달
+            switch e {
+            case .cloudFallbackSuggested:
+                throw AIServiceError.modelUnavailable(model: .onDevice)
+            case .notAvailableForOS:
+                throw AIServiceError.configurationError("ONDEVICE_UNAVAILABLE_OS")
+            case .cancelled:
+                throw AIServiceError.timeoutError
+            case .underlying(let cause):
+                throw AIServiceError.unknown(cause)
+            case .noInstalledModel:
+                throw AIServiceError.modelUnavailable(model: .onDevice)
+            }
+        } catch {
+            throw AIServiceError.unknown(error)
         }
     }
 
@@ -1015,8 +1103,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         case .naver:
             return .naver
         case .onDevice:
-            // 온디바이스는 아직 미지원
-            return nil
+            return .onDevice
         }
     }
 
@@ -1032,9 +1119,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         case .naver:
             return .naver
         case .onDevice:
-            // TODO: 온디바이스 모델 구현 필요 - 현재는 임시로 무료 모델 사용
-            // 설정 화면에도 온디바이스 옵션 추가 필요
-            return .freeModel
+            return .onDevice
         case .freeModel:
             return .freeModel
         case .testModel:
@@ -1083,10 +1168,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                             context: context, tokenConfig: tokenConfig,
                             assembledPrompt: assembledPrompt
                         )
-                        continuation.yield(AIStreamResponse(
-                            id: full.id, delta: full.content, isComplete: true,
-                            metadata: StreamMetadata(tokenCount: full.usage.totalTokens, timestamp: Date())
-                        ))
+                        continuation.yield(
+                            AIStreamResponse(
+                                id: full.id, delta: full.content, isComplete: true,
+                                metadata: StreamMetadata(
+                                    tokenCount: full.usage.totalTokens, timestamp: Date())
+                            ))
                         continuation.finish()
                     } catch { continuation.finish(throwing: error) }
                 }
@@ -1097,7 +1184,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             Task {
                 do {
                     let proxyURL = try resolveProxyBaseURL()
-                    print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))")
+                    print(
+                        "🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))"
+                    )
                     // 메시지 구성(프록시 경로와 동일 원칙)
                     var roleMessages: [RoleMessage] = []
                     if let assembled = assembledPrompt, !assembled.isEmpty {
@@ -1108,7 +1197,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         if let history = context?.conversationHistory, !history.isEmpty {
                             let recent = Array(history.suffix(16))
                             for turn in recent {
-                                roleMessages.append(RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
+                                roleMessages.append(
+                                    RoleMessage(
+                                        role: turn.role, content: turn.content, ts: turn.timestamp))
                             }
                         }
                     }
@@ -1116,40 +1207,60 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
                     // 바디 구성(프록시와 동일)
                     let preferred = getOptimalModelForMode(mode: mode, userPreferred: model)
-                    let effCfg = optimizeTokenConfigForModel(tokenConfig ?? mode.recommendedTokenConfig, model: preferred, mode: mode)
+                    let effCfg = optimizeTokenConfigForModel(
+                        tokenConfig ?? mode.recommendedTokenConfig, model: preferred, mode: mode)
                     var body: [String: Any] = [
                         "model": preferred.rawValue,
                         "mode": mode.rawValue,
-                        "messages": roleMessages.map { [
-                            "role": $0.role.rawValue,
-                            "content": $0.content
-                        ] },
+                        "messages": roleMessages.map {
+                            [
+                                "role": $0.role.rawValue,
+                                "content": $0.content,
+                            ]
+                        },
                         "temperature": effCfg.temperature,
-                        "maxTokens": effCfg.maxTokens
+                        "maxTokens": effCfg.maxTokens,
                     ]
                     // providerCaching 힌트(서버 SSOT 기준 참고용)
                     body["providerCaching"] = [
                         "enable": true,
                         "strategy": "auto",
                         "ttlSeconds": providerCacheTTLSeconds(for: mode),
-                        "cacheKey": "\(UserRulesManager.shared.personaCoreSignature()):\(mode.rawValue)"
+                        "cacheKey":
+                            "\(UserRulesManager.shared.personaCoreSignature()):\(mode.rawValue)",
                     ]
 
                     // 공통 인증 헤더
-                    let uid: String = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
-                    let tier: String = { switch StoreKitSubscriptionManager.shared.currentTier { case .free: return "free"; case .pro: return "pro"; case .max: return "max" } }()
+                    let uid: String = await MainActor.run {
+                        UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+                    }
+                    let tier: String = {
+                        switch StoreKitSubscriptionManager.shared.currentTier {
+                        case .free: return "free"
+                        case .pro: return "pro"
+                        case .max: return "max"
+                        }
+                    }()
                     let proxyBase = proxyURL
                     // enroll/secret 확보
-                    let effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: proxyBase)
+                    let effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(
+                        uid: uid, proxyBase: proxyBase)
                     // idempotency(간단): 마지막 user content 기반
-                    let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap { String(format: "%02x", $0) }.joined()
-                    let idemKey = String(SHA256.hash(data: Data((mode.rawValue + contentHash).utf8)).compactMap { String(format: "%02x", $0) }.joined().prefix(64))
+                    let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap {
+                        String(format: "%02x", $0)
+                    }.joined()
+                    let idemKey = String(
+                        SHA256.hash(data: Data((mode.rawValue + contentHash).utf8)).compactMap {
+                            String(format: "%02x", $0)
+                        }.joined().prefix(64))
                     // 추정 캐시 토큰(4자≈1토큰)
                     let estTokens: Int = (roleMessages.first?.content.count ?? 0) / 4
 
                     // 요청 생성
                     let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
-                    let signature = ProxyAuthSigner.hmacSHA256Hex(message: ProxyAuthSigner.composeSigningMessage(ts: ts, uid: uid, tier: tier, nonce: nil), secret: effectiveSecret)
+                    let signature = ProxyAuthSigner.hmacSHA256Hex(
+                        message: ProxyAuthSigner.composeSigningMessage(
+                            ts: ts, uid: uid, tier: tier, nonce: nil), secret: effectiveSecret)
                     var req = URLRequest(url: proxyBase.appendingPathComponent("v1/chat/stream"))
                     req.httpMethod = "POST"
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1161,44 +1272,64 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     req.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
                     req.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
                     req.setValue(mode.rawValue, forHTTPHeaderField: "X-Emozleep-Mode")
-                    if estTokens > 0 { req.setValue(String(estTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens") }
+                    if estTokens > 0 {
+                        req.setValue(
+                            String(estTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
+                    }
                     req.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
                     req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
                     // 스트리밍 수신
                     let t0 = Date()
                     let (bytes, response) = try await URLSession.shared.bytes(for: req)
-                    guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                        throw AIServiceError.serverError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
+                    guard let http = response as? HTTPURLResponse,
+                        (200...299).contains(http.statusCode)
+                    else {
+                        throw AIServiceError.serverError(
+                            statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
                     }
                     var aggregate = ""
                     var emittedFirst = false
                     for try await line in bytes.lines {
-                        if line.hasPrefix(":") { continue } // comment ping
+                        if line.hasPrefix(":") { continue }  // comment ping
                         // SSE 형식: data: <payload>
-                        let payload = line.hasPrefix("data:") ? String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces) : line
+                        let payload =
+                            line.hasPrefix("data:")
+                            ? String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces) : line
                         guard !payload.isEmpty else { continue }
                         var delta = ""
                         // 1) JSON 시도: candidates.delta.parts[].text 또는 candidates.content.parts[].text
                         if payload.first == "{" {
                             struct Part: Decodable { let text: String? }
                             struct Content: Decodable { let parts: [Part]? }
-                            struct Candidate: Decodable { let content: Content?; let delta: Content? }
+                            struct Candidate: Decodable {
+                                let content: Content?
+                                let delta: Content?
+                            }
                             struct Resp: Decodable { let candidates: [Candidate]? }
-                            if let data = payload.data(using: .utf8), let resp = try? JSONDecoder().decode(Resp.self, from: data), let cand = resp.candidates?.first {
-                                if let d = cand.delta?.parts?.compactMap({ $0.text }).joined(), !d.isEmpty {
+                            if let data = payload.data(using: .utf8),
+                                let resp = try? JSONDecoder().decode(Resp.self, from: data),
+                                let cand = resp.candidates?.first
+                            {
+                                if let d = cand.delta?.parts?.compactMap({ $0.text }).joined(),
+                                    !d.isEmpty
+                                {
                                     delta = d
-                                } else if let c = cand.content?.parts?.compactMap({ $0.text }).joined(), !c.isEmpty {
+                                } else if let c = cand.content?.parts?.compactMap({ $0.text })
+                                    .joined(), !c.isEmpty
+                                {
                                     delta = c
                                 }
                             }
                         }
                         // 2) JSON 파싱 실패 또는 비 JSON: "text":"…" 정규식으로 추출(복수 매치 결합)
                         if delta.isEmpty {
-                            let regex = try? NSRegularExpression(pattern: "\\\"text\\\"\\s*:\\s*\\\"([\\s\\S]*?)\\\"", options: [])
+                            let regex = try? NSRegularExpression(
+                                pattern: "\\\"text\\\"\\s*:\\s*\\\"([\\s\\S]*?)\\\"", options: [])
                             if let re = regex {
                                 let ns = payload as NSString
-                                let matches = re.matches(in: payload, range: NSRange(location: 0, length: ns.length))
+                                let matches = re.matches(
+                                    in: payload, range: NSRange(location: 0, length: ns.length))
                                 if !matches.isEmpty {
                                     delta = matches.map { ns.substring(with: $0.range(at: 1)) }
                                         .joined()
@@ -1208,7 +1339,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                             }
                         }
                         // 3) 여전히 비어있으면 순수 텍스트로 취급(서버가 텍스트만 보낼 때)
-                        if delta.isEmpty, payload.first != "{" && payload.first != "[" && payload.first != "(" {
+                        if delta.isEmpty,
+                            payload.first != "{" && payload.first != "[" && payload.first != "("
+                        {
                             delta = payload
                         }
                         guard !delta.isEmpty else { continue }
@@ -1218,14 +1351,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                             print("⏱️ [UnifiedAIService] firstTokenMs=\(ms)")
                             emittedFirst = true
                         }
-                        continuation.yield(AIStreamResponse(
-                            id: UUID().uuidString,
-                            delta: delta,
-                            isComplete: false,
-                            metadata: StreamMetadata(tokenCount: 0, timestamp: Date())
-                        ))
+                        continuation.yield(
+                            AIStreamResponse(
+                                id: UUID().uuidString,
+                                delta: delta,
+                                isComplete: false,
+                                metadata: StreamMetadata(tokenCount: 0, timestamp: Date())
+                            ))
                     }
-                    continuation.yield(AIStreamResponse(id: UUID().uuidString, delta: "", isComplete: true, metadata: StreamMetadata(tokenCount: 0, timestamp: Date())))
+                    continuation.yield(
+                        AIStreamResponse(
+                            id: UUID().uuidString, delta: "", isComplete: true,
+                            metadata: StreamMetadata(tokenCount: 0, timestamp: Date())))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -1325,13 +1462,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         )
 
         // 3시간 TTL 캐시 활용: 모델 불문 베이스 프롬프트만 캐시
-        let basePrompt = contextManager.getSystemPrompt(components: (
-            composite: components.composite,
-            coreHash: components.coreHash,
-            modeHash: components.modeHash,
-            modelHash: components.modelHash,
-            toneHash: components.toneHash
-        )) {
+        let basePrompt = contextManager.getSystemPrompt(
+            components: (
+                composite: components.composite,
+                coreHash: components.coreHash,
+                modeHash: components.modeHash,
+                modelHash: components.modelHash,
+                toneHash: components.toneHash
+            )
+        ) {
             var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
             if !userContext.isEmpty {
                 prompt += "\n\n사용자 컨텍스트:\n\(userContext)"
@@ -1354,8 +1493,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         // 일반 대화 모드에서는 토큰 상한 내 완결 지시를 명시적으로 추가하여 모델이 스스로 마무리하도록 유도
         let lengthRule: String = {
             if mode == .generalConversation {
-                let cap = ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
-                return "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지, 마지막에 한 줄 요약을 포함하세요."
+                let cap =
+                    ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+                return
+                    "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지, 마지막에 한 줄 요약을 포함하세요."
             } else {
                 return ""
             }
@@ -1712,7 +1853,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         // 최종 하드 캡: 일반 대화는 반드시 SSOT 상한을 준수(기본 256)
         if mode == .generalConversation {
-            let hardCap = ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+            let hardCap =
+                ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
             if optimizedConfig.maxTokens > hardCap {
                 optimizedConfig = TokenConfiguration(
                     maxTokens: hardCap,
@@ -1947,12 +2089,12 @@ extension UnifiedAIServiceImpl {
         personaCoreKey: String
     ) async throws -> AIResponse {
         #if DEBUG
-        let perf = PerfTrace(flow: "ProxyCall")
-        perf.with(extra: "provider", preferred.rawValue)
-            .with(extra: "mode", mode.rawValue)
-            .with(extra: "sysLen", String(messages.first?.content.count ?? 0))
-            .with(extra: "userLen", String(messages.last?.content.count ?? 0))
-        perf.mark("build:req")
+            let perf = PerfTrace(flow: "ProxyCall")
+            perf.with(extra: "provider", preferred.rawValue)
+                .with(extra: "mode", mode.rawValue)
+                .with(extra: "sysLen", String(messages.first?.content.count ?? 0))
+                .with(extra: "userLen", String(messages.last?.content.count ?? 0))
+            perf.mark("build:req")
         #endif
         var body: [String: Any] = [
             "model": mapPreferredModelForProxy(preferred),
@@ -2026,8 +2168,9 @@ extension UnifiedAIServiceImpl {
         // 추정 가능한 캐시 prefix 토큰(시스템/페르소나/불변 컨텍스트) — 간단 근사(4자≈1토큰)
         let estimatedCacheableTokens: Int = {
             if let first = (body["messages"] as? [[String: Any]])?.first,
-               (first["role"] as? String)?.lowercased() == "system",
-               let sys = first["content"] as? String {
+                (first["role"] as? String)?.lowercased() == "system",
+                let sys = first["content"] as? String
+            {
                 return max(0, sys.count / 4)
             }
             return 0
@@ -2051,7 +2194,9 @@ extension UnifiedAIServiceImpl {
             r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
             // Provider cache 힌트(선택): 서버 SSOT 정책 하에서 참고용
             if estimatedCacheableTokens > 0 {
-                r.setValue(String(estimatedCacheableTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
+                r.setValue(
+                    String(estimatedCacheableTokens),
+                    forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
             }
             r.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -2124,7 +2269,7 @@ extension UnifiedAIServiceImpl {
             )
             let result = try await URLSession.shared.data(for: req)
             #if DEBUG
-            perf.mark("net:await")
+                perf.mark("net:await")
             #endif
             data = result.0
             if let r = result.1 as? HTTPURLResponse {
@@ -2162,7 +2307,7 @@ extension UnifiedAIServiceImpl {
             throw AIServiceError.serverError(statusCode: code)
         }
         #if DEBUG
-        perf.mark("parse:headers")
+            perf.mark("parse:headers")
         #endif
         struct ProxyResp: Codable {
             let provider: String
@@ -2170,7 +2315,7 @@ extension UnifiedAIServiceImpl {
         }
         let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
         #if DEBUG
-        perf.mark("parse:body")
+            perf.mark("parse:body")
         #endif
 
         // 정책/프로바이더/캐시 헤더 파싱
@@ -2212,7 +2357,7 @@ extension UnifiedAIServiceImpl {
                 "⚠️ [AICallSummary] provider header mismatch: body=\(providerUsed) header=\(xProv)")
         }
         #if DEBUG
-        perf.end("done")
+            perf.end("done")
         #endif
 
         var addInfo: [String: Any] = ["provider": proxy.provider]

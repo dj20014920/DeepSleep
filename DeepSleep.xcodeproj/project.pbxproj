@@ -19,6 +19,10 @@
 		E05203302E754C450073BBF4 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = E052032E2E754C440073BBF4 /* InfoPlist.strings */; };
 		E05203332E754C4B0073BBF4 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = E05203312E754C4B0073BBF4 /* InfoPlist.strings */; };
 		E05203352E754C520073BBF4 /* AppIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05203342E754C520073BBF4 /* AppIconManager.swift */; };
+		E052033F2E77D1240073BBF4 /* ONDEVICE_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = E05203382E77D1240073BBF4 /* ONDEVICE_SETUP.md */; };
+		E05203402E77D1240073BBF4 /* ModelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E052033B2E77D1240073BBF4 /* ModelLoader.swift */; };
+		E05203412E77D1240073BBF4 /* BackgroundAssetClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05203362E77D1240073BBF4 /* BackgroundAssetClient.swift */; };
+		E05203422E77D1240073BBF4 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E052033A2E77D1240073BBF4 /* ModelCatalog.swift */; };
 		E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */; };
 		E07FBA932E6ED07200375FC0 /* AdsBannerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
@@ -254,6 +258,10 @@
 		E052032F2E754C440073BBF4 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = InfoPlist.strings; sourceTree = "<group>"; };
 		E05203322E754C4B0073BBF4 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
 		E05203342E754C520073BBF4 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
+		E05203362E77D1240073BBF4 /* BackgroundAssetClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundAssetClient.swift; sourceTree = "<group>"; };
+		E05203382E77D1240073BBF4 /* ONDEVICE_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ONDEVICE_SETUP.md; sourceTree = "<group>"; };
+		E052033A2E77D1240073BBF4 /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
+		E052033B2E77D1240073BBF4 /* ModelLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelLoader.swift; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBannerCoordinator.swift; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
@@ -534,6 +542,49 @@
 			path = Performance;
 			sourceTree = "<group>";
 		};
+		E05203372E77D1240073BBF4 /* BackgroundAssets */ = {
+			isa = PBXGroup;
+			children = (
+				E05203362E77D1240073BBF4 /* BackgroundAssetClient.swift */,
+			);
+			path = BackgroundAssets;
+			sourceTree = "<group>";
+		};
+		E05203392E77D1240073BBF4 /* Docs */ = {
+			isa = PBXGroup;
+			children = (
+				E05203382E77D1240073BBF4 /* ONDEVICE_SETUP.md */,
+			);
+			path = Docs;
+			sourceTree = "<group>";
+		};
+		E052033C2E77D1240073BBF4 /* Runtime */ = {
+			isa = PBXGroup;
+			children = (
+				E052033A2E77D1240073BBF4 /* ModelCatalog.swift */,
+				E052033B2E77D1240073BBF4 /* ModelLoader.swift */,
+			);
+			path = Runtime;
+			sourceTree = "<group>";
+		};
+		E052033D2E77D1240073BBF4 /* Scripts */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Scripts;
+			sourceTree = "<group>";
+		};
+		E052033E2E77D1240073BBF4 /* OnDevice */ = {
+			isa = PBXGroup;
+			children = (
+				E05203372E77D1240073BBF4 /* BackgroundAssets */,
+				E05203392E77D1240073BBF4 /* Docs */,
+				E052033C2E77D1240073BBF4 /* Runtime */,
+				E052033D2E77D1240073BBF4 /* Scripts */,
+			);
+			path = OnDevice;
+			sourceTree = "<group>";
+		};
 		E084F04F2E33ACB3002F75E6 /* ErrorHandler */ = {
 			isa = PBXGroup;
 			children = (
@@ -699,6 +750,7 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
+				E052033E2E77D1240073BBF4 /* OnDevice */,
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
 				E084F0D22E33ACB3002F75E6 /* Info.plist */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
@@ -1108,6 +1160,7 @@
 				E084F2AA2E33AE9B002F75E6 /* 새-비.mp3 in Resources */,
 				E084F2AB2E33AE9B002F75E6 /* 시냇물.mp3 in Resources */,
 				E084F2AC2E33AE9B002F75E6 /* 연필.mp3 in Resources */,
+				E052033F2E77D1240073BBF4 /* ONDEVICE_SETUP.md in Resources */,
 				E084F2AD2E33AE9B002F75E6 /* 우주.mp3 in Resources */,
 				E0E7BCD92E56E41800FF7073 /* PrivacyInfo.xcprivacy in Resources */,
 				E084F2AE2E33AE9B002F75E6 /* 쿨링팬.mp3 in Resources */,
@@ -1296,6 +1349,9 @@
 				E0NEW1012E70000100ABCDEF /* GradientPalettes.swift in Sources */,
 				E0NEW1022E70000100ABCDEF /* EmotionCalendarDayCell.swift in Sources */,
 				E0NEW1032E70000100ABCDEF /* TodoListSheetViewController.swift in Sources */,
+				E05203402E77D1240073BBF4 /* ModelLoader.swift in Sources */,
+				E05203412E77D1240073BBF4 /* BackgroundAssetClient.swift in Sources */,
+				E05203422E77D1240073BBF4 /* ModelCatalog.swift in Sources */,
 				E084F1F52E33ACB3002F75E6 /* ChatBubbleCell.swift in Sources */,
 				E084F1F62E33ACB3002F75E6 /* ChatViewController.swift in Sources */,
 				E084F1F72E33ACB3002F75E6 /* SecurityConfig.swift in Sources */,

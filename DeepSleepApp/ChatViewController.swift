@@ -1234,7 +1234,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         case .naver:
             return .naver
         case .onDevice:
-            return .freeModel
+            return .onDevice
         case .freeModel:
             return .freeModel
         case .testModel:

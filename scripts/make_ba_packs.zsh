@@ -12,7 +12,7 @@ shasum -a 256 models/*.gguf | tee out/sha256sum.txt
 SUBCMD=""
 if xcrun backgroundassets pack --help >/dev/null 2>&1; then
   SUBCMD="pack"
-elif xcrun backgroundassets package --help >/devnull 2>&1; then
+elif xcrun backgroundassets package --help >/dev/null 2>&1; then
   SUBCMD="package"
 else
   echo "missing backgroundassets"

@@ -3,6 +3,12 @@
 ..*
 /Users/dj20014920/Desktop/DeepSleep/SUB_GUIDE.md
 .serena
+ondevice/models/*.gguf
+ondevice/models/packwork/
+models/
+out/
+*.aar
+.cache/
 *.sh
 *.disabled
 GEMINI.md

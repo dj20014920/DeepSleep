@@ -17,7 +17,8 @@ public enum AIModel: String, CaseIterable, Codable {
     case gemini = "gemini"
     case naver = "naver"
     case freeModel = "free_model"  // 통합된 무료 모델 (OpenRouter 순차 폴백)
-    
+    case onDevice = "on_device"  // 온디바이스 LLM (Background Assets + llama.cpp)
+
     var displayName: String {
         switch self {
         case .claude: return "Claude (Anthropic)"
@@ -25,6 +26,7 @@ public enum AIModel: String, CaseIterable, Codable {
         case .gemini: return "Google Gemini"
         case .naver: return "Naver HyperCLOVA X"
         case .freeModel: return "무료 AI 모델 (통합)"
+        case .onDevice: return "온디바이스 LLM"
         }
     }
 }
@@ -41,7 +43,7 @@ public enum AIMode: String, CaseIterable, Codable {
     case monthlyStatistics = "monthly_statistics"
     case fortuneTelling = "fortune_telling"
     case emotionAnalysis = "emotion_analysis"
-    
+
     var displayName: String {
         switch self {
         case .generalConversation: return "일반 대화"
@@ -54,58 +56,69 @@ public enum AIMode: String, CaseIterable, Codable {
         case .emotionAnalysis: return "감정 분석"
         }
     }
-    
+
     var recommendedTokenConfig: TokenConfiguration {
         switch self {
         case .generalConversation:
             // 기본값을 256으로 타이트화(구성에서 키가 있으면 우선)
             return TokenConfiguration(
-                maxTokens: ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256,
-                temperature: ConfigReader.double("AI_GENERAL_CONVERSATION_TEMPERATURE", default: 0.85) ?? 0.85
+                maxTokens: ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256)
+                    ?? 256,
+                temperature: ConfigReader.double(
+                    "AI_GENERAL_CONVERSATION_TEMPERATURE", default: 0.85) ?? 0.85
             )
         case .emotionDiaryAnalysis:
             return TokenConfiguration(
-                maxTokens: ConfigReader.int("AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS", default: 1000) ?? 1000,
-                temperature: ConfigReader.double("AI_EMOTION_DIARY_ANALYSIS_TEMPERATURE", default: 0.8) ?? 0.8,
+                maxTokens: ConfigReader.int("AI_EMOTION_DIARY_ANALYSIS_MAX_TOKENS", default: 1000)
+                    ?? 1000,
+                temperature: ConfigReader.double(
+                    "AI_EMOTION_DIARY_ANALYSIS_TEMPERATURE", default: 0.8) ?? 0.8,
                 responseFormat: .text
             )
         case .taskAdvice:
             return TokenConfiguration(
                 maxTokens: ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 800) ?? 800,
-                temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75) ?? 0.75
+                temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75)
+                    ?? 0.75
             )
         case .taskAdviceOverall:
             return TokenConfiguration(
                 maxTokens: ConfigReader.int("AI_TASK_ADVICE_MAX_TOKENS", default: 800) ?? 800,
-                temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75) ?? 0.75
+                temperature: ConfigReader.double("AI_TASK_ADVICE_TEMPERATURE", default: 0.75)
+                    ?? 0.75
             )
         case .presetRecommendation:
             return TokenConfiguration(
-                maxTokens: ConfigReader.int("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 400) ?? 400,
-                temperature: ConfigReader.double("AI_PRESET_RECOMMENDATION_TEMPERATURE", default: 0.6) ?? 0.6,
+                maxTokens: ConfigReader.int("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 400)
+                    ?? 400,
+                temperature: ConfigReader.double(
+                    "AI_PRESET_RECOMMENDATION_TEMPERATURE", default: 0.6) ?? 0.6,
                 responseFormat: .json
             )
         case .monthlyStatistics:
             return TokenConfiguration(
-                maxTokens: ConfigReader.int("AI_MONTHLY_STATISTICS_MAX_TOKENS", default: 700) ?? 700,
-                temperature: ConfigReader.double("AI_MONTHLY_STATISTICS_TEMPERATURE", default: 0.4) ?? 0.4,
+                maxTokens: ConfigReader.int("AI_MONTHLY_STATISTICS_MAX_TOKENS", default: 700)
+                    ?? 700,
+                temperature: ConfigReader.double("AI_MONTHLY_STATISTICS_TEMPERATURE", default: 0.4)
+                    ?? 0.4,
                 responseFormat: .json
             )
         case .fortuneTelling:
             return TokenConfiguration(
                 maxTokens: ConfigReader.int("AI_FORTUNE_TELLING_MAX_TOKENS", default: 800) ?? 800,
-                temperature: ConfigReader.double("AI_FORTUNE_TELLING_TEMPERATURE", default: 0.9) ?? 0.9
+                temperature: ConfigReader.double("AI_FORTUNE_TELLING_TEMPERATURE", default: 0.9)
+                    ?? 0.9
             )
         case .emotionAnalysis:
             return TokenConfiguration(
                 maxTokens: ConfigReader.int("AI_EMOTION_ANALYSIS_MAX_TOKENS", default: 400) ?? 400,
-                temperature: ConfigReader.double("AI_EMOTION_ANALYSIS_TEMPERATURE", default: 0.5) ?? 0.5,
+                temperature: ConfigReader.double("AI_EMOTION_ANALYSIS_TEMPERATURE", default: 0.5)
+                    ?? 0.5,
                 responseFormat: .json
             )
         }
-        }
     }
-
+}
 
 // MARK: - 🔧 토큰 설정
 
@@ -117,7 +130,7 @@ public struct TokenConfiguration: Codable {
     let frequencyPenalty: Double?
     let presencePenalty: Double?
     let responseFormat: ResponseFormat?
-    
+
     init(
         maxTokens: Int,
         temperature: Double = 0.7,
@@ -153,7 +166,7 @@ public struct AIResponse: Codable {
     let metadata: ResponseMetadata
     let usage: TokenUsage
     let timestamp: Date
-    let processingTime: Int // milliseconds
+    let processingTime: Int  // milliseconds
 }
 
 /// 응답 메타데이터
@@ -162,40 +175,45 @@ public struct ResponseMetadata: Codable {
     let recommendations: [String]?
     let confidenceScore: Double
     let additionalInfo: [String: Any]
-    
-    init(emotionAnalysis: EmotionAnalysis?, recommendations: [String]?, confidenceScore: Double, additionalInfo: [String: Any]) {
+
+    init(
+        emotionAnalysis: EmotionAnalysis?, recommendations: [String]?, confidenceScore: Double,
+        additionalInfo: [String: Any]
+    ) {
         self.emotionAnalysis = emotionAnalysis
         self.recommendations = recommendations
         self.confidenceScore = confidenceScore
         self.additionalInfo = additionalInfo
     }
-    
+
     // Codable을 위한 커스텀 구현
     enum CodingKeys: String, CodingKey {
         case emotionAnalysis, recommendations, confidenceScore, additionalInfo
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        emotionAnalysis = try container.decodeIfPresent(EmotionAnalysis.self, forKey: .emotionAnalysis)
+        emotionAnalysis = try container.decodeIfPresent(
+            EmotionAnalysis.self, forKey: .emotionAnalysis)
         recommendations = try container.decodeIfPresent([String].self, forKey: .recommendations)
         confidenceScore = try container.decode(Double.self, forKey: .confidenceScore)
-        
+
         // additionalInfo는 JSON으로 저장/복원
         if let additionalData = try container.decodeIfPresent(Data.self, forKey: .additionalInfo),
-           let decoded = try? JSONSerialization.jsonObject(with: additionalData) as? [String: Any] {
+            let decoded = try? JSONSerialization.jsonObject(with: additionalData) as? [String: Any]
+        {
             additionalInfo = decoded
         } else {
             additionalInfo = [:]
         }
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(emotionAnalysis, forKey: .emotionAnalysis)
         try container.encodeIfPresent(recommendations, forKey: .recommendations)
         try container.encode(confidenceScore, forKey: .confidenceScore)
-        
+
         // additionalInfo를 JSON 데이터로 변환
         if let data = try? JSONSerialization.data(withJSONObject: additionalInfo) {
             try container.encode(data, forKey: .additionalInfo)
@@ -206,7 +224,7 @@ public struct ResponseMetadata: Codable {
 /// 감정 분석 결과
 public struct EmotionAnalysis: Codable {
     let primaryEmotion: String
-    let intensity: Double // 0.0 ~ 1.0
+    let intensity: Double  // 0.0 ~ 1.0
     let secondaryEmotions: [String: Double]
     let sentiment: Sentiment
 }
@@ -262,7 +280,7 @@ public struct AIModelStatus: Codable {
     let latency: Double
     let errorRate: Double
     let remainingQuota: Int?
-    let healthScore: Double // 0.0 ~ 1.0
+    let healthScore: Double  // 0.0 ~ 1.0
 }
 
 // MARK: - 🔗 컨텍스트
@@ -274,7 +292,7 @@ public struct AIContext: Codable {
     let conversationHistory: [AIConversationTurn]?
     let userPreferences: UserPreferences?
     let environmentContext: AIEnvironmentContext?
-    
+
     init(
         userId: String,
         sessionId: String,
@@ -311,7 +329,7 @@ public struct RoleMessage: Codable {
     public let role: Role
     public let content: String
     public let ts: Date?
-    
+
     public init(role: Role, content: String, ts: Date? = nil) {
         self.role = role
         self.content = content
@@ -348,7 +366,7 @@ public struct SleepPattern: Codable {
     let averageBedtime: String
     let averageWakeTime: String
     let averageSleepDuration: Double
-    let sleepQuality: Double // 0.0 ~ 1.0
+    let sleepQuality: Double  // 0.0 ~ 1.0
 }
 
 // MARK: - ❌ 에러 정의
@@ -359,30 +377,30 @@ public enum AIServiceError: Error, LocalizedError {
     case unauthorized
     case quotaExceeded(model: AIModel)
     case usageLimitExceeded(String)  // 일일 사용량 제한 초과 (UsageLimitManager 연동)
-    
+
     // MARK: - 네트워크 및 서버 에러
     case networkError(Error)
     case serverError(statusCode: Int)
     case rateLimitExceeded
     case modelUnavailable(model: AIModel)
-    
+
     // MARK: - 요청/응답 에러
     case invalidRequest(reason: String)
     case invalidResponse
     case tokenLimitExceeded
     case contentFiltered(reason: String)
-    
+
     // MARK: - 시스템 에러
     case configurationError(String)
     case timeoutError
     case unknown(Error)
-    
+
     // MARK: - OpenRouter 관련 에러
     case invalidURL
     case httpError(Int)
     case apiError(Int, String)
     case allModelsFailed([String])
-    
+
     public var errorDescription: String? {
         switch self {
         // MARK: - 인증 및 권한 에러
@@ -392,7 +410,7 @@ public enum AIServiceError: Error, LocalizedError {
             return "📊 \(model.displayName) 모델의 할당량을 초과했습니다.\n내일 다시 이용해주세요."
         case .usageLimitExceeded(let message):
             return message  // UsageLimitManager에서 이미 포맷된 메시지
-            
+
         // MARK: - 네트워크 및 서버 에러
         case .networkError(let error):
             return "🌐 네트워크 연결을 확인해주세요.\n(\(error.localizedDescription))"
@@ -402,7 +420,7 @@ public enum AIServiceError: Error, LocalizedError {
             return "⏰ 요청이 너무 많습니다.\n잠시 후 다시 시도해주세요."
         case .modelUnavailable(let model):
             return "🚫 \(model.displayName) 모델을 현재 사용할 수 없습니다.\n다른 모델을 선택해주세요."
-            
+
         // MARK: - 요청/응답 에러
         case .invalidRequest(let reason):
             return "❌ 요청 형식이 올바르지 않습니다.\n(\(reason))"
@@ -412,7 +430,7 @@ public enum AIServiceError: Error, LocalizedError {
             return "📝 메시지가 너무 깁니다.\n더 짧은 메시지를 보내주세요."
         case .contentFiltered(let reason):
             return "🛡️ 컨텐츠가 필터링되었습니다.\n(\(reason))"
-            
+
         // MARK: - 시스템 에러
         case .configurationError(let message):
             return "⚙️ 시스템 설정 오류가 발생했습니다.\n(\(message))"
@@ -420,7 +438,7 @@ public enum AIServiceError: Error, LocalizedError {
             return "⏱️ 요청 시간이 초과되었습니다.\n다시 시도해주세요."
         case .unknown(let error):
             return "❓ 알 수 없는 오류가 발생했습니다.\n(\(error.localizedDescription))"
-            
+
         // MARK: - OpenRouter 관련 에러
         case .invalidURL:
             return "🔗 잘못된 API 주소입니다."
@@ -432,7 +450,7 @@ public enum AIServiceError: Error, LocalizedError {
             return "❌ 모든 모델 호출 실패\n시도한 모델: \(models.joined(separator: ", "))"
         }
     }
-    
+
     /// 🎨 사용자 친화적인 짧은 제목
     public var shortTitle: String {
         switch self {
@@ -456,7 +474,7 @@ public enum AIServiceError: Error, LocalizedError {
         case .allModelsFailed: return "모든 모델 실패"
         }
     }
-    
+
     /// 🔄 복구 제안
     public var recoverySuggestion: String? {
         switch self {
@@ -541,7 +559,7 @@ public enum ConversationType: String, CaseIterable {
     case emotional = "emotional"
     case task = "task"
     case analysis = "analysis"
-    
+
     public init?(rawValue: String) {
         switch rawValue {
         case "general", "general_conversation":
@@ -569,7 +587,7 @@ public enum LLMServiceType: String, CaseIterable, Codable {
 
 // MARK: - 📋 채팅 모드
 
-/// 채팅 모드 타입 정의  
+/// 채팅 모드 타입 정의
 /// String 대신 사용하여 타입 안정성 보장
 public enum ChatMode: String, CaseIterable, Codable {
     // MARK: - 주요 기능별 컨텍스트
@@ -584,12 +602,12 @@ public enum ChatMode: String, CaseIterable, Codable {
     case monthlyStatistics = "월간통계"  // 월간패턴분석의 대체 이름
     case fortuneTelling = "운세"
     case feedbackAnalysis = "피드백분석"
-    
+
     // MARK: - 표시 이름
     public var displayName: String {
         return self.rawValue
     }
-    
+
     // MARK: - AIMode 매핑
     public var aiMode: AIMode {
         switch self {
@@ -611,7 +629,7 @@ public enum ChatMode: String, CaseIterable, Codable {
             return .generalConversation  // 피드백은 일반 대화로 처리
         }
     }
-    
+
     // MARK: - String으로부터 생성 (하위 호환성)
     public static func from(_ string: String) -> ChatMode {
         // 기존 String 값과의 호환성 유지
