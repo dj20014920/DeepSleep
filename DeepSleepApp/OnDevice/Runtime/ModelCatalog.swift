@@ -169,6 +169,18 @@ public enum ModelCatalog {
     public static var fallbackOrder: [OnDeviceModelID] {
         return [.gemma270_q8, .qwen05b_q4km, .gemma1b_iq4xs]
     }
+
+    // 파일명 → 모델 ID 매핑 헬퍼(SSOT: 상수 기반)
+    // - DRY: 파일명 상수(file_*)를 단일 출처로 사용
+    // - 사용 예: 네트워킹/다운로더에서 lastPathComponent로 ID 유추 시
+    public static func id(forFileName fileName: String) -> OnDeviceModelID? {
+        switch fileName {
+        case file_gemma270_q8: return .gemma270_q8
+        case file_qwen05b_q4km: return .qwen05b_q4km
+        case file_gemma1b_iq4xs: return .gemma1b_iq4xs
+        default: return nil
+        }
+    }
 }
 
 // MARK: - BA(Background Assets) 추상화

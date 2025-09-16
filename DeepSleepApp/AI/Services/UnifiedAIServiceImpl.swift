@@ -10,7 +10,10 @@ import Combine
 import CryptoKit
 import Foundation
 import Security
-import UIKit
+
+#if canImport(UIKit)
+    import UIKit
+#endif
 
 /// 🚀 **통합 AI 서비스 실제 구현체**
 /// 모든 AI 모델을 통합하여 관리하는 메인 서비스
@@ -72,6 +75,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             keyName = "NAVER_CLOUD_API_KEY"
         case .freeModel:
             keyName = "OPENROUTER_API_KEY"
+        case .onDevice:
+            // 온디바이스 모델은 API 키가 필요하지 않음
+            return nil
         }
 
         guard let apiKey = ConfigReader.string(keyName),
@@ -755,11 +761,6 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         roleMessages.append(RoleMessage(role: .user, content: content))
 
-        if model == .onDevice {
-            return try await sendToOnDevice(
-                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenConfig)
-        }
-
         switch model {
         case .claude:
             guard let service = claudeService else {
@@ -790,6 +791,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
             return try await service.sendMessages(
                 messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
+
+        case .onDevice:
+            return try await sendToOnDevice(
+                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenConfig)
 
         case .freeModel:
             print("🎁 [UnifiedAIService] 무료 모델 폴백 시스템 호출 - 모드: \(mode)")
@@ -1667,6 +1672,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             return """
                 간결·정확, JSON 스키마 준수.
                 """
+        case .onDevice:
+            return """
+                간결·정확, 로컬 모델 특성 고려.
+                """
         }
     }
 
@@ -1799,6 +1808,20 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 )
             }
             optimizedConfig = newConfig
+        case .onDevice:
+            // 온디바이스는 리소스 보수적 설정
+            var onDev = config
+            if let onDeviceLimit = ConfigReader.int("AI_ONDEVICE_MAX_TOKENS_LIMIT") {
+                onDev = TokenConfiguration(
+                    maxTokens: min(onDev.maxTokens, onDeviceLimit),
+                    temperature: onDev.temperature,
+                    topP: onDev.topP,
+                    frequencyPenalty: onDev.frequencyPenalty,
+                    presencePenalty: onDev.presencePenalty,
+                    responseFormat: onDev.responseFormat
+                )
+            }
+            optimizedConfig = onDev
         }
 
         // 모드별 추가 최적화
@@ -1998,6 +2021,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
             response = try await service.sendMessages(
                 messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
+        case .onDevice:
+            return try await sendToOnDevice(
+                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenCfg)
         case .freeModel:
             // freeModelService가 없으므로, 차선인 Gemini/OpenAI/Claude/Naver 순으로 선택
             if let svc = geminiService {
@@ -2403,6 +2429,7 @@ private func mapPreferredModelForProxy(_ preferred: AIModel) -> String {
     case .claude: return "claude"
     case .naver: return "naver"
     case .freeModel: return "openrouter"  // 통합 무료 모델은 서버에서 openrouter로 시작
+    case .onDevice: return "ondevice"  // 참고: 프록시 경로에서는 사용되지 않음
     }
 }
 

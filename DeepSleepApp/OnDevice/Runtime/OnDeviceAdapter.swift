@@ -1,10 +1,11 @@
+import CryptoKit
 import Foundation
 import OSLog
 
 // MARK: - OnDeviceAdapter
-// UnifiedAIService와 온디바이스 런타임(Background Assets + llama.cpp)을 연결하는 단일 어댑터.
+// UnifiedAIService와 온디바이스 런타임(RemoteAssetClient(HTTP) + llama.cpp)을 연결하는 단일 어댑터.
 // - DRY/SSOT: 모델 메타/권장 파라미터/시스템 프롬프트는 ModelCatalog와 SystemPrompts에서만 읽는다.
-// - 책임 분리: 설치/무결성은 BackgroundAssetClient+CatalogResolver, 로딩/생성은 OnDeviceModelLoader 담당.
+// - 책임 분리: 설치/무결성은 RemoteAssetClient(HTTP) + sha256 검증, 로딩/생성은 OnDeviceModelLoader 담당.
 // - KISS: UnifiedAIService는 본 어댑터의 간단한 API를 통해 on-device 경로를 호출한다.
 public final class OnDeviceAdapter: @unchecked Sendable {
 
@@ -13,9 +14,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
     // MARK: Dependencies
     private let log = Logger(subsystem: "DeepSleep.OnDevice", category: "Adapter")
-    private let baClient: BackgroundAssetClient
+    private var remote: RemoteAssetClient
     private let loader: OnDeviceModelLoader
-    private let resolver: CatalogResolver
 
     // 전환/성능 정책
     private var policy = FallbackPolicy()
@@ -33,9 +33,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     }
 
     private init() {
-        // 환경에 맞는 BA 클라이언트 생성(iOS18+ 또는 Noop)
-        self.baClient = BackgroundAssetClientFactory.make()
-        self.resolver = CatalogResolver(baClient: baClient)
+        // HTTP(S) 원격 자산 클라이언트
+        self.remote = RemoteAssetClient()
         // llama.cpp 기반 로더(조건부 컴파일된 바인딩 사용)
         self.loader = LlamaModelLoader()
     }
@@ -94,9 +93,17 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 상태 병렬 취득
         return await withTaskGroup(of: ModelEntry.self, returning: [ModelEntry].self) { group in
             for r in items {
-                group.addTask { [baClient] in
-                    let st = await baClient.status(packID: r.packID, fileName: r.fileName)
-                    return ModelEntry(record: r, state: st)
+                group.addTask { [remote] in
+                    let st = remote.status(fileName: r.fileName)
+                    let state: BackgroundAssetState
+                    if st.installed, let url = Self.installedURL(fileName: r.fileName) {
+                        state = .installed(localURL: url)
+                    } else if st.progress > 0 {
+                        state = .installing(progress: st.progress)
+                    } else {
+                        state = .notInstalled
+                    }
+                    return ModelEntry(record: r, state: state)
                 }
             }
             var result: [ModelEntry] = []
@@ -107,25 +114,55 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         }
     }
 
-    /// 특정 모델의 BA 상태를 조회한다.
+    /// 특정 모델의 상태를 조회한다(HTTP 다운로드 경로).
     public func status(for id: OnDeviceModelID) async -> BackgroundAssetState {
         let r = ModelCatalog.record(for: id)
-        return await baClient.status(packID: r.packID, fileName: r.fileName)
+        let st = remote.status(fileName: r.fileName)
+        if st.installed, let url = Self.installedURL(fileName: r.fileName) {
+            return .installed(localURL: url)
+        }
+        if st.progress > 0 {
+            return .installing(progress: st.progress)
+        }
+        return .notInstalled
     }
 
     // MARK: - Install/Ensure
 
-    /// BA 설치 보장(무결성 검증 포함). 진행률 콜백 지원.
+    /// 원격 설치 보장(무결성 검증 포함). 진행률 콜백 지원.
     @discardableResult
     public func ensureInstalled(
         id: OnDeviceModelID,
         progress: ((Double) -> Void)? = nil
     ) async throws -> URL {
         let rec = ModelCatalog.record(for: id)
-        // CatalogResolver가 sha256(있으면) 검증 수행
-        let url = try await resolver.resolveLocalURL(for: id, progress: progress)
+        let t0 = Date()
         log.info(
-            "📦 Installed/Ready: \(rec.displayName, privacy: .public) @\(url.lastPathComponent, privacy: .public)"
+            "⬇️ [Adapter] ensureInstalled start id=\(rec.id.rawValue, privacy: .public) file=\(rec.fileName, privacy: .public) sha=\(rec.sha256Hex, privacy: .public)"
+        )
+        var __lastLoggedPct = -1
+        let url = try await remote.ensureInstalled(
+            fileName: rec.fileName,
+            expectedSha256: rec.sha256Hex,
+            progress: { p in
+                let pct = Int(p * 100)
+                if pct != __lastLoggedPct && (pct == 0 || pct == 100 || pct % 5 == 0) {
+                    self.log.debug("📈 [Adapter] \(rec.id.rawValue, privacy: .public) \(pct)%")
+                    __lastLoggedPct = pct
+                }
+                progress?(p)
+            }
+        )
+        // 최종 무결성 재확인(양방향 방어)
+        let actual = try FileIntegrity.sha256Hex(of: url)
+        guard actual.lowercased() == rec.sha256Hex.lowercased() else {
+            throw OnDeviceError.hashMismatch(expected: rec.sha256Hex, actual: actual)
+        }
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? -1
+        let ms = Int(Date().timeIntervalSince(t0) * 1000)
+        log.info(
+            "📦 Installed/Ready: \(rec.displayName, privacy: .public) @\(url.lastPathComponent, privacy: .public) size=\(size, privacy: .public) took=\(ms, privacy: .public)ms"
         )
         return url
     }
@@ -133,7 +170,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     /// 다운로드/설치를 취소한다.
     public func cancelInstall(id: OnDeviceModelID) {
         let rec = ModelCatalog.record(for: id)
-        baClient.cancel(packID: rec.packID)
+        remote.cancel(fileName: rec.fileName)
     }
 
     // MARK: - Activate / Switch
@@ -141,6 +178,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     /// 모델을 활성화(로드)한다. 이미 로드된 동일 모델이면 noop.
     public func activate(id: OnDeviceModelID) async throws {
         let rec = ModelCatalog.record(for: id)
+        let t0 = Date()
+        log.info("⚙️ [Adapter] activate start id=\(rec.id.rawValue, privacy: .public)")
         let url = try await ensureInstalled(id: id)
         // 동일이면 스킵
         if loader.activeModelID == id, loader.isLoaded {
@@ -149,15 +188,19 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         }
         // 권장 파라미터로 세션 로드
         try loader.load(modelURL: url, modelID: id, params: rec.recommended)
-        log.info("🚀 Activated: \(rec.displayName, privacy: .public)")
+        let ms = Int(Date().timeIntervalSince(t0) * 1000)
+        log.info("🚀 Activated: \(rec.displayName, privacy: .public) took=\(ms, privacy: .public)ms")
     }
 
     /// 모델을 교체(핫스왑)한다. 설치-확보 → 세션 재생성.
     public func switchModel(id: OnDeviceModelID) async throws {
         let rec = ModelCatalog.record(for: id)
+        let t0 = Date()
+        log.info("♻️ [Adapter] switchModel start id=\(rec.id.rawValue, privacy: .public)")
         let url = try await ensureInstalled(id: id)
         try await loader.switchModel(to: id, modelURL: url, params: rec.recommended)
-        log.info("♻️ Switched: \(rec.displayName, privacy: .public)")
+        let ms = Int(Date().timeIntervalSince(t0) * 1000)
+        log.info("♻️ Switched: \(rec.displayName, privacy: .public) took=\(ms, privacy: .public)ms")
     }
 
     // MARK: - Generate (stream)
@@ -299,6 +342,75 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     }
 
     // MARK: - Utilities
+
+    /// Application Support/Models 경로에서 설치된 파일의 URL(존재 시) 반환
+    private static func installedURL(fileName: String) -> URL? {
+        guard
+            let base = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first
+        else { return nil }
+        let url = base.appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent(fileName, isDirectory: false)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// RemoteAssetClient 재구성(엔드포인트 등).
+    /// - Parameters:
+    ///   - config: 새 원격 자산 클라이언트 설정
+    ///   - cancelOngoing: true일 때만 진행 중 다운로드를 취소(파괴적). 기본은 false(비파괴).
+    public func reconfigureRemote(config: RemoteAssetClient.Config, cancelOngoing: Bool = false) {
+        q.sync {
+            if cancelOngoing {
+                for rec in ModelCatalog.all() {
+                    self.remote.cancel(fileName: rec.fileName)
+                }
+            }
+            self.remote = RemoteAssetClient(config: config)
+        }
+        if cancelOngoing {
+            log.info("🔧 RemoteAssetClient reconfigured (cancelled outstanding model downloads)")
+        } else {
+            log.info("🔧 RemoteAssetClient reconfigured (non-destructive)")
+        }
+    }
+
+    /// 엔드포인트 간편 재구성(서명 URL/고정 CDN/BG 세션 ID)
+    /// - Parameters:
+    ///   - presignEndpoint: 프리사인 엔드포인트(URL)
+    ///   - cdnBaseURL: CDN 베이스(URL)
+    ///   - backgroundSessionID: 백그라운드 세션 식별자
+    ///   - cancelOngoing: true일 때만 진행 중 다운로드를 취소(파괴적). 기본은 false(비파괴).
+    public func reconfigureRemote(
+        presignEndpoint: URL?,
+        cdnBaseURL: URL?,
+        backgroundSessionID: String? = nil,
+        cancelOngoing: Bool = false
+    ) {
+        var cfg = RemoteAssetClient.Config()
+        cfg.presignEndpoint = presignEndpoint
+        cfg.cdnBaseURL = cdnBaseURL
+        if let sid = backgroundSessionID {
+            cfg.backgroundSessionID = sid
+        }
+        reconfigureRemote(config: cfg, cancelOngoing: cancelOngoing)
+    }
+
+    /// 설치된 모델 파일 삭제(다운로드 취소 및 활성 세션 언로드 포함)
+    public func deleteInstalled(id: OnDeviceModelID) throws {
+        let rec = ModelCatalog.record(for: id)
+        // 진행 중 작업이 있다면 취소
+        remote.cancel(fileName: rec.fileName)
+        // 활성 모델이면 먼저 언로드
+        if loader.activeModelID == id {
+            unload()
+        }
+        // 설치 파일 제거
+        if let url = Self.installedURL(fileName: rec.fileName) {
+            try FileManager.default.removeItem(at: url)
+            log.info("🗑️ Deleted installed model: \(rec.displayName, privacy: .public)")
+        }
+    }
 
     /// 활성 세션 해제(메모리 반환). 전환 실패/온도 상승 시 상위에서 호출 가능.
     public func unload() {

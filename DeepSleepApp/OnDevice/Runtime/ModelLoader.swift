@@ -163,6 +163,18 @@ private final class EngineStateBox {
     }
 
     func sync<T>(_ block: () throws -> T) rethrows -> T { try q.sync(execute: block) }
+
+    // Loading guard helpers to avoid nested q.sync deadlocks
+    func beginLoading() -> Bool {
+        q.sync {
+            if _loading { return false }
+            _loading = true
+            return true
+        }
+    }
+    func endLoading() {
+        q.sync { _loading = false }
+    }
 }
 
 // MARK: - Llama.cpp 기반 ModelLoader 구현
@@ -184,13 +196,10 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
     // MARK: - Load/Unload/Hot-Swap
 
     public func load(modelURL: URL, modelID: OnDeviceModelID, params: InferenceParams) throws {
-        try state.sync {
-            guard !state.isLoading else {
-                throw OnDeviceError.unknown("동시 로딩은 지원하지 않습니다.")
-            }
-            state.isLoading = true
+        guard state.beginLoading() else {
+            throw OnDeviceError.unknown("동시 로딩은 지원하지 않습니다.")
         }
-        defer { state.isLoading = false }
+        defer { state.endLoading() }
 
         // 이전 세션 있으면 안전 해제
         if let eng = state.engine {
@@ -271,7 +280,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
 
         // 실제 엔진 호출은 동기 API로 감싸두고, Task 취소 여부는 내부/외부에서 모두 주기 확인
         try Task.checkCancellation()
-        try withTaskCancellationHandler {
+        try await withTaskCancellationHandler {
             // 취소 시점: 엔진이 내부 루프에서 Task.isCancelled 확인해야 즉시 중단 가능
         } operation: {
             try eng.generate(

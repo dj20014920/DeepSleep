@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -23,6 +23,8 @@
 		E05203402E77D1240073BBF4 /* ModelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E052033B2E77D1240073BBF4 /* ModelLoader.swift */; };
 		E05203412E77D1240073BBF4 /* BackgroundAssetClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05203362E77D1240073BBF4 /* BackgroundAssetClient.swift */; };
 		E05203422E77D1240073BBF4 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E052033A2E77D1240073BBF4 /* ModelCatalog.swift */; };
+		E065F4372E78129F0041C4E0 /* LeafletBackground.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = E065F42F2E78129F0041C4E0 /* LeafletBackground.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E065F43E2E7813E40041C4E0 /* OnDeviceAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */; };
 		E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */; };
 		E07FBA932E6ED07200375FC0 /* AdsBannerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */; };
 		E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0832E33ACB3002F75E6 /* SystemDetectionManager.swift */; };
@@ -186,6 +188,7 @@
 		E09CD6ED2E4B0D93007C133E /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */; };
 		E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */; };
 		E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */; };
+		E0A1B2C42E8A000100000002 /* RemoteAssetClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A1B2C32E8A000100000001 /* RemoteAssetClient.swift */; };
 		E0A644FC2E72B4C7004A7958 /* Paywall.strings in Resources */ = {isa = PBXBuildFile; fileRef = E0A644FA2E72B4C7004A7958 /* Paywall.strings */; };
 		E0A645002E72B4D0004A7958 /* Paywall.strings in Resources */ = {isa = PBXBuildFile; fileRef = E0A644FE2E72B4D0004A7958 /* Paywall.strings */; };
 		E0A6450E2E72B51F004A7958 /* AppVersionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A6450D2E72B51F004A7958 /* AppVersionInfo.swift */; };
@@ -210,7 +213,6 @@
 		E0B562552E67E8A100D334F1 /* TodoAutoCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */; };
 		E0B562572E683E3700D334F1 /* SimpleAdviceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */; };
 		E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */; };
-		E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */; };
 		E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */; };
 		E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
@@ -244,6 +246,30 @@
 		E0NEW1032E70000100ABCDEF /* TodoListSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		E065F4352E78129F0041C4E0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A017 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E065F42E2E78129F0041C4E0;
+			remoteInfo = LeafletBackground;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E065F43C2E78129F0041C4E0 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				E065F4372E78129F0041C4E0 /* LeafletBackground.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		A000 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceManagementProtocols.swift; sourceTree = "<group>"; };
@@ -262,6 +288,9 @@
 		E05203382E77D1240073BBF4 /* ONDEVICE_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ONDEVICE_SETUP.md; sourceTree = "<group>"; };
 		E052033A2E77D1240073BBF4 /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
 		E052033B2E77D1240073BBF4 /* ModelLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelLoader.swift; sourceTree = "<group>"; };
+		E065F42F2E78129F0041C4E0 /* LeafletBackground.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = LeafletBackground.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceAdapter.swift; sourceTree = "<group>"; };
+		E065F43F2E78142C0041C4E0 /* LeafletBackground.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LeafletBackground.entitlements; sourceTree = "<group>"; };
 		E068E3642E57307A00CA54A0 /* ChatRequestCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestCenter.swift; sourceTree = "<group>"; };
 		E07FBA922E6ED07200375FC0 /* AdsBannerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsBannerCoordinator.swift; sourceTree = "<group>"; };
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
@@ -433,6 +462,7 @@
 		E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataEntities.swift; sourceTree = "<group>"; };
 		E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
+		E0A1B2C32E8A000100000001 /* RemoteAssetClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemoteAssetClient.swift; path = DeepSleepApp/OnDevice/Networking/RemoteAssetClient.swift; sourceTree = SOURCE_ROOT; };
 		E0A644F82E72B3FF004A7958 /* SUB_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SUB_GUIDE.md; sourceTree = "<group>"; };
 		E0A644F92E72B4C7004A7958 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Paywall.strings; sourceTree = "<group>"; };
 		E0A644FD2E72B4D0004A7958 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = Paywall.strings; sourceTree = "<group>"; };
@@ -458,7 +488,6 @@
 		E0B562532E67E8A100D334F1 /* TodoAutoCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoAutoCompleter.swift; sourceTree = "<group>"; };
 		E0B562562E683E3700D334F1 /* SimpleAdviceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAdviceViewController.swift; sourceTree = "<group>"; };
 		E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFlags.swift; sourceTree = "<group>"; };
-		E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingOverlay.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
@@ -493,6 +522,20 @@
 		E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListSheetViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E065F4382E78129F0041C4E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E065F42E2E78129F0041C4E0 /* LeafletBackground */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		E065F4302E78129F0041C4E0 /* LeafletBackground */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E065F4382E78129F0041C4E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = LeafletBackground; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		A00E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -501,7 +544,13 @@
 				E0899C8E2E5EE505006AD307 /* GoogleMobileAds in Frameworks */,
 				E084F2D32E33B2CC002F75E6 /* FSCalendar in Frameworks */,
 				E084F2D62E33B2ED002F75E6 /* GoogleGenerativeAI in Frameworks */,
-				E0B5625D2E6AA9F400D334F1 /* StoreKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E065F42C2E78129F0041C4E0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -518,8 +567,10 @@
 				E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */,
 				E084F1182E33ACB3002F75E6 /* README 2.md */,
 				E084F1082E33ACB3002F75E6 /* DeepSleepApp */,
+				E065F4302E78129F0041C4E0 /* LeafletBackground */,
 				E0B5625B2E6AA9F300D334F1 /* Frameworks */,
 				A011 /* Products */,
+				E065F4402E783A030041C4E0 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -527,6 +578,7 @@
 			isa = PBXGroup;
 			children = (
 				A000 /* DeepSleep.app */,
+				E065F42F2E78129F0041C4E0 /* LeafletBackground.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -561,6 +613,7 @@
 		E052033C2E77D1240073BBF4 /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
+				E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */,
 				E052033A2E77D1240073BBF4 /* ModelCatalog.swift */,
 				E052033B2E77D1240073BBF4 /* ModelLoader.swift */,
 			);
@@ -583,6 +636,14 @@
 				E052033D2E77D1240073BBF4 /* Scripts */,
 			);
 			path = OnDevice;
+			sourceTree = "<group>";
+		};
+		E065F4402E783A030041C4E0 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				E0A1B2C32E8A000100000001 /* RemoteAssetClient.swift */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 		E084F04F2E33ACB3002F75E6 /* ErrorHandler */ = {
@@ -750,8 +811,8 @@
 		E084F1082E33ACB3002F75E6 /* DeepSleepApp */ = {
 			isa = PBXGroup;
 			children = (
-				E052033E2E77D1240073BBF4 /* OnDevice */,
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
+				E065F43F2E78142C0041C4E0 /* LeafletBackground.entitlements */,
 				E084F0D22E33ACB3002F75E6 /* Info.plist */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
 				E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */,
@@ -883,6 +944,7 @@
 				E084F0D42E33ACB3002F75E6 /* LaunchScreen.storyboard */,
 				E084F0642E33ACB3002F75E6 /* Managers */,
 				E084F0672E33ACB3002F75E6 /* Models */,
+				E052033E2E77D1240073BBF4 /* OnDevice */,
 				E0E7BCBB2E561B2D00FF7073 /* Paywall */,
 				E017980E2E35FF51002F178C /* Performance */,
 				E084F06B2E33ACB3002F75E6 /* Security */,
@@ -962,7 +1024,6 @@
 		E0B5625B2E6AA9F300D334F1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				E0B5625C2E6AA9F300D334F1 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1082,10 +1143,12 @@
 				A015 /* Sources */,
 				A00E /* Frameworks */,
 				A016 /* Resources */,
+				E065F43C2E78129F0041C4E0 /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E065F4362E78129F0041C4E0 /* PBXTargetDependency */,
 			);
 			name = DeepSleep;
 			packageProductDependencies = (
@@ -1097,6 +1160,28 @@
 			productReference = A000 /* DeepSleep.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E065F42E2E78129F0041C4E0 /* LeafletBackground */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E065F4392E78129F0041C4E0 /* Build configuration list for PBXNativeTarget "LeafletBackground" */;
+			buildPhases = (
+				E065F42B2E78129F0041C4E0 /* Sources */,
+				E065F42C2E78129F0041C4E0 /* Frameworks */,
+				E065F42D2E78129F0041C4E0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E065F4302E78129F0041C4E0 /* LeafletBackground */,
+			);
+			name = LeafletBackground;
+			packageProductDependencies = (
+			);
+			productName = LeafletBackground;
+			productReference = E065F42F2E78129F0041C4E0 /* LeafletBackground.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1104,11 +1189,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1540;
+				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
 					A013 = {
 						CreatedOnToolsVersion = 15.4;
+					};
+					E065F42E2E78129F0041C4E0 = {
+						CreatedOnToolsVersion = 16.4;
 					};
 				};
 			};
@@ -1132,6 +1220,7 @@
 			projectRoot = "";
 			targets = (
 				A013 /* DeepSleep */,
+				E065F42E2E78129F0041C4E0 /* LeafletBackground */,
 			);
 		};
 /* End PBXProject section */
@@ -1174,6 +1263,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E065F42D2E78129F0041C4E0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1181,6 +1277,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E065F43E2E7813E40041C4E0 /* OnDeviceAdapter.swift in Sources */,
+				E0A1B2C42E8A000100000002 /* RemoteAssetClient.swift in Sources */,
 				E084F1792E33ACB3002F75E6 /* SystemDetectionManager.swift in Sources */,
 				E084F17A2E33ACB3002F75E6 /* MemoryOptimizationManager.swift in Sources */,
 				E084F17B2E33ACB3002F75E6 /* DiaryWriteViewController.swift in Sources */,
@@ -1385,7 +1483,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E065F42B2E78129F0041C4E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E065F4362E78129F0041C4E0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E065F42E2E78129F0041C4E0 /* LeafletBackground */;
+			targetProxy = E065F4352E78129F0041C4E0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		E052032E2E754C440073BBF4 /* InfoPlist.strings */ = {
@@ -1613,6 +1726,60 @@
 			};
 			name = Release;
 		};
+		E065F43A2E78129F0041C4E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LeafletBackground/LeafletBackground.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LeafletBackground/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LeafletBackground;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.LeafletBackground;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E065F43B2E78129F0041C4E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LeafletBackground/LeafletBackground.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D4P5YAD8CF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LeafletBackground/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LeafletBackground;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepsleep.app.LeafletBackground;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1630,6 +1797,15 @@
 			buildConfigurations = (
 				A019 /* Debug */,
 				A01A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E065F4392E78129F0041C4E0 /* Build configuration list for PBXNativeTarget "LeafletBackground" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E065F43A2E78129F0041C4E0 /* Debug */,
+				E065F43B2E78129F0041C4E0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
