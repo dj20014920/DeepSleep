@@ -5,7 +5,10 @@ SUB_GUIDE.md
 ondevice/models/*.gguf
 ondevice/models/packwork/
 models/
+/Users/dj20014920/Desktop/DeepSleep/EMOZLEEP_R2_CDN_WORKERS_GUIDE.md
+/Users/dj20014920/Desktop/DeepSleep/third_party
 out/
+EMOZLEEP_R2_CDN_WORKERS_GUIDE.md
 *.aar
 .cache/
 # NOTE: allow committed .sh templates only; sensitive key-setup scripts are ignored below
