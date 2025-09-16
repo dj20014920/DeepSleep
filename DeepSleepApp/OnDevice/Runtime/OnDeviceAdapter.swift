@@ -37,6 +37,16 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         self.remote = RemoteAssetClient()
         // llama.cpp 기반 로더(조건부 컴파일된 바인딩 사용)
         self.loader = LlamaModelLoader()
+        // 원격 설정 반영하여 정책 동기화
+        self.syncPolicyFromConfig()
+    }
+
+    /// 원격 설정으로부터 폴백 정책을 동기화한다(KISS: 한 지점에서만 적용).
+    private func syncPolicyFromConfig() {
+        let maxTTI = ConfigReader.int("ONDEVICE_MAX_TTI_MS", default: 4000) ?? 4000
+        var p = self.policy
+        p.maxTTIMilliseconds = maxTTI
+        self.policy = p
     }
 
     // MARK: Adapter-facing Types
@@ -202,6 +212,34 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         let ms = Int(Date().timeIntervalSince(t0) * 1000)
         log.info("♻️ Switched: \(rec.displayName, privacy: .public) took=\(ms, privacy: .public)ms")
     }
+    // MARK: - Remote config gates
+    private func isOnDeviceEnabled() -> Bool {
+        return ConfigReader.bool("ONDEVICE_ENABLED", default: true) ?? true
+    }
+    private func isForcedCloud() -> Bool {
+        return ConfigReader.bool("ONDEVICE_FORCE_CLOUD", default: false) ?? false
+    }
+
+    // MARK: - Thermal-aware preference
+    private func preferredAdjustedForThermal(preferred: OnDeviceModelID?) -> OnDeviceModelID? {
+        guard policy.thermalMitigation else { return preferred }
+        #if os(iOS)
+            if #available(iOS 11.0, *) {
+                let state = ProcessInfo.processInfo.thermalState
+                switch state {
+                case .serious, .critical:
+                    // 고온 시 가장 경량 모델부터 시도하도록 선호 무시
+                    return ModelCatalog.fallbackOrder.first
+                default:
+                    return preferred
+                }
+            } else {
+                return preferred
+            }
+        #else
+            return preferred
+        #endif
+    }
 
     // MARK: - Generate (stream)
 
@@ -214,8 +252,17 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         config: StreamConfig = .init(),
         onToken: @escaping @Sendable (String) -> Void
     ) async throws -> GenerationSummary {
+        // 원격 설정 기반 가드: 온디바이스 비활성/클라우드 강제 시 즉시 폴백 제안
+        if isForcedCloud() || !isOnDeviceEnabled() {
+            log.info("🚧 On-device disabled or forced cloud via remote config")
+            throw AdapterError.cloudFallbackSuggested
+        }
+
+        // 0) 열 완화: 고온 상태에서는 경량 모델 우선 시도
+        let adjustedPreferred = preferredAdjustedForThermal(preferred: preferred)
+
         // 1) 후보 결정
-        let candidates = buildCandidates(preferred: preferred)
+        let candidates = buildCandidates(preferred: adjustedPreferred)
         var lastError: Error?
 
         for (idx, id) in candidates.enumerated() {

@@ -271,3 +271,11 @@ let response = try await aiService.sendMessage(
 - [ ] 브랜딩 치환 누락 자동검사용 스크립트 도입 여부 결정
 - [ ] Secrets.xcconfig 키 레퍼런스 표(주요 키 요약) 추가
 - [ ] 컨텍스트/응답 후처리 디버그 로그 예시 샘플 업데이트
+
+
+## 🆕 2025-09-16 온디바이스 경로/라벨링/폴백 메모
+- OnDeviceAdapter.generate: 첫 델타 시점의 TTI(ms) 측정 및 GenerationSummary 반환
+- UnifiedAIServiceImpl.sendToOnDevice: additionalInfo = { provider:ondevice, ondeviceModelID, ttiMs }
+- Fallback (앱 레벨): freeModel → gemini → openAI → naver → claude (availableModels에 따라 건너뜀)
+- 권장 UI: 응답 버블 꼬리표 "온디바이스 · {ModelCatalog.displayName} · TTI {n.n}s" 또는 "{AIModel.displayName} · {model|provider}"
+- 스트리밍 델타 0 폴백: 비스트리밍 호출을 AIResponse 반환 오버로드로 호출하여 메타를 보존(모델/TTI 라벨링 일관성)

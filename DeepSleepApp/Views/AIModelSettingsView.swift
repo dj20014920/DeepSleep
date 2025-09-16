@@ -26,11 +26,15 @@ struct AIModelSettingsView: View {
                 VStack(spacing: 16) {
                     // 구독 상태에 따른 모델 목록 제한 + "실험 친구" 제거
                     let isPremium = SubscriptionStatusCenter.shared.isPremium
+                    let onDeviceEnabled = ConfigReader.bool("ONDEVICE_ENABLED", default: true) ?? true
                     let availableModels: [AIModelType] = {
                         let all = AIModelType.allCases.filter { $0 != .testModel }
-                        // 온디바이스(.onDevice)는 모든 사용자에게 노출
-                        if isPremium { return all }
-                        return all.filter { $0 == .freeModel || $0 == .gemini || $0 == .onDevice }
+                        var list = all
+                        if !onDeviceEnabled {
+                            list = list.filter { $0 != .onDevice }
+                        }
+                        if isPremium { return list }
+                        return list.filter { $0 == .freeModel || $0 == .gemini || ($0 == .onDevice && onDeviceEnabled) }
                     }()
                     ForEach(availableModels, id: \.self) { model in
                         ModelCard(

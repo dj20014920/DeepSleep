@@ -1,6 +1,14 @@
 import Foundation
 import os.log
 
+#if canImport(llama)
+    import llama
+#elseif canImport(LlamaCpp)
+    import LlamaCpp
+#elseif canImport(LlamaFramework)
+    import LlamaFramework
+#endif
+
 // MARK: - 온디바이스 LLM 런타임: llama.cpp 바인딩 어댑터 스텁
 // - 단일 출처(SSOT): 모델 ID/파일명/권장 파라미터는 ModelCatalog.swift만 참조
 // - 본 파일은 엔진 바인딩 추상화와 로더를 제공합니다.
@@ -57,15 +65,17 @@ protocol LlamaCppBinding: Sendable {
     func unload()
 }
 
-#if canImport(LlamaCpp)
+#if canImport(llama) || canImport(LlamaCpp) || canImport(LlamaFramework)
     // MARK: - 실제 llama.cpp 바인딩 (예시 스텁)
     // - 실제 API 타입/이니셜라이저/옵션 이름은 통합 시점에 맞춰 구현하세요.
     final class LlamaCppBindingImpl: LlamaCppBinding {
         private(set) var isLoaded: Bool = false
         private(set) var modelPath: String = ""
 
-        // MLtodo: 실제 llama.cpp 세션/컨텍스트 핸들 보관용 프로퍼티
-        // private var ctx: llama_context_t?
+        // llama.cpp 핸들
+        private var model: OpaquePointer?
+        private var ctx: OpaquePointer?
+        private var vocab: OpaquePointer?
 
         required init(
             modelPath: String,
@@ -75,10 +85,33 @@ protocol LlamaCppBinding: Sendable {
             embeddingHBM: Bool?
         ) throws {
             self.modelPath = modelPath
-            // MLtodo: llama.cpp 초기화 로직 구현(메탈 백엔드/ggml 설정 포함)
-            // - context(프롬프트 길이), threads, n_gpu_layers(gpuLayers) 매핑
-            // - emb-hbm/계산 정밀도 옵션
-            // - 실패 시 throw OnDeviceError.engineNotInitialized
+
+            // 백엔드 초기화
+            llama_backend_init()
+
+            // 모델 로드
+            var mparams = llama_model_default_params()
+            if let ngl = gpuLayers {
+                mparams.n_gpu_layers = Int32(ngl)
+            }
+            guard let model = modelPath.withCString({ llama_model_load_from_file($0, mparams) })
+            else {
+                throw OnDeviceError.engineNotInitialized
+            }
+            self.model = model
+
+            // 컨텍스트 생성
+            var cparams = llama_context_default_params()
+            cparams.n_ctx = UInt32(max(256, context))
+            cparams.n_threads = Int32(max(1, threads))
+            guard let ctx = llama_init_from_model(model, cparams) else {
+                llama_model_free(model)
+                self.model = nil
+                throw OnDeviceError.engineNotInitialized
+            }
+            self.ctx = ctx
+            self.vocab = llama_model_get_vocab(model)
+
             self.isLoaded = true
         }
 
@@ -90,16 +123,148 @@ protocol LlamaCppBinding: Sendable {
             topP: Double,
             onToken: @escaping @Sendable (String) -> Void
         ) throws {
-            guard isLoaded else { throw OnDeviceError.engineNotInitialized }
-            // MLtodo: 엔진에 system(있으면) + input을 전달(채팅 템플릿 자동)
-            // - 스트리밍 토큰 콜백 발생 시 onToken(delta) 호출
-            // - Task.isCancelled 감지 후 안전 종료
-            // - 샘플링: temperature/topK/topP 전달
-            // - 오류 시 적절히 throw
+            guard isLoaded, let ctx = self.ctx, let model = self.model, let vocab = self.vocab
+            else {
+                throw OnDeviceError.engineNotInitialized
+            }
+
+            // 1) Chat template 적용 → 프롬프트 문자열 생성
+            let maxLen = Int32(((system?.utf8.count ?? 0) + input.utf8.count) * 2 + 4096)
+            var formatted = [CChar](repeating: 0, count: Int(maxLen))
+            var promptBytes: Int32 = 0
+
+            let roleUser = "user"
+            let roleSystem = "system"
+
+            if let system = system, !system.isEmpty {
+                roleSystem.withCString { sysRoleC in
+                    roleUser.withCString { usrRoleC in
+                        system.withCString { sysC in
+                            input.withCString { inpC in
+                                var msgs = [
+                                    llama_chat_message(role: sysRoleC, content: sysC),
+                                    llama_chat_message(role: usrRoleC, content: inpC),
+                                ]
+                                // tmpl == nil → 모델 기본 템플릿 사용
+                                promptBytes = llama_chat_apply_template(
+                                    nil, &msgs, 2, true, &formatted, maxLen)
+                            }
+                        }
+                    }
+                }
+            } else {
+                roleUser.withCString { usrRoleC in
+                    input.withCString { inpC in
+                        var msgs = [llama_chat_message(role: usrRoleC, content: inpC)]
+                        promptBytes = llama_chat_apply_template(
+                            nil, &msgs, 1, true, &formatted, maxLen)
+                    }
+                }
+            }
+
+            if promptBytes <= 0 {
+                throw OnDeviceError.unknown("prompt formatting failed (\(promptBytes))")
+            }
+
+            // 2) 토크나이즈
+            var tokens = [llama_token](repeating: 0, count: Int(promptBytes) + 8)
+            let nTok = llama_tokenize(
+                vocab, formatted, promptBytes, &tokens, Int32(tokens.count), false, false)
+            if nTok <= 0 {
+                throw OnDeviceError.unknown("tokenize failed (\(nTok))")
+            }
+
+            // 3) 프롬프트 평가
+            var batch = llama_batch_init(nTok, 0, 1)
+            defer { llama_batch_free(batch) }
+            batch.n_tokens = nTok
+            for i in 0..<Int(nTok) {
+                batch.token[i] = tokens[i]
+                batch.pos[i] = Int32(i)
+                batch.n_seq_id[i] = 1
+                if let seq = batch.seq_id[i] { seq[0] = 0 }
+                batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
+            }
+            if llama_decode(ctx, batch) != 0 {
+                throw OnDeviceError.unknown("llama_decode failed (prompt)")
+            }
+
+            // 4) 샘플러 체인 구성(temperature/top-k/top-p)
+            var sparams = llama_sampler_chain_default_params()
+            guard let smpl = llama_sampler_chain_init(sparams) else {
+                throw OnDeviceError.unknown("sampler init failed")
+            }
+            defer { llama_sampler_free(smpl) }
+            if topK > 0 {
+                llama_sampler_chain_add(smpl, llama_sampler_init_top_k(Int32(topK)))
+            }
+            llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
+            llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
+            llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
+
+            // 5) 생성 루프(스트리밍)
+            var n_cur = nTok
+            var n_gen: Int32 = 0
+            let maxGen: Int32 = 512
+
+            while n_gen < maxGen {
+                if Task.isCancelled {
+                    throw OnDeviceError.generationCancelled
+                }
+
+                let new_id = llama_sampler_sample(smpl, ctx, -1)
+                if llama_vocab_is_eog(vocab, new_id) {
+                    break
+                }
+
+                // 토큰을 텍스트로 변환해 스트리밍 콜백
+                var tmp = [CChar](repeating: 0, count: 8)
+                let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
+                var delta = ""
+                if rc < 0 {
+                    let need = -Int(rc)
+                    tmp = [CChar](repeating: 0, count: need)
+                    _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
+                    delta = String(cString: tmp + [0])
+                } else {
+                    let used = Int(rc)
+                    tmp.removeLast(tmp.count - used)
+                    delta = String(cString: tmp + [0])
+                }
+                if !delta.isEmpty {
+                    onToken(delta)
+                }
+
+                // 단일 스텝 디코드
+                var nb = llama_batch_init(1, 0, 1)
+                nb.n_tokens = 1
+                nb.token[0] = new_id
+                nb.pos[0] = n_cur
+                nb.n_seq_id[0] = 1
+                if let seq = nb.seq_id[0] { seq[0] = 0 }
+                nb.logits[0] = 1
+                if llama_decode(ctx, nb) != 0 {
+                    llama_batch_free(nb)
+                    throw OnDeviceError.unknown("llama_decode failed (step)")
+                }
+                llama_batch_free(nb)
+
+                n_cur += 1
+                n_gen += 1
+            }
         }
 
         func unload() {
-            // MLtodo: llama_free 등 리소스 해제
+            if let ctx = self.ctx {
+                llama_free(ctx)
+                self.ctx = nil
+            }
+            if let model = self.model {
+                llama_model_free(model)
+                self.model = nil
+            }
+            // 백엔드 정리
+            llama_backend_free()
             isLoaded = false
         }
     }
@@ -307,7 +472,12 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         let ngl = params.gpuLayers
         let hbm = params.embeddingHBM
 
-        #if canImport(LlamaCpp)
+        // 디버그: 현재 컴파일된 바인딩 브랜치 확인용 로그(운영 영향 없음)
+        let log = OSLog(subsystem: "DeepSleep.OnDevice", category: "LlamaModelLoader")
+
+        #if canImport(llama) || canImport(LlamaCpp) || canImport(LlamaFramework)
+            os_log("🔧 binding flavor=real (llama/LlamaCpp/LlamaFramework) ctx=%{public}@ thr=%{public}@ ngl=%{public}@",
+                   log: log, type: .info, String(ctx), String(thr), String(ngl ?? -1))
             return try LlamaCppBindingImpl(
                 modelPath: modelPath,
                 context: ctx,
@@ -316,6 +486,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
                 embeddingHBM: hbm
             )
         #else
+            os_log("🔧 binding flavor=noop (no llama framework available)", log: log, type: .error)
             // 바인딩 없음 → 즉시 실패(상위 자동 폴백)
             return try NoopLlamaBinding(
                 modelPath: modelPath,

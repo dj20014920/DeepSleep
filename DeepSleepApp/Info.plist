@@ -347,5 +347,13 @@
 	<string>$(VERBOSE_LOGGING)</string>
 	<key>VISUALIZATION_DATA_SESSION_LIMIT</key>
 	<string>$(VISUALIZATION_DATA_SESSION_LIMIT)</string>
+
+	<!-- On-Device LLM Remote Config -->
+	<key>ONDEVICE_ENABLED</key>
+	<string>$(ONDEVICE_ENABLED)</string>
+	<key>ONDEVICE_FORCE_CLOUD</key>
+	<string>$(ONDEVICE_FORCE_CLOUD)</string>
+	<key>ONDEVICE_MAX_TTI_MS</key>
+	<string>$(ONDEVICE_MAX_TTI_MS)</string>
 </dict>
 </plist>

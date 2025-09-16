@@ -1,7 +1,6 @@
 # 🌙 DeepSleep AI - Git Ignore Configuration
 # =====================================================
-..*
-/Users/dj20014920/Desktop/DeepSleep/SUB_GUIDE.md
+SUB_GUIDE.md
 .serena
 ondevice/models/*.gguf
 ondevice/models/packwork/
@@ -9,20 +8,24 @@ models/
 out/
 *.aar
 .cache/
-*.sh
+# NOTE: allow committed .sh templates only; sensitive key-setup scripts are ignored below
+# (see **/*api-key*.sh, **/*secret*.sh patterns)
 *.disabled
 GEMINI.md
 CLAUDE.md
 .specstory
 build_test
 *.xcconfig
-/Users/dj20014920/Desktop/DeepSleep/WARP.md
-/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gemini.xcconfig
-/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/gpt.xcconfig
-/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/naver.xcconfig
-/Users/dj20014920/Desktop/DeepSleep/DeepSleepApp/Secrets.xcconfig
-AGENTS.md
-/Users/dj20014920/Desktop/DeepSleep/WARP.md
+# WARP debug notes (ignored)
+WARP.md
+DeepSleepApp/gemini.xcconfig
+DeepSleepApp/gpt.xcconfig
+DeepSleepApp/naver.xcconfig
+DeepSleepApp/Secrets.xcconfig
+# keep AGENTS.md tracked (remove this ignore if needed)
+# AGENTS.md
+# WARP debug notes (ignored)
+WARP.md
 emozleep
 emozleep/*
 # ===== macOS =====

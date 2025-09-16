@@ -598,3 +598,10 @@ $1
 - UnifiedAIServiceImpl/AIContextBuilder 모두 components 기반으로 호출하도록 수정 완료
 - UsageLimitManager 내부 로깅은 internalUsageVerbose로만 노출(기본 false)
 - (선택) 캐시 무효화 과다 호출 debounce, 로그 age 포맷 개선, MemoryGuard 로그 dedupe 권장
+
+
+## 2025-09-16 동기화: 온디바이스·프록시 스트림·폴백 SSOT 정리
+- 온디바이스 활성화/전환: ModelCatalog.fallbackOrder 기반 + 열/TTI 적응. 첫 토큰 TTI 측정 값을 메타(ttiMs)로 승격.
+- 스트리밍 → 폴백: 델타 0건 시 단건 호출로 폴백. 메타 보존을 위해 AIResponse 오버로드 호출 권장.
+- UI 라벨링: ChatViewController에서 AIResponse.metadata.additionalInfo를 읽어 모델명/TTI 표기. 클라우드/온디바이스 경로 일관화.
+- Presign 실패는 자동 CDN 폴백, sha256 mismatch는 백오프 재시도(3회) 후 실패 마감.
