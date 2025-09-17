@@ -231,6 +231,9 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
         // 모든 캐시 완전 삭제
         clearAllCaches()
         
+        // 추가: AI 시스템 프롬프트 캐시(AIContextManager)도 명시적으로 무효화하여 문서/코드 일치화
+        AIContextManager.shared.clearCache(reason: .manual, caller: "MemoryOptimizationManager.emergency")
+        
         // 캐시 한도 최소화
         imageCache.countLimit = 5
         modelCache.countLimit = 2

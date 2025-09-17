@@ -338,6 +338,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             // 바인딩이 세션 I/O를 지원하는 경우에만 사용
             if let io = loader as? (any KVPromptCache.LlamaSessionIO) {
                 let restore = await KVPromptCache.shared.restoreIfPossible(for: kvKey, using: io)
+                // 관측성 강화: RESTORE 결과를 콘솔에도 브릿지(런타임 토글)
+                if (ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false) {
+                    print("[KVCacheBridge] restore result success=\(restore.success) reason=\(restore.reason) key=\(kvKey.prefix(12))…")
+                }
                 KVMetricsHook.shared.onRestore(restore)
                 if restore.success {
                     // 프리필 생략 → 사용자 입력만 이어서
@@ -363,6 +367,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                             using: io,
                             nPrefixTokens: nPrefix
                         )
+                        // 관측성 강화: SAVE 결과를 콘솔에도 브릿지(런타임 토글)
+                        if (ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false) {
+                            print("[KVCacheBridge] save result success=\(saved.success) reason=\(saved.reason) key=\(kvKey.prefix(12))… tokens=\(nPrefix)")
+                        }
                         KVMetricsHook.shared.onSave(saved)
 
                         try await loader.generate(

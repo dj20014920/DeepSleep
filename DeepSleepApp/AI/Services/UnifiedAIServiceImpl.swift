@@ -1189,9 +1189,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             Task {
                 do {
                     let proxyURL = try resolveProxyBaseURL()
-                    print(
-                        "🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))"
-                    )
+                    // 경로 라벨 분기: on-device vs proxy
+                    if model == .onDevice {
+                        print("🤖 [UnifiedAIService] On-device stream engaged (mode=\(mode.rawValue))")
+                    } else {
+                        print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))")
+                    }
                     // 메시지 구성(프록시 경로와 동일 원칙)
                     var roleMessages: [RoleMessage] = []
                     if let assembled = assembledPrompt, !assembled.isEmpty {
@@ -1501,7 +1504,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 let cap =
                     ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
                 return
-                    "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지, 마지막에 한 줄 요약을 포함하세요."
+                    "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지"
             } else {
                 return ""
             }

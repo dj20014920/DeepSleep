@@ -622,3 +622,11 @@ $1
   - 톤/모델 변경 → 캐시 미스 로그
 - 운영 파라미터:
   - 원격 설정으로 capacity/TTL/쿨다운 조정 가능하도록 향후 키 노출 고려
+
+### 2025-09-17 후속: 관측성/일관성 강화
+- [KVCache] 가시화: OnDeviceAdapter에서 restore/save 결과를 DEBUG 빌드에 한해 콘솔 브릿지 출력([KVCacheBridge]). 운영은 OSLog만 유지.
+- 라우팅 라벨 일치화: UnifiedAIServiceImpl에서 on-device 경로는 "On-device stream engaged", 프록시 경로만 "Proxy stream engaged"로 분기.
+- 메모리 응급 정리와 캐시 설계 일치화: MemoryOptimizationManager.performEmergencyMemoryCleanup에서 AIContextManager 캐시도 clearCache(.manual)로 무효화.
+- 테스트 체크리스트 보강:
+  - 동일 composite 3턴: [KVCacheBridge] RESTORE OK/SAVED가 최소 1회 이상 관찰 + TTI 감소
+  - 페르소나/톤/모드/모델 변경: [KVCacheBridge] MISS 로그 및 AIContextManager MISS→HIT 흐름 재현
