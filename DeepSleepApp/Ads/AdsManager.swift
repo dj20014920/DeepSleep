@@ -59,6 +59,51 @@ final class AdsManager {
         Bundle.main.object(forInfoDictionaryKey: "ADMOB_TEST_BANNER_UNIT_ID") as? String
     }
 
+    // ---- 안전성 보장용 유틸 ----
+    private func isPlaceholder(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.hasPrefix("$(") && t.hasSuffix(")")
+    }
+    private func looksLikeAdMobAppId(_ s: String) -> Bool {
+        // 예: ca-app-pub-3940256099942544~1458002511
+        return s.hasPrefix("ca-app-pub-") && s.contains("~")
+    }
+    private func looksLikeAdUnitId(_ s: String) -> Bool {
+        // 예: ca-app-pub-3940256099942544/2934735716
+        return s.hasPrefix("ca-app-pub-") && s.contains("/")
+    }
+
+    private var resolvedAppId: String? {
+        if let real = configuredAppId, !real.isEmpty, !isPlaceholder(real), looksLikeAdMobAppId(real) {
+            return real
+        }
+        if let test = testAppIdFromConfig, !test.isEmpty, !isPlaceholder(test), looksLikeAdMobAppId(test) {
+            return test
+        }
+        return nil
+    }
+
+    private func resolveBannerUnitId() -> String? {
+        if isTestModeEnabled {
+            if let t = testBannerUnitIdFromConfig, !t.isEmpty, !isPlaceholder(t), looksLikeAdUnitId(t) {
+                return t
+            }
+            // 테스트 모드인데 테스트 유닛이 없으면 로드하지 않음
+            return nil
+        }
+        if let real = configuredBannerUnitId, !real.isEmpty, !isPlaceholder(real), looksLikeAdUnitId(real) {
+            return real
+        }
+        if let t = testBannerUnitIdFromConfig, !t.isEmpty, !isPlaceholder(t), looksLikeAdUnitId(t) {
+            return t
+        }
+        return nil
+    }
+
+    var hasValidAppConfiguration: Bool {
+        return resolvedAppId != nil && resolveBannerUnitId() != nil
+    }
+
     // Choose banner unit ID from Info.plist (Secrets.xcconfig). Force test when TEST_MODE enabled.
     private var isTestModeEnabled: Bool {
         if let boolVal = Bundle.main.object(forInfoDictionaryKey: "TEST_MODE") as? Bool {
@@ -71,13 +116,7 @@ final class AdsManager {
     }
 
     func bannerAdUnitIdForCurrentBuild() -> String {
-        if isTestModeEnabled {
-            return testBannerUnitIdFromConfig ?? ""
-        }
-        if let real = configuredBannerUnitId, !real.isEmpty {
-            return real
-        }
-        return testBannerUnitIdFromConfig ?? ""
+        return resolveBannerUnitId() ?? ""
     }
 
     // Optional: initialize SDK if available and the app id is present.
@@ -97,25 +136,23 @@ final class AdsManager {
                 return
             }
 
-            // 2. App ID 결정 (실제 → 테스트 순)
-            let appId = configuredAppId ?? testAppIdFromConfig
-            if let appId, !appId.isEmpty {
-                // 3. SDK start
-                MobileAds.shared.start { _ in }
-                // 4. 테스트 디바이스 설정
-                var ids = ["SIMULATOR_ID"]
-                if isTestModeEnabled { ids.append("00000000-0000-0000-0000-000000000000") }
-                MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ids
-                print("✅ [Ads] Google Mobile Ads started with App ID: \(appId)")
-            } else {
-                print(
-                    "ℹ️ [Ads] GADApplicationIdentifier missing or empty. Skipping GADMobileAds.start()."
-                )
+            // 2. App ID 결정 (실제 → 테스트 순) 및 유효성 검증
+            guard let appId = resolvedAppId else {
+                print("ℹ️ [Ads] GADApplicationIdentifier missing/invalid. Skipping GADMobileAds.start().")
                 // 구성 누락으로 start 수행 안 됨 → 이후 재시도 가능하도록 플래그 되돌림
                 startSyncQueue.async { [weak self] in
                     self?.didStartSDK = false
                 }
+                return
             }
+
+            // 3. SDK start
+            MobileAds.shared.start { _ in }
+            // 4. 테스트 디바이스 설정
+            var ids = ["SIMULATOR_ID"]
+            if isTestModeEnabled { ids.append("00000000-0000-0000-0000-000000000000") }
+            MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ids
+            print("✅ [Ads] Google Mobile Ads started with App ID: \(appId)")
         #else
             print("ℹ️ [Ads] GoogleMobileAds SDK not present. Ad initialization skipped.")
         #endif

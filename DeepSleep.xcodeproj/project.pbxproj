@@ -413,7 +413,6 @@
 		E084F0E32E33ACB3002F75E6 /* RemoteLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLogger.swift; sourceTree = "<group>"; };
 		E084F0E42E33ACB3002F75E6 /* ScalableSoundCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalableSoundCatalog.swift; sourceTree = "<group>"; };
 		E084F0E52E33ACB3002F75E6 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
-		E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		E084F0E72E33ACB3002F75E6 /* SecurityConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityConfig.swift; sourceTree = "<group>"; };
 		E084F0E82E33ACB3002F75E6 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		E084F0E92E33ACB3002F75E6 /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
@@ -522,6 +521,7 @@
 		E0NEW0012E70000100ABCDEF /* GradientPalettes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientPalettes.swift; sourceTree = "<group>"; };
 		E0NEW0022E70000100ABCDEF /* EmotionCalendarDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionCalendarDayCell.swift; sourceTree = "<group>"; };
 		E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListSheetViewController.swift; sourceTree = "<group>"; };
+		E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -601,13 +601,6 @@
 			path = Runtime;
 			sourceTree = "<group>";
 		};
-		E052033D2E77D1240073BBF4 /* Scripts */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Scripts;
-			sourceTree = "<group>";
-		};
 		E052033E2E77D1240073BBF4 /* OnDevice */ = {
 			isa = PBXGroup;
 			children = (
@@ -615,7 +608,6 @@
 				E05203372E77D1240073BBF4 /* BackgroundAssets */,
 				E05203392E77D1240073BBF4 /* Docs */,
 				E052033C2E77D1240073BBF4 /* Runtime */,
-				E052033D2E77D1240073BBF4 /* Scripts */,
 			);
 			path = OnDevice;
 			sourceTree = "<group>";
@@ -803,6 +795,7 @@
 			children = (
 				E084F0AB2E33ACB3002F75E6 /* DeepSleep.entitlements */,
 				E084F0D22E33ACB3002F75E6 /* Info.plist */,
+				E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */,
 				E084F08E2E33ACB3002F75E6 /* AddEditTodoViewController.swift */,
 				E084F08F2E33ACB3002F75E6 /* AdvancedPresetCatalog.swift */,
 				E01798152E3641FA002F178C /* AIModelSelectionViewController.swift */,
@@ -920,7 +913,6 @@
 				E084F1062E33ACB3002F75E6 /* ViewController+Utilities.swift */,
 				E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */,
 				E084F09A2E33ACB3002F75E6 /* Assets.xcassets */,
-				E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */,
 				E0E7BCD82E56E41800FF7073 /* PrivacyInfo.xcprivacy */,
 				E0899C922E5EE8B1006AD307 /* Ads */,
 				E084F05C2E33ACB3002F75E6 /* AI */,
@@ -1488,7 +1480,6 @@
 /* Begin XCBuildConfiguration section */
 		A019 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -1552,7 +1543,6 @@
 		};
 		A01A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -1609,7 +1599,7 @@
 		};
 		A01B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
+			baseConfigurationReference = E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1640,7 +1630,7 @@
 		};
 		A01C /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E084F0E62E33ACB3002F75E6 /* Secrets.xcconfig */;
+			baseConfigurationReference = E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
