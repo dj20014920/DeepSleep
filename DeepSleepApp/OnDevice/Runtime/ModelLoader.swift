@@ -51,11 +51,31 @@ protocol LlamaCppBinding: Sendable {
         embeddingHBM: Bool?
     ) throws
 
-    /// 스트리밍 생성
+    /// 스트리밍 생성(레거시 전체 경로) - 유지
     /// - 엔진 내부에서 stop 조건/Task.isCancelled를 주기적으로 확인해야 합니다.
     func generate(
         input: String,
         system: String?,
+        temperature: Double,
+        topK: Int,
+        topP: Double,
+        onToken: @escaping @Sendable (String) -> Void
+    ) throws
+
+    /// 세션 스냅샷 저장(KV 포함)
+    func saveState() throws -> Data
+
+    /// 세션 스냅샷 복원(KV 포함)
+    func loadState(_ data: Data) throws
+
+    /// 시스템 프롬프트만 프리필(토큰화+디코드). 반환: 누적 토큰 수(프리픽스 길이)
+    func prefillSystem(_ system: String) throws -> Int
+
+    /// 복원/프리필 이후 사용자 입력만 이어서 평가 + 생성 루프 시작
+    /// - startPos: 프리필된 마지막 토큰 위치 다음 시작 위치
+    func generateResuming(
+        input: String,
+        startPos: Int32,
         temperature: Double,
         topK: Int,
         topP: Double,
@@ -68,7 +88,7 @@ protocol LlamaCppBinding: Sendable {
 #if canImport(llama) || canImport(LlamaCpp) || canImport(LlamaFramework)
     // MARK: - 실제 llama.cpp 바인딩 (예시 스텁)
     // - 실제 API 타입/이니셜라이저/옵션 이름은 통합 시점에 맞춰 구현하세요.
-    final class LlamaCppBindingImpl: LlamaCppBinding {
+    final class LlamaCppBindingImpl: LlamaCppBinding, KVPromptCache.LlamaSessionIO {
         private(set) var isLoaded: Bool = false
         private(set) var modelPath: String = ""
 
@@ -267,6 +287,168 @@ protocol LlamaCppBinding: Sendable {
             llama_backend_free()
             isLoaded = false
         }
+
+        // MARK: - KV session I/O
+        func saveState() throws -> Data {
+            guard let ctx = self.ctx else { throw OnDeviceError.engineNotInitialized }
+            let size = llama_state_get_size(ctx)
+            var buf = Data(count: size)
+            let written = buf.withUnsafeMutableBytes {
+                (ptr: UnsafeMutableRawBufferPointer) -> Int in
+                guard let base = ptr.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                    return 0
+                }
+                return llama_state_get_data(ctx, base, size)
+            }
+            if written <= 0 { throw OnDeviceError.unknown("state_get_data failed") }
+            if written != size { buf.removeSubrange(written..<size) }
+            return buf
+        }
+
+        func loadState(_ data: Data) throws {
+            guard let ctx = self.ctx else { throw OnDeviceError.engineNotInitialized }
+            let read = data.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) -> Int in
+                guard let base = ptr.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                    return 0
+                }
+                return llama_state_set_data(ctx, base, data.count)
+            }
+            if read <= 0 { throw OnDeviceError.unknown("state_set_data failed") }
+        }
+
+        // MARK: - Prefix prefill and resume APIs
+        func prefillSystem(_ system: String) throws -> Int {
+            guard let ctx = self.ctx, let vocab = self.vocab else {
+                throw OnDeviceError.engineNotInitialized
+            }
+
+            // chat template로 system만 포맷
+            let roleSystem = "system"
+            let maxLen = Int32(system.utf8.count * 2 + 1024)
+            var formatted = [CChar](repeating: 0, count: Int(maxLen))
+            var promptBytes: Int32 = 0
+            roleSystem.withCString { sysRoleC in
+                system.withCString { sysC in
+                    var msgs = [llama_chat_message(role: sysRoleC, content: sysC)]
+                    promptBytes = llama_chat_apply_template(nil, &msgs, 1, true, &formatted, maxLen)
+                }
+            }
+            if promptBytes <= 0 {
+                throw OnDeviceError.unknown("system prompt formatting failed (\(promptBytes))")
+            }
+
+            // 토큰화 후 디코드 (logits 출력은 마지막 토큰만)
+            var tokens = [llama_token](repeating: 0, count: Int(promptBytes) + 8)
+            let nTok = llama_tokenize(
+                vocab, formatted, promptBytes, &tokens, Int32(tokens.count), false, false)
+            if nTok <= 0 { throw OnDeviceError.unknown("tokenize failed (\(nTok))") }
+
+            var batch = llama_batch_init(nTok, 0, 1)
+            defer { llama_batch_free(batch) }
+            batch.n_tokens = nTok
+            for i in 0..<Int(nTok) {
+                batch.token[i] = tokens[i]
+                batch.pos[i] = Int32(i)
+                batch.n_seq_id[i] = 1
+                if let seq = batch.seq_id[i] { seq[0] = 0 }
+                batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
+            }
+            if llama_decode(ctx, batch) != 0 {
+                throw OnDeviceError.unknown("llama_decode failed (system prefill)")
+            }
+            return Int(nTok)
+        }
+
+        func generateResuming(
+            input: String,
+            startPos: Int32,
+            temperature: Double,
+            topK: Int,
+            topP: Double,
+            onToken: @escaping @Sendable (String) -> Void
+        ) throws {
+            guard let ctx = self.ctx, let vocab = self.vocab else {
+                throw OnDeviceError.engineNotInitialized
+            }
+
+            // 토큰화
+            var tokens = [llama_token](repeating: 0, count: max(16, input.utf8.count * 2))
+            let nTok = input.withCString { cstr in
+                llama_tokenize(
+                    vocab, cstr, Int32(strlen(cstr)), &tokens, Int32(tokens.count), false, false)
+            }
+            if nTok <= 0 { throw OnDeviceError.unknown("tokenize failed (resume)") }
+
+            // 샘플러
+            var sparams = llama_sampler_chain_default_params()
+            guard let smpl = llama_sampler_chain_init(sparams) else {
+                throw OnDeviceError.unknown("sampler init failed")
+            }
+            defer { llama_sampler_free(smpl) }
+            if topK > 0 { llama_sampler_chain_add(smpl, llama_sampler_init_top_k(Int32(topK))) }
+            llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
+            llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
+            llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
+
+            var curPos = startPos
+
+            // 입력 토큰을 먼저 주입하여 컨텍스트를 최신 위치로 맞춤
+            for i in 0..<Int(nTok) {
+                var nb = llama_batch_init(1, 0, 1)
+                nb.n_tokens = 1
+                nb.token[0] = tokens[i]
+                nb.pos[0] = curPos
+                nb.n_seq_id[0] = 1
+                if let seq = nb.seq_id[0] { seq[0] = 0 }
+                nb.logits[0] = 1
+                if llama_decode(ctx, nb) != 0 {
+                    llama_batch_free(nb)
+                    throw OnDeviceError.unknown("llama_decode failed (resume inject)")
+                }
+                llama_batch_free(nb)
+                curPos += 1
+            }
+
+            // 생성 루프
+            var n_gen: Int32 = 0
+            let maxGen: Int32 = 512
+            while n_gen < maxGen {
+                if Task.isCancelled { throw OnDeviceError.generationCancelled }
+                let new_id = llama_sampler_sample(smpl, ctx, -1)
+                if llama_vocab_is_eog(vocab, new_id) { break }
+
+                var tmp = [CChar](repeating: 0, count: 8)
+                let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
+                var delta = ""
+                if rc < 0 {
+                    let need = -Int(rc)
+                    tmp = [CChar](repeating: 0, count: need)
+                    _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
+                    delta = String(cString: tmp + [0])
+                } else {
+                    let used = Int(rc)
+                    tmp.removeLast(tmp.count - used)
+                    delta = String(cString: tmp + [0])
+                }
+                if !delta.isEmpty { onToken(delta) }
+
+                var nb = llama_batch_init(1, 0, 1)
+                nb.n_tokens = 1
+                nb.token[0] = new_id
+                nb.pos[0] = curPos
+                nb.n_seq_id[0] = 1
+                if let seq = nb.seq_id[0] { seq[0] = 0 }
+                nb.logits[0] = 1
+                if llama_decode(ctx, nb) != 0 {
+                    llama_batch_free(nb)
+                    throw OnDeviceError.unknown("llama_decode failed (resume step)")
+                }
+                llama_batch_free(nb)
+
+                curPos += 1
+                n_gen += 1
+            }
+        }
     }
 #endif
 
@@ -283,8 +465,8 @@ final class NoopLlamaBinding: LlamaCppBinding {
         embeddingHBM: Bool?
     ) throws {
         self.modelPath = modelPath
-        // 바인딩 없음: 즉시 실패 유도(상위 폴백 트리거)
-        throw OnDeviceError.engineNotInitialized
+        // 바인딩 없음: 정상 생성 후, 호출 시점에 오류를 던져 상위 폴백 유도
+        self.isLoaded = false
     }
 
     func generate(
@@ -297,6 +479,18 @@ final class NoopLlamaBinding: LlamaCppBinding {
     ) throws {
         throw OnDeviceError.engineNotInitialized
     }
+
+    func saveState() throws -> Data { throw OnDeviceError.engineNotInitialized }
+    func loadState(_ data: Data) throws { throw OnDeviceError.engineNotInitialized }
+    func prefillSystem(_ system: String) throws -> Int { throw OnDeviceError.engineNotInitialized }
+    func generateResuming(
+        input: String,
+        startPos: Int32,
+        temperature: Double,
+        topK: Int,
+        topP: Double,
+        onToken: @escaping @Sendable (String) -> Void
+    ) throws { throw OnDeviceError.engineNotInitialized }
 
     func unload() {
         // no-op
@@ -476,8 +670,9 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         let log = OSLog(subsystem: "DeepSleep.OnDevice", category: "LlamaModelLoader")
 
         #if canImport(llama) || canImport(LlamaCpp) || canImport(LlamaFramework)
-            os_log("🔧 binding flavor=real (llama/LlamaCpp/LlamaFramework) ctx=%{public}@ thr=%{public}@ ngl=%{public}@",
-                   log: log, type: .info, String(ctx), String(thr), String(ngl ?? -1))
+            os_log(
+                "🔧 binding flavor=real (llama/LlamaCpp/LlamaFramework) ctx=%{public}@ thr=%{public}@ ngl=%{public}@",
+                log: log, type: .info, String(ctx), String(thr), String(ngl ?? -1))
             return try LlamaCppBindingImpl(
                 modelPath: modelPath,
                 context: ctx,
@@ -513,6 +708,22 @@ extension OnDeviceModelLoader {
             acc += delta
         }
         return acc
+    }
+}
+
+// MARK: - LlamaModelLoader ↔ KVPromptCache.LlamaSessionIO 브리지
+extension LlamaModelLoader: KVPromptCache.LlamaSessionIO {
+    public func saveState() throws -> Data {
+        guard let eng = self.state.engine else { throw OnDeviceError.engineNotInitialized }
+        return try eng.saveState()
+    }
+    public func loadState(_ data: Data) throws {
+        guard let eng = self.state.engine else { throw OnDeviceError.engineNotInitialized }
+        try eng.loadState(data)
+    }
+    public func prefillSystem(_ system: String) throws -> Int {
+        guard let eng = self.state.engine else { throw OnDeviceError.engineNotInitialized }
+        return try eng.prefillSystem(system)
     }
 }
 

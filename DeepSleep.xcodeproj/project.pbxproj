@@ -178,6 +178,7 @@
 		E0899C8E2E5EE505006AD307 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E0899C8D2E5EE505006AD307 /* GoogleMobileAds */; };
 		E0899C932E5EE8B1006AD307 /* AdsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899C912E5EE8B1006AD307 /* AdsManager.swift */; };
 		E0899CA22E6038A2006AD307 /* CalendarDayDecorLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0899CA02E6038A2006AD307 /* CalendarDayDecorLogic.swift */; };
+		E094B5072E7A927D00B46161 /* KVPromptCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E094B5062E7A927C00B46161 /* KVPromptCache.swift */; };
 		E098403F2E60B789005F5AD0 /* EmotionNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */; };
 		E09B92C42E73D4280090439A /* PerfTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09B92C32E73D4280090439A /* PerfTrace.swift */; };
 		E09B92C72E73FE050090439A /* PurchaseOptionSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09B92C62E73FE050090439A /* PurchaseOptionSheetViewController.swift */; };
@@ -451,6 +452,7 @@
 		E0899C8A2E5D996D006AD307 /* DeepSleep.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeepSleep.storekit; sourceTree = "<group>"; };
 		E0899C912E5EE8B1006AD307 /* AdsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsManager.swift; sourceTree = "<group>"; };
 		E0899CA02E6038A2006AD307 /* CalendarDayDecorLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDayDecorLogic.swift; sourceTree = "<group>"; };
+		E094B5062E7A927C00B46161 /* KVPromptCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KVPromptCache.swift; sourceTree = "<group>"; };
 		E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionNormalizer.swift; sourceTree = "<group>"; };
 		E09B92C32E73D4280090439A /* PerfTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfTrace.swift; sourceTree = "<group>"; };
 		E09B92C62E73FE050090439A /* PurchaseOptionSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseOptionSheetViewController.swift; sourceTree = "<group>"; };
@@ -470,6 +472,7 @@
 		E0A645022E72B4EE004A7958 /* PremiumBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumBadgeView.swift; sourceTree = "<group>"; };
 		E0A6450B2E72B518004A7958 /* StoreKitSubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitSubscriptionManager.swift; sourceTree = "<group>"; };
 		E0A6450D2E72B51F004A7958 /* AppVersionInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersionInfo.swift; sourceTree = "<group>"; };
+		E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		E0B562272E616FA000D334F1 /* SubscriptionTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTier.swift; sourceTree = "<group>"; };
 		E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalGradientTicker.swift; sourceTree = "<group>"; };
 		E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientAnimationSpec.swift; sourceTree = "<group>"; };
@@ -521,7 +524,6 @@
 		E0NEW0012E70000100ABCDEF /* GradientPalettes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientPalettes.swift; sourceTree = "<group>"; };
 		E0NEW0022E70000100ABCDEF /* EmotionCalendarDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionCalendarDayCell.swift; sourceTree = "<group>"; };
 		E0NEW0032E70000100ABCDEF /* TodoListSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListSheetViewController.swift; sourceTree = "<group>"; };
-		E0ADFACE2E8B0001000000AA /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -594,6 +596,7 @@
 		E052033C2E77D1240073BBF4 /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
+				E094B5062E7A927C00B46161 /* KVPromptCache.swift */,
 				E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */,
 				E052033A2E77D1240073BBF4 /* ModelCatalog.swift */,
 				E052033B2E77D1240073BBF4 /* ModelLoader.swift */,
@@ -1329,6 +1332,7 @@
 				E084F1C32E33ACB3002F75E6 /* ViewController+PresetBlocks.swift in Sources */,
 				E084F1C42E33ACB3002F75E6 /* UIDesignSystem.swift in Sources */,
 				E084F1C52E33ACB3002F75E6 /* EnhancedFeedbackViewController.swift in Sources */,
+				E094B5072E7A927D00B46161 /* KVPromptCache.swift in Sources */,
 				E09B92C72E73FE050090439A /* PurchaseOptionSheetViewController.swift in Sources */,
 				E084F1C62E33ACB3002F75E6 /* AppDelegate.swift in Sources */,
 				E084F1C72E33ACB3002F75E6 /* EmotionDiaryViewController.swift in Sources */,

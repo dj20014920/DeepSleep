@@ -309,8 +309,13 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 2) 파라미터 구성(SSOT 권장값 기반)
         let rec = ModelCatalog.record(for: id)
         let params = config.params ?? rec.recommended
-        let system =
-            (config.systemPrompt?.isEmpty == false) ? config.systemPrompt : SystemPrompts.empathyKR
+        // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
+        let system: String
+        if let s = config.systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            system = s
+        } else {
+            system = SystemPrompts.empathyKR
+        }
 
         // 3) 스트리밍 생성(TTI 측정)
         let started = Date()
@@ -318,18 +323,93 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         var ttiMs: Int = -1
 
         do {
-            try await loader.generate(
-                input: input,
-                systemPrompt: system,
-                params: params
-            ) { delta in
-                if !emittedFirst {
-                    emittedFirst = true
-                    ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                    self.log.info(
-                        "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+            // 2.5) KV 프롬프트 캐시: 시스템 프롬프트 접두부 재사용 시도
+            // 키 = 모델ID + 페르소나 컴포지트 해시 (AIContextBuilder 내부 로직과 동일 소스 사용)
+            let selectedModelType = SettingsManager.shared.selectedLLM
+            let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
+            let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+            let components = UserRulesManager.shared.personaSignatureComponents(
+                currentMode: .generalConversation,
+                model: mappedModel,
+                conversationTones: userSettingsForTones.conversationTones
+            )
+            let kvKey = KVPromptKeyBuilder.from(modelRaw: id.rawValue, personaCompositeHash: components.composite)
+
+            // 바인딩이 세션 I/O를 지원하는 경우에만 사용
+            if let io = loader as? (any KVPromptCache.LlamaSessionIO) {
+                let restore = await KVPromptCache.shared.restoreIfPossible(for: kvKey, using: io)
+                KVMetricsHook.shared.onRestore(restore)
+                if restore.success {
+                    // 프리필 생략 → 사용자 입력만 이어서
+                    try await loader.generate(
+                        input: input,
+                        systemPrompt: nil,
+                        params: params,
+                        onToken: { delta in
+                            if !emittedFirst {
+                                emittedFirst = true
+                                ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                            }
+                            onToken(delta)
+                        }
+                    )
+                } else {
+                    // 최초 1회: 시스템 프롬프트만 프리필 후 저장 → 이어서 생성
+                    do {
+                        let nPrefix = try io.prefillSystem(system)
+                        let saved = await KVPromptCache.shared.saveIfBeneficial(
+                            for: kvKey,
+                            using: io,
+                            nPrefixTokens: nPrefix
+                        )
+                        KVMetricsHook.shared.onSave(saved)
+
+                        try await loader.generate(
+                            input: input,
+                            systemPrompt: nil,
+                            params: params,
+                            onToken: { delta in
+                                if !emittedFirst {
+                                    emittedFirst = true
+                                    ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                    self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                                }
+                                onToken(delta)
+                            }
+                        )
+                    } catch {
+                        // 프리필 경로 실패 시 전체 경로 폴백
+                        try await loader.generate(
+                            input: input,
+                            systemPrompt: system,
+                            params: params,
+                            onToken: { delta in
+                                if !emittedFirst {
+                                    emittedFirst = true
+                                    ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                    self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                                }
+                                onToken(delta)
+                            }
+                        )
+                    }
                 }
-                onToken(delta)
+            } else {
+                // 기존 경로 유지
+                try await loader.generate(
+                    input: input,
+                    systemPrompt: system,
+                    params: params
+                ) { delta in
+                    if !emittedFirst {
+                        emittedFirst = true
+                        ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                        self.log.info(
+                            "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                    }
+                    onToken(delta)
+                }
             }
         } catch {
             // 에러 유형별 재매핑(폴백 의사결정에 활용)

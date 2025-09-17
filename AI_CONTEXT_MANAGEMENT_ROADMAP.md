@@ -605,3 +605,20 @@ $1
 - 스트리밍 → 폴백: 델타 0건 시 단건 호출로 폴백. 메타 보존을 위해 AIResponse 오버로드 호출 권장.
 - UI 라벨링: ChatViewController에서 AIResponse.metadata.additionalInfo를 읽어 모델명/TTI 표기. 클라우드/온디바이스 경로 일관화.
 - Presign 실패는 자동 CDN 폴백, sha256 mismatch는 백오프 재시도(3회) 후 실패 마감.
+
+
+## 2025-09-17 추가: 온디바이스 시스템 프롬프트 KV 접두부 캐시
+- 목적: 시스템 프롬프트 재디코딩 제거로 TTI/토큰 절감
+- 키: 모델ID + 페르소나 컴포지트 해시(UserRulesManager.personaSignatureComponents 기반)
+- 정책: LRU 용량=2, TTL=2h, 동일키 저장 쿨다운=60s
+- 흐름:
+  - 1턴: system만 prefill → saveState → 이어서 user+recent 생성
+  - N턴: restore → user+recent만 이어서 생성
+  - 실패 시 폴백: 전체 경로
+- 로그: [KVCache] MISS/HIT/RESTORE OK/SAVED, firstTokenMs, TTI 로그
+- 리스크/방지: 템플릿 불일치 방지(시스템 프롬프트만 저장), 실패 시 엔트리 제거
+- 테스트 체크리스트:
+  - 동일 모델/모드/톤 3턴 대화 시 2~3턴 TTI 감소 확인
+  - 톤/모델 변경 → 캐시 미스 로그
+- 운영 파라미터:
+  - 원격 설정으로 capacity/TTL/쿨다운 조정 가능하도록 향후 키 노출 고려
