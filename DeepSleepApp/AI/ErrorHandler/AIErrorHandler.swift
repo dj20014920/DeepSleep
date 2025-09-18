@@ -34,6 +34,22 @@ public final class AIErrorHandler {
             preferredStyle: .alert
         )
         
+        // requiresOnDeviceSetup → "친구 선택" 바로가기 제공
+        if case .requiresOnDeviceSetup = error {
+            alert.addAction(UIAlertAction(title: "친구 선택", style: .default) { _ in
+                // 현재 VC가 이미 선택 화면이면 무시
+                if viewController is AIModelSelectionViewController { return }
+                let selector = AIModelSelectionViewController()
+                if let nav = viewController.navigationController {
+                    nav.pushViewController(selector, animated: true)
+                } else {
+                    let nav = UINavigationController(rootViewController: selector)
+                    nav.modalPresentationStyle = .automatic
+                    viewController.present(nav, animated: true)
+                }
+            })
+        }
+        
         // 확인 버튼 (항상 존재)
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         

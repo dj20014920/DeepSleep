@@ -373,6 +373,8 @@ public struct SleepPattern: Codable {
 
 /// 🚨 AI 서비스 에러 (통합 에러 처리 시스템)
 public enum AIServiceError: Error, LocalizedError {
+    // 정책/설정 요구(무료 온디 전용 가드)
+    case requiresOnDeviceSetup
     // MARK: - 인증 및 권한 에러
     case unauthorized
     case quotaExceeded(model: AIModel)
@@ -420,6 +422,8 @@ public enum AIServiceError: Error, LocalizedError {
             return "⏰ 요청이 너무 많습니다.\n잠시 후 다시 시도해주세요."
         case .modelUnavailable(let model):
             return "🚫 \(model.displayName) 모델을 현재 사용할 수 없습니다.\n다른 모델을 선택해주세요."
+        case .requiresOnDeviceSetup:
+            return "친구를 먼저 설정해주세요!\n[친구 선택] 버튼을 눌러 모델을 선택/설치 후 이용할 수 있어요."
 
         // MARK: - 요청/응답 에러
         case .invalidRequest(let reason):
@@ -448,6 +452,8 @@ public enum AIServiceError: Error, LocalizedError {
             return "⚠️ API 오류: \(message)\n(코드: \(code))"
         case .allModelsFailed(let models):
             return "❌ 모든 모델 호출 실패\n시도한 모델: \(models.joined(separator: ", "))"
+        case .requiresOnDeviceSetup:
+            return "친구를 먼저 설정해주세요!\n[친구 선택] 버튼을 눌러 모델을 선택/설치 후 이용할 수 있어요."
         }
     }
 
@@ -472,6 +478,7 @@ public enum AIServiceError: Error, LocalizedError {
         case .httpError: return "HTTP 오류"
         case .apiError: return "API 오류"
         case .allModelsFailed: return "모든 모델 실패"
+        case .requiresOnDeviceSetup: return "친구 설정 필요"
         }
     }
 
@@ -514,6 +521,8 @@ public enum AIServiceError: Error, LocalizedError {
             return "모델 또는 요청 형식을 확인한 뒤 다시 시도해주세요."
         case .allModelsFailed:
             return "설정 화면에서 다른 모델을 선택하거나 잠시 후 다시 시도해주세요."
+        case .requiresOnDeviceSetup:
+            return "온디바이스 모델을 먼저 설치/선택해주세요. 대나무숲 친구 선택 화면으로 이동해 모델을 준비하면 다시 사용할 수 있어요."
         }
     }
 }

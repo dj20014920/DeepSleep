@@ -966,6 +966,21 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             // 중앙집중식 로딩 제거
             self.showLoading(false)
 
+            // requiresOnDeviceSetup인 경우 즉시 친구 선택 화면으로 라우팅 (UX 일관성)
+            if let ai = error as? AIServiceError, case .requiresOnDeviceSetup = ai {
+                // 중복 push 방지
+                if !(self.presentedViewController is UINavigationController && (self.presentedViewController?.children.first is AIModelSelectionViewController)) && !(self.navigationController?.topViewController is AIModelSelectionViewController) {
+                    let selector = AIModelSelectionViewController()
+                    if let nav = self.navigationController {
+                        nav.pushViewController(selector, animated: true)
+                    } else {
+                        let nav = UINavigationController(rootViewController: selector)
+                        nav.modalPresentationStyle = .automatic
+                        self.present(nav, animated: true)
+                    }
+                }
+            }
+
             let errorMessage = UserFriendlyErrorHandler.shared.getUserFriendlyMessage(for: error)
             print("🔧 [ChatViewController] 사용자 친화적 에러 메시지: \(errorMessage)")
 

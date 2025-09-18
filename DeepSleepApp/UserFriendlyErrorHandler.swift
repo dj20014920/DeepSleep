@@ -115,6 +115,24 @@ final class UserFriendlyErrorHandler {
         let message = getUserFriendlyMessage(for: error)
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         
+        // 온디바이스 설정 요구 에러인 경우 "친구 선택" 진입 액션 추가 (DRY: 중앙 처리)
+        if let aiErr = error as? AIServiceError, case .requiresOnDeviceSetup = aiErr {
+            let friendAction = UIAlertAction(title: "친구 선택", style: .default) { _ in
+                // 이미 선택 화면이면 중복 진입 방지
+                if viewController is AIModelSelectionViewController { return }
+                let selectorVC = AIModelSelectionViewController()
+                // 네비게이션 스택이 있으면 push, 없으면 모달
+                if let nav = viewController.navigationController {
+                    nav.pushViewController(selectorVC, animated: true)
+                } else {
+                    let nav = UINavigationController(rootViewController: selectorVC)
+                    nav.modalPresentationStyle = .automatic
+                    viewController.present(nav, animated: true)
+                }
+            }
+            alert.addAction(friendAction)
+        }
+        
         // 기본 확인 버튼
         alert.addAction(UIAlertAction(title: actionTitle, style: .default))
         

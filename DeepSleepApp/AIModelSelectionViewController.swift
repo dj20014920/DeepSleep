@@ -124,7 +124,7 @@ class AIModelSelectionViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // 서브타이틀
-        subtitleLabel.text = "각자의 특별한 재능으로 당신을 도와줄 거예요. 대화하고 싶은 친구를 선택해주세요 ✨"
+        subtitleLabel.text = "각자의 특별한 재능으로 당신을 도와줄 거예요.\n무료 사용자는 온디바이스 친구만 이용할 수 있어요 ✨"
         subtitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .regular)
         subtitleLabel.textColor = UIDesignSystem.Colors.secondaryText
         subtitleLabel.textAlignment = .center
@@ -595,8 +595,8 @@ class AIModelSelectionViewController: UIViewController {
     }
     private func isModelAllowed(_ model: AIModelType) -> Bool {
         if isPremiumOrTrial() { return true }
-        // Free 티어에서도 온디바이스 사용 허용(+ 기존 freeModel, gemini 허용 유지)
-        return model == .freeModel || model == .gemini || model == .onDevice
+        // Free 티어는 온디바이스만 사용 가능(요구사항 고도화)
+        return model == .onDevice
     }
     private func presentPaywall() {
         PaywallPresenter.present(from: self)

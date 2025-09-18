@@ -1,3 +1,41 @@
+## 2025-09-17 동기화: Free 티어 온디바이스 전용 · 온보딩 카피 · 프록시 스냅샷
+
+정책 요약(SSOT)
+- Free = 100% 온디바이스 모델만 사용 + 기존 일일/주간 횟수 제한 유지
+- 적용 범위: 일반 대화, 일기 분석, 프리셋 추천, 할 일 조언, 월간 통계, 운세 등 “모든 대화 모드”
+- 온디바이스 미가용(iOS 18 미만 또는 미설치) 시 Free 사용자는 “친구를 먼저 설정해주세요!” UX로 유도
+
+클라이언트 코드 변경(반영됨)
+- Onboarding
+  - OnboardingManager.setupFirstTimeUser(): 기본 모델 .gemini → .onDevice
+  - 온보딩 3번째 페이지(특별한 친구 소개) 카피에 Free=온디바이스 전용 안내 추가
+- 모델 선택 화면
+  - AIModelSelectionViewController: Free 사용자는 온디바이스만 선택 가능(다른 모델 탭 시 결제 유도)
+- 모델 라우팅(단일 진입점)
+  - UnifiedAIServiceImpl: 프록시 모드에서도 Free면 항상 on-device로 강제 라우팅
+    - sendMessage / sendMessageStream / sendToSpecificModel 경로에서 Free 강제 적용
+    - iOS 18 미만 또는 미설치 시 AIServiceError.requiresOnDeviceSetup 에러로 상위 UX가 “친구 선택” 화면으로 라우팅 가능
+  - AIServiceTypes: AIServiceError.requiresOnDeviceSetup 추가(사용자 안내 메시지 포함)
+
+서버(Cloudflare Workers) 스냅샷(아카이브)
+- 대상: emozleep-production(프록시), emozleep-presign(모델 다운로드)
+- 수집 내역(메타데이터):
+  - emoczleep-production.deployments.json / versions.json
+  - emozleep-presign.deployments.json
+  - 버전 메타: 54d1be38-1e31-4171-8c5c-353033f667f9 → emoczleep-production.version.54d1be38.json
+- 저장 경로: DeepSleep/emozleep-snapshots/*.json
+- 스크립트 번들 다운로드: 현재 환경의 Bearer 추출 경로 부재로 메타만 스냅샷. 토큰 파일 경로 확보 시 script artifact도 저장 가능
+
+검증 체크리스트
+- [ ] Free 사용자: 모든 모드에서 on-device 경로 사용(프록시 미경유). 미설치/iOS<18 시 requiresOnDeviceSetup → “친구 선택” 화면 이동
+- [ ] Pro/Max/Trial: 기존 정책/한도 유지, 클라우드 모델 정상 사용
+- [ ] 온보딩: 기본 모델 on-device, 3번째 페이지 카피 노출 확인
+- [ ] 모델 선택 화면: Free는 온디바이스만 선택 가능(타 모델 탭 → 결제 유도)
+- [ ] 프록시: Free 경로가 서버를 우회하는 시나리오에서 정책 헤더(X-Policy-*) 의존이 없는지 UI 연동 재확인
+
+운영 메모
+- Free 강제 on-device에 따라 서버 측 티어/쿼터 헤더를 UI에 반영하던 경로는 Free에서는 의미가 축소됨(서버 미경유 케이스). 남은 횟수/리셋 표시는 클라이언트 UsageGate/UsageLimitManager 기준 유지
+
 ## 2025-09-12 동기화: 스트리밍 실서비스 · 프롬프트 캐시 SSOT · 인증 LRU
 
 [정책 SSOT 공지] 구독/결제/환불/복원/7일 무료체험 정책은 SUB_GUIDE.md에 중앙화되어 있습니다. UI 문구/링크는 해당 문서를 기준으로 일관 유지하십시오.

@@ -384,8 +384,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if EnvironmentConfig.shared.useProxy {
             do {
                 let proxyURL = try resolveProxyBaseURL()
+                // Free 티어는 어떤 경우에도 온디바이스 강제
+                let userPref = (StoreKitSubscriptionManager.shared.currentTier == .free ? .onDevice : model)
                 // 모드별 최적 모델을 우선 적용(사용자 선호를 존중하되, 특정 모드는 정책상 고정)
-                let preferredForMode = getOptimalModelForMode(mode: mode, userPreferred: model)
+                let preferredForMode = getOptimalModelForMode(mode: mode, userPreferred: userPref)
                 var roleMessages: [RoleMessage] = []
                 if let assembled = assembledPrompt, !assembled.isEmpty {
                     // assembledPrompt가 시스템 프롬프트(안정 프리픽스) 전체를 포함하므로
@@ -671,6 +673,21 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     ) async throws -> AIResponse {
         // 🛰️ 프록시 경유(구성 기반)
         if EnvironmentConfig.shared.useProxy {
+            // Free 티어는 프록시 경유 금지: 온디바이스로 강제
+            if StoreKitSubscriptionManager.shared.currentTier == .free {
+                // iOS 18 미만 또는 미설치 시 사용자에게 친구 설정 안내 에러 반환
+                if #available(iOS 18.0, *) {
+                    // proceed
+                } else {
+                    throw AIServiceError.requiresOnDeviceSetup
+                }
+                return try await sendToOnDevice(
+                    messages: [RoleMessage(role: .system, content: generateOptimizedSystemPrompt(for: mode, model: .onDevice))] + (context?.conversationHistory?.suffix(6).map { RoleMessage(role: $0.role, content: $0.content, ts: $0.timestamp) } ?? []) + [RoleMessage(role: .user, content: content)],
+                    mode: mode,
+                    context: context,
+                    tokenConfig: tokenConfig
+                )
+            }
             let proxyURL = try resolveProxyBaseURL()
             // Build messages
             var roleMessages: [RoleMessage] = []
@@ -1190,14 +1207,23 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 do {
                     let proxyURL = try resolveProxyBaseURL()
                     // 경로 라벨 분기: on-device vs proxy
-                    if model == .onDevice {
+                    let tierIsFree = (StoreKitSubscriptionManager.shared.currentTier == .free)
+                    let effectiveModel: AIModel = tierIsFree ? .onDevice : model
+                    if effectiveModel == .onDevice {
                         print("🤖 [UnifiedAIService] On-device stream engaged (mode=\(mode.rawValue))")
                     } else {
-                        print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(model.rawValue), mode=\(mode.rawValue))")
+                        print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(effectiveModel.rawValue), mode=\(mode.rawValue))")
                     }
                     // 메시지 구성(프록시 경로와 동일 원칙)
                     var roleMessages: [RoleMessage] = []
-                    if let assembled = assembledPrompt, !assembled.isEmpty {
+                    if StoreKitSubscriptionManager.shared.currentTier == .free {
+                        // Free: on-device 전용 프롬프트, 미가용 시 에러로 상위 UI 안내
+                        #if !os(iOS)
+                        throw AIServiceError.requiresOnDeviceSetup
+                        #endif
+                        let sys = generateOptimizedSystemPrompt(for: mode, model: .onDevice)
+                        roleMessages.append(RoleMessage(role: .system, content: sys))
+                    } else if let assembled = assembledPrompt, !assembled.isEmpty {
                         roleMessages.append(RoleMessage(role: .system, content: assembled))
                     } else {
                         let sys = generateOptimizedSystemPrompt(for: mode, model: model)
@@ -1214,11 +1240,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     roleMessages.append(RoleMessage(role: .user, content: content))
 
                     // 바디 구성(프록시와 동일)
-                    let preferred = getOptimalModelForMode(mode: mode, userPreferred: model)
+                    // Free 티어라면 항상 온디바이스로 강제
+                    let preferred = getOptimalModelForMode(mode: mode, userPreferred: (StoreKitSubscriptionManager.shared.currentTier == .free ? .onDevice : model))
                     let effCfg = optimizeTokenConfigForModel(
                         tokenConfig ?? mode.recommendedTokenConfig, model: preferred, mode: mode)
                     var body: [String: Any] = [
-                        "model": preferred.rawValue,
+                        "model": preferred == .onDevice ? "on_device" : preferred.rawValue,
                         "mode": mode.rawValue,
                         "messages": roleMessages.map {
                             [
@@ -1415,6 +1442,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
         // 프리셋 추천은 항상 Gemini 고정(Strict JSON/스키마 강제 안정화 목적)
         if EnvironmentConfig.shared.useProxy {
+            // Free 티어는 모든 모드에서 온디바이스만 사용(서버 경유 금지)
+            if StoreKitSubscriptionManager.shared.currentTier == .free { return .onDevice }
             if mode == .presetRecommendation { return .gemini }
             return userPreferred
         }
