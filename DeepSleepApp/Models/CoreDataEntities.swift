@@ -117,66 +117,68 @@ extension BehaviorEventEntity {
 // MARK: - Data Conversion Extensions
 
 extension UnifiedSessionEntity {
-    /// Core Data 엔티티를 struct 모델로 변환
+    /// Core Data 엔티티를 struct 모델로 변환 (컨텍스트 큐에서 안전하게 접근)
     func toStruct() -> UnifiedSession {
+        if let ctx = self.managedObjectContext {
+            var result: UnifiedSession!
+            ctx.performAndWait {
+                result = self._toStructUnsafe()
+            }
+            return result
+        } else {
+            // 컨텍스트가 없으면 최선의 방식으로 직접 변환 (테스트/미관리 객체 케이스)
+            return _toStructUnsafe()
+        }
+    }
+    
+    /// 실제 변환 로직 (호출자는 반드시 컨텍스트 큐에서 호출)
+    private func _toStructUnsafe() -> UnifiedSession {
         // 메타데이터 디코딩
         var metadata = SessionMetadata()
         if let metadataData = self.metadataData {
             metadata = (try? JSONDecoder().decode(SessionMetadata.self, from: metadataData)) ?? SessionMetadata()
         }
         
-        // 채팅 메시지 변환 - 스레드/컨텍스트 안전: 현재 컨텍스트에서 Array로 복사 후 map
-        let chatMessages: [StoredChatMessage] = {
-            guard let set = self.chatMessages else { return [] }
-            let copied = Array(set) as NSArray
-            let entities: [StoredChatMessageEntity]
-            if let typed = copied as? [StoredChatMessageEntity] {
-                entities = typed
-            } else {
-                entities = copied.compactMap { $0 as? StoredChatMessageEntity }
-            }
-            // 결정적 정렬: timestamp asc → role(user<assistant<system) → uuid asc
-            let roleRank: (String?) -> Int = { role in
-                switch (role ?? "user") {
-                case "user": return 0
-                case "assistant": return 1
-                case "system": return 2
-                default: return 3
-                }
-            }
-            let sorted = entities.sorted { a, b in
-                let ta = a.timestamp
-                let tb = b.timestamp
-                if ta != tb { return ta < tb }
-                let ra = roleRank(a.role)
-                let rb = roleRank(b.role)
-                if ra != rb { return ra < rb }
-                return a.id.uuidString < b.id.uuidString
-            }
-            return sorted.map { $0.toStruct() }
-        }()
+        // 안전한 NSSet → [T] 변환 헬퍼 (브리징/캐스팅 일원화)
+        func typedArray<T: NSManagedObject>(from set: NSSet?) -> [T] {
+            guard let ns = set else { return [] }
+            return ns.allObjects.compactMap { $0 as? T }
+        }
         
-        // 피드백 데이터 변환 - 동일 패턴 적용
-        let feedbackData: [PresetFeedback] = {
-            guard let set = self.feedbackData else { return [] }
-            let copied = Array(set) as NSArray
-            if let typed = copied as? [PresetFeedbackEntity] {
-                return typed.map { $0.toStruct() }
-            }
-            let anyArray = copied.compactMap { $0 as? PresetFeedbackEntity }
-            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
-        }()
+        // 채팅 메시지 변환 (NSSet 경로만 사용: Set 제네릭 브리징 제거)
+        let chatEntities: [StoredChatMessageEntity] = typedArray(from: self.chatMessages)
         
-        // 행동 이벤트 변환 - 동일 패턴 적용
-        let behaviorEvents: [BehaviorEvent] = {
-            guard let set = self.behaviorEvents else { return [] }
-            let copied = Array(set) as NSArray
-            if let typed = copied as? [BehaviorEventEntity] {
-                return typed.map { $0.toStruct() }
+        // 결정적 정렬: timestamp asc → role(user<assistant<system) → uuid asc
+        let roleRank: (String?) -> Int = { role in
+            switch (role ?? "user") {
+            case "user": return 0
+            case "assistant": return 1
+            case "system": return 2
+            default: return 3
             }
-            let anyArray = copied.compactMap { $0 as? BehaviorEventEntity }
-            return anyArray.sorted { $0.timestamp < $1.timestamp }.map { $0.toStruct() }
-        }()
+        }
+        let sortedChat = chatEntities.sorted { a, b in
+            let ta = a.timestamp
+            let tb = b.timestamp
+            if ta != tb { return ta < tb }
+            let ra = roleRank(a.role)
+            let rb = roleRank(b.role)
+            if ra != rb { return ra < rb }
+            return a.id.uuidString < b.id.uuidString
+        }
+        let chatMessages = sortedChat.map { $0.toStruct() }
+        
+        // 피드백 데이터 변환 (NSSet 경로만 사용)
+        let feedbackEntities: [PresetFeedbackEntity] = typedArray(from: self.feedbackData)
+        let feedbackData = feedbackEntities
+            .sorted { $0.timestamp < $1.timestamp }
+            .map { $0.toStruct() }
+        
+        // 행동 이벤트 변환 (NSSet 경로만 사용)
+        let behaviorEntities: [BehaviorEventEntity] = typedArray(from: self.behaviorEvents)
+        let behaviorEvents = behaviorEntities
+            .sorted { $0.timestamp < $1.timestamp }
+            .map { $0.toStruct() }
         
         return UnifiedSession(
             id: self.id.uuidString,

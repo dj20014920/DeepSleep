@@ -87,7 +87,7 @@ final class EmotionAnalysisChatViewModel: EmotionAnalysisViewModelProtocol {
         // 메시지 캐시 업데이트
         let pageNumber = chatHistory.count / ViewConstants.pageSize
         let pageMessages = Array(chatHistory.suffix(ViewConstants.pageSize))
-        messageCache.setObject(pageMessages as NSArray, forKey: NSNumber(value: pageNumber))
+        messageCache.setObject(pageMessages as NSArray, forKey: NSNumber(value: pageNumber)) // safe: value types bridged
         
         // 오래된 메시지 제거
         if chatHistory.count > ViewConstants.maxCachedMessages {

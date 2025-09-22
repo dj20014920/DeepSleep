@@ -2,8 +2,6 @@ import Foundation
 import UIKit
 import Combine
 
-/// 통합 성능 관리자 - 모든 성능 관련 기능을 의존성 주입 방식으로 관리
-@MainActor
 final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObject {
     
     // MARK: - Dependencies (의존성 주입)

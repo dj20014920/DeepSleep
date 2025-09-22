@@ -47,7 +47,6 @@ public class SessionManager {
         }
 
         loadAllSessions()
-        print("✅ [SessionManager] 초기화 완료 - 총 \(sessionCache.count)개 세션")
     }
 
     // MARK: - Public API
@@ -406,8 +405,12 @@ public class SessionManager {
                 if protectedWeekdays.contains(weekday) { continue }
 
                 // 기존 채팅 메시지 수집
-                let messageEntities =
-                    (session.chatMessages?.allObjects as? [StoredChatMessageEntity]) ?? []
+                let messageEntities: [StoredChatMessageEntity] = {
+                    if let ns = session.chatMessages {
+                        return ns.allObjects.compactMap { $0 as? StoredChatMessageEntity }
+                    }
+                    return []
+                }()
                 // 메시지가 매우 적으면 압축 필요 없음
                 if messageEntities.count <= 3 { continue }
                 // 최신순으로 정렬 후 경량 메시지 구성
