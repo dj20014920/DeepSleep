@@ -668,3 +668,24 @@ $1
 - 테스트 체크리스트 보강:
   - 동일 composite 3턴: [KVCacheBridge] RESTORE OK/SAVED가 최소 1회 이상 관찰 + TTI 감소
   - 페르소나/톤/모드/모델 변경: [KVCacheBridge] MISS 로그 및 AIContextManager MISS→HIT 흐름 재현
+
+## 2025-09-22 업데이트: 온디바이스 LLM 통합 안정화(AFM 가드, 폴백, 필터링)
+- AFM(iOS 26+) 연동 가드 추가 및 폴백 일관화
+- 출력 후처리 필터 최소화(인사/친근한 말투 허용, 라벨/코드펜스만 제거)
+- 라우팅 DRY: 내부 코어 호출 경로 재사용, 중복 로직 제거
+
+
+## 2025-09-23 동기화: Apple FM(one‑chunk) 스트리밍 안정화 · 폴백 오탐 방지
+변경 요약
+- ChatViewController 스트리밍 루프 수정: 완료 조각만 수신되는 one‑chunk 케이스에서도 `gotAnyDelta=true`로 처리, 폴백 호출 방지. 완료 조각의 `delta`도 타이핑 버퍼에 반영하고 `typingCompletedStream=true`로 자연 종료.
+- SessionManager 문자열 오버로드 기본 모델을 `.onDevice`로 변경(방어적 디폴트). 오버로드 경로를 잘못 사용할 때 `.claude`로 로깅되던 소음을 제거.
+- UnifiedAIServiceImpl 경로는 그대로: `.onDevice` 우선 → AFM 가용 시 `provider=applefm`, 미가용 시 `provider=llama.cpp`.
+
+검증 포인트
+- Apple 선택·일반 대화에서 AICallSummary(provider=gemini)가 더 이상 붙지 않는다.
+- iOS 26 미만/AFM 미가용 환경에서 on-device(llama.cpp)만 사용되고 서버 프록시 로그가 출력되지 않는다.
+- 프리셋 추천 등 클라우드 필요 모드에서는 기존대로 프록시 로그가 정상 노출된다.
+
+추가 메모
+- 출력 후처리 정책 그대로 유지(친근한 인사 허용, 코드펜스/화자 라벨 제거만). UX 저해 방지.
+- 향후: ContextMetrics로 스트리밍·폴백 지표를 통합 집계(요청 수, 폴백율, p95 레이턴시).

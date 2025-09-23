@@ -1,5 +1,5 @@
-import Foundation
 import CryptoKit
+import Foundation
 
 // 중앙집중형 페르소나/모드/모델 캐시 시그니처 빌더
 // DRY: AIContextBuilder, UnifiedAIServiceImpl 등에서 동일 유틸 사용
@@ -21,17 +21,20 @@ public enum AIContextSignature {
     public static func mapModel(from type: AIModelType) -> AIModel {
         switch type {
         case .claude35: return .claude
-        case .gpt4:     return .openAI
-        case .gemini:   return .gemini
-        case .naver:    return .naver
+        case .gpt4: return .openAI
+        case .gemini: return .gemini
+        case .naver: return .naver
+        case .apple: return .onDevice
         case .onDevice: return .onDevice
-        case .freeModel:return .freeModel
-        case .testModel:return .freeModel
+        case .freeModel: return .freeModel
+        case .testModel: return .freeModel
         }
     }
 
     // personaSignature: UserRulesManager.shared.personaSignature() 반환값(sha256) 등 안전지문
-    public static func build(personaSignature: String, mode: AIMode, model: AIModel, memorySummaryFP: String?) -> String {
+    public static func build(
+        personaSignature: String, mode: AIMode, model: AIModel, memorySummaryFP: String?
+    ) -> String {
         let p = norm(personaSignature)
         let m = model.rawValue
         let md = mode.rawValue
@@ -41,7 +44,9 @@ public enum AIContextSignature {
     }
 
     // Base cache key without model dimension (for cross-model sharing)
-    public static func buildBase(personaSignature: String, mode: AIMode, memorySummaryFP: String?) -> String {
+    public static func buildBase(personaSignature: String, mode: AIMode, memorySummaryFP: String?)
+        -> String
+    {
         let p = norm(personaSignature)
         let md = mode.rawValue
         let mem = memorySummaryFP ?? "none"

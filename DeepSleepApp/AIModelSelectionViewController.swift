@@ -170,6 +170,13 @@ class AIModelSelectionViewController: UIViewController {
         // 온디바이스를 최상단에 노출, 무료(OpenAI) 카드는 제거
         let models = [
             (
+                type: AIModelType.apple,
+                personality: "시스템 최적화와 프라이버시 중심의 온디바이스",
+                specialties: ["추가 다운로드 없음", "시스템 제공", "저지연 응답", "저전력 최적화"],
+                strengths: "설치 없이 즉시 사용, 일관된 성능과 배터리 효율",
+                bestFor: "빠른 반응, 안정성, 프라이버시 우선"
+            ),
+            (
                 type: AIModelType.onDevice,
                 personality: "개인정보 보호와 저지연 대화",
                 specialties: ["온디바이스 처리", "저지연 응답", "백그라운드 설치/재개", "무결성 검증"],
@@ -224,6 +231,15 @@ class AIModelSelectionViewController: UIViewController {
                     // 선택 모델을 온디바이스로 지정
                     self.selectModel(.onDevice)
                     self.presentOnDeviceSelector()
+                    return
+                }
+                // Apple Foundation Models (iOS 26+)
+                if modelInfo.type == .apple {
+                    if #available(iOS 26.0, *) {
+                        self.selectModel(.apple)
+                    } else {
+                        ToastManager.shared.showWarning(message: "iOS 26 이상에서 사용할 수 있어요")
+                    }
                     return
                 }
 
@@ -595,8 +611,8 @@ class AIModelSelectionViewController: UIViewController {
     }
     private func isModelAllowed(_ model: AIModelType) -> Bool {
         if isPremiumOrTrial() { return true }
-        // Free 티어는 온디바이스만 사용 가능(요구사항 고도화)
-        return model == .onDevice
+        // Free 티어는 온디바이스(기존 GGUF)와 Apple Foundation Models 모두 허용
+        return model == .onDevice || model == .apple
     }
     private func presentPaywall() {
         PaywallPresenter.present(from: self)

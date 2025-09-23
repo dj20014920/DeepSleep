@@ -625,7 +625,7 @@ public class SessionManager {
             let fetched = try context.fetch(request)
             // 2) 반환 전 시간순(오름차순) + 동률 시 역할(user<assistant<system) + UUID 결정적 정렬
             let roleRank: (String?) -> Int = { role in
-                switch (role ?? "user") {
+                switch role ?? "user" {
                 case "user": return 0
                 case "assistant": return 1
                 case "system": return 2
@@ -669,7 +669,7 @@ public class SessionManager {
             let fetched = try context.fetch(request)
             // 동일 타임스탬프 동률 정렬(역할 → UUID)로 결정성 보장
             let roleRank: (String?) -> Int = { role in
-                switch (role ?? "user") {
+                switch role ?? "user" {
                 case "user": return 0
                 case "assistant": return 1
                 case "system": return 2
@@ -877,17 +877,29 @@ public class SessionManager {
         if mode == .taskAdviceOverall {
             let tier = StoreKitSubscriptionManager.shared.currentTier
             let tierKey: String = {
-                switch tier { case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"; case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"; case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE" }
+                switch tier {
+                case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"
+                case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"
+                case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE"
+                }
             }()
             let limit = ConfigReader.int(tierKey, default: 0) ?? 0
             let status = usageGate.canUseDailyKeyedFeature(key: "todo_overall_advice", limit: limit)
             guard status.canUse else {
-                return AsyncThrowingStream { $0.finish(throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")) }
+                return AsyncThrowingStream {
+                    $0.finish(
+                        throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+                    )
+                }
             }
         } else {
             let usage = usageGate.checkUsage(for: mode)
             guard usage.canUse else {
-                return AsyncThrowingStream { $0.finish(throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")) }
+                return AsyncThrowingStream {
+                    $0.finish(
+                        throwing: AIServiceError.configurationError("사용량 한도를 초과했습니다. 내일 다시 시도해주세요.")
+                    )
+                }
             }
         }
 
@@ -912,8 +924,18 @@ public class SessionManager {
                             if saveMessages {
                                 // 저장은 비동기로 수행하여 UI 스트림 지연 최소화
                                 Task { [aggregate] in
-                                    let aiResponse = AIResponse(id: UUID().uuidString, model: selectedModel, mode: mode, content: aggregate, metadata: ResponseMetadata(emotionAnalysis: nil, recommendations: nil, confidenceScore: 0, additionalInfo: [:]), usage: TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0), timestamp: Date(), processingTime: 0)
-                                    try? await self.saveAIConversation(sessionId: targetSessionId, userMessage: content, aiResponse: aiResponse, mode: mode)
+                                    let aiResponse = AIResponse(
+                                        id: UUID().uuidString, model: selectedModel, mode: mode,
+                                        content: aggregate,
+                                        metadata: ResponseMetadata(
+                                            emotionAnalysis: nil, recommendations: nil,
+                                            confidenceScore: 0, additionalInfo: [:]),
+                                        usage: TokenUsage(
+                                            promptTokens: 0, completionTokens: 0, totalTokens: 0,
+                                            estimatedCost: 0), timestamp: Date(), processingTime: 0)
+                                    try? await self.saveAIConversation(
+                                        sessionId: targetSessionId, userMessage: content,
+                                        aiResponse: aiResponse, mode: mode)
                                 }
                             }
                             continuation.yield(piece)
@@ -946,21 +968,23 @@ public class SessionManager {
         tokenConfigOverride: TokenConfiguration? = nil
     ) async throws -> AIResponse {
         #if DEBUG
-        let __perfStart = ProcessInfo.processInfo.systemUptime
-        func __log(_ step: String) {
-            let now = ProcessInfo.processInfo.systemUptime
-            let ms = Int(((now - __perfStart) * 1000.0).rounded())
-            print("⏱️ [⚡ Performance] [SessionManager] \(step)=\(ms)ms mode=\(mode.rawValue) userLen=\(content.count)")
-        }
-        __log("gate:usage")
+            let __perfStart = ProcessInfo.processInfo.systemUptime
+            func __log(_ step: String) {
+                let now = ProcessInfo.processInfo.systemUptime
+                let ms = Int(((now - __perfStart) * 1000.0).rounded())
+                print(
+                    "⏱️ [⚡ Performance] [SessionManager] \(step)=\(ms)ms mode=\(mode.rawValue) userLen=\(content.count)"
+                )
+            }
+            __log("gate:usage")
         #endif
         print("🚀 [SessionManager] AI 호출 시작 - 모드: \(mode.rawValue), 내용: \(content.prefix(50))...")
 
         // 1. 사용량 한도 확인 (모드별 정책)
         if mode == .taskAdviceOverall {
             // 전체 조언은 별도 키드 제한을 사용
-        // SSOT: 전체 조언 기본치는 티어별 AI_LIMITS_TODO_OVERALL_ADVICE_* 에서만 관리
-        let base = 0
+            // SSOT: 전체 조언 기본치는 티어별 AI_LIMITS_TODO_OVERALL_ADVICE_* 에서만 관리
+            let base = 0
             // 티어별 키 우선 적용: MAX > PRO > FREE > 기본
             let tier = StoreKitSubscriptionManager.shared.currentTier
             let tierKey: String = {
@@ -990,13 +1014,13 @@ public class SessionManager {
         // 2. 세션 ID 결정
         let targetSessionId = sessionId ?? getCurrentOrCreateSession().id
         #if DEBUG
-        __log("ctx:resolveSession")
+            __log("ctx:resolveSession")
         #endif
 
         // 3. 컨텍스트 구성 (3시간 캐싱 적용)
         let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
         #if DEBUG
-        __log("ctx:build")
+            __log("ctx:build")
         #endif
 
         // 4. AI 서비스 호출
@@ -1004,7 +1028,7 @@ public class SessionManager {
         let selectedModel = mapAIModelTypeToAIModel(selectedModelType)
         let effectiveTokenConfig = tokenConfigOverride ?? mode.recommendedTokenConfig
         #if DEBUG
-        __log("svc:call:start")
+            __log("svc:call:start")
         #endif
         let response = try await UnifiedAIServiceImpl.shared.sendMessage(
             content: content,
@@ -1012,11 +1036,10 @@ public class SessionManager {
             mode: mode,
             context: aiContext,
             tokenConfig: effectiveTokenConfig,
-            assembledPrompt: nil,  // AIContextBuilder에서 자동 생성
-            policyMeta: policyMeta
+            assembledPrompt: nil  // AIContextBuilder에서 자동 생성
         )
         #if DEBUG
-        __log("svc:call:done")
+            __log("svc:call:done")
         #endif
 
         // 5. 메시지 저장 (옵션)
@@ -1031,7 +1054,7 @@ public class SessionManager {
 
         print("✅ [SessionManager] AI 호출 완료 - 응답 길이: \(response.content.count)자")
         #if DEBUG
-        __log("done")
+            __log("done")
         #endif
         return response
     }
@@ -1222,6 +1245,8 @@ public class SessionManager {
             return .naver
         case .freeModel:
             return .freeModel
+        case .apple:
+            return .onDevice  // Apple Foundation Models는 온디바이스 경로 사용
         case .onDevice:
             return .onDevice  // 온디바이스는 현재 무료 모델로 매핑
         case .testModel:
@@ -1641,7 +1666,7 @@ extension SessionManager {
     /// - Returns: AI 응답 문자열
     public func sendMessage(
         content: String,
-        model: AIModel = .claude,
+        model: AIModel = .onDevice,
         context: String? = nil,
         saveMessages: Bool = true
     ) async throws -> String {
@@ -1657,7 +1682,7 @@ extension SessionManager {
     /// 모드 기반 중앙집중형 AI 호출(저장 정책 및 멀티-메시지 컨텍스트 일원화)
     public func sendMessage(
         content: String,
-        model: AIModel = .claude,
+        model: AIModel = .onDevice,
         mode: AIMode,
         saveMessages: Bool = true,
         policyMeta: [String: String]? = nil
@@ -1717,8 +1742,7 @@ extension SessionManager {
                 mode: mode,
                 context: aiContext,
                 tokenConfig: nil,
-                assembledPrompt: nil,
-                policyMeta: policyMeta
+                assembledPrompt: nil
             )
             let response = aiResponse.content
 

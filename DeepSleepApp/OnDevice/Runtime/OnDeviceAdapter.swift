@@ -254,7 +254,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     ) async throws -> GenerationSummary {
         // 원격 설정 기반 가드: 온디바이스 비활성/클라우드 강제 시 즉시 폴백 제안
         if isForcedCloud() || !isOnDeviceEnabled() {
-            log.info("🚧 On-device disabled or forced cloud via remote config")
+            log.info(
+                "🚧 [Adapter] on-device gated forcedCloud=\(self.isForcedCloud()) enabled=\(self.isOnDeviceEnabled()) → cloudFallbackSuggested"
+            )
             throw AdapterError.cloudFallbackSuggested
         }
 
@@ -263,6 +265,11 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
         // 1) 후보 결정
         let candidates = buildCandidates(preferred: adjustedPreferred)
+        #if DEBUG
+            self.log.info(
+                "🍎 [Adapter] on-device generate start preferred=\(adjustedPreferred?.rawValue ?? "nil", privacy: .public) candidates=\(candidates.map { $0.rawValue }.joined(separator: ","), privacy: .public)"
+            )
+        #endif
         var lastError: Error?
 
         for (idx, id) in candidates.enumerated() {
@@ -271,6 +278,11 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                     id: id, input: input, config: config, onToken: onToken)
                 // TTI 정책 카운트 업데이트
                 self.updateTTICounters(id: id, ttiMs: summary.ttiMilliseconds)
+                #if DEBUG
+                    self.log.info(
+                        "🍎 [Adapter] on-device success model=\(id.rawValue, privacy: .public) ttiMs=\(summary.ttiMilliseconds, privacy: .public)"
+                    )
+                #endif
                 // 성공
                 return summary
             } catch {
@@ -303,12 +315,31 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
         // 1) 세션 준비/전환
         if loader.activeModelID != id || !loader.isLoaded {
-            try await switchModel(id: id)
+            do {
+                try await switchModel(id: id)
+            } catch {
+                // GPU 레이어로 인한 초기화 실패 가능성에 대비, 1회 CPU 강제 재시도 경로 제공
+                var fallback = ModelCatalog.record(for: id).recommended
+                fallback.gpuLayers = 0
+                print(
+                    "🛟 [OnDeviceAdapter] switchModel failed (\(error.localizedDescription)). Retrying with gpuLayers=0"
+                )
+                // 직접 로드 경로로 재시도
+                let rec = ModelCatalog.record(for: id)
+                let url = try await ensureInstalled(id: id)
+                try loader.load(modelURL: url, modelID: id, params: fallback)
+            }
         }
 
         // 2) 파라미터 구성(SSOT 권장값 기반)
         let rec = ModelCatalog.record(for: id)
-        let params = config.params ?? rec.recommended
+        var params = config.params ?? rec.recommended
+        // 강제 비메탈 토글 시 GPU 레이어 비활성화, 아니면 기본 -1(가능 시 전체 오프로딩)
+        if ConfigReader.bool("ONDEVICE_DISABLE_METAL", default: false) ?? false {
+            params.gpuLayers = 0
+        } else if params.gpuLayers == nil {
+            params.gpuLayers = -1
+        }
         // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
         let system: String
         if let s = config.systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -333,27 +364,36 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                 model: mappedModel,
                 conversationTones: userSettingsForTones.conversationTones
             )
-            let kvKey = KVPromptKeyBuilder.from(modelRaw: id.rawValue, personaCompositeHash: components.composite)
+            let kvKey = KVPromptKeyBuilder.from(
+                modelRaw: id.rawValue, personaCompositeHash: components.composite)
 
             // 바인딩이 세션 I/O를 지원하는 경우에만 사용
             if let io = loader as? (any KVPromptCache.LlamaSessionIO) {
                 let restore = await KVPromptCache.shared.restoreIfPossible(for: kvKey, using: io)
                 // 관측성 강화: RESTORE 결과를 콘솔에도 브릿지(런타임 토글)
-                if (ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false) {
-                    print("[KVCacheBridge] restore result success=\(restore.success) reason=\(restore.reason) key=\(kvKey.prefix(12))…")
+                if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
+                    print(
+                        "[KVCacheBridge] restore result success=\(restore.success) reason=\(restore.reason) key=\(kvKey.prefix(12))…"
+                    )
                 }
                 KVMetricsHook.shared.onRestore(restore)
                 if restore.success {
-                    // 프리필 생략 → 사용자 입력만 이어서
-                    try await loader.generate(
+                    // 프리필 성공: 캐시의 마지막 위치 다음부터 이어붙이기
+                    // 현재 llama_state에는 시스템 프롬프트까지의 KV가 포함됨
+                    // startPos는 해당 마지막 토큰 위치 + 1
+                    let startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
+                    try await loader.generateResuming(
                         input: input,
                         systemPrompt: nil,
+                        startPos: startPos,
                         params: params,
                         onToken: { delta in
                             if !emittedFirst {
                                 emittedFirst = true
                                 ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                                self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                                self.log.info(
+                                    "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                )
                             }
                             onToken(delta)
                         }
@@ -368,20 +408,25 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                             nPrefixTokens: nPrefix
                         )
                         // 관측성 강화: SAVE 결과를 콘솔에도 브릿지(런타임 토글)
-                        if (ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false) {
-                            print("[KVCacheBridge] save result success=\(saved.success) reason=\(saved.reason) key=\(kvKey.prefix(12))… tokens=\(nPrefix)")
+                        if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
+                            print(
+                                "[KVCacheBridge] save result success=\(saved.success) reason=\(saved.reason) key=\(kvKey.prefix(12))… tokens=\(nPrefix)"
+                            )
                         }
                         KVMetricsHook.shared.onSave(saved)
 
-                        try await loader.generate(
+                        try await loader.generateResuming(
                             input: input,
                             systemPrompt: nil,
+                            startPos: Int32(nPrefix),
                             params: params,
                             onToken: { delta in
                                 if !emittedFirst {
                                     emittedFirst = true
                                     ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                                    self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                                    self.log.info(
+                                        "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                    )
                                 }
                                 onToken(delta)
                             }
@@ -396,7 +441,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                 if !emittedFirst {
                                     emittedFirst = true
                                     ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                                    self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
+                                    self.log.info(
+                                        "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                    )
                                 }
                                 onToken(delta)
                             }

@@ -1,5 +1,6 @@
 import Foundation
 import os.log
+import Darwin
 
 #if canImport(llama)
     import llama
@@ -91,12 +92,19 @@ protocol LlamaCppBinding: Sendable {
     final class LlamaCppBindingImpl: LlamaCppBinding, KVPromptCache.LlamaSessionIO {
         private(set) var isLoaded: Bool = false
         private(set) var modelPath: String = ""
-
+    
         // llama.cpp 핸들
         private var model: OpaquePointer?
         private var ctx: OpaquePointer?
         private var vocab: OpaquePointer?
-
+        // 모델 메타에서 추론되는 EOT(<end_of_turn>) 토큰 ID 캐시
+        private var eotToken: llama_token = -1
+    
+        // 동시성 제어: llama_* 호출은 동시 실행되면 안 됨 (이진 세마포어)
+        private let useLock = DispatchSemaphore(value: 1)
+        // 언로드 요청 시 생성 루프가 조기 중단할 수 있도록 신호
+        private var stopRequested = false
+    
         required init(
             modelPath: String,
             context: Int,
@@ -105,10 +113,13 @@ protocol LlamaCppBinding: Sendable {
             embeddingHBM: Bool?
         ) throws {
             self.modelPath = modelPath
-
-            // 백엔드 초기화
+    
+            // 백엔드 초기화(로그 억제: INFO 이하 숨김)
+            _ = setenv("GGML_LOG_LEVEL", "3", 1)
+            _ = setenv("LLAMA_LOG_LEVEL", "3", 1)
+            _ = setenv("LLAMA_LOG_COLORS", "0", 1)
             llama_backend_init()
-
+    
             // 모델 로드
             var mparams = llama_model_default_params()
             if let ngl = gpuLayers {
@@ -119,7 +130,7 @@ protocol LlamaCppBinding: Sendable {
                 throw OnDeviceError.engineNotInitialized
             }
             self.model = model
-
+    
             // 컨텍스트 생성
             var cparams = llama_context_default_params()
             cparams.n_ctx = UInt32(max(256, context))
@@ -131,10 +142,19 @@ protocol LlamaCppBinding: Sendable {
             }
             self.ctx = ctx
             self.vocab = llama_model_get_vocab(model)
-
+            // 메타에서 EOT 추론: "<end_of_turn>"를 특수 토큰 파싱으로 단일 토큰이면 채택
+            if let v = self.vocab {
+                let lit = "<end_of_turn>"
+                var tmp = [llama_token](repeating: 0, count: 8)
+                lit.withCString { cstr in
+                    let n = llama_tokenize(v, cstr, Int32(strlen(cstr)), &tmp, Int32(tmp.count), false, true)
+                    if n == 1 { self.eotToken = tmp[0] }
+                }
+            }
+    
             self.isLoaded = true
         }
-
+    
         func generate(
             input: String,
             system: String?,
@@ -147,15 +167,19 @@ protocol LlamaCppBinding: Sendable {
             else {
                 throw OnDeviceError.engineNotInitialized
             }
-
+    
+            // Acquire engine lock for the entire generation to prevent unload/free races
+            useLock.wait()
+            defer { useLock.signal() }
+            stopRequested = false
             // 1) Chat template 적용 → 프롬프트 문자열 생성
             let maxLen = Int32(((system?.utf8.count ?? 0) + input.utf8.count) * 2 + 4096)
             var formatted = [CChar](repeating: 0, count: Int(maxLen))
             var promptBytes: Int32 = 0
-
+    
             let roleUser = "user"
             let roleSystem = "system"
-
+    
             if let system = system, !system.isEmpty {
                 roleSystem.withCString { sysRoleC in
                     roleUser.withCString { usrRoleC in
@@ -166,8 +190,10 @@ protocol LlamaCppBinding: Sendable {
                                     llama_chat_message(role: usrRoleC, content: inpC),
                                 ]
                                 // tmpl == nil → 모델 기본 템플릿 사용
-                                promptBytes = llama_chat_apply_template(
-                                    nil, &msgs, 2, true, &formatted, maxLen)
+                                formatted.withUnsafeMutableBufferPointer { buf in
+                                    promptBytes = llama_chat_apply_template(
+                                        nil, &msgs, 2, true, buf.baseAddress, maxLen)
+                                }
                             }
                         }
                     }
@@ -176,24 +202,30 @@ protocol LlamaCppBinding: Sendable {
                 roleUser.withCString { usrRoleC in
                     input.withCString { inpC in
                         var msgs = [llama_chat_message(role: usrRoleC, content: inpC)]
-                        promptBytes = llama_chat_apply_template(
-                            nil, &msgs, 1, true, &formatted, maxLen)
+                        formatted.withUnsafeMutableBufferPointer { buf in
+                            promptBytes = llama_chat_apply_template(
+                                nil, &msgs, 1, true, buf.baseAddress, maxLen)
+                        }
                     }
                 }
             }
-
+    
             if promptBytes <= 0 {
                 throw OnDeviceError.unknown("prompt formatting failed (\(promptBytes))")
             }
-
-            // 2) 토크나이즈
-            var tokens = [llama_token](repeating: 0, count: Int(promptBytes) + 8)
+    
+            // 2) 토크나이즈 (널 종료 및 버퍼 크기 방어)
+            var tokens = [llama_token](repeating: 0, count: max(16, Int(promptBytes) + 8))
+            let ntotal = Int(promptBytes)
+            if ntotal >= formatted.count { throw OnDeviceError.unknown("prompt overflow") }
+            formatted[ntotal] = 0 // C 문자열 보장
             let nTok = llama_tokenize(
-                vocab, formatted, promptBytes, &tokens, Int32(tokens.count), false, false)
+                vocab, &formatted, Int32(ntotal), &tokens, Int32(tokens.count), false, true
+            )
             if nTok <= 0 {
                 throw OnDeviceError.unknown("tokenize failed (\(nTok))")
             }
-
+    
             // 3) 프롬프트 평가
             var batch = llama_batch_init(nTok, 0, 1)
             defer { llama_batch_free(batch) }
@@ -208,7 +240,7 @@ protocol LlamaCppBinding: Sendable {
             if llama_decode(ctx, batch) != 0 {
                 throw OnDeviceError.unknown("llama_decode failed (prompt)")
             }
-
+    
             // 4) 샘플러 체인 구성(temperature/top-k/top-p)
             var sparams = llama_sampler_chain_default_params()
             guard let smpl = llama_sampler_chain_init(sparams) else {
@@ -221,41 +253,44 @@ protocol LlamaCppBinding: Sendable {
             llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
             llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
             llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
-
+    
             // 5) 생성 루프(스트리밍)
             var n_cur = nTok
             var n_gen: Int32 = 0
-            let maxGen: Int32 = 512
-
+            let maxGen: Int32 = Int32(ConfigReader.int("ONDEVICE_MAX_TOKENS", default: 256) ?? 256)
+    
             while n_gen < maxGen {
-                if Task.isCancelled {
+                if Task.isCancelled || stopRequested {
                     throw OnDeviceError.generationCancelled
                 }
-
                 let new_id = llama_sampler_sample(smpl, ctx, -1)
-                if llama_vocab_is_eog(vocab, new_id) {
-                    break
+                // 1) 모델 메타 지정 EOG 우선
+                var reachedEnd = llama_vocab_is_eog(vocab, new_id)
+                // 2) 템플릿 EOT(<end_of_turn>) 토큰이 알려져 있으면 동일 비교(보수적)
+                if !reachedEnd && self.eotToken >= 0 && new_id == self.eotToken {
+                    reachedEnd = true
                 }
-
+                if reachedEnd { break }
+    
                 // 토큰을 텍스트로 변환해 스트리밍 콜백
                 var tmp = [CChar](repeating: 0, count: 8)
                 let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
                 var delta = ""
                 if rc < 0 {
-                    let need = -Int(rc)
+                    let need = max(8, -Int(rc))
                     tmp = [CChar](repeating: 0, count: need)
                     _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
                     delta = String(cString: tmp + [0])
-                } else {
+                } else if rc > 0 {
                     let used = Int(rc)
-                    tmp.removeLast(tmp.count - used)
-                    delta = String(cString: tmp + [0])
+                    if used < tmp.count { tmp[used] = 0 }
+                    delta = String(cString: tmp)
                 }
                 if !delta.isEmpty {
                     onToken(delta)
                 }
-
-                // 단일 스텝 디코드
+    
+                // 단일 스텝 ��������
                 var nb = llama_batch_init(1, 0, 1)
                 nb.n_tokens = 1
                 nb.token[0] = new_id
@@ -268,13 +303,18 @@ protocol LlamaCppBinding: Sendable {
                     throw OnDeviceError.unknown("llama_decode failed (step)")
                 }
                 llama_batch_free(nb)
-
+    
                 n_cur += 1
                 n_gen += 1
             }
         }
-
+    
         func unload() {
+            // Request cancellation and wait for any ongoing generation to finish
+            stopRequested = true
+            useLock.wait()
+            defer { useLock.signal() }
+    
             if let ctx = self.ctx {
                 llama_free(ctx)
                 self.ctx = nil
@@ -286,8 +326,9 @@ protocol LlamaCppBinding: Sendable {
             // 백엔드 정리
             llama_backend_free()
             isLoaded = false
+            stopRequested = false
         }
-
+    
         // MARK: - KV session I/O
         func saveState() throws -> Data {
             guard let ctx = self.ctx else { throw OnDeviceError.engineNotInitialized }
@@ -304,7 +345,7 @@ protocol LlamaCppBinding: Sendable {
             if written != size { buf.removeSubrange(written..<size) }
             return buf
         }
-
+    
         func loadState(_ data: Data) throws {
             guard let ctx = self.ctx else { throw OnDeviceError.engineNotInitialized }
             let read = data.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) -> Int in
@@ -315,12 +356,16 @@ protocol LlamaCppBinding: Sendable {
             }
             if read <= 0 { throw OnDeviceError.unknown("state_set_data failed") }
         }
-
+    
         // MARK: - Prefix prefill and resume APIs
         func prefillSystem(_ system: String) throws -> Int {
             guard let ctx = self.ctx, let vocab = self.vocab else {
                 throw OnDeviceError.engineNotInitialized
             }
+            // 엔진 리소스 경합 방지: prefill 동안 언로드/다른 호출과 겹치지 않도록 전체 잠금
+            useLock.wait()
+            defer { useLock.signal() }
+            if stopRequested || Task.isCancelled { throw OnDeviceError.generationCancelled }
 
             // chat template로 system만 포맷
             let roleSystem = "system"
@@ -330,19 +375,25 @@ protocol LlamaCppBinding: Sendable {
             roleSystem.withCString { sysRoleC in
                 system.withCString { sysC in
                     var msgs = [llama_chat_message(role: sysRoleC, content: sysC)]
-                    promptBytes = llama_chat_apply_template(nil, &msgs, 1, true, &formatted, maxLen)
+                    formatted.withUnsafeMutableBufferPointer { buf in
+                        promptBytes = llama_chat_apply_template(nil, &msgs, 1, true, buf.baseAddress, maxLen)
+                    }
                 }
             }
             if promptBytes <= 0 {
                 throw OnDeviceError.unknown("system prompt formatting failed (\(promptBytes))")
             }
-
-            // 토큰화 후 디코드 (logits 출력은 마지막 토큰만)
-            var tokens = [llama_token](repeating: 0, count: Int(promptBytes) + 8)
+    
+            // 토큰화 후 디코드 (logits 출력은 마지막 토큰만) — 버퍼 방어 + 널 종료
+            var tokens = [llama_token](repeating: 0, count: max(16, Int(promptBytes) + 8))
+            let ntotal = Int(promptBytes)
+            if ntotal >= formatted.count { throw OnDeviceError.unknown("prefill prompt overflow") }
+            formatted[ntotal] = 0
             let nTok = llama_tokenize(
-                vocab, formatted, promptBytes, &tokens, Int32(tokens.count), false, false)
+                vocab, &formatted, Int32(ntotal), &tokens, Int32(tokens.count), false, true
+            )
             if nTok <= 0 { throw OnDeviceError.unknown("tokenize failed (\(nTok))") }
-
+    
             var batch = llama_batch_init(nTok, 0, 1)
             defer { llama_batch_free(batch) }
             batch.n_tokens = nTok
@@ -370,6 +421,11 @@ protocol LlamaCppBinding: Sendable {
             guard let ctx = self.ctx, let vocab = self.vocab else {
                 throw OnDeviceError.engineNotInitialized
             }
+    
+            // 엔진 리소스 경합 방지: 전체 작업 동안 락을 획득하여 언로드와의 레이스를 차단
+            useLock.wait()
+            defer { useLock.signal() }
+            if stopRequested || Task.isCancelled { throw OnDeviceError.generationCancelled }
 
             // 토큰화
             var tokens = [llama_token](repeating: 0, count: max(16, input.utf8.count * 2))
@@ -394,6 +450,7 @@ protocol LlamaCppBinding: Sendable {
 
             // 입력 토큰을 먼저 주입하여 컨텍스트를 최신 위치로 맞춤
             for i in 0..<Int(nTok) {
+                if Task.isCancelled || stopRequested { throw OnDeviceError.generationCancelled }
                 var nb = llama_batch_init(1, 0, 1)
                 nb.n_tokens = 1
                 nb.token[0] = tokens[i]
@@ -411,24 +468,30 @@ protocol LlamaCppBinding: Sendable {
 
             // 생성 루프
             var n_gen: Int32 = 0
-            let maxGen: Int32 = 512
+            let maxGen: Int32 = Int32(ConfigReader.int("ONDEVICE_MAX_TOKENS", default: 256) ?? 256)
             while n_gen < maxGen {
-                if Task.isCancelled { throw OnDeviceError.generationCancelled }
+                if Task.isCancelled || stopRequested {
+                    throw OnDeviceError.generationCancelled
+                }
                 let new_id = llama_sampler_sample(smpl, ctx, -1)
-                if llama_vocab_is_eog(vocab, new_id) { break }
+                var reachedEnd = llama_vocab_is_eog(vocab, new_id)
+                if !reachedEnd && self.eotToken >= 0 && new_id == self.eotToken {
+                    reachedEnd = true
+                }
+                if reachedEnd { break }
 
                 var tmp = [CChar](repeating: 0, count: 8)
                 let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
                 var delta = ""
                 if rc < 0 {
-                    let need = -Int(rc)
+                    let need = max(8, -Int(rc))
                     tmp = [CChar](repeating: 0, count: need)
                     _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
                     delta = String(cString: tmp + [0])
-                } else {
+                } else if rc > 0 {
                     let used = Int(rc)
-                    tmp.removeLast(tmp.count - used)
-                    delta = String(cString: tmp + [0])
+                    if used < tmp.count { tmp[used] = 0 }
+                    delta = String(cString: tmp)
                 }
                 if !delta.isEmpty { onToken(delta) }
 
@@ -655,6 +718,43 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         try Task.checkCancellation()
     }
 
+    public func generateResuming(
+        input: String,
+        systemPrompt: String?,
+        startPos: Int32,
+        params: InferenceParams,
+        onToken: @escaping @Sendable (String) -> Void
+    ) async throws {
+        // 상태 점검
+        guard let eng = state.engine, eng.isLoaded else {
+            throw OnDeviceError.engineNotInitialized
+        }
+        // 1st-token 시간 측정
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var emittedFirst = false
+        let wrappedOnToken: @Sendable (String) -> Void = { delta in
+            if !emittedFirst {
+                emittedFirst = true
+                let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                os_log("⏱️ firstTokenMs=%{public}d (resume)", log: self.log, type: .info, ms)
+            }
+            onToken(delta)
+        }
+        try Task.checkCancellation()
+        try await withTaskCancellationHandler {
+        } operation: {
+            try eng.generateResuming(
+                input: input,
+                startPos: startPos,
+                temperature: params.temperature,
+                topK: params.topK,
+                topP: params.topP,
+                onToken: wrappedOnToken
+            )
+        }
+        try Task.checkCancellation()
+    }
+
     // MARK: - 바인딩 선택(조건부 컴파일)
 
     private static func makeBinding(modelPath: String, params: InferenceParams) throws
@@ -663,8 +763,20 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         // 단일 출처: 파라미터 매핑은 여기서만 수행
         let ctx = max(256, params.context)
         let thr = max(1, params.threads)
-        let ngl = params.gpuLayers
+        var ngl = params.gpuLayers
         let hbm = params.embeddingHBM
+
+        // 런타임 세이프티: 시뮬레이터 / 강제 비메탈 / 디바이스 이슈 시 GPU 레이어 비활성화
+        #if targetEnvironment(simulator)
+        ngl = 0
+        #endif
+        if (ConfigReader.bool("ONDEVICE_DISABLE_METAL", default: false) ?? false) {
+            ngl = 0
+        }
+        // 기본값: 명시적 설정이 없고 메탈이 가능하면 전체 오프로딩(-1)
+        if ngl == nil {
+            ngl = -1
+        }
 
         // 디버그: 현재 컴파일된 바인딩 브랜치 확인용 로그(운영 영향 없음)
         let log = OSLog(subsystem: "DeepSleep.OnDevice", category: "LlamaModelLoader")
@@ -683,13 +795,9 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         #else
             os_log("🔧 binding flavor=noop (no llama framework available)", log: log, type: .error)
             // 바인딩 없음 → 즉시 실패(상위 자동 폴백)
-            return try NoopLlamaBinding(
-                modelPath: modelPath,
-                context: ctx,
-                threads: thr,
-                gpuLayers: ngl,
-                embeddingHBM: hbm
-            )
+            // 노옵 경로: 즉시 실패시키기보다 명확한 로그 후 예외로 상위 폴백 유도
+            os_log("❌ llama framework not available (noop binding). Failing fast.", log: log, type: .error)
+            throw OnDeviceError.engineNotInitialized
         #endif
     }
 }

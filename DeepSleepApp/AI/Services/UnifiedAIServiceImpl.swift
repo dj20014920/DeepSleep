@@ -177,33 +177,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     /// 사용 가능한 AI 모델 목록 (fallback 순서대로)
     var availableModels: [AIModel] {
         var models: [AIModel] = []
-
         if claudeService != nil { models.append(.claude) }
         if openAIService != nil { models.append(.openAI) }
         if geminiService != nil { models.append(.gemini) }
         if naverService != nil { models.append(.naver) }
         if freeModelService != nil { models.append(.freeModel) }
-        #if os(iOS)
-            if #available(iOS 18.0, *) { models.append(.onDevice) }
-        #endif
+        models.append(.onDevice)
         return models
     }
 
-    /// 비용 기반 Fallback 순서 (2025년 8월 최신 가격 기준)
-    /// 통합된 무료 모델 우선 → Gemini 1.5 Flash: $0.000075 → GPT-4o mini: $0.00015 → Claude 3.5: $0.003
-    /// HyperCLOVA X는 가격 비공개로 중간 순서 배치
-    var fallbackOrder: [AIModel] {
-        // 베타 테스트 기간: 통합된 무료 모델 우선 사용
-        let costOrder: [AIModel] = [.freeModel, .gemini, .openAI, .naver, .claude]
-        return costOrder.filter { availableModels.contains($0) }
-    }
-
-    /// 가장 저렴한 fallback 모델
-    var cheapestFallbackModel: AIModel? {
-        return fallbackOrder.first
-    }
-
-    // MARK: - 🎯 통합 메시지 전송 (메인 함수)
+    // MARK: - Public API (UnifiedAIService)
 
     public func sendMessage(
         content: String,
@@ -211,966 +194,26 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         mode: AIMode,
         context: AIContext?,
         tokenConfig: TokenConfiguration?,
-        assembledPrompt: String? = nil,
-        policyMeta: [String: String]? = nil
-    ) async throws -> AIResponse {
-        #if DEBUG
-            let perf = PerfTrace(flow: "UnifiedAIService")
-            perf.with(extra: "mode", mode.rawValue).with(extra: "model", model.rawValue)
-                .with(extra: "userLen", String(content.count))
-        #endif
-        let reqId = UUID().uuidString
-        ContextMetrics.shared.logRequestStart(id: reqId, model: model.rawValue, mode: mode.rawValue)
-        let overallStart = Date()
-        // Simple dedup: prevent overlapping sends
-        if isSending {
-            throw AIServiceError.configurationError("REQUEST_INFLIGHT")
-        }
-        isSending = true
-        defer { isSending = false }
-        // Build idempotency key from stable inputs (no PII): mode+personaCoreSignature+hash(content)
-        let personaKey = UserRulesManager.shared.personaCoreSignature()
-        let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap {
-            String(format: "%02x", $0)
-        }.joined()
-        let idemKey = String((mode.rawValue + ":" + personaKey + ":" + contentHash).prefix(64))
-        if inflightKeys.contains(idemKey) {
-            throw AIServiceError.configurationError("DUPLICATE_INFLIGHT")
-        }
-        inflightKeys.insert(idemKey)
-        defer { inflightKeys.remove(idemKey) }
-
-        // 주기적 메트릭 요약 로그 (20요청마다)
-        requestCounter += 1
-        if requestCounter % 20 == 0 {
-            emitMetricsSummaryLog()
-        }
-
-        // 0. 일일 사용량 한도 체크 (통합 진입점에서 강제)
-        if mode == .taskAdviceOverall {
-            // SSOT: 티어별 전체 조언 제한은 Secrets의 AI_LIMITS_TODO_OVERALL_ADVICE_*만 사용
-            let tier = StoreKitSubscriptionManager.shared.currentTier
-            let tierKey: String = {
-                switch tier {
-                case .max: return "AI_LIMITS_TODO_OVERALL_ADVICE_MAX"
-                case .pro: return "AI_LIMITS_TODO_OVERALL_ADVICE_PRO"
-                case .free: return "AI_LIMITS_TODO_OVERALL_ADVICE_FREE"
-                }
-            }()
-            let limit = ConfigReader.int(tierKey, default: 0) ?? 0
-            let status = usageGate.canUseDailyKeyedFeature(
-                key: "todo_overall_advice", limit: limit)
-            guard status.canUse else {
-                ContextMetrics.shared.logRequestEnd(
-                    id: reqId, model: model.rawValue, mode: mode.rawValue, success: false,
-                    duration: Date().timeIntervalSince(overallStart))
-                throw AIServiceError.configurationError(
-                    "USAGE_LIMIT_EXCEEDED: task_advice_overall 0/\(limit)")
-            }
-        } else {
-            let usage = usageGate.checkUsage(for: mode)
-            guard usage.canUse else {
-                ContextMetrics.shared.logRequestEnd(
-                    id: reqId, model: model.rawValue, mode: mode.rawValue, success: false,
-                    duration: Date().timeIntervalSince(overallStart))
-                throw AIServiceError.configurationError(
-                    "USAGE_LIMIT_EXCEEDED: \(mode.rawValue) \(usage.currentUsage)/\(usage.dailyLimit)"
-                )
-            }
-        }
-
-        #if DEBUG
-            perf.mark("validate:security")
-        #endif
-        // 1. 보안 검증
-        let validationResult = securityManager.validateAndSanitizeInput(
-            content, userId: context?.userId ?? "unknown")
-
-        let cleaned: String
-        switch validationResult {
-        case .rejected(_):
-            ContextMetrics.shared.logRequestEnd(
-                id: reqId, model: model.rawValue, mode: mode.rawValue, success: false,
-                duration: Date().timeIntervalSince(overallStart))
-            throw AIServiceError.unauthorized
-        case .flagged(let reason, let cleanInput):
-            print("⚠️ [UnifiedAIService] 입력이 플래그됨: \(reason)")
-            cleaned = cleanInput
-        case .approved(let cleanInput):
-            cleaned = cleanInput
-        }
-
-        #if DEBUG
-            perf.mark("svc:internal:start")
-        #endif
-        do {
-            // 2. 실제 호출 (성공 시에만 사용량 증가)
-            let response = try await sendMessageInternal(
-                cleaned, model, mode, context, tokenConfig, assembledPrompt, policyMeta)
-            // Call logging success (mode/model 포함)
-            let elapsedMs = Int(Date().timeIntervalSince(overallStart) * 1000)
-            AICallLogger.shared.logAICallSuccess(
-                callId: reqId,
-                mode: response.mode,
-                model: response.model,
-                responseLength: response.content.count,
-                processingTime: elapsedMs,
-                tokenUsage: response.usage
-            )
-            if mode == .taskAdviceOverall {
-                usageGate.incrementDailyKeyedFeature(key: "todo_overall_advice")
-            } else {
-                usageGate.incrementUsage(for: mode)
-            }
-            ContextMetrics.shared.logRequestEnd(
-                id: reqId, model: model.rawValue, mode: mode.rawValue, success: true,
-                duration: Date().timeIntervalSince(overallStart))
-            #if DEBUG
-                perf.end("svc:internal:done")
-            #endif
-            return response
-        } catch {
-            // Call logging failure
-            let elapsedMs = Int(Date().timeIntervalSince(overallStart) * 1000)
-            let aiError = (error as? AIServiceError) ?? AIServiceError.unknown(error)
-            AICallLogger.shared.logAICallFailure(
-                callId: reqId,
-                mode: mode,
-                model: model,
-                error: aiError,
-                processingTime: elapsedMs
-            )
-            ContextMetrics.shared.logRequestEnd(
-                id: reqId, model: model.rawValue, mode: mode.rawValue, success: false,
-                duration: Date().timeIntervalSince(overallStart))
-            throw error
-        }
-    }
-
-    // Backward-compatible overload to satisfy UnifiedAIService protocol
-    public func sendMessage(
-        content: String,
-        model: AIModel,
-        mode: AIMode,
-        context: AIContext?,
-        tokenConfig: TokenConfiguration?,
         assembledPrompt: String?
     ) async throws -> AIResponse {
-        return try await sendMessage(
-            content: content,
-            model: model,
-            mode: mode,
-            context: context,
-            tokenConfig: tokenConfig,
-            assembledPrompt: assembledPrompt,
-            policyMeta: nil
+        return try await sendMessageInternal(
+            content, model, mode, context, tokenConfig, assembledPrompt
         )
     }
 
-    /// 내부 메시지 전송 로직 (보안 검증 후)
-    private func sendMessageInternal(
-        _ content: String,
-        _ model: AIModel,
-        _ mode: AIMode,
-        _ context: AIContext?,
-        _ tokenConfig: TokenConfiguration?,
-        _ assembledPrompt: String?,
-        _ policyMeta: [String: String]?
-    ) async throws -> AIResponse {
-
-        let startTime = Date()
-
-        // 🛰️ 프록시 모드 절대 우선: 어떤 로컬 라우팅/폴백보다 먼저 서버 프록시로 보낸다.
-        if EnvironmentConfig.shared.useProxy {
-            do {
-                let proxyURL = try resolveProxyBaseURL()
-                // Free 티어는 어떤 경우에도 온디바이스 강제
-                let userPref = (StoreKitSubscriptionManager.shared.currentTier == .free ? .onDevice : model)
-                // 모드별 최적 모델을 우선 적용(사용자 선호를 존중하되, 특정 모드는 정책상 고정)
-                let preferredForMode = getOptimalModelForMode(mode: mode, userPreferred: userPref)
-                var roleMessages: [RoleMessage] = []
-                if let assembled = assembledPrompt, !assembled.isEmpty {
-                    // assembledPrompt가 시스템 프롬프트(안정 프리픽스) 전체를 포함하므로
-                    // 별도 히스토리를 중복 추가하지 않는다. 변동 정보는 아래에서 요약(user)과 현재 입력(user)로 전달.
-                    roleMessages.append(RoleMessage(role: .system, content: assembled))
-                    // 최근 대화 요약을 변동 정보로 user 메시지로 추가(캐시 키 오염 방지)
-                    if let history = context?.conversationHistory, !history.isEmpty {
-                        let lite = history.map {
-                            ChatMessageLite(
-                                role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp
-                            )
-                        }
-                        // 남은 예산 기반 목표 토큰 산정
-                        let optimizer = TokenOptimizer.shared
-                        let sysT = optimizer.estimateTokens(for: assembled)
-                        let userT = optimizer.estimateTokens(for: content)
-                        let recentTail = Array(history.suffix(6))
-                        let recentTokens = recentTail.reduce(0) {
-                            $0 + optimizer.estimateTokens(for: $1.content)
-                        }
-                        let effCfg = tokenConfig ?? mode.recommendedTokenConfig
-                        let budget = effCfg.maxTokens
-                        let remaining = max(100, budget - sysT - userT - recentTokens)
-                        let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
-                        let summary = AIContextBuilder.shared.summarizeRecentAdaptive(
-                            lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
-                        if !summary.isEmpty {
-                            roleMessages.append(RoleMessage(role: .user, content: summary))
-                        }
-                    }
-                    // 현재 사용자 입력은 별도의 user 역할로 명확히 전달
-                    roleMessages.append(RoleMessage(role: .user, content: content))
-                } else {
-                    let sys = generateOptimizedSystemPrompt(for: mode, model: preferredForMode)
-                    roleMessages.append(RoleMessage(role: .system, content: sys))
-                    // 최근 대화 요약을 먼저 user로 전달
-                    if let history = context?.conversationHistory, !history.isEmpty {
-                        let lite = history.map {
-                            ChatMessageLite(
-                                role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp
-                            )
-                        }
-                        let optimizer = TokenOptimizer.shared
-                        let sysT = optimizer.estimateTokens(for: sys)
-                        let userT = optimizer.estimateTokens(for: content)
-                        let recentTail = Array(history.suffix(6))
-                        let recentTokens = recentTail.reduce(0) {
-                            $0 + optimizer.estimateTokens(for: $1.content)
-                        }
-                        let effCfg = tokenConfig ?? mode.recommendedTokenConfig
-                        let budget = effCfg.maxTokens
-                        let remaining = max(100, budget - sysT - userT - recentTokens)
-                        let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
-                        let summary = AIContextBuilder.shared.summarizeRecentAdaptive(
-                            lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
-                        if !summary.isEmpty {
-                            roleMessages.append(RoleMessage(role: .user, content: summary))
-                        }
-                        // 최근 턴은 3+3 정책(사용자 3 + 어시스턴트 3)만 포함
-                        let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
-                        for turn in recent {
-                            roleMessages.append(
-                                RoleMessage(
-                                    role: turn.role, content: turn.content, ts: turn.timestamp))
-                        }
-                    }
-                    roleMessages.append(RoleMessage(role: .user, content: content))
-                }
-                print("🛰️ [UnifiedAIService] Proxy first-path engaged → /v1/chat")
-                // New: Diagnostic prep log (no PII) — assembledPrompt usage, lengths, history turns, context cache snapshot
-                let sysLen = roleMessages.first?.content.count ?? 0
-                let userLen = roleMessages.last?.content.count ?? 0
-                let histTurns = max(0, roleMessages.count - 2)
-                let ctxSnap = AIContextManager.shared.debugSnapshot()
-                let usedAssembled = (assembledPrompt != nil && !(assembledPrompt!.isEmpty))
-                print(
-                    "🧩 [AICallPrep] preferred=\(preferredForMode.rawValue) mode=\(mode.rawValue) assembledPrompt=\(usedAssembled) sysLen=\(sysLen) histTurns=\(histTurns) userLen=\(userLen) ctx=\(ctxSnap)"
-                )
-                // Effective token/generation config for proxy path
-                let effTokenConfig = optimizeTokenConfigForModel(
-                    tokenConfig ?? mode.recommendedTokenConfig, model: preferredForMode, mode: mode)
-                let outgoingPolicy = policyMeta
-                let personaCore = UserRulesManager.shared.personaCoreSignature()
-                let rawResp = try await sendViaProxy(
-                    messages: roleMessages, mode: mode, preferred: preferredForMode,
-                    proxyURL: proxyURL, tokenConfig: effTokenConfig, policyMeta: outgoingPolicy,
-                    personaCoreKey: personaCore)
-                let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                let (processedText, reason) =
-                    AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                        response: rawResp.content,
-                        history: context?.conversationHistory,
-                        nickname: nickname
-                    )
-                var addInfo = rawResp.metadata.additionalInfo
-                addInfo["greeting_stripped"] = (reason != nil)
-                if let r = reason { addInfo["greeting_stripped_reason"] = r }
-                let newMeta = ResponseMetadata(
-                    emotionAnalysis: rawResp.metadata.emotionAnalysis,
-                    recommendations: rawResp.metadata.recommendations,
-                    confidenceScore: rawResp.metadata.confidenceScore,
-                    additionalInfo: addInfo
-                )
-                return AIResponse(
-                    id: rawResp.id,
-                    model: rawResp.model,
-                    mode: rawResp.mode,
-                    content: processedText,
-                    metadata: newMeta,
-                    usage: rawResp.usage,
-                    timestamp: rawResp.timestamp,
-                    processingTime: rawResp.processingTime
-                )
-            } catch let AIServiceError.serverError(statusCode) {
-                // 인증/서버 오류 → DEBUG에서만 안전 폴백(통합 무료 모델 → 로컬 직접 서비스 순)
-                #if DEBUG
-                    if statusCode == 401 || statusCode == 403 || statusCode >= 500 {
-                        // 1) OpenRouter 무료 폴백 우선
-                        if let freeService = freeModelService {
-                            print(
-                                "🛟 [UnifiedAIService] Proxy 오류(\(statusCode)) → OpenRouter 안전 폴백 시도"
-                            )
-                            var messages: [OpenRouterFallbackManager.ORMessage] = []
-                            if let assembled = assembledPrompt, !assembled.isEmpty {
-                                messages.append(.init(role: "system", content: assembled))
-                            } else {
-                                messages.append(
-                                    .init(
-                                        role: "system",
-                                        content: generateOptimizedSystemPrompt(
-                                            for: mode, model: .freeModel)))
-                                if let history = context?.conversationHistory, !history.isEmpty {
-                                    let recent = Array(history.suffix(16))
-                                    for turn in recent {
-                                        messages.append(
-                                            .init(role: turn.role.rawValue, content: turn.content))
-                                    }
-                                }
-                            }
-                            messages.append(.init(role: "user", content: content))
-                            let responseText = try await freeService.sendMessageWithFallback(
-                                messages: messages, mode: mode)
-                            // New: fallback summary log (OpenRouter)
-                            let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
-                            print(
-                                "🛟 [AIFallback] path=openrouter from=\(model.rawValue) mode=\(mode.rawValue) status=\(statusCode) durationMs=\(durationMs)"
-                            )
-                            let usage = TokenUsage(
-                                promptTokens: 0, completionTokens: 0, totalTokens: 0,
-                                estimatedCost: 0)
-                            let meta = ResponseMetadata(
-                                emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
-                                additionalInfo: ["provider": "openrouter", "fallback": true])
-                            return AIResponse(
-                                id: UUID().uuidString, model: .freeModel, mode: mode,
-                                content: responseText, metadata: meta, usage: usage,
-                                timestamp: Date(),
-                                processingTime: Int(Date().timeIntervalSince(startTime) * 1000))
-                        }
-                        // 2) 무료 모델이 없거나 실패한 경우: 로컬 직접 서비스 폴백(프록시 우회)
-                        if hasAnyDirectServiceAvailable() {
-                            print("🛟 [UnifiedAIService] Proxy 오류(\(statusCode)) → 로컬 직접 서비스 폴백 시도")
-                            let resp = try await sendDirectBypassingProxy(
-                                content: content,
-                                preferredModel: model,
-                                mode: mode,
-                                context: context,
-                                assembledPrompt: assembledPrompt
-                            )
-                            // New: fallback summary log (Direct)
-                            let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
-                            print(
-                                "🛟 [AIFallback] path=direct from=\(model.rawValue) to=\(resp.model.rawValue) mode=\(mode.rawValue) status=\(statusCode) durationMs=\(durationMs)"
-                            )
-                            return resp
-                        } else {
-                            print("⚠️ [UnifiedAIService] 직접 폴백 불가: 로컬 서비스 미초기화 또는 키 누락")
-                        }
-                    }
-                #endif
-                throw AIServiceError.serverError(statusCode: statusCode)
-            } catch {
-                throw error
-            }
-        }
-
-        let selectedModel = getSelectedModel(preferredModel: model)
-
-        print(
-            "🚀 [UnifiedAIService] 메시지 전송 시작 - 모델: \(selectedModel.rawValue), 모드: \(mode.rawValue)")
-
-        // 🎯 모드별 최적 모델 추천 (사용자 선택을 존중하되, 더 적합한 모델이 있으면 제안)
-        let recommendedModel = getOptimalModelForMode(mode: mode, userPreferred: selectedModel)
-        if recommendedModel != selectedModel {
-            print(
-                "💡 [UnifiedAIService] 모드 \(mode.rawValue)에는 \(recommendedModel.rawValue) 모델이 더 적합합니다."
-            )
-        }
-        let finalModel = recommendedModel
-
-        do {
-            // 모델별 분기 처리
-            let response = try await sendToSpecificModel(
-                content: content,
-                model: finalModel,
-                mode: mode,
-                context: context,
-                tokenConfig: optimizeTokenConfigForModel(
-                    tokenConfig ?? mode.recommendedTokenConfig, model: finalModel, mode: mode),
-                assembledPrompt: assembledPrompt
-            )
-
-            // 출력 보안 검증
-            let outputValidation = securityManager.validateOutput(
-                response.content, originalInput: content)
-
-            switch outputValidation {
-            case .blocked(let reason):
-                print("🚫 [UnifiedAIService] 출력이 차단됨: \(reason)")
-                // fallback 시도
-                return try await attemptFallback(
-                    content, originalModel: finalModel, mode: mode, context: context,
-                    tokenConfig: tokenConfig, assembledPrompt: assembledPrompt)
-
-            case .approved:
-                let processingTime = Date().timeIntervalSince(startTime)
-                print("✅ [UnifiedAIService] 메시지 전송 완료 - 처리시간: \(Int(processingTime * 1000))ms")
-                // Post-process to reduce repetitive greetings after the first assistant turn
-                let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                let (processedText, reason) =
-                    AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                        response: response.content,
-                        history: context?.conversationHistory,
-                        nickname: nickname
-                    )
-                if let r = reason {
-                    print("✂️ [UnifiedAIService] Stripped leading greeting (\(r))")
-                }
-                var addInfo = response.metadata.additionalInfo
-                addInfo["greeting_stripped"] = (reason != nil)
-                if let r = reason { addInfo["greeting_stripped_reason"] = r }
-                let newMeta = ResponseMetadata(
-                    emotionAnalysis: response.metadata.emotionAnalysis,
-                    recommendations: response.metadata.recommendations,
-                    confidenceScore: response.metadata.confidenceScore,
-                    additionalInfo: addInfo
-                )
-                // New: one-line call summary for direct path
-                print(
-                    "🎯 [AICallSummary] path=direct provider=\(finalModel.rawValue) mode=\(mode.rawValue) durationMs=\(Int(processingTime * 1000)) cacheProvider=- cacheAction=- fallback=false"
-                )
-                return AIResponse(
-                    id: response.id,
-                    model: response.model,
-                    mode: response.mode,
-                    content: processedText,
-                    metadata: newMeta,
-                    usage: response.usage,
-                    timestamp: response.timestamp,
-                    processingTime: response.processingTime
-                )
-            }
-
-        } catch {
-            print("❌ [UnifiedAIService] \(finalModel.rawValue) 실패: \(error.localizedDescription)")
-
-            // fallback 시도
-            return try await attemptFallback(
-                content, originalModel: finalModel, mode: mode, context: context,
-                tokenConfig: tokenConfig, assembledPrompt: assembledPrompt)
-        }
-    }
-
-    // MARK: - 🎯 모델별 메시지 전송
-
-    private func sendToSpecificModel(
-        content: String,
-        model: AIModel,
-        mode: AIMode,
-        context: AIContext?,
-        tokenConfig: TokenConfiguration,
-        assembledPrompt: String?
-    ) async throws -> AIResponse {
-        // 🛰️ 프록시 경유(구성 기반)
-        if EnvironmentConfig.shared.useProxy {
-            // Free 티어는 프록시 경유 금지: 온디바이스로 강제
-            if StoreKitSubscriptionManager.shared.currentTier == .free {
-                // iOS 18 미만 또는 미설치 시 사용자에게 친구 설정 안내 에러 반환
-                if #available(iOS 18.0, *) {
-                    // proceed
-                } else {
-                    throw AIServiceError.requiresOnDeviceSetup
-                }
-                return try await sendToOnDevice(
-                    messages: [RoleMessage(role: .system, content: generateOptimizedSystemPrompt(for: mode, model: .onDevice))] + (context?.conversationHistory?.suffix(6).map { RoleMessage(role: $0.role, content: $0.content, ts: $0.timestamp) } ?? []) + [RoleMessage(role: .user, content: content)],
-                    mode: mode,
-                    context: context,
-                    tokenConfig: tokenConfig
-                )
-            }
-            let proxyURL = try resolveProxyBaseURL()
-            // Build messages
-            var roleMessages: [RoleMessage] = []
-            if let assembled = assembledPrompt, !assembled.isEmpty {
-                roleMessages.append(RoleMessage(role: .system, content: assembled))
-            } else {
-                let sys = generateOptimizedSystemPrompt(for: mode, model: model)
-                roleMessages.append(RoleMessage(role: .system, content: sys))
-                if let history = context?.conversationHistory, !history.isEmpty {
-                    let recent = Array(history.suffix(16))
-                    for turn in recent {
-                        roleMessages.append(
-                            RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
-                    }
-                }
-                roleMessages.append(RoleMessage(role: .user, content: content))
-            }
-            // Compute effective token config for proxy
-            let effTokenConfig = optimizeTokenConfigForModel(tokenConfig, model: model, mode: mode)
-            // Call proxy inline (avoid project membership issues)
-            return try await sendViaProxy(
-                messages: roleMessages, mode: mode, preferred: model, proxyURL: proxyURL,
-                tokenConfig: effTokenConfig, policyMeta: nil,
-                personaCoreKey: UserRulesManager.shared.personaCoreSignature())
-        }
-
-        // 📉 Claude 일일 요청 상한 체크(유료도 상한 적용)
-        if model == .claude {
-            let (canUseClaude, _, _) = claudeUsageStatus()
-            if !canUseClaude {
-                // Claude 상한 초과 → Gemini 우선 폴백
-                let fallbackModel: AIModel =
-                    availableModels.contains(.gemini)
-                    ? .gemini : (fallbackOrder.first { $0 != .claude } ?? .freeModel)
-                print("🔀 [UnifiedAIService] Claude 일일 상한 도달 → \(fallbackModel.rawValue)로 자동 라우팅")
-                return try await sendToSpecificModel(
-                    content: content,
-                    model: fallbackModel,
-                    mode: mode,
-                    context: context,
-                    tokenConfig: tokenConfig,
-                    assembledPrompt: assembledPrompt
-                )
-            }
-        }
-
-        // 🎨 시스템 프롬프트 구성: assembledPrompt가 있으면 그것을 단일 시스템 프롬프트로 사용 (중복 제거)
-        let systemPrompt: String = {
-            if let assembled = assembledPrompt, !assembled.isEmpty {
-                return assembled
-            } else {
-                return generateOptimizedSystemPrompt(for: mode, model: model)
-            }
-        }()
-
-        // 멀티-메시지 구성: 시스템 + (필요 시) 최근 대화 + 현재 사용자 입력
-        // assembledPrompt가 제공된 경우, 이미 시스템/메모리/최근/사용자 입력이 조립되어 있으므로
-        // 추가 히스토리를 중복해서 붙이지 않습니다.
-        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
-        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
-            // 최근 대화 요약을 user 메시지로 먼저 전달 (캐시 프리픽스와 분리)
-            let lite = history.map {
-                ChatMessageLite(
-                    role: $0.role.rawValue, content: $0.content, createdAt: $0.timestamp)
-            }
-            let optimizer = TokenOptimizer.shared
-            let sysT = optimizer.estimateTokens(for: systemPrompt)
-            let userT = optimizer.estimateTokens(for: content)
-            let recentTail = Array(history.suffix(6))
-            let recentTokens = recentTail.reduce(0) {
-                $0 + optimizer.estimateTokens(for: $1.content)
-            }
-            let effCfg = tokenConfig ?? mode.recommendedTokenConfig
-            let budget = effCfg.maxTokens
-            let remaining = max(100, budget - sysT - userT - recentTokens)
-            let targetSummaryTokens = max(80, min(280, Int(Double(remaining) * 0.25)))
-            let summary = AIContextBuilder.shared.summarizeRecentAdaptive(
-                lite, targetTokens: targetSummaryTokens, maxItemsLimit: 16)
-            if !summary.isEmpty {
-                roleMessages.append(RoleMessage(role: .user, content: summary))
-            }
-            // 최근 턴은 3+3 정책(사용자 3 + 어시스턴트 3)만 포함
-            let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
-            for turn in recent {
-                roleMessages.append(
-                    RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
-            }
-        }
-        roleMessages.append(RoleMessage(role: .user, content: content))
-
-        switch model {
-        case .claude:
-            guard let service = claudeService else {
-                throw AIServiceError.modelUnavailable(model: model)
-            }
-            let result = try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
-            incrementClaudeUsage()
-            return result
-
-        case .openAI:
-            guard let service = openAIService else {
-                throw AIServiceError.modelUnavailable(model: model)
-            }
-            return try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
-
-        case .gemini:
-            guard let service = geminiService else {
-                throw AIServiceError.modelUnavailable(model: model)
-            }
-            return try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
-
-        case .naver:
-            guard let service = naverService else {
-                throw AIServiceError.modelUnavailable(model: model)
-            }
-            return try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenConfig)
-
-        case .onDevice:
-            return try await sendToOnDevice(
-                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenConfig)
-
-        case .freeModel:
-            print("🎁 [UnifiedAIService] 무료 모델 폴백 시스템 호출 - 모드: \(mode)")
-
-            guard let freeService = freeModelService else {
-                print("❌ [UnifiedAIService] freeModelService가 nil입니다!")
-                throw AIServiceError.modelUnavailable(model: model)
-            }
-
-            // 멀티-메시지 구성: 시스템 + (대화 이력 또는 assembledPrompt) + 현재 사용자 입력
-            let sysPrompt: String = {
-                if let assembled = assembledPrompt, !assembled.isEmpty {
-                    return assembled
-                } else {
-                    return generateOptimizedSystemPrompt(for: mode, model: model)
-                }
-            }()
-            var messages: [OpenRouterFallbackManager.ORMessage] = [
-                .init(role: "system", content: sysPrompt)
-            ]
-
-            if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty
-            {
-                let recent = Array(history.suffix(16))  // 최근 16개만 포함
-                for turn in recent {
-                    messages.append(.init(role: turn.role.rawValue, content: turn.content))
-                }
-            }
-            // 최신 사용자 입력 추가
-            messages.append(.init(role: "user", content: content))
-
-            let responseText = try await freeService.sendMessageWithFallback(
-                messages: messages,
-                mode: mode
-            )
-
-            let promptChars = messages.reduce(0) { $0 + $1.content.count }
-            let promptTokensEst = promptChars / 4
-            let completionTokensEst = responseText.count / 4
-
-            // 문자열 응답을 AIResponse로 변환
-            return AIResponse(
-                id: UUID().uuidString,
-                model: model,
-                mode: mode,
-                content: responseText,
-                metadata: ResponseMetadata(
-                    emotionAnalysis: nil,
-                    recommendations: nil,
-                    confidenceScore: 0.8,
-                    additionalInfo: ["source": "OpenRouter", "message_count": messages.count]
-                ),
-                usage: TokenUsage(
-                    promptTokens: promptTokensEst,
-                    completionTokens: completionTokensEst,
-                    totalTokens: promptTokensEst + completionTokensEst,
-                    estimatedCost: 0.0  // 무료
-                ),
-                timestamp: Date(),
-                processingTime: 0
-            )
-        }
-    }
-
-    private func sendToOnDevice(
-        messages: [RoleMessage],
-        mode: AIMode,
-        context: AIContext?,
-        tokenConfig: TokenConfiguration
-    ) async throws -> AIResponse {
-        // System prompt: 우선 messages의 첫 system, 없으면 통합 생성
-        let sys: String = {
-            if let first = messages.first, first.role == .system { return first.content }
-            return generateOptimizedSystemPrompt(for: mode, model: .onDevice)
-        }()
-        // Latest user content
-        guard let userText = messages.last?.content, !userText.isEmpty else {
-            throw AIServiceError.invalidRequest(reason: "EMPTY_INPUT")
-        }
-        // 온디바이스 생성(스트리밍 수집)
-        var buffer = ""
-        let start = Date()
-        do {
-            let summary = try await OnDeviceAdapter.shared.generate(
-                preferred: nil,
-                text: userText,
-                config: OnDeviceAdapter.StreamConfig(systemPrompt: sys, params: nil)
-            ) { delta in
-                buffer += delta
-            }
-            // 후처리(인사 제거)
-            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-            let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                response: buffer,
-                history: context?.conversationHistory,
-                nickname: nickname
-            )
-            var addInfo: [String: Any] = [
-                "provider": "ondevice",
-                "ondeviceModelID": summary.modelID.rawValue,
-                "ttiMs": summary.ttiMilliseconds,
-            ]
-            if let r = reason {
-                addInfo["greeting_stripped"] = true
-                addInfo["greeting_stripped_reason"] = r
-            } else {
-                addInfo["greeting_stripped"] = false
-            }
-            let meta = ResponseMetadata(
-                emotionAnalysis: nil,
-                recommendations: nil,
-                confidenceScore: 0.0,
-                additionalInfo: addInfo
-            )
-            let usage = TokenUsage(
-                promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
-            return AIResponse(
-                id: UUID().uuidString,
-                model: .onDevice,
-                mode: mode,
-                content: processedText,
-                metadata: meta,
-                usage: usage,
-                timestamp: Date(),
-                processingTime: Int(Date().timeIntervalSince(start) * 1000)
-            )
-        } catch let e as OnDeviceAdapter.AdapterError {
-            // 정책적 폴백 신호면 상위로 전달
-            switch e {
-            case .cloudFallbackSuggested:
-                throw AIServiceError.modelUnavailable(model: .onDevice)
-            case .notAvailableForOS:
-                throw AIServiceError.configurationError("ONDEVICE_UNAVAILABLE_OS")
-            case .cancelled:
-                throw AIServiceError.timeoutError
-            case .underlying(let cause):
-                throw AIServiceError.unknown(cause)
-            case .noInstalledModel:
-                throw AIServiceError.modelUnavailable(model: .onDevice)
-            }
-        } catch {
-            throw AIServiceError.unknown(error)
-        }
-    }
-
-    // MARK: - Claude 일일 상한 관리 (단일 진실원칙: 프록시 사용 시 로컬 상한 비활성화)
-    private func claudeUsageStatus() -> (canUse: Bool, current: Int, limit: Int) {
-        // 프록시 모드에서는 서버 정책 헤더(X-Policy-*)가 단일 진실원칙(SSOT)으로 작동하므로,
-        // 로컬 상한 체크를 비활성화합니다.
-        if EnvironmentConfig.shared.useProxy {
-            return (true, 0, Int.max)
-        }
-        // 프록시 미사용(개발/offline)에서만 로컬 제한을 사용하며, 기본값은 0(무제한)으로 둡니다.
-        let limit = 0
-        let ud = UserDefaults.standard
-        let dateKey = claudeDateKey()
-        let today = todayString()
-        if ud.string(forKey: dateKey) != today {
-            ud.set(today, forKey: dateKey)
-            ud.set(0, forKey: claudeCountKey())
-        }
-        let count = ud.integer(forKey: claudeCountKey())
-        return (count < limit, count, limit)
-    }
-    private func incrementClaudeUsage() {
-        let ud = UserDefaults.standard
-        let today = todayString()
-        if ud.string(forKey: claudeDateKey()) != today {
-            ud.set(today, forKey: claudeDateKey())
-            ud.set(0, forKey: claudeCountKey())
-        }
-        let cur = ud.integer(forKey: claudeCountKey())
-        ud.set(cur + 1, forKey: claudeCountKey())
-    }
-    private func claudeCountKey() -> String { "claude_usage_count" }
-    private func claudeDateKey() -> String { "claude_usage_date" }
-    private func todayString() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
-    }
-
-    // MARK: - 🔄 Fallback 로직
-
-    /// 실패 시 순차적으로 다음 모델들로 fallback
-    private func attemptFallback(
-        _ content: String,
-        originalModel: AIModel,
-        mode: AIMode,
-        context: AIContext?,
-        tokenConfig: TokenConfiguration?,
-        assembledPrompt: String?
-    ) async throws -> AIResponse {
-
-        // 원본 모델을 제외한 fallback 순서 생성
-        let availableFallbacks = fallbackOrder.filter { $0 != originalModel }
-
-        guard !availableFallbacks.isEmpty else {
-            throw AIServiceError.modelUnavailable(model: originalModel)
-        }
-
-        print("🔄 [UnifiedAIService] Fallback 시도 시작: \(originalModel.rawValue)")
-        print(
-            "📋 [UnifiedAIService] Fallback 순서: \(availableFallbacks.map { $0.rawValue }.joined(separator: " → "))"
-        )
-
-        // 각 fallback 모델을 순서대로 시도
-        for (index, fallbackModel) in availableFallbacks.enumerated() {
-            ContextMetrics.shared.logFallbackTried(
-                from: originalModel.rawValue, to: fallbackModel.rawValue)
-            do {
-                print(
-                    "🔄 [UnifiedAIService] Fallback \(index + 1)/\(availableFallbacks.count): \(fallbackModel.rawValue) 시도"
-                )
-
-                let response = try await sendToSpecificModel(
-                    content: content,
-                    model: fallbackModel,
-                    mode: mode,
-                    context: context,
-                    tokenConfig: tokenConfig ?? mode.recommendedTokenConfig,
-                    assembledPrompt: assembledPrompt
-                )
-
-                // fallback 성공 알림 ([] 형식으로 구분)
-                let fallbackNotice =
-                    "\n\n[ℹ️ \(originalModel.displayName) 서버 오류로 인해 \(fallbackModel.displayName) 모델을 임시 사용했습니다]"
-
-                let finalResponse = AIResponse(
-                    id: response.id,
-                    model: fallbackModel,
-                    mode: response.mode,
-                    content: response.content + fallbackNotice,
-                    metadata: response.metadata,
-                    usage: response.usage,
-                    timestamp: response.timestamp,
-                    processingTime: response.processingTime
-                )
-
-                print(
-                    "✅ [UnifiedAIService] Fallback 성공: \(originalModel.rawValue) → \(fallbackModel.rawValue)"
-                )
-                return finalResponse
-
-            } catch {
-                print(
-                    "❌ [UnifiedAIService] Fallback \(index + 1) 실패 (\(fallbackModel.rawValue)): \(error.localizedDescription)"
-                )
-
-                // 마지막 fallback도 실패한 경우
-                if index == availableFallbacks.count - 1 {
-                    print("💥 [UnifiedAIService] 모든 Fallback 모델 실패")
-                    throw AIServiceError.modelUnavailable(model: originalModel)
-                }
-
-                // 다음 모델 시도를 위해 계속 진행
-                continue
-            }
-        }
-
-        // 이론적으로 여기에 도달할 수 없지만 안전장치
-        throw AIServiceError.modelUnavailable(model: originalModel)
-    }
-
-    // MARK: - 🎯 모델 선택 로직
-
-    /// 사용자 선택과 가용성을 고려한 모델 선택
-    private func getSelectedModel(preferredModel: AIModel) -> AIModel {
-
-        // 1. 선호 모델이 사용 가능한지 확인 (최우선)
-        if availableModels.contains(preferredModel) {
-            print("✅ [UnifiedAIService] 선호 모델 사용 가능: \(preferredModel.rawValue)")
-            return preferredModel
-        }
-
-        print("⚠️ [UnifiedAIService] 선호 모델 사용 불가, fallback 시도")
-
-        // 2. fallback 순서대로 사용 가능한 모델 반환
-        for model in fallbackOrder {
-            if availableModels.contains(model) {
-                print("✅ [UnifiedAIService] Fallback 모델 선택: \(model.rawValue)")
-                return model
-            }
-        }
-
-        // 3. 마지막 수단: 첫 번째 사용 가능한 모델 반환
-        let finalModel = availableModels.first ?? .freeModel
-        print("🚨 [UnifiedAIService] 최후 수단 모델 선택: \(finalModel.rawValue)")
-        return finalModel
-    }
-
-    // MARK: - 🔔 모델 변경 알림 처리
-
-    private func handleModelChanged(notification: Notification) {
-        let from = (notification.userInfo?["from"] as? String) ?? "unknown"
-        let to = (notification.userInfo?["to"] as? String) ?? "unknown"
-        print("🔔 [UnifiedAIService] aiModelChanged: \(from) → \(to). 파이프라인 점검")
-        // 모델별 특화 지침은 런타임 합성하므로 시스템 프롬프트 캐시는 모델 변경으로 무효화하지 않습니다.
-        // 필요 시 모델별 세션 상태 초기화/메트릭 리셋 등을 여기에 추가 가능
-    }
-
-    /// LLMServiceType을 AIModel로 변환
-    private func mapLLMServiceTypeToAIModel(_ llmType: LLMServiceType) -> AIModel? {
-        switch llmType {
-        case .claude:
-            return .claude
-        case .openAI:
-            return .openAI
-        case .gemini:
-            return .gemini
-        case .naver:
-            return .naver
-        case .onDevice:
-            return .onDevice
-        }
-    }
-
-    /// AIModelType을 AIModel로 변환
-    private func mapAIModelTypeToAIModel(_ modelType: AIModelType) -> AIModel {
-        switch modelType {
-        case .claude35:
-            return .claude
-        case .gpt4:
-            return .openAI
-        case .gemini:
-            return .gemini
-        case .naver:
-            return .naver
-        case .onDevice:
-            return .onDevice
-        case .freeModel:
-            return .freeModel
-        case .testModel:
-            return .freeModel  // testModel도 통합된 freeModel로 처리
-        }
-    }
-
-    // MARK: - 강제 지정 모델 전송(퍼블릭)
     public func sendMessageForceProvider(
         content: String,
         model: AIModel,
         mode: AIMode,
         context: AIContext?,
         tokenConfig: TokenConfiguration?,
-        assembledPrompt: String? = nil
+        assembledPrompt: String?
     ) async throws -> AIResponse {
-        // 지정 모델을 그대로 이용하여 프록시에 전달(또는 direct)하기 위해 내부 전용 경로 재사용
-        return try await sendToSpecificModel(
-            content: content,
-            model: model,
-            mode: mode,
-            context: context,
-            tokenConfig: optimizeTokenConfigForModel(
-                tokenConfig ?? mode.recommendedTokenConfig, model: model, mode: mode),
-            assembledPrompt: assembledPrompt
+        // 지정된 모델을 그대로 사용하여 내부 코어로 위임
+        return try await sendMessageInternal(
+            content, model, mode, context, tokenConfig, assembledPrompt
         )
     }
-
-    // MARK: - 🌊 스트리밍 응답 (프록시 SSE 사용)
 
     public func sendMessageStream(
         content: String,
@@ -1178,232 +221,213 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         mode: AIMode,
         context: AIContext?,
         tokenConfig: TokenConfiguration?,
-        assembledPrompt: String? = nil
+        assembledPrompt: String?
     ) -> AsyncThrowingStream<AIStreamResponse, Error> {
-        // 프록시 스트리밍 우선. 비활성 시 기존 단일 청크로 폴백
-        guard EnvironmentConfig.shared.useProxy else {
+        // AFM one-chunk branch (top-only). Keeps UI streaming contract but yields once.
+        if model == .onDevice, AppleFMAdapter.isAvailable {
             return AsyncThrowingStream { continuation in
                 Task {
                     do {
-                        let full = try await sendMessage(
-                            content: content, model: model, mode: mode,
-                            context: context, tokenConfig: tokenConfig,
-                            assembledPrompt: assembledPrompt
-                        )
-                        continuation.yield(
-                            AIStreamResponse(
-                                id: full.id, delta: full.content, isComplete: true,
-                                metadata: StreamMetadata(
-                                    tokenCount: full.usage.totalTokens, timestamp: Date())
-                            ))
-                        continuation.finish()
-                    } catch { continuation.finish(throwing: error) }
+                        let sys: String? = {
+                            if let a = assembledPrompt, !a.isEmpty { return a }
+                            return generateOptimizedSystemPrompt(for: mode, model: .onDevice)
+                        }()
+                        let t0 = Date()
+                        if #available(iOS 26.0, *) {
+                            let full = try await AppleFMAdapter.generateFull(sys: sys, user: content)
+                            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                            print("🍎 Apple FM stream (one-chunk) durationMs=\(ms)")
+                            // Sanitize + greeting trim
+                            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+                            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(full)
+                            let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                                response: sanitized,
+                                history: context?.conversationHistory,
+                                nickname: nickname
+                            )
+                            continuation.yield(
+                                AIStreamResponse(
+                                    id: UUID().uuidString,
+                                    delta: processed,
+                                    isComplete: true,
+                                    metadata: StreamMetadata(tokenCount: 0, timestamp: Date())
+                                )
+                            )
+                            continuation.finish()
+                        } else {
+                            throw AppleFMError.notAvailable
+                        }
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
                 }
             }
         }
-
+        // Fallback: use non-stream path and yield once
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let proxyURL = try resolveProxyBaseURL()
-                    // 경로 라벨 분기: on-device vs proxy
-                    let tierIsFree = (StoreKitSubscriptionManager.shared.currentTier == .free)
-                    let effectiveModel: AIModel = tierIsFree ? .onDevice : model
-                    if effectiveModel == .onDevice {
-                        print("🤖 [UnifiedAIService] On-device stream engaged (mode=\(mode.rawValue))")
-                    } else {
-                        print("🛰️ [UnifiedAIService] Proxy stream engaged → /v1/chat/stream (model=\(effectiveModel.rawValue), mode=\(mode.rawValue))")
-                    }
-                    // 메시지 구성(프록시 경로와 동일 원칙)
-                    var roleMessages: [RoleMessage] = []
-                    if StoreKitSubscriptionManager.shared.currentTier == .free {
-                        // Free: on-device 전용 프롬프트, 미가용 시 에러로 상위 UI 안내
-                        #if !os(iOS)
-                        throw AIServiceError.requiresOnDeviceSetup
-                        #endif
-                        let sys = generateOptimizedSystemPrompt(for: mode, model: .onDevice)
-                        roleMessages.append(RoleMessage(role: .system, content: sys))
-                    } else if let assembled = assembledPrompt, !assembled.isEmpty {
-                        roleMessages.append(RoleMessage(role: .system, content: assembled))
-                    } else {
-                        let sys = generateOptimizedSystemPrompt(for: mode, model: model)
-                        roleMessages.append(RoleMessage(role: .system, content: sys))
-                        if let history = context?.conversationHistory, !history.isEmpty {
-                            let recent = Array(history.suffix(16))
-                            for turn in recent {
-                                roleMessages.append(
-                                    RoleMessage(
-                                        role: turn.role, content: turn.content, ts: turn.timestamp))
-                            }
-                        }
-                    }
-                    roleMessages.append(RoleMessage(role: .user, content: content))
-
-                    // 바디 구성(프록시와 동일)
-                    // Free 티어라면 항상 온디바이스로 강제
-                    let preferred = getOptimalModelForMode(mode: mode, userPreferred: (StoreKitSubscriptionManager.shared.currentTier == .free ? .onDevice : model))
-                    let effCfg = optimizeTokenConfigForModel(
-                        tokenConfig ?? mode.recommendedTokenConfig, model: preferred, mode: mode)
-                    var body: [String: Any] = [
-                        "model": preferred == .onDevice ? "on_device" : preferred.rawValue,
-                        "mode": mode.rawValue,
-                        "messages": roleMessages.map {
-                            [
-                                "role": $0.role.rawValue,
-                                "content": $0.content,
-                            ]
-                        },
-                        "temperature": effCfg.temperature,
-                        "maxTokens": effCfg.maxTokens,
-                    ]
-                    // providerCaching 힌트(서버 SSOT 기준 참고용)
-                    body["providerCaching"] = [
-                        "enable": true,
-                        "strategy": "auto",
-                        "ttlSeconds": providerCacheTTLSeconds(for: mode),
-                        "cacheKey":
-                            "\(UserRulesManager.shared.personaCoreSignature()):\(mode.rawValue)",
-                    ]
-
-                    // 공통 인증 헤더
-                    let uid: String = await MainActor.run {
-                        UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
-                    }
-                    let tier: String = {
-                        switch StoreKitSubscriptionManager.shared.currentTier {
-                        case .free: return "free"
-                        case .pro: return "pro"
-                        case .max: return "max"
-                        }
-                    }()
-                    let proxyBase = proxyURL
-                    // enroll/secret 확보
-                    let effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(
-                        uid: uid, proxyBase: proxyBase)
-                    // idempotency(간단): 마지막 user content 기반
-                    let contentHash = SHA256.hash(data: Data(content.utf8)).compactMap {
-                        String(format: "%02x", $0)
-                    }.joined()
-                    let idemKey = String(
-                        SHA256.hash(data: Data((mode.rawValue + contentHash).utf8)).compactMap {
-                            String(format: "%02x", $0)
-                        }.joined().prefix(64))
-                    // 추정 캐시 토큰(4자≈1토큰)
-                    let estTokens: Int = (roleMessages.first?.content.count ?? 0) / 4
-
-                    // 요청 생성
-                    let ts = String(Int64(Date().timeIntervalSince1970 * 1000))
-                    let signature = ProxyAuthSigner.hmacSHA256Hex(
-                        message: ProxyAuthSigner.composeSigningMessage(
-                            ts: ts, uid: uid, tier: tier, nonce: nil), secret: effectiveSecret)
-                    var req = URLRequest(url: proxyBase.appendingPathComponent("v1/chat/stream"))
-                    req.httpMethod = "POST"
-                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                    req.setValue(ProxyAuthConfig.origin, forHTTPHeaderField: "Origin")
-                    req.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
-                    req.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
-                    req.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
-                    req.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
-                    req.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
-                    req.setValue(mode.rawValue, forHTTPHeaderField: "X-Emozleep-Mode")
-                    if estTokens > 0 {
-                        req.setValue(
-                            String(estTokens), forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
-                    }
-                    req.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
-                    req.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-                    // 스트리밍 수신
-                    let t0 = Date()
-                    let (bytes, response) = try await URLSession.shared.bytes(for: req)
-                    guard let http = response as? HTTPURLResponse,
-                        (200...299).contains(http.statusCode)
-                    else {
-                        throw AIServiceError.serverError(
-                            statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
-                    }
-                    var aggregate = ""
-                    var emittedFirst = false
-                    for try await line in bytes.lines {
-                        if line.hasPrefix(":") { continue }  // comment ping
-                        // SSE 형식: data: <payload>
-                        let payload =
-                            line.hasPrefix("data:")
-                            ? String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces) : line
-                        guard !payload.isEmpty else { continue }
-                        var delta = ""
-                        // 1) JSON 시도: candidates.delta.parts[].text 또는 candidates.content.parts[].text
-                        if payload.first == "{" {
-                            struct Part: Decodable { let text: String? }
-                            struct Content: Decodable { let parts: [Part]? }
-                            struct Candidate: Decodable {
-                                let content: Content?
-                                let delta: Content?
-                            }
-                            struct Resp: Decodable { let candidates: [Candidate]? }
-                            if let data = payload.data(using: .utf8),
-                                let resp = try? JSONDecoder().decode(Resp.self, from: data),
-                                let cand = resp.candidates?.first
-                            {
-                                if let d = cand.delta?.parts?.compactMap({ $0.text }).joined(),
-                                    !d.isEmpty
-                                {
-                                    delta = d
-                                } else if let c = cand.content?.parts?.compactMap({ $0.text })
-                                    .joined(), !c.isEmpty
-                                {
-                                    delta = c
-                                }
-                            }
-                        }
-                        // 2) JSON 파싱 실패 또는 비 JSON: "text":"…" 정규식으로 추출(복수 매치 결합)
-                        if delta.isEmpty {
-                            let regex = try? NSRegularExpression(
-                                pattern: "\\\"text\\\"\\s*:\\s*\\\"([\\s\\S]*?)\\\"", options: [])
-                            if let re = regex {
-                                let ns = payload as NSString
-                                let matches = re.matches(
-                                    in: payload, range: NSRange(location: 0, length: ns.length))
-                                if !matches.isEmpty {
-                                    delta = matches.map { ns.substring(with: $0.range(at: 1)) }
-                                        .joined()
-                                        .replacingOccurrences(of: "\\n", with: "\n")
-                                        .replacingOccurrences(of: "\\\"", with: "\"")
-                                }
-                            }
-                        }
-                        // 3) 여전히 비어있으면 순수 텍스트로 취급(서버가 텍스트만 보낼 때)
-                        if delta.isEmpty,
-                            payload.first != "{" && payload.first != "[" && payload.first != "("
-                        {
-                            delta = payload
-                        }
-                        guard !delta.isEmpty else { continue }
-                        aggregate += delta
-                        if !emittedFirst {
-                            let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                            print("⏱️ [UnifiedAIService] firstTokenMs=\(ms)")
-                            emittedFirst = true
-                        }
-                        continuation.yield(
-                            AIStreamResponse(
-                                id: UUID().uuidString,
-                                delta: delta,
-                                isComplete: false,
-                                metadata: StreamMetadata(tokenCount: 0, timestamp: Date())
-                            ))
-                    }
+                    let full = try await sendMessage(
+                        content: content,
+                        model: model,
+                        mode: mode,
+                        context: context,
+                        tokenConfig: tokenConfig,
+                        assembledPrompt: assembledPrompt
+                    )
                     continuation.yield(
                         AIStreamResponse(
-                            id: UUID().uuidString, delta: "", isComplete: true,
-                            metadata: StreamMetadata(tokenCount: 0, timestamp: Date())))
+                            id: full.id,
+                            delta: full.content,
+                            isComplete: true,
+                            metadata: StreamMetadata(tokenCount: full.usage.totalTokens, timestamp: Date())
+                        )
+                    )
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
         }
+    }
+
+    // MARK: - Internals
+
+    private func sendMessageInternal(
+        _ content: String,
+        _ model: AIModel,
+        _ mode: AIMode,
+        _ context: AIContext?,
+        _ tokenConfig: TokenConfiguration?,
+        _ assembledPrompt: String?
+    ) async throws -> AIResponse {
+        // System prompt assembly (SSOT)
+        let systemPrompt: String = {
+            if let a = assembledPrompt, !a.isEmpty { return a }
+            return generateOptimizedSystemPrompt(for: mode, model: model)
+        }()
+
+        // Role messages (system + optional history + user)
+        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
+        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
+            let recent = Array(history.suffix(16))
+            for t in recent { roleMessages.append(RoleMessage(role: t.role, content: t.content, ts: t.timestamp)) }
+        }
+        roleMessages.append(RoleMessage(role: .user, content: content))
+
+        // Token config optimization
+        let effCfg = optimizeTokenConfigForModel(
+            tokenConfig ?? mode.recommendedTokenConfig, model: model, mode: mode
+        )
+
+        // Routing
+        if model == .onDevice {
+            // Prefer Apple FM when available
+            if AppleFMAdapter.isAvailable {
+                let t0 = Date()
+                if #available(iOS 26.0, *) {
+                    let text = try await AppleFMAdapter.generateFull(sys: systemPrompt, user: content)
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    print("🍎 Apple FM complete durationMs=\(ms) provider=applefm")
+                    let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(text)
+                    let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                        response: sanitized,
+                        history: context?.conversationHistory,
+                        nickname: nickname
+                    )
+                    let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+                    let meta = ResponseMetadata(
+                        emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
+                        additionalInfo: ["provider": "applefm"]
+                    )
+                    return AIResponse(
+                        id: UUID().uuidString, model: .onDevice, mode: mode, content: processed,
+                        metadata: meta, usage: usage, timestamp: Date(),
+                        processingTime: ms
+                    )
+                } else {
+                    throw AppleFMError.notAvailable
+                }
+            }
+            // llama.cpp on-device path (aggregate stream)
+            var buffer = ""
+            let summary = try await OnDeviceAdapter.shared.generate(
+                preferred: nil,
+                text: content,
+                config: OnDeviceAdapter.StreamConfig(systemPrompt: systemPrompt, params: nil)
+            ) { delta in buffer += delta }
+            let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(buffer)
+            let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                response: sanitized,
+                history: context?.conversationHistory,
+                nickname: nickname
+            )
+            let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+            let meta = ResponseMetadata(
+                emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
+                additionalInfo: ["provider": "llama.cpp", "ttiMs": summary.ttiMilliseconds]
+            )
+            return AIResponse(
+                id: UUID().uuidString, model: .onDevice, mode: mode, content: processed,
+                metadata: meta, usage: usage, timestamp: Date(),
+                processingTime: summary.durationMs
+            )
+        }
+
+        // Proxy path or direct provider services
+        if EnvironmentConfig.shared.useProxy || freeModelService != nil || hasAnyDirectServiceAvailable() {
+            do {
+                if EnvironmentConfig.shared.useProxy {
+                    let proxyURL = try resolveProxyBaseURL()
+                    let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
+                    let resp = try await sendViaProxy(
+                        messages: roleMessages,
+                        mode: mode,
+                        preferred: model,
+                        proxyURL: proxyURL,
+                        tokenConfig: effCfg,
+                        policyMeta: nil,
+                        personaCoreKey: personaCoreKey
+                    )
+                    // Post-process
+                    let nickname = UserSettingsModel.loadFromUserDefaults().nickname
+                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(resp.content)
+                    let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                        response: sanitized,
+                        history: context?.conversationHistory,
+                        nickname: nickname
+                    )
+                    return AIResponse(
+                        id: resp.id, model: resp.model, mode: resp.mode, content: processed,
+                        metadata: resp.metadata, usage: resp.usage, timestamp: resp.timestamp,
+                        processingTime: resp.processingTime
+                    )
+                } else {
+                    // Direct local services fallback
+                    return try await sendDirectBypassingProxy(
+                        content: content,
+                        preferredModel: model,
+                        mode: mode,
+                        context: context,
+                        assembledPrompt: assembledPrompt
+                    )
+                }
+            } catch {
+                throw error
+            }
+        }
+
+        throw AIServiceError.modelUnavailable(model: model)
+    }
+
+    // Context invalidation on model change
+    private func handleModelChanged(notification: Notification) {
+        AIContextManager.shared.clearCache(
+            reason: .modelSelectionChanged,
+            caller: "UnifiedAIServiceImpl"
+        )
     }
 
     // MARK: - 📊 사용량 통계 (미구현)
@@ -1466,7 +490,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         if availableModels.contains(userPreferred) {
             return userPreferred
         }
-        return fallbackOrder.first ?? .freeModel
+        return .freeModel
     }
 
     // 중앙집중형 시스템 프롬프트 제공자(공개 래퍼)
@@ -2054,8 +1078,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             response = try await service.sendMessages(
                 messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
         case .onDevice:
-            return try await sendToOnDevice(
-                messages: roleMessages, mode: mode, context: context, tokenConfig: tokenCfg)
+            // Reuse the core on-device path with explicit assembled system prompt
+            return try await sendMessageInternal(
+                content,
+                .onDevice,
+                mode,
+                context,
+                tokenCfg,
+                systemPrompt
+            )
         case .freeModel:
             // freeModelService가 없으므로, 차선인 Gemini/OpenAI/Claude/Naver 순으로 선택
             if let svc = geminiService {

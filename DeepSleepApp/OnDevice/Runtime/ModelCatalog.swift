@@ -277,6 +277,15 @@ public protocol OnDeviceModelLoader: Sendable {
         onToken: @escaping @Sendable (String) -> Void
     ) async throws
 
+    /// (KV 복원/프리필 이후) 이어서 생성. startPos는 직전 토큰 위치 + 1.
+    func generateResuming(
+        input: String,
+        systemPrompt: String?,
+        startPos: Int32,
+        params: InferenceParams,
+        onToken: @escaping @Sendable (String) -> Void
+    ) async throws
+
     /// 다른 모델로 전환(핫스왑). 구현체는 기존 세션 안전 해제/재초기화.
     func switchModel(to modelID: OnDeviceModelID, modelURL: URL, params: InferenceParams)
         async throws

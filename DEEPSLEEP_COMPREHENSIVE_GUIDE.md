@@ -53,3 +53,39 @@
   - freeModel(OpenRouter 통합) → gemini → openAI → naver → claude
 - presign 실패 처리
   - presign 실패는 CDN 고정 경로로 자동 폴백. sha256 불일치 시 백오프 재시도(3회)
+
+### 🆕 2025-09-22 동기화: Apple Foundation Models(iOS 26+) 가드·온디바이스 라우팅·출력 필터링 정책
+- AFM 호출 가드: `AppleFMAdapter.generateFull(sys:user:)` 사용 지점에 `#available(iOS 26.0, *)` 추가. iOS 26 미만/미가용 시 `AppleFMError.notAvailable`로 안전 종료 후 기존 경로로 폴백.
+  - 적용 위치: `UnifiedAIServiceImpl.sendMessageStream`(원청크 스트림 브랜치), `UnifiedAIServiceImpl.sendMessage`(완료형 브랜치)
+- 온디바이스 라우팅: `.onDevice` 선택 시 우선 AFM(가용 시)→ 비가용이면 `OnDeviceAdapter`(llama.cpp)로 자동 폴백. 메타데이터에 `provider=applefm|llama.cpp`, `ttiMs` 기록 유지.
+- 컴파일 오류 정리
+  - `'generateFull(sys:user:)' is only available in iOS 26.0 or newer` 경고 해결(가드 추가)
+  - `fallbackOrder` 심볼 스코프 오류 해결: 앱 레벨 최종 폴백은 `.freeModel`로 단순화(클라우드 선택은 기존 맵핑 로직 유지)
+  - 존재하지 않던 `sendToOnDevice(...)` 호출 제거 → 내부 코어(`sendMessageInternal`) 재사용 경로로 통일해 DRY/SSOT 유지
+- 출력 후처리(필터링) 정책 업데이트
+  - 과도한 인사말 억제 금지: 첫 턴의 “저는 리플릿의 대나무숲 친구예요! 동동님 반가워요!” 같은 라이트한 인사는 허용
+  - 후처리는 코드펜스 전체 감싸기 제거, 선행 화자 라벨([AI 친구]:, AI:, assistant:) 제거에 국한
+  - 반복 인사 제거는 “이전에 assistant 턴이 존재할 때만” 제한적으로 적용 → UX 저해 최소화
+- 문서/로그
+  - Apple Developer Docs(FoundationModels/LanguageModelSession) 기준으로 가용성·API 확인 및 주석 반영
+  - 로깅: AFM 응답 시간 `🍎 Apple FM complete/stream` 로그 유지, 폴백 경로 명확 출력
+
+
+### 🆕 2025-09-23 동기화: AFM one‑chunk 스트리밍 폴백 오탐 제거 + 기본 모델 onDevice
+- 증상: Apple을 선택해도 응답 마지막에 서버 프록시 로그(`AICallSummary provider=gemini …`)가 따라붙는 문제가 간헐적으로 발생.
+- 원인: Apple FM이 one‑chunk 스트림(완료 조각 1개)로 응답할 때, ChatViewController 스트리밍 루프가 `gotAnyDelta`를 `isComplete=false` 조각에서만 true로 설정하여 “델타 무(없음)”로 오인 → 비스트리밍 폴백 호출이 추가로 발생(서버 경유, provider=gemini 노출).
+- 변경점(코드 반영됨):
+  - 스트리밍 루프 개선: 어떤 조각이든 수신 시 `gotAnyDelta = true`. 완료 조각도 `delta`를 타이핑 버퍼에 적재하고 `typingCompletedStream = true`로 자연 종료.
+  - 폴백 호출 정렬: 스트림이 진짜 0조각일 때만 비스트리밍 폴백. 폴백 호출의 UI 반영은 `AIResponse.content`만 사용.
+  - 방어적 기본값: `SessionManager` 문자열 오버로드의 기본 `model`을 `.onDevice`로 변경(오버로드 오용 시에도 Apple 기본).
+- 기대 로그(성공 케이스):
+  - `🍎 AppleFM responded (...)` → `🍎 Apple FM stream (one-chunk) durationMs=...`
+  - 이후에 `🎯 [AICallSummary] ... provider=gemini ...`가 나타나지 않음(추가 서버 호출 없음).
+- 폴백이 의도적으로 발생하는 케이스:
+  - iOS 26 미만 또는 AFM 미가용 → `llama.cpp` 경로 사용(메타 `provider=llama.cpp`). 이때도 서버 프록시 로그는 없어야 함.
+- QA 체크리스트:
+  - Apple 선택 · 일반 대화 1회: 상기 “기대 로그”만 출력되는지 확인.
+  - iOS 26 미만/AFM 미가용 환경: `provider=llama.cpp`만 보이고 서버 로그 미표출 확인.
+  - 외부 모델 강제 선택(프리셋 추천 등): 기존 정책대로 프록시 로그가 정상 노출.
+- 운영/UX 메모:
+  - 라이트한 인사말은 후처리에서 제거하지 않음. 코드펜스/화자 라벨만 정리(필터링 정책 유지).

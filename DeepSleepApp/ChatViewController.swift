@@ -47,10 +47,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // 타이핑 타이머 구현
     private func startTypingTimer() {
         typingTimer?.invalidate()
-        typingTimer = Timer.scheduledTimer(withTimeInterval: typingTickInterval, repeats: true) { [weak self] _ in
+        typingTimer = Timer.scheduledTimer(withTimeInterval: typingTickInterval, repeats: true) {
+            [weak self] _ in
             guard let self = self else { return }
             guard let id = self.currentStreamingMessageId,
-                  let idx = self.messages.firstIndex(where: { $0.id == id }) else { return }
+                let idx = self.messages.firstIndex(where: { $0.id == id })
+            else { return }
 
             if !self.typingBuffer.isEmpty {
                 let n = min(self.typingCharsPerTick, self.typingBuffer.count)
@@ -65,7 +67,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     cell.updateStreamingText(self.typingAccumulatedText, fadeDuration: 0.6)
                 }
 
-                if Date().timeIntervalSince(self.typingLastReflowAt) > 0.35 || self.typingAccumulatedText.hasSuffix("\n") {
+                if Date().timeIntervalSince(self.typingLastReflowAt) > 0.35
+                    || self.typingAccumulatedText.hasSuffix("\n")
+                {
                     self.typingLastReflowAt = Date()
                     UIView.performWithoutAnimation {
                         self.tableView.beginUpdates()
@@ -172,7 +176,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var reloadDebounceWorkItem: DispatchWorkItem?
     private var showLoadingDebounceWorkItem: DispatchWorkItem?
     private let uiDebounceInterval: TimeInterval = 0.1
-    private var memoryLogWorkItem: DispatchWorkItem? // throttled post-runloop memory logging
+    private var memoryLogWorkItem: DispatchWorkItem?  // throttled post-runloop memory logging
 
     // 구독 상태에 따른 UI 갱신
     private func updateUIForSubscriptionStatus() {
@@ -701,12 +705,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 0) 사전 소비 플래그가 없는 경우에만 게이트 검사(지문/총 한도)
         if !diaryAnalysisPreConsumed {
             if DiaryUsagePolicy.hasUsedToday(diary) {
-                appendChat(ChatMessage(text: "✅ 오늘 이 일기에 대한 분석은 이미 진행했어요. 다른 일기를 선택해 보세요.", sender: .ai, type: .bot))
+                appendChat(
+                    ChatMessage(
+                        text: "✅ 오늘 이 일기에 대한 분석은 이미 진행했어요. 다른 일기를 선택해 보세요.", sender: .ai, type: .bot
+                    ))
                 return
             }
             guard AIUsageManager.shared.canUse(feature: .diaryAnalysis) else {
                 let total = AIUsageManager.shared.getTotalLimit(for: .diaryAnalysis)
-                appendChat(ChatMessage(text: "⛔️ 오늘 일기 분석 한도(총 \(total)회)를 모두 사용했어요. 내일 다시 시도해 주세요.", sender: .ai, type: .bot))
+                appendChat(
+                    ChatMessage(
+                        text: "⛔️ 오늘 일기 분석 한도(총 \(total)회)를 모두 사용했어요. 내일 다시 시도해 주세요.", sender: .ai,
+                        type: .bot))
                 return
             }
         }
@@ -809,7 +819,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - 🚀 AI 응답 처리 (신규 아키텍처)
 
     /// 사용자 메시지를 받아 AI에게 응답을 요청합니다.
-    private var currentStreamTask: Task<Void, Never>? // 스트림 취소용 핸들
+    private var currentStreamTask: Task<Void, Never>?  // 스트림 취소용 핸들
 
     private func fetchAIResponse(for message: String) {
         let perf = PerfTrace(flow: "ChatFlow")
@@ -850,6 +860,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             do {
                 for try await piece in stream {
                     if Task.isCancelled { break }
+                    // 어떤 조각이든 도착했다는 뜻이므로 폴백 방지 플래그 설정
+                    gotAnyDelta = true
                     await MainActor.run { [weak self] in
                         guard let self = self else { return }
                         if !self.hasReceivedFirstToken {
@@ -858,18 +870,21 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                             self.messages.append(aiMsg)
                             self.currentStreamingMessageId = aiMsg.id
                             self.hasReceivedFirstToken = true
-                            // 타이핑 타이머 시작(훨씬 느리게)
+                            // 타이핑 타이머 시작(느리게)
                             self.startTypingTimer()
                         }
-                        if !piece.isComplete, let id = self.currentStreamingMessageId,
+                        // 델타가 비어있지 않다면 완료 조각이더라도 버퍼에 모두 적재
+                        if let id = self.currentStreamingMessageId,
                            let idx = self.messages.firstIndex(where: { $0.id == id }) {
-                            gotAnyDelta = true
-                            // 타이핑 버퍼에 델타만 추가 (느리게 찍기)
-                            self.typingBuffer.append(contentsOf: piece.delta)
-                        }
-                        if piece.isComplete {
-                            // 최종 1회만 전체 리로드(상태 동기화)
-                            self.debouncedReload()
+                            if !piece.delta.isEmpty {
+                                self.typingBuffer.append(contentsOf: piece.delta)
+                            }
+                            if piece.isComplete {
+                                // 스트림 종료 표시 → 타이핑 타이머가 자연 종료되도록 함
+                                self.typingCompletedStream = true
+                                // 최종 1회만 전체 리로드(상태 동기화)
+                                self.debouncedReload()
+                            }
                         }
                     }
                 }
@@ -882,9 +897,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     let response = try await SessionManager.shared.sendMessage(
                         content: message,
                         mode: aiMode,
-                        saveMessages: true
+                        saveMessages: true,
+                        sessionId: nil,
+                        tokenConfigOverride: nil
                     )
-                    await MainActor.run { [weak self] in self?.handleAIResponse(response) }
+                    await MainActor.run { [weak self] in self?.handleAIResponse(response.content) }
                 }
                 perf.end("done")
             } catch {
@@ -892,7 +909,6 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             }
         }
     }
-
 
     /// 현재 채팅 컨텍스트를 기반으로 AI 모드 결정
     private func determineAIModeFromContext() -> AIMode {
@@ -969,7 +985,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             // requiresOnDeviceSetup인 경우 즉시 친구 선택 화면으로 라우팅 (UX 일관성)
             if let ai = error as? AIServiceError, case .requiresOnDeviceSetup = ai {
                 // 중복 push 방지
-                if !(self.presentedViewController is UINavigationController && (self.presentedViewController?.children.first is AIModelSelectionViewController)) && !(self.navigationController?.topViewController is AIModelSelectionViewController) {
+                if !(self.presentedViewController is UINavigationController
+                    && (self.presentedViewController?.children.first
+                        is AIModelSelectionViewController))
+                    && !(self.navigationController?.topViewController
+                        is AIModelSelectionViewController)
+                {
                     let selector = AIModelSelectionViewController()
                     if let nav = self.navigationController {
                         nav.pushViewController(selector, animated: true)
@@ -994,7 +1015,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     /// 채팅 메시지를 추가하고 UI를 업데이트합니다
     private func addMessageToChat(message: String, fromUser: Bool) {
         // Centralized wrapper → always routes through appendBatch for DRY
-        print("🟡 [ChatViewController] addMessageToChat 호출됨 - fromUser=\(fromUser) len=\(message.count)")
+        print(
+            "🟡 [ChatViewController] addMessageToChat 호출됨 - fromUser=\(fromUser) len=\(message.count)"
+        )
         let msg = ChatMessage(
             text: message,
             date: Date(),
@@ -1250,6 +1273,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             return .naver
         case .onDevice:
             return .onDevice
+        case .apple:
+            return .onDevice
         case .freeModel:
             return .freeModel
         case .testModel:
@@ -1326,7 +1351,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             DispatchQueue.global(qos: .utility).async {
                 let removed = SessionManager.shared.cleanupOldSessions()
                 #if DEBUG
-                print("🧹 [ChatInit] 초기 세션 정리 수행 removed=\(removed)")
+                    print("🧹 [ChatInit] 초기 세션 정리 수행 removed=\(removed)")
                 #endif
             }
         }
@@ -1482,7 +1507,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 4) UI 갱신
         debouncedReload()
         if scrollToBottom {
-            self.scrollToBottom(animated: true) // self. 명시로 메서드 참조 (파라미터 이름과 충돌 방지)
+            self.scrollToBottom(animated: true)  // self. 명시로 메서드 참조 (파라미터 이름과 충돌 방지)
         }
     }
 
@@ -1492,40 +1517,48 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     /// - Throttles a post-runloop memory log (0.4s) to distinguish transient spikes vs steady-state
     /// - reason: call path identifier (appendBatch / pagination / manual)
     private func enforceMemoryWindow(reason: String) {
-        let cap = maxMessages // Single source of truth
+        let cap = maxMessages  // Single source of truth
         if messages.count > cap {
             let overflow = messages.count - cap
             if overflow > 0 {
                 messages.removeFirst(overflow)
                 #if DEBUG
-                    UnifiedLogger.shared.info("[ChatViewController] 윈도우 초과 제거 \(overflow)개 (cap=\(cap)) reason=\(reason)", category: .memory)
+                    UnifiedLogger.shared.info(
+                        "[ChatViewController] 윈도우 초과 제거 \(overflow)개 (cap=\(cap)) reason=\(reason)",
+                        category: .memory)
                 #endif
             }
         }
 
         #if DEBUG
-        // Direct usage inspection (immediate)
-        let usage = MemoryProfiler.shared.getCurrentMemoryUsage()
-        // 사용자의 '강제 종료·메모리 제한' 불원 정책 반영: 경고 레벨 완화 (로그 레벨=debug) / 강제 trim 없음
-        if usage > 190 {
-            UnifiedLogger.shared.warning("[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (HIGH segment, no enforce, reason=\(reason), count=\(messages.count))", category: .memory)
-        } else if usage > 180 {
-            UnifiedLogger.shared.info("[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (SOFT segment, no enforce, reason=\(reason), count=\(messages.count))", category: .memory)
-        }
-        if MemoryProfiler.shared.checkMemoryWarning() {
-            UnifiedLogger.shared.warning("[MemoryGuard] threshold segment (warn-only, no action) reason=\(reason) count=\(messages.count)", category: .memory)
-        }
+            // Direct usage inspection (immediate)
+            let usage = MemoryProfiler.shared.getCurrentMemoryUsage()
+            // 사용자의 '강제 종료·메모리 제한' 불원 정책 반영: 경고 레벨 완화 (로그 레벨=debug) / 강제 trim 없음
+            if usage > 190 {
+                UnifiedLogger.shared.warning(
+                    "[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (HIGH segment, no enforce, reason=\(reason), count=\(messages.count))",
+                    category: .memory)
+            } else if usage > 180 {
+                UnifiedLogger.shared.info(
+                    "[MemoryGuard] usage=\(String(format: "%.2f", usage))MB (SOFT segment, no enforce, reason=\(reason), count=\(messages.count))",
+                    category: .memory)
+            }
+            if MemoryProfiler.shared.checkMemoryWarning() {
+                UnifiedLogger.shared.warning(
+                    "[MemoryGuard] threshold segment (warn-only, no action) reason=\(reason) count=\(messages.count)",
+                    category: .memory)
+            }
         #endif
 
         // Post-runloop throttled measurement
         #if DEBUG
-        memoryLogWorkItem?.cancel()
-        let item = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
-            MemoryProfiler.shared.logMemoryUsage(context: "post-runloop \(reason)")
-        }
-        memoryLogWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: item)
+            memoryLogWorkItem?.cancel()
+            let item = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                MemoryProfiler.shared.logMemoryUsage(context: "post-runloop \(reason)")
+            }
+            memoryLogWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: item)
         #endif
     }
 
@@ -2188,7 +2221,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         let primaryEmotion = EmotionAnalyzer().extractBasicEmotion(from: message)
         // 결정적 강도 규칙: 텍스트 길이 기반 간단 휴리스틱 (랜덤 금지)
         let clampedLength = min(max(message.count, 0), 400)
-        let intensity = Float(0.3 + (Double(clampedLength) / 400.0) * 0.6) // 0.3...0.9
+        let intensity = Float(0.3 + (Double(clampedLength) / 400.0) * 0.6)  // 0.3...0.9
 
         let physicalState = analyzePhysicalState(from: message)
         let environmentContext = analyzeEnvironmentalContext(from: message)
@@ -2710,7 +2743,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             var msg = displayMessages[idx]
             if let qas = msg.quickActions {
                 let newQAs = qas.map { qa in
-                    qa.action == "ai_recommendation" ? QuickAction(title: aiTitle, action: qa.action) : qa
+                    qa.action == "ai_recommendation"
+                        ? QuickAction(title: aiTitle, action: qa.action) : qa
                 }
                 msg.quickActions = newQAs
                 displayMessages[idx] = msg

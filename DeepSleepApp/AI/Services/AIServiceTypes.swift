@@ -17,7 +17,7 @@ public enum AIModel: String, CaseIterable, Codable {
     case gemini = "gemini"
     case naver = "naver"
     case freeModel = "free_model"  // 통합된 무료 모델 (OpenRouter 순차 폴백)
-    case onDevice = "on_device"  // 온디바이스 LLM (Background Assets + llama.cpp)
+    case onDevice = "on_device"  // 온디바이스 LLM (Apple Foundation Models / llama.cpp)
 
     var displayName: String {
         switch self {
@@ -26,7 +26,7 @@ public enum AIModel: String, CaseIterable, Codable {
         case .gemini: return "Google Gemini"
         case .naver: return "Naver HyperCLOVA X"
         case .freeModel: return "무료 AI 모델 (통합)"
-        case .onDevice: return "온디바이스 LLM"
+        case .onDevice: return "온디바이스 LLM (Apple Foundation Models / llama.cpp)"
         }
     }
 }

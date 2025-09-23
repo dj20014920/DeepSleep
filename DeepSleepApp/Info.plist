@@ -355,5 +355,8 @@
 	<string>$(ONDEVICE_FORCE_CLOUD)</string>
 	<key>ONDEVICE_MAX_TTI_MS</key>
 	<string>$(ONDEVICE_MAX_TTI_MS)</string>
+	<!-- Metal 강제 비활성화(안정성 목적). 필요 시 false로 전환하면 GPU 레이어 사용 -->
+	<key>ONDEVICE_DISABLE_METAL</key>
+	<true/>
 </dict>
 </plist>

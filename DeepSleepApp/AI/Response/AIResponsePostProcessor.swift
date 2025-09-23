@@ -1,132 +1,122 @@
 import Foundation
 
 // MARK: - AIResponsePostProcessor
-// Utility to normalize and lightly post-process AI model outputs.
-// Current focus: prevent repetitive greetings like "안녕하세요 (동동님)" on every turn.
-// - Keep greeting only on the first assistant turn of a session
-// - If there were previous assistant messages, strip a leading greeting phrase
-// - Be conservative: only remove an obvious leading greeting and its adjoining punctuation/nickname
+// Minimal post-processor focused solely on artifact sanitization.
+// - Removes surrounding code fences ```...``` when the whole response is fenced
+// - Strips leading speaker labels such as "[AI 친구]:", "<AI>:", "AI:", "assistant:" using raw-regex
 public enum AIResponsePostProcessor {
-    /// Common greeting prefixes observed across models (Korean-first, plus a few English fallbacks)
-    private static let greetingPrefixes: [String] = [
-        "안녕하세요", "안녕하세", "안녕", "반갑", "어서오세", "환영",
-        "좋은 아침", "좋은 저녁", "좋은 밤", "하이", "hello", "hi"
-    ]
 
-    /// Strip a leading greeting if there has already been at least one assistant turn.
-    /// - Parameters:
-    ///   - response: Raw model response text
-    ///   - history: Conversation history (assistant/user/system turns). If nil or no assistant turns, no stripping.
-    ///   - nickname: Optional user nickname to recognize and strip like "동동님" directly after greeting.
-    /// - Returns: (processed text, reason string if stripped)
+    /// Remove common artifacts: leading speaker labels (e.g., "[AI 친구]:"), and code fences.
+    /// Returns (sanitized, reason)
+    public static func sanitizeArtifacts(_ text: String) -> (String, String?) {
+        var s = text
+        var reasons: [String] = []
+
+        // Fast path
+        if s.isEmpty { return (s, nil) }
+
+        // 1) Remove surrounding code fences ```...``` (if the entire response is fenced)
+        // Handles optional language tag after the opening fence (e.g., ```json)
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("```") {
+            if let firstFence = trimmed.range(of: "```") {
+                let afterFirstFence = trimmed[firstFence.upperBound...]
+                // Skip an optional language tag up to the first newline (non-strict)
+                let bodyStart = afterFirstFence.firstIndex(of: "\n") ?? afterFirstFence.startIndex
+                let candidateBody = afterFirstFence[bodyStart...]
+                if let lastFence = candidateBody.range(of: "```", options: .backwards) {
+                    let inner = candidateBody[..<lastFence.lowerBound]
+                    s = String(inner).trimmingCharacters(in: .whitespacesAndNewlines)
+                    reasons.append("strip_code_fence")
+                }
+            }
+        }
+
+        // 2) Strip leading speaker labels like "[AI 친구]:", "<AI>:", "AI:" etc.
+        // Use Raw String Literal patterns to avoid invalid escape issues in Swift string literals.
+        // NOTE: Keep the two patterns exactly as specified to fix "Invalid escape sequence" compile errors.
+        let speakerPatterns: [String] = [
+            #"^\s*(?:\[|<)?\s*(?:AI\s*친구|AI|assistant|봇|bot|ai|assistant)\s*(?:\]|>)?\s*[:：\-]\s*"#,
+            #"^\s*(?:AI\s*친구|AI|assistant|봇|bot|ai)\s*[:：\-]\s*"#,
+        ]
+
+        let beforeSpeaker = s
+        for p in speakerPatterns {
+            if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
+                let ns = s as NSString
+                let range = NSRange(location: 0, length: ns.length)
+                // Replace only the first match at the beginning (pattern is anchored ^)
+                if let match = re.firstMatch(in: s, options: [], range: range) {
+                    s = ns.replacingCharacters(in: match.range, with: "")
+                }
+            }
+        }
+        if s != beforeSpeaker { reasons.append("strip_speaker_label") }
+
+        // 3) Final trim
+        let beforeTrim = s
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s != beforeTrim { reasons.append("trim_whitespace") }
+
+        return (s, reasons.isEmpty ? nil : reasons.joined(separator: ","))
+    }
+
+    /// Reduce repeated greetings on subsequent assistant turns.
+    /// If history already contains an assistant role, strip a simple greeting prefix from response.
+    /// Returns (processed, reason)
     public static func stripRepetitiveGreetingIfNeeded(
         response: String,
-        history: [AIConversationTurn]?,
+        history: [Any]?,
         nickname: String?
     ) -> (String, String?) {
-        let priorAssistantTurns = history?.filter { $0.role == .assistant }.count ?? 0
-        guard priorAssistantTurns > 0 else {
-            // First assistant turn in the session → allow greeting
-            return (response, nil)
-        }
-        return stripLeadingGreeting(response, nickname: nickname)
-    }
-
-    // MARK: - Internals
-
-    private static func stripLeadingGreeting(_ text: String, nickname: String?) -> (String, String?) {
-        if text.isEmpty { return (text, nil) }
-
-        // 1) Skip initial whitespace/newlines
-        var start = text.startIndex
-        while start < text.endIndex, text[start].isWhitespace || text[start] == "\n" || text[start] == "\r" {
-            start = text.index(after: start)
-        }
-        if start >= text.endIndex { return (text, nil) }
-
-        let remaining = String(text[start...])
-        guard let matchedPrefix = matchGreetingPrefix(in: remaining) else {
-            return (text, nil)
-        }
-
-        // 2) Cut greeting prefix
-        var cursor = remaining.index(remaining.startIndex, offsetBy: matchedPrefix.count)
-
-        // 3) Optionally skip punctuation/space directly after greeting
-        while cursor < remaining.endIndex, isSkippable(remaining[cursor]) {
-            cursor = remaining.index(after: cursor)
-        }
-
-        // 4) Optionally skip nickname mention like "동동님" just after greeting
-        if let nn = nickname?.trimmingCharacters(in: .whitespacesAndNewlines), !nn.isEmpty {
-            if let nickEnd = trySkipNickname(in: remaining, at: cursor, nickname: nn) {
-                cursor = nickEnd
-                // skip trailing punctuation/spaces again
-                while cursor < remaining.endIndex, isSkippable(remaining[cursor]) {
-                    cursor = remaining.index(after: cursor)
+        // Keep as-is when no prior assistant turn
+        // Conservatively detect previous assistant turn if history items resemble our AIConversationTurn { role: String }
+        var hasAssistantBefore = false
+        if let arr = history {
+            for item in arr {
+                if let dict = item as? [String: Any], let role = dict["role"] as? String, role.lowercased() == "assistant" {
+                    hasAssistantBefore = true; break
+                }
+                // Fallback: try Mirror for struct-like objects
+                let m = Mirror(reflecting: item)
+                if let roleChild = m.children.first(where: { $0.label == "role" }) {
+                    let roleValue = String(describing: roleChild.value).lowercased()
+                    if roleValue.contains("assistant") { hasAssistantBefore = true; break }
                 }
             }
         }
+        if !hasAssistantBefore { return (response, nil) }
+        // Reuse artifact cleanup first (idempotent)
+        let (sanitized, artReason) = sanitizeArtifacts(response)
+        var s = sanitized
+        var reasons: [String] = []
+        if let r = artReason, !r.isEmpty { reasons.append(r) }
 
-        // Compute absolute index in original text
-        let advance = remaining.distance(from: remaining.startIndex, to: cursor)
-        let absoluteCut = text.index(start, offsetBy: advance)
-
-        // Be conservative: ensure we don't drop the whole text
-        if absoluteCut >= text.endIndex { return (text, nil) }
-
-        // Only left-trim spaces/newlines after cut
-        var out = String(text[absoluteCut...])
-        while out.first?.isWhitespace == true || out.first == "\n" || out.first == "\r" {
-            out.removeFirst()
+        // Build greeting patterns (raw regex, anchored at start)
+        let base = #"^\s*(?:안녕하세요|안녕|반가워요|반갑습니다|하이|헬로|헬로우|hello|hi)\s*"#
+        var patterns: [String] = []
+        if let name = nickname, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let esc = NSRegularExpression.escapedPattern(for: name)
+            patterns.append(base + #"(?:\(?\s*"# + esc + #"(?:님)?\s*\)?)?\s*[,，、:：!~\-]*\s+"#)
         }
+        // Generic (no nickname)
+        patterns.append(base + #"(?:\([^)]{0,20}\)|\<[^>]{0,20}\>|\[[^\]]{0,20}\]|\"[^\"]{0,20}\")?\s*[,，、:：!~\-]*\s+"#)
 
-        // If stripping made the text too short or identical, abort
-        if out.isEmpty { return (text, nil) }
-        if out == text { return (text, nil) }
-
-        return (out, "stripped_prefix:\(matchedPrefix)")
-    }
-
-    private static func isSkippable(_ c: Character) -> Bool {
-        // Whitespace or light punctuation typically used around greetings/nicknames
-        return c.isWhitespace || " ,.!?~…🙂🙃😂🤣💕❤️⭐️*・-—–()[]{}:;\"'、。！？”“’‘·•".contains(c)
-    }
-
-    private static func trySkipNickname(in s: String, at i: String.Index, nickname: String) -> String.Index? {
-        var cursor = i
-        // Optional space before nickname
-        while cursor < s.endIndex, isSkippable(s[cursor]) {
-            cursor = s.index(after: cursor)
-        }
-        // Try exact nickname or nickname+"님" (with/without space)
-        let candidates = [nickname, nickname + "님", nickname + " 님"]
-        for cand in candidates {
-            if s[cursor...].hasPrefix(cand) {
-                var end = s.index(cursor, offsetBy: cand.count)
-                // If we matched base nickname and next token is "님", consume it
-                if cand == nickname, end < s.endIndex {
-                    // Consume optional whitespace then 님
-                    var look = end
-                    while look < s.endIndex, s[look].isWhitespace { look = s.index(after: look) }
-                    if look < s.endIndex, s[look] == "님" {
-                        end = s.index(after: look)
-                    }
+        let before = s
+        outer: for p in patterns {
+            if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
+                let ns = s as NSString
+                let range = NSRange(location: 0, length: ns.length)
+                if let match = re.firstMatch(in: s, options: [], range: range) {
+                    s = ns.replacingCharacters(in: match.range, with: "")
+                    reasons.append("strip_greeting")
+                    break outer
                 }
-                return end
             }
         }
-        return nil
-    }
-
-    private static func matchGreetingPrefix(in s: String) -> String? {
-        // We check both raw and lowercased for safety (English case-insensitive)
-        let low = s.lowercased()
-        for pre in greetingPrefixes {
-            if s.hasPrefix(pre) { return pre }
-            if low.hasPrefix(pre.lowercased()) { return pre }
-        }
-        return nil
+        if s == before { return (s, reasons.isEmpty ? nil : reasons.joined(separator: ",")) }
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed != s { reasons.append("trim_whitespace") }
+        return (trimmed, reasons.isEmpty ? nil : reasons.joined(separator: ","))
     }
 }
-

@@ -218,6 +218,7 @@
 		E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */; };
 		E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */; };
 		E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */; };
+		E0C833D22E81880700E8DAFE /* AppleFMAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -494,6 +495,7 @@
 		E0B562592E6AA3CB00D334F1 /* DebugFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFlags.swift; sourceTree = "<group>"; };
 		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingOverlay.swift; sourceTree = "<group>"; };
+		E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFMAdapter.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
 		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
@@ -596,6 +598,7 @@
 		E052033C2E77D1240073BBF4 /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
+				E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */,
 				E094B5062E7A927C00B46161 /* KVPromptCache.swift */,
 				E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */,
 				E052033A2E77D1240073BBF4 /* ModelCatalog.swift */,
@@ -1375,6 +1378,7 @@
 				E09CD6E92E49DB04007C133E /* SessionManager.swift in Sources */,
 				E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */,
 				E0B562282E616FA000D334F1 /* SubscriptionTier.swift in Sources */,
+				E0C833D22E81880700E8DAFE /* AppleFMAdapter.swift in Sources */,
 				E084F1E72E33ACB3002F75E6 /* CompilerFixStubs.swift in Sources */,
 				E084F1E82E33ACB3002F75E6 /* StorageManagementViewController.swift in Sources */,
 				E084F1E92E33ACB3002F75E6 /* UsageManager.swift in Sources */,

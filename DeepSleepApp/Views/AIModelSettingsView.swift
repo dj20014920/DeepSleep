@@ -26,24 +26,40 @@ struct AIModelSettingsView: View {
                 VStack(spacing: 16) {
                     // 구독 상태에 따른 모델 목록 제한 + "실험 친구" 제거
                     let isPremium = SubscriptionStatusCenter.shared.isPremium
-                    let onDeviceEnabled = ConfigReader.bool("ONDEVICE_ENABLED", default: true) ?? true
+                    let onDeviceEnabled =
+                        ConfigReader.bool("ONDEVICE_ENABLED", default: true) ?? true
+                    let isAppleAvailable: Bool = {
+                        if #available(iOS 26.0, *) { return true } else { return false }
+                    }()
                     let availableModels: [AIModelType] = {
                         let all = AIModelType.allCases.filter { $0 != .testModel }
                         var list = all
                         if !onDeviceEnabled {
                             list = list.filter { $0 != .onDevice }
                         }
+                        // Apple 카드는 항상 노출 (iOS 18 미만에서는 비활성 안내로 처리)
                         if isPremium { return list }
-                        return list.filter { $0 == .freeModel || $0 == .gemini || ($0 == .onDevice && onDeviceEnabled) }
+                        return list.filter {
+                            $0 == .freeModel
+                                || $0 == .gemini
+                                || ($0 == .onDevice && onDeviceEnabled)
+                                || ($0 == .apple)  // 항상 노출
+                        }
                     }()
                     ForEach(availableModels, id: \.self) { model in
                         ModelCard(
                             model: model,
                             isSelected: selectedModel == model,
+                            isAppleAvailable: isAppleAvailable,
                             onTap: {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     selectedModel = model
                                 }
+                                #if DEBUG
+                                    if model == .apple {
+                                        print("🍎 [AIModelSettings] Apple 카드 선택됨")
+                                    }
+                                #endif
                             }
                         )
                     }
@@ -75,7 +91,11 @@ struct AIModelSettingsView: View {
     private func saveSelection() {
         // 단일 진입점으로 원자 저장(+캐시 무효화 브로드캐스트)
         SettingsManager.shared.updateSelectedModelAtomically(selectedModel)
-
+        #if DEBUG
+            if selectedModel == .apple {
+                print("🍎 [AIModelSettings] 선택 완료: Apple Foundation Models 사용 설정됨")
+            }
+        #endif
         // 화면 닫기
         dismiss()
     }
@@ -85,6 +105,7 @@ struct AIModelSettingsView: View {
 private struct ModelCard: View {
     let model: AIModelType
     let isSelected: Bool
+    let isAppleAvailable: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -121,8 +142,22 @@ private struct ModelCard: View {
                     }
                 }
 
-                // 추가 정보 (온디바이스 모델의 경우)
-                if model == .onDevice {
+                // 추가 정보 (Apple/온디바이스 안내)
+                if model == .apple {
+                    HStack {
+                        Image(systemName: "applelogo")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                        Text(
+                            isAppleAvailable
+                                ? "추가 다운로드 없음 · Apple Foundation Models(시스템 제공)"
+                                : "iOS 18 필요 · 선택 불가"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 4)
+                } else if model == .onDevice {
                     HStack {
                         Image(systemName: "lock.shield")
                             .font(.caption)
@@ -147,6 +182,7 @@ private struct ModelCard: View {
                     )
             )
         }
+        .disabled(model == .apple && !isAppleAvailable)
         .buttonStyle(PlainButtonStyle())
     }
 }
