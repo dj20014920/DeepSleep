@@ -218,7 +218,6 @@ final class PerformanceOptimizer: PerformanceOptimizationProtocol {
         smartCache.removeAll()
         performanceMetrics.removeAll()
         
-        UnifiedLogger.shared.logPerformance("PerformanceOptimizer 정리 완료")
     }
 }
 

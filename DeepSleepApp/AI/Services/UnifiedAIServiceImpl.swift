@@ -224,7 +224,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String?
     ) -> AsyncThrowingStream<AIStreamResponse, Error> {
         // AFM one-chunk branch (top-only). Keeps UI streaming contract but yields once.
-        if model == .onDevice, AppleFMAdapter.isAvailable {
+        if model == .onDevice, SettingsManager.shared.selectedLLM == .apple, AppleFMAdapter.isAvailable {
             return AsyncThrowingStream { continuation in
                 Task {
                     do {
@@ -321,9 +321,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         )
 
         // Routing
-        if model == .onDevice {
-            // Prefer Apple FM when available
-            if AppleFMAdapter.isAvailable {
+        // 전역 SSoT: 사용자가 선택한 모델을 최우선으로 사용 (모든 모드 공통)
+        let effectiveModel = model
+        if effectiveModel == .onDevice {
+            // Prefer Apple FM when available (only when user explicitly selected Apple)
+            if SettingsManager.shared.selectedLLM == .apple, AppleFMAdapter.isAvailable {
                 let t0 = Date()
                 if #available(iOS 26.0, *) {
                     let text = try await AppleFMAdapter.generateFull(sys: systemPrompt, user: content)
@@ -353,7 +355,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             // llama.cpp on-device path (aggregate stream)
             var buffer = ""
             let summary = try await OnDeviceAdapter.shared.generate(
-                preferred: nil,
+                preferred: OnDeviceAdapter.shared.activeModelID,
                 text: content,
                 config: OnDeviceAdapter.StreamConfig(systemPrompt: systemPrompt, params: nil)
             ) { delta in buffer += delta }
@@ -463,34 +465,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // MARK: - 🎯 누락된 핵심 함수들 구현
 
     /// 모드별 최적 AI 모델 추천
+    /// KISS/DRY: 모든 모드는 사용자가 설정한 모델을 그대로 사용합니다.
+    /// - 단, 실제 가용성(설치/OS 제약) 문제는 하위 호출에서 에러로 처리됩니다.
     private func getOptimalModelForMode(mode: AIMode, userPreferred: AIModel) -> AIModel {
-        // 프리셋 추천은 항상 Gemini 고정(Strict JSON/스키마 강제 안정화 목적)
-        if EnvironmentConfig.shared.useProxy {
-            // Free 티어는 모든 모드에서 온디바이스만 사용(서버 경유 금지)
-            if StoreKitSubscriptionManager.shared.currentTier == .free { return .onDevice }
-            if mode == .presetRecommendation { return .gemini }
-            return userPreferred
-        }
-
-        // 프록시 미사용 시: 로컬 가용성 기반으로 최적 모델 선택
-        let optimalModelMapping: [AIMode: AIModel] = [
-            .generalConversation: userPreferred,
-            .emotionDiaryAnalysis: availableModels.contains(.gemini) ? .gemini : .freeModel,
-            .taskAdvice: availableModels.contains(.openAI) ? .openAI : .freeModel,
-            .presetRecommendation: availableModels.contains(.gemini)
-                ? .gemini : (availableModels.contains(.openAI) ? .openAI : .freeModel),
-            .monthlyStatistics: availableModels.contains(.gemini) ? .gemini : .freeModel,
-            .fortuneTelling: availableModels.contains(.naver) ? .naver : .freeModel,
-            .emotionAnalysis: availableModels.contains(.openAI) ? .openAI : .freeModel,
-        ]
-
-        if let optimalModel = optimalModelMapping[mode], availableModels.contains(optimalModel) {
-            return optimalModel
-        }
-        if availableModels.contains(userPreferred) {
-            return userPreferred
-        }
-        return .freeModel
+        return userPreferred
     }
 
     // 중앙집중형 시스템 프롬프트 제공자(공개 래퍼)
@@ -536,17 +514,6 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             if !userContext.isEmpty {
                 prompt += "\n\n사용자 컨텍스트:\n\(userContext)"
             }
-            if mode == .presetRecommendation {
-                // 프리셋: 모델이 자유롭게 조합/제목 생성하되, 토큰 최소화를 위해 카탈로그 전체를 실어 나르지 않음.
-                // 대신 총 카테고리 수와 버전 개수만 제공 → 모델은 volumes(13), versions(13)로 출력.
-                let catCount = SoundPresetCatalog.categoryCount
-                let versionCounts: [Int] = (0..<catCount).map { idx in
-                    SoundManager.shared.getSoundCatalog(at: idx)?.versions.count ?? 1
-                }
-                let countsStr = versionCounts.map { String($0) }.joined(separator: ",")
-                prompt +=
-                    "\n\n사운드 카탈로그 사양(토큰 절약형):\n- categoryCount=\(catCount)\n- versionCounts=[\(countsStr)] (각 카테고리별 버전 개수)\n\n요구사항(엄격):\n- 오직 JSON 1개만 출력. 추가 텍스트/코드펜스 금지.\n- 자유롭게 새로운 presetName을 생성(창의적/간결).\n- reason은 한국어 120자 이내.\n- volumes: 길이 \(catCount), 0..100 정수(또는 0..100 소수).\n- versions: 길이 \(catCount), 각 항목은 0..versionCounts[i]-1 정수.\n- confidence: 0..1.\n- items는 생략(선택). volumes+versions가 있으면 items는 없어야 함.\n- 모델이 자체 지식과 사용자 컨텍스트를 바탕으로 조합/균형/타이틀을 결정. 내부 카탈로그 이름 목록에 제한되지 않음."
-            }
             return prompt
         }
         /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
@@ -562,7 +529,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 return ""
             }
         }()
-        return basePrompt + lengthRule + "\n\n" + modelSpecific
+        // 프리셋 추천: presetName/reason 강제 규칙 추가 (경량, 토큰 부담 없음)
+        let presetRules: String = {
+            guard mode == .presetRecommendation else { return "" }
+            let catCount = SoundPresetCatalog.categoryCount
+            // 단일 JSON 예시를 추가해 온디바이스 모델의 형식 준수율을 높임 (짧고 경량)
+            let example = "\n예시(JSON 한 줄): {\"presetName\":\"달빛 호수 산책\",\"reason\":\"밤 시간대의 평온한 감정에 맞춰 파도와 잔잔한 바람을 중심으로 과자극을 줄였습니다.\",\"volumes\":[10,40,60,0,50,30,20,0,0,20,10,0,0]}"
+            return "\n\n출력 형식(엄격):\n- 오직 JSON 하나만 출력(코드펜스/추가 텍스트 금지)\n- 필수 키: presetName(간결하고 시적인 한국어 제목), reason(한국어 80~150자: 감정·시간대·음원 궁합·사용자 취향 등 추론 근거)\n- volumes 또는 items 중 하나는 반드시 포함\n  • volumes: 길이 \(catCount), 각 0..100 정수\n  • items: 1..13개, 각 항목 {soundName, versionName?, volume(0..100)}\n- versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)"
+        }()
+        return basePrompt + lengthRule + "\n\n" + presetRules + "\n\n" + modelSpecific
     }
 
     // MARK: - Strict JSON Schema Builders
@@ -633,39 +608,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 """
 
         case .presetRecommendation:
-            // 사용 가능한 사운드/버전 목록 요약(간결)
-            let count = SoundPresetCatalog.categoryCount
-            var lines: [String] = []
-            for i in 0..<min(count, 13) {
-                if let c = SoundManager.shared.getSoundCatalog(at: i) {
-                    let vnames = c.versions.map { $0.displayName }.joined(separator: ", ")
-                    lines.append("- \(c.baseName): \(vnames)")
-                }
-            }
-            let catalogSummary = lines.joined(separator: "\n")
-            // 시간대 기반 Top-5 후보(토큰 최소화)
-            let hour = Calendar.current.component(.hour, from: Date())
-            let timeLabel: String = {
-                switch hour {
-                case 5..<9: return "아침"
-                case 9..<12: return "오전"
-                case 12..<18: return "오후"
-                case 18..<22: return "저녁"
-                default: return "밤"
-                }
-            }()
-            var candidates: [String] = []
-            for (name, details) in SoundPresetCatalog.supplementalSoundDetails {
-                if let times = details["timeOfDay"] as? [String],
-                    times.contains(where: { $0 == timeLabel || $0 == "모든 시간" })
-                {
-                    let opt = (details["optimalIntensity"] as? Int) ?? 30
-                    candidates.append("\(name)(opt=\(opt))")
-                }
-                if candidates.count >= 5 { break }
-            }
-            let candidateLine =
-                candidates.isEmpty ? "" : "\n[시간대 후보 Top-5] " + candidates.joined(separator: ", ")
+            // 사용 가능한 사운드/버전 목록 요약(간결) - 스레드 안전 캐시 사용
+            let catalogSummary = SoundPresetCatalog.promptCatalogSummary
             return """
                 사운드 큐레이터.
                 - 오직 JSON 객체 1개만 출력(추가 텍스트/코드펜스/주석 금지)
@@ -673,7 +617,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 - soundName: 카탈로그 이름, versionName: 해당 사운드의 버전
                 - reason: 120자 이내 한국어
                 [앱 사운드 카탈로그 요약]
-                \(catalogSummary)\(candidateLine)
+                \(catalogSummary)
                 """
 
         case .monthlyStatistics:

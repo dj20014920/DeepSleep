@@ -158,7 +158,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
             statusUpdateTimer = nil
         }
         
-        UnifiedLogger.shared.info("전역 최적화 설정: \(enabled)", category: .performance)
     }
     
     // MARK: - Private Optimization Methods
@@ -167,7 +166,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
         mlOptimizer.setPerformanceMode(.maximum)
         backgroundTaskManager.setThrottlingLevel(.none)
         
-        UnifiedLogger.shared.debug("우수 성능 최적화 적용", category: .performance)
     }
     
     private func optimizeForGoodPerformance() {
@@ -183,7 +181,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
             self?.memoryManager.requestMemoryOptimization()
         }
         
-        UnifiedLogger.shared.debug("양호 성능 최적화 적용", category: .performance)
     }
     
     private func optimizeForFairPerformance() {
@@ -194,7 +191,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
         // 메모리 최적화 요청
         memoryManager.requestMemoryOptimization()
         
-        UnifiedLogger.shared.debug("보통 성능 최적화 적용", category: .performance)
     }
     
     private func optimizeForPoorPerformance() {
@@ -209,7 +205,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
         // 캐시 정리
         performanceOptimizer.removeFromCache(key: "non_essential_cache")
         
-        UnifiedLogger.shared.warning("저조한 성능으로 인한 적극적 최적화 적용", category: .performance)
     }
     
     private func optimizeForCriticalPerformance() {
@@ -272,7 +267,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
     }
     
     private func handleBackgroundTransition() {
-        UnifiedLogger.shared.info("백그라운드 전환 - 성능 최적화 시작", category: .performance)
         
         // 백그라운드에서 적극적 최적화
         mlOptimizer.setPerformanceMode(.powerSaver)
@@ -289,7 +283,6 @@ final class UnifiedPerformanceManager: PerformanceManagerProtocol, ObservableObj
     }
     
     private func handleForegroundTransition() {
-        UnifiedLogger.shared.info("포그라운드 전환 - 성능 복원 시작", category: .performance)
         
         // 포그라운드에서 정상 모드 복원
         optimizeForCurrentConditions()

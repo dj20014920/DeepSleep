@@ -157,7 +157,6 @@ final class BatteryOptimizationManager: ObservableObject, BatteryOptimizationPro
     }
     
     private func applyOptimizations(level: OptimizationLevel) {
-        UnifiedLogger.shared.info("배터리 최적화 레벨 적용: \(level)", category: .system)
         
         switch level {
         case .none:
@@ -658,7 +657,6 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
             self.applyThrottlingSettings(level)
             
             DispatchQueue.main.async {
-                UnifiedLogger.shared.info("백그라운드 작업 제한 레벨 변경: \(previousLevel.description) → \(level.description)", category: .system)
             }
         }
     }

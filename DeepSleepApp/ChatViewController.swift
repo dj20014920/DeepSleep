@@ -353,7 +353,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         Task {
             do {
                 let aiMode = determineAIModeFromContext()
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                let selectedModel = SettingsManager.shared.selectedAIModel
                 let baseCfg = aiMode.recommendedTokenConfig
                 let overrideCfg = TokenConfiguration(
                     maxTokens: overrideMaxTokens,
@@ -458,7 +458,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 비동기 작업으로 AI 서비스 호출
         Task {
             do {
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                let selectedModel = SettingsManager.shared.selectedAIModel
                 let aiMode = self.determineAIModeFromContext()
                 let response = try await SessionManager.shared.sendMessage(
                     content: message,
@@ -741,7 +741,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 // 정책 고정: 일기 분석은 Gemini로 호출(사용자 모델 설정과 무관)
                 let response = try await SessionManager.shared.sendMessage(
                     content: diary.content,
-                    model: .gemini,
+                    model: mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM),
                     mode: .emotionDiaryAnalysis,
                     saveMessages: true
                 )
@@ -3657,7 +3657,7 @@ extension ChatViewController {
             do {
                 // 🚀 SessionManager의 통합 AI 서비스 사용
                 let prompt = "다음은 나의 최근 30일간의 감정 데이터야. 이걸 보고 나의 감정 패턴을 분석하고 조언해줘.\n\n\(emotionData)"
-                let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                let selectedModel = SettingsManager.shared.selectedAIModel
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: prompt,
                     model: selectedModel,
@@ -4353,7 +4353,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                 // 프리셋 추천에 특화된 처리
                 let responseContent = try await SessionManager.shared.sendMessage(
                     content: "감정: \(currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
-                    model: .openAI,
+                    model: SettingsManager.shared.selectedAIModel,
                     mode: .presetRecommendation,
                     saveMessages: true
                 )
@@ -4384,7 +4384,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
                                         .sendMessageForceProvider(
                                             content:
                                                 "감정: \(self?.currentEmotion ?? "평온"), 상황: \(analysisPrompt)",
-                                            model: .openAI,
+                                            model: SettingsManager.shared.selectedAIModel,
                                             mode: .presetRecommendation,
                                             context: aiContext,
                                             tokenConfig: nil,

@@ -121,8 +121,8 @@ public class SettingsManager {
         return AIModelType.allCases
     }
 
-    /// 사용자가 선택한 AI 모델을 가져오거나 설정합니다.
-    /// 기본값은 Claude 입니다.
+    /// 사용자가 선택한 AI 모델(AIModelType) 저장값
+    /// 기본값은 Gemini 입니다.
     var selectedLLM: AIModelType {
         get {
             // 이전 버전 호환성: LLMServiceType 값을 AIModelType으로 변환
@@ -145,6 +145,20 @@ public class SettingsManager {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
             userDefaults.set(newValue.rawValue, forKey: Keys.selectedLLM)
             // 모델별 지침은 런타임 합성이므로 시스템 프롬프트 캐시는 모델 변경으로 무효화하지 않습니다.
+        }
+    }
+
+    /// 단일 SSoT: 화면 전역에서 사용할 실제 호출용 모델(AIModel)
+    var selectedAIModel: AIModel {
+        switch selectedLLM {
+        case .claude35: return .claude
+        case .gpt4:     return .openAI
+        case .gemini:   return .gemini
+        case .naver:    return .naver
+        case .freeModel:return .freeModel
+        case .apple:    return .onDevice   // Apple Foundation Models → 온디바이스 경로
+        case .onDevice: return .onDevice
+        case .testModel:return .freeModel
         }
     }
 

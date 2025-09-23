@@ -908,7 +908,7 @@ public class SessionManager {
             Task {
                 do {
                     let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
-                    let selectedModel = mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM)
+                    let selectedModel = SettingsManager.shared.selectedAIModel
                     let tokenCfg = tokenConfigOverride ?? mode.recommendedTokenConfig
                     var aggregate = ""
                     let stream = UnifiedAIServiceImpl.shared.sendMessageStream(
@@ -1024,8 +1024,8 @@ public class SessionManager {
         #endif
 
         // 4. AI 서비스 호출
-        let selectedModelType = SettingsManager.shared.selectedLLM
-        let selectedModel = mapAIModelTypeToAIModel(selectedModelType)
+        // 단일 진실: 설정에서 실제 호출용 모델을 바로 가져옴
+        let selectedModel = SettingsManager.shared.selectedAIModel
         let effectiveTokenConfig = tokenConfigOverride ?? mode.recommendedTokenConfig
         #if DEBUG
             __log("svc:call:start")

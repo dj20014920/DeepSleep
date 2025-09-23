@@ -176,13 +176,20 @@ public final class AIResponseParser {
     }
 
     private func parseBasicFormatPreset() -> EnhancedRecommendationResponse? {
-        let emotion = "평온"
-        let volumes: [Float] = [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0]
+        // 랜덤화된 폴백(중복 억제 & 다양성 제공)
+        let candidates: [(String, [Float], String)] = [
+            ("🌊 마음 달래는 소리", [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0], "기본 감정별 추천"),
+            ("🌙 달빛 아래 산책",   [20, 60, 40, 0,  55, 35, 10, 40, 20, 0,  30, 0, 0], "야간 휴식에 맞춘 안정적 조합"),
+            ("🍃 바람결 위로",     [10, 50, 70, 5,  45, 25, 30, 60, 30, 10, 20, 0, 0], "자연계 사운드 중심의 편안한 밸런스"),
+            ("☕ 잔잔한 오후",     [0,  40, 30, 0,  35, 20, 20, 30, 20, 20, 20, 0, 0], "오후 집중·휴식 혼합에 최적화")
+        ]
+        let pick = candidates.randomElement() ?? candidates[0]
+        let filtered = SoundPresetCatalog.applyCompatibilityFilter(to: pick.1)
         return EnhancedRecommendationResponse(
-            presetName: safePresetName("🌊 마음 달래는 소리"),
-            volumes: SoundPresetCatalog.applyCompatibilityFilter(to: volumes),
-            versions: generateOptimalVersions(volumes: volumes),
-            reason: "기본 감정별 추천"
+            presetName: safePresetName(pick.0),
+            volumes: filtered,
+            versions: generateOptimalVersions(volumes: filtered),
+            reason: pick.2
         )
     }
 

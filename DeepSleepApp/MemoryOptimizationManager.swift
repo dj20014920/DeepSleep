@@ -175,7 +175,6 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
     }
     
     private func handleBackgroundTransition() {
-        UnifiedLogger.shared.info("백그라운드 전환 - 메모리 최적화 수행", category: .performance)
         
         // 백그라운드에서 불필요한 캐시 정리
         clearNonEssentialCaches()
@@ -264,7 +263,6 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
     
     private func clearOldCacheEntries() {
         // TODO: 캐시 항목 나이 기반 정리 구현
-        UnifiedLogger.shared.debug("오래된 캐시 항목 정리", category: .performance)
     }
     
     private func clearMostCaches() {
@@ -333,7 +331,6 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
     }
     
     private func suspendNonEssentialBackgroundTasks() {
-        UnifiedLogger.shared.debug("비필수 백그라운드 작업 중단 시작", category: .system)
         
         // 백그라운드 작업 중단 알림
         NotificationCenter.default.post(
@@ -354,12 +351,10 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
             }
         }
         
-        UnifiedLogger.shared.info("비필수 백그라운드 작업 중단 완료", category: .system)
     }
     
     // MARK: - Public Methods
     func requestMemoryOptimization() {
-        UnifiedLogger.shared.info("메모리 최적화 요청됨", category: .performance)
         performPreventiveMemoryCleanup()
     }
     

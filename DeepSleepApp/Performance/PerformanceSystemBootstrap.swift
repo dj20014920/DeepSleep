@@ -269,7 +269,6 @@ final class PerformanceSystemBootstrap {
     
     @MainActor
     private func handlePowerStateChange() {
-        UnifiedLogger.shared.info("전원 상태 변화 이벤트 - 배터리 최적화 실행", category: .system)
         
         guard let manager = performanceManager else { return }
         
