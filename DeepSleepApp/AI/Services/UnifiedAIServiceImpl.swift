@@ -224,7 +224,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         assembledPrompt: String?
     ) -> AsyncThrowingStream<AIStreamResponse, Error> {
         // AFM one-chunk branch (top-only). Keeps UI streaming contract but yields once.
-        if model == .onDevice, SettingsManager.shared.selectedLLM == .apple, AppleFMAdapter.isAvailable {
+        if model == .onDevice, SettingsManager.shared.selectedLLM == .apple,
+            AppleFMAdapter.isAvailable
+        {
             return AsyncThrowingStream { continuation in
                 Task {
                     do {
@@ -234,17 +236,28 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         }()
                         let t0 = Date()
                         if #available(iOS 26.0, *) {
-                            let full = try await AppleFMAdapter.generateFull(sys: sys, user: content)
+                            let full = try await AppleFMAdapter.generateFull(
+                                sys: sys, user: content)
                             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                            print("🍎 Apple FM stream (one-chunk) durationMs=\(ms)")
+                            let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+                            let comps = UserRulesManager.shared.personaSignatureComponents(
+                                currentMode: mode,
+                                model: .onDevice,
+                                conversationTones: userSettingsForTones.conversationTones
+                            )
+                            let sysDigest = AppleFMSessionPool.digestSystemPrompt(sys)
+                            print(
+                                "🍎 Apple FM stream (one-chunk) durationMs=\(ms) key=\(comps.coreHash.prefix(8)):\(mode.rawValue):onDevice:\(comps.toneHash.prefix(8)):\(sysDigest.prefix(8)) poolEnabled=\(AppleFMSessionPool.isEnabled)"
+                            )
                             // Sanitize + greeting trim
                             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                             let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(full)
-                            let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                                response: sanitized,
-                                history: context?.conversationHistory,
-                                nickname: nickname
-                            )
+                            let (processed, _) =
+                                AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+                                    response: sanitized,
+                                    history: context?.conversationHistory,
+                                    nickname: nickname
+                                )
                             continuation.yield(
                                 AIStreamResponse(
                                     id: UUID().uuidString,
@@ -280,7 +293,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                             id: full.id,
                             delta: full.content,
                             isComplete: true,
-                            metadata: StreamMetadata(tokenCount: full.usage.totalTokens, timestamp: Date())
+                            metadata: StreamMetadata(
+                                tokenCount: full.usage.totalTokens, timestamp: Date())
                         )
                     )
                     continuation.finish()
@@ -309,16 +323,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
         // Role messages (system + optional history + user)
         // Gemma는 system 미지원 → 초기 user에 지시 내재화
-        let isGemmaOnDevice: Bool = (model == .onDevice) && {
-            // SettingsManager.selectedLLM은 AIModelType이며, 온디바이스 내부 모델 구분은 OnDeviceAdapter.activeModelID로 판별
-            if let active = OnDeviceAdapter.shared.activeModelID {
-                switch active {
-                case .gemma270_q8, .gemma1b_iq4xs: return true
-                default: return false
+        let isGemmaOnDevice: Bool =
+            (model == .onDevice)
+            && {
+                // SettingsManager.selectedLLM은 AIModelType이며, 온디바이스 내부 모델 구분은 OnDeviceAdapter.activeModelID로 판별
+                if let active = OnDeviceAdapter.shared.activeModelID {
+                    switch active {
+                    case .gemma270_q8, .gemma1b_iq4xs: return true
+                    default: return false
+                    }
                 }
-            }
-            return false
-        }()
+                return false
+            }()
         var roleMessages: [RoleMessage] = []
         if isGemmaOnDevice {
             // system 지시를 user 입력과 합쳐 user 첫 턴으로 제공
@@ -328,7 +344,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
         if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
             let recent = Array(history.suffix(16))
-            for t in recent { roleMessages.append(RoleMessage(role: t.role, content: t.content, ts: t.timestamp)) }
+            for t in recent {
+                roleMessages.append(RoleMessage(role: t.role, content: t.content, ts: t.timestamp))
+            }
         }
         if !isGemmaOnDevice {
             roleMessages.append(RoleMessage(role: .user, content: content))
@@ -347,9 +365,19 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             if SettingsManager.shared.selectedLLM == .apple, AppleFMAdapter.isAvailable {
                 let t0 = Date()
                 if #available(iOS 26.0, *) {
-                    let text = try await AppleFMAdapter.generateFull(sys: systemPrompt, user: content)
+                    let text = try await AppleFMAdapter.generateFull(
+                        sys: systemPrompt, user: content)
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("🍎 Apple FM complete durationMs=\(ms) provider=applefm")
+                    let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+                    let comps = UserRulesManager.shared.personaSignatureComponents(
+                        currentMode: mode,
+                        model: .onDevice,
+                        conversationTones: userSettingsForTones.conversationTones
+                    )
+                    let sysDigest = AppleFMSessionPool.digestSystemPrompt(systemPrompt)
+                    print(
+                        "🍎 Apple FM complete durationMs=\(ms) provider=applefm key=\(comps.coreHash.prefix(8)):\(mode.rawValue):onDevice:\(comps.toneHash.prefix(8)):\(sysDigest.prefix(8)) poolEnabled=\(AppleFMSessionPool.isEnabled)"
+                    )
                     let nickname = UserSettingsModel.loadFromUserDefaults().nickname
                     let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(text)
                     let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
@@ -357,7 +385,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         history: context?.conversationHistory,
                         nickname: nickname
                     )
-                    let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+                    let usage = TokenUsage(
+                        promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
                     let meta = ResponseMetadata(
                         emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
                         additionalInfo: ["provider": "applefm"]
@@ -385,7 +414,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 history: context?.conversationHistory,
                 nickname: nickname
             )
-            let usage = TokenUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
+            let usage = TokenUsage(
+                promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
             let meta = ResponseMetadata(
                 emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
                 additionalInfo: ["provider": "llama.cpp", "ttiMs": summary.ttiMilliseconds]
@@ -398,7 +428,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
 
         // Proxy path or direct provider services
-        if EnvironmentConfig.shared.useProxy || freeModelService != nil || hasAnyDirectServiceAvailable() {
+        if EnvironmentConfig.shared.useProxy || freeModelService != nil
+            || hasAnyDirectServiceAvailable()
+        {
             do {
                 if EnvironmentConfig.shared.useProxy {
                     let proxyURL = try resolveProxyBaseURL()
@@ -449,6 +481,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             reason: .modelSelectionChanged,
             caller: "UnifiedAIServiceImpl"
         )
+        // AFM 세션 풀도 전역 무효화 (모델 변경 시 기존 세션은 재사용 불가)
+        Task {
+            await AppleFMSessionPool.shared.invalidateAll(reason: "modelSelectionChanged")
+        }
     }
 
     // MARK: - 📊 사용량 통계 (미구현)
@@ -553,8 +589,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             guard mode == .presetRecommendation else { return "" }
             let catCount = SoundPresetCatalog.categoryCount
             // 단일 JSON 예시를 추가해 온디바이스 모델의 형식 준수율을 높임 (짧고 경량)
-            let example = "\n예시(JSON 한 줄): {\"presetName\":\"달빛 호수 산책\",\"reason\":\"밤 시간대의 평온한 감정에 맞춰 파도와 잔잔한 바람을 중심으로 과자극을 줄였습니다.\",\"volumes\":[10,40,60,0,50,30,20,0,0,20,10,0,0]}"
-            return "\n\n출력 형식(엄격):\n- 오직 JSON 하나만 출력(코드펜스/추가 텍스트 금지)\n- 필수 키: presetName(간결하고 시적인 한국어 제목), reason(한국어 80~150자: 감정·시간대·음원 궁합·사용자 취향 등 추론 근거)\n- volumes 또는 items 중 하나는 반드시 포함\n  • volumes: 길이 \(catCount), 각 0..100 정수\n  • items: 1..13개, 각 항목 {soundName, versionName?, volume(0..100)}\n- versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)"
+            let example =
+                "\n예시(JSON 한 줄): {\"presetName\":\"달빛 호수 산책\",\"reason\":\"밤 시간대의 평온한 감정에 맞춰 파도와 잔잔한 바람을 중심으로 과자극을 줄였습니다.\",\"volumes\":[10,40,60,0,50,30,20,0,0,20,10,0,0]}"
+            return
+                "\n\n출력 형식(엄격):\n- 오직 JSON 하나만 출력(코드펜스/추가 텍스트 금지)\n- 필수 키: presetName(간결하고 시적인 한국어 제목), reason(한국어 80~150자: 감정·시간대·음원 궁합·사용자 취향 등 추론 근거)\n- volumes 또는 items 중 하나는 반드시 포함\n  • volumes: 길이 \(catCount), 각 0..100 정수\n  • items: 1..13개, 각 항목 {soundName, versionName?, volume(0..100)}\n- versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)"
         }()
         return basePrompt + lengthRule + "\n\n" + presetRules + "\n\n" + modelSpecific
     }

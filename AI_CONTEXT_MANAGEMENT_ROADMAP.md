@@ -128,6 +128,55 @@
 ---
 
 # AI Context Management Roadmap
+
+## 2025-09-24 업데이트: Apple FM 캐싱 전환(응답 캐시 → 세션 풀) · SSOT · 운영 가이드
+- 목적: 기존 응답 텍스트 캐시(UserDefaults/정규화 기반)를 기본 Off로 전환하고, 업계 표준과 합치되는 세션 재사용(AppleFMSessionPool)로 지연(TTI/완료시간)을 단축.
+- 범위: Apple FM(one‑chunk) 경로에 한해 `LanguageModelSession` 재사용. KV 프리필/엔진 캐싱(예: llama.cpp용 `KVPromptCache`)은 별도 유지.
+
+### 설계 요약
+- 세션 풀 키: personaCoreHash + mode + model + toneHash + systemPromptDigest(SHA256/hex 8~64)
+- 정책: TTL=10800s(3h), 동시 세션 상한=16, LRU 축출, 만료 시 제거, 동시 초기화 병합(once-task)
+- 무효화 트리거(SSOT)
+  - 모델 변경(SettingsManager.updateSelectedModelAtomically) → 세션 풀 전체 invalidateAll
+  - 페르소나/톤/모드/시스템 프롬프트 변경 → 키가 달라져 자연 무효화(hit 불가)
+  - 응급 메모리 정리(MemoryOptimizationManager) → invalidateAll("emergencyMemoryCleanup")
+- 예외: 레거시 응답 캐시(AppleFMCache)는 기본 Off, 긴급 롤백 시 플래그로만 활성화
+
+### 운영 키(Info.plist)
+- 범용
+  - CACHE_TTL_SECONDS_DEFAULT = 10800
+  - CACHE_MEM_LIMIT_MB = 64
+  - CACHE_DISK_LIMIT_MB = 100
+- AFM 전용
+  - APPLE_FM_SESSION_POOL_ENABLED = true
+  - APPLE_FM_RESPONSE_CACHE_ENABLED = false
+  - APPLE_FM_SESSION_TTL_SECONDS = 10800 (선택)
+  - APPLE_FM_SESSION_MAX_COUNT = 16 (선택)
+- 관측성
+  - CACHE_METRICS_VERBOSE = false (추천 기본값)
+  - AFM_SESSION_STATS_LOG_INTERVAL = 60 (운영에서 30~120초 추천)
+
+### 로깅/메트릭
+- 세션 풀
+  - "🍎 AFM session ACQUIRE (hit|miss|join-inflight|miss→create) key=… age=…"
+  - "🍎 AFM session EXPIRE key=…", "🍎 AFM session EVICT key=…", "🍎 AFM session CLEAR_ALL reason=…"
+  - 주기 통계: "🍎 AFM pool enabled=… count=… ttl=… max=… H/M/E/X=…/…/…/…"
+- 클라이언트 경로
+  - UnifiedAIServiceImpl 스트림/완료 로그에 key 요약(coreHash:mode:model:toneHash:sysDigest 앞 8자) 및 poolEnabled 표시
+- CacheBackend 통합(선택)
+  - HyperCacheBackend(있는 경우): 메모리/디스크/TTL/네임스페이스 운영. 미존재 시 Noop/메모리 폴백.
+
+### QA 체크리스트
+- 1턴 miss→create, 2·3턴 hit(동일 persona/mode/model/tone/systemPromptDigest)로 TTI/완료시간 감소
+- TTL 이후 재요청 시 miss
+- 동시 N요청에서 최초 1회만 create, 나머지 join-inflight
+- 모델 변경/응급 정리 직후 invalidateAll 로그 확인 및 이후 miss→create
+- llama.cpp 경로/KVPromptCache 영향 없음, AIContextManager(시스템 프롬프트 캐시)와 정책 충돌 없음
+
+### 롤백 전략
+- APPLE_FM_SESSION_POOL_ENABLED=false, APPLE_FM_RESPONSE_CACHE_ENABLED=true 임시 복귀
+- 정상화 후 세션 풀 재활성 권장(오탐·정합성 측면에서 응답 캐시 장기 사용 금지)
+
 ### 2025-09-10 동기화: 신경망 피드백→추천 플로우 완성 + DRY 유틸 + BGTask 학습
 - SessionManager 일원화: 세션 시작/중간저장/종료의 PresetFeedback/BehaviorEvent 체인 무결성 강화
 - FeedbackCollectionViewController 제출 시 중간 스냅샷(PresetFeedback) 저장 및 즉시 학습 트리거 연계

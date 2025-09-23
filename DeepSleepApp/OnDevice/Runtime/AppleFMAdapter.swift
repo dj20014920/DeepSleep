@@ -80,13 +80,32 @@ public enum AppleFMAdapter {
                 throw AppleFMError.invalidInput
             }
 
-            // 1) 세션 생성 (권장: 3줄)
-            // // LanguageModelSession은 SystemLanguageModel.default를 사용
+            // 1) 세션 획득: 세션 풀 우선, 비활성/미지원 시 새로 생성
+            let instructions = sys?.trimmingCharacters(in: .whitespacesAndNewlines)
             let session: LanguageModelSession
-            if let s = sys?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
-                session = LanguageModelSession(instructions: s)
+            if AppleFMSessionPool.isEnabled {
+                // tone 해시를 포함한 세션 키 구성 (페르소나/모드/모델/톤 일관성 유지)
+                let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+                let comps = UserRulesManager.shared.personaSignatureComponents(
+                    currentMode: .generalConversation,
+                    model: .onDevice,
+                    conversationTones: userSettingsForTones.conversationTones
+                )
+                let key = AppleFMSessionPool.buildKey(
+                    personaCoreHash: comps.coreHash,
+                    mode: .generalConversation,
+                    model: .onDevice,
+                    tone: comps.toneHash,
+                    systemPrompt: instructions
+                )
+                session = try await AppleFMSessionPool.shared.acquire(
+                    key: key, instructions: instructions)
             } else {
-                session = LanguageModelSession()
+                if let s = instructions, !s.isEmpty {
+                    session = LanguageModelSession(instructions: s)
+                } else {
+                    session = LanguageModelSession()
+                }
             }
 
             // 2) 요청/응답
@@ -95,6 +114,7 @@ public enum AppleFMAdapter {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             Self.log.info("🍎 AppleFM responded (\(ms) ms, \(result.content.count) chars)")
 
+            // 응답 캐시 저장 제거: 세션 풀 재사용으로 지연 최적화
             return result.content
         }
     }

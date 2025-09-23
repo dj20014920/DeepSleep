@@ -219,6 +219,12 @@
 		E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */; };
 		E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */; };
 		E0C833D22E81880700E8DAFE /* AppleFMAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */; };
+		E0C833D42E827D0100E8DAFE /* AppleFMCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D32E827D0100E8DAFE /* AppleFMCache.swift */; };
+		E0C833D72E829A0100E8DAFE /* AppleFMPromptNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D52E829A0100E8DAFE /* AppleFMPromptNormalizer.swift */; };
+		E0C833D82E829A0100E8DAFE /* AppleFMSessionPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D62E829A0100E8DAFE /* AppleFMSessionPool.swift */; };
+		E0C833DD2E829C1F00E8DAFE /* CacheBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833D92E829C1F00E8DAFE /* CacheBackend.swift */; };
+		E0C833DE2E829C1F00E8DAFE /* CacheMetricsLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833DA2E829C1F00E8DAFE /* CacheMetricsLogger.swift */; };
+		E0C833DF2E829C1F00E8DAFE /* HyperCacheBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0C833DB2E829C1F00E8DAFE /* HyperCacheBackend.swift */; };
 		E0E7BC952E53664B00FF7074 /* AIContextSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */; };
 		E0E7BCA42E53664B00FF7073 /* PresetInteractionSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BCA22E53664B00FF7073 /* PresetInteractionSummarizer.swift */; };
 		E0E7BCA52E53664B00FF7073 /* AIContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7BC982E53664B00FF7073 /* AIContextManager.swift */; };
@@ -496,6 +502,12 @@
 		E0B5625F2E6AC9C100D334F1 /* FriendToneSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendToneSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B562622E6BFE9600D334F1 /* LoadingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingOverlay.swift; sourceTree = "<group>"; };
 		E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFMAdapter.swift; sourceTree = "<group>"; };
+		E0C833D32E827D0100E8DAFE /* AppleFMCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFMCache.swift; sourceTree = "<group>"; };
+		E0C833D52E829A0100E8DAFE /* AppleFMPromptNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFMPromptNormalizer.swift; sourceTree = "<group>"; };
+		E0C833D62E829A0100E8DAFE /* AppleFMSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFMSessionPool.swift; sourceTree = "<group>"; };
+		E0C833D92E829C1F00E8DAFE /* CacheBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheBackend.swift; sourceTree = "<group>"; };
+		E0C833DA2E829C1F00E8DAFE /* CacheMetricsLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheMetricsLogger.swift; sourceTree = "<group>"; };
+		E0C833DB2E829C1F00E8DAFE /* HyperCacheBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyperCacheBackend.swift; sourceTree = "<group>"; };
 		E0E7BC922E4F16A500FF7073 /* AI_CONTEXT_MANAGEMENT_ROADMAP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AI_CONTEXT_MANAGEMENT_ROADMAP.md; sourceTree = "<group>"; };
 		E0E7BC942E53664B00FF7074 /* AIContextSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextSignature.swift; sourceTree = "<group>"; };
 		E0E7BC972E53664B00FF7073 /* AIContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextBuilder.swift; sourceTree = "<group>"; };
@@ -598,6 +610,9 @@
 		E052033C2E77D1240073BBF4 /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
+				E0C833D52E829A0100E8DAFE /* AppleFMPromptNormalizer.swift */,
+				E0C833D62E829A0100E8DAFE /* AppleFMSessionPool.swift */,
+				E0C833D32E827D0100E8DAFE /* AppleFMCache.swift */,
 				E0C833D12E81880700E8DAFE /* AppleFMAdapter.swift */,
 				E094B5062E7A927C00B46161 /* KVPromptCache.swift */,
 				E065F43D2E7813E40041C4E0 /* OnDeviceAdapter.swift */,
@@ -1023,6 +1038,16 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		E0C833DC2E829C1F00E8DAFE /* Cache */ = {
+			isa = PBXGroup;
+			children = (
+				E0C833D92E829C1F00E8DAFE /* CacheBackend.swift */,
+				E0C833DA2E829C1F00E8DAFE /* CacheMetricsLogger.swift */,
+				E0C833DB2E829C1F00E8DAFE /* HyperCacheBackend.swift */,
+			);
+			path = Cache;
+			sourceTree = "<group>";
+		};
 		E0E7BC9B2E53664B00FF7073 /* Context */ = {
 			isa = PBXGroup;
 			children = (
@@ -1104,6 +1129,7 @@
 		E0E7BCC92E561E3300FF7073 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				E0C833DC2E829C1F00E8DAFE /* Cache */,
 				E0E7BCD52E56252800FF7073 /* SubscriptionUIBinder.swift */,
 				E0E7BCC72E561E3300FF7073 /* FeatureFlags.swift */,
 				E0E7BCC82E561E3300FF7073 /* KSTDatePolicy.swift */,
@@ -1239,6 +1265,8 @@
 				E084F17C2E33ACB3002F75E6 /* AIModelSettingsView.swift in Sources */,
 				E084F17E2E33ACB3002F75E6 /* PresetListViewController.swift in Sources */,
 				E084F17F2E33ACB3002F75E6 /* FortuneGenerator.swift in Sources */,
+				E0C833D72E829A0100E8DAFE /* AppleFMPromptNormalizer.swift in Sources */,
+				E0C833D82E829A0100E8DAFE /* AppleFMSessionPool.swift in Sources */,
 				E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */,
 				E0B5625A2E6AA3CB00D334F1 /* DebugFlags.swift in Sources */,
 				E084F1812E33ACB3002F75E6 /* ChatRouter.swift in Sources */,
@@ -1304,6 +1332,7 @@
 				E084F1B12E33ACB3002F75E6 /* ViewController.swift in Sources */,
 				E068E3652E57307A00CA54A0 /* ChatRequestCenter.swift in Sources */,
 				E084F1B22E33ACB3002F75E6 /* AppConfig.swift in Sources */,
+				E0C833D42E827D0100E8DAFE /* AppleFMCache.swift in Sources */,
 				E084F1B32E33ACB3002F75E6 /* Models.swift in Sources */,
 				E0B5623B2E647EF500D334F1 /* AIResponsePostProcessor.swift in Sources */,
 				E0E7BCB62E5591CA00FF7073 /* SubscriptionManager.swift in Sources */,
@@ -1413,6 +1442,9 @@
 				E0E7BCC12E561B3800FF7073 /* EntitlementGate.swift in Sources */,
 				E05203352E754C520073BBF4 /* AppIconManager.swift in Sources */,
 				E0E7BCC22E561B3800FF7073 /* PaywallPresenter.swift in Sources */,
+				E0C833DD2E829C1F00E8DAFE /* CacheBackend.swift in Sources */,
+				E0C833DE2E829C1F00E8DAFE /* CacheMetricsLogger.swift in Sources */,
+				E0C833DF2E829C1F00E8DAFE /* HyperCacheBackend.swift in Sources */,
 				E0E7BCC32E561B3800FF7073 /* SubscriptionStatusCenter.swift in Sources */,
 				E0B562412E647F1200D334F1 /* OnboardingManager.swift in Sources */,
 				E0E7BCC42E561B3800FF7073 /* AppFeature.swift in Sources */,

@@ -9,6 +9,12 @@ import UserNotifications
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    override init() {
+        super.init()
+        // 시작 시 AFM 세션 풀/캐시 메트릭 로거 초기화
+        CacheMetricsLogger.shared.startPeriodicAFMStatsLogging()
+        CacheMetricsLogger.shared.logAppleFMSessionPoolStatsOnce()
+    }
 
     /// Fallback window for non-scene UI
     var window: UIWindow?
@@ -230,7 +236,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) ->
+        withCompletionHandler completionHandler:
+            @escaping (UNNotificationPresentationOptions) ->
             Void
     ) {
         // 앱이 실행 중일 때도 알림을 표시하도록 설정 (alert, sound, badge 모두 사용)

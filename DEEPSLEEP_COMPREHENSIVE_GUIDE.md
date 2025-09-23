@@ -1,4 +1,66 @@
 # DeepSleep Comprehensive Guide
+
+### 🆕 2025-09-24 업데이트: 캐시/세션 풀/운영 키/모니터링
+
+본 섹션은 캐시 백엔드/세션 풀 전환 상황에서 상용 운영을 위한 통합 대상, 설정 키, 모니터링, QA 가이드를 정리합니다.
+
+- HyperCacheBackend 통합 대상(코드베이스 탐색 결과)
+  - AIContextManager (시스템 프롬프트 캐시)
+    - 현황: 프로세스 메모리 내 캐시(3h TTL, components 기반 키), 디스크 영속화 없음.
+    - 권장: 선택적으로 HyperCacheBackend 연결(네임스페이스 예: "ai_system_prompt")로 TTL/용량 SSOT 적용과 공통 메트릭 확보.
+    - 주의: 시스템 프롬프트는 크기가 작으므로 디스크 상한은 기본값(100MB)로 충분. 장애/재시작 후 프롬프트 재생성 비용도 낮아 “필수 아님”.
+  - AppleFMCache (응답 텍스트 캐시; 레거시)
+    - 현황: 기본 Off(긴급 롤백 시에만 사용). 기존 UserDefaults 기반.
+    - 권장: 레거시 경로 유지가 필요한 환경에서만 HyperCacheBackend로 백엔드 대체 가능(네임스페이스 "applefm_legacy"). 단, 정상 경로에서는 세션 풀 사용.
+  - AppleFMSessionPool (세션 재사용)
+    - 현황: 메모리 전용(세션 직렬화 불가), TTL/LRU/동시 초기화 병합, 무효화 트리거 연결(모델 변경/응급 정리).
+    - 비고: HyperCacheBackend 적용 대상 아님(세션은 디스크로 내리면 의미 상실).
+  - KVPromptCache (llama.cpp용 KV 프리필)
+    - 현황: 엔진 특화 메모리 캐시, 세션 스냅샷 직렬화/복원 전용, TTL/LRU 자체 구현.
+    - 권장: HyperCacheBackend 미적용(설계 목적이 상이).
+  - LRUCache.swift (범용 소형 in-memory 유틸)
+    - 현황: 일부 경량 로컬 캐시에 사용.
+    - 권장: 규모가 작고 엔진/세션 특화가 아닌 경우에는 그대로 유지. 광범위 치환 필요 없음.
+
+- 적용 가이드(샘플)
+  - 생성/연결
+    - let cache = CacheBackendFactory.makeHyper(namespace: "ai_system_prompt")
+    - CacheMetricsLogger.shared.attach(to: cache)  // 이벤트 메트릭 로깅(옵션)
+  - 사용 예시
+    - await cache.setString(systemPrompt, forKey: components.composite)
+    - let cached = try await cache.getString(forKey: components.composite)
+  - 트림(옵션)
+    - await cache.trimToMemory(bytes: GlobalCachePolicy.defaultMemoryLimitBytes / 2)
+
+- 운영 키(Info.plist)
+  - 범용
+    - CACHE_TTL_SECONDS_DEFAULT = 10800
+    - CACHE_MEM_LIMIT_MB = 64
+    - CACHE_DISK_LIMIT_MB = 100
+  - AFM 전용
+    - APPLE_FM_SESSION_POOL_ENABLED = true
+    - APPLE_FM_RESPONSE_CACHE_ENABLED = false
+    - APPLE_FM_SESSION_TTL_SECONDS = 10800 (선택)
+    - APPLE_FM_SESSION_MAX_COUNT = 16 (선택)
+  - 관측성
+    - CACHE_METRICS_VERBOSE = false (상세 이벤트 로깅 토글; 운영 기본은 false 권장)
+    - AFM_SESSION_STATS_LOG_INTERVAL = 60 (세션 풀 통계 주기 로깅; 운영 30~120초 권장)
+
+- 모니터링/로그
+  - 세션 풀(AppleFMSessionPool)
+    - ACQUIRE (hit|miss|join-inflight|miss→create), EXPIRE, EVICT, CLEAR_ALL 로그 확인
+    - 주기 통계: enabled/count/ttl/max/H/M/E/X 요약
+  - 캐시 백엔드(HyperCacheBackend)
+    - hit/miss/set/remove/trim/expire/evict/error 이벤트를 CacheMetricsLogger로 수집
+  - 클라이언트 경로(UnifiedAIServiceImpl)
+    - AFM 완료/스트림 로그에 세션 키 요약(coreHash:mode:model:toneHash:sysDigest 앞 8자)와 poolEnabled 표시
+
+- QA 체크리스트(적용 검증)
+  - 동일 persona/mode/model/tone/systemPromptDigest로 3회 호출 시 1턴 miss→create, 2·3턴 hit로 TTI/완료시간 감소
+  - TTL(3h) 이후 동일 키 요청 시 miss로 재생성
+  - 동시 다중 요청에서 초기화 단 1회만 발생(join-inflight 확인)
+  - 모델 변경(Settings) 및 응급 정리(메모리 경고) 직후 invalidateAll 로그 출력 및 이후 miss→create 재확인
+  - llama.cpp/KVPromptCache 경로 영향 없음, 시스템 프롬프트 캐시(AIContextManager)와 정책 충돌 없음
 ### 🆕 2025-09-16 동기화: 온디바이스 분기/폴백 + 원격 설정/UX 반영
 - 온디바이스 원격 설정 게이트 추가: ONDEVICE_ENABLED, ONDEVICE_FORCE_CLOUD, ONDEVICE_MAX_TTI_MS (Info.plist/원격 재구성 연계).
 - 열 완화 정책 적용: 심각/치명 열 상태에서 경량 모델 우선(선호 무시), 자동 다운스케일.

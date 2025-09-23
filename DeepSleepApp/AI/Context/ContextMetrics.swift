@@ -29,7 +29,10 @@ public final class ContextMetrics {
 
     private init() {}
 
-    public func logCache(event: CacheEvent, reason: InvalidationReason, age: TimeInterval?, caller: String? = nil) {
+    public func logCache(
+        event: ContextCacheEvent, reason: InvalidationReason, age: TimeInterval?,
+        caller: String? = nil
+    ) {
         let entry = CacheLogEntry(event: event, reason: reason, age: age, caller: caller)
         queue.async { [weak self] in
             self?.cacheLogs.append(entry)
@@ -41,11 +44,14 @@ public final class ContextMetrics {
             }
         }
         let ageDesc = age.map { String(Int($0)) } ?? "-1"
-        debugPrint("🧠 [AIContext] Cache \(event.rawValue.uppercased()) reason=\(reason.rawValue) age=\(ageDesc)s caller=\(caller ?? "-")")
+        debugPrint(
+            "🧠 [AIContext] Cache \(event.rawValue.uppercased()) reason=\(reason.rawValue) age=\(ageDesc)s caller=\(caller ?? "-")"
+        )
     }
 
     public func logInvalidation(reason: InvalidationReason, caller: String?) {
-        debugPrint("🧹 [AIContext] Cache invalidated reason=\(reason.rawValue) caller=\(caller ?? "-")")
+        debugPrint(
+            "🧹 [AIContext] Cache invalidated reason=\(reason.rawValue) caller=\(caller ?? "-")")
     }
 
     public func logQualityScore(_ score: Int) {
@@ -82,14 +88,17 @@ public final class ContextMetrics {
         debugPrint("🚀 [AIReq] start id=\(id) model=\(model) mode=\(mode)")
     }
 
-    public func logRequestEnd(id: String, model: String, mode: String, success: Bool, duration: TimeInterval) {
+    public func logRequestEnd(
+        id: String, model: String, mode: String, success: Bool, duration: TimeInterval
+    ) {
         let ms = Int(duration * 1000)
         queue.async { [weak self] in
             self?.latenciesMs.append(ms)
             if self?.latenciesMs.count ?? 0 > 5000 { self?.latenciesMs.removeFirst() }
             if !success { self?.totalFailures += 1 }
         }
-        debugPrint("✅ [AIReq] end id=\(id) model=\(model) mode=\(mode) success=\(success) dur=\(ms)ms")
+        debugPrint(
+            "✅ [AIReq] end id=\(id) model=\(model) mode=\(mode) success=\(success) dur=\(ms)ms")
     }
 
     public func logFallbackTried(from: String, to: String) {
@@ -102,8 +111,12 @@ public final class ContextMetrics {
     // 간단한 스냅샷
     public func snapshot() -> (cacheCount: Int, avgQuality: Double, avgTokens: Double) {
         return queue.sync {
-            let qAvg = lastQualityScores.isEmpty ? 0.0 : Double(lastQualityScores.reduce(0,+)) / Double(lastQualityScores.count)
-            let tAvg = lastTokenEstimates.isEmpty ? 0.0 : Double(lastTokenEstimates.reduce(0,+)) / Double(lastTokenEstimates.count)
+            let qAvg =
+                lastQualityScores.isEmpty
+                ? 0.0 : Double(lastQualityScores.reduce(0, +)) / Double(lastQualityScores.count)
+            let tAvg =
+                lastTokenEstimates.isEmpty
+                ? 0.0 : Double(lastTokenEstimates.reduce(0, +)) / Double(lastTokenEstimates.count)
             return (cacheLogs.count, qAvg, tAvg)
         }
     }
@@ -136,12 +149,13 @@ public final class ContextMetrics {
         let (total, failures, p95) = requestSummary()
         let hitPct = Int(rate * 100)
         let fb = queue.sync { fallbackAttempts }
-        return "Metrics cache: H=\(hits) M=\(misses) hit=\(hitPct)% | req: total=\(total) fail=\(failures) p95=\(p95)ms | fb=\(fb)"
+        return
+            "Metrics cache: H=\(hits) M=\(misses) hit=\(hitPct)% | req: total=\(total) fail=\(failures) p95=\(p95)ms | fb=\(fb)"
     }
     // 모델/모드별 요약 문자열 (Top 3)
     public func modelModeSummary(topK: Int = 3) -> String {
         return queue.sync {
-            func topKString(from dict: [String:Int], label: String) -> String {
+            func topKString(from dict: [String: Int], label: String) -> String {
                 if dict.isEmpty { return "\(label): -" }
                 let sorted = dict.sorted { $0.value > $1.value }.prefix(topK)
                 let parts = sorted.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
@@ -152,9 +166,9 @@ public final class ContextMetrics {
             return "\(models) | \(modes)"
         }
     }
-    
+
     // 모델/모드 분포 스냅샷 제공
-    public func modelModeSnapshot() -> ([String:Int], [String:Int]) {
+    public func modelModeSnapshot() -> ([String: Int], [String: Int]) {
         return queue.sync { (requestsByModel, requestsByMode) }
     }
 }
