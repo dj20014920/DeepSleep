@@ -1244,8 +1244,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             }()
             // AI 응답은 재진입 시 JSON 원문이 남아있을 수 있으므로 정제
             let finalText: String =
-                (sender == .ai)
-                ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+                { if sender == .ai { if SettingsManager.shared.selectedAIModel == .onDevice, SettingsManager.shared.selectedLLM == .apple { return storedMessage.content } ; return self.parseAIResponse(storedMessage.content) } else { return storedMessage.content } }()
             return ChatMessage(
                 text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
@@ -1315,9 +1314,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 }
                 return storedMessage.type
             }()
-            let finalText =
-                (sender == .ai)
-                ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            let finalText: String = { if sender == .ai { if SettingsManager.shared.selectedAIModel == .onDevice, SettingsManager.shared.selectedLLM == .apple { return storedMessage.content } ; return self.parseAIResponse(storedMessage.content) } else { return storedMessage.content } }()
             return ChatMessage(
                 text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
@@ -1414,9 +1411,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     }
                     return storedMessage.type
                 }()
-                let finalText =
-                    (sender == .ai)
-                    ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+                let finalText: String = { if sender == .ai { if SettingsManager.shared.selectedAIModel == .onDevice, SettingsManager.shared.selectedLLM == .apple { return storedMessage.content } ; return self.parseAIResponse(storedMessage.content) } else { return storedMessage.content } }()
                 return ChatMessage(
                     text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
             }
@@ -1827,9 +1822,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 }
                 return storedMessage.type
             }()
-            let finalText =
-                (sender == .ai)
-                ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            let finalText: String = { if sender == .ai { if SettingsManager.shared.selectedAIModel == .onDevice, SettingsManager.shared.selectedLLM == .apple { return storedMessage.content } ; return self.parseAIResponse(storedMessage.content) } else { return storedMessage.content } }()
             return ChatMessage(
                 text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }
@@ -2817,9 +2810,7 @@ extension ChatViewController {
                 }
                 return storedMessage.type
             }()
-            let finalText =
-                (sender == .ai)
-                ? self.parseAIResponse(storedMessage.content) : storedMessage.content
+            let finalText: String = { if sender == .ai { if SettingsManager.shared.selectedAIModel == .onDevice, SettingsManager.shared.selectedLLM == .apple { return storedMessage.content } ; return self.parseAIResponse(storedMessage.content) } else { return storedMessage.content } }()
             return ChatMessage(
                 text: finalText, date: storedMessage.timestamp, sender: sender, type: fixedType)
         }

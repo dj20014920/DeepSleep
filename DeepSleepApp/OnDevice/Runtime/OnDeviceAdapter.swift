@@ -331,7 +331,15 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             }
         }
 
-        // 2) 파라미터 구성(SSOT 권장값 기반)
+        // 모델별 채팅 템플릿에 맞춰 사용자 턴을 구성 (resume 안전 버전)
+        let formatUserTurn: (String) -> String = { user in
+            switch id {
+            case .gemma270_q8, .gemma1b_iq4xs:
+                return "<start_of_turn>user\n\(user)<end_of_turn>\n<start_of_turn>model\n"
+            case .qwen05b_q4km:
+                return "<|im_start|>user\n\(user)<|im_end|>\n<|im_start|>assistant\n"
+            }
+        }
         let rec = ModelCatalog.record(for: id)
         var params = config.params ?? rec.recommended
         // 강제 비메탈 토글 시 GPU 레이어 비활성화, 아니면 기본 -1(가능 시 전체 오프로딩)
@@ -341,13 +349,14 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             params.gpuLayers = -1
         }
         // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
-        let system: String
-        if let s = config.systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            system = s
-        } else {
-            system = SystemPrompts.empathyKR
-        }
-
+        // Gemma는 system 역할 미지원: system 지시는 초기 user 입력에 내재화
+        let systemOriginal: String = {
+            if let s = config.systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
+            return SystemPrompts.empathyKR
+        }()
+        let isGemma = (id == .gemma270_q8) || (id == .gemma1b_iq4xs)
+        let system: String = isGemma ? "" : systemOriginal
+        let inputWithSystem: String = isGemma ? (systemOriginal.isEmpty ? input : systemOriginal + "\n\n" + input) : input
         // 3) 스트리밍 생성(TTI 측정)
         let started = Date()
         var emittedFirst = false
@@ -382,8 +391,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                     // 현재 llama_state에는 시스템 프롬프트까지의 KV가 포함됨
                     // startPos는 해당 마지막 토큰 위치 + 1
                     let startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
+                    // 템플릿 일치: 사용자 턴 + 모델 시작을 명시적으로 삽입
+                    let templated = formatUserTurn(inputWithSystem)
                     try await loader.generateResuming(
-                        input: input,
+                        input: templated, 
                         systemPrompt: nil,
                         startPos: startPos,
                         params: params,
@@ -415,8 +426,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         }
                         KVMetricsHook.shared.onSave(saved)
 
+                        // 템플릿 일치: 사용자 턴 + 모델 시작을 명시적으로 삽입
+                        let templated = formatUserTurn(inputWithSystem)
                         try await loader.generateResuming(
-                            input: input,
+                            input: templated,
                             systemPrompt: nil,
                             startPos: Int32(nPrefix),
                             params: params,

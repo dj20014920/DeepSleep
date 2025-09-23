@@ -58,6 +58,7 @@
 - AFM 호출 가드: `AppleFMAdapter.generateFull(sys:user:)` 사용 지점에 `#available(iOS 26.0, *)` 추가. iOS 26 미만/미가용 시 `AppleFMError.notAvailable`로 안전 종료 후 기존 경로로 폴백.
   - 적용 위치: `UnifiedAIServiceImpl.sendMessageStream`(원청크 스트림 브랜치), `UnifiedAIServiceImpl.sendMessage`(완료형 브랜치)
 - 온디바이스 라우팅: `.onDevice` 선택 시 우선 AFM(가용 시)→ 비가용이면 `OnDeviceAdapter`(llama.cpp)로 자동 폴백. 메타데이터에 `provider=applefm|llama.cpp`, `ttiMs` 기록 유지.
+- Gemma 전용 지침(중요): Gemma IT 모델은 system 역할 미지원. 시스템 지시는 초기 user 턴에 내재화하고, 프롬프트는 반드시 `<start_of_turn>user ... <end_of_turn>\n<start_of_turn>model` 포맷을 따른다. 스톱 토큰은 `<end_of_turn>` 외에도 `<start_of_turn>`이 출력되면 즉시 중단하도록 가드한다.
 - 컴파일 오류 정리
   - `'generateFull(sys:user:)' is only available in iOS 26.0 or newer` 경고 해결(가드 추가)
   - `fallbackOrder` 심볼 스코프 오류 해결: 앱 레벨 최종 폴백은 `.freeModel`로 단순화(클라우드 선택은 기존 맵핑 로직 유지)

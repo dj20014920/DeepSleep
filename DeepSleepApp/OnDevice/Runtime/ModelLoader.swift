@@ -97,8 +97,10 @@ protocol LlamaCppBinding: Sendable {
         private var model: OpaquePointer?
         private var ctx: OpaquePointer?
         private var vocab: OpaquePointer?
-        // 모델 메타에서 추론되는 EOT(<end_of_turn>) 토큰 ID 캐시
-        private var eotToken: llama_token = -1
+        // 모델 메타에서 추론되는 종료/전환 토큰 ID 캐시
+        // - 일부 모델(Gemma: <end_of_turn>, Qwen: <|im_end|>)은 서로 다른 EOT 토큰을 사용
+        // - 추가로 다음 턴 시작 토큰(<start_of_turn>, <|im_start|>)이 출력되면 즉시 종료하는 것이 안전
+        private var stopTokenSet = Set<llama_token>()
     
         // 동시성 제어: llama_* 호출은 동시 실행되면 안 됨 (이진 세마포어)
         private let useLock = DispatchSemaphore(value: 1)
@@ -142,13 +144,21 @@ protocol LlamaCppBinding: Sendable {
             }
             self.ctx = ctx
             self.vocab = llama_model_get_vocab(model)
-            // 메타에서 EOT 추론: "<end_of_turn>"를 특수 토큰 파싱으로 단일 토큰이면 채택
+            // 메타에서 종료 관련 토큰들을 가능한 한 많이 확보
             if let v = self.vocab {
-                let lit = "<end_of_turn>"
-                var tmp = [llama_token](repeating: 0, count: 8)
-                lit.withCString { cstr in
-                    let n = llama_tokenize(v, cstr, Int32(strlen(cstr)), &tmp, Int32(tmp.count), false, true)
-                    if n == 1 { self.eotToken = tmp[0] }
+                let candidates = [
+                    "<end_of_turn>", // Gemma 3 (end)
+                    "<|im_end|>",    // Qwen, 일부 OpenAI 스타일 gguf (end)
+                    "<|eot_id|>",    // 기타 (end)
+                    "<start_of_turn>", // 다음 턴 시작도 출력되면 즉시 중단
+                    "<|im_start|>",   // OpenAI 스타일 시작 토큰
+                ]
+                for lit in candidates {
+                    var tmp = [llama_token](repeating: 0, count: 8)
+                    lit.withCString { cstr in
+                        let n = llama_tokenize(v, cstr, Int32(strlen(cstr)), &tmp, Int32(tmp.count), false, true)
+                        if n == 1 { self.stopTokenSet.insert(tmp[0]) }
+                    }
                 }
             }
     
@@ -241,7 +251,7 @@ protocol LlamaCppBinding: Sendable {
                 throw OnDeviceError.unknown("llama_decode failed (prompt)")
             }
     
-            // 4) 샘플러 체인 구성(temperature/top-k/top-p)
+            // 4) 샘플러 체인 구성(temperature/top-k/top-p + 반복 억제)
             var sparams = llama_sampler_chain_default_params()
             guard let smpl = llama_sampler_chain_init(sparams) else {
                 throw OnDeviceError.unknown("sampler init failed")
@@ -251,6 +261,8 @@ protocol LlamaCppBinding: Sendable {
                 llama_sampler_chain_add(smpl, llama_sampler_init_top_k(Int32(topK)))
             }
             llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
+            // 반복 억제: last_n=256, repeat=1.2, freq/present=0.0 (경량 모델 안정화)
+            llama_sampler_chain_add(smpl, llama_sampler_init_penalties(256, 1.20, 0.0, 0.0))
             llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
             llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
     
@@ -266,8 +278,8 @@ protocol LlamaCppBinding: Sendable {
                 let new_id = llama_sampler_sample(smpl, ctx, -1)
                 // 1) 모델 메타 지정 EOG 우선
                 var reachedEnd = llama_vocab_is_eog(vocab, new_id)
-                // 2) 템플릿 EOT(<end_of_turn>) 토큰이 알려져 있으면 동일 비교(보수적)
-                if !reachedEnd && self.eotToken >= 0 && new_id == self.eotToken {
+                // 2) 템플릿 종료 토큰 집합에 속하면 종료
+                if !reachedEnd && self.stopTokenSet.contains(new_id) {
                     reachedEnd = true
                 }
                 if reachedEnd { break }
@@ -443,6 +455,8 @@ protocol LlamaCppBinding: Sendable {
             defer { llama_sampler_free(smpl) }
             if topK > 0 { llama_sampler_chain_add(smpl, llama_sampler_init_top_k(Int32(topK))) }
             llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
+            // 반복 억제: last_n=256, repeat=1.2, freq/present=0.0 (경량 모델 안정화)
+            llama_sampler_chain_add(smpl, llama_sampler_init_penalties(256, 1.20, 0.0, 0.0))
             llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
             llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
 
@@ -475,7 +489,7 @@ protocol LlamaCppBinding: Sendable {
                 }
                 let new_id = llama_sampler_sample(smpl, ctx, -1)
                 var reachedEnd = llama_vocab_is_eog(vocab, new_id)
-                if !reachedEnd && self.eotToken >= 0 && new_id == self.eotToken {
+                if !reachedEnd && self.stopTokenSet.contains(new_id) {
                     reachedEnd = true
                 }
                 if reachedEnd { break }
@@ -686,7 +700,15 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
             throw OnDeviceError.engineNotInitialized
         }
 
-        let sys = (systemPrompt?.isEmpty == false) ? systemPrompt : SystemPrompts.empathyKR
+        let sysOriginal: String = {
+            if let s = systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
+            return SystemPrompts.empathyKR
+        }()
+        // Gemma는 system 역할을 지원하지 않으므로 system 지시는 초기 user 입력에 내재화한다.
+        // activeModelID는 상위 로더가 설정하며 여기서 분기 처리한다.
+        let isGemma = (self.activeModelID == .gemma270_q8) || (self.activeModelID == .gemma1b_iq4xs)
+        let sys: String? = isGemma ? nil : sysOriginal
+        let effectiveInput: String = isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 
         // 1st-token 시간 측정
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -706,7 +728,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
             // 취소 시점: 엔진이 내부 루프에서 Task.isCancelled 확인해야 즉시 중단 가능
         } operation: {
             try eng.generate(
-                input: input,
+                input: effectiveInput,
                 system: sys,
                 temperature: params.temperature,
                 topK: params.topK,
@@ -729,6 +751,14 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         guard let eng = state.engine, eng.isLoaded else {
             throw OnDeviceError.engineNotInitialized
         }
+        // Gemma는 system 역할 미지원 → resume에서도 동일 정책 적용
+        let sysOriginal: String = {
+            if let s = systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
+            return SystemPrompts.empathyKR
+        }()
+        let isGemma = (self.activeModelID == .gemma270_q8) || (self.activeModelID == .gemma1b_iq4xs)
+        let effectiveInput: String = isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
+
         // 1st-token 시간 측정
         let t0 = CFAbsoluteTimeGetCurrent()
         var emittedFirst = false
@@ -744,7 +774,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         try await withTaskCancellationHandler {
         } operation: {
             try eng.generateResuming(
-                input: input,
+                input: effectiveInput,
                 startPos: startPos,
                 temperature: params.temperature,
                 topK: params.topK,

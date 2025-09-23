@@ -308,12 +308,31 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }()
 
         // Role messages (system + optional history + user)
-        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
+        // Gemma는 system 미지원 → 초기 user에 지시 내재화
+        let isGemmaOnDevice: Bool = (model == .onDevice) && {
+            // SettingsManager.selectedLLM은 AIModelType이며, 온디바이스 내부 모델 구분은 OnDeviceAdapter.activeModelID로 판별
+            if let active = OnDeviceAdapter.shared.activeModelID {
+                switch active {
+                case .gemma270_q8, .gemma1b_iq4xs: return true
+                default: return false
+                }
+            }
+            return false
+        }()
+        var roleMessages: [RoleMessage] = []
+        if isGemmaOnDevice {
+            // system 지시를 user 입력과 합쳐 user 첫 턴으로 제공
+            roleMessages.append(RoleMessage(role: .user, content: systemPrompt + "\n\n" + content))
+        } else {
+            roleMessages.append(RoleMessage(role: .system, content: systemPrompt))
+        }
         if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
             let recent = Array(history.suffix(16))
             for t in recent { roleMessages.append(RoleMessage(role: t.role, content: t.content, ts: t.timestamp)) }
         }
-        roleMessages.append(RoleMessage(role: .user, content: content))
+        if !isGemmaOnDevice {
+            roleMessages.append(RoleMessage(role: .user, content: content))
+        }
 
         // Token config optimization
         let effCfg = optimizeTokenConfigForModel(
@@ -991,6 +1010,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
             }
         }
+        // Gemma on-device는 별도 분기에서 system 내재화 처리됨. 여기서는 항상 user 추가.
         roleMessages.append(RoleMessage(role: .user, content: content))
         // 모델별 직접 호출
         let tokenCfg = optimizeTokenConfigForModel(

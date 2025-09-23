@@ -920,13 +920,17 @@ public class SessionManager {
                         assembledPrompt: nil
                     )
                     for try await piece in stream {
+                        // 모든 조각의 델타를 누적(완료 조각 포함)하여 저장 시 누락 방지
+                        aggregate += piece.delta
                         if piece.isComplete {
-                            if saveMessages {
+                            // 저장 전 공백 제거 후 빈 문자열이면 저장하지 않음
+                            let trimmed = aggregate.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if saveMessages && !trimmed.isEmpty {
                                 // 저장은 비동기로 수행하여 UI 스트림 지연 최소화
-                                Task { [aggregate] in
+                                Task { [trimmed] in
                                     let aiResponse = AIResponse(
                                         id: UUID().uuidString, model: selectedModel, mode: mode,
-                                        content: aggregate,
+                                        content: trimmed,
                                         metadata: ResponseMetadata(
                                             emotionAnalysis: nil, recommendations: nil,
                                             confidenceScore: 0, additionalInfo: [:]),
@@ -941,7 +945,6 @@ public class SessionManager {
                             continuation.yield(piece)
                             continuation.finish()
                         } else {
-                            aggregate += piece.delta
                             continuation.yield(piece)
                         }
                     }
