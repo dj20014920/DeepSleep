@@ -341,7 +341,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             switch id {
             case .gemma270_q8, .gemma1b_iq4xs:
                 return "<start_of_turn>user\n\(user)<end_of_turn>\n<start_of_turn>model\n"
-            case .qwen05b_q4km:
+            case .qwen05b_q4km, .hcx05b_q8_0:
                 return "<|im_start|>user\n\(user)<|im_end|>\n<|im_start|>assistant\n"
             }
         }
@@ -352,7 +352,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             switch id {
             case .gemma270_q8, .gemma1b_iq4xs:
                 params.stops = ["<end_of_turn>", "<start_of_turn>user"]
-            case .qwen05b_q4km:
+            case .qwen05b_q4km, .hcx05b_q8_0:
                 params.stops = ["<|im_end|>", "<|im_start|>user"]
             }
         }

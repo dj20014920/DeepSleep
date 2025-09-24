@@ -13,9 +13,10 @@ import Foundation
 // MARK: - 공통 타입
 
 public enum OnDeviceModelID: String, CaseIterable, Sendable {
-    case gemma270_q8  // 기본(≈300MB): unsloth/gemma-3-270m-it-GGUF → gemma-3-270m-it-Q8_0.gguf
-    case qwen05b_q4km  // 한국어↑(≈491MB): Qwen/Qwen2.5-0.5B-Instruct-GGUF → qwen2.5-0.5b-instruct-q4_k_m.gguf
-    case gemma1b_iq4xs  // 품질↑(≈714MB): bartowski/google_gemma-3-1b-it-GGUF → gemma-3-1b-it-IQ4_XS.gguf
+    case gemma270_q8  // Amoral Gemma 1B v2 Q4_K_M
+    case qwen05b_q4km  // HyperCLOVA X Seed 0.5B Q4_K_M
+    case gemma1b_iq4xs  // Gemma 3 1B Q4_0
+    case hcx05b_q8_0    // HyperCLOVA X Seed 0.5B Q8_0
 }
 
 public struct InferenceParams: Sendable, Equatable {
@@ -98,16 +99,19 @@ public enum ModelCatalog {
     public static let packID_gemma270_q8 = "pack.model.gemma270.q8"
     public static let packID_qwen05b_q4 = "pack.model.qwen05b.q4"
     public static let packID_gemma1b_iq4 = "pack.model.gemma1b.iq4"
+    public static let packID_hcx05b_q8 = "pack.model.hcx05b.q8"
 
     // 정확 파일명(레포·브랜치 변경 시 반드시 동기화)
     public static let file_gemma270_q8 = "amoral-gemma3-1B-v2-Q4_K_M.gguf"
     public static let file_qwen05b_q4km = "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
     public static let file_gemma1b_iq4xs = "gemma-3-1b-it-q4_0.gguf"
+    public static let file_hcx05b_q8 = "hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
 
     // 참고 크기(Bytes) — 런타임 무결성은 sha256 또는 파일 크기 검증으로 보강
     public static let bytes_gemma270_q8 = 769_000_000
     public static let bytes_qwen05b_q4km = 412_000_000
     public static let bytes_gemma1b_iq4xs = 957_000_000
+    public static let bytes_hcx05b_q8 = 693_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
     private static let params_gemma270: InferenceParams = .init(
@@ -156,6 +160,16 @@ public enum ModelCatalog {
                 recommended: params_gemma1b,
                 notes: "품질↑. Q4_0 양자화."
             ),
+            ModelRecord(
+                id: .hcx05b_q8_0,
+                displayName: "HyperCLOVA X Seed 0.5B Instruct (Q8_0)",
+                packID: packID_hcx05b_q8,
+                fileName: file_hcx05b_q8,
+                approxBytes: bytes_hcx05b_q8,
+                sha256Hex: "9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871",
+                recommended: params_qwen05b,
+                notes: "0.5B Q8_0 변형(정밀도↑, 메모리 여유 시 권장)."
+            ),
         ]
     }
 
@@ -170,7 +184,7 @@ public enum ModelCatalog {
 
     // 비용/성능/한국어 가중 순 후보(좌→우)
     public static var fallbackOrder: [OnDeviceModelID] {
-        return [.qwen05b_q4km, .gemma1b_iq4xs, .gemma270_q8]
+        return [.qwen05b_q4km, .hcx05b_q8_0, .gemma1b_iq4xs, .gemma270_q8]
     }
 
     // 파일명 → 모델 ID 매핑 헬퍼(SSOT: 상수 기반)
@@ -181,6 +195,7 @@ public enum ModelCatalog {
         case file_gemma270_q8: return .gemma270_q8
         case file_qwen05b_q4km: return .qwen05b_q4km
         case file_gemma1b_iq4xs: return .gemma1b_iq4xs
+        case file_hcx05b_q8: return .hcx05b_q8_0
         default: return nil
         }
     }

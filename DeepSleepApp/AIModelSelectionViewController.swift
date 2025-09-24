@@ -298,6 +298,7 @@ class AIModelSelectionViewController: UIViewController {
 
         // 카탈로그 순서대로 버튼 추가
         addAction(for: .qwen05b_q4km)
+        addAction(for: .hcx05b_q8_0)
         addAction(for: .gemma1b_iq4xs)
         addAction(for: .gemma270_q8)
 
@@ -496,6 +497,7 @@ class AIModelSelectionViewController: UIViewController {
         let r1 = ModelCatalog.record(for: .gemma270_q8)
         let r2 = ModelCatalog.record(for: .qwen05b_q4km)
         let r3 = ModelCatalog.record(for: .gemma1b_iq4xs)
+        let r4 = ModelCatalog.record(for: .hcx05b_q8_0)
 
         if case .installing(let p) = s1 {
             entries.append(("\(r1.displayName) \(humanSize(r1.approxBytes))", p, .gemma270_q8))
@@ -505,6 +507,10 @@ class AIModelSelectionViewController: UIViewController {
         }
         if case .installing(let p) = s3 {
             entries.append(("\(r3.displayName) \(humanSize(r3.approxBytes))", p, .gemma1b_iq4xs))
+        }
+        let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+        if case .installing(let p) = s4 {
+            entries.append(("\(r4.displayName) \(humanSize(r4.approxBytes))", p, .hcx05b_q8_0))
         }
         return entries
     }

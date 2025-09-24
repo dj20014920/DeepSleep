@@ -229,7 +229,7 @@ private struct OnDeviceInlineManagerView: View {
 
                 if installed {
                     Menu {
-                        ForEach(ModelCatalog.all(), id: \ .id) { rec in
+                        ForEach(ModelCatalog.all(), id: \.id) { rec in
                             Button(role: .destructive) {
                                 do {
                                     try OnDeviceAdapter.shared.deleteInstalled(id: rec.id)
