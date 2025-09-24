@@ -771,7 +771,27 @@ switch(provider){
   - 200 JSON {"url":"https://cdn.emozleep.space/models/<filename.gguf>"}
   - 또는 302/303/307/308 Location: https://cdn.emozleep.space/models/<filename.gguf>
 - 환경변수: CDN_BASE, (선택) PRESIGN_TOKEN
+- 검증(운영/QA):
+  - Presign 응답 검증: 200(JSON {"url":"https://cdn.emozleep.space/models/<filename.gguf>"}) 또는 302/303/307/308(Location: https://cdn.emozleep.space/models/<filename.gguf>) 경로 모두 수용되는지 확인
+  - CDN 공개 접근 확인: 각 모델 파일 URL이 200으로 응답하는지 점검
+    - 예: https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+  - SHA256 무결성 확인: CDN에 배치된 파일의 sha256이 ModelCatalog의 값과 정확히 일치해야 함
+    - amoral-gemma3-1B-v2-Q4_K_M.gguf → 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
+    - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
+    - gemma-3-1b-it-q4_0.gguf → 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a
+    - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
+  - 404/권한 오류 시: R2 버킷 공개 권한, CDN_BASE 설정, 파일 경로/대소문자/스펠링 재검수
 - 배포: scripts/emozleep-presign-worker/ (wrangler, index.ts, README)
+
+#### 환경 변수 설정(운영) — R2 S3/배포 [설정 완료]
+- 환경 구성(세션/런타임):
+  - R2_ACCOUNT_ID=081a9810680543ee912eb54ae15876a3
+  - R2_BUCKET=deepsleep-models
+  - R2_PREFIX=models
+  - CDN_BASE=https://cdn.emozleep.space/models
+  - AWS_DEFAULT_REGION=auto
+  - R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY: 운영 환경변수로 세팅됨(레포에 비노출)
+- 주의: 비밀키는 코드/레포에 저장하지 않으며, 환경변수로만 관리합니다.
 - 앱 연동: AppDelegate에서 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
 - 모델 파일(SSOT)
   - amoral-gemma3-1B-v2-Q4_K_M.gguf

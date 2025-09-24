@@ -16,9 +16,9 @@ public struct UserSettings: Codable {
 }
 
 // MARK: - Emotion Diary Notifications
-public extension Notification.Name {
-    static let emotionDiaryUpdated = Notification.Name("EmotionDiaryUpdatedNotification")
-    static let diaryAnalysisUpdated = Notification.Name("DiaryAnalysisUpdatedNotification")
+extension Notification.Name {
+    public static let emotionDiaryUpdated = Notification.Name("EmotionDiaryUpdatedNotification")
+    public static let diaryAnalysisUpdated = Notification.Name("DiaryAnalysisUpdatedNotification")
 }
 
 // MARK: - UsageStats 타입 정의 (임시)
@@ -72,9 +72,9 @@ public struct UsageStats: Codable {
 }
 
 // MARK: - Notifications
-public extension Notification.Name {
-    static let aiModelChanged = Notification.Name("aiModelChanged")
-    static let notificationSettingsChanged = Notification.Name("notificationSettingsChanged")
+extension Notification.Name {
+    public static let aiModelChanged = Notification.Name("aiModelChanged")
+    public static let notificationSettingsChanged = Notification.Name("notificationSettingsChanged")
 }
 
 public class SettingsManager {
@@ -103,9 +103,11 @@ public class SettingsManager {
         static let serverTimeOffsetSeconds = "serverTimeOffsetSeconds"
         static let protectedWeekdays = "protectedWeekdays"
         static let protectedDaysWindow = "protectedDaysWindow"
-        static let favoriteDates = "favoriteDates" // yyyy-MM-dd 문자열 세트
+        static let favoriteDates = "favoriteDates"  // yyyy-MM-dd 문자열 세트
         // Chat override
         static let activeChatSessionOverrideId = "activeChatSessionOverrideId"
+        // On-device preference
+        static let preferredOnDeviceModelID = "preferredOnDeviceModelID"
     }
 
     private init() {
@@ -139,7 +141,7 @@ public class SettingsManager {
                 userDefaults.set(AIModelType.gemini.rawValue, forKey: Keys.selectedLLM)
                 return .gemini
             }
-            return .gemini // 기본 모델
+            return .gemini  // 기본 모델
         }
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장
@@ -152,13 +154,32 @@ public class SettingsManager {
     var selectedAIModel: AIModel {
         switch selectedLLM {
         case .claude35: return .claude
-        case .gpt4:     return .openAI
-        case .gemini:   return .gemini
-        case .naver:    return .naver
-        case .freeModel:return .freeModel
-        case .apple:    return .onDevice   // Apple Foundation Models → 온디바이스 경로
+        case .gpt4: return .openAI
+        case .gemini: return .gemini
+        case .naver: return .naver
+        case .freeModel: return .freeModel
+        case .apple: return .onDevice  // Apple Foundation Models → 온디바이스 경로
         case .onDevice: return .onDevice
-        case .testModel:return .freeModel
+        case .testModel: return .freeModel
+        }
+    }
+
+    /// 사용자가 선호하는 온디바이스 모델(설치/활성화 우선 대상).
+    /// - 저장 형식: OnDeviceModelID.rawValue (UserDefaults)
+    /// - 기본값: 미설정(nil) → 호출 측에서 ModelCatalog.defaultModelID 등을 사용
+    var preferredOnDeviceModelID: OnDeviceModelID? {
+        get {
+            if let raw = userDefaults.string(forKey: Keys.preferredOnDeviceModelID) {
+                return OnDeviceModelID(rawValue: raw)
+            }
+            return nil
+        }
+        set {
+            if let value = newValue?.rawValue {
+                userDefaults.set(value, forKey: Keys.preferredOnDeviceModelID)
+            } else {
+                userDefaults.removeObject(forKey: Keys.preferredOnDeviceModelID)
+            }
         }
     }
 
@@ -189,8 +210,11 @@ public class SettingsManager {
         guard previous != model else { return }
         selectedLLM = model
         // 컨텍스트 시스템 프롬프트 캐시 무효화 및 서버 헤더 전파 보장
-        AIContextManager.shared.clearCache(reason: .modelSelectionChanged, caller: "SettingsManager.updateSelectedModelAtomically")
-        NotificationCenter.default.post(name: .aiModelChanged, object: nil, userInfo: ["from": previous.rawValue, "to": model.rawValue])
+        AIContextManager.shared.clearCache(
+            reason: .modelSelectionChanged, caller: "SettingsManager.updateSelectedModelAtomically")
+        NotificationCenter.default.post(
+            name: .aiModelChanged, object: nil,
+            userInfo: ["from": previous.rawValue, "to": model.rawValue])
     }
 
     /// (iOS 18+) 온디바이스 AI 모델을 우선적으로 사용할지 여부를 결정합니다.
@@ -214,7 +238,9 @@ public class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: Keys.notificationsMasterEnabled)
-            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "master", "value": newValue])
+            NotificationCenter.default.post(
+                name: .notificationSettingsChanged, object: nil,
+                userInfo: ["key": "master", "value": newValue])
         }
     }
 
@@ -227,7 +253,9 @@ public class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: Keys.notificationsTimerEnabled)
-            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "timer", "value": newValue])
+            NotificationCenter.default.post(
+                name: .notificationSettingsChanged, object: nil,
+                userInfo: ["key": "timer", "value": newValue])
         }
     }
 
@@ -240,7 +268,9 @@ public class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: Keys.notificationsTodoEnabled)
-            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "todo", "value": newValue])
+            NotificationCenter.default.post(
+                name: .notificationSettingsChanged, object: nil,
+                userInfo: ["key": "todo", "value": newValue])
         }
     }
 
@@ -254,16 +284,18 @@ public class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: Keys.notificationsTodoOneHourBeforeEnabled)
-            NotificationCenter.default.post(name: .notificationSettingsChanged, object: nil, userInfo: ["key": "todo1h", "value": newValue])
+            NotificationCenter.default.post(
+                name: .notificationSettingsChanged, object: nil,
+                userInfo: ["key": "todo1h", "value": newValue])
         }
     }
-    
+
     // MARK: - Fortune Notification Preferences
     /// 운세 알림 사용 여부
     var fortuneNotificationEnabled: Bool {
         get {
             if userDefaults.object(forKey: Keys.fortuneNotificationEnabled) == nil {
-                return true // 기본값은 활성화
+                return true  // 기본값은 활성화
             }
             return userDefaults.bool(forKey: Keys.fortuneNotificationEnabled)
         }
@@ -277,12 +309,13 @@ public class SettingsManager {
             }
         }
     }
-    
+
     /// 운세 알림 시간
     var fortuneNotificationTime: DateComponents {
         get {
             if let data = userDefaults.data(forKey: Keys.fortuneNotificationTime),
-               let decoded = try? JSONDecoder().decode(DateComponents.self, from: data) {
+                let decoded = try? JSONDecoder().decode(DateComponents.self, from: data)
+            {
                 return decoded
             }
             // 기본값: 오전 10시
@@ -331,7 +364,7 @@ public class SettingsManager {
     var protectedDaysWindow: Int {
         get {
             let value = userDefaults.integer(forKey: Keys.protectedDaysWindow)
-            return value == 0 ? 7 : value // 기본값 7일
+            return value == 0 ? 7 : value  // 기본값 7일
         }
         set {
             let clamped = max(0, min(newValue, 365))
@@ -407,7 +440,8 @@ public class SettingsManager {
     var settings: UserSettings {
         get {
             guard let data = userDefaults.data(forKey: Keys.userSettings),
-                  let settings = try? JSONDecoder().decode(UserSettings.self, from: data) else {
+                let settings = try? JSONDecoder().decode(UserSettings.self, from: data)
+            else {
                 return UserSettings()
             }
             return settings
@@ -439,7 +473,8 @@ public class SettingsManager {
 
     private func getAllStats() -> [String: UsageStats] {
         guard let data = userDefaults.data(forKey: Keys.usageStats),
-              let stats = try? JSONDecoder().decode([String: UsageStats].self, from: data) else {
+            let stats = try? JSONDecoder().decode([String: UsageStats].self, from: data)
+        else {
             return [:]
         }
         return stats
@@ -449,7 +484,8 @@ public class SettingsManager {
         // 최근 30일 데이터만 유지
         let calendar = Calendar.current
         let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
-        let cutoffString = DateFormatter.localizedString(from: thirtyDaysAgo, dateStyle: .short, timeStyle: .none)
+        let cutoffString = DateFormatter.localizedString(
+            from: thirtyDaysAgo, dateStyle: .short, timeStyle: .none)
 
         let filteredStats = stats.filter { $0.key >= cutoffString }
 
@@ -479,12 +515,14 @@ public class SettingsManager {
         }
 
         // 브로드캐스트: 감정 일기 업데이트 (즉시 동기화)
-        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["entry": entry])
+        NotificationCenter.default.post(
+            name: .emotionDiaryUpdated, object: nil, userInfo: ["entry": entry])
     }
 
     func loadEmotionDiary() -> [EmotionDiary] {
         guard let data = userDefaults.data(forKey: Keys.emotionDiary),
-              let entries = try? JSONDecoder().decode([EmotionDiary].self, from: data) else {
+            let entries = try? JSONDecoder().decode([EmotionDiary].self, from: data)
+        else {
             return []
         }
         return entries.sorted { $0.date > $1.date }
@@ -511,7 +549,8 @@ public class SettingsManager {
         print("🗑️ 모든 감정 일기 데이터가 UserDefaults에서 삭제되었습니다.")
         // 분석 로그도 함께 초기화
         clearAllDiaryAnalyses()
-        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["cleared": true])
+        NotificationCenter.default.post(
+            name: .emotionDiaryUpdated, object: nil, userInfo: ["cleared": true])
     }
 
     /// 단일 일기 삭제 (ID 기준)
@@ -524,7 +563,9 @@ public class SettingsManager {
         }
         // 해당 날짜의 분석 로그도 함께 제거 (동기화)
         clearDiaryAnalyses(for: removed.date)
-        NotificationCenter.default.post(name: .emotionDiaryUpdated, object: nil, userInfo: ["deletedId": id.uuidString, "date": removed.date])
+        NotificationCenter.default.post(
+            name: .emotionDiaryUpdated, object: nil,
+            userInfo: ["deletedId": id.uuidString, "date": removed.date])
     }
 
     // MARK: - Sound Presets
@@ -545,7 +586,7 @@ public class SettingsManager {
                 createdDate: preset.createdDate,
                 selectedVersions: preset.selectedVersions,
                 presetVersion: preset.presetVersion,
-                lastUsed: Date() // ✅ 현재 시간으로 설정
+                lastUsed: Date()  // ✅ 현재 시간으로 설정
             )
         }
 
@@ -563,7 +604,8 @@ public class SettingsManager {
 
     func loadSoundPresets() -> [SoundPreset] {
         guard let data = userDefaults.data(forKey: Keys.soundPresets),
-              let presets = try? JSONDecoder().decode([SoundPreset].self, from: data) else {
+            let presets = try? JSONDecoder().decode([SoundPreset].self, from: data)
+        else {
             return []
         }
 
@@ -611,10 +653,10 @@ public class SettingsManager {
             isAIGenerated: presets[index].isAIGenerated,
             description: presets[index].description,
             scientificBasis: presets[index].scientificBasis,
-            createdDate: presets[index].createdDate, // 원본 생성 날짜 유지
+            createdDate: presets[index].createdDate,  // 원본 생성 날짜 유지
             selectedVersions: presets[index].selectedVersions,
             presetVersion: presets[index].presetVersion,
-            lastUsed: Date() // ✅ 현재 시간으로 업데이트
+            lastUsed: Date()  // ✅ 현재 시간으로 업데이트
         )
 
         presets[index] = updatedPreset
@@ -683,15 +725,15 @@ public class SettingsManager {
         }
 
         return """
-        📊 저장된 데이터 현황
+            📊 저장된 데이터 현황
 
-        🎵 프리셋: \(presetCount)개
-        📔 감정 일기: \(diaryCount)개
-        📈 사용 통계: \(statsCount)일
-        💬 피드백: \(feedbackStats)
+            🎵 프리셋: \(presetCount)개
+            📔 감정 일기: \(diaryCount)개
+            📈 사용 통계: \(statsCount)일
+            💬 피드백: \(feedbackStats)
 
-        🕐 마지막 정리: \(getLastCleanupDate())
-        """
+            🕐 마지막 정리: \(getLastCleanupDate())
+            """
     }
 
     private func getLastCleanupDate() -> String {
@@ -760,7 +802,8 @@ public class SettingsManager {
 
         for i in 0..<days {
             if let date = calendar.date(byAdding: .day, value: -i, to: Date()) {
-                let dateString = DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .none)
+                let dateString = DateFormatter.localizedString(
+                    from: date, dateStyle: .short, timeStyle: .none)
                 if let stats = allStats[dateString], stats.totalUsageTime > 0 {
                     totalTime += stats.totalUsageTime
                     validDays += 1
@@ -777,12 +820,12 @@ public class SettingsManager {
             let defaultSettings = UserSettings()
             settings = defaultSettings
         }
-        
+
         // 운세 알림 설정 기본값 설정
         if userDefaults.object(forKey: Keys.fortuneNotificationEnabled) == nil {
             userDefaults.set(true, forKey: Keys.fortuneNotificationEnabled)
         }
-        
+
         if userDefaults.object(forKey: Keys.fortuneNotificationTime) == nil {
             // 기본값: 오전 10시
             var components = DateComponents()
@@ -817,7 +860,7 @@ public class SettingsManager {
                 "selectedEmotion": diary.selectedEmotion,
                 // 사용자 입력/응답은 마스킹 처리
                 "userMessage": sanitizePII(in: diary.userMessage),
-                "aiResponse": sanitizePII(in: diary.aiResponse)
+                "aiResponse": sanitizePII(in: diary.aiResponse),
             ] as [String: Any]
         }
         let presets = loadSoundPresets().map { preset in
@@ -826,7 +869,7 @@ public class SettingsManager {
                 "name": sanitizePII(in: preset.name),
                 "volumes": preset.volumes,
                 "emotion": preset.emotion as Any,
-                "createdDate": preset.createdDate
+                "createdDate": preset.createdDate,
             ] as [String: Any]
         }
         return [
@@ -834,7 +877,7 @@ public class SettingsManager {
             "emotionDiary": diaries,
             "soundPresets": presets,
             "usageStats": getAllStats(),
-            "exportDate": Date()
+            "exportDate": Date(),
         ]
     }
 
@@ -842,11 +885,16 @@ public class SettingsManager {
     private func sanitizePII(in text: String) -> String {
         var result = text
         // 이메일
-        result = result.replacingOccurrences(of: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", with: "[REDACTED_EMAIL]", options: .regularExpression)
+        result = result.replacingOccurrences(
+            of: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", with: "[REDACTED_EMAIL]",
+            options: .regularExpression)
         // 한국 전화번호
-        result = result.replacingOccurrences(of: "01[0-9]-?\\d{4}-?\\d{4}", with: "[REDACTED_PHONE]", options: .regularExpression)
+        result = result.replacingOccurrences(
+            of: "01[0-9]-?\\d{4}-?\\d{4}", with: "[REDACTED_PHONE]", options: .regularExpression)
         // 카드번호
-        result = result.replacingOccurrences(of: "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b", with: "[REDACTED_CARD]", options: .regularExpression)
+        result = result.replacingOccurrences(
+            of: "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b", with: "[REDACTED_CARD]",
+            options: .regularExpression)
         return result
     }
 
@@ -891,7 +939,9 @@ public class SettingsManager {
     }
 
     private func diaryAnalysisKey(for date: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return "DiaryAnalysis." + f.string(from: date)
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return "DiaryAnalysis." + f.string(from: date)
     }
 
     /// 오늘(또는 특정 날짜)의 분석 결과를 저장 (최신순 정렬은 조회 시 처리)
@@ -900,18 +950,22 @@ public class SettingsManager {
         var list = loadDiaryAnalysesAll(for: date)
         list.append(DiaryAnalysisRecord(id: UUID(), date: Date(), text: text))
         if let encoded = try? JSONEncoder().encode(list) { userDefaults.set(encoded, forKey: key) }
-        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date])
+        NotificationCenter.default.post(
+            name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date])
     }
 
     /// 특정 날짜의 모든 분석 결과 로드 (최신순)
     private func loadDiaryAnalysesAll(for date: Date) -> [DiaryAnalysisRecord] {
         let key = diaryAnalysisKey(for: date)
-        guard let data = userDefaults.data(forKey: key), let list = try? JSONDecoder().decode([DiaryAnalysisRecord].self, from: data) else { return [] }
+        guard let data = userDefaults.data(forKey: key),
+            let list = try? JSONDecoder().decode([DiaryAnalysisRecord].self, from: data)
+        else { return [] }
         return list.sorted { $0.date > $1.date }
     }
 
     /// 페이지네이션 로드
-    func loadDiaryAnalyses(for date: Date, offset: Int, limit: Int) -> ([DiaryAnalysisRecord], Bool) {
+    func loadDiaryAnalyses(for date: Date, offset: Int, limit: Int) -> ([DiaryAnalysisRecord], Bool)
+    {
         let all = loadDiaryAnalysesAll(for: date)
         let start = min(offset, all.count)
         let end = min(offset + limit, all.count)
@@ -924,7 +978,8 @@ public class SettingsManager {
     func clearDiaryAnalyses(for date: Date) {
         let key = diaryAnalysisKey(for: date)
         userDefaults.removeObject(forKey: key)
-        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date, "cleared": true])
+        NotificationCenter.default.post(
+            name: .diaryAnalysisUpdated, object: nil, userInfo: ["date": date, "cleared": true])
     }
 
     /// 전체 분석 로그 삭제
@@ -936,7 +991,8 @@ public class SettingsManager {
                 userDefaults.removeObject(forKey: diaryAnalysisKey(for: d))
             }
         }
-        NotificationCenter.default.post(name: .diaryAnalysisUpdated, object: nil, userInfo: ["clearedAll": true])
+        NotificationCenter.default.post(
+            name: .diaryAnalysisUpdated, object: nil, userInfo: ["clearedAll": true])
     }
 
     // MARK: - Category Sound Versions
@@ -946,7 +1002,8 @@ public class SettingsManager {
     ///   - categoryIndex: 업데이트할 사운드 카테고리 인덱스
     ///   - versionIndex: 선택된 버전 인덱스 (0부터 시작)
     func updateSelectedVersion(for categoryIndex: Int, to versionIndex: Int) {
-        var versions = userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
+        var versions =
+            userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
         versions["\(categoryIndex)"] = versionIndex
         userDefaults.set(versions, forKey: Keys.selectedSoundVersions)
     }
@@ -955,8 +1012,9 @@ public class SettingsManager {
     /// - Parameter categoryIndex: 조회할 사운드 카테고리 인덱스
     /// - Returns: 선택된 버전 인덱스. 저장된 값이 없으면 기본값 0을 반환합니다.
     func getSelectedVersion(for categoryIndex: Int) -> Int {
-        let versions = userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
-        return versions["\(categoryIndex)"] ?? 0 // 기본값 0 반환
+        let versions =
+            userDefaults.dictionary(forKey: Keys.selectedSoundVersions) as? [String: Int] ?? [:]
+        return versions["\(categoryIndex)"] ?? 0  // 기본값 0 반환
     }
 
     // MARK: - Monthly Statistics Usage Limits (DEPRECATED - use UsageLimitManager instead)
@@ -974,7 +1032,9 @@ public class SettingsManager {
     // MARK: - Sound Presets V2 (버전 관리 포함)
 
     // SoundPreset에 있는 init을 사용하여 객체 생성하도록 변경
-    private func mutablePreset(from preset: SoundPreset, createdDate: Date? = nil, selectedVersions: [Int]? = nil) -> SoundPreset {
+    private func mutablePreset(
+        from preset: SoundPreset, createdDate: Date? = nil, selectedVersions: [Int]? = nil
+    ) -> SoundPreset {
         return SoundPreset(
             id: preset.id,
             name: preset.name,
@@ -1013,7 +1073,9 @@ public class SettingsManager {
     }
 
     /// 안전한 프리셋 저장 (중복 이름 체크 포함)
-    func saveSoundPresetSafely(_ preset: SoundPreset, allowOverwrite: Bool = false) -> (success: Bool, finalName: String, wasRenamed: Bool) {
+    func saveSoundPresetSafely(_ preset: SoundPreset, allowOverwrite: Bool = false) -> (
+        success: Bool, finalName: String, wasRenamed: Bool
+    ) {
         let existingPresets = loadSoundPresets()
 
         // 동일 ID를 가진 기존 프리셋이 있는지 확인 (업데이트인지 체크)
@@ -1047,7 +1109,7 @@ public class SettingsManager {
                 createdDate: preset.createdDate,
                 selectedVersions: preset.selectedVersions,
                 presetVersion: preset.presetVersion,
-                lastUsed: Date() // ✅ 수정: 현재 시간으로 설정
+                lastUsed: Date()  // ✅ 수정: 현재 시간으로 설정
             )
 
             // 기존 saveSoundPreset 사용

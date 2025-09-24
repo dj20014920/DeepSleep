@@ -168,91 +168,63 @@ class AIModelSelectionViewController: UIViewController {
     }
 
     private func createModelCards() {
-        // 온디바이스를 최상단에 노출, 무료(OpenAI) 카드는 제거
-        let models = [
-            (
-                type: AIModelType.apple,
-                personality: "시스템 최적화와 프라이버시 중심의 온디바이스",
-                specialties: ["추가 다운로드 없음", "시스템 제공", "저지연 응답", "저전력 최적화"],
-                strengths: "설치 없이 즉시 사용, 일관된 성능과 배터리 효율",
-                bestFor: "빠른 반응, 안정성, 프라이버시 우선"
-            ),
-            (
-                type: AIModelType.onDevice,
-                personality: "개인정보 보호와 저지연 대화",
-                specialties: ["온디바이스 처리", "저지연 응답", "백그라운드 설치/재개", "무결성 검증"],
-                strengths: "네트워크 품질과 무관하게 안정적이고 빠른 대화를 제공합니다",
-                bestFor: "빠른 반응, 오프라인/저연결 환경, 프라이버시 우선"
-            ),
-            (
-                type: AIModelType.gemini,
-                personality: "자유롭고 창의적인 성격",
-                specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],
-                strengths: "독특하고 창의적인 시각으로 새로운 해결책을 제시해요",
-                bestFor: "창의적 고민, 예술적 영감, 색다른 관점"
-            ),
-            (
-                type: AIModelType.gpt4,
-                personality: "밝고 적극적인 성격",
-                specialties: ["빠른 분석", "실용적 조언", "목표 설정", "동기부여"],
-                strengths: "신속하고 명확한 답변으로 즉시 도움을 드려요",
-                bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
-            ),
-            (
-                type: AIModelType.naver,
-                personality: "정겨우면서도 현실적인 성격",
-                specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
-                strengths: "한국인의 정서와 문화를 깊이 이해하며 현실적인 조언을 드려요",
-                bestFor: "한국적 고민, 사회생활 조언, 인간관계 상담"
-            ),
-            (
-                type: AIModelType.claude35,
-                personality: "차분하고 사려깊은 성격",
-                specialties: ["깊이 있는 대화", "감정 분석", "창의적 문제해결", "윤리적 조언"],
-                strengths: "복잡한 감정을 세심하게 이해하고, 장문의 일기도 꼼꼼히 분석해요",
-                bestFor: "진지한 고민 상담, 감정 정리, 인생 조언"
-            ),
-        ]
+        // 4개 버블 카드(온디/제미니/지피티/하이퍼클로바)를 각각 특정 온디바이스 모델로 매핑
+        // - 용량 작은 순으로 정렬(상단 배치)
+        let mappings:
+            [(
+                type: AIModelType, id: OnDeviceModelID, personality: String, specialties: [String],
+                strengths: String, bestFor: String
+            )] = [
+                (
+                    type: .onDevice, id: .gemma270_q8,
+                    personality: "개인정보 보호와 저지연 대화",
+                    specialties: ["온디바이스 처리", "저지연 응답", "백그라운드 설치/재개", "무결성 검증"],
+                    strengths: "네트워크 품질과 무관하게 안정적이고 빠른 대화",
+                    bestFor: "빠른 반응, 오프라인/저연결, 프라이버시"
+                ),
+                (
+                    type: .gemini, id: .gemma1b_iq4xs,
+                    personality: "자유롭고 창의적인 성격",
+                    specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],
+                    strengths: "독특하고 창의적인 시각으로 새로운 해결책을 제시",
+                    bestFor: "창의적 고민, 예술적 영감, 색다른 관점"
+                ),
+                (
+                    type: .gpt4, id: .hcx05b_q8_0,
+                    personality: "밝고 적극적인 성격",
+                    specialties: ["빠른 분석", "실용적 조언", "목표 설정", "동기부여"],
+                    strengths: "신속하고 명확한 답변으로 즉시 도움",
+                    bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
+                ),
+                (
+                    type: .naver, id: .qwen05b_q4km,
+                    personality: "정겨우면서도 현실적인 성격",
+                    specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
+                    strengths: "한국인의 정서/문화를 깊이 이해하고 현실적 조언",
+                    bestFor: "한국적 고민, 사회생활 조언, 인간관계"
+                ),
+            ]
 
-        // 각 모델에 대한 카드 생성
-        for modelInfo in models {
+        let sorted = mappings.sorted {
+            ModelCatalog.record(for: $0.id).approxBytes
+                < ModelCatalog.record(for: $1.id).approxBytes
+        }
+
+        for m in sorted {
             let card = AIModelCardView(
-                model: modelInfo.type,
-                personality: modelInfo.personality,
-                specialties: modelInfo.specialties,
-                strengths: modelInfo.strengths,
-                bestFor: modelInfo.bestFor
+                model: m.type,
+                personality: m.personality,
+                specialties: m.specialties,
+                strengths: m.strengths,
+                bestFor: m.bestFor
             )
-            card.isSelected = (modelInfo.type == currentSelectedModel)
-            card.onTap = { [weak self] in
-                guard let self = self else { return }
-
-                // 온디바이스 카드는 전용 선택 시트로 연결(다운로드/전환 플로우)
-                if modelInfo.type == .onDevice {
-                    // 선택 모델을 온디바이스로 지정
-                    self.selectModel(.onDevice)
-                    self.presentOnDeviceSelector()
-                    return
-                }
-                // Apple Foundation Models (iOS 26+)
-                if modelInfo.type == .apple {
-                    if #available(iOS 26.0, *) {
-                        self.selectModel(.apple)
-                    } else {
-                        ToastManager.shared.showWarning(message: "iOS 26 이상에서 사용할 수 있어요")
-                    }
-                    return
-                }
-
-                // 무료 사용자가 제한 모델을 탭하면 결제창으로 라우팅
-                if !self.isModelAllowed(modelInfo.type) {
-                    self.presentPaywall()
-                    return
-                }
-                self.selectModel(modelInfo.type)
+            card.isSelected = (m.type == currentSelectedModel)
+            card.onTap = { [weak self, weak card] in
+                guard let self = self, let card = card else { return }
+                // 4개 버블 모두 온디바이스 설치/활성화 플로우를 사용
+                self.handleOnDeviceSelection(for: m.id, card: card)
             }
 
-            if modelInfo.type == .onDevice { self.onDeviceCardRef = card }
             modelCards.append(card)
             stackView.addArrangedSubview(card)
         }
@@ -264,51 +236,87 @@ class AIModelSelectionViewController: UIViewController {
         stackView.addArrangedSubview(spacer)
     }
 
-    // 온디바이스 모델 세부 선택 및 설치/사용 플로우
-    private func presentOnDeviceSelector() {
-        let alert = UIAlertController(
-            title: "온디바이스 모델 선택",
-            message: "원하는 모델을 선택해 설치/사용하세요.",
-            preferredStyle: .actionSheet
-        )
+    /// 온디바이스 모델 선택 처리:
+    /// - 설치됨: 즉시 활성화 + 선택 상태 유지(앱 재시작 후에도 유지)
+    /// - 미설치: "친구를 불러올까요?" 확인 후 다운로드 시작(프리사인/ CDN 경유), 진행률은 해당 버블 카드에 표시
+    private func handleOnDeviceSelection(for id: OnDeviceModelID, card: AIModelCardView) {
+        // 진행 표시를 해당 카드에 바인딩
+        self.onDeviceCardRef = card
+        // 선택 모델을 온디바이스로 설정해 완료 시 자동 활성화 경로를 사용
+        self.selectModel(.onDevice)
 
-        func titleFor(_ id: OnDeviceModelID) -> String {
-            let r = ModelCatalog.record(for: id)
-            let size = humanSize(r.approxBytes)
-            return "\(r.displayName) · \(size)"
-        }
-        func addAction(for id: OnDeviceModelID) {
-            alert.addAction(UIAlertAction(title: titleFor(id), style: .default) { _ in
-                Task {
-                    do {
-                        let st = await OnDeviceAdapter.shared.status(for: id)
-                        if case .installed = st {
-                            try await OnDeviceAdapter.shared.activate(id: id)
-                        } else {
-                            Task.detached {
-                                _ = try? await OnDeviceAdapter.shared.ensureInstalled(id: id)
+        Task { [weak self] in
+            guard let self = self else { return }
+            let st = await OnDeviceAdapter.shared.status(for: id)
+            switch st {
+            case .installed:
+                do {
+                    try await OnDeviceAdapter.shared.activate(id: id)
+                    // 온디바이스 고정 선택 및 선호 모델 보존(재실행 시에도 유지)
+                    SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
+                    SettingsManager.shared.preferredOnDeviceModelID = id
+                    ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
+                    self.onModelSelected?(self.currentSelectedModel)
+                    self.dismiss(animated: true)
+                } catch {
+                    ToastManager.shared.showError(message: "친구가 도망쳤어요!: \(error.localizedDescription)")
+                }
+
+            case .notInstalled:
+                fallthrough
+            case .installing(let _):
+                let alert = UIAlertController(
+                    title: "친구를 불러올까요?",
+                    message: "친구를 불러올까요?",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                alert.addAction(
+                    UIAlertAction(title: "불러와요", style: .default) { [weak self] _ in
+                        guard let self = self else { return }
+                        // 다운로드 진행률 폴링 + 푸시 알림 기반 UI 업데이트
+                        self.startOnDeviceProgressPolling()
+                        Task.detached {
+                            do {
+                                _ = try await OnDeviceAdapter.shared.ensureInstalled(id: id)
+                                // 다운로드 완료 브로드캐스트에서 자동 활성화 처리됨
+                                SettingsManager.shared.preferredOnDeviceModelID = id
+                            } catch {
+                                DispatchQueue.main.async {
+                                    ToastManager.shared.showError(
+                                        message: "친구가 도망쳤어요!: \(error.localizedDescription)"
+                                    )
+                                }
                             }
                         }
-                        SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
-                    } catch {
-                        ToastManager.shared.showError(message: "설치/활성화 실패: \(error.localizedDescription)")
-                    }
-                }
-            })
+                    })
+                self.present(alert, animated: true)
+            case .failed(errorDescription: let errorDescription):
+                let alert = UIAlertController(
+                    title: "모델 준비 실패",
+                    message: "친구가 도망쳤어요!.\n\n이유: \(errorDescription)\n\n다시 데려오거나 다른 친구를 선택해 주세요.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                alert.addAction(
+                    UIAlertAction(title: "다시 시도", style: .default) { [weak self] _ in
+                        guard let self = self else { return }
+                        // 재시도: 모델 재설치 시도
+                        Task {
+                            do {
+                                _ = try await OnDeviceAdapter.shared.ensureInstalled(id: id)
+                                SettingsManager.shared.preferredOnDeviceModelID = id
+                                ToastManager.shared.showSuccess(message: "친구가 같이 와줬어요!")
+                            } catch {
+                                ToastManager.shared.showError(
+                                    message: "재시도 실패: \(error.localizedDescription)"
+                                )
+                            }
+                        }
+                    })
+                self.present(alert, animated: true)
+            }
         }
-
-        // 용량(approxBytes) 오름차순으로 버튼 추가 (SSOT)
-        let sorted = ModelCatalog.all().sorted { $0.approxBytes < $1.approxBytes }
-        for rec in sorted { addAction(for: rec.id) }
-
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
-
-        // iPad 대응: 팝오버 앵커 지정(가능하면 첫 카드 기준)
-        if let pop = alert.popoverPresentationController, let firstCard = self.modelCards.first {
-            pop.sourceView = firstCard
-            pop.sourceRect = firstCard.bounds
-        }
-        self.present(alert, animated: true, completion: nil)
     }
 
     private func setupConstraints() {
@@ -419,6 +427,7 @@ class AIModelSelectionViewController: UIViewController {
                 guard let self = self else { return }
                 do {
                     try await OnDeviceAdapter.shared.activate(id: id)
+                    SettingsManager.shared.preferredOnDeviceModelID = id
                     SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
                     ToastManager.shared.showSuccess(message: "온디바이스 모델 활성화됨")
                 } catch {
@@ -664,12 +673,16 @@ class AIModelCardView: UIView {
                 label.textAlignment = .center
                 label.tag = snapped  // 스냅샷 % 기록
 
+                // Progress bar
                 let bar = UIProgressView(progressViewStyle: .default)
                 bar.setProgress(Float(clamped), animated: true)
                 bar.translatesAutoresizingMaskIntoConstraints = false
-                bar.centerXAnchor.constraint(equalTo: row.centerXAnchor).isActive = true
-                bar.widthAnchor.constraint(equalTo: row.widthAnchor, multiplier: 0.9).isActive =
-                    true
+                // 먼저 추가한 뒤 제약 활성화(공통 조상 보장)
+                row.addArrangedSubview(bar)
+                NSLayoutConstraint.activate([
+                    bar.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 12),
+                    bar.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -12),
+                ])
 
                 // Controls: 중단/취소 버튼
                 let controls = UIStackView()
@@ -677,8 +690,6 @@ class AIModelCardView: UIView {
                 controls.spacing = 8
                 controls.alignment = .center
                 controls.translatesAutoresizingMaskIntoConstraints = false
-                controls.centerXAnchor.constraint(equalTo: row.centerXAnchor).isActive = true
-                controls.widthAnchor.constraint(equalTo: row.widthAnchor).isActive = true
 
                 let cancelBtn = UIButton(type: .system)
                 cancelBtn.setTitle("중단/취소", for: .normal)
@@ -690,10 +701,15 @@ class AIModelCardView: UIView {
                     }, for: .touchUpInside)
 
                 controls.addArrangedSubview(cancelBtn)
-
-                row.addArrangedSubview(label)
-                row.addArrangedSubview(bar)
+                // 먼저 추가한 뒤 제약 활성화(공통 조상 보장)
                 row.addArrangedSubview(controls)
+                NSLayoutConstraint.activate([
+                    controls.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+                    controls.trailingAnchor.constraint(equalTo: row.trailingAnchor),
+                ])
+
+                // 라벨은 맨 위로 배치
+                row.insertArrangedSubview(label, at: 0)
                 progressStack.addArrangedSubview(row)
             }
         }

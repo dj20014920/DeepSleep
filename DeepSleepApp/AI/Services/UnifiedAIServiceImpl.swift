@@ -409,7 +409,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 }
             }
             let summary = try await OnDeviceAdapter.shared.generate(
-                preferred: OnDeviceAdapter.shared.activeModelID,
+                preferred: preferredOnDeviceID(),
                 text: content,
                 config: OnDeviceAdapter.StreamConfig(
                     systemPrompt: systemPrompt,
@@ -561,6 +561,12 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // - 테스트/다른 모듈에서 호출할 수 있도록 공개 메서드 제공
     public func makeSystemPrompt(for mode: AIMode, model: AIModel) -> String {
         return generateOptimizedSystemPrompt(for: mode, model: model)
+    }
+
+    // 온디바이스 선호 모델 선택(사용자 설정 우선 → 현재 활성 모델 폴백)
+    private func preferredOnDeviceID() -> OnDeviceModelID? {
+        return SettingsManager.shared.preferredOnDeviceModelID
+            ?? OnDeviceAdapter.shared.activeModelID
     }
 
     /// 모드와 모델에 맞는 시스템 프롬프트 생성

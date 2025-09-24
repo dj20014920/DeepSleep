@@ -801,6 +801,24 @@ $1
 - 테스트 예시:
   - curl 'https://emozleep-presign.vinny4920-081.workers.dev/presign?file=hyperclovax-seed-text-instruct-0.5b-q8_0.gguf'
 
+#### 환경 변수 설정(운영) — R2 S3/배포 [설정 완료]
+- 환경 구성(세션/런타임):
+  - R2_ACCOUNT_ID=081a9810680543ee912eb54ae15876a3
+  - R2_BUCKET=deepsleep-models
+  - R2_PREFIX=models
+  - CDN_BASE=https://cdn.emozleep.space/models
+  - AWS_DEFAULT_REGION=auto
+  - R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY: 운영 환경변수로 세팅됨(레포에 비노출)
+- 배포 스크립트: DeepSleep/scripts/deploy_models_r2.sh
+  - 기능: 4개 GGUF 업로드 → CDN HEAD 200 확인 → 원격 sha256 == ModelCatalog.swift 값 검증
+- 배포/검증 결과(동기화됨):
+  - CDN 경로(모두 200 응답, sha256 일치):
+    - https://cdn.emozleep.space/models/amoral-gemma3-1B-v2-Q4_K_M.gguf
+    - https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    - https://cdn.emozleep.space/models/gemma-3-1b-it-q4_0.gguf
+    - https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+- 주의: 비밀키는 코드/레포에 저장하지 않으며, 환경변수로만 관리합니다.
+
 ### UI/UX 및 흐름 반영
 - AIModelSelectionViewController: 4개 모델 선택/설치/활성화, 라벨/용량은 카탈로그 메타에서 자동 구성
 - AIModelSettingsView: 인라인 설치 매니저에서 전체 취소/개별 삭제 지원. 기본 설치 대상은 ModelCatalog.defaultModelID
@@ -811,8 +829,22 @@ $1
 
 ### 운영/QA 체크리스트
 - presign 실패 시 CDN 폴백 확인
-- presign 200(JSON)과 302(redirect) 두 경로 모두 수용되는지 검증
-- 4개 파일 모두 CDN에 배치 및 sha256 일치 확인
+- presign 200(JSON)과 302/303/307/308(redirect) 모두 수용되는지 검증
+- 4개 모델 파일이 CDN에 배치되어 공개 접근 가능한지 200 응답으로 확인
+  - 예: https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+- CDN 객체의 sha256이 ModelCatalog에 정의된 값과 정확히 일치하는지 검증
+  - amoral-gemma3-1B-v2-Q4_K_M.gguf → 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
+  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
+  - gemma-3-1b-it-q4_0.gguf → 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a
+  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
+- CDN 404인 경우: Presign Worker 설정(CDN_BASE)과 R2/버킷 공개 권한 재확인, 파일명 대소문자/스펠링 검수
+- 앱 로그에서 sha256 mismatch 발생 시 백오프 재시도 후 실패 로그가 남는지 확인(정상 동작), 서버측 파일/해시를 즉시 동기화
+- 모델 선택 UI 최신 플로우:
+  - 액션시트 제거, 4개 버블카드(온디/제미니/지피티/하이퍼클로바) → 각 GGUF와 1:1 매핑
+  - 카드 정렬은 ModelCatalog.approxBytes 오름차순(용량 작은 순)
+  - 다운로드 진행률은 해당 카드 내부에서 표시, 완료 시 자동 활성화
+  - 선택/활성화 시 SettingsManager.preferredOnDeviceModelID에 영구 보관 → 재시작 후에도 동일 모델 유지
+  - UnifiedAIServiceImpl는 preferredOnDeviceModelID를 우선 후보로 사용하여 모든 대화 모드에 일관 적용
 - 앱 런치 시 카탈로그 외 .gguf 자동 정리(purgeObsoleteInstalledFiles) 확인
 - 선택 모델로 모든 모드에서 on-device 경로 우선 동작 확인(provider=llama.cpp)
 - 2턴 이후 TTI 하락(캐시 히트) 로그 확인

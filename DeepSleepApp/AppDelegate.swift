@@ -159,7 +159,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // //mltodo Replace with real endpoints from remote config.
         // Cloudflare Worker presign + CDN 베이스를 앱 런치 시 주입
         if let presign = URL(string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"),
-           let cdn = URL(string: "https://cdn.emozleep.space") {
+            let cdn = URL(string: "https://cdn.emozleep.space/models")
+        {
             OnDeviceAdapter.shared.reconfigureRemote(
                 presignEndpoint: presign,
                 cdnBaseURL: cdn,
@@ -184,7 +185,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             presignEndpoint: URL(
                 string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"
             ),
-            cdnBaseURL: URL(string: "https://cdn.emozleep.space"),
+            cdnBaseURL: URL(string: "https://cdn.emozleep.space/models"),
             backgroundSessionID: identifier,
             cancelOngoing: false
         )
