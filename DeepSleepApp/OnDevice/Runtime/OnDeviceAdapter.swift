@@ -162,7 +162,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             progress: { p in
                 let pct = Int(p * 100)
                 if pct != __lastLoggedPct && (pct == 0 || pct == 100 || pct % 5 == 0) {
-                    self.log.debug("📈 [Adapter] \(rec.id.rawValue, privacy: .public) \(pct)%")
+                    self.log.debug("📈 [Adapter] \(rec.displayName, privacy: .public) \(pct)%")
                     __lastLoggedPct = pct
                 }
                 progress?(p)
@@ -349,7 +349,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 강제 비메탈 토글 시 GPU 레이어 비활성화, 아니면 기본 -1(가능 시 전체 오프로딩)
         // 메탈 오프로딩/보수 샘플링(SSOT)
         let disableMetal = ConfigReader.bool("ONDEVICE_DISABLE_METAL", default: false) ?? false
-        OnDevicePromptProfile.SamplingTuning.applyMetalOverride(into: &params, disableMetal: disableMetal)
+        OnDevicePromptProfile.SamplingTuning.applyMetalOverride(
+            into: &params, disableMetal: disableMetal)
         OnDevicePromptProfile.SamplingTuning.applyConservativeDefaults(for: id, into: &params)
         // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
         // Gemma는 system 역할 미지원: system 지시는 초기 user 입력에 내재화
@@ -435,7 +436,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         let recentSerialized: String = {
                             guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
                             switch id {
-                            case .gemma270_q8, .gemma1b_iq4xs:
+                            case .amoral_gemma1b_v2_q4km, .gemma1b_iq4xs:
                                 return msgs.compactMap { m in
                                     switch m.role {
                                     case .user:
@@ -554,6 +555,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     // MARK: - Candidate building / TTI adaptation
 
     private func buildCandidates(preferred: OnDeviceModelID?) -> [OnDeviceModelID] {
+        // 사용자가 명시적으로 선호 모델을 선택했고, 설정이 엄격 모드를 허용하면 해당 모델만 시도
+        if let p = preferred, (ConfigReader.bool("ONDEVICE_STRICT_PREFERRED", default: true) ?? true) {
+            return [p]
+        }
         // 기본 순서: 사용자가 고른 모델(있으면) → SSOT fallbackOrder(중복 제거)
         var order: [OnDeviceModelID] = []
         if let p = preferred { order.append(p) }

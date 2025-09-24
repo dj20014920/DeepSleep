@@ -171,6 +171,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             _ = OnDeviceAdapter.shared.purgeObsoleteInstalledFiles()
         }
 
+        // ✅ 앱 실행 시 1회 온디바이스 선호 모델 프리로드(있다면)
+        Task {
+            let settings = SettingsManager.shared
+            guard settings.selectedLLM == .onDevice else { return }
+            let id = settings.preferredOnDeviceModelID ?? ModelCatalog.defaultModelID
+            do {
+                try await OnDeviceAdapter.shared.activate(id: id)
+                print("🚚 모델 프리로드 완료 id=\(id.rawValue)")
+            } catch {
+                print("⚠️ 모델 프리로드 실패: \(error.localizedDescription)")
+            }
+        }
+
         return true
     }
 

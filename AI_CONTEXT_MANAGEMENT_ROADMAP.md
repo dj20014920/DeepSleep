@@ -144,9 +144,9 @@
   - Qwen: ["<|im_end|>", "<|im_start|>user"]
   - Apple FM: SDK 종료 조건 기반, 템플릿 토큰/헤더 출력 금지
 - 샘플링 권장값(소형 모델 안정화)
-  - Amoral Gemma 1B (Q8_0): temp=1.0, topK=64, topP=0.95
-  - Gemma 1B (IQ4_XS): temp=0.8, topK=64, topP=0.95
-  - Qwen2.5 0.5B (Q4_K_M): temp=0.7, topK=40, topP=0.90
+  - Amoral Gemma 3 1B v2 (Q4_K_M): temp=0.8–1.0, topK=64, topP=0.95
+  - Gemma 3 1B (Q4_0): temp=0.8, topK=64, topP=0.95
+  - HyperCLOVA X Seed 0.5B (Q4_K_M): temp=0.7, topK=40, topP=0.90
 - 응답 길이 정책
   - ONDEVICE_MAX_TOKENS 기본 128로 시작(첫 응답 빠르게). 길면 이어가기 설계로 후속 생성.
 - 목적: 기존 응답 텍스트 캐시(UserDefaults/정규화 기반)를 기본 Off로 전환하고, 업계 표준과 합치되는 세션 재사용(AppleFMSessionPool)로 지연(TTI/완료시간)을 단축.
@@ -819,7 +819,7 @@ $1
     - https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
 - 주의: 비밀키는 코드/레포에 저장하지 않으며, 환경변수로만 관리합니다.
 
-### UI/UX 및 흐름 반영
+### UI/UX 및 흐름 반영(온디바이스 모델/스톱/로그)
 - AIModelSelectionViewController: 4개 모델 선택/설치/활성화, 라벨/용량은 카탈로그 메타에서 자동 구성
 - AIModelSettingsView: 인라인 설치 매니저에서 전체 취소/개별 삭제 지원. 기본 설치 대상은 ModelCatalog.defaultModelID
 
@@ -833,6 +833,16 @@ $1
 - 4개 모델 파일이 CDN에 배치되어 공개 접근 가능한지 200 응답으로 확인
   - 예: https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
 - CDN 객체의 sha256이 ModelCatalog에 정의된 값과 정확히 일치하는지 검증
+- 온디바이스 모델 패밀리(SSOT, ModelCatalog 기준)
+  - HyperCLOVA X Seed 0.5B Instruct: Q4_K_M(hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf), Q8_0(hyperclovax-seed-text-instruct-0.5b-q8_0.gguf)
+  - Gemma 3 1B IT: Q4_0(gemma-3-1b-it-q4_0.gguf)
+  - Amoral Gemma 3 1B v2: Q4_K_M(amoral-gemma3-1B-v2-Q4_K_M.gguf)
+- 스톱 시퀀스 표준(템플릿별)
+  - Gemma 스타일: ["<end_of_turn>", "<start_of_turn>user"]
+  - Qwen/HyperCLOVA 스타일: ["<|im_end|>", "<|im_start|>user", "<|endofturn|>", "<|stop|>"]
+- 진행 로그/표시명 정렬
+  - Adapter 진행 로그는 모델 ID(raw) 대신 ModelCatalog.record.displayName 사용
+  - UI 버블 카드 타이틀/서브타이틀은 카탈로그 메타(표시명/용량)로 표시
   - amoral-gemma3-1B-v2-Q4_K_M.gguf → 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
   - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
   - gemma-3-1b-it-q4_0.gguf → 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a

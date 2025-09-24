@@ -13,10 +13,10 @@ import Foundation
 // MARK: - 공통 타입
 
 public enum OnDeviceModelID: String, CaseIterable, Sendable {
-    case gemma270_q8  // Amoral Gemma 1B v2 Q4_K_M
+    case amoral_gemma1b_v2_q4km  // Amoral Gemma 3 1B v2 Q4_K_M
     case qwen05b_q4km  // HyperCLOVA X Seed 0.5B Q4_K_M
     case gemma1b_iq4xs  // Gemma 3 1B Q4_0
-    case hcx05b_q8_0    // HyperCLOVA X Seed 0.5B Q8_0
+    case hcx05b_q8_0  // HyperCLOVA X Seed 0.5B Q8_0
 }
 
 public struct InferenceParams: Sendable, Equatable {
@@ -96,28 +96,25 @@ public enum SystemPrompts {
 
 public enum ModelCatalog {
     // Background Assets: Apple-hosted asset pack IDs (App Store Connect에 등록 필요)
-    public static let packID_gemma270_q8 = "pack.model.gemma270.q8"
+    public static let packID_amoral_gemma1b_v2_q4km = "pack.model.amoral.gemma1b.v2.q4km"
     public static let packID_qwen05b_q4 = "pack.model.qwen05b.q4"
     public static let packID_gemma1b_iq4 = "pack.model.gemma1b.iq4"
     public static let packID_hcx05b_q8 = "pack.model.hcx05b.q8"
 
     // 정확 파일명(레포·브랜치 변경 시 반드시 동기화)
-    public static let file_gemma270_q8 = "amoral-gemma3-1B-v2-Q4_K_M.gguf"
+    public static let file_amoral_gemma1b_v2_q4km = "amoral-gemma3-1B-v2-Q4_K_M.gguf"
     public static let file_qwen05b_q4km = "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
     public static let file_gemma1b_iq4xs = "gemma-3-1b-it-q4_0.gguf"
     public static let file_hcx05b_q8 = "hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
 
     // 참고 크기(Bytes) — 런타임 무결성은 sha256 또는 파일 크기 검증으로 보강
-    public static let bytes_gemma270_q8 = 769_000_000
+    public static let bytes_amoral_gemma1b_v2_q4km = 769_000_000
     public static let bytes_qwen05b_q4km = 412_000_000
     public static let bytes_gemma1b_iq4xs = 957_000_000
     public static let bytes_hcx05b_q8 = 693_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
-    private static let params_gemma270: InferenceParams = .init(
-        context: 2048, threads: 4, temperature: 1.0, topK: 64, topP: 0.95, gpuLayers: nil,
-        embeddingHBM: nil
-    )
+    // removed: params_gemma270 (unused)
     private static let params_qwen05b: InferenceParams = .init(
         context: 2048, threads: 4, temperature: 0.8, topK: 64, topP: 0.95, gpuLayers: nil,
         embeddingHBM: nil
@@ -131,11 +128,11 @@ public enum ModelCatalog {
     public static func all() -> [ModelRecord] {
         return [
             ModelRecord(
-                id: .gemma270_q8,
-                displayName: "Gemma 3 1B (Q4_K_M v2)",
-                packID: packID_gemma270_q8,
-                fileName: file_gemma270_q8,
-                approxBytes: bytes_gemma270_q8,
+                id: .amoral_gemma1b_v2_q4km,
+                displayName: "Amoral Gemma 3 1B v2 (Q4_K_M)",
+                packID: packID_amoral_gemma1b_v2_q4km,
+                fileName: file_amoral_gemma1b_v2_q4km,
+                approxBytes: bytes_amoral_gemma1b_v2_q4km,
                 sha256Hex: "97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6",
                 recommended: params_gemma1b,
                 notes: "고품질 1B Q4_K_M 변형(Amoral v2)."
@@ -185,7 +182,7 @@ public enum ModelCatalog {
     // 비용/성능/한국어 가중 순 후보(좌→우)
     public static var fallbackOrder: [OnDeviceModelID] {
         // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → Gemma 1B(Q4_0) → Amoral Gemma 1B(Q4_K_M)
-        return [.qwen05b_q4km, .hcx05b_q8_0, .gemma1b_iq4xs, .gemma270_q8]
+        return [.qwen05b_q4km, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
     }
 
     // 파일명 → 모델 ID 매핑 헬퍼(SSOT: 상수 기반)
@@ -193,7 +190,7 @@ public enum ModelCatalog {
     // - 사용 예: 네트워킹/다운로더에서 lastPathComponent로 ID 유추 시
     public static func id(forFileName fileName: String) -> OnDeviceModelID? {
         switch fileName {
-        case file_gemma270_q8: return .gemma270_q8
+        case file_amoral_gemma1b_v2_q4km: return .amoral_gemma1b_v2_q4km
         case file_qwen05b_q4km: return .qwen05b_q4km
         case file_gemma1b_iq4xs: return .gemma1b_iq4xs
         case file_hcx05b_q8: return .hcx05b_q8_0
@@ -398,8 +395,8 @@ public struct FallbackPolicy {
         case .qwen05b_q4km:
             return .hcx05b_q8_0
         case .hcx05b_q8_0:
-            return .gemma270_q8
-        case .gemma270_q8:
+            return .amoral_gemma1b_v2_q4km
+        case .amoral_gemma1b_v2_q4km:
             // 더 낮출 수 없음 → 클라우드로(호출 측에서 처리)
             return nil
         }
@@ -412,10 +409,10 @@ public struct FallbackPolicy {
 // let resolver = CatalogResolver(baClient: SystemBackgroundAssetClient()) // iOS18+ 별도 구현체
 // Task {
 //   do {
-//     let url = try await resolver.resolveLocalURL(for: .gemma270_q8) { progress in
+//     let url = try await resolver.resolveLocalURL(for: .amoral_gemma1b_v2_q4km) { progress in
 //       print("progress:", progress)
 //     }
-//     try loader.load(modelURL: url, modelID: .gemma270_q8, params: ModelCatalog.record(for: .gemma270_q8).recommended)
+//     try loader.load(modelURL: url, modelID: .amoral_gemma1b_v2_q4km, params: ModelCatalog.record(for: .amoral_gemma1b_v2_q4km).recommended)
 //   } catch {
 //     // 실패 시 FallbackPolicy에 따라 다음 후보/클라우드로 전환
 //   }

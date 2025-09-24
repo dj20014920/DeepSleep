@@ -19,6 +19,8 @@ class AIModelSelectionViewController: UIViewController {
     private var onDeviceProgressTimer: Timer?
     private var onDeviceObserverTokens: [NSObjectProtocol] = []
     private var lastProgressLoggedPct: [String: Int] = [:]
+    // 현재 다운로드/설치 진행 중인 온디바이스 모델 ID (해당 카드에만 진행률 표시)
+    private var focusInstallingID: OnDeviceModelID?
 
     // 헤더 컴포넌트
     private let headerView = UIView()
@@ -27,6 +29,18 @@ class AIModelSelectionViewController: UIViewController {
 
     // 확인 버튼
     private let confirmButton = UIButton(type: .system)
+
+    // MARK: - Model Nickname System
+    
+    /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
+    private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
+        switch modelID {
+        case .qwen05b_q4km: return "작은 클로버"      // 412MB (가장 작음)
+        case .hcx05b_q8_0: return "클로버"          // 693MB
+        case .amoral_gemma1b_v2_q4km: return "작은 잼민이" // 769MB
+        case .gemma1b_iq4xs: return "잼민이"        // 957MB (가장 큼)
+        }
+    }
 
     // MARK: - Lifecycle
 
@@ -56,7 +70,7 @@ class AIModelSelectionViewController: UIViewController {
         super.viewDidDisappear(animated)
         Task { [weak self] in
             guard let self = self else { return }
-            let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
+            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
             let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
             let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
@@ -125,7 +139,7 @@ class AIModelSelectionViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // 서브타이틀
-        subtitleLabel.text = "각자의 특별한 재능으로 당신을 도와줄 거예요.\n무료 사용자는 온디바이스 친구만 이용할 수 있어요 ✨"
+        subtitleLabel.text = "각자의 특별한 재능으로 당신을 도와줄 거예요!\n용량이 큰 친구들은 더 똑똑하고 말을 잘해요! ✨"
         subtitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .regular)
         subtitleLabel.textColor = UIDesignSystem.Colors.secondaryText
         subtitleLabel.textAlignment = .center
@@ -176,7 +190,7 @@ class AIModelSelectionViewController: UIViewController {
                 strengths: String, bestFor: String
             )] = [
                 (
-                    type: .onDevice, id: .gemma270_q8,
+                    type: .onDevice, id: .amoral_gemma1b_v2_q4km,
                     personality: "개인정보 보호와 저지연 대화",
                     specialties: ["온디바이스 처리", "저지연 응답", "백그라운드 설치/재개", "무결성 검증"],
                     strengths: "네트워크 품질과 무관하게 안정적이고 빠른 대화",
@@ -210,23 +224,66 @@ class AIModelSelectionViewController: UIViewController {
                 < ModelCatalog.record(for: $1.id).approxBytes
         }
 
+        // Persisted selection (type + on-device preferred ID) for restoring check state
+        let selectedType = SettingsManager.shared.selectedLLM
+        let selectedOnDeviceID = SettingsManager.shared.preferredOnDeviceModelID
+            ?? OnDeviceAdapter.shared.activeModelID
+            ?? ModelCatalog.defaultModelID
+
         for m in sorted {
+            let rec = ModelCatalog.record(for: m.id)
+            let size = OnDevicePromptProfile.ProgressBuilder.humanSize(rec.approxBytes)
             let card = AIModelCardView(
                 model: m.type,
                 personality: m.personality,
                 specialties: m.specialties,
                 strengths: m.strengths,
-                bestFor: m.bestFor
+                bestFor: m.bestFor,
+                titleOverride: friendlyNickname(for: m.id),
+                subtitleOverride: "온디바이스 • \(size)"
             )
-            card.isSelected = (m.type == currentSelectedModel)
+            // Restore persisted selection: highlight card if matches saved selection
+            if m.type == selectedType {
+                if m.type == .onDevice {
+                    card.isSelected = (m.id == selectedOnDeviceID)
+                } else {
+                    card.isSelected = true
+                }
+            } else {
+                card.isSelected = false
+            }
             card.onTap = { [weak self, weak card] in
                 guard let self = self, let card = card else { return }
                 // 4개 버블 모두 온디바이스 설치/활성화 플로우를 사용
+                // 사용자가 탭한 즉시, 해당 모델만 진행률을 보이도록 포커스 지정
+                self.focusInstallingID = m.id
                 self.handleOnDeviceSelection(for: m.id, card: card)
             }
 
             modelCards.append(card)
             stackView.addArrangedSubview(card)
+        }
+
+        // 애플 파운데이션 모델 카드(다운로드 없음)
+        do {
+            let appleCard = AIModelCardView(
+                model: .apple,
+                personality: "시스템 최적화와 안정적인 경험",
+                specialties: ["iOS 통합", "프라이버시", "저전력", "일관된 응답"],
+                strengths: "추가 설치 없이 즉시 사용, 시스템 수준 최적화",
+                bestFor: "빠르고 가벼운 소통, 배터리 효율",
+                titleOverride: "Apple Foundation Models",
+                subtitleOverride: "온디바이스 • 시스템 제공"
+            )
+            appleCard.isSelected = (currentSelectedModel == .apple)
+            appleCard.onTap = { [weak self, weak appleCard] in
+                guard let self = self, appleCard != nil else { return }
+                // 다운로드/진행률 UI 비적용
+                self.onDeviceCardRef = nil
+                self.selectModel(.apple)
+            }
+            modelCards.append(appleCard)
+            stackView.addArrangedSubview(appleCard)
         }
 
         // 하단 여백
@@ -242,24 +299,38 @@ class AIModelSelectionViewController: UIViewController {
     private func handleOnDeviceSelection(for id: OnDeviceModelID, card: AIModelCardView) {
         // 진행 표시를 해당 카드에 바인딩
         self.onDeviceCardRef = card
-        // 선택 모델을 온디바이스로 설정해 완료 시 자동 활성화 경로를 사용
-        self.selectModel(.onDevice)
-
-        Task { [weak self] in
+        
+        // 먼저 선택 애니메이션을 즉시 실행 (애플 파운데이션 모델과 동일한 UX)
+        // 해당 카드만 직접 선택 (다른 AIModelType 때문에 selectModel(.onDevice)가 안 먹힘)
+        for c in modelCards { c.isSelected = false }
+        card.isSelected = true
+        self.currentSelectedModel = .onDevice
+        
+        // 선택 애니메이션이 완전히 보일 수 있도록 적절한 지연 후 비동기 로직 실행
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self = self else { return }
+            
+            Task { [weak self] in
+                guard let self = self else { return }
             let st = await OnDeviceAdapter.shared.status(for: id)
             switch st {
             case .installed:
                 do {
+                    try await Task.sleep(nanoseconds: 180_000_000)
                     try await OnDeviceAdapter.shared.activate(id: id)
                     // 온디바이스 고정 선택 및 선호 모델 보존(재실행 시에도 유지)
                     SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
                     SettingsManager.shared.preferredOnDeviceModelID = id
-                    ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
+                    }
                     self.onModelSelected?(self.currentSelectedModel)
-                    self.dismiss(animated: true)
+                    // 뷰는 유지하여 선택 모션과 토스트를 충분히 보여줍니다 (dismiss 제거)
                 } catch {
-                    ToastManager.shared.showError(message: "친구가 도망쳤어요!: \(error.localizedDescription)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        ToastManager.shared.showError(
+                            message: "친구가 도망쳤어요!: \(error.localizedDescription)")
+                    }
                 }
 
             case .notInstalled:
@@ -282,7 +353,7 @@ class AIModelSelectionViewController: UIViewController {
                                 // 다운로드 완료 브로드캐스트에서 자동 활성화 처리됨
                                 SettingsManager.shared.preferredOnDeviceModelID = id
                             } catch {
-                                DispatchQueue.main.async {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                                     ToastManager.shared.showError(
                                         message: "친구가 도망쳤어요!: \(error.localizedDescription)"
                                     )
@@ -290,8 +361,10 @@ class AIModelSelectionViewController: UIViewController {
                             }
                         }
                     })
-                self.present(alert, animated: true)
-            case .failed(errorDescription: let errorDescription):
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                    self.present(alert, animated: true)
+                }
+            case .failed(let errorDescription):
                 let alert = UIAlertController(
                     title: "모델 준비 실패",
                     message: "친구가 도망쳤어요!.\n\n이유: \(errorDescription)\n\n다시 데려오거나 다른 친구를 선택해 주세요.",
@@ -306,7 +379,9 @@ class AIModelSelectionViewController: UIViewController {
                             do {
                                 _ = try await OnDeviceAdapter.shared.ensureInstalled(id: id)
                                 SettingsManager.shared.preferredOnDeviceModelID = id
-                                ToastManager.shared.showSuccess(message: "친구가 같이 와줬어요!")
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                    ToastManager.shared.showSuccess(message: "친구가 같이 와줬어요!")
+                                }
                             } catch {
                                 ToastManager.shared.showError(
                                     message: "재시도 실패: \(error.localizedDescription)"
@@ -315,6 +390,7 @@ class AIModelSelectionViewController: UIViewController {
                         }
                     })
                 self.present(alert, animated: true)
+            }
             }
         }
     }
@@ -377,11 +453,15 @@ class AIModelSelectionViewController: UIViewController {
             guard let self = self, let card = self.onDeviceCardRef else { return }
             Task { [weak self] in
                 guard let self = self else { return }
-                let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
+                let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
                 let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
                 let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
                 let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
-                let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
+                var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
+                // UX: 사용자가 탭한 모델만 진행률을 보이도록 필터링 (초보자 혼동 방지)
+                if let focus = self.focusInstallingID {
+                    entries = entries.filter { $0.2 == focus }
+                }
                 DispatchQueue.main.async {
                     card.updateOnDeviceProgress(entries: entries)
                 }
@@ -401,10 +481,12 @@ class AIModelSelectionViewController: UIViewController {
             guard let self = self, let card = self.onDeviceCardRef else { return }
             self.refreshOnDeviceProgressUI()
             self.stopOnDeviceProgressPolling()
+            // 포커스 해제: 설치 완료되면 진행률 표시를 초기화
+            self.focusInstallingID = nil
 
             // 자동 활성화: 사용자가 온디바이스를 선택한 경우에만
             guard self.currentSelectedModel == .onDevice else {
-                ToastManager.shared.showSuccess(message: "온디바이스 모델 설치 완료")
+                ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
                 return
             }
 
@@ -418,7 +500,7 @@ class AIModelSelectionViewController: UIViewController {
             }
 
             guard let id = installedID else {
-                ToastManager.shared.showSuccess(message: "온디바이스 모델 설치 완료")
+                ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
                 return
             }
 
@@ -429,7 +511,7 @@ class AIModelSelectionViewController: UIViewController {
                     try await OnDeviceAdapter.shared.activate(id: id)
                     SettingsManager.shared.preferredOnDeviceModelID = id
                     SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
-                    ToastManager.shared.showSuccess(message: "온디바이스 모델 활성화됨")
+                    ToastManager.shared.showSuccess(message: "친구가 대나무숲에서 기다려요!")
                 } catch {
                     ToastManager.shared.showError(
                         message: "설치 완료 후 활성화 실패: \(error.localizedDescription)"
@@ -472,14 +554,18 @@ class AIModelSelectionViewController: UIViewController {
         guard let card = self.onDeviceCardRef else { return }
         Task { [weak self] in
             guard let self = self else { return }
-            let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
+            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
             let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
             let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
-            let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
-            DispatchQueue.main.async {
-                card.updateOnDeviceProgress(entries: entries)
-            }
+            var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
+                // UX: 사용자가 탭한 모델만 진행률을 보이도록 필터링 (초보자 혼동 방지)
+                if let focus = self.focusInstallingID {
+                    entries = entries.filter { $0.2 == focus }
+                }
+                DispatchQueue.main.async {
+                    card.updateOnDeviceProgress(entries: entries)
+                }
         }
     }
 
@@ -505,22 +591,22 @@ class AIModelSelectionViewController: UIViewController {
         s4: BackgroundAssetState
     ) -> [(String, Double, OnDeviceModelID)] {
         var entries: [(String, Double, OnDeviceModelID)] = []
-        let r1 = ModelCatalog.record(for: .gemma270_q8)
+        let r1 = ModelCatalog.record(for: .amoral_gemma1b_v2_q4km)
         let r2 = ModelCatalog.record(for: .qwen05b_q4km)
         let r3 = ModelCatalog.record(for: .gemma1b_iq4xs)
         let r4 = ModelCatalog.record(for: .hcx05b_q8_0)
 
         if case .installing(let p) = s1 {
-            entries.append(("\(r1.displayName) \(humanSize(r1.approxBytes))", p, .gemma270_q8))
+            entries.append(("\(friendlyNickname(for: .amoral_gemma1b_v2_q4km))", p, .amoral_gemma1b_v2_q4km))
         }
         if case .installing(let p) = s2 {
-            entries.append(("\(r2.displayName) \(humanSize(r2.approxBytes))", p, .qwen05b_q4km))
+            entries.append(("\(friendlyNickname(for: .qwen05b_q4km))", p, .qwen05b_q4km))
         }
         if case .installing(let p) = s3 {
-            entries.append(("\(r3.displayName) \(humanSize(r3.approxBytes))", p, .gemma1b_iq4xs))
+            entries.append(("\(friendlyNickname(for: .gemma1b_iq4xs))", p, .gemma1b_iq4xs))
         }
         if case .installing(let p) = s4 {
-            entries.append(("\(r4.displayName) \(humanSize(r4.approxBytes))", p, .hcx05b_q8_0))
+            entries.append(("\(friendlyNickname(for: .hcx05b_q8_0))", p, .hcx05b_q8_0))
         }
         return entries
     }
@@ -733,18 +819,22 @@ class AIModelCardView: UIView {
     private let specialties: [String]
     private let strengths: String
     private let bestFor: String
+    private let titleOverride: String?
+    private let subtitleOverride: String?
 
     // MARK: - Initialization
 
     init(
         model: AIModelType, personality: String, specialties: [String], strengths: String,
-        bestFor: String
+        bestFor: String, titleOverride: String? = nil, subtitleOverride: String? = nil
     ) {
         self.model = model
         self.personality = personality
         self.specialties = specialties
         self.strengths = strengths
         self.bestFor = bestFor
+        self.titleOverride = titleOverride
+        self.subtitleOverride = subtitleOverride
 
         super.init(frame: .zero)
         setupUI()
@@ -820,11 +910,11 @@ class AIModelCardView: UIView {
         nameStackView.axis = .vertical
         nameStackView.spacing = 4
 
-        nameLabel.text = model.displayName
+        nameLabel.text = titleOverride ?? model.displayName
         nameLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         nameLabel.textColor = UIDesignSystem.Colors.primaryText
 
-        subtitleLabel.text = model.description
+        subtitleLabel.text = subtitleOverride ?? model.description
         subtitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .medium)
         subtitleLabel.textColor = UIDesignSystem.Colors.accent
 
@@ -971,31 +1061,79 @@ class AIModelCardView: UIView {
     // MARK: - Actions
 
     @objc private func handleTap() {
-        onTap?()
+        // 즉시 탭 피드백(햅틱 + 펄스) → 선택 애니메이션이 먼저 보이도록 보장
+        let gen = UIImpactFeedbackGenerator(style: .medium)
+        gen.impactOccurred()
+        UIView.animate(
+            withDuration: 0.08,
+            delay: 0,
+            options: [.allowUserInteraction, .curveEaseOut]
+        ) {
+            self.containerView.transform = CGAffineTransform(scaleX: 0.97, y: 0.97)
+            self.checkboxView.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+        } completion: { _ in
+            UIView.animate(
+                withDuration: 0.12,
+                delay: 0,
+                options: [.allowUserInteraction, .curveEaseIn]
+            ) {
+                self.containerView.transform = .identity
+                self.checkboxView.transform = .identity
+            } completion: { _ in
+                // 카드 자체의 onTap 로직은 펄스 애니메이션 이후에 실행하여
+                // 사용자에게 선택 모션이 우선 보이도록 한다.
+                self.onTap?()
+            }
+        }
     }
 
     private func updateSelectionState() {
-        UIView.animate(
-            withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5
-        ) {
-            if self.isSelected {
-                self.containerView.layer.borderWidth = 2
-                self.containerView.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
-                self.containerView.backgroundColor = UIDesignSystem.Colors.accentLight
+        if self.isSelected {
+            // 즉시 햅틱 + 체크박스/체크마크 키프레임 애니메이션(우상단 체크 동작을 강조)
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
 
-                self.checkboxView.backgroundColor = UIDesignSystem.Colors.accent
-                self.checkboxView.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
-                self.checkmarkImageView.alpha = 1
+            // 시작 상태(체크마크는 작게/투명, 체크박스는 살짝 축소)
+            self.checkmarkImageView.alpha = 0
+            self.checkmarkImageView.transform = CGAffineTransform(scaleX: 0.4, y: 0.4)
+            self.checkboxView.transform = CGAffineTransform(scaleX: 0.85, y: 0.85)
 
-                self.containerView.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
-            } else {
+            UIView.animateKeyframes(
+                withDuration: 0.28, delay: 0, options: [.allowUserInteraction]
+            ) {
+                // 0~50%: 카드 강조(테두리/배경), 체크박스 채우기 + 경계색 전환, 체크박스 팝
+                UIView.addKeyframe(withRelativeStartTime: 0.0, relativeDuration: 0.5) {
+                    self.containerView.layer.borderWidth = 2
+                    self.containerView.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
+                    self.containerView.backgroundColor = UIDesignSystem.Colors.accentLight
+
+                    self.checkboxView.backgroundColor = UIDesignSystem.Colors.accent
+                    self.checkboxView.layer.borderColor = UIDesignSystem.Colors.accent.cgColor
+                    self.checkboxView.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                }
+                // 50~100%: 체크마크 페이드+팝 인, 체크박스/카드 정착
+                UIView.addKeyframe(withRelativeStartTime: 0.5, relativeDuration: 0.5) {
+                    self.checkmarkImageView.alpha = 1
+                    self.checkmarkImageView.transform = .identity
+                    self.checkboxView.transform = .identity
+                    self.containerView.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
+                }
+            }
+        } else {
+            // 해제 시 부드럽게 원복
+            UIView.animate(
+                withDuration: 0.22, delay: 0, options: [.allowUserInteraction]
+            ) {
                 self.containerView.layer.borderWidth = 0
+                self.containerView.layer.borderColor = UIDesignSystem.Colors.border.cgColor
                 self.containerView.backgroundColor = UIDesignSystem.Colors.cardBackground
 
                 self.checkboxView.backgroundColor = UIDesignSystem.Colors.adaptiveTertiaryBackground
                 self.checkboxView.layer.borderColor = UIDesignSystem.Colors.border.cgColor
                 self.checkmarkImageView.alpha = 0
 
+                self.checkboxView.transform = .identity
+                self.checkmarkImageView.transform = .identity
                 self.containerView.transform = .identity
             }
         }

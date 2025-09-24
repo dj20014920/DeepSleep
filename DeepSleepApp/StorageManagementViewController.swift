@@ -70,6 +70,91 @@ fileprivate extension UIView {
 
 /// 📦 저장소 관리 화면
 /// 사용자가 대화 데이터 용량을 확인하고 선택적으로 삭제할 수 있는 기능 제공
+/// 온디바이스 모델 하나를 표시하는 뷰
+class OnDeviceModelView: UIView {
+    private let containerView = UIView()
+    private let nameLabel = UILabel()
+    private let sizeLabel = UILabel()
+    private let deleteButton = UIButton()
+    
+    let modelID: OnDeviceModelID
+    var onDelete: ((OnDeviceModelID) -> Void)?
+    
+    init(modelID: OnDeviceModelID, nickname: String, sizeBytes: Int) {
+        self.modelID = modelID
+        super.init(frame: .zero)
+        setupUI(nickname: nickname, sizeBytes: sizeBytes)
+    }
+    
+    required init?(coder: NSCoder) { fatalError("init(coder:) not implemented") }
+    
+    private func setupUI(nickname: String, sizeBytes: Int) {
+        translatesAutoresizingMaskIntoConstraints = false
+        
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.backgroundColor = UIDesignSystem.Colors.cardBackground
+        containerView.layer.cornerRadius = 12
+        containerView.layer.borderWidth = 1
+        containerView.layer.borderColor = UIDesignSystem.Colors.border.cgColor
+        addSubview(containerView)
+        
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        nameLabel.text = nickname
+        nameLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        nameLabel.textColor = UIDesignSystem.Colors.primaryText
+        containerView.addSubview(nameLabel)
+        
+        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+        sizeLabel.text = formatBytes(sizeBytes)
+        sizeLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        sizeLabel.textColor = UIDesignSystem.Colors.secondaryText
+        containerView.addSubview(sizeLabel)
+        
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
+        deleteButton.setTitle("삭제", for: .normal)
+        deleteButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        deleteButton.setTitleColor(.white, for: .normal)
+        deleteButton.backgroundColor = .systemRed
+        deleteButton.layer.cornerRadius = 8
+        deleteButton.addTarget(self, action: #selector(deleteButtonTapped), for: .touchUpInside)
+        containerView.addSubview(deleteButton)
+        
+        NSLayoutConstraint.activate([
+            containerView.topAnchor.constraint(equalTo: topAnchor),
+            containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            containerView.heightAnchor.constraint(equalToConstant: 60),
+            
+            nameLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
+            nameLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor, constant: -8),
+            
+            sizeLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
+            sizeLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor, constant: 8),
+            
+            deleteButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
+            deleteButton.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            deleteButton.widthAnchor.constraint(equalToConstant: 60),
+            deleteButton.heightAnchor.constraint(equalToConstant: 32),
+        ])
+    }
+    
+    private func formatBytes(_ bytes: Int) -> String {
+        let units = ["B", "KB", "MB", "GB"]
+        var value = Double(bytes)
+        var unitIndex = 0
+        while value >= 1024 && unitIndex < units.count - 1 {
+            value /= 1024
+            unitIndex += 1
+        }
+        return String(format: "%.0f%@", value, units[unitIndex])
+    }
+    
+    @objc private func deleteButtonTapped() {
+        onDelete?(modelID)
+    }
+}
+
 class StorageManagementViewController: UIViewController {
     
     // MARK: - UI Components
@@ -93,6 +178,11 @@ class StorageManagementViewController: UIViewController {
     private let compressButton = UIButton()
     private let deleteAllButton = UIButton()
     
+    // 온디바이스 모델 관리 섹션
+    private let modelManagementContainerView = UIView()
+    private let modelStack = UIStackView()
+    private var installedModelViews: [OnDeviceModelView] = []
+    
     // 개별 관리 섹션
     private let tableView = UITableView()
     private var tableHeightConstraint: NSLayoutConstraint?
@@ -109,6 +199,7 @@ class StorageManagementViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         loadStorageStatistics()
+        refreshModelList()
     }
     
     override func viewDidLayoutSubviews() {
@@ -136,6 +227,7 @@ class StorageManagementViewController: UIViewController {
         
         // 각 섹션 설정 (통계 카드에 빠른 정리 통합)
         setupStatisticsSection()
+        setupModelManagementSection()
         setupTableView()
         
         // 레이아웃 설정
@@ -279,6 +371,48 @@ class StorageManagementViewController: UIViewController {
         button.translatesAutoresizingMaskIntoConstraints = false
     }
     
+    private func setupModelManagementSection() {
+        modelManagementContainerView.translatesAutoresizingMaskIntoConstraints = false
+        modelManagementContainerView.applyNeumorphicContainer(cornerRadius: 16)
+        
+        let headerLabel = UILabel()
+        headerLabel.text = "🤖 대나무숲 친구 관리"
+        headerLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        headerLabel.textColor = UIColor.label
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = "다운로드된 친구들을 관리하세요"
+        subtitleLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+        subtitleLabel.textColor = UIColor.secondaryLabel
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        modelStack.translatesAutoresizingMaskIntoConstraints = false
+        modelStack.axis = .vertical
+        modelStack.spacing = 12
+        
+        modelManagementContainerView.addSubview(headerLabel)
+        modelManagementContainerView.addSubview(subtitleLabel)
+        modelManagementContainerView.addSubview(modelStack)
+        
+        NSLayoutConstraint.activate([
+            headerLabel.topAnchor.constraint(equalTo: modelManagementContainerView.topAnchor, constant: 20),
+            headerLabel.leadingAnchor.constraint(equalTo: modelManagementContainerView.leadingAnchor, constant: 20),
+            headerLabel.trailingAnchor.constraint(equalTo: modelManagementContainerView.trailingAnchor, constant: -20),
+            
+            subtitleLabel.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 4),
+            subtitleLabel.leadingAnchor.constraint(equalTo: modelManagementContainerView.leadingAnchor, constant: 20),
+            subtitleLabel.trailingAnchor.constraint(equalTo: modelManagementContainerView.trailingAnchor, constant: -20),
+            
+            modelStack.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 16),
+            modelStack.leadingAnchor.constraint(equalTo: modelManagementContainerView.leadingAnchor, constant: 20),
+            modelStack.trailingAnchor.constraint(equalTo: modelManagementContainerView.trailingAnchor, constant: -20),
+            modelStack.bottomAnchor.constraint(equalTo: modelManagementContainerView.bottomAnchor, constant: -20),
+        ])
+        
+        refreshModelList()
+    }
+    
     private func setupTableView() {
         tableView.delegate = self
         tableView.dataSource = self
@@ -324,6 +458,7 @@ class StorageManagementViewController: UIViewController {
     
     private func setupLayout() {
         contentView.addSubview(statisticsContainerView)
+        contentView.addSubview(modelManagementContainerView)
         contentView.addSubview(tableView)
         
         NSLayoutConstraint.activate([
@@ -345,12 +480,126 @@ class StorageManagementViewController: UIViewController {
             statisticsContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             statisticsContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
-            // 테이블뷰 (통합 카드 아래)
-            tableView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 16),
+            // 모델 관리 섹션
+            modelManagementContainerView.topAnchor.constraint(equalTo: statisticsContainerView.bottomAnchor, constant: 16),
+            modelManagementContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            modelManagementContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            
+            // 테이블뷰 (모델 관리 섹션 아래)
+            tableView.topAnchor.constraint(equalTo: modelManagementContainerView.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
         ])
+    }
+    
+    // MARK: - Model Management
+    
+    /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
+    private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
+        switch modelID {
+        case .qwen05b_q4km: return "작은 클로버"      // 412MB (가장 작음)
+        case .hcx05b_q8_0: return "클로버"          // 693MB
+        case .amoral_gemma1b_v2_q4km: return "작은 잼민이" // 769MB
+        case .gemma1b_iq4xs: return "잼민이"        // 957MB (가장 큼)
+        }
+    }
+    
+    private func refreshModelList() {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            let allModels = OnDeviceModelID.allCases
+            var installedModels: [(OnDeviceModelID, Int)] = []
+            
+            for modelID in allModels {
+                let status = await OnDeviceAdapter.shared.status(for: modelID)
+                if case .installed = status {
+                    let record = ModelCatalog.record(for: modelID)
+                    installedModels.append((modelID, record.approxBytes))
+                }
+            }
+            
+            await MainActor.run {
+                self.updateModelViews(with: installedModels)
+            }
+        }
+    }
+    
+    private func updateModelViews(with installedModels: [(OnDeviceModelID, Int)]) {
+        // 기존 뷰들 제거
+        for view in installedModelViews {
+            view.removeFromSuperview()
+        }
+        installedModelViews.removeAll()
+        
+        if installedModels.isEmpty {
+            let emptyLabel = UILabel()
+            emptyLabel.text = "아직 친구가 없어요."
+            emptyLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+            emptyLabel.textColor = UIColor.secondaryLabel
+            emptyLabel.textAlignment = .center
+            emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+            
+            modelStack.addArrangedSubview(emptyLabel)
+            NSLayoutConstraint.activate([
+                emptyLabel.heightAnchor.constraint(equalToConstant: 40)
+            ])
+        } else {
+            // 용량 순으로 정렬 (작은 것부터)
+            let sortedModels = installedModels.sorted { $0.1 < $1.1 }
+            
+            for (modelID, sizeBytes) in sortedModels {
+                let nickname = friendlyNickname(for: modelID)
+                let modelView = OnDeviceModelView(modelID: modelID, nickname: nickname, sizeBytes: sizeBytes)
+                
+                modelView.onDelete = { [weak self] modelID in
+                    self?.showDeleteModelConfirmation(for: modelID)
+                }
+                
+                modelStack.addArrangedSubview(modelView)
+                installedModelViews.append(modelView)
+            }
+        }
+    }
+    
+    private func showDeleteModelConfirmation(for modelID: OnDeviceModelID) {
+        let nickname = friendlyNickname(for: modelID)
+        
+        let alert = UIAlertController(
+            title: "\(nickname) 나가!",
+            message: "정말로 \(nickname)를 나가라고 할까요?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "취소!", style: .cancel))
+        alert.addAction(UIAlertAction(title: "나가!", style: .destructive) { [weak self] _ in
+            self?.deleteModel(modelID)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func deleteModel(_ modelID: OnDeviceModelID) {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            do {
+                try OnDeviceAdapter.shared.deleteInstalled(id: modelID)
+                
+                await MainActor.run {
+                    let nickname = self.friendlyNickname(for: modelID)
+                    self.showSuccessAlert("삭제 완료", message: "\(nickname) 친구가 삭제되었습니다.")
+                    self.refreshModelList()
+                    self.loadStorageStatistics() // 전체 저장소 통계도 업데이트
+                }
+            } catch {
+                await MainActor.run {
+                    let nickname = self.friendlyNickname(for: modelID)
+                    self.showError("\(nickname) 삭제 실패: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     // MARK: - Data Loading

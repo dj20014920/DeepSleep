@@ -1,0 +1,10 @@
+{
+  "id": "pack.model.amoral.gemma1b.v2.q4km",
+  "resources": [
+    {
+      "source": "models/amoral-gemma3-1B-v2-Q4_K_M.gguf",
+      "destination": "amoral-gemma3-1B-v2-Q4_K_M.gguf",
+      "compression": "none"
+    }
+  ]
+}

@@ -33,7 +33,7 @@ public enum OnDevicePromptProfile {
     @inlinable
     public static func templateKind(for id: OnDeviceModelID) -> TemplateKind {
         switch id {
-        case .gemma270_q8, .gemma1b_iq4xs:
+        case .amoral_gemma1b_v2_q4km, .gemma1b_iq4xs:
             return .gemmaStyle
         case .qwen05b_q4km, .hcx05b_q8_0:
             return .qwenStyle
@@ -46,9 +46,18 @@ public enum OnDevicePromptProfile {
     public static func stopSequences(for id: OnDeviceModelID) -> [String] {
         switch templateKind(for: id) {
         case .gemmaStyle:
-            return ["<end_of_turn>", "<start_of_turn>user"]
+            // Stop at end of current turn, and also if the model begins a new turn
+            return ["<end_of_turn>", "<start_of_turn>user", "<start_of_turn>model"]
         case .qwenStyle:
-            return ["<|im_end|>", "<|im_start|>user"]
+            // Qwen-style templates: end marker and any new-turn starters
+            return [
+                "<|im_end|>",
+                "<|im_start|>user",
+                "<|im_start|>assistant",
+                "<|im_start|>",
+                "<|endofturn|>",
+                "<|stop|>"
+            ]
         }
     }
 
@@ -115,7 +124,7 @@ public enum OnDevicePromptProfile {
                 params.temperature = 0.7
                 params.topK = 40
                 params.topP = 0.90
-            case .gemma270_q8, .gemma1b_iq4xs:
+            case .amoral_gemma1b_v2_q4km, .gemma1b_iq4xs:
                 // 그대로 둠(카탈로그 recommended에 따름)
                 break
             }

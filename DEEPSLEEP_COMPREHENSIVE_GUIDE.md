@@ -7,7 +7,7 @@
   - Gemma 3:
     - user 턴: `<start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\n`
     - assistant 턴: `<start_of_turn>model\n{content}<end_of_turn>\n`
-  - Qwen2.5:
+  - HyperCLOVA X Seed 0.5B:
     - user 턴: `<|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n`
     - assistant 턴: `<|im_start|>assistant\n{content}<|im_end|>\n`
 - 멀티턴 SSOT(3+3) 전략

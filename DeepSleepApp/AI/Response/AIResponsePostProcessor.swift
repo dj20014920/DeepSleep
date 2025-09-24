@@ -53,7 +53,22 @@ public enum AIResponsePostProcessor {
         }
         if s != beforeSpeaker { reasons.append("strip_speaker_label") }
 
-        // 3) Final trim
+        // 3) Strip leaked chat-template markers (Qwen/Gemma style)
+        // Remove any occurrences to avoid leaking prompt delimiters into UI
+        let templateMarkers: [String] = [
+            "<|im_start|>assistant",
+            "<|im_start|>user",
+            "<|im_start|>",
+            "<|im_end|>",
+            "<start_of_turn>user",
+            "<start_of_turn>model",
+            "<end_of_turn>"
+        ]
+        var beforeTemplates = s
+        for m in templateMarkers { s = s.replacingOccurrences(of: m, with: "") }
+        if s != beforeTemplates { reasons.append("strip_template_markers") }
+
+        // 4) Final trim
         let beforeTrim = s
         s = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if s != beforeTrim { reasons.append("trim_whitespace") }

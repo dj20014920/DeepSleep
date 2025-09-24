@@ -374,7 +374,7 @@
 // MARK: - 개발 가이드(요약)
 //
 // 1) App Store Connect에서 Apple-hosted Background Assets로 팩 생성(3개):
-//    - pack.model.gemma270.q8 → amoral-gemma3-1B-v2-Q4_K_M.gguf (~769MB)
+//    - pack.model.amoral.gemma1b.v2.q4km → amoral-gemma3-1B-v2-Q4_K_M.gguf (~769MB)
 //    - pack.model.qwen05b.q4 → hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (~412MB)
 //    - pack.model.gemma1b.iq4 → gemma-3-1b-it-q4_0.gguf (~957MB)
 //

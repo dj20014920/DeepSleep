@@ -1,5 +1,45 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
+## 2025-09-24 동기화: 온디바이스 템플릿/스톱 규약 및 UI 이름 정렬
+
+본 섹션은 iOS 온디바이스 모델 실행 흐름과 서버/문서 간 표시명/로그의 일관성 유지를 위해 추가되었습니다. 모델 템플릿/스톱 시퀀스, 카드 UI 표기, 로그 라벨 기준을 단일 진실(SSOT: ModelCatalog/OnDevicePromptProfile)에 맞춰 정리합니다.
+
+- 온디바이스 모델 패밀리(SSOT: ModelCatalog 기준)
+  - HyperCLOVA X Seed 0.5B Instruct
+    - Q4_K_M: hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    - Q8_0: hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+  - Gemma 3 1B IT
+    - Q4_0: gemma-3-1b-it-q4_0.gguf
+  - Amoral Gemma 3 1B v2
+    - Q4_K_M: amoral-gemma3-1B-v2-Q4_K_M.gguf
+
+- 템플릿/스톱 시퀀스(SSOT: OnDevicePromptProfile)
+  - Gemma 스타일
+    - user: "<start_of_turn>user\n{content}<end_of_turn>\n"
+    - assistant: "<start_of_turn>model\n{content}<end_of_turn>\n"
+    - stop: ["<end_of_turn>", "<start_of_turn>user"]
+  - Qwen/HyperCLOVA 스타일
+    - user: "<|im_start|>user\n{content}<|im_end|>\n"
+    - assistant: "<|im_start|>assistant\n{content}<|im_end|>\n"
+    - stop: ["<|im_end|>", "<|im_start|>user", "<|endofturn|>", "<|stop|>"]
+
+- 샘플링/추론 파라미터 가이드(온디바이스 권장 기본)
+  - HyperCLOVA 0.5B 계열(Q4_K_M / Q8_0): temperature 0.7, topK 40, topP 0.90, threads 4, gpuLayers -1(가능 시), 엔진 지원 시 repetition_penalty 1.2 권장
+  - Gemma 3 1B / Amoral Gemma 1B: temperature 0.8–1.0(기본 0.8), topK 64, topP 0.95, threads 4, gpuLayers -1(가능 시)
+  - 컨텍스트 길이: 2048 기본(안정), 기기 여유/품질 필요 시 3072–4096까지 선택 적용
+  - 시스템 프롬프트: 모델 템플릿과 별도로 안전 주입(앱이 내장 템플릿과 병행 처리)
+
+- UI 버블 카드/로그 라벨 일치화
+  - 카드 타이틀/서브타이틀: ModelCatalog.record.displayName과 approxBytes로 표기(예: "Gemma 3 1B (Q4_0)" / "온디바이스 • 957MB")
+  - 다운로드 진행 로그: 모델 ID(raw) 대신 displayName으로 출력(예: "📈 [Adapter] Gemma 3 1B (Q4_0) 25%")
+  - 진행률 라벨: 파일명 대신 카탈로그 표시명을 우선 사용, 파일명은 디버그용 부표기로만 사용
+
+- Presign/CDN 정합성(변경 없음)
+  - Presign: 200 JSON {url} 또는 302/303/307/308 Location 허용
+  - CDN Base: https://cdn.emozleep.space/models
+  - 4개 GGUF가 모두 200 응답 및 sha256(ModelCatalog) 일치해야 정상
+
+
 최종 업데이트: 2025-09-12
 
 ## 2025-09-12 동기화: 스트리밍 롤아웃 · Gemini 캐시 SSOT · Auth LRU

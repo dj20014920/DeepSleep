@@ -125,13 +125,23 @@ final class MemoryOptimizationManager: ObservableObject, MemoryOptimizationProto
 
     private func evaluateMemoryPressure(usage: UInt64) {
         let usageMB = Double(usage) / (1024 * 1024)
+        let totalBytes = Double(ProcessInfo.processInfo.physicalMemory)
+        let ratio = totalBytes > 0 ? (Double(usage) / totalBytes) : 0.0
+
+        // 동적 임계값: 물리 메모리 대비 비율 + 절대 상한(시뮬레이터/개발기 환경 편차 보정)
+        // - medium: >50% 또는 >700MB
+        // - high:   >65% 또는 >1000MB
+        // - critical: >80% 또는 >1400MB
+        let isCritical = (ratio > 0.80) || (usageMB > 1400)
+        let isHigh = (ratio > 0.65) || (usageMB > 1000)
+        let isMedium = (ratio > 0.50) || (usageMB > 700)
 
         let newPressureLevel: MemoryPressureLevel
-        if usageMB > 500 {
+        if isCritical {
             newPressureLevel = .critical
-        } else if usageMB > 300 {
+        } else if isHigh {
             newPressureLevel = .high
-        } else if usageMB > 200 {
+        } else if isMedium {
             newPressureLevel = .medium
         } else {
             newPressureLevel = .normal

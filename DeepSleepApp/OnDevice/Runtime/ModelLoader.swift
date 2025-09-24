@@ -815,7 +815,9 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         }()
         // Gemma는 system 역할을 지원하지 않으므로 system 지시는 초기 user 입력에 내재화한다.
         // activeModelID는 상위 로더가 설정하며 여기서 분기 처리한다.
-        let isGemma = (self.activeModelID == .gemma270_q8) || (self.activeModelID == .gemma1b_iq4xs)
+        let isGemma =
+            (self.activeModelID == .amoral_gemma1b_v2_q4km)
+            || (self.activeModelID == .gemma1b_iq4xs)
         let sys: String? = isGemma ? nil : sysOriginal
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
@@ -837,6 +839,8 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         try await withTaskCancellationHandler {
             // 취소 시점: 엔진이 내부 루프에서 Task.isCancelled 확인해야 즉시 중단 가능
         } operation: {
+            // 전달된 stops를 바인딩에 주입하여 템플릿 종료 토큰에서 즉시 중단/트리밍
+            (eng as? LlamaCppBindingImpl)?.setStopLiterals(params.stops ?? [])
             try eng.generate(
                 input: effectiveInput,
                 system: sys,
@@ -868,7 +872,9 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
             }
             return SystemPrompts.empathyKR
         }()
-        let isGemma = (self.activeModelID == .gemma270_q8) || (self.activeModelID == .gemma1b_iq4xs)
+        let isGemma =
+            (self.activeModelID == .amoral_gemma1b_v2_q4km)
+            || (self.activeModelID == .gemma1b_iq4xs)
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 
@@ -886,6 +892,8 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         try Task.checkCancellation()
         try await withTaskCancellationHandler {
         } operation: {
+            // 전달된 stops를 바인딩에 주입하여 템플릿 종료 토큰에서 즉시 중단/트리밍
+            (eng as? LlamaCppBindingImpl)?.setStopLiterals(params.stops ?? [])
             try eng.generateResuming(
                 input: effectiveInput,
                 startPos: startPos,
@@ -996,4 +1004,4 @@ extension LlamaModelLoader: KVPromptCache.LlamaSessionIO {
 // - 0.5B/1B: temp=0.7~0.9, top_k=64, top_p=0.95
 // - 시스템 프롬프트: SystemPrompts.empathyKR 고정 사용(상황에 따라 호출자가 대체 가능)
 //
-// 실패/발열/지연>4s 연속: 상위 FallbackPolicy 로직으로 270M/0.5B/1B/클라우드 순 전환
+// 실패/발열/지연>4s 연속: 상위 FallbackPolicy 로직으로 0.5B(Q4_K_M) → 0.5B(Q8_0) → 1B(Q4_0) → 1B(Q4_K_M v2) 순 전환 (ModelCatalog.fallbackOrder)
