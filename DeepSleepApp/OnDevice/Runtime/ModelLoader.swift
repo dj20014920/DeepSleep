@@ -992,7 +992,7 @@ extension LlamaModelLoader: KVPromptCache.LlamaSessionIO {
 // MARK: - 문서 메모
 // iPhone 12(A14, 4GB) 권장 시작값:
 // - context=2048, threads=4, ngl=max(가능하면 모든 레이어 메탈), emb-hbm=auto
-// - 270M: temp=1.0, top_k=64, top_p=0.95
+// - Amoral Gemma 1B(Q4_K_M): temp=0.8~1.0, top_k=64, top_p=0.95
 // - 0.5B/1B: temp=0.7~0.9, top_k=64, top_p=0.95
 // - 시스템 프롬프트: SystemPrompts.empathyKR 고정 사용(상황에 따라 호출자가 대체 가능)
 //

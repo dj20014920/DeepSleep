@@ -135,7 +135,7 @@
 - 원칙(SSOT): 접두부는 한 번만 평가(system + 최근 3+3 프리필 저장), 이후에는 “현재 user 턴”만 템플릿으로 이어서 resume.
 - 적용 범위:
   - Apple FM(iOS 26+): 세션 풀로 동일 효과(접두부 재평가 제거). 호출 시 user만 추가(one-chunk/재사용).
-  - llama.cpp(Gemma 270M/1B, Qwen 0.5B): KVPromptCache로 system + recent(3+3) 프리필→save, 다음 턴은 user-only resume.
+  - llama.cpp(Gemma 1B, HyperCLOVA 0.5B): KVPromptCache로 system + recent(3+3) 프리필→save, 다음 턴은 user-only resume.
 - 템플릿 직렬화(모델별 SSOT):
   - Gemma 3: <start_of_turn>user … <end_of_turn> / <start_of_turn>model … (system은 user 내재화)
   - Qwen2.5: <|im_start|>user … <|im_end|> / <|im_start|>assistant … <|im_end|>
@@ -144,7 +144,7 @@
   - Qwen: ["<|im_end|>", "<|im_start|>user"]
   - Apple FM: SDK 종료 조건 기반, 템플릿 토큰/헤더 출력 금지
 - 샘플링 권장값(소형 모델 안정화)
-  - Gemma 270M (Q8_0): temp=1.0, topK=64, topP=0.95
+  - Amoral Gemma 1B (Q8_0): temp=1.0, topK=64, topP=0.95
   - Gemma 1B (IQ4_XS): temp=0.8, topK=64, topP=0.95
   - Qwen2.5 0.5B (Q4_K_M): temp=0.7, topK=40, topP=0.90
 - 응답 길이 정책
@@ -794,8 +794,12 @@ $1
 - 엔드포인트: https://emozleep-presign.vinny4920-081.workers.dev/presign
 - 계약: GET /presign?file=<파일명.gguf> → 200 JSON {url} 또는 302 Location
 - CDN 기본: https://cdn.emozleep.space/models
+- 배포 상태: wrangler 배포 완료(운영 URL 동작 확인)
+- 인증(선택): PRESIGN_TOKEN 설정 시 Bearer 인증 필요
 - 앱 연동(AppDelegate): 런치/백그라운드 재진입 시 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
 - 레포 위치: scripts/emozleep-presign-worker/{wrangler.toml, src/index.ts}
+- 테스트 예시:
+  - curl 'https://emozleep-presign.vinny4920-081.workers.dev/presign?file=hyperclovax-seed-text-instruct-0.5b-q8_0.gguf'
 
 ### UI/UX 및 흐름 반영
 - AIModelSelectionViewController: 4개 모델 선택/설치/활성화, 라벨/용량은 카탈로그 메타에서 자동 구성
@@ -807,6 +811,8 @@ $1
 
 ### 운영/QA 체크리스트
 - presign 실패 시 CDN 폴백 확인
+- presign 200(JSON)과 302(redirect) 두 경로 모두 수용되는지 검증
 - 4개 파일 모두 CDN에 배치 및 sha256 일치 확인
+- 앱 런치 시 카탈로그 외 .gguf 자동 정리(purgeObsoleteInstalledFiles) 확인
 - 선택 모델로 모든 모드에서 on-device 경로 우선 동작 확인(provider=llama.cpp)
 - 2턴 이후 TTI 하락(캐시 히트) 로그 확인

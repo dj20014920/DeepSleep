@@ -338,36 +338,19 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
         // 모델별 채팅 템플릿에 맞춰 사용자 턴을 구성 (resume 안전 버전)
         let formatUserTurn: (String) -> String = { user in
-            switch id {
-            case .gemma270_q8, .gemma1b_iq4xs:
-                return "<start_of_turn>user\n\(user)<end_of_turn>\n<start_of_turn>model\n"
-            case .qwen05b_q4km, .hcx05b_q8_0:
-                return "<|im_start|>user\n\(user)<|im_end|>\n<|im_start|>assistant\n"
-            }
+            OnDevicePromptProfile.PromptFormatter.formatUserTurn(user, for: id)
         }
         let rec = ModelCatalog.record(for: id)
         var params = config.params ?? rec.recommended
         // 모델별 stop 시퀀스 기본값(템플릿 에코 억제)
         if params.stops == nil {
-            switch id {
-            case .gemma270_q8, .gemma1b_iq4xs:
-                params.stops = ["<end_of_turn>", "<start_of_turn>user"]
-            case .qwen05b_q4km, .hcx05b_q8_0:
-                params.stops = ["<|im_end|>", "<|im_start|>user"]
-            }
+            params.stops = OnDevicePromptProfile.stopSequences(for: id)
         }
         // 강제 비메탈 토글 시 GPU 레이어 비활성화, 아니면 기본 -1(가능 시 전체 오프로딩)
-        if ConfigReader.bool("ONDEVICE_DISABLE_METAL", default: false) ?? false {
-            params.gpuLayers = 0
-        } else if params.gpuLayers == nil {
-            params.gpuLayers = -1
-        }
-        // 모델별 보수 샘플링(소형 모델 안정화)
-        if id == .qwen05b_q4km {
-            params.temperature = 0.7
-            params.topK = 40
-            params.topP = 0.90
-        }
+        // 메탈 오프로딩/보수 샘플링(SSOT)
+        let disableMetal = ConfigReader.bool("ONDEVICE_DISABLE_METAL", default: false) ?? false
+        OnDevicePromptProfile.SamplingTuning.applyMetalOverride(into: &params, disableMetal: disableMetal)
+        OnDevicePromptProfile.SamplingTuning.applyConservativeDefaults(for: id, into: &params)
         // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
         // Gemma는 system 역할 미지원: system 지시는 초기 user 입력에 내재화
         let systemOriginal: String = {
@@ -384,24 +367,14 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 최근 3+3 직렬화(모델별 템플릿) — SSOT
         let recentSerialized: String = {
             guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
-            switch id {
-            case .gemma270_q8, .gemma1b_iq4xs:
-                return msgs.compactMap { m in
-                    switch m.role {
-                    case .user: return "<start_of_turn>user\n\(m.content)<end_of_turn>\n"
-                    case .assistant: return "<start_of_turn>model\n\(m.content)<end_of_turn>\n"
-                    default: return nil
-                    }
-                }.joined()
-            case .qwen05b_q4km:
-                return msgs.compactMap { m in
-                    switch m.role {
-                    case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"
-                    case .assistant: return "<|im_start|>assistant\n\(m.content)<|im_end|>\n"
-                    default: return nil
-                    }
-                }.joined()
+            let pairs: [(OnDevicePromptProfile.PromptRole, String)] = msgs.compactMap { m in
+                switch m.role {
+                case .user: return (.user, m.content)
+                case .assistant: return (.assistant, m.content)
+                default: return nil
+                }
             }
+            return OnDevicePromptProfile.PromptFormatter.serializeRecent(pairs, for: id)
         }()
         // 3) 스트리밍 생성(TTI 측정)
         let started = Date()
@@ -472,7 +445,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                     default: return nil
                                     }
                                 }.joined()
-                            case .qwen05b_q4km:
+                            case .qwen05b_q4km, .hcx05b_q8_0:
                                 return msgs.compactMap { m in
                                     switch m.role {
                                     case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"

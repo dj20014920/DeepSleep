@@ -184,6 +184,7 @@ public enum ModelCatalog {
 
     // 비용/성능/한국어 가중 순 후보(좌→우)
     public static var fallbackOrder: [OnDeviceModelID] {
+        // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → Gemma 1B(Q4_0) → Amoral Gemma 1B(Q4_K_M)
         return [.qwen05b_q4km, .hcx05b_q8_0, .gemma1b_iq4xs, .gemma270_q8]
     }
 
@@ -392,9 +393,11 @@ public struct FallbackPolicy {
     public func nextCandidate(from current: OnDeviceModelID, cause: String) -> OnDeviceModelID? {
         switch current {
         case .gemma1b_iq4xs:
-            // 무거운 모델에서 문제가 생기면 0.5B → 270M 순으로
+            // 무거운 모델에서 문제가 생기면 0.5B 계열로 우선 전환
             return .qwen05b_q4km
         case .qwen05b_q4km:
+            return .hcx05b_q8_0
+        case .hcx05b_q8_0:
             return .gemma270_q8
         case .gemma270_q8:
             // 더 낮출 수 없음 → 클라우드로(호출 측에서 처리)

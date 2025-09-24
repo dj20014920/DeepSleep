@@ -161,7 +161,7 @@ let response = try await aiService.sendMessage(
   - Gemma: ["<end_of_turn>", "<start_of_turn>user"]
   - Qwen: ["<|im_end|>", "<|im_start|>user"]
 - 샘플링 권장
-  - Gemma 270M: temp=1.0, topK=64, topP=0.95
+  - Amoral Gemma 1B (Q4_K_M): temp=1.0, topK=64, topP=0.95
   - Gemma 1B: temp=0.8, topK=64, topP=0.95
   - Qwen 0.5B: temp=0.7, topK=40, topP=0.90
 - 응답 길이: ONDEVICE_MAX_TOKENS 기본 128로 시작(길면 이어가기)

@@ -192,6 +192,7 @@
 		E09CD6EE2E4B0D93007C133E /* SessionDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */; };
 		E09CD6EF2E4B0D93007C133E /* CoreDataEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6EA2E4B0D93007C133E /* CoreDataEntities.swift */; };
 		E0A1B2C42E8A000100000002 /* RemoteAssetClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A1B2C32E8A000100000001 /* RemoteAssetClient.swift */; };
+		E0A53DF52E83A52E002F4008 /* OnDevicePromptProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A53DF42E83A52E002F4008 /* OnDevicePromptProfile.swift */; };
 		E0A644FC2E72B4C7004A7958 /* Paywall.strings in Resources */ = {isa = PBXBuildFile; fileRef = E0A644FA2E72B4C7004A7958 /* Paywall.strings */; };
 		E0A645002E72B4D0004A7958 /* Paywall.strings in Resources */ = {isa = PBXBuildFile; fileRef = E0A644FE2E72B4D0004A7958 /* Paywall.strings */; };
 		E0A6450E2E72B51F004A7958 /* AppVersionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A6450D2E72B51F004A7958 /* AppVersionInfo.swift */; };
@@ -473,6 +474,7 @@
 		E09CD6EB2E4B0D93007C133E /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		E09CD6EC2E4B0D93007C133E /* SessionDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDataModels.swift; sourceTree = "<group>"; };
 		E0A1B2C32E8A000100000001 /* RemoteAssetClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemoteAssetClient.swift; path = DeepSleepApp/OnDevice/Networking/RemoteAssetClient.swift; sourceTree = SOURCE_ROOT; };
+		E0A53DF42E83A52E002F4008 /* OnDevicePromptProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDevicePromptProfile.swift; sourceTree = "<group>"; };
 		E0A644F82E72B3FF004A7958 /* SUB_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SUB_GUIDE.md; sourceTree = "<group>"; };
 		E0A644F92E72B4C7004A7958 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Paywall.strings; sourceTree = "<group>"; };
 		E0A644FD2E72B4D0004A7958 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = Paywall.strings; sourceTree = "<group>"; };
@@ -610,6 +612,7 @@
 		E052033C2E77D1240073BBF4 /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
+				E0A53DF42E83A52E002F4008 /* OnDevicePromptProfile.swift */,
 				E0C833D52E829A0100E8DAFE /* AppleFMPromptNormalizer.swift */,
 				E0C833D62E829A0100E8DAFE /* AppleFMSessionPool.swift */,
 				E0C833D32E827D0100E8DAFE /* AppleFMCache.swift */,
@@ -1414,6 +1417,7 @@
 				E0B562632E6BFE9600D334F1 /* LoadingOverlay.swift in Sources */,
 				E084F1EA2E33ACB3002F75E6 /* EmotionInputViewController.swift in Sources */,
 				E0AAA0022E60000000ABCDEF /* EmotionAnalyzer.swift in Sources */,
+				E0A53DF52E83A52E002F4008 /* OnDevicePromptProfile.swift in Sources */,
 				E0E7BCDB2E56E43600FF7073 /* SubscriptionUIMessageFormatter.swift in Sources */,
 				E084F1EB2E33ACB3002F75E6 /* SoundManager.swift in Sources */,
 				E084F1EC2E33ACB3002F75E6 /* FeedbackVisualizationCharts.swift in Sources */,

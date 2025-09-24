@@ -59,7 +59,8 @@ class AIModelSelectionViewController: UIViewController {
             let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
             let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-            let installing = [s1, s2, s3].contains { state in
+            let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+            let installing = [s1, s2, s3, s4].contains { state in
                 if case .installing = state { return true } else { return false }
             }
             if !installing {
@@ -296,11 +297,9 @@ class AIModelSelectionViewController: UIViewController {
             })
         }
 
-        // 카탈로그 순서대로 버튼 추가
-        addAction(for: .qwen05b_q4km)
-        addAction(for: .hcx05b_q8_0)
-        addAction(for: .gemma1b_iq4xs)
-        addAction(for: .gemma270_q8)
+        // 용량(approxBytes) 오름차순으로 버튼 추가 (SSOT)
+        let sorted = ModelCatalog.all().sorted { $0.approxBytes < $1.approxBytes }
+        for rec in sorted { addAction(for: rec.id) }
 
         alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
 
@@ -373,7 +372,8 @@ class AIModelSelectionViewController: UIViewController {
                 let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
                 let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
                 let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-                let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3)
+                let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+                let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
                 DispatchQueue.main.async {
                     card.updateOnDeviceProgress(entries: entries)
                 }
@@ -466,7 +466,8 @@ class AIModelSelectionViewController: UIViewController {
             let s1 = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
             let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-            let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3)
+            let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+            let entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
             DispatchQueue.main.async {
                 card.updateOnDeviceProgress(entries: entries)
             }
@@ -491,7 +492,8 @@ class AIModelSelectionViewController: UIViewController {
     private func buildOnDeviceProgressEntries(
         s1: BackgroundAssetState,
         s2: BackgroundAssetState,
-        s3: BackgroundAssetState
+        s3: BackgroundAssetState,
+        s4: BackgroundAssetState
     ) -> [(String, Double, OnDeviceModelID)] {
         var entries: [(String, Double, OnDeviceModelID)] = []
         let r1 = ModelCatalog.record(for: .gemma270_q8)
@@ -508,7 +510,6 @@ class AIModelSelectionViewController: UIViewController {
         if case .installing(let p) = s3 {
             entries.append(("\(r3.displayName) \(humanSize(r3.approxBytes))", p, .gemma1b_iq4xs))
         }
-        let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
         if case .installing(let p) = s4 {
             entries.append(("\(r4.displayName) \(humanSize(r4.approxBytes))", p, .hcx05b_q8_0))
         }
