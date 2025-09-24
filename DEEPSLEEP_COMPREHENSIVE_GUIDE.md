@@ -177,3 +177,20 @@
   - 외부 모델 강제 선택(프리셋 추천 등): 기존 정책대로 프록시 로그가 정상 노출.
 - 운영/UX 메모:
   - 라이트한 인사말은 후처리에서 제거하지 않음. 코드펜스/화자 라벨만 정리(필터링 정책 유지).
+
+### 🆕 2025-09-24 동기화(2): 온디바이스 모델 4종·프리사인 서버·UI 반영
+- 모델(SSOT: ModelCatalog)
+  - Gemma 3 1B Q4_K_M v2 (amoral-gemma3-1B-v2-Q4_K_M.gguf)
+  - HyperCLOVA X Seed 0.5B Q4_K_M (hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf)
+  - Gemma 3 1B Q4_0 (gemma-3-1b-it-q4_0.gguf)
+  - HyperCLOVA X Seed 0.5B Q8_0 (hyperclovax-seed-text-instruct-0.5b-q8_0.gguf)
+- 기본/폴백: 기본=0.5B Q4_K_M → Q8_0 → 1B Q4_0 → 1B Q4_K_M v2
+- 서버: Cloudflare Worker presign → CDN 폴백
+  - GET /presign?file=<파일명.gguf> → 200 {url} or 302 Location
+  - wrangler 배포(레포: scripts/emozleep-presign-worker)
+- UI/UX
+  - 선택 모달: 4종 모델 선택/설치/활성화, 라벨/용량은 카탈로그 참조
+  - 설정 인라인 매니저: 전체 취소/개별 삭제, 기본 대상은 defaultModelID
+- 성능/품질
+  - KV 프리필/레주메 유지(2턴부터 TTI↓)
+  - 템플릿/STOP SSOT: Gemma vs Qwen 계열 분리 유지

@@ -763,3 +763,18 @@ switch(provider){
   - 서버 슬롯 관리와 프롬프트 캐시(cache_prompt=true) 활용은 "서버 모드"에 국한. 온디바이스 경로에는 적용하지 않는다.
   - 서버 모드에서 cache_prompt=true 사용 시, 서버 내 프리픽스 캐시와 프록시 캐시의 상호작용을 관찰하고 과도한 중복 캐싱을 피한다.
   - 운영 시 혼동 방지를 위해 클라이언트 로그/헤더로 경로(프록시/온디바이스)를 명시적으로 구분한다.
+
+## 2025-09-24 동기화: Presign Worker → CDN 폴백 (온디바이스 모델 교체)
+- 목적: 앱이 모델 다운로드 시 presign URL을 우선 사용하고, 실패 시 CDN 고정 경로로 안전 폴백
+- 엔드포인트: https://emozleep-presign.vinny4920-081.workers.dev/presign
+- 규약: GET /presign?file=<filename.gguf>
+  - 200 JSON {"url":"https://cdn.emozleep.space/models/<filename.gguf>"}
+  - 또는 302/303/307/308 Location: https://cdn.emozleep.space/models/<filename.gguf>
+- 환경변수: CDN_BASE, (선택) PRESIGN_TOKEN
+- 배포: scripts/emozleep-presign-worker/ (wrangler, index.ts, README)
+- 앱 연동: AppDelegate에서 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
+- 모델 파일(SSOT)
+  - amoral-gemma3-1B-v2-Q4_K_M.gguf
+  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+  - gemma-3-1b-it-q4_0.gguf
+  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf

@@ -775,3 +775,38 @@ $1
 <start_of_turn>model` 포맷을 따른다.
 - KV 프리필/레주밍 시에도 동일 정책을 유지하고, 레주밍 입력은 “user 턴 + model 시작 큐” 형태로 구성한다.
 - 스톱 토큰은 `<end_of_turn>` 외, `<start_of_turn>` 등장 시에도 종료하는 가드 로직을 둔다.
+
+
+## 2025-09-24 동기화: 온디바이스 모델 전면 교체 + 프리사인 서버 배포(Cloudflare)
+
+### 개요
+- 온디바이스 모델 4종으로 교체(SSOT: ModelCatalog)
+  - amoral-gemma3-1B-v2-Q4_K_M.gguf (Gemma 3 1B, Q4_K_M v2) — sha256=97862025…
+  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (HyperCLOVA X Seed 0.5B, Q4_K_M) — sha256=4b6422a2…
+  - gemma-3-1b-it-q4_0.gguf (Gemma 3 1B, Q4_0) — sha256=95e5b8d8…
+  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf (HyperCLOVA X Seed 0.5B, Q8_0) — sha256=9c9f76a8…
+- 기본(default) 모델: HyperCLOVA 0.5B Q4_K_M
+- 폴백 순서: 0.5B Q4_K_M → 0.5B Q8_0 → 1B Q4_0 → 1B Q4_K_M v2
+- 템플릿/STOP SSOT: Gemma(SoT/stop=<end_of_turn>,<start_of_turn>user), Qwen 계열(SoT/stop=<|im_end|>,<|im_start|>user)
+- BA(Background Assets) 제외: HTTP(S) 다운로더(RemoteAssetClient)만 사용, presign 우선 → CDN 폴백, 설치 후 sha256 무결성 확인
+
+### 서버(Cloudflare Worker) 배포 및 연동
+- 엔드포인트: https://emozleep-presign.vinny4920-081.workers.dev/presign
+- 계약: GET /presign?file=<파일명.gguf> → 200 JSON {url} 또는 302 Location
+- CDN 기본: https://cdn.emozleep.space/models
+- 앱 연동(AppDelegate): 런치/백그라운드 재진입 시 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
+- 레포 위치: scripts/emozleep-presign-worker/{wrangler.toml, src/index.ts}
+
+### UI/UX 및 흐름 반영
+- AIModelSelectionViewController: 4개 모델 선택/설치/활성화, 라벨/용량은 카탈로그 메타에서 자동 구성
+- AIModelSettingsView: 인라인 설치 매니저에서 전체 취소/개별 삭제 지원. 기본 설치 대상은 ModelCatalog.defaultModelID
+
+### 멀티턴/성능
+- SSOT 멀티턴(3+3) + KV 프리필/레주메 유지: 2턴부터 TTI 감소
+- 모델별 보수 샘플링 유지(Qwen 0.5B temp=0.7, topK=40, topP=0.90)
+
+### 운영/QA 체크리스트
+- presign 실패 시 CDN 폴백 확인
+- 4개 파일 모두 CDN에 배치 및 sha256 일치 확인
+- 선택 모델로 모든 모드에서 on-device 경로 우선 동작 확인(provider=llama.cpp)
+- 2턴 이후 TTI 하락(캐시 히트) 로그 확인
