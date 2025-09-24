@@ -35,6 +35,9 @@ public actor KVPromptCache {
         func loadState(_ data: Data) throws
         /// 시스템 프롬프트만 프리필(토큰화+디코드). 반환: 누적 토큰 수(프리픽스 길이)
         func prefillSystem(_ system: String) throws -> Int
+        /// 임의의 접두 텍스트(이미 템플릿으로 직렬화된 recent 3+3 등)를 프리필
+        /// - 반환: 누적 토큰 수 증가분(해당 텍스트 토큰 길이)
+        func prefillText(_ text: String) throws -> Int
     }
 
     /// 캐시 엔트리 메타데이터

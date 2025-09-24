@@ -152,6 +152,21 @@ let response = try await aiService.sendMessage(
 
 자세한 내용은 [Services/README.md](Services/README.md)를 참조하세요.
 
+## 🆕 온디바이스 SSOT 멀티턴(3+3) 개요
+- 공통 원칙: 접두부(system + 최근 3+3)는 한 번만 평가(KV/세션 저장), 이후에는 현재 user만 템플릿으로 이어서 resume.
+- 모델별 템플릿(요지)
+  - Gemma 3: <start_of_turn>user … <end_of_turn> / <start_of_turn>model … <end_of_turn>
+  - Qwen2.5: <|im_start|>user … <|im_end|> / <|im_start|>assistant … <|im_end|>
+- stop 시퀀스(누출 방지)
+  - Gemma: ["<end_of_turn>", "<start_of_turn>user"]
+  - Qwen: ["<|im_end|>", "<|im_start|>user"]
+- 샘플링 권장
+  - Gemma 270M: temp=1.0, topK=64, topP=0.95
+  - Gemma 1B: temp=0.8, topK=64, topP=0.95
+  - Qwen 0.5B: temp=0.7, topK=40, topP=0.90
+- 응답 길이: ONDEVICE_MAX_TOKENS 기본 128로 시작(길면 이어가기)
+- 정책: 사용자 선택 모델 고정, 최근 3+3은 역할 기반 메시지로 전달(헤더 금지, 템플릿만 사용)
+
 ## 🧪 테스트
 
 ### Local build/test smoke

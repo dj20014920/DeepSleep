@@ -128,8 +128,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     var diaryEntries: [EmotionDiary] = []
     var diaryDataForCalendar: [String: EmotionDiary] = [:]
 
-    // MARK: - CoreData
-    var container: NSPersistentContainer!
+    // MARK: - CoreData (SSOT: CoreDataStack.shared 사용)
+    var container: NSPersistentContainer = CoreDataStack.shared.persistentContainer
 
     // ✅ 인사이트 페이지네이션 상태
     private var loadedAnalyses: [SettingsManager.DiaryAnalysisRecord] = []
@@ -143,18 +143,8 @@ class EmotionCalendarViewController: UIViewController, UICollectionViewDataSourc
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // AppDelegate 타입 안전한 접근으로 수정
-        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
-            self.container = appDelegate.persistentContainer
-        } else {
-            // Fallback: 새로운 컨테이너 생성
-            container = NSPersistentContainer(name: "DeepSleep")
-            container.loadPersistentStores { _, error in
-                if let error = error {
-                    print("❌ Core Data 오류: \(error)")
-                }
-            }
-        }
+        // SSOT: CoreDataStack.shared를 사용하여 단일 컨테이너로 고정
+        self.container = CoreDataStack.shared.persistentContainer
 
         // UI setup
         view.backgroundColor = .systemBackground

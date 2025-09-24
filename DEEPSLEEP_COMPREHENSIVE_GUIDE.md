@@ -2,6 +2,31 @@
 
 ### 🆕 2025-09-24 업데이트: 캐시/세션 풀/운영 키/모니터링
 
+#### 🆕 온디바이스 입력 포맷/STOP/샘플링 동기화
+- 입력 포맷(템플릿만 사용, 마크다운 헤더 금지)
+  - Gemma 3:
+    - user 턴: `<start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\n`
+    - assistant 턴: `<start_of_turn>model\n{content}<end_of_turn>\n`
+  - Qwen2.5:
+    - user 턴: `<|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n`
+    - assistant 턴: `<|im_start|>assistant\n{content}<|im_end|>\n`
+- 멀티턴 SSOT(3+3) 전략
+  - 1턴: `system + recent(3+3)` 프리필 후 KV 저장(SAVE), nPrefixTokens 기록
+  - 2턴+: KV 복원(RESTORE) → 현재 user만 템플릿으로 이어서 resume
+  - Apple FM(iOS 26+): 세션 풀 재사용으로 동일 효과(매 턴 user만 추가)
+- STOP/flush 규칙
+  - Gemma: stops `["<end_of_turn>", "<start_of_turn>user"]`
+  - Qwen: stops `["<|im_end|>", "<|im_start|>user"]`
+  - 내부 누적 버퍼에서 stop 검출 후 안전 부분만 flush, stop 리터럴 누출 금지
+- 샘플링 권장(소형 모델 안정화)
+  - Gemma 270M (Q8_0): temp=1.0, topK=64, topP=0.95
+  - Gemma 1B (IQ4_XS): temp=0.8, topK=64, topP=0.95
+  - Qwen2.5 0.5B (Q4_K_M): temp=0.7, topK=40, topP=0.90
+- 응답 길이
+  - `ONDEVICE_MAX_TOKENS` 기본 128로 시작, 길면 이어가기
+- 정책
+  - 사용자 선택 모델 고정(추천 기본모델 제거), 최근 3+3은 역할 기반 메시지로 전달
+
 본 섹션은 캐시 백엔드/세션 풀 전환 상황에서 상용 운영을 위한 통합 대상, 설정 키, 모니터링, QA 가이드를 정리합니다.
 
 - HyperCacheBackend 통합 대상(코드베이스 탐색 결과)

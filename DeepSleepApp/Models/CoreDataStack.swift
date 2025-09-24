@@ -13,18 +13,56 @@ public class CoreDataStack {
         // 프로그래매틱하게 모델 생성
         let managedObjectModel = createManagedObjectModel()
         let container = NSPersistentContainer(name: "DeepSleep", managedObjectModel: managedObjectModel)
-        
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                print("❌ [CoreDataStack] Core Data 초기화 실패: \(error), \(error.userInfo)")
-                // 프로덕션에서는 더 우아한 에러 처리 필요
+
+        // 저장소 위치 고정 (SSOT) 및 마이그레이션 옵션 설정
+        let storeURL: URL = {
+            let urls = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            let appSupport = urls.first ?? FileManager.default.temporaryDirectory
+            let dir = appSupport.appendingPathComponent("CoreData", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir.appendingPathComponent("DeepSleep.sqlite")
+        }()
+
+        let description = NSPersistentStoreDescription(url: storeURL)
+        description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+        description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        description.shouldAddStoreAsynchronously = false
+        container.persistentStoreDescriptions = [description]
+
+        func loadStores() {
+            container.loadPersistentStores { storeDescription, error in
+                if let error = error as NSError? {
+                    print("❌ [CoreDataStack] Core Data 초기화 실패: \(error), \(error.userInfo)")
+                    let isIncompatible = (error.domain == NSCocoaErrorDomain) && (
+                        error.code == NSPersistentStoreIncompatibleVersionHashError ||
+                        error.code == NSMigrationMissingSourceModelError ||
+                        error.code == NSPersistentStoreIncompatibleSchemaError
+                    )
+                    if isIncompatible {
+                        // 기존 저장소 제거 후 재시도 (파괴적 복구)
+                        if let url = storeDescription.url {
+                            try? container.persistentStoreCoordinator.destroyPersistentStore(at: url, ofType: NSSQLiteStoreType, options: nil)
+                            try? FileManager.default.removeItem(at: url)
+                            let shm = url.deletingPathExtension().appendingPathExtension("sqlite-shm")
+                            let wal = url.deletingPathExtension().appendingPathExtension("sqlite-wal")
+                            try? FileManager.default.removeItem(at: shm)
+                            try? FileManager.default.removeItem(at: wal)
+                            print("🧹 [CoreDataStack] 기존 비호환 저장소 제거 후 재시도")
+                            container.persistentStoreDescriptions = [description]
+                            loadStores()
+                            return
+                        }
+                    }
+                }
             }
         }
-        
+
+        loadStores()
+
         // 자동 병합 정책 설정
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        
+
         return container
     }()
     

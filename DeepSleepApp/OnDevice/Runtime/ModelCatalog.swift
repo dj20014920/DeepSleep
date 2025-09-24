@@ -26,6 +26,7 @@ public struct InferenceParams: Sendable, Equatable {
     public var topP: Double
     public var gpuLayers: Int?  // ngl (가능 시 모든 레이어 메탈)
     public var embeddingHBM: Bool?  // emb-hbm = auto/true/false (엔진별 해석)
+    public var stops: [String]?  // 출력 중단 시퀀스(모델 템플릿 에코/다음 턴 시작 토큰 방지)
 
     public init(
         context: Int = 2048,
@@ -34,7 +35,8 @@ public struct InferenceParams: Sendable, Equatable {
         topK: Int = 64,
         topP: Double = 0.95,
         gpuLayers: Int? = nil,
-        embeddingHBM: Bool? = nil
+        embeddingHBM: Bool? = nil,
+        stops: [String]? = nil
     ) {
         self.context = context
         self.threads = threads
@@ -43,6 +45,7 @@ public struct InferenceParams: Sendable, Equatable {
         self.topP = topP
         self.gpuLayers = gpuLayers
         self.embeddingHBM = embeddingHBM
+        self.stops = stops
     }
 }
 

@@ -130,6 +130,25 @@
 # AI Context Management Roadmap
 
 ## 2025-09-24 업데이트: Apple FM 캐싱 전환(응답 캐시 → 세션 풀) · SSOT · 운영 가이드
+
+### 🆕 온디바이스 멀티턴 SSOT(3+3) — 공통 전략 요약
+- 원칙(SSOT): 접두부는 한 번만 평가(system + 최근 3+3 프리필 저장), 이후에는 “현재 user 턴”만 템플릿으로 이어서 resume.
+- 적용 범위:
+  - Apple FM(iOS 26+): 세션 풀로 동일 효과(접두부 재평가 제거). 호출 시 user만 추가(one-chunk/재사용).
+  - llama.cpp(Gemma 270M/1B, Qwen 0.5B): KVPromptCache로 system + recent(3+3) 프리필→save, 다음 턴은 user-only resume.
+- 템플릿 직렬화(모델별 SSOT):
+  - Gemma 3: <start_of_turn>user … <end_of_turn> / <start_of_turn>model … (system은 user 내재화)
+  - Qwen2.5: <|im_start|>user … <|im_end|> / <|im_start|>assistant … <|im_end|>
+- stop 시퀀스(누출 방지, 공통 규칙)
+  - Gemma: ["<end_of_turn>", "<start_of_turn>user"]
+  - Qwen: ["<|im_end|>", "<|im_start|>user"]
+  - Apple FM: SDK 종료 조건 기반, 템플릿 토큰/헤더 출력 금지
+- 샘플링 권장값(소형 모델 안정화)
+  - Gemma 270M (Q8_0): temp=1.0, topK=64, topP=0.95
+  - Gemma 1B (IQ4_XS): temp=0.8, topK=64, topP=0.95
+  - Qwen2.5 0.5B (Q4_K_M): temp=0.7, topK=40, topP=0.90
+- 응답 길이 정책
+  - ONDEVICE_MAX_TOKENS 기본 128로 시작(첫 응답 빠르게). 길면 이어가기 설계로 후속 생성.
 - 목적: 기존 응답 텍스트 캐시(UserDefaults/정규화 기반)를 기본 Off로 전환하고, 업계 표준과 합치되는 세션 재사용(AppleFMSessionPool)로 지연(TTI/완료시간)을 단축.
 - 범위: Apple FM(one‑chunk) 경로에 한해 `LanguageModelSession` 재사용. KV 프리필/엔진 캐싱(예: llama.cpp용 `KVPromptCache`)은 별도 유지.
 
@@ -172,6 +191,17 @@
 - 동시 N요청에서 최초 1회만 create, 나머지 join-inflight
 - 모델 변경/응급 정리 직후 invalidateAll 로그 확인 및 이후 miss→create
 - llama.cpp 경로/KVPromptCache 영향 없음, AIContextManager(시스템 프롬프트 캐시)와 정책 충돌 없음
+- 온디바이스 멀티턴 SSOT(3+3) 프리필+레주메 동작 검증:
+  - 첫 턴: SAVE(nPrefixTokens = system + recent 토큰 수) 로그 확인
+  - 두 번째 턴: RESTORE hit + TTI 유의미 감소(30–70% 기대, 기기/모델 의존)
+- 템플릿/헤더 누출 0:
+  - `<start_of_turn>`, `<|im_end|>`, `<|im_start|>`, `"### Recent"`, `"### User"` 등 출력 금지 확인
+- stop 누출 방지:
+  - 모델별 stops가 동작해 누출 리터럴이 응답 본문에 포함되지 않음(누락 시 후처리에서 제거 없는 상태로도 안전)
+- 샘플링 안정성:
+  - Qwen은 보수 샘플링으로 이모지/과장 톤 과다 억제, Gemma는 권장값 내에서 일관 응답 품질 확인
+- 응답 길이/이어가기:
+  - ONDEVICE_MAX_TOKENS=128 동작, 긴 문맥은 이어가기 플로우로 자연 연결
 
 ### 롤백 전략
 - APPLE_FM_SESSION_POOL_ENABLED=false, APPLE_FM_RESPONSE_CACHE_ENABLED=true 임시 복귀

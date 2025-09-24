@@ -321,36 +321,27 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             return generateOptimizedSystemPrompt(for: mode, model: model)
         }()
 
-        // Role messages (system + optional history + user)
-        // Gemma는 system 미지원 → 초기 user에 지시 내재화
-        let isGemmaOnDevice: Bool =
-            (model == .onDevice)
-            && {
-                // SettingsManager.selectedLLM은 AIModelType이며, 온디바이스 내부 모델 구분은 OnDeviceAdapter.activeModelID로 판별
-                if let active = OnDeviceAdapter.shared.activeModelID {
-                    switch active {
-                    case .gemma270_q8, .gemma1b_iq4xs: return true
-                    default: return false
-                    }
-                }
-                return false
-            }()
-        var roleMessages: [RoleMessage] = []
-        if isGemmaOnDevice {
-            // system 지시를 user 입력과 합쳐 user 첫 턴으로 제공
-            roleMessages.append(RoleMessage(role: .user, content: systemPrompt + "\n\n" + content))
-        } else {
-            roleMessages.append(RoleMessage(role: .system, content: systemPrompt))
-        }
-        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
-            let recent = Array(history.suffix(16))
-            for t in recent {
-                roleMessages.append(RoleMessage(role: t.role, content: t.content, ts: t.timestamp))
+        // 3+3 최근 대화 블록 구성 (역할별 상한 적용, 시간순 정렬)
+        // NOTE: On-device(llama.cpp) 경로는 최근 3+3을 역할 메시지(recentMessages)로 전달하고,
+        // 텍스트에는 포함하지 않는다. 아래 Recent 블록은 클라우드(프록시/직결) 경로에서만 사용한다.
+        let recentBlock: String = {
+            guard let history = context?.conversationHistory, !history.isEmpty else { return "" }
+            let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
+            guard !recent.isEmpty else { return "" }
+            let lines = recent.map { turn in
+                let role =
+                    (turn.role == .assistant)
+                    ? "assistant" : (turn.role == .system ? "system" : "user")
+                return "\(role): \(turn.content)"
             }
-        }
-        if !isGemmaOnDevice {
-            roleMessages.append(RoleMessage(role: .user, content: content))
-        }
+            return "### Recent\n" + lines.joined(separator: "\n")
+        }()
+
+        let contentWithRecent: String = {
+            if model == .onDevice { return content }  // on-device는 user 텍스트만 전달
+            if recentBlock.isEmpty { return "### User\n\(content)" }
+            return recentBlock + "\n\n### User\n" + content
+        }()
 
         // Token config optimization
         let effCfg = optimizeTokenConfigForModel(
@@ -365,8 +356,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             if SettingsManager.shared.selectedLLM == .apple, AppleFMAdapter.isAvailable {
                 let t0 = Date()
                 if #available(iOS 26.0, *) {
+                    // AFM에 'Recent+User'를 합친 본문을 전달해 맥락을 확실히 반영
                     let text = try await AppleFMAdapter.generateFull(
-                        sys: systemPrompt, user: content)
+                        sys: systemPrompt, user: contentWithRecent)
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
                     let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
                     let comps = UserRulesManager.shared.personaSignatureComponents(
@@ -385,6 +377,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         history: context?.conversationHistory,
                         nickname: nickname
                     )
+                    // Console log full model response (Apple FM)
+                    print(
+                        "📝 [AIResp] provider=applefm model=onDevice chars=\(processed.count)\n\(processed)"
+                    )
                     let usage = TokenUsage(
                         promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
                     let meta = ResponseMetadata(
@@ -402,10 +398,24 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             }
             // llama.cpp on-device path (aggregate stream)
             var buffer = ""
+            // 온디바이스 SSOT: recent(3+3)은 어댑터가 템플릿 직렬화/프리필. 여기서는 역할 메시지만 전달하고, 현재 user만 텍스트로 전달
+            var roleMessages: [RoleMessage] = []
+            if let history = context?.conversationHistory, !history.isEmpty {
+                let recent = Self.selectBalancedRecent(history, userMax: 3, assistantMax: 3)
+                for turn in recent {
+                    roleMessages.append(
+                        RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp)
+                    )
+                }
+            }
             let summary = try await OnDeviceAdapter.shared.generate(
                 preferred: OnDeviceAdapter.shared.activeModelID,
                 text: content,
-                config: OnDeviceAdapter.StreamConfig(systemPrompt: systemPrompt, params: nil)
+                config: OnDeviceAdapter.StreamConfig(
+                    systemPrompt: systemPrompt,
+                    params: nil,
+                    recentMessages: roleMessages
+                )
             ) { delta in buffer += delta }
             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
             let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(buffer)
@@ -413,6 +423,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 response: sanitized,
                 history: context?.conversationHistory,
                 nickname: nickname
+            )
+            // Console log full model response (llama.cpp)
+            print(
+                "📝 [AIResp] provider=llama.cpp model=\(OnDeviceAdapter.shared.activeModelID?.rawValue ?? "unknown") ttiMs=\(summary.ttiMilliseconds) chars=\(processed.count)\n\(processed)"
             )
             let usage = TokenUsage(
                 promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
@@ -436,7 +450,23 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     let proxyURL = try resolveProxyBaseURL()
                     let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
                     let resp = try await sendViaProxy(
-                        messages: roleMessages,
+                        messages: {
+                            var roleMessages: [RoleMessage] = [
+                                RoleMessage(role: .system, content: systemPrompt)
+                            ]
+                            if let history = context?.conversationHistory, !history.isEmpty {
+                                let recent = Self.selectBalancedRecent(
+                                    history, userMax: 3, assistantMax: 3)
+                                for turn in recent {
+                                    roleMessages.append(
+                                        RoleMessage(
+                                            role: turn.role, content: turn.content,
+                                            ts: turn.timestamp))
+                                }
+                            }
+                            roleMessages.append(RoleMessage(role: .user, content: content))
+                            return roleMessages
+                        }(),
                         mode: mode,
                         preferred: model,
                         proxyURL: proxyURL,

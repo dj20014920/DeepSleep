@@ -488,28 +488,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     // MARK: - Core Data stack
 
-    lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "DeepSleep")
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                // 🚨 Phase 3: fatalError 제거 - 우아한 에러 처리
-                UnifiedLogger.shared.error(
-                    "❌ Core Data 초기화 실패: \(error.localizedDescription)", category: .coreData)
-
-                // 1. 사용자에게 알림
-                DispatchQueue.main.async {
-                    self.showCoreDataError(error)
-                }
-
-                // 2. 메모리 전용 저장소로 폴백
-                self.setupInMemoryStore(container: container)
-
-                // 3. 분석을 위한 에러 로깅
-                self.logCoreDataError(error)
-            }
-        })
-        return container
-    }()
+    // SSOT: CoreDataStack.shared 를 단일 소스로 사용하여 다중 컨테이너 혼용으로 인한 크래시를 방지
+    var persistentContainer: NSPersistentContainer {
+        return CoreDataStack.shared.persistentContainer
+    }
 
     // MARK: - Core Data Saving support
 
