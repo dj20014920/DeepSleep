@@ -689,6 +689,34 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         log.info("🧹 Unloaded on-device session")
     }
 
+    /// 설치 디렉터리에서 카탈로그에 없는 과거/불필요 모델 파일을 정리한다.
+    /// - Returns: 삭제된 파일 이름 배열
+    @discardableResult
+    public func purgeObsoleteInstalledFiles() -> [String] {
+        var removed: [String] = []
+        do {
+            guard
+                let base = FileManager.default.urls(
+                    for: .applicationSupportDirectory, in: .userDomainMask
+                ).first
+            else { return [] }
+            let dir = base.appendingPathComponent("Models", isDirectory: true)
+            let exist = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+            let keepSet = Set(ModelCatalog.all().map { $0.fileName })
+            for name in exist where name.lowercased().hasSuffix(".gguf") {
+                if !keepSet.contains(name) {
+                    let url = dir.appendingPathComponent(name, isDirectory: false)
+                    try? FileManager.default.removeItem(at: url)
+                    removed.append(name)
+                    log.info("🗑️ Purged obsolete model file: \(name)")
+                }
+            }
+        } catch {
+            log.error("⚠️ purgeObsoleteInstalledFiles error: \(error.localizedDescription)")
+        }
+        return removed
+    }
+
     /// 전환 정책(폴백/TTI/열 완화) 설정(테스트/튜닝용).
     public func setPolicy(_ newPolicy: FallbackPolicy) {
         q.sync { self.policy = newPolicy }

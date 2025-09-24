@@ -271,80 +271,35 @@ class AIModelSelectionViewController: UIViewController {
             preferredStyle: .actionSheet
         )
 
-        // 270M (경량, 빠른 TTI)
-        alert.addAction(
-            UIAlertAction(
-                title: "작은 잼민이 · 278MB", style: .default,
-                handler: { _ in
-                    Task {
-                        do {
-                            let st = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
-                            if case .installed = st {
-                                try await OnDeviceAdapter.shared.activate(id: .gemma270_q8)
-                            } else {
-                                Task.detached {
-                                    _ = try? await OnDeviceAdapter.shared.ensureInstalled(
-                                        id: .gemma270_q8)
-                                }
+        func titleFor(_ id: OnDeviceModelID) -> String {
+            let r = ModelCatalog.record(for: id)
+            let size = humanSize(r.approxBytes)
+            return "\(r.displayName) · \(size)"
+        }
+        func addAction(for id: OnDeviceModelID) {
+            alert.addAction(UIAlertAction(title: titleFor(id), style: .default) { _ in
+                Task {
+                    do {
+                        let st = await OnDeviceAdapter.shared.status(for: id)
+                        if case .installed = st {
+                            try await OnDeviceAdapter.shared.activate(id: id)
+                        } else {
+                            Task.detached {
+                                _ = try? await OnDeviceAdapter.shared.ensureInstalled(id: id)
                             }
-                            SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
-                            // 성공 토스트 제거: 완료 시 자동 활성화/전환 UX 처리
-                        } catch {
-                            ToastManager.shared.showError(
-                                message: "설치/활성화 실패: \(error.localizedDescription)")
                         }
+                        SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
+                    } catch {
+                        ToastManager.shared.showError(message: "설치/활성화 실패: \(error.localizedDescription)")
                     }
-                }))
+                }
+            })
+        }
 
-        // 0.5B (중간 체급)
-        alert.addAction(
-            UIAlertAction(
-                title: "큐앤이 · 469MB", style: .default,
-                handler: { _ in
-                    Task {
-                        do {
-                            let st = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
-                            if case .installed = st {
-                                try await OnDeviceAdapter.shared.activate(id: .qwen05b_q4km)
-                            } else {
-                                Task.detached {
-                                    _ = try? await OnDeviceAdapter.shared.ensureInstalled(
-                                        id: .qwen05b_q4km)
-                                }
-                            }
-                            SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
-                            // 성공 토스트 제거: 완료 시 자동 활성화/전환 UX 처리
-                        } catch {
-                            ToastManager.shared.showError(
-                                message: "설치/활성화 실패: \(error.localizedDescription)")
-                        }
-                    }
-                }))
-
-        // 1B (고품질)
-        alert.addAction(
-            UIAlertAction(
-                title: "큰잼민이 · 681MB", style: .default,
-                handler: { _ in
-                    Task {
-                        do {
-                            let st = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-                            if case .installed = st {
-                                try await OnDeviceAdapter.shared.activate(id: .gemma1b_iq4xs)
-                            } else {
-                                Task.detached {
-                                    _ = try? await OnDeviceAdapter.shared.ensureInstalled(
-                                        id: .gemma1b_iq4xs)
-                                }
-                            }
-                            SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
-                            // 성공 토스트 제거: 완료 시 자동 활성화/전환 UX 처리
-                        } catch {
-                            ToastManager.shared.showError(
-                                message: "설치/활성화 실패: \(error.localizedDescription)")
-                        }
-                    }
-                }))
+        // 카탈로그 순서대로 버튼 추가
+        addAction(for: .qwen05b_q4km)
+        addAction(for: .gemma1b_iq4xs)
+        addAction(for: .gemma270_q8)
 
         alert.addAction(UIAlertAction(title: "취소", style: .cancel, handler: nil))
 
@@ -543,13 +498,13 @@ class AIModelSelectionViewController: UIViewController {
         let r3 = ModelCatalog.record(for: .gemma1b_iq4xs)
 
         if case .installing(let p) = s1 {
-            entries.append(("작은잼민이 \(humanSize(r1.approxBytes))", p, .gemma270_q8))
+            entries.append(("\(r1.displayName) \(humanSize(r1.approxBytes))", p, .gemma270_q8))
         }
         if case .installing(let p) = s2 {
-            entries.append(("큐앤이 \(humanSize(r2.approxBytes))", p, .qwen05b_q4km))
+            entries.append(("\(r2.displayName) \(humanSize(r2.approxBytes))", p, .qwen05b_q4km))
         }
         if case .installing(let p) = s3 {
-            entries.append(("큰잼민이 \(humanSize(r3.approxBytes))", p, .gemma1b_iq4xs))
+            entries.append(("\(r3.displayName) \(humanSize(r3.approxBytes))", p, .gemma1b_iq4xs))
         }
         return entries
     }

@@ -157,14 +157,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // On-device model remote endpoints injection (HTTP downloader)
         // NOTE: Prefer presignEndpoint if available; otherwise use CDN fallback.
         // //mltodo Replace with real endpoints from remote config.
-        if let cdn = URL(string: "https://cdn.emozleep.space") {
+        // Cloudflare Worker presign + CDN 베이스를 앱 런치 시 주입
+        if let presign = URL(string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"),
+           let cdn = URL(string: "https://cdn.emozleep.space") {
             OnDeviceAdapter.shared.reconfigureRemote(
-                presignEndpoint: URL(
-                    string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"),
+                presignEndpoint: presign,
                 cdnBaseURL: cdn,
                 backgroundSessionID: "com.deepsleep.models.bg",
                 cancelOngoing: false
             )
+            // 카탈로그 외 모델 파일 정리(한 번 실행)
+            _ = OnDeviceAdapter.shared.purgeObsoleteInstalledFiles()
         }
 
         return true

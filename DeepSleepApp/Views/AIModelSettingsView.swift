@@ -215,7 +215,10 @@ private struct OnDeviceInlineManagerView: View {
 
                 if installing {
                     Button(role: .destructive) {
-                        OnDeviceAdapter.shared.cancelInstall(id: .gemma270_q8)
+                        // 진행 중인 모든 온디바이스 다운로드 취소
+                        for rec in ModelCatalog.all() {
+                            OnDeviceAdapter.shared.cancelInstall(id: rec.id)
+                        }
                         installing = false
                         progress = 0
                         status = "취소됨"
@@ -225,14 +228,20 @@ private struct OnDeviceInlineManagerView: View {
                 }
 
                 if installed {
-                    Button(role: .destructive) {
-                        do {
-                            try OnDeviceAdapter.shared.deleteInstalled(id: .gemma270_q8)
-                            installed = false
-                            progress = 0
-                            status = "삭제됨"
-                        } catch {
-                            status = "삭제 오류: \(error.localizedDescription)"
+                    Menu {
+                        ForEach(ModelCatalog.all(), id: \ .id) { rec in
+                            Button(role: .destructive) {
+                                do {
+                                    try OnDeviceAdapter.shared.deleteInstalled(id: rec.id)
+                                    installed = false
+                                    progress = 0
+                                    status = "삭제됨(\(rec.displayName))"
+                                } catch {
+                                    status = "삭제 오류: \(error.localizedDescription)"
+                                }
+                            } label: {
+                                Text("\(rec.displayName) 삭제")
+                            }
                         }
                     } label: {
                         Label("삭제", systemImage: "trash")
@@ -271,7 +280,8 @@ private struct OnDeviceInlineManagerView: View {
     }
 
     private func refresh() async {
-        let st = await OnDeviceAdapter.shared.status(for: .gemma270_q8)
+        // 기본 모델을 카탈로그 기본값으로 변경
+        let st = await OnDeviceAdapter.shared.status(for: ModelCatalog.defaultModelID)
         await MainActor.run { update(st) }
     }
 
@@ -280,7 +290,7 @@ private struct OnDeviceInlineManagerView: View {
         status = "다운로드 시작"
         Task {
             do {
-                let _ = try await OnDeviceAdapter.shared.ensureInstalled(id: .gemma270_q8) { p in
+                let _ = try await OnDeviceAdapter.shared.ensureInstalled(id: ModelCatalog.defaultModelID) { p in
                     Task { @MainActor in
                         installing = true
                         progress = max(0, min(1, p))
