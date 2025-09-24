@@ -10,6 +10,10 @@ models/
 out/
 EMOZLEEP_R2_CDN_WORKERS_GUIDE.md
 *.aar
+
+model
+scripts
+
 .cache/
 # NOTE: allow committed .sh templates only; sensitive key-setup scripts are ignored below
 # (see **/*api-key*.sh, **/*secret*.sh patterns)
