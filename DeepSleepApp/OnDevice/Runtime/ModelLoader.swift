@@ -817,7 +817,6 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         // activeModelID는 상위 로더가 설정하며 여기서 분기 처리한다.
         let isGemma =
             (self.activeModelID == .amoral_gemma1b_v2_q4km)
-            || (self.activeModelID == .gemma1b_iq4xs)
         let sys: String? = isGemma ? nil : sysOriginal
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
@@ -874,7 +873,6 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         }()
         let isGemma =
             (self.activeModelID == .amoral_gemma1b_v2_q4km)
-            || (self.activeModelID == .gemma1b_iq4xs)
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 

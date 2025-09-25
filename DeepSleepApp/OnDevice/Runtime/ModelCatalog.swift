@@ -13,10 +13,10 @@ import Foundation
 // MARK: - 공통 타입
 
 public enum OnDeviceModelID: String, CaseIterable, Sendable {
-    case amoral_gemma1b_v2_q4km  // Amoral Gemma 3 1B v2 Q4_K_M
-    case qwen05b_q4km  // HyperCLOVA X Seed 0.5B Q4_K_M
-    case gemma1b_iq4xs  // Gemma 3 1B Q4_0
-    case hcx05b_q8_0  // HyperCLOVA X Seed 0.5B Q8_0
+    case amoral_gemma1b_v2_q4km  // Amoral Gemma 3 1B v2 Q5_K_M
+    case hcx05b_q4_k_m           // HyperCLOVA X Seed 0.5B Q4_K_M
+    case gemma1b_iq4xs           // HyperCLOVA X Seed 1.5B Q4_K_M (yeebwn)
+    case hcx05b_q8_0             // HyperCLOVA X Seed 0.5B Q8_0
 }
 
 public struct InferenceParams: Sendable, Equatable {
@@ -97,30 +97,39 @@ public enum SystemPrompts {
 public enum ModelCatalog {
     // Background Assets: Apple-hosted asset pack IDs (App Store Connect에 등록 필요)
     public static let packID_amoral_gemma1b_v2_q4km = "pack.model.amoral.gemma1b.v2.q4km"
-    public static let packID_qwen05b_q4 = "pack.model.qwen05b.q4"
-    public static let packID_gemma1b_iq4 = "pack.model.gemma1b.iq4"
+    public static let packID_hcx05b_q4km = "pack.model.qwen05b.q4"
+    // public static let packID_qwen15b_q4 = "pack.model.qwen15b.q4"  // 보류
     public static let packID_hcx05b_q8 = "pack.model.hcx05b.q8"
 
     // 정확 파일명(레포·브랜치 변경 시 반드시 동기화)
-    public static let file_amoral_gemma1b_v2_q4km = "amoral-gemma3-1B-v2-Q4_K_M.gguf"
-    public static let file_qwen05b_q4km = "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
-    public static let file_gemma1b_iq4xs = "gemma-3-1b-it-q4_0.gguf"
-    public static let file_hcx05b_q8 = "hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
+    public static let file_amoral_gemma1b_v2_q4km = "amoral-gemma3-1B-v2-Q5_K_M.gguf"
+    // alias 제거: qwen05b_q4km → hcx05b_q4_k_m 통일
+    public static let file_hcx05b_q4_k_m = "kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
+    public static let file_gemma1b_iq4xs = "yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf"
+    public static let file_hcx05b_q8 = "cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
 
     // 참고 크기(Bytes) — 런타임 무결성은 sha256 또는 파일 크기 검증으로 보강
-    public static let bytes_amoral_gemma1b_v2_q4km = 769_000_000
-    public static let bytes_qwen05b_q4km = 412_000_000
-    public static let bytes_gemma1b_iq4xs = 957_000_000
-    public static let bytes_hcx05b_q8 = 693_000_000
+    public static let bytes_amoral_gemma1b_v2_q4km = 851_000_000
+    public static let bytes_hcx05b_q4_k_m = 432_000_000
+    public static let bytes_hcx05b_q8 = 726_000_000
+    public static let bytes_gemma1b_iq4xs = 1_010_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
     // removed: params_gemma270 (unused)
-    private static let params_qwen05b: InferenceParams = .init(
-        context: 2048, threads: 4, temperature: 0.8, topK: 64, topP: 0.95, gpuLayers: nil,
+    private static let params_hcx05b_q4km: InferenceParams = .init(
+        context: 4096, threads: 4, temperature: 0.7, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
-    private static let params_gemma1b: InferenceParams = .init(
-        context: 2048, threads: 4, temperature: 0.8, topK: 64, topP: 0.95, gpuLayers: nil,
+    private static let params_hcx05b_q8_0: InferenceParams = .init(
+        context: 8192, threads: 4, temperature: 0.7, topK: 45, topP: 0.95, gpuLayers: nil,
+        embeddingHBM: nil
+    )
+    private static let params_hyperclova_1p5b_q4km: InferenceParams = .init(
+        context: 16384, threads: 4, temperature: 0.7, topK: 40, topP: 0.90, gpuLayers: nil,
+        embeddingHBM: nil
+    )
+    private static let params_gemma3_1b_q5km: InferenceParams = .init(
+        context: 8192, threads: 4, temperature: 0.6, topK: 64, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
 
@@ -129,33 +138,33 @@ public enum ModelCatalog {
         return [
             ModelRecord(
                 id: .amoral_gemma1b_v2_q4km,
-                displayName: "Amoral Gemma 3 1B v2 (Q4_K_M)",
+                displayName: "Amoral Gemma 3 1B v2 (Q5_K_M)",
                 packID: packID_amoral_gemma1b_v2_q4km,
                 fileName: file_amoral_gemma1b_v2_q4km,
                 approxBytes: bytes_amoral_gemma1b_v2_q4km,
-                sha256Hex: "97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6",
-                recommended: params_gemma1b,
+                sha256Hex: "ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5",
+                recommended: params_gemma3_1b_q5km,
                 notes: "고품질 1B Q4_K_M 변형(Amoral v2)."
             ),
             ModelRecord(
-                id: .qwen05b_q4km,
+                id: .hcx05b_q4_k_m,
                 displayName: "HyperCLOVA X Seed 0.5B Instruct (Q4_K_M)",
-                packID: packID_qwen05b_q4,
-                fileName: file_qwen05b_q4km,
-                approxBytes: bytes_qwen05b_q4km,
+                packID: packID_hcx05b_q4km,
+                fileName: file_hcx05b_q4_k_m,
+                approxBytes: bytes_hcx05b_q4_k_m,
                 sha256Hex: "4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d",
-                recommended: params_qwen05b,
+                recommended: params_hcx05b_q4km,
                 notes: "한국어 성능 우선(하이퍼클로바)."
             ),
             ModelRecord(
                 id: .gemma1b_iq4xs,
-                displayName: "Gemma 3 1B (Q4_0)",
-                packID: packID_gemma1b_iq4,
+                displayName: "HyperCLOVA X Seed 1.5B (Q4_K_M)",
+                packID: packID_hcx05b_q4km,
                 fileName: file_gemma1b_iq4xs,
                 approxBytes: bytes_gemma1b_iq4xs,
-                sha256Hex: "95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a",
-                recommended: params_gemma1b,
-                notes: "품질↑. Q4_0 양자화."
+                sha256Hex: "c5bcc5fad55d6361307fd91e2d0685b1b8cc99e5bc1dd506995fee0ef84d8044",
+                recommended: params_hyperclova_1p5b_q4km,
+                notes: "1.5B Q4_K_M 변형(yeebwn)."
             ),
             ModelRecord(
                 id: .hcx05b_q8_0,
@@ -164,7 +173,7 @@ public enum ModelCatalog {
                 fileName: file_hcx05b_q8,
                 approxBytes: bytes_hcx05b_q8,
                 sha256Hex: "9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871",
-                recommended: params_qwen05b,
+                recommended: params_hcx05b_q4km,
                 notes: "0.5B Q8_0 변형(정밀도↑, 메모리 여유 시 권장)."
             ),
         ]
@@ -177,12 +186,16 @@ public enum ModelCatalog {
         return r
     }
 
-    public static var defaultModelID: OnDeviceModelID { .qwen05b_q4km }
+    // 사용자 선호를 우선 기본값으로 사용. 미설정 시만 최소용량(.hcx05b_q4_k_m)로 폴백
+    public static var defaultModelID: OnDeviceModelID {
+        // SSOT 레이어에서는 앱 설정에 의존하지 않는다. 최소 용량 모델로 고정.
+        return .hcx05b_q4_k_m
+    }
 
     // 비용/성능/한국어 가중 순 후보(좌→우)
     public static var fallbackOrder: [OnDeviceModelID] {
-        // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → Gemma 1B(Q4_0) → Amoral Gemma 1B(Q4_K_M)
-        return [.qwen05b_q4km, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
+        // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → 1.5B(Q4_K_M) → Amoral 1B(Q5_K_M)
+        return [.hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
     }
 
     // 파일명 → 모델 ID 매핑 헬퍼(SSOT: 상수 기반)
@@ -191,7 +204,7 @@ public enum ModelCatalog {
     public static func id(forFileName fileName: String) -> OnDeviceModelID? {
         switch fileName {
         case file_amoral_gemma1b_v2_q4km: return .amoral_gemma1b_v2_q4km
-        case file_qwen05b_q4km: return .qwen05b_q4km
+        case file_hcx05b_q4_k_m: return .hcx05b_q4_k_m
         case file_gemma1b_iq4xs: return .gemma1b_iq4xs
         case file_hcx05b_q8: return .hcx05b_q8_0
         default: return nil
@@ -391,8 +404,8 @@ public struct FallbackPolicy {
         switch current {
         case .gemma1b_iq4xs:
             // 무거운 모델에서 문제가 생기면 0.5B 계열로 우선 전환
-            return .qwen05b_q4km
-        case .qwen05b_q4km:
+            return .hcx05b_q4_k_m
+        case .hcx05b_q4_k_m:
             return .hcx05b_q8_0
         case .hcx05b_q8_0:
             return .amoral_gemma1b_v2_q4km

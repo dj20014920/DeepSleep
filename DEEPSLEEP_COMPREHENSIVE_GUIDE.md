@@ -20,3 +20,48 @@
   - 내부 누적 버퍼에서 stop 검출 후 안전 부분만 flush, stop 리터럴 누출 금지
 - 샘플링 권장(소형 모델 안정화)
   - Amoral Gemma 1B (Q4_K_M): temp=0.8~1.0, topK=64, topP=0.95
+
+### 🆕 2025-09-25 업데이트: 온디바이스 LLM 모델 교체/통합(SSOT/DRY)
+
+본 업데이트는 온디바이스 모델 4종(Amoral Gemma3 1B Q5_K_M, HyperCLOVA 1.5B Q4_K_M, HyperCLOVA 0.5B Q8_0, HyperCLOVA 0.5B Q4_K_M)을 중앙집중형 SSOT로 통합하고, 템플릿/STOP/샘플링/메탈오프로딩/프리필(KV) 정책을 한 곳에서 관리하게 합니다.
+
+핵심 변경
+- SSOT 메타(ModelCatalog.swift)
+  - 파일명/용량/sha256/권장 InferenceParams(컨텍스트/샘플링/스레드) 일원화
+  - 기본 모델: 0.5B Q4_K_M (경량/저지연)
+  - 폴백 순서: 0.5B Q4_K_M → 0.5B Q8_0 → 1.5B Q4_K_M → 1B Q5_K_M
+- 프롬프트/STOP/샘플링 SSOT(OnDevicePromptProfile.swift)
+  - Gemma3: <start_of_turn>user|model… 템플릿, STOP은 <end_of_turn> 및 시작 토큰 방지
+  - HyperCLOVA/Qwen: <|im_start|>role … <|im_end|>, STOP은 <|im_end|> 및 시작 토큰 방지
+  - 0.5B/1.5B는 보수 샘플링 temp 0.7/topK 40/topP 0.90(±), Gemma3는 temp 0.6/topK 64/topP 0.90
+- 어댑터(OnDeviceAdapter.swift)
+  - ensureInstalled → sha256 검증(옵션) → activate/switch → generate
+  - KV Prompt Cache: system+최근(3+3) 접두부 프리필/복원 후 resume
+  - 템플릿 누출 토큰 실시간 정리(대화형 스트림 품질 향상)
+- 로더(ModelLoader.swift)
+  - 모델 메타의 chat-template 자동 적용(llama_chat_apply_template)
+  - Gemma3는 system 역할 미지원: system 내용을 첫 user 입력에 내재화
+- 네트워킹(RemoteAssetClient.swift)
+  - expectedSha256 미지정(빈 문자열) 시 로컬 수동 배치 파일을 신뢰(운영 편의)
+
+운영 절차(요약)
+1) 설정에서 온디바이스 모델 선택 → 설치/무결성 확인 후 활성화
+2) 채팅 요청 시: SSOT 템플릿/샘플링/Stop 적용 → 스트리밍 토큰 누출 필터 → 응답
+3) 멀티턴: 첫 턴 프리필 저장, 이후 복원+resume로 TTI 단축
+
+문제 해결 팁
+- 장문/고품질 필요 시 1.5B/1B로 전환. 메모리/지연 증가에 주의
+- 메탈 이슈 시 Info 키 ONDEVICE_DISABLE_METAL=true 토글(자동 CPU)
+- Stop 누출 관측 시 OnDevicePromptProfile.stopSequences에 패턴 추가(SSOT)
+
+유지보수 원칙
+- 모델 변경/추가는 ModelCatalog.swift와 OnDevicePromptProfile.swift 두 파일만 수정
+- 샘플링/컨텍스트/템플릿/Stop 규칙 조정은 OnDevicePromptProfile에서만
+- 어댑터/로더/네트워킹 레이어는 SSOT 참조만, 로직 복제 금지
+- sha256은 가능하면 채워서 무결성 보장(없으면 빈 문자열로 스킵)
+
+QA 체크리스트
+- 4개 모델 각각 설치→활성화→스트리밍 “안녕?” 응답 정상
+- 최근 2–3턴 후 재질의 시 resume 경로에서 firstTokenMs 단축 로그 확인
+- 템플릿 토큰 누출 없음(있다면 stopSequences 보강)
+- 메탈 토글 시 CPU 경로에서도 문제없이 동작

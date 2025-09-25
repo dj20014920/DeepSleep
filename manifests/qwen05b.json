@@ -2,8 +2,13 @@
   "id": "pack.model.qwen05b.q4",
   "resources": [
     {
-      "source": "models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf",
-      "destination": "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf",
+      "source": "models/kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf",
+      "destination": "kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf",
+      "compression": "none"
+    },
+    {
+      "source": "models/yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf",
+      "destination": "yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf",
       "compression": "none"
     }
   ]

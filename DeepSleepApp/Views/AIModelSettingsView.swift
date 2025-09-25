@@ -280,8 +280,9 @@ private struct OnDeviceInlineManagerView: View {
     }
 
     private func refresh() async {
-        // 기본 모델을 카탈로그 기본값으로 변경
-        let st = await OnDeviceAdapter.shared.status(for: ModelCatalog.defaultModelID)
+        // 사용자 선호를 우선으로 상태 갱신 (없으면 카탈로그 기본값)
+        let preferred = SettingsManager.shared.preferredOnDeviceModelID ?? ModelCatalog.defaultModelID
+        let st = await OnDeviceAdapter.shared.status(for: preferred)
         await MainActor.run { update(st) }
     }
 
@@ -290,7 +291,8 @@ private struct OnDeviceInlineManagerView: View {
         status = "다운로드 시작"
         Task {
             do {
-                let _ = try await OnDeviceAdapter.shared.ensureInstalled(id: ModelCatalog.defaultModelID) { p in
+                let target = SettingsManager.shared.preferredOnDeviceModelID ?? ModelCatalog.defaultModelID
+                let _ = try await OnDeviceAdapter.shared.ensureInstalled(id: target) { p in
                     Task { @MainActor in
                         installing = true
                         progress = max(0, min(1, p))

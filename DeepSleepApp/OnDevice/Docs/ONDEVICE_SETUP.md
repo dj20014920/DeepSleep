@@ -14,22 +14,22 @@
 다음 4개의 GGUF 모델만 사용합니다. 표시명과 별명은 앱 전체에서 일관되게 적용합니다.
 
 - ID: amoral_gemma1b_v2_q4km
-  - 파일: amoral-gemma3-1B-v2-Q4_K_M.gguf
-  - SHA256: 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
+  - 파일: amoral-gemma3-1B-v2-Q5_K_M.gguf
+  - SHA256: ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5
   - 표시명: Amoral Gemma 3 1B v2 (Q4_K_M)
   - 별명(노출용): 작은 잼민이
 - ID: qwen05b_q4km
-  - 파일: hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+  - 파일: kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
   - SHA256: 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
   - 표시명: HyperCLOVA X Seed 0.5B Instruct (Q4_K_M)
   - 별명(노출용): 작은 클로버
-- ID: gemma1b_iq4xs  [주: 파일은 IQ4_XS가 아니라 Q4_0 변형을 사용]
-  - 파일: gemma-3-1b-it-q4_0.gguf
-  - SHA256: 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a
-  - 표시명: Gemma 3 1B (Q4_0)
+- ID: gemma1b_iq4xs
+  - 파일: yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
+  - SHA256: c5bcc5fad55d6361307fd91e2d0685b1b8cc99e5bc1dd506995fee0ef84d8044
+  - 표시명: HyperCLOVA X Seed 1.5B (Q4_K_M)
   - 별명(노출용): 잼민이
 - ID: hcx05b_q8_0
-  - 파일: hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+  - 파일: cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
   - SHA256: 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
   - 표시명: HyperCLOVA X Seed 0.5B Instruct (Q8_0)
   - 별명(노출용): 클로버
@@ -46,10 +46,10 @@
 2) 배포·다운로드(서버 다운로드만 사용)
 
 다운로드 소스(예시, 200 응답 및 무결성 확인 필요)
-- https://cdn.emozleep.space/models/amoral-gemma3-1B-v2-Q4_K_M.gguf
-- https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
-- https://cdn.emozleep.space/models/gemma-3-1b-it-q4_0.gguf
-- https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+- https://cdn.emozleep.space/models/amoral-gemma3-1B-v2-Q5_K_M.gguf
+- https://cdn.emozleep.space/models/kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+- https://cdn.emozleep.space/models/yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
+- https://cdn.emozleep.space/models/cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
 
 다운로드 파이프라인(권장)
 - presigned URL(우선) → CDN(폴백) 순서로 GET

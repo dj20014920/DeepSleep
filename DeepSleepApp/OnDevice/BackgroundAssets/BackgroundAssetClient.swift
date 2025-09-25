@@ -374,9 +374,9 @@
 // MARK: - 개발 가이드(요약)
 //
 // 1) App Store Connect에서 Apple-hosted Background Assets로 팩 생성(3개):
-//    - pack.model.amoral.gemma1b.v2.q4km → amoral-gemma3-1B-v2-Q4_K_M.gguf (~769MB)
-//    - pack.model.qwen05b.q4 → hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (~412MB)
-//    - pack.model.gemma1b.iq4 → gemma-3-1b-it-q4_0.gguf (~957MB)
+//    - pack.model.amoral.gemma1b.v2.q4km → amoral-gemma3-1B-v2-Q5_K_M.gguf (~769MB)
+//    - pack.model.qwen05b.q4 → kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (~412MB)
+//    - pack.model.gemma1b.iq4 → yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf (~1006MB)
 //
 // 2) 실제 BA 연동 구현(// MLtodo):
 //    - iOS 18의 Background Assets API로 packID별 다운로드 예약/진행/취소/로컬 URL 획득 구현

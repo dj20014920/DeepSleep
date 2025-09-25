@@ -183,6 +183,26 @@ public class SettingsManager {
         }
     }
 
+    /// 현재 선택된 온디바이스 모델 (메모리 압박 후 자동 재활성화용)
+    /// preferredOnDeviceModelID와 동일하지만 더 명확한 의미를 위해 별도 제공
+    var selectedOnDeviceModel: OnDeviceModelID? {
+        get {
+            return preferredOnDeviceModelID
+        }
+        set {
+            preferredOnDeviceModelID = newValue
+
+            // 모델 선택 변경 시 즉시 재활성화 시도 (백그라운드에서)
+            if let newModel = newValue {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("OnDeviceModel.SelectionChanged"),
+                    object: nil,
+                    userInfo: ["selectedModel": newModel.rawValue, "autoActivate": true]
+                )
+            }
+        }
+    }
+
     // MARK: - Stored model normalization (migration/self-heal)
     /// 레거시/비표준 저장 문자열을 표준 AIModelType으로 정규화합니다.
     /// 예: "gemini-pro" → .gemini

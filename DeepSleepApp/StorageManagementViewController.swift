@@ -498,10 +498,10 @@ class StorageManagementViewController: UIViewController {
     /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
     private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
         switch modelID {
-        case .qwen05b_q4km: return "작은 클로버"      // 412MB (가장 작음)
+        case .hcx05b_q4_k_m: return "작은 클로버"      // 412MB (가장 작음)
         case .hcx05b_q8_0: return "클로버"          // 693MB
-        case .amoral_gemma1b_v2_q4km: return "작은 잼민이" // 769MB
-        case .gemma1b_iq4xs: return "잼민이"        // 957MB (가장 큼)
+        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
+        case .gemma1b_iq4xs: return "큰 클로버"      // 1006MB (가장 큼)
         }
     }
     

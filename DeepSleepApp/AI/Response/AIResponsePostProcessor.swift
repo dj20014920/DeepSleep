@@ -53,22 +53,89 @@ public enum AIResponsePostProcessor {
         }
         if s != beforeSpeaker { reasons.append("strip_speaker_label") }
 
-        // 3) Strip leaked chat-template markers (Qwen/Gemma style)
+        // 3) Strip leaked chat-template markers (Qwen/Gemma style + extended patterns)
         // Remove any occurrences to avoid leaking prompt delimiters into UI
         let templateMarkers: [String] = [
+            // Qwen/HyperCLOVA X style
             "<|im_start|>assistant",
             "<|im_start|>user",
+            "<|im_start|>system",
             "<|im_start|>",
             "<|im_end|>",
+            "<|endofturn|>",
+            "<|stop|>",
+            // Gemma style
             "<start_of_turn>user",
             "<start_of_turn>model",
-            "<end_of_turn>"
+            "<start_of_turn>assistant",
+            "<start_of_turn>",
+            "<end_of_turn>",
+            // Common stop tokens that might leak
+            "<eos>",
+            "</s>",
+            "<|eot_id|>",
+            "<|end_of_text|>",
+            // Partial/broken tokens that appear in logs
+            "<|im_",
+            "<start_of_",
+            "<end_of_",
         ]
+
         var beforeTemplates = s
-        for m in templateMarkers { s = s.replacingOccurrences(of: m, with: "") }
+
+        // First pass: exact string replacements
+        for marker in templateMarkers {
+            s = s.replacingOccurrences(of: marker, with: "")
+        }
+
+        // Second pass: regex-based cleanup for more complex patterns
+        let templatePatterns: [String] = [
+            // Any <|something|> pattern (Qwen-style)
+            #"<\|[^|]*\|>"#,
+            // Any <something_of_turn> pattern (Gemma-style)
+            #"<[^>]*_of_turn[^>]*>"#,
+            // Broken template fragments
+            #"<\|[^>]*$"#,  // incomplete opening
+            #"^[^<]*\|>"#,  // incomplete closing
+        ]
+
+        for pattern in templatePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(location: 0, length: s.count)
+                s = regex.stringByReplacingMatches(
+                    in: s, options: [], range: range, withTemplate: "")
+            }
+        }
+
         if s != beforeTemplates { reasons.append("strip_template_markers") }
 
-        // 4) Final trim
+        // 4) Clean up UTF-8 encoding issues and corrupted characters
+        let beforeEncoding = s
+        // Remove common UTF-8 replacement characters and broken sequences
+        s = s.replacingOccurrences(of: "���", with: "")  // UTF-8 replacement character
+        s = s.replacingOccurrences(of: "\u{FFFD}", with: "")  // Unicode replacement character
+        if s != beforeEncoding { reasons.append("fix_encoding") }
+
+        // 5) Remove duplicate content patterns (like repeated responses)
+        let beforeDuplicate = s
+        // Pattern: "text<template>text" -> "text"
+        let duplicatePatterns = [
+            #"(.+?)(?:<[^>]*>)+\1"#,  // text followed by template markers then same text
+            #"(.{10,}?)\1{2,}"#,  // text repeated 3+ times (min 10 chars to avoid false positives)
+        ]
+
+        for pattern in duplicatePatterns {
+            if let regex = try? NSRegularExpression(
+                pattern: pattern, options: [.dotMatchesLineSeparators])
+            {
+                let range = NSRange(location: 0, length: s.count)
+                s = regex.stringByReplacingMatches(
+                    in: s, options: [], range: range, withTemplate: "$1")
+            }
+        }
+        if s != beforeDuplicate { reasons.append("remove_duplicates") }
+
+        // 6) Final trim
         let beforeTrim = s
         s = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if s != beforeTrim { reasons.append("trim_whitespace") }
@@ -89,14 +156,20 @@ public enum AIResponsePostProcessor {
         var hasAssistantBefore = false
         if let arr = history {
             for item in arr {
-                if let dict = item as? [String: Any], let role = dict["role"] as? String, role.lowercased() == "assistant" {
-                    hasAssistantBefore = true; break
+                if let dict = item as? [String: Any], let role = dict["role"] as? String,
+                    role.lowercased() == "assistant"
+                {
+                    hasAssistantBefore = true
+                    break
                 }
                 // Fallback: try Mirror for struct-like objects
                 let m = Mirror(reflecting: item)
                 if let roleChild = m.children.first(where: { $0.label == "role" }) {
                     let roleValue = String(describing: roleChild.value).lowercased()
-                    if roleValue.contains("assistant") { hasAssistantBefore = true; break }
+                    if roleValue.contains("assistant") {
+                        hasAssistantBefore = true
+                        break
+                    }
                 }
             }
         }
@@ -115,7 +188,10 @@ public enum AIResponsePostProcessor {
             patterns.append(base + #"(?:\(?\s*"# + esc + #"(?:님)?\s*\)?)?\s*[,，、:：!~\-]*\s+"#)
         }
         // Generic (no nickname)
-        patterns.append(base + #"(?:\([^)]{0,20}\)|\<[^>]{0,20}\>|\[[^\]]{0,20}\]|\"[^\"]{0,20}\")?\s*[,，、:：!~\-]*\s+"#)
+        patterns.append(
+            base
+                + #"(?:\([^)]{0,20}\)|\<[^>]{0,20}\>|\[[^\]]{0,20}\]|\"[^\"]{0,20}\")?\s*[,，、:：!~\-]*\s+"#
+        )
 
         let before = s
         outer: for p in patterns {

@@ -39,6 +39,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         self.loader = LlamaModelLoader()
         // 원격 설정 반영하여 정책 동기화
         self.syncPolicyFromConfig()
+        // 메모리 압박 후 자동 모델 재활성화 리스너 설정
+        self.setupMemoryRecoveryListener()
     }
 
     /// 원격 설정으로부터 폴백 정책을 동기화한다(KISS: 한 지점에서만 적용).
@@ -47,6 +49,129 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         var p = self.policy
         p.maxTTIMilliseconds = maxTTI
         self.policy = p
+    }
+
+    /// 메모리 복구 후 선택된 온디바이스 모델 자동 재활성화 설정
+    private func setupMemoryRecoveryListener() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OnDeviceModel.ReactivateSelected"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+
+            Task {
+                await self.handleModelReactivation(notification: notification)
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MemoryPressure.GentleCleanup"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+
+            // 메모리 압박 시 현재 활성 모델 ID 백업
+            if let activeID = self.activeModelID {
+                UserDefaults.standard.set(activeID.rawValue, forKey: "LastActiveOnDeviceModel")
+                self.log.info("🔄 메모리 압박으로 인한 모델 백업: \(activeID.rawValue)")
+            }
+        }
+    }
+
+    /// 메모리 복구 후 모델 재활성화 처리
+    private func handleModelReactivation(notification: Notification) async {
+        let reason = notification.userInfo?["reason"] as? String ?? "unknown"
+        self.log.info("🔄 모델 재활성화 요청: \(reason)")
+
+        // 1. 사용자가 선택한 온디바이스 모델 확인
+        let selectedModel = SettingsManager.shared.selectedOnDeviceModel
+
+        // 2. 백업된 모델 ID 확인 (메모리 압박 전 활성 모델)
+        let lastActiveModelRaw = UserDefaults.standard.string(forKey: "LastActiveOnDeviceModel")
+        let lastActiveModel = lastActiveModelRaw.flatMap(OnDeviceModelID.init(rawValue:))
+
+        // 3. 재활성화할 모델 결정 (우선순위: 사용자 선택 > 백업 모델)
+        let targetModel: OnDeviceModelID?
+        if let selected = selectedModel {
+            targetModel = selected
+        } else if let backup = lastActiveModel {
+            targetModel = backup
+        } else {
+            // 기본값: 첫 번째 권장 모델
+            targetModel = ModelCatalog.fallbackOrder.first
+        }
+
+        guard let modelToActivate = targetModel else {
+            self.log.warning("재활성화할 온디바이스 모델을 찾을 수 없음")
+            return
+        }
+
+        // 4. 모델이 이미 활성화되어 있으면 건너뛰기
+        if self.activeModelID == modelToActivate && self.loader.isLoaded {
+            self.log.info("🟢 모델 이미 활성화됨: \(modelToActivate.rawValue)")
+            return
+        }
+
+        // 5. 모델 재활성화 시도
+        do {
+            self.log.info("🔄 모델 재활성화 시작: \(modelToActivate.rawValue)")
+            try await self.activate(id: modelToActivate)
+            self.log.info("✅ 모델 재활성화 성공: \(modelToActivate.rawValue)")
+
+            // 백업 정보 정리
+            UserDefaults.standard.removeObject(forKey: "LastActiveOnDeviceModel")
+
+        } catch {
+            self.log.error(
+                "❌ 모델 재활성화 실패: \(modelToActivate.rawValue) - \(error.localizedDescription)")
+
+            // 재시도 로직: 5초 후 다시 시도
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                Task {
+                    await self.handleModelReactivation(notification: notification)
+                }
+            }
+        }
+    }
+
+    /// 토큰 스트림에서 UTF-8 인코딩 문제 및 템플릿 토큰 누출 실시간 정리
+    private func cleanTokenDelta(_ delta: String, modelID: OnDeviceModelID) -> String {
+        var cleaned = delta
+
+        // 1. UTF-8 인코딩 문제 수정
+        // 깨진 UTF-8 문자 (���) 제거
+        cleaned = cleaned.replacingOccurrences(of: "���", with: "")
+        cleaned = cleaned.replacingOccurrences(of: "\u{FFFD}", with: "")
+
+        // 2. 실시간 템플릿 토큰 필터링 (스트리밍 중 즉시 차단)
+        let templateTokens = OnDevicePromptProfile.stopSequences(for: modelID)
+        for token in templateTokens {
+            cleaned = cleaned.replacingOccurrences(of: token, with: "")
+        }
+
+        // 3. 부분적 템플릿 토큰도 필터링 (스트리밍 중 나타날 수 있음)
+        let partialTokenPatterns: [String] = [
+            "<|im_",
+            "<start_of_",
+            "<end_of_",
+            "|>",
+            "turn>",
+        ]
+
+        for pattern in partialTokenPatterns {
+            cleaned = cleaned.replacingOccurrences(of: pattern, with: "")
+        }
+
+        // 4. 연속된 공백 정리 (템플릿 토큰 제거 후 남은 공백들)
+        cleaned = cleaned.replacingOccurrences(
+            of: #"\s{3,}"#,
+            with: " ",
+            options: .regularExpression
+        )
+
+        return cleaned
     }
 
     // MARK: Adapter-facing Types
@@ -423,10 +548,15 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                 emittedFirst = true
                                 ttiMs = Int(Date().timeIntervalSince(started) * 1000)
                                 self.log.info(
+                                    "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (resume)"
+                                )
+                                self.log.info(
                                     "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
                                 )
                             }
-                            onToken(delta)
+                            // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                            let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                            onToken(cleanedDelta)
                         }
                     )
                 } else {
@@ -436,7 +566,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         let recentSerialized: String = {
                             guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
                             switch id {
-                            case .amoral_gemma1b_v2_q4km, .gemma1b_iq4xs:
+                            case .amoral_gemma1b_v2_q4km:
                                 return msgs.compactMap { m in
                                     switch m.role {
                                     case .user:
@@ -446,7 +576,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                     default: return nil
                                     }
                                 }.joined()
-                            case .qwen05b_q4km, .hcx05b_q8_0:
+                            case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
                                 return msgs.compactMap { m in
                                     switch m.role {
                                     case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"
@@ -488,10 +618,15 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                     emittedFirst = true
                                     ttiMs = Int(Date().timeIntervalSince(started) * 1000)
                                     self.log.info(
+                                        "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (resume)"
+                                    )
+                                    self.log.info(
                                         "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
                                     )
                                 }
-                                onToken(delta)
+                                // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                                let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                                onToken(cleanedDelta)
                             }
                         )
                     } catch {
@@ -505,10 +640,15 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                     emittedFirst = true
                                     ttiMs = Int(Date().timeIntervalSince(started) * 1000)
                                     self.log.info(
+                                        "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (fallback)"
+                                    )
+                                    self.log.info(
                                         "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
                                     )
                                 }
-                                onToken(delta)
+                                // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                                let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                                onToken(cleanedDelta)
                             }
                         )
                     }
@@ -524,9 +664,14 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         emittedFirst = true
                         ttiMs = Int(Date().timeIntervalSince(started) * 1000)
                         self.log.info(
+                            "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (legacy)"
+                        )
+                        self.log.info(
                             "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
                     }
-                    onToken(delta)
+                    // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                    let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                    onToken(cleanedDelta)
                 }
             }
         } catch {
@@ -556,7 +701,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
     private func buildCandidates(preferred: OnDeviceModelID?) -> [OnDeviceModelID] {
         // 사용자가 명시적으로 선호 모델을 선택했고, 설정이 엄격 모드를 허용하면 해당 모델만 시도
-        if let p = preferred, (ConfigReader.bool("ONDEVICE_STRICT_PREFERRED", default: true) ?? true) {
+        if let p = preferred, ConfigReader.bool("ONDEVICE_STRICT_PREFERRED", default: true) ?? true
+        {
             return [p]
         }
         // 기본 순서: 사용자가 고른 모델(있으면) → SSOT fallbackOrder(중복 제거)

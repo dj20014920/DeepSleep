@@ -781,10 +781,10 @@ $1
 
 ### 개요
 - 온디바이스 모델 4종으로 교체(SSOT: ModelCatalog)
-  - amoral-gemma3-1B-v2-Q4_K_M.gguf (Gemma 3 1B, Q4_K_M v2) — sha256=97862025…
-  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (HyperCLOVA X Seed 0.5B, Q4_K_M) — sha256=4b6422a2…
-  - gemma-3-1b-it-q4_0.gguf (Gemma 3 1B, Q4_0) — sha256=95e5b8d8…
-  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf (HyperCLOVA X Seed 0.5B, Q8_0) — sha256=9c9f76a8…
+  - amoral-gemma3-1B-v2-Q5_K_M.gguf (Gemma 3 1B, Q4_K_M v2) — sha256=97862025…
+  - kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf (HyperCLOVA X Seed 0.5B, Q4_K_M) — sha256=4b6422a2…
+  - yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf (HyperCLOVA X Seed 1.5B, Q4_K_M) — sha256=95e5b8d8…
+  - cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf (HyperCLOVA X Seed 0.5B, Q8_0) — sha256=9c9f76a8…
 - 기본(default) 모델: HyperCLOVA 0.5B Q4_K_M
 - 폴백 순서: 0.5B Q4_K_M → 0.5B Q8_0 → 1B Q4_0 → 1B Q4_K_M v2
 - 템플릿/STOP SSOT: Gemma(SoT/stop=<end_of_turn>,<start_of_turn>user), Qwen 계열(SoT/stop=<|im_end|>,<|im_start|>user)
@@ -799,7 +799,7 @@ $1
 - 앱 연동(AppDelegate): 런치/백그라운드 재진입 시 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
 - 레포 위치: scripts/emozleep-presign-worker/{wrangler.toml, src/index.ts}
 - 테스트 예시:
-  - curl 'https://emozleep-presign.vinny4920-081.workers.dev/presign?file=hyperclovax-seed-text-instruct-0.5b-q8_0.gguf'
+  - curl 'https://emozleep-presign.vinny4920-081.workers.dev/presign?file=cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf'
 
 #### 환경 변수 설정(운영) — R2 S3/배포 [설정 완료]
 - 환경 구성(세션/런타임):
@@ -813,10 +813,10 @@ $1
   - 기능: 4개 GGUF 업로드 → CDN HEAD 200 확인 → 원격 sha256 == ModelCatalog.swift 값 검증
 - 배포/검증 결과(동기화됨):
   - CDN 경로(모두 200 응답, sha256 일치):
-    - https://cdn.emozleep.space/models/amoral-gemma3-1B-v2-Q4_K_M.gguf
-    - https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
-    - https://cdn.emozleep.space/models/gemma-3-1b-it-q4_0.gguf
-    - https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+    - https://cdn.emozleep.space/models/amoral-gemma3-1B-v2-Q5_K_M.gguf
+    - https://cdn.emozleep.space/models/kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    - https://cdn.emozleep.space/models/yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
+    - https://cdn.emozleep.space/models/cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
 - 주의: 비밀키는 코드/레포에 저장하지 않으며, 환경변수로만 관리합니다.
 
 ### UI/UX 및 흐름 반영(온디바이스 모델/스톱/로그)
@@ -831,22 +831,22 @@ $1
 - presign 실패 시 CDN 폴백 확인
 - presign 200(JSON)과 302/303/307/308(redirect) 모두 수용되는지 검증
 - 4개 모델 파일이 CDN에 배치되어 공개 접근 가능한지 200 응답으로 확인
-  - 예: https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+  - 예: https://cdn.emozleep.space/models/kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
 - CDN 객체의 sha256이 ModelCatalog에 정의된 값과 정확히 일치하는지 검증
 - 온디바이스 모델 패밀리(SSOT, ModelCatalog 기준)
-  - HyperCLOVA X Seed 0.5B Instruct: Q4_K_M(hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf), Q8_0(hyperclovax-seed-text-instruct-0.5b-q8_0.gguf)
-  - Gemma 3 1B IT: Q4_0(gemma-3-1b-it-q4_0.gguf)
-  - Amoral Gemma 3 1B v2: Q4_K_M(amoral-gemma3-1B-v2-Q4_K_M.gguf)
+  - HyperCLOVA X Seed 0.5B Instruct: Q4_K_M(kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf), Q8_0(cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf)
+  - Gemma 3 1B IT: Q4_0(yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf)
+  - Amoral Gemma 3 1B v2: Q4_K_M(amoral-gemma3-1B-v2-Q5_K_M.gguf)
 - 스톱 시퀀스 표준(템플릿별)
   - Gemma 스타일: ["<end_of_turn>", "<start_of_turn>user"]
   - Qwen/HyperCLOVA 스타일: ["<|im_end|>", "<|im_start|>user", "<|endofturn|>", "<|stop|>"]
 - 진행 로그/표시명 정렬
   - Adapter 진행 로그는 모델 ID(raw) 대신 ModelCatalog.record.displayName 사용
   - UI 버블 카드 타이틀/서브타이틀은 카탈로그 메타(표시명/용량)로 표시
-  - amoral-gemma3-1B-v2-Q4_K_M.gguf → 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
-  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
-  - gemma-3-1b-it-q4_0.gguf → 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a
-  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
+  - amoral-gemma3-1B-v2-Q5_K_M.gguf → ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5
+  - kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
+  - yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf → c5bcc5fad55d6361307fd91e2d0685b1b8cc99e5bc1dd506995fee0ef84d8044
+  - cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
 - CDN 404인 경우: Presign Worker 설정(CDN_BASE)과 R2/버킷 공개 권한 재확인, 파일명 대소문자/스펠링 검수
 - 앱 로그에서 sha256 mismatch 발생 시 백오프 재시도 후 실패 로그가 남는지 확인(정상 동작), 서버측 파일/해시를 즉시 동기화
 - 모델 선택 UI 최신 플로우:
@@ -858,3 +858,44 @@ $1
 - 앱 런치 시 카탈로그 외 .gguf 자동 정리(purgeObsoleteInstalledFiles) 확인
 - 선택 모델로 모든 모드에서 on-device 경로 우선 동작 확인(provider=llama.cpp)
 - 2턴 이후 TTI 하락(캐시 히트) 로그 확인
+
+## 2025-09-25 동기화: 온디바이스 모델 SSOT/DRY 적용 및 운영 가이드
+
+개요
+- 온디바이스 모델 4종을 중앙 SSOT로 통합(ModelCatalog.swift, OnDevicePromptProfile.swift)
+- 템플릿/Stop/샘플링/메탈오프로딩은 OnDevicePromptProfile에서만 관리
+- 설치/무결성/활성화/생성은 OnDeviceAdapter→ModelLoader로 일원화
+
+아키텍처 결정(ADR)
+- SSOT: ModelCatalog.swift(메타/권장값), OnDevicePromptProfile.swift(템플릿/Stop/샘플링)
+- DRY: UI/Adapter/Loader/Networking은 모두 SSOT API만 사용(복제 금지)
+- Gemma3 정책: system 역할 미지원 → 시스템 지시는 첫 user 입력에 내재화
+- KV Prompt Cache: system+최근3+3 접두부를 프리필 저장 후 resume로 TTI 개선
+
+운영 키(Info.plist)
+- ONDEVICE_ENABLED: true/false (기본 true)
+- ONDEVICE_DISABLE_METAL: true/false (기본 false; true면 gpuLayers=0)
+- ONDEVICE_MAX_TOKENS: Int (기본 128; 스트리밍 토큰 상한)
+- ONDEVICE_MAX_TTI_MS: Int (기본 4000; TTI 초과 시 후보 재정렬)
+- ONDEVICE_KV_LOG_VERBOSE: true/false (KV 캐시 브릿지 로깅)
+
+테스트/검증
+- 모델별 설치→sha256 검증→활성화→“안녕?” 스트리밍
+- 최근 대화 포함 후 재질의 시 resume 경로 firstTokenMs 단축 확인
+- 템플릿 토큰 누출 없도록 OnDevicePromptProfile.stopSequences 점검/보강
+
+유지보수 방법(명시)
+- 모델 추가/교체: ModelCatalog.swift에 파일명/용량/sha256/권장값 추가
+- 템플릿/Stop/샘플링 변경: OnDevicePromptProfile.swift만 수정
+- UI/Adapter/Loader에서 모델별 분기 금지(SSOT 호출만)
+- sha256이 미지정이면 RemoteAssetClient가 로컬 수동 배치 신뢰 경로 사용
+
+롤백 전략
+- 특정 모델 문제 시 ModelCatalog.fallbackOrder에서 뒤로 배치하거나 제거
+- 샘플링 불안 시 OnDevicePromptProfile.SamplingTuning 보수화
+- 메탈 문제 시 ONDEVICE_DISABLE_METAL=true 설정으로 CPU 강제
+
+추가 로드맵
+- 128k 컨텍스트(1.5B) 장문 모드 토글 UX 및 메모리 경고
+- Stop 패턴 자동 학습(로그→SSOT 반영 자동화)
+- KV 캐시 히트율 모니터링/지표 대시보드 연동

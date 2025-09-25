@@ -6,12 +6,12 @@
 
 - 온디바이스 모델 패밀리(SSOT: ModelCatalog 기준)
   - HyperCLOVA X Seed 0.5B Instruct
-    - Q4_K_M: hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
-    - Q8_0: hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+    - Q4_K_M: kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    - Q8_0: cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
   - Gemma 3 1B IT
-    - Q4_0: gemma-3-1b-it-q4_0.gguf
+    - Q4_K_M: yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
   - Amoral Gemma 3 1B v2
-    - Q4_K_M: amoral-gemma3-1B-v2-Q4_K_M.gguf
+    - Q4_K_M: amoral-gemma3-1B-v2-Q5_K_M.gguf
 
 - 템플릿/스톱 시퀀스(SSOT: OnDevicePromptProfile)
   - Gemma 스타일
@@ -814,12 +814,12 @@ switch(provider){
 - 검증(운영/QA):
   - Presign 응답 검증: 200(JSON {"url":"https://cdn.emozleep.space/models/<filename.gguf>"}) 또는 302/303/307/308(Location: https://cdn.emozleep.space/models/<filename.gguf>) 경로 모두 수용되는지 확인
   - CDN 공개 접근 확인: 각 모델 파일 URL이 200으로 응답하는지 점검
-    - 예: https://cdn.emozleep.space/models/hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    - 예: https://cdn.emozleep.space/models/kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
   - SHA256 무결성 확인: CDN에 배치된 파일의 sha256이 ModelCatalog의 값과 정확히 일치해야 함
-    - amoral-gemma3-1B-v2-Q4_K_M.gguf → 97862025aff65cd5caeb4eb84814ddcfd86d4d1607cfb2805f95b4d254e664a6
-    - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
-    - gemma-3-1b-it-q4_0.gguf → 95e5b8d891cd6a794f66c2a6fb59a41e9562b4660560b854274eceffb628b22a
-    - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
+    - amoral-gemma3-1B-v2-Q5_K_M.gguf → ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5
+    - kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf → 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
+    - yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf → c5bcc5fad55d6361307fd91e2d0685b1b8cc99e5bc1dd506995fee0ef84d8044
+    - cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf → 9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871
   - 404/권한 오류 시: R2 버킷 공개 권한, CDN_BASE 설정, 파일 경로/대소문자/스펠링 재검수
 - 배포: scripts/emozleep-presign-worker/ (wrangler, index.ts, README)
 
@@ -834,7 +834,7 @@ switch(provider){
 - 주의: 비밀키는 코드/레포에 저장하지 않으며, 환경변수로만 관리합니다.
 - 앱 연동: AppDelegate에서 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
 - 모델 파일(SSOT)
-  - amoral-gemma3-1B-v2-Q4_K_M.gguf
-  - hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
-  - gemma-3-1b-it-q4_0.gguf
-  - hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+  - amoral-gemma3-1B-v2-Q5_K_M.gguf
+  - kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+  - yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
+  - cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf

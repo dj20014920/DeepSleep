@@ -228,7 +228,12 @@ public final class RemoteAssetClient: NSObject {
             log.info(
                 "📂 Found existing file: \(url.lastPathComponent, privacy: .public) size=\(size, privacy: .public)"
             )
-            // sha256 검증(필수)
+            // sha256 검증: 기대값이 비어있다면 건너뜀(로컬 수동 배치 시)
+            if expectedSha256.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                progress?(1.0)
+                log.info("🟡 No expected SHA provided for \(fileName, privacy: .public); trusting existing file")
+                return url
+            }
             let actual = try FileIntegrity.sha256Hex(of: url)
             log.info(
                 "🔍 Integrity check: expected=\(expectedSha256, privacy: .public) actual=\(actual, privacy: .public)"

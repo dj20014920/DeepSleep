@@ -35,10 +35,10 @@ class AIModelSelectionViewController: UIViewController {
     /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
     private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
         switch modelID {
-        case .qwen05b_q4km: return "작은 클로버"      // 412MB (가장 작음)
+        case .hcx05b_q4_k_m: return "작은 클로버"      // 412MB (가장 작음)
         case .hcx05b_q8_0: return "클로버"          // 693MB
-        case .amoral_gemma1b_v2_q4km: return "작은 잼민이" // 769MB
-        case .gemma1b_iq4xs: return "잼민이"        // 957MB (가장 큼)
+        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
+        case .gemma1b_iq4xs: return "큰 클로버"      // 1006MB (가장 큼)
         }
     }
 
@@ -71,7 +71,7 @@ class AIModelSelectionViewController: UIViewController {
         Task { [weak self] in
             guard let self = self else { return }
             let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-            let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
+            let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
             let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
             let installing = [s1, s2, s3, s4].contains { state in
@@ -211,7 +211,7 @@ class AIModelSelectionViewController: UIViewController {
                     bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
                 ),
                 (
-                    type: .naver, id: .qwen05b_q4km,
+                    type: .naver, id: .hcx05b_q4_k_m,
                     personality: "정겨우면서도 현실적인 성격",
                     specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
                     strengths: "한국인의 정서/문화를 깊이 이해하고 현실적 조언",
@@ -228,7 +228,7 @@ class AIModelSelectionViewController: UIViewController {
         let selectedType = SettingsManager.shared.selectedLLM
         let selectedOnDeviceID = SettingsManager.shared.preferredOnDeviceModelID
             ?? OnDeviceAdapter.shared.activeModelID
-            ?? ModelCatalog.defaultModelID
+            ?? ModelCatalog.defaultModelID  // defaultModelID가 사용자 선호 우선으로 동작
 
         for m in sorted {
             let rec = ModelCatalog.record(for: m.id)
@@ -454,7 +454,7 @@ class AIModelSelectionViewController: UIViewController {
             Task { [weak self] in
                 guard let self = self else { return }
                 let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-                let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
+                let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
                 let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
                 let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
                 var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
@@ -555,7 +555,7 @@ class AIModelSelectionViewController: UIViewController {
         Task { [weak self] in
             guard let self = self else { return }
             let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-            let s2 = await OnDeviceAdapter.shared.status(for: .qwen05b_q4km)
+            let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
             let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
             let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
             var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
@@ -592,7 +592,7 @@ class AIModelSelectionViewController: UIViewController {
     ) -> [(String, Double, OnDeviceModelID)] {
         var entries: [(String, Double, OnDeviceModelID)] = []
         let r1 = ModelCatalog.record(for: .amoral_gemma1b_v2_q4km)
-        let r2 = ModelCatalog.record(for: .qwen05b_q4km)
+        let r2 = ModelCatalog.record(for: .hcx05b_q4_k_m)
         let r3 = ModelCatalog.record(for: .gemma1b_iq4xs)
         let r4 = ModelCatalog.record(for: .hcx05b_q8_0)
 
@@ -600,7 +600,7 @@ class AIModelSelectionViewController: UIViewController {
             entries.append(("\(friendlyNickname(for: .amoral_gemma1b_v2_q4km))", p, .amoral_gemma1b_v2_q4km))
         }
         if case .installing(let p) = s2 {
-            entries.append(("\(friendlyNickname(for: .qwen05b_q4km))", p, .qwen05b_q4km))
+            entries.append(("\(friendlyNickname(for: .hcx05b_q4_k_m))", p, .hcx05b_q4_k_m))
         }
         if case .installing(let p) = s3 {
             entries.append(("\(friendlyNickname(for: .gemma1b_iq4xs))", p, .gemma1b_iq4xs))
