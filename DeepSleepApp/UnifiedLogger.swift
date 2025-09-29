@@ -215,22 +215,13 @@ public final class UnifiedLogger {
         
         let logMessage = "\(timestampString) \(level.emoji) \(category.prefix) \(fileName):\(line) \(function) - \(enrichedMessage)"
         
-        // 🛡️ Thread-Safe 중복 억제: Dictionary 접근을 동기화하여 크래시 방지
+        // 중복 억제: logQueue(직렬)에서만 실행되므로 별도 동기화 불필요 (sync 사용 금지: 자기 큐에서 sync는 데드락)
         let dedupKey = "\(level.rawValue)|\(category.rawValue)|\(message)"
         let now = timestamp.timeIntervalSince1970
-        
-        // 중복 체크를 thread-safe하게 수행
-        let shouldSkip: Bool = logQueue.sync {
-            if let last = lastLogTimestamps[dedupKey], now - last < dedupInterval {
-                return true
-            }
-            lastLogTimestamps[dedupKey] = now
-            return false
-        }
-        
-        if shouldSkip {
+        if let last = lastLogTimestamps[dedupKey], now - last < dedupInterval {
             return
         }
+        lastLogTimestamps[dedupKey] = now
 
         // 콘솔 출력 (선택)
         if enableConsolePrint {
