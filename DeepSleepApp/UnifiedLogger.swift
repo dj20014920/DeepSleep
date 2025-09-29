@@ -95,7 +95,8 @@ public final class UnifiedLogger {
     // MARK: - 로그 버퍼 (원격 로깅용)
     private var logBuffer: [LogEntry] = []
     private let maxBufferSize = 100
-    private let logQueue = DispatchQueue(label: "unified.logger.queue", qos: .utility)
+    // 🛡️ Thread-Safe 로깅을 위한 직렬 큐 (크래시 방지를 위해 QoS 조정)
+    private let logQueue = DispatchQueue(label: "unified.logger.queue", qos: .utility, attributes: [])
     
     private struct LogEntry {
         let timestamp: Date
@@ -175,10 +176,36 @@ public final class UnifiedLogger {
         // 추가 컨텍스트(메모리, 스레드, 스레드ID, 세션ID 일부)를 로그 메시지에 포함
         var enrichedMessage = message
         if includeContext {
-            let memMB = String(format: "%.2f", MemoryProfiler.shared.getCurrentMemoryUsage())
+            // 🛡️ 안전한 메모리 사용량 조회 (크래시 방지)
+            let memMB: String = {
+                do {
+                    let usage = MemoryProfiler.shared.getCurrentMemoryUsage()
+                    return String(format: "%.2f", usage)
+                } catch {
+                    return "?.??"
+                }
+            }()
+            
             let thread = Thread.isMainThread ? "main" : (Thread.current.name ?? "bg")
-            let tid = pthread_mach_thread_np(pthread_self())
-            let sessionIdSnippet = SessionManager.shared.getCurrentSessionId().prefix(6)
+            
+            // 🛡️ 안전한 스레드 ID 조회 (크래시 방지)
+            let tid: UInt32 = {
+                do {
+                    return pthread_mach_thread_np(pthread_self())
+                } catch {
+                    return 0
+                }
+            }()
+            
+            // 🛡️ 안전한 세션 ID 조회 (크래시 방지)
+            let sessionIdSnippet: String = {
+                do {
+                    return String(SessionManager.shared.getCurrentSessionId().prefix(6))
+                } catch {
+                    return "??????"
+                }
+            }()
+            
             enrichedMessage = "[mem=\(memMB)MB thread=\(thread) tid=\(tid) sid=\(sessionIdSnippet)] \(message)"
         }
 
@@ -188,13 +215,22 @@ public final class UnifiedLogger {
         
         let logMessage = "\(timestampString) \(level.emoji) \(category.prefix) \(fileName):\(line) \(function) - \(enrichedMessage)"
         
-        // 간단한 중복 억제: 같은 카테고리/레벨/본문이 dedupInterval 이내 반복되면 스킵
+        // 🛡️ Thread-Safe 중복 억제: Dictionary 접근을 동기화하여 크래시 방지
         let dedupKey = "\(level.rawValue)|\(category.rawValue)|\(message)"
         let now = timestamp.timeIntervalSince1970
-        if let last = lastLogTimestamps[dedupKey], now - last < dedupInterval {
+        
+        // 중복 체크를 thread-safe하게 수행
+        let shouldSkip: Bool = logQueue.sync {
+            if let last = lastLogTimestamps[dedupKey], now - last < dedupInterval {
+                return true
+            }
+            lastLogTimestamps[dedupKey] = now
+            return false
+        }
+        
+        if shouldSkip {
             return
         }
-        lastLogTimestamps[dedupKey] = now
 
         // 콘솔 출력 (선택)
         if enableConsolePrint {
@@ -243,6 +279,7 @@ public final class UnifiedLogger {
     private func addToBuffer(timestamp: Date, level: LogLevel, category: Category, message: String, file: String, function: String, line: Int) {
         let entry = LogEntry(timestamp: timestamp, level: level, category: category, message: message, file: file, function: function, line: line)
         
+        // 🛡️ Thread-Safe 버퍼 접근 (이미 logQueue 내부에서 호출되므로 추가 동기화 불필요)
         logBuffer.append(entry)
         
         // 버퍼 크기 제한

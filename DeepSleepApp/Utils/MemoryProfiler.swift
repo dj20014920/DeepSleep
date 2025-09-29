@@ -17,7 +17,13 @@ class MemoryProfiler {
     private init() {}
     
     /// 현재 앱의 메모리 사용량을 MB 단위로 반환
+    /// 🛡️ 시스템 콜 실패 시 안전한 값 반환 (크래시 방지)
     func getCurrentMemoryUsage() -> Float {
+        guard Thread.isMainThread || !Thread.current.isCancelled else {
+            // 취소된 스레드에서는 시스템 콜 회피
+            return 0
+        }
+        
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
         
@@ -30,13 +36,22 @@ class MemoryProfiler {
             }
         }
         
-        if result == KERN_SUCCESS {
-            let memoryInBytes = Float(info.resident_size)
-            let memoryInMB = memoryInBytes / 1024.0 / 1024.0
-            return memoryInMB
+        guard result == KERN_SUCCESS else {
+            // 🛡️ 시스템 콜 실패 시 안전한 기본값 반환
+            logger.debug("⚠️ 메모리 사용량 조회 실패: kern_return_t=\(result)")
+            return 0
         }
         
-        return 0
+        let memoryInBytes = Float(info.resident_size)
+        let memoryInMB = memoryInBytes / 1024.0 / 1024.0
+        
+        // 🛡️ 비정상적인 값 필터링
+        guard memoryInMB >= 0 && memoryInMB < 2048 else {
+            logger.debug("⚠️ 비정상적인 메모리 사용량: \(memoryInMB)MB")
+            return 0
+        }
+        
+        return memoryInMB
     }
     
     /// 메모리 사용량 베이스라인 설정
