@@ -197,16 +197,30 @@ public enum ModelCatalog {
         // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → 1.5B(Q4_K_M) → Amoral 1B(Q5_K_M)
         return [.hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
     }
+}
+
+// MARK: - OnDeviceModelID Extensions
+
+extension OnDeviceModelID {
+    /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기준)
+    public var friendlyNickname: String {
+        switch self {
+        case .hcx05b_q4_k_m: return "작은 클로버"      // 432MB (가장 작음)
+        case .hcx05b_q8_0: return "클로버"          // 726MB
+        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
+        case .gemma1b_iq4xs: return "큰 클로버"      // 1010MB (가장 큼)
+        }
+    }
 
     // 파일명 → 모델 ID 매핑 헬퍼(SSOT: 상수 기반)
     // - DRY: 파일명 상수(file_*)를 단일 출처로 사용
     // - 사용 예: 네트워킹/다운로더에서 lastPathComponent로 ID 유추 시
     public static func id(forFileName fileName: String) -> OnDeviceModelID? {
         switch fileName {
-        case file_amoral_gemma1b_v2_q4km: return .amoral_gemma1b_v2_q4km
-        case file_hcx05b_q4_k_m: return .hcx05b_q4_k_m
-        case file_gemma1b_iq4xs: return .gemma1b_iq4xs
-        case file_hcx05b_q8: return .hcx05b_q8_0
+        case ModelCatalog.file_amoral_gemma1b_v2_q4km: return .amoral_gemma1b_v2_q4km
+        case ModelCatalog.file_hcx05b_q4_k_m: return .hcx05b_q4_k_m
+        case ModelCatalog.file_gemma1b_iq4xs: return .gemma1b_iq4xs
+        case ModelCatalog.file_hcx05b_q8: return .hcx05b_q8_0
         default: return nil
         }
     }

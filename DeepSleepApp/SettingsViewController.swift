@@ -35,6 +35,7 @@ class SettingsViewController: UIViewController {
         setupUI()
         setupNavigationBar()
         loadCurrentSettings()
+        setupNotificationObservers()
         // 구독 상태 바인딩(전역 통일 패턴)
         _ = SubscriptionUIBinder.attach(to: self) { [weak self] _ in
             self?.updateSubscriptionBadge()
@@ -42,11 +43,22 @@ class SettingsViewController: UIViewController {
         updateSubscriptionBadge()
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // 화면에 나타날 때마다 최신 설정으로 업데이트
+        loadCurrentSettings()
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         // 설정 화면: 하단 배너는 레이아웃이 안정된 뒤에 부착
         AdsBannerCoordinator.shared.attachBottomBanner(to: self, autoLoad: true)
         // Settings 화면은 별도의 튜토리얼을 표시하지 않습니다(KISS/YAGNI).
+    }
+
+    deinit {
+        // 노티피케이션 옵저버 정리
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: - Setup Methods
@@ -262,8 +274,40 @@ class SettingsViewController: UIViewController {
     }
 
     private func updateAIModelDisplay() {
-        // AI 모델 섹션의 첫 번째 항목 업데이트
-        aiModelSection.updateItem(at: 0, subtitle: selectedAIModel.displayName)
+        // AI 모델 섹션의 첫 번째 항목 업데이트 - 온디바이스 모델은 친근한 별명 사용
+        let displayText = getModelDisplayText()
+        aiModelSection.updateItem(at: 0, subtitle: displayText)
+    }
+
+    /// 현재 선택된 모델의 사용자 친화적 표시명을 반환합니다
+    private func getModelDisplayText() -> String {
+        if selectedAIModel == .onDevice {
+            // 온디바이스 모델의 경우 구체적인 모델 ID의 친근한 별명 사용
+            let selectedOnDeviceID = SettingsManager.shared.preferredOnDeviceModelID
+                ?? OnDeviceAdapter.shared.activeModelID
+                ?? ModelCatalog.defaultModelID
+            return selectedOnDeviceID.friendlyNickname
+        } else {
+            // 다른 모델들은 기존 displayName 사용
+            return selectedAIModel.displayName
+        }
+    }
+
+    @objc private func handleAIModelChanged(_ notification: Notification) {
+        // 모델 변경 시 즉시 UI 업데이트
+        DispatchQueue.main.async { [weak self] in
+            self?.loadCurrentSettings()
+        }
+    }
+
+    private func setupNotificationObservers() {
+        // AI 모델 변경 알림 구독
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAIModelChanged(_:)),
+            name: .aiModelChanged,
+            object: nil
+        )
     }
 
     private func updateSubscriptionBadge() {

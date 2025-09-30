@@ -30,19 +30,11 @@ class AIModelSelectionViewController: UIViewController {
     // 확인 버튼
     private let confirmButton = UIButton(type: .system)
 
-    // MARK: - Model Nickname System
-    
-    /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
-    private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
-        switch modelID {
-        case .hcx05b_q4_k_m: return "작은 클로버"      // 412MB (가장 작음)
-        case .hcx05b_q8_0: return "클로버"          // 693MB
-        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
-        case .gemma1b_iq4xs: return "큰 클로버"      // 1006MB (가장 큼)
-        }
-    }
+
 
     // MARK: - Lifecycle
+
+    private var hasAppearedOnce = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -51,6 +43,17 @@ class AIModelSelectionViewController: UIViewController {
         createModelCards()
         setupOnDeviceObservers()
         refreshOnDeviceProgressUI()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // 내부적으로 Alert/Paywall 등을 띄웠다가 닫힐 때도 viewWillAppear가 호출되어
+        // 임시 선택 상태(체크박스)가 초기화되는 문제가 있었음.
+        // 최초 1회에만 복원 로직을 실행하여 사용자의 현재 선택 상태를 유지.
+        if !hasAppearedOnce {
+            restoreSelectionState()
+            hasAppearedOnce = true
+        }
     }
 
     // MARK: - Lifecycle
@@ -239,24 +242,30 @@ class AIModelSelectionViewController: UIViewController {
                 specialties: m.specialties,
                 strengths: m.strengths,
                 bestFor: m.bestFor,
-                titleOverride: friendlyNickname(for: m.id),
-                subtitleOverride: "온디바이스 • \(size)"
+                titleOverride: m.id.friendlyNickname,
+                subtitleOverride: "온디바이스 • \(size)",
+                onDeviceID: m.id
             )
             // Restore persisted selection: highlight card if matches saved selection
-            if m.type == selectedType {
-                if m.type == .onDevice {
-                    card.isSelected = (m.id == selectedOnDeviceID)
-                } else {
-                    card.isSelected = true
-                }
+            // - onDevice: 선택된 온디바이스 ID와 일치하는 카드만 선택
+            // - 기타 모델: 타입 일치 카드 선택
+            if selectedType == .onDevice {
+                card.isSelected = (m.id == selectedOnDeviceID)
             } else {
-                card.isSelected = false
+                card.isSelected = (m.type == selectedType)
             }
             card.onTap = { [weak self, weak card] in
                 guard let self = self, let card = card else { return }
                 // 4개 버블 모두 온디바이스 설치/활성화 플로우를 사용
                 // 사용자가 탭한 즉시, 해당 모델만 진행률을 보이도록 포커스 지정
                 self.focusInstallingID = m.id
+
+                // 체크박스 유지(재진입 복원) 위해 즉시 영속화
+                SettingsManager.shared.updateSelectedModelAtomically(.onDevice)
+                SettingsManager.shared.preferredOnDeviceModelID = m.id
+                self.currentSelectedModel = .onDevice
+
+                // 온디바이스 설치/활성화 플로우 진행
                 self.handleOnDeviceSelection(for: m.id, card: card)
             }
 
@@ -299,17 +308,17 @@ class AIModelSelectionViewController: UIViewController {
     private func handleOnDeviceSelection(for id: OnDeviceModelID, card: AIModelCardView) {
         // 진행 표시를 해당 카드에 바인딩
         self.onDeviceCardRef = card
-        
+
         // 먼저 선택 애니메이션을 즉시 실행 (애플 파운데이션 모델과 동일한 UX)
         // 해당 카드만 직접 선택 (다른 AIModelType 때문에 selectModel(.onDevice)가 안 먹힘)
         for c in modelCards { c.isSelected = false }
         card.isSelected = true
         self.currentSelectedModel = .onDevice
-        
+
         // 선택 애니메이션이 완전히 보일 수 있도록 적절한 지연 후 비동기 로직 실행
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self = self else { return }
-            
+
             Task { [weak self] in
                 guard let self = self else { return }
             let st = await OnDeviceAdapter.shared.status(for: id)
@@ -493,10 +502,10 @@ class AIModelSelectionViewController: UIViewController {
             // 어떤 모델이 설치되었는지 fileName → OnDeviceModelID로 매핑
             var installedID: OnDeviceModelID?
             if let fileName = note.userInfo?["fileName"] as? String {
-                installedID = ModelCatalog.id(forFileName: fileName)
+                installedID = OnDeviceModelID.id(forFileName: fileName)
             }
             if installedID == nil, let url = note.userInfo?["localURL"] as? URL {
-                installedID = ModelCatalog.id(forFileName: url.lastPathComponent)
+                installedID = OnDeviceModelID.id(forFileName: url.lastPathComponent)
             }
 
             guard let id = installedID else {
@@ -597,16 +606,16 @@ class AIModelSelectionViewController: UIViewController {
         let r4 = ModelCatalog.record(for: .hcx05b_q8_0)
 
         if case .installing(let p) = s1 {
-            entries.append(("\(friendlyNickname(for: .amoral_gemma1b_v2_q4km))", p, .amoral_gemma1b_v2_q4km))
+            entries.append((OnDeviceModelID.amoral_gemma1b_v2_q4km.friendlyNickname, p, .amoral_gemma1b_v2_q4km))
         }
         if case .installing(let p) = s2 {
-            entries.append(("\(friendlyNickname(for: .hcx05b_q4_k_m))", p, .hcx05b_q4_k_m))
+            entries.append((OnDeviceModelID.hcx05b_q4_k_m.friendlyNickname, p, .hcx05b_q4_k_m))
         }
         if case .installing(let p) = s3 {
-            entries.append(("\(friendlyNickname(for: .gemma1b_iq4xs))", p, .gemma1b_iq4xs))
+            entries.append((OnDeviceModelID.gemma1b_iq4xs.friendlyNickname, p, .gemma1b_iq4xs))
         }
         if case .installing(let p) = s4 {
-            entries.append(("\(friendlyNickname(for: .hcx05b_q8_0))", p, .hcx05b_q8_0))
+            entries.append((OnDeviceModelID.hcx05b_q8_0.friendlyNickname, p, .hcx05b_q8_0))
         }
         return entries
     }
@@ -624,6 +633,42 @@ class AIModelSelectionViewController: UIViewController {
 
     // moved to AIModelCardView.updateOnDeviceProgress(text:progress:)
 
+    // MARK: - Selection State Management
+
+    /// 저장된 설정에 따라 모든 카드의 선택 상태를 복원합니다
+    private func restoreSelectionState() {
+        let savedModel = SettingsManager.shared.selectedLLM
+        let savedOnDeviceID = SettingsManager.shared.preferredOnDeviceModelID
+            ?? OnDeviceAdapter.shared.activeModelID
+            ?? ModelCatalog.defaultModelID
+
+        // 현재 선택된 모델 업데이트
+        currentSelectedModel = savedModel
+
+        // createModelCards와 동일한 로직으로 선택 상태 복원
+        // 각 카드가 어떤 온디바이스 모델 ID에 매핑되는지 확인해야 함
+        let mappings: [(type: AIModelType, id: OnDeviceModelID)] = [
+            (.onDevice, .amoral_gemma1b_v2_q4km),
+            (.gemini, .gemma1b_iq4xs),
+            (.gpt4, .hcx05b_q8_0),
+            (.naver, .hcx05b_q4_k_m)
+        ]
+
+        // 모든 카드의 선택 상태 업데이트
+        for card in modelCards {
+            if card.model == .apple {
+                card.isSelected = (savedModel == .apple)
+                continue
+            }
+            if savedModel == .onDevice {
+                // 카드가 보유한 onDeviceID와 저장된 ID를 직접 비교
+                card.isSelected = (card.onDeviceID == savedOnDeviceID)
+            } else {
+                card.isSelected = (card.model == savedModel)
+            }
+        }
+    }
+
     // MARK: - Actions
 
     private func selectModel(_ model: AIModelType) {
@@ -632,7 +677,11 @@ class AIModelSelectionViewController: UIViewController {
             presentPaywall()
             return
         }
-        // 모든 카드의 선택 상태 업데이트
+        // 모든 카드의 선택 상태 업데이트 (단순 규칙)
+        // - 온디바이스의 구체적 ID 반영은 restoreSelectionState()가 담당
+        // 즉시 영속화: X로 닫거나 뒤로가도 체크 유지
+        SettingsManager.shared.updateSelectedModelAtomically(model)
+
         for card in modelCards {
             card.isSelected = (card.model == model)
         }
@@ -684,6 +733,7 @@ class AIModelCardView: UIView {
     // MARK: - Properties
 
     let model: AIModelType
+    let onDeviceID: OnDeviceModelID?
     var isSelected: Bool = false {
         didSet {
             updateSelectionState()
@@ -826,9 +876,11 @@ class AIModelCardView: UIView {
 
     init(
         model: AIModelType, personality: String, specialties: [String], strengths: String,
-        bestFor: String, titleOverride: String? = nil, subtitleOverride: String? = nil
+        bestFor: String, titleOverride: String? = nil, subtitleOverride: String? = nil,
+        onDeviceID: OnDeviceModelID? = nil
     ) {
         self.model = model
+        self.onDeviceID = onDeviceID
         self.personality = personality
         self.specialties = specialties
         self.strengths = strengths
