@@ -69,16 +69,28 @@ public actor KVPromptCache {
 
     public static let shared = KVPromptCache()
 
-    // MARK: Configuration (tunable via env/config if needed)
+    // MARK: Configuration (xcconfig 기반, 중앙 관리)
 
-    /// 최대 보관 엔트리 수(LRU). 메모리 보호를 위해 너무 크게 설정하지 마세요.
-    private let capacity: Int = 2
+    /// 최대 보관 엔트리 수(LRU). Secrets.xcconfig의 KV_CACHE_CAPACITY 값 사용
+    /// - 기본값: 2 (메모리 보호)
+    private let capacity: Int = {
+        if let v = ConfigReader.int("KV_CACHE_CAPACITY") { return v }
+        return 2
+    }()
 
-    /// TTL(초). 기본 2시간. 시스템 프롬프트는 자주 바뀌지 않지만, 안전을 위해 만료를 둡니다.
-    private let ttl: TimeInterval = 7200
+    /// TTL(초). Secrets.xcconfig의 KV_CACHE_TTL_SECONDS 값 사용
+    /// - 기본값: 7200 (2시간)
+    private let ttl: TimeInterval = {
+        if let v = ConfigReader.double("KV_CACHE_TTL_SECONDS") { return v }
+        return 7200
+    }()
 
-    /// 동일 키에 대해 최소 저장 간격(초). 너무 자주 저장하는 것을 억제(엔진 비용 절감).
-    private let minSaveIntervalForSameKey: TimeInterval = 60
+    /// 동일 키에 대해 최소 저장 간격(초). Secrets.xcconfig의 KV_CACHE_MIN_SAVE_INTERVAL 값 사용
+    /// - 기본값: 60초 (불필요한 저장 방지)
+    private let minSaveIntervalForSameKey: TimeInterval = {
+        if let v = ConfigReader.double("KV_CACHE_MIN_SAVE_INTERVAL") { return v }
+        return 60
+    }()
 
     // MARK: Storage
 
@@ -206,19 +218,41 @@ public actor KVPromptCache {
 
     // MARK: Internal LRU helpers
 
+    /// 새 엔트리 삽입 및 LRU 정책 적용
+    /// - 용량 초과 시 가장 오래된 항목부터 자동 제거
     private func insert(_ entry: Entry) {
+        // 1. 신규 엔트리 저장
         store[entry.key] = entry
         touch(entry.key)
 
-        // 용량 초과 시 LRU 앞쪽(가장 오래된 항목)부터 제거
-        while lru.count > capacity {
+        // 2. 용량 초과 체크 및 자동 제거 (LRU 정책)
+        // ⚠️ 중요: store.count가 아닌 lru.count를 사용해야 정확
+        while store.count > capacity {
             if let oldKey = lru.first {
-                os_log("🗑️ [KVCache] EVICT %{public}@", log: log, type: .info, oldKey)
+                os_log(
+                    "🗑️ [KVCache] EVICT (capacity=%{public}d) key=%{public}@", 
+                    log: log, type: .info, capacity, oldKey
+                )
                 remove(oldKey)
             } else {
+                // lru 리스트가 비어있는데 store에 데이터가 있는 경우 (비정상)
+                // 모든 항목 강제 정리
+                os_log("⚠️ [KVCache] LRU 불일치 감지 - 전체 정리", log: log, type: .error)
+                store.removeAll()
+                lru.removeAll()
                 break
             }
         }
+        
+        #if DEBUG
+        // 디버그: LRU 상태 일관성 체크
+        if store.count != lru.count {
+            os_log(
+                "⚠️ [KVCache] 불일치: store.count=%{public}d lru.count=%{public}d",
+                log: log, type: .error, store.count, lru.count
+            )
+        }
+        #endif
     }
 
     private func touch(_ key: String) {

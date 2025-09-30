@@ -235,7 +235,9 @@ class AIModelSelectionViewController: UIViewController {
 
         for m in sorted {
             let rec = ModelCatalog.record(for: m.id)
-            let size = OnDevicePromptProfile.ProgressBuilder.humanSize(rec.approxBytes)
+            // 실제 파일 크기를 사용 (설치된 경우), 미설치시 근사치 사용
+            let actualSize = ModelCatalog.actualFileSize(for: m.id)
+            let size = OnDevicePromptProfile.ProgressBuilder.humanSize(actualSize)
             let card = AIModelCardView(
                 model: m.type,
                 personality: m.personality,

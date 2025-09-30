@@ -8,10 +8,13 @@ class MemoryProfiler {
     private let logger = Logger(subsystem: "com.deepsleep.app", category: "Memory")
     private var baselineMemory: Float = 0
     
-    // 경고 임계치(MB). Info.plist 키 MEMORY_WARN_THRESHOLD_MB가 있으면 사용, 없으면 200MB
+    // 경고 임계치(MB). Secrets.xcconfig의 MEMORY_WARN_THRESHOLD_MB 값 사용
+    /// - 기본값: 700MB (아이폰12 기준, 에뮬레이터는 더 높게 측정됨)
     private lazy var thresholdMB: Float = {
-        if let v = ConfigReader.double("MEMORY_WARN_THRESHOLD_MB") { return Float(v) }
-        return 200
+        if let v = ConfigReader.double("MEMORY_WARN_THRESHOLD_MB") { 
+            return Float(v) 
+        }
+        return 700  // 아이폰12 기준 기본값
     }()
     
     private init() {}

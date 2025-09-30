@@ -147,8 +147,15 @@ class OnDeviceModelView: UIView {
             value /= 1024
             unitIndex += 1
         }
-        return String(format: "%.0f%@", value, units[unitIndex])
+        
+        // 더 정확한 표시를 위해 MB/GB는 소수점 1자리, 그 외는 정수로 표시
+        if unitIndex >= 2 { // MB, GB
+            return String(format: "%.1f%@", value, units[unitIndex])
+        } else { // B, KB
+            return String(format: "%.0f%@", value, units[unitIndex])
+        }
     }
+    
     
     @objc private func deleteButtonTapped() {
         onDelete?(modelID)
@@ -495,30 +502,18 @@ class StorageManagementViewController: UIViewController {
     
     // MARK: - Model Management
     
-    /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기반)
-    private func friendlyNickname(for modelID: OnDeviceModelID) -> String {
-        switch modelID {
-        case .hcx05b_q4_k_m: return "작은 클로버"      // 412MB (가장 작음)
-        case .hcx05b_q8_0: return "클로버"          // 693MB
-        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
-        case .gemma1b_iq4xs: return "큰 클로버"      // 1006MB (가장 큼)
-        }
-    }
-    
+    /// 설치된 모델 목록을 동적으로 스캔하여 갱신합니다
+    /// - 파일 시스템을 직접 스캔하여 실제 설치된 모델과 크기를 정확히 파악
     private func refreshModelList() {
         Task { [weak self] in
             guard let self = self else { return }
             
-            let allModels = OnDeviceModelID.allCases
-            var installedModels: [(OnDeviceModelID, Int)] = []
+            // ModelCatalog의 스캔 기능을 사용하여 설치된 모델 검색
+            // 반환값: [(모델ID, 파일경로, 실제크기)]
+            let scannedModels = ModelCatalog.scanInstalledModels()
             
-            for modelID in allModels {
-                let status = await OnDeviceAdapter.shared.status(for: modelID)
-                if case .installed = status {
-                    let record = ModelCatalog.record(for: modelID)
-                    installedModels.append((modelID, record.approxBytes))
-                }
-            }
+            // (모델ID, 실제크기) 튜플 배열로 변환
+            let installedModels = scannedModels.map { ($0.0, $0.2) }
             
             await MainActor.run {
                 self.updateModelViews(with: installedModels)
@@ -549,9 +544,12 @@ class StorageManagementViewController: UIViewController {
             // 용량 순으로 정렬 (작은 것부터)
             let sortedModels = installedModels.sorted { $0.1 < $1.1 }
             
-            for (modelID, sizeBytes) in sortedModels {
-                let nickname = friendlyNickname(for: modelID)
-                let modelView = OnDeviceModelView(modelID: modelID, nickname: nickname, sizeBytes: sizeBytes)
+            for (modelID, actualSize) in sortedModels {
+                // ModelCatalog의 extension에 정의된 friendlyNickname 사용 (DRY 원칙)
+                let nickname = modelID.friendlyNickname
+                
+                // 이미 스캔에서 얻은 실제 크기 사용 (중복 파일 읽기 방지)
+                let modelView = OnDeviceModelView(modelID: modelID, nickname: nickname, sizeBytes: actualSize)
                 
                 modelView.onDelete = { [weak self] modelID in
                     self?.showDeleteModelConfirmation(for: modelID)
@@ -564,7 +562,8 @@ class StorageManagementViewController: UIViewController {
     }
     
     private func showDeleteModelConfirmation(for modelID: OnDeviceModelID) {
-        let nickname = friendlyNickname(for: modelID)
+        // ModelCatalog의 extension에 정의된 friendlyNickname 사용 (DRY 원칙)
+        let nickname = modelID.friendlyNickname
         
         let alert = UIAlertController(
             title: "\(nickname) 나가!",
@@ -588,14 +587,16 @@ class StorageManagementViewController: UIViewController {
                 try OnDeviceAdapter.shared.deleteInstalled(id: modelID)
                 
                 await MainActor.run {
-                    let nickname = self.friendlyNickname(for: modelID)
+                    // ModelCatalog의 extension에 정의된 friendlyNickname 사용 (DRY 원칙)
+                    let nickname = modelID.friendlyNickname
                     self.showSuccessAlert("삭제 완료", message: "\(nickname) 친구가 삭제되었습니다.")
                     self.refreshModelList()
                     self.loadStorageStatistics() // 전체 저장소 통계도 업데이트
                 }
             } catch {
                 await MainActor.run {
-                    let nickname = self.friendlyNickname(for: modelID)
+                    // ModelCatalog의 extension에 정의된 friendlyNickname 사용 (DRY 원칙)
+                    let nickname = modelID.friendlyNickname
                     self.showError("\(nickname) 삭제 실패: \(error.localizedDescription)")
                 }
             }

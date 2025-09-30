@@ -115,21 +115,20 @@ public enum ModelCatalog {
     public static let bytes_gemma1b_iq4xs = 1_010_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
-    // removed: params_gemma270 (unused)
     private static let params_hcx05b_q4km: InferenceParams = .init(
-        context: 4096, threads: 4, temperature: 0.7, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 4096, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_hcx05b_q8_0: InferenceParams = .init(
-        context: 8192, threads: 4, temperature: 0.7, topK: 45, topP: 0.95, gpuLayers: nil,
+        context: 8192, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_hyperclova_1p5b_q4km: InferenceParams = .init(
-        context: 16384, threads: 4, temperature: 0.7, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 16384, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_gemma3_1b_q5km: InferenceParams = .init(
-        context: 8192, threads: 4, temperature: 0.6, topK: 64, topP: 0.90, gpuLayers: nil,
+        context: 8192, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
 
@@ -196,6 +195,116 @@ public enum ModelCatalog {
     public static var fallbackOrder: [OnDeviceModelID] {
         // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → 1.5B(Q4_K_M) → Amoral 1B(Q5_K_M)
         return [.hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
+    }
+    
+    /// 모델 파일을 저장할 수 있는 모든 가능한 디렉토리 경로를 반환합니다
+    /// - Returns: 모델 파일을 찾을 수 있는 디렉토리 경로 배열
+    public static func modelDirectories() -> [String] {
+        var directories: [String] = []
+        
+        // 1. Application Support/Models (주 저장소 - OnDeviceAdapter에서 사용)
+        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            directories.append(appSupport.appendingPathComponent("Models", isDirectory: true).path)
+        }
+        
+        // 2. 개발 환경의 model 폴더 (현재 작업 디렉토리 기준)
+        let projectModelPath = FileManager.default.currentDirectoryPath + "/model"
+        if FileManager.default.fileExists(atPath: projectModelPath) {
+            directories.append(projectModelPath)
+        }
+        
+        // 3. Documents/models 디렉토리
+        if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            directories.append(docs.appendingPathComponent("models", isDirectory: true).path)
+        }
+        
+        // 4. 앱 Bundle 리소스
+        if let bundle = Bundle.main.resourcePath {
+            directories.append(bundle)
+        }
+        
+        return directories
+    }
+    
+    /// 특정 파일명의 모델 파일 경로를 찾습니다
+    /// - Parameter fileName: 찾을 모델 파일명
+    /// - Returns: 파일이 존재하는 전체 경로 (없으면 nil)
+    public static func findModelFile(fileName: String) -> String? {
+        for directory in modelDirectories() {
+            let filePath = URL(fileURLWithPath: directory).appendingPathComponent(fileName).path
+            if FileManager.default.fileExists(atPath: filePath) {
+                return filePath
+            }
+        }
+        return nil
+    }
+    
+    /// 모델의 실제 파일 크기를 동적으로 읽어옵니다 (설치된 경우)
+    /// - Parameter id: 온디바이스 모델 ID
+    /// - Returns: 실제 파일 크기(bytes). 파일이 없으면 근사치 반환
+    public static func actualFileSize(for id: OnDeviceModelID) -> Int {
+        let record = ModelCatalog.record(for: id)
+        
+        // 파일 경로 찾기
+        guard let filePath = findModelFile(fileName: record.fileName) else {
+            // 파일을 찾을 수 없으면 근사치 반환
+            return record.approxBytes
+        }
+        
+        // 파일 크기 읽기
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath)
+            if let fileSize = attributes[.size] as? Int {
+                return fileSize
+            }
+        } catch {
+            // 오류 발생 시 근사치 반환
+            return record.approxBytes
+        }
+        
+        // 기타 경우 근사치 반환
+        return record.approxBytes
+    }
+    
+    /// 디렉토리를 스캔하여 설치된 모든 모델 파일과 크기를 반환합니다
+    /// - Returns: (모델ID, 파일경로, 실제크기) 튜플 배열
+    public static func scanInstalledModels() -> [(OnDeviceModelID, String, Int)] {
+        var installedModels: [(OnDeviceModelID, String, Int)] = []
+        
+        for directory in modelDirectories() {
+            guard let files = try? FileManager.default.contentsOfDirectory(atPath: directory) else {
+                continue
+            }
+            
+            // GGUF 파일만 필터링
+            let ggufFiles = files.filter { $0.lowercased().hasSuffix(".gguf") }
+            
+            for fileName in ggufFiles {
+                // 파일명으로 모델 ID 찾기
+                if let modelID = OnDeviceModelID.id(forFileName: fileName) {
+                    let filePath = URL(fileURLWithPath: directory).appendingPathComponent(fileName).path
+                    
+                    // 파일 크기 읽기
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: filePath),
+                       let fileSize = attributes[.size] as? Int {
+                        installedModels.append((modelID, filePath, fileSize))
+                    }
+                }
+            }
+        }
+        
+        // 중복 제거 (같은 모델이 여러 경로에 있을 수 있음 - 첫 번째 것만 사용)
+        var uniqueModels: [(OnDeviceModelID, String, Int)] = []
+        var seenIDs = Set<OnDeviceModelID>()
+        
+        for model in installedModels {
+            if !seenIDs.contains(model.0) {
+                uniqueModels.append(model)
+                seenIDs.insert(model.0)
+            }
+        }
+        
+        return uniqueModels
     }
 }
 
