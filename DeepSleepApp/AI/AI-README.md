@@ -290,3 +290,36 @@ let response = try await aiService.sendMessage(
 - Fallback (앱 레벨): freeModel → gemini → openAI → naver → claude (availableModels에 따라 건너뜀)
 - 권장 UI: 응답 버블 꼬리표 "온디바이스 · {ModelCatalog.displayName} · TTI {n.n}s" 또는 "{AIModel.displayName} · {model|provider}"
 - 스트리밍 델타 0 폴백: 비스트리밍 호출을 AIResponse 반환 오버로드로 호출하여 메타를 보존(모델/TTI 라벨링 일관성)
+
+## 🛡️ 2025-09-30 업데이트: 특수 토큰 처리 SSOT/DRY
+
+본 앱은 특수 토큰/템플릿 마커/부분 토큰 처리(입력/스트리밍/최종 출력)를 `SpecialTokenSanitizer`로 완전 중앙화했습니다.
+
+- 위치: `DeepSleepApp/Security/SpecialTokenSanitizer.swift`
+- 공개 API:
+  - `sanitizeUserInput(_ input: String, modelID: OnDeviceModelID) -> String`
+  - `cleanStreamingToken(_ delta: String, modelID: OnDeviceModelID) -> String`
+  - `cleanAIOutput(_ output: String, modelID: OnDeviceModelID) -> String`
+  - `getStopSequences(for modelID: OnDeviceModelID) -> [String]`
+  - `preserveCommonEmojis(_:)` / `restoreCommonEmojis(_:)`
+
+사용 예시
+```swift
+// 사용자 입력(보안)
+let safe = SpecialTokenSanitizer.sanitizeUserInput(userText, modelID: .hcx05b_q4_k_m)
+
+// 스트리밍 실시간 정화
+let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hcx05b_q4_k_m)
+
+// 최종 출력 정화
+let final = SpecialTokenSanitizer.cleanAIOutput(aiOutput, modelID: .amoral_gemma1b_v2_q4km)
+```
+
+DRY 적용 지점
+- `OnDeviceAdapter.cleanTokenDelta` → `SpecialTokenSanitizer.cleanStreamingToken` 위임
+- `OnDevicePromptProfile.stopSequences` → `SpecialTokenSanitizer.getStopSequences` 위임
+
+성능/UX 정책
+- Fast-path: 특수 토큰 패턴이 없으면 즉시 반환
+- 이모티콘 보존: `preserve→처리→restore` 단계화, `><` 포함
+- 과도한 정규식 사용 금지, 필요한 경우에만 실행

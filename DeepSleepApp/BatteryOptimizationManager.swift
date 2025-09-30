@@ -626,6 +626,29 @@ class BackgroundTaskManager: BackgroundTaskManagementProtocol {
             }
         }
     }
+
+    // MARK: - Short Background Tasks (UIKit)
+    /// 짧은 백그라운드 시간 확보용 헬퍼 (iOS 백그라운드 시간에서 안전하게 종료)
+    @discardableResult
+    func begin(_ name: String = "ai.ondevice.generation") -> UIBackgroundTaskIdentifier? {
+        var identifier: UIBackgroundTaskIdentifier = .invalid
+        identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            self?.end(identifier)
+        }
+        if identifier != .invalid {
+            activeBackgroundTasks.append(identifier)
+            return identifier
+        }
+        return nil
+    }
+
+    func end(_ id: UIBackgroundTaskIdentifier?) {
+        guard let id, id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        if let idx = activeBackgroundTasks.firstIndex(of: id) {
+            activeBackgroundTasks.remove(at: idx)
+        }
+    }
     
     enum BackgroundTaskType: String, CaseIterable {
         case dataSync = "data_sync"

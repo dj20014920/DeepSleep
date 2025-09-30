@@ -229,6 +229,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         {
             return AsyncThrowingStream { continuation in
                 Task {
+                    #if canImport(UIKit)
+                    let bg = BackgroundTaskManager.shared.begin("ai.ondevice.afm.stream")
+                    defer { BackgroundTaskManager.shared.end(bg) }
+                    #endif
                     do {
                         let sys: String? = {
                             if let a = assembledPrompt, !a.isEmpty { return a }
@@ -251,7 +255,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                             )
                             // Sanitize + greeting trim
                             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(full)
+                            let modelID = (OnDeviceAdapter.shared.activeModelID) ?? ModelCatalog.defaultModelID
+                            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(
+                                full,
+                                modelID: modelID
+                            )
                             let (processed, _) =
                                 AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                                     response: sanitized,
@@ -315,6 +323,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         _ tokenConfig: TokenConfiguration?,
         _ assembledPrompt: String?
     ) async throws -> AIResponse {
+        // 📱 백그라운드 시간 확보 (iOS)
+        #if canImport(UIKit)
+        let bg = BackgroundTaskManager.shared.begin("ai.ondevice.generation")
+        defer { BackgroundTaskManager.shared.end(bg) }
+        #endif
         // System prompt assembly (SSOT)
         let systemPrompt: String = {
             if let a = assembledPrompt, !a.isEmpty { return a }

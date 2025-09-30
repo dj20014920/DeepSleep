@@ -16,6 +16,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     private let log = Logger(subsystem: "DeepSleep.OnDevice", category: "Adapter")
     private var remote: RemoteAssetClient
     private let loader: OnDeviceModelLoader
+    
+    // UTF-8 스트리밍 버퍼 (멀티바이트 문자 안전 처리)
+    private var utf8Buffer = UTF8StreamBuffer()
 
     // 전환/성능 정책
     private var policy = FallbackPolicy()
@@ -137,41 +140,22 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     }
 
     /// 토큰 스트림에서 UTF-8 인코딩 문제 및 템플릿 토큰 누출 실시간 정리
+    /// 
+    /// **개선사항:**
+    /// - ✅ UTF-8 멀티바이트 경계 안전 처리 (한글 등 문자 손실 방지)
+    /// - ✅ 스트리밍 중 U+FFFD 제거 금지 (미완성 바이트 복구 기회 보장)
+    /// - ✅ 중앙화된 SpecialTokenSanitizer 사용 (DRY 원칙 준수)
+    ///
+    /// - Note: UTF8StreamBuffer를 통해 멀티바이트 문자가 스트림 경계에서
+    ///         잘려도 안전하게 복구됩니다 (업계 표준 방식)
     private func cleanTokenDelta(_ delta: String, modelID: OnDeviceModelID) -> String {
-        var cleaned = delta
-
-        // 1. UTF-8 인코딩 문제 수정
-        // 깨진 UTF-8 문자 (���) 제거
-        cleaned = cleaned.replacingOccurrences(of: "���", with: "")
-        cleaned = cleaned.replacingOccurrences(of: "\u{FFFD}", with: "")
-
-        // 2. 실시간 템플릿 토큰 필터링 (스트리밍 중 즉시 차단)
-        let templateTokens = OnDevicePromptProfile.stopSequences(for: modelID)
-        for token in templateTokens {
-            cleaned = cleaned.replacingOccurrences(of: token, with: "")
-        }
-
-        // 3. 부분적 템플릿 토큰도 필터링 (스트리밍 중 나타날 수 있음)
-        let partialTokenPatterns: [String] = [
-            "<|im_",
-            "<start_of_",
-            "<end_of_",
-            "|>",
-            "turn>",
-        ]
-
-        for pattern in partialTokenPatterns {
-            cleaned = cleaned.replacingOccurrences(of: pattern, with: "")
-        }
-
-        // 4. 연속된 공백 정리 (템플릿 토큰 제거 후 남은 공백들)
-        cleaned = cleaned.replacingOccurrences(
-            of: #"\s{3,}"#,
-            with: " ",
-            options: .regularExpression
-        )
-
-        return cleaned
+        // 1단계: UTF-8 멀티바이트 경계 안전 처리
+        // 한글(3바이트) 등이 스트림 경계에서 잘려도 다음 델타와 병합하여 복구
+        let safeDelta = utf8Buffer.process(delta)
+        
+        // 2단계: SSOT - SpecialTokenSanitizer에서 특수 토큰 처리
+        // 주의: 내부에서 U+FFFD를 제거하지 않음 (멀티바이트 복구 위해)
+        return SpecialTokenSanitizer.cleanStreamingToken(safeDelta, modelID: modelID)
     }
 
     // MARK: Adapter-facing Types
@@ -690,6 +674,17 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             }
             throw AdapterError.underlying(error)
         }
+
+        // 스트림 종료: UTF-8 버퍼에 남은 바이트 처리
+        let remainingText = utf8Buffer.flush()
+        if !remainingText.isEmpty {
+            // 남은 바이트를 마지막 토큰으로 처리
+            let cleanedRemaining = SpecialTokenSanitizer.cleanStreamingToken(remainingText, modelID: id)
+            onToken(cleanedRemaining)
+        }
+        
+        // 다음 생성을 위해 버퍼 리셋
+        utf8Buffer.reset()
 
         let finished = Date()
         let usedTTI = max(0, ttiMs)

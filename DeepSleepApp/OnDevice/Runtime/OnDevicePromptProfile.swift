@@ -40,58 +40,13 @@ public enum OnDevicePromptProfile {
         }
     }
 
-    /// 모델 ID → stop 시퀀스(SSOT)
+    /// 모델 ID → stop 시퀀스 (SSOT)
     /// - 템플릿 에코 방지, 다음 턴 시작 토큰 방지 목적
-    /// - 로그에서 발견된 실제 누출 패턴들을 모두 포함
+    /// - ✅ DRY: SpecialTokenSanitizer에서 중앙 관리
     @inlinable
     public static func stopSequences(for id: OnDeviceModelID) -> [String] {
-        switch templateKind(for: id) {
-        case .gemmaStyle:
-            // Gemma 3 계열: 실제 누출되는 모든 패턴 포함
-            return [
-                // 정상적인 턴 종료
-                "<end_of_turn>",
-                // 새 턴 시작 방지 (모든 역할)
-                "<start_of_turn>user",
-                "<start_of_turn>model",
-                "<start_of_turn>assistant",
-                "<start_of_turn>system",
-                "<start_of_turn>",
-                // 부분적/깨진 토큰들
-                "<start_of_",
-                "<end_of_",
-                // 공통 종료 토큰들
-                "</s>",
-                "<eos>",
-                "<|eot_id|>",
-                "<|end_of_text|>",
-            ]
-        case .qwenStyle:
-            // HyperCLOVA X / Qwen 계열: 로그에서 실제 발견된 모든 누출 패턴
-            return [
-                // 정상적인 턴 종료
-                "<|im_end|>",
-                // 새 턴 시작 방지 (모든 역할)
-                "<|im_start|>user",
-                "<|im_start|>assistant",
-                "<|im_start|>system",
-                "<|im_start|>",
-                // 대체 종료 토큰들
-                "<|endofturn|>",
-                "<|stop|>",
-                // 부분적/깨진 토큰들 (로그에서 실제 발견됨)
-                "<|im_",
-                "|>",
-                // 공통 종료 토큰들
-                "</s>",
-                "<eos>",
-                "<|eot_id|>",
-                "<|end_of_text|>",
-                // 실제 로그에서 발견된 패턴
-                "<|im_end|저는",
-                "<|im_start|저는",
-            ]
-        }
+        // SSOT: SpecialTokenSanitizer가 모든 토큰 정의를 관리
+        return SpecialTokenSanitizer.getStopSequences(for: id)
     }
 
     // MARK: - 템플릿 직렬화/포매팅

@@ -899,3 +899,42 @@ $1
 - 128k 컨텍스트(1.5B) 장문 모드 토글 UX 및 메모리 경고
 - Stop 패턴 자동 학습(로그→SSOT 반영 자동화)
 - KV 캐시 히트율 모니터링/지표 대시보드 연동
+
+## 2025-09-30 동기화: 특수 토큰/스트리밍 정화 SSOT · DRY 준수
+
+목표
+- 특수 토큰, 템플릿 마커, 깨진(partial) 토큰 처리의 단일 진실(SSOT) 확립
+- 입력/스트리밍/최종출력 정화를 하나의 유틸(SpecialTokenSanitizer)로 집중하여 DRY 보장
+
+핵심 원칙
+- KISS: 간단하고 명확한 규칙으로 최소 처리만 수행(Fast-path 우선)
+- DRY/SSOT: 모델별 토큰 정의, stop 시퀀스, 정화 로직을 한 곳(SpecialTokenSanitizer)에만 둠
+- YAGNI: 필요 시점에만 정규식/치환을 수행, 일반 텍스트 피해 최소화
+
+중앙 유틸(SSOT)
+- 파일: DeepSleepApp/Security/SpecialTokenSanitizer.swift
+- 제공 기능:
+  - sanitizeUserInput(_:modelID:): 입력 단계 보안 처리(특수 토큰 이스케이프)
+  - cleanStreamingToken(_:modelID:): 스트리밍 델타 실시간 정화
+  - cleanAIOutput(_:modelID:): 최종 출력 정화
+  - getStopSequences(for:): 모델별 stop 시퀀스 제공(중복 정의 금지)
+  - preserve/restoreCommonEmojis: 이모티콘 보존/복원
+
+모델별 토큰(요지)
+- Gemma3: <start_of_turn>/<end_of_turn>/<start_of_image>/<bos>/<eos>/<pad>/<unk>/<mask>/</s>/<|eot_id|>/<|end_of_text|>
+- HyperCLOVA X(Qwen): <|im_start|>/<|im_end|>/<|endofturn|>/<|stop|>/<bos>/<eos>/</s>/<|eot_id|>/<|end_of_text|>
+
+스트리밍 경로 정리
+- OnDeviceAdapter.cleanTokenDelta → SpecialTokenSanitizer.cleanStreamingToken 위임
+- OnDevicePromptProfile.stopSequences → SpecialTokenSanitizer.getStopSequences 위임
+
+보안/사용성 균형
+- Fast-path: "<"나 "|>"가 없으면 즉시 반환(일반 텍스트 무영향)
+- 이모티콘 보존: preserve→처리→restore 순서로 UX 품질 유지(>< 등 포함)
+- UTF-8 깨짐(�) 제거, 중복 공백 축소는 조건부로만 수행
+
+검증 체크리스트
+- [ ] 입력/스트리밍/출력 모든 경로에서 SpecialTokenSanitizer API만 호출
+- [ ] 문서/코드 어디에도 stop 시퀀스를 중복 나열하지 않음
+- [ ] 일반 텍스트(한글/영문/이모지) 처리 시 가시적 변형 없음
+- [ ] 템플릿 토큰/마커 누출 0, 부분 토큰 제거 동작

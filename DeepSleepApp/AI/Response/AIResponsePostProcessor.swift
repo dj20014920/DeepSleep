@@ -8,12 +8,30 @@ public enum AIResponsePostProcessor {
 
     /// Remove common artifacts: leading speaker labels (e.g., "[AI 친구]:"), and code fences.
     /// Returns (sanitized, reason)
-    public static func sanitizeArtifacts(_ text: String) -> (String, String?) {
+    /// 
+    /// ⚠️ IMPORTANT: 이 함수는 AI 출력 정화에만 사용합니다.
+    /// 사용자 입력은 SpecialTokenSanitizer.sanitizeUserInput()을 사용하세요.
+    public static func sanitizeArtifacts(
+        _ text: String,
+        modelID: OnDeviceModelID? = nil
+    ) -> (String, String?) {
         var s = text
         var reasons: [String] = []
 
         // Fast path
         if s.isEmpty { return (s, nil) }
+        
+        // STEP 0: 특수 토큰 제거 (모델 ID가 있는 경우)
+        if let id = modelID {
+            let beforeTokenClean = s
+            s = SpecialTokenSanitizer.cleanAIOutput(s, modelID: id)
+            if s != beforeTokenClean { reasons.append("strip_special_tokens") }
+        } else {
+            // 모델 ID가 없는 경우 레거시 로직 사용 (하위 호환성)
+            let beforeTemplates = s
+            s = legacyStripTemplateMarkers(s)
+            if s != beforeTemplates { reasons.append("strip_template_markers") }
+        }
 
         // 1) Remove surrounding code fences ```...``` (if the entire response is fenced)
         // Handles optional language tag after the opening fence (e.g., ```json)
@@ -53,61 +71,8 @@ public enum AIResponsePostProcessor {
         }
         if s != beforeSpeaker { reasons.append("strip_speaker_label") }
 
-        // 3) Strip leaked chat-template markers (Qwen/Gemma style + extended patterns)
-        // Remove any occurrences to avoid leaking prompt delimiters into UI
-        let templateMarkers: [String] = [
-            // Qwen/HyperCLOVA X style
-            "<|im_start|>assistant",
-            "<|im_start|>user",
-            "<|im_start|>system",
-            "<|im_start|>",
-            "<|im_end|>",
-            "<|endofturn|>",
-            "<|stop|>",
-            // Gemma style
-            "<start_of_turn>user",
-            "<start_of_turn>model",
-            "<start_of_turn>assistant",
-            "<start_of_turn>",
-            "<end_of_turn>",
-            // Common stop tokens that might leak
-            "<eos>",
-            "</s>",
-            "<|eot_id|>",
-            "<|end_of_text|>",
-            // Partial/broken tokens that appear in logs
-            "<|im_",
-            "<start_of_",
-            "<end_of_",
-        ]
-
-        var beforeTemplates = s
-
-        // First pass: exact string replacements
-        for marker in templateMarkers {
-            s = s.replacingOccurrences(of: marker, with: "")
-        }
-
-        // Second pass: regex-based cleanup for more complex patterns
-        let templatePatterns: [String] = [
-            // Any <|something|> pattern (Qwen-style)
-            #"<\|[^|]*\|>"#,
-            // Any <something_of_turn> pattern (Gemma-style)
-            #"<[^>]*_of_turn[^>]*>"#,
-            // Broken template fragments
-            #"<\|[^>]*$"#,  // incomplete opening
-            #"^[^<]*\|>"#,  // incomplete closing
-        ]
-
-        for pattern in templatePatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
-                let range = NSRange(location: 0, length: s.count)
-                s = regex.stringByReplacingMatches(
-                    in: s, options: [], range: range, withTemplate: "")
-            }
-        }
-
-        if s != beforeTemplates { reasons.append("strip_template_markers") }
+        // 3) 레거시 마커 제거는 이제 SpecialTokenSanitizer가 처리하므로 제거됨
+        // (하위 호환성을 위해 legacyStripTemplateMarkers 함수는 유지)
 
         // 4) Clean up UTF-8 encoding issues and corrupted characters
         let beforeEncoding = s
@@ -154,21 +119,29 @@ public enum AIResponsePostProcessor {
         // Keep as-is when no prior assistant turn
         // Conservatively detect previous assistant turn if history items resemble our AIConversationTurn { role: String }
         var hasAssistantBefore = false
+        var lastAssistantText: String?
         if let arr = history {
             for item in arr {
-                if let dict = item as? [String: Any], let role = dict["role"] as? String,
-                    role.lowercased() == "assistant"
-                {
+                if let dict = item as? [String: Any],
+                   let role = dict["role"] as? String,
+                   role.lowercased() == "assistant" {
                     hasAssistantBefore = true
-                    break
-                }
-                // Fallback: try Mirror for struct-like objects
-                let m = Mirror(reflecting: item)
-                if let roleChild = m.children.first(where: { $0.label == "role" }) {
-                    let roleValue = String(describing: roleChild.value).lowercased()
-                    if roleValue.contains("assistant") {
+                    if let c = dict["content"] as? String { lastAssistantText = c }
+                } else {
+                    // Fallback: try Mirror for struct-like objects (AIConversationTurn)
+                    let m = Mirror(reflecting: item)
+                    var roleValue: String?
+                    var contentValue: String?
+                    for child in m.children {
+                        if child.label == "role" {
+                            roleValue = String(describing: child.value).lowercased()
+                        } else if child.label == "content" {
+                            contentValue = String(describing: child.value)
+                        }
+                    }
+                    if let r = roleValue, r.contains("assistant") {
                         hasAssistantBefore = true
-                        break
+                        if let c = contentValue { lastAssistantText = c }
                     }
                 }
             }
@@ -180,7 +153,7 @@ public enum AIResponsePostProcessor {
         var reasons: [String] = []
         if let r = artReason, !r.isEmpty { reasons.append(r) }
 
-        // Build greeting patterns (raw regex, anchored at start)
+        // 1) Strip greeting words at start
         let base = #"^\s*(?:안녕하세요|안녕|반가워요|반갑습니다|하이|헬로|헬로우|hello|hi)\s*"#
         var patterns: [String] = []
         if let name = nickname, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -193,7 +166,7 @@ public enum AIResponsePostProcessor {
                 + #"(?:\([^)]{0,20}\)|\<[^>]{0,20}\>|\[[^\]]{0,20}\]|\"[^\"]{0,20}\")?\s*[,，、:：!~\-]*\s+"#
         )
 
-        let before = s
+        var changed = false
         outer: for p in patterns {
             if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
                 let ns = s as NSString
@@ -201,13 +174,131 @@ public enum AIResponsePostProcessor {
                 if let match = re.firstMatch(in: s, options: [], range: range) {
                     s = ns.replacingCharacters(in: match.range, with: "")
                     reasons.append("strip_greeting")
+                    changed = true
                     break outer
                 }
             }
         }
-        if s == before { return (s, reasons.isEmpty ? nil : reasons.joined(separator: ",")) }
+
+        // 2) Strip common self-intro lines (Korean persona preamble), only on later turns
+        let selfIntroPatterns: [String] = [
+            #"^\s*(?:저는|나는)\s*[^\n]{0,40}(?:AI\s*친구|도우미|파트너|비서)[^\n]{0,40}입니다[.!]?\s*$"#,
+            #"^\s*(?:저는|나는)\s*[^\n]{0,80}(?:도와드리|도와줄|도와 드리)[^\n]*$"#,
+            #"^\s*[^\n]{0,20}궁금한\s*점[^\n]{0,40}언제든지\s*물어보세요[^\n]*$"#,
+        ]
+        // Apply per line for the first 2 lines max
+        var lines = s.components(separatedBy: "\n")
+        let maxCheck = min(2, lines.count)
+        var removedCount = 0
+        if maxCheck > 0 {
+            for i in 0..<maxCheck {
+                let line = lines[i]
+                for pat in selfIntroPatterns {
+                    if let re = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) {
+                        let ns = line as NSString
+                        let range = NSRange(location: 0, length: ns.length)
+                        if re.firstMatch(in: line, options: [], range: range) != nil {
+                            lines[i] = ""
+                            removedCount += 1
+                            changed = true
+                            reasons.append("strip_self_intro")
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        if removedCount > 0 {
+            s = lines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .joined(separator: "\n")
+        }
+
+        // 3) If the new reply starts with nearly the same prefix as the last assistant reply, drop that prefix line
+        if let prev = lastAssistantText, !prev.isEmpty, !s.isEmpty {
+            func normalize(_ t: String) -> String {
+                // Keep letters, numbers, Hangul; lowercased, remove spaces/punct
+                let lowered = t.lowercased()
+                let allowed = lowered.unicodeScalars.filter { scalar in
+                    CharacterSet.alphanumerics.contains(scalar)
+                    || (scalar.value >= 0xAC00 && scalar.value <= 0xD7A3)  // Hangul syllables
+                }
+                return String(String.UnicodeScalarView(allowed))
+            }
+            let prevNorm = normalize(prev)
+            let sNorm = normalize(s)
+            let k = min(80, min(prevNorm.count, sNorm.count))
+            if k >= 24 {
+                let prevPrefix = String(prevNorm.prefix(k))
+                let newPrefix = String(sNorm.prefix(k))
+                if prevPrefix == newPrefix {
+                    // Remove first line from the original s
+                    if let range = s.range(of: "\n") {
+                        s = String(s[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        changed = true
+                        reasons.append("strip_duplicate_prefix")
+                    } else {
+                        // Single-line duplicate → return as-is (no content to preserve)
+                    }
+                }
+            }
+        }
+
+        if !changed { return (s, reasons.isEmpty ? nil : reasons.joined(separator: ",")) }
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed != s { reasons.append("trim_whitespace") }
         return (trimmed, reasons.isEmpty ? nil : reasons.joined(separator: ","))
+    }
+    
+    // MARK: - Legacy Support
+    
+    /// 레거시 템플릿 마커 제거 (하위 호환성)
+    /// - Parameter text: 입력 텍스트
+    /// - Returns: 정화된 텍스트
+    private static func legacyStripTemplateMarkers(_ text: String) -> String {
+        var s = text
+        
+        // 기존 로직 유지 (하위 호환성)
+        let templateMarkers: [String] = [
+            "<|im_start|>assistant",
+            "<|im_start|>user",
+            "<|im_start|>system",
+            "<|im_start|>",
+            "<|im_end|>",
+            "<|endofturn|>",
+            "<|stop|>",
+            "<start_of_turn>user",
+            "<start_of_turn>model",
+            "<start_of_turn>assistant",
+            "<start_of_turn>",
+            "<end_of_turn>",
+            "<eos>",
+            "</s>",
+            "<|eot_id|>",
+            "<|end_of_text|>",
+            "<|im_",
+            "<start_of_",
+            "<end_of_",
+        ]
+        
+        for marker in templateMarkers {
+            s = s.replacingOccurrences(of: marker, with: "")
+        }
+        
+        let templatePatterns: [String] = [
+            #"<\|[^|]*\|>"#,
+            #"<[^>]*_of_turn[^>]*>"#,
+            #"<\|[^>]*$"#,
+            #"^[^<]*\|>"#,
+        ]
+        
+        for pattern in templatePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(location: 0, length: s.count)
+                s = regex.stringByReplacingMatches(
+                    in: s, options: [], range: range, withTemplate: "")
+            }
+        }
+        
+        return s
     }
 }

@@ -143,3 +143,9 @@
 - [ ] 문서·코드 모두 270M/IQ4_XS/Qwen2.5 언급 제거(레거시 청산)
 
 끝.
+### 2025-09-30 업데이트: 특수 토큰/STOP 시퀀스 SSOT 안내
+
+- 모든 템플릿 마커/특수 토큰/STOP 시퀀스 관리는 `SpecialTokenSanitizer`로 중앙화되었습니다.
+- `OnDevicePromptProfile.stopSequences(for:)`는 내부적으로 `SpecialTokenSanitizer.getStopSequences(for:)`를 호출합니다.
+- 스트리밍 델타 정화는 `OnDeviceAdapter.cleanTokenDelta`가 `SpecialTokenSanitizer.cleanStreamingToken`에 위임합니다.
+- 일반 텍스트/이모티콘은 Fast-path 및 이모티콘 보존(>< 포함) 정책으로 영향이 최소화됩니다.

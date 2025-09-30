@@ -44,7 +44,7 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
-    // 타이핑 타이머 구현
+    // 타이핑 타이머 구현 (UTF-8 안전 버전)
     private func startTypingTimer() {
         typingTimer?.invalidate()
         typingTimer = Timer.scheduledTimer(withTimeInterval: typingTickInterval, repeats: true) {
@@ -55,22 +55,29 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             else { return }
 
             if !self.typingBuffer.isEmpty {
+                // 한 번에 표시할 문자 수 계산 (UTF-8 안전)
                 let n = min(self.typingCharsPerTick, self.typingBuffer.count)
                 let chunk = self.typingBuffer.prefix(n)
                 self.typingBuffer.removeFirst(n)
+                
                 let prev = self.messages[idx].text ?? ""
                 self.typingAccumulatedText = prev + String(chunk)
                 self.messages[idx].text = self.typingAccumulatedText
 
+                // UI 업데이트: 부드러운 페이드인 애니메이션
                 let indexPath = IndexPath(row: idx, section: 0)
                 if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
-                    cell.updateStreamingText(self.typingAccumulatedText, fadeDuration: 0.6)
+                    // 더 빠른 페이드인으로 반응성 향상 (이전: 0.6초 → 0.3초)
+                    cell.updateStreamingText(self.typingAccumulatedText, fadeDuration: 0.3)
                 }
 
-                if Date().timeIntervalSince(self.typingLastReflowAt) > 0.35
-                    || self.typingAccumulatedText.hasSuffix("\n")
-                {
+                // 레이아웃 리플로우 최적화: 줄바꿈 또는 일정 시간마다만 실행
+                let timeSinceLastReflow = Date().timeIntervalSince(self.typingLastReflowAt)
+                let needsReflow = timeSinceLastReflow > 0.25 || self.typingAccumulatedText.hasSuffix("\n")
+                
+                if needsReflow {
                     self.typingLastReflowAt = Date()
+                    // 애니메이션 없이 레이아웃 업데이트 (부드러움 유지)
                     UIView.performWithoutAnimation {
                         self.tableView.beginUpdates()
                         self.tableView.endUpdates()
@@ -78,6 +85,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     }
                 }
             } else if self.typingCompletedStream {
+                // 스트림 종료: 타이머 정리 및 최종 동기화
                 self.typingTimer?.invalidate()
                 self.typingTimer = nil
                 self.debouncedReload()
@@ -149,15 +157,18 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var currentStreamingMessageId: UUID?
     private var hasReceivedFirstToken: Bool = false
 
-    // ⌨️ 타이핑 애니메이션 상태
+    // ⌨️ 타이핑 애니메이션 상태 (개선된 UTF-8 안전 버전)
     private var typingTimer: Timer?
     private var typingBuffer: [Character] = []
     private var typingAccumulatedText: String = ""
     private var typingLastReflowAt: Date = Date(timeIntervalSince1970: 0)
     private var typingCompletedStream: Bool = false
-    // ⌨️ 타이핑
-    private let typingTickInterval: TimeInterval = 0.065
-    private let typingCharsPerTick: Int = 3
+    
+    // ⌨️ 타이핑 애니메이션 파라미터 (최적화됨)
+    // 업계 표준(ChatGPT, Claude) 참고: 빠른 반응성 + 부드러운 애니메이션
+    private let typingTickInterval: TimeInterval = 0.035  // ~30fps (이전: 0.065, ~15fps)
+    private let typingCharsPerTick: Int = 2  // 한글 고려 (이전: 3)
+    // 한글은 조합형이므로 2-3자씩 표시하는 것이 자연스러움
 
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
@@ -1790,8 +1801,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         view.endEditing(true)
         AdsBannerCoordinator.shared.refreshLayoutIfNeeded(for: self)
         recordSessionTime()
-        // 진행 중 스트림 취소(메모리/수명 안전)
-        currentStreamTask?.cancel()
+        // 진행 중 스트림은 취소하지 않음 — 백그라운드에서 완료 보장
+        // (UI 업데이트는 self 약한 참조로 묶여 있어 화면 이탈 시 영향 없음)
         // 타이핑 타이머 중지
         typingTimer?.invalidate()
         typingTimer = nil

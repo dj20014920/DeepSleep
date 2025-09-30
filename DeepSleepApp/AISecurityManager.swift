@@ -117,6 +117,19 @@ class AISecurityManager {
     
     /// 📋 **1. 입력 검증 및 정화 (Input Validation & Sanitization)**
     func validateAndSanitizeInput(_ input: String, userId: String) -> SecurityValidationResult {
+        // 기존 메서드: 하위 호환성 유지, 모델 ID 없이 호출
+        return validateAndSanitizeInput(input, userId: userId, modelID: nil)
+    }
+    
+    /// 📋 **1-2. 입력 검증 및 정화 (모델별 최적화)**
+    /// - 온디바이스 모델 사용 시 모델별 특수 토큰 처리
+    ///
+    /// - Parameters:
+    ///   - input: 사용자 입력
+    ///   - userId: 사용자 ID
+    ///   - modelID: 온디바이스 모델 ID (선택적)
+    /// - Returns: 검증 결과
+    func validateAndSanitizeInput(_ input: String, userId: String, modelID: OnDeviceModelID?) -> SecurityValidationResult {
         // 입력 보안 검사 시작
         
         // 1. 기본 검증
@@ -157,8 +170,8 @@ class AISecurityManager {
             return .flagged(reason: "지원하지 않는 언어가 감지되었습니다.", cleanInput: input)
         }
         
-        // 6. 입력 정화
-        let sanitizedInput = sanitizeInput(input)
+        // 6. 입력 정화 (모델별 최적화)
+        let sanitizedInput = sanitizeInput(input, modelID: modelID)
         
         // 7. 사용량 기록
         dailyRequestCounts[userKey] = currentCount + 1
@@ -246,8 +259,37 @@ class AISecurityManager {
     }
     
     /// 🧽 **5. 입력 정화**
-    private func sanitizeInput(_ input: String) -> String {
-        var sanitized = input
+    /// 특수 토큰 및 이모티콘 보안 처리 (모델별 최적화)
+    ///
+    /// - Parameters:
+    ///   - input: 사용자 입력
+    ///   - modelID: 온디바이스 모델 ID (온디바이스 사용 시)
+    /// - Returns: 정화된 입력
+    private func sanitizeInput(_ input: String, modelID: OnDeviceModelID? = nil) -> String {
+        // STEP 1: 이모티콘 임시 보호
+        let emojiProtected = SpecialTokenSanitizer.preserveCommonEmojis(input)
+        
+        // STEP 2: 특수 토큰 이스케이프 (모델별로 처리)
+        let tokenSanitized: String
+        if let modelID = modelID {
+            // 온디바이스 모델: 모델별 특수 토큰 처리
+            tokenSanitized = SpecialTokenSanitizer.sanitizeUserInput(
+                emojiProtected,
+                modelID: modelID
+            )
+        } else {
+            // 클라우드 모델: 범용 처리 (Qwen 스타일 적용)
+            tokenSanitized = SpecialTokenSanitizer.sanitizeUserInput(
+                emojiProtected,
+                modelID: .hcx05b_q4_k_m  // 범용 기본값
+            )
+        }
+        
+        // STEP 3: 이모티콘 복원
+        let restored = SpecialTokenSanitizer.restoreCommonEmojis(tokenSanitized)
+        
+        // STEP 4: 기존 sanitization 로직 적용
+        var sanitized = restored
         
         // HTML 태그 제거
         sanitized = sanitized.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
