@@ -137,10 +137,10 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         label.lineBreakMode = .byWordWrapping
         label.translatesAutoresizingMaskIntoConstraints = false
         
-        // 🎯 채팅 스타일: 텍스트 크기에 딱 맞게 조절
-        label.setContentHuggingPriority(.required, for: .horizontal) // 텍스트 크기에 꽉 맞게
+        // 🎯 채팅 스타일: 가로 확장을 허용(버블이 80% 상한까지 넓어지게 함)
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
         label.setContentHuggingPriority(.defaultLow, for: .vertical)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal) // 텍스트 잘리지 않게
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .vertical)
         
         return label
@@ -284,11 +284,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        // 동적 셀 높이 계산의 일관성을 위해 preferredMaxLayoutWidth를 현재 폭으로 고정
-        let currentWidth = messageLabel.bounds.width
-        if currentWidth > 0, messageLabel.preferredMaxLayoutWidth != currentWidth {
-            messageLabel.preferredMaxLayoutWidth = currentWidth
-        }
+        // iOS 11+ 오토레이아웃에서는 leading/trailing + numberOfLines=0 제약만으로
+        // 높이/폭 계산이 일관되므로 preferredMaxLayoutWidth 강제 설정을 제거합니다.
     }
     
     // 🎯 채팅 스타일 제약조건 설정 (깔끔한 분리)
@@ -360,6 +357,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         thinkingLabel.numberOfLines = 1
         thinkingLabel.lineBreakMode = .byTruncatingTail
     }
+
+    // 동적 폭은 라벨 인트린식 + 최대 80% 제약으로 자연스럽게 결정되도록 유지합니다.
 
     private func setupGestureRecognizers() {
         let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
@@ -805,9 +804,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         streamingOverlayLabel?.removeFromSuperview()
         streamingOverlayLabel = nil
         
-        // 🛡️ 동적 제약조건 완전 정리 (중복 방지의 핵심)
+        // 🛡️ 동적 제약조건 정리: 중앙 정렬(시스템 메시지 전용)만 제거
         bubbleView.constraints.forEach { constraint in
-            if constraint.firstAttribute == .width || constraint.firstAttribute == .centerX {
+            if constraint.firstAttribute == .centerX {
                 bubbleView.removeConstraint(constraint)
             }
         }
@@ -881,6 +880,7 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         let overlay: UILabel = streamingOverlayLabel ?? {
             let lbl = UILabel()
             lbl.numberOfLines = 0
+            // 오버레이도 동일한 줄바꿈 정책 적용 (단어 단위)
             lbl.lineBreakMode = .byWordWrapping
             lbl.translatesAutoresizingMaskIntoConstraints = false
             bubbleView.addSubview(lbl)
