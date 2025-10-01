@@ -191,6 +191,7 @@ public enum SpecialTokenSanitizer {
             case .qwenStyle:
                 return [
                     "<|im_",
+                    "<|im",
                     "|>",
                     "<bos",
                     "<eos",

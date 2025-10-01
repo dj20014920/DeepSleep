@@ -15,6 +15,8 @@
 		E017981B2E375AF5002F178C /* OptimizedTabSwipeSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */; };
 		E017981F2E3765ED002F178C /* SimpleTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017981E2E3765ED002F178C /* SimpleTabBarController.swift */; };
 		E0247D572E8BD5BD003EAD98 /* UTF8StreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0247D562E8BD5BD003EAD98 /* UTF8StreamBuffer.swift */; };
+		E0247D5A2E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0247D592E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift */; };
+		E0247D5B2E8D54BC003EAD98 /* GraphemeStreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0247D582E8D54BC003EAD98 /* GraphemeStreamBuffer.swift */; };
 		E0278A052E7979C400CB39E7 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0278A032E79799000CB39E7 /* llama.xcframework */; };
 		E0278A062E7979C400CB39E7 /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E0278A032E79799000CB39E7 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E04980D22E6F08E300343E29 /* AdTopContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */; };
@@ -294,6 +296,8 @@
 		E017981A2E375AF5002F178C /* OptimizedTabSwipeSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedTabSwipeSystem.swift; sourceTree = "<group>"; };
 		E017981E2E3765ED002F178C /* SimpleTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleTabBarController.swift; sourceTree = "<group>"; };
 		E0247D562E8BD5BD003EAD98 /* UTF8StreamBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTF8StreamBuffer.swift; sourceTree = "<group>"; };
+		E0247D582E8D54BC003EAD98 /* GraphemeStreamBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphemeStreamBuffer.swift; sourceTree = "<group>"; };
+		E0247D592E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTF8ByteStreamDecoder.swift; sourceTree = "<group>"; };
 		E0278A032E79799000CB39E7 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = llama.xcframework; sourceTree = "<group>"; };
 		E04980D12E6F08E300343E29 /* AdTopContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdTopContainerViewController.swift; sourceTree = "<group>"; };
 		E04980D92E6FEA5200343E29 /* UsageGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageGate.swift; sourceTree = "<group>"; };
@@ -994,6 +998,8 @@
 		E09CD6E62E466707007C133E /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				E0247D582E8D54BC003EAD98 /* GraphemeStreamBuffer.swift */,
+				E0247D592E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift */,
 				E0247D562E8BD5BD003EAD98 /* UTF8StreamBuffer.swift */,
 				E09CD6E52E466707007C133E /* MemoryProfiler.swift */,
 			);
@@ -1469,6 +1475,8 @@
 				E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */,
 				E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */,
 				E084F1FB2E33ACB3002F75E6 /* HealthKitManager.swift in Sources */,
+				E0247D5A2E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift in Sources */,
+				E0247D5B2E8D54BC003EAD98 /* GraphemeStreamBuffer.swift in Sources */,
 				E084F1FC2E33ACB3002F75E6 /* OpenAIAPIService.swift in Sources */,
 				E0E7BCC62E561C8100FF7073 /* EntitlementUI.swift in Sources */,
 				E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */,

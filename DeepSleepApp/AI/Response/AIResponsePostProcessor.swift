@@ -244,8 +244,33 @@ public enum AIResponsePostProcessor {
         }
 
         if !changed { return (s, reasons.isEmpty ? nil : reasons.joined(separator: ",")) }
-        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed != s { reasons.append("trim_whitespace") }
+        // 4) 한국어 말끝 불완전 감탄사/호응(어?, 응?, 음? 등) 단독 꼬리 제거 (앞부분이 충분히 길 때만)
+        //    - 모델이 장문의 답변 뒤에 습관적으로 짧은 호응을 덧붙이는 UX 저해 케이스 방지
+        var final = s
+        let minBodyLenForTailStrip = 30
+        let tailCandidates: Set<String> = ["어", "응", "음", "흠", "허", "헉", "아", "엥", "어어", "응응", "음음"]
+        do {
+            let parts = final.components(separatedBy: "\n")
+            if parts.count >= 1 {
+                let head = parts.dropLast().joined(separator: "\n")
+                let last = parts.last!.trimmingCharacters(in: .whitespacesAndNewlines)
+                // 허용된 매우 짧은 호응 + 선택적 구두점만 있는지 검사
+                let strippedPunct = last.replacingOccurrences(of: #"[?!.…\s]"#, with: "", options: .regularExpression)
+                if tailCandidates.contains(strippedPunct), head.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
+                    final = head
+                    reasons.append("strip_tail_interjection")
+                }
+            }
+            // 같은 줄(개행 없음)에서도 문장 끝의 단독 호응을 제거
+            if final.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
+                if let r = final.range(of: #"(?:\s|\n)+(?:어|응|음|흠|허|헉|아|엥|어어|응응|음음)\s*[?!.…]?$"#, options: .regularExpression) {
+                    final.removeSubrange(r)
+                    reasons.append("strip_tail_interjection_inline")
+                }
+            }
+        }
+        let trimmed = final.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed != final { reasons.append("trim_whitespace") }
         return (trimmed, reasons.isEmpty ? nil : reasons.joined(separator: ","))
     }
     

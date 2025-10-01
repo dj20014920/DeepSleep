@@ -288,10 +288,15 @@ protocol LlamaCppBinding: Sendable {
             }
 
             // 5) 생성 루프(스트리밍)
+            //    중요: llama_token_to_piece는 UTF-8 코드 포인트 경계에서 토큰을 끊지 않을 수 있음.
+            //    (특히 한글 3바이트 문자) → 토큰 단위로 바로 String(cString:)을 만들면 
+            //    중간 바이트가 "�"(U+FFFD)로 대체되어 최종적으로 글자가 빠지는 현상이 발생.
+            //    해결: 바이트 단위로 누적하여 UTF-8 경계에서만 안전하게 디코딩 후 onToken에 전달.
             var n_cur = nTok
             var n_gen: Int32 = 0
             let maxGen: Int32 = Int32(ConfigReader.int("ONDEVICE_MAX_TOKENS", default: 128) ?? 128)
             var accText = ""
+            var utf8Decoder = UTF8ByteStreamDecoder()
             var stopByLiteral = false
 
             while n_gen < maxGen {
@@ -307,22 +312,27 @@ protocol LlamaCppBinding: Sendable {
                 }
                 if reachedEnd { break }
 
-                // 토큰을 텍스트로 변환해 스트리밍 콜백
+                // 토큰을 바이트로 변환 후 UTF-8 경계까지 안전히 디코딩하여 스트리밍 콜백
                 var tmp = [CChar](repeating: 0, count: 8)
                 let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
-                var delta = ""
+                var deltaStr = ""
                 if rc < 0 {
                     let need = max(8, -Int(rc))
                     tmp = [CChar](repeating: 0, count: need)
-                    _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
-                    delta = String(cString: tmp + [0])
+                    let used = Int(llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false))
+                    if used > 0 {
+                        let bytes = tmp.prefix(used).map { UInt8(bitPattern: $0) }
+                        deltaStr = utf8Decoder.processBytes(bytes)
+                    }
                 } else if rc > 0 {
                     let used = Int(rc)
-                    if used < tmp.count { tmp[used] = 0 }
-                    delta = String(cString: tmp)
+                    if used > 0 {
+                        let bytes = tmp.prefix(used).map { UInt8(bitPattern: $0) }
+                        deltaStr = utf8Decoder.processBytes(bytes)
+                    }
                 }
-                if !delta.isEmpty {
-                    accText += delta
+                if !deltaStr.isEmpty {
+                    accText += deltaStr
                     // 리터럴 기반 중단 시퀀스 검사(문자열 조합 기준)
                     if !self.stopLiterals.isEmpty {
                         for lit in self.stopLiterals {
@@ -341,7 +351,7 @@ protocol LlamaCppBinding: Sendable {
                         if !trimmed.isEmpty { onToken(trimmed) }
                         break
                     } else {
-                        onToken(delta)
+                        onToken(deltaStr)
                     }
                 }
 
@@ -362,6 +372,9 @@ protocol LlamaCppBinding: Sendable {
                 n_cur += 1
                 n_gen += 1
             }
+            // 루프 종료 후 남은 미완성 바이트를 강제로 디코딩하여 마지막으로 전달
+            let tail = utf8Decoder.flush()
+            if !tail.isEmpty { onToken(tail) }
         }
 
         func unload() {
@@ -879,13 +892,16 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         // 1st-token 시간 측정
         let t0 = CFAbsoluteTimeGetCurrent()
         var emittedFirst = false
-        let wrappedOnToken: @Sendable (String) -> Void = { delta in
+        // 스트리밍 바이트→UTF-8 안전 디코더(재개 모드에서도 동일 적용)
+        var utf8Decoder = UTF8ByteStreamDecoder()
+
+        let wrappedOnToken: @Sendable (String) -> Void = { _ in
             if !emittedFirst {
                 emittedFirst = true
                 let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
                 os_log("⏱️ firstTokenMs=%{public}d (resume)", log: self.log, type: .info, ms)
             }
-            onToken(delta)
+            // 실제 텍스트 전달은 아래 바이트 경계 처리 클로저에서 수행
         }
         try Task.checkCancellation()
         try await withTaskCancellationHandler {
@@ -898,10 +914,21 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
                 temperature: params.temperature,
                 topK: params.topK,
                 topP: params.topP,
-                onToken: wrappedOnToken
+                onToken: { piece in
+                    // 바인딩에서 전달되는 piece를 바이트 경계로 재검증
+                    let out = utf8Decoder.processBytes(Array(piece.utf8))
+                    if !out.isEmpty {
+                        // 첫 토큰 로깅 트리거
+                        wrappedOnToken(out)
+                        onToken(out)
+                    }
+                }
             )
         }
         try Task.checkCancellation()
+        // 남은 바이트 플러시
+        let tail = utf8Decoder.flush()
+        if !tail.isEmpty { onToken(tail) }
     }
 
     // MARK: - 바인딩 선택(조건부 컴파일)

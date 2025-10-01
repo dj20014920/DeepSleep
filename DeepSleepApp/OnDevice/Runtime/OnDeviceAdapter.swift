@@ -17,8 +17,12 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     private var remote: RemoteAssetClient
     private let loader: OnDeviceModelLoader
     
-    // UTF-8 스트리밍 버퍼 (멀티바이트 문자 안전 처리)
-    private var utf8Buffer = UTF8StreamBuffer()
+    // UTF-8 스트리밍 디코더(바이트 경계 SSOT)
+    private var utf8Buffer = UTF8ByteStreamDecoder()
+    // 그래펨(문자 클러스터) 경계 보호 버퍼
+    private var graphemeBuffer = GraphemeStreamBuffer()
+    // 템플릿 토큰 스트리밍 보류 버퍼
+    private var templateHold: String = ""
 
     // 전환/성능 정책
     private var policy = FallbackPolicy()
@@ -146,16 +150,17 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     /// - ✅ 스트리밍 중 U+FFFD 제거 금지 (미완성 바이트 복구 기회 보장)
     /// - ✅ 중앙화된 SpecialTokenSanitizer 사용 (DRY 원칙 준수)
     ///
-    /// - Note: UTF8StreamBuffer를 통해 멀티바이트 문자가 스트림 경계에서
+    /// - Note: UTF8ByteStreamDecoder를 통해 멀티바이트 문자가 스트림 경계에서
     ///         잘려도 안전하게 복구됩니다 (업계 표준 방식)
     private func cleanTokenDelta(_ delta: String, modelID: OnDeviceModelID) -> String {
-        // 1단계: UTF-8 멀티바이트 경계 안전 처리
-        // 한글(3바이트) 등이 스트림 경계에서 잘려도 다음 델타와 병합하여 복구
-        let safeDelta = utf8Buffer.process(delta)
-        
-        // 2단계: SSOT - SpecialTokenSanitizer에서 특수 토큰 처리
-        // 주의: 내부에서 U+FFFD를 제거하지 않음 (멀티바이트 복구 위해)
-        return SpecialTokenSanitizer.cleanStreamingToken(safeDelta, modelID: modelID)
+        // 1) UTF-8 바이트 경계 복구
+        let byteSafe = utf8Buffer.processBytes(Array(delta.utf8))
+        // 2) 그래펨(이모지/결합표/국기) 경계 복구
+        let graphemeSafe = graphemeBuffer.process(byteSafe)
+        // 3) 템플릿 마커 스트리밍 제거 (경계 넘나드는 조각까지 안전 처리)
+        let templateCleaned = stripTemplateMarkersStreaming(in: graphemeSafe, modelID: modelID)
+        // 4) 특수 토큰 정리 (U+FFFD는 스트리밍 단계에서 제거하지 않음)
+        return SpecialTokenSanitizer.cleanStreamingToken(templateCleaned, modelID: modelID)
     }
 
     // MARK: Adapter-facing Types
@@ -676,20 +681,68 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         }
 
         // 스트림 종료: UTF-8 버퍼에 남은 바이트 처리
-        let remainingText = utf8Buffer.flush()
-        if !remainingText.isEmpty {
-            // 남은 바이트를 마지막 토큰으로 처리
-            let cleanedRemaining = SpecialTokenSanitizer.cleanStreamingToken(remainingText, modelID: id)
-            onToken(cleanedRemaining)
+        var tail = utf8Buffer.flush()
+        tail = graphemeBuffer.process(tail) + graphemeBuffer.flush()
+        // 템플릿 보류 포함해 최종 정리(보류 잔여는 폐기)
+        tail = stripTemplateMarkersStreaming(in: tail, modelID: id)
+        templateHold.removeAll(keepingCapacity: false)
+        if !tail.isEmpty {
+            let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
+            onToken(cleaned)
         }
-        
         // 다음 생성을 위해 버퍼 리셋
         utf8Buffer.reset()
+        graphemeBuffer.reset()
 
         let finished = Date()
         let usedTTI = max(0, ttiMs)
         return GenerationSummary(
             modelID: id, ttiMilliseconds: usedTTI, startedAt: started, finishedAt: finished)
+    }
+
+    /// 모델 템플릿 마커(예: Qwen: <|im_start|> .. |>, Gemma: <start_of_turn>) 스트리밍 제거
+    /// - 원칙: '<'로 시작해 템플릿 접두와 일치하면 종결('>' 또는 "|>")까지 제거. 없으면 보류.
+    private func stripTemplateMarkersStreaming(in s: String, modelID: OnDeviceModelID) -> String {
+        if s.isEmpty { return s }
+        // 1) 보류분과 결합
+        var text = templateHold.isEmpty ? s : (templateHold + s)
+        templateHold.removeAll(keepingCapacity: false)
+        // 2) 스캔
+        var out = String()
+        out.reserveCapacity(text.count)
+        var i = text.startIndex
+        let end = text.endIndex
+        while i < end {
+            let ch = text[i]
+            if ch == "<" {
+                let nextIdx = text.index(after: i)
+                if nextIdx < end {
+                    let nxt = text[nextIdx]
+                    if nxt == "|" {
+                        // Qwen: <| ... |>
+                        if let close = text.range(of: "|>", range: nextIdx..<end) {
+                            i = text.index(after: close.upperBound)
+                            continue
+                        } else {
+                            templateHold = String(text[i..<end])
+                            break
+                        }
+                    } else if nxt == "s" || nxt == "e" || nxt == "b" || nxt == "p" || nxt == "u" || nxt == "m" {
+                        // Gemma/공통: <start_of_...> <end_of_...> <bos> <eos> <pad> <unk> <mask>
+                        if let j = text[i...].firstIndex(of: ">") {
+                            i = text.index(after: j)
+                            continue
+                        } else {
+                            templateHold = String(text[i..<end])
+                            break
+                        }
+                    }
+                }
+            }
+            out.append(ch)
+            i = text.index(after: i)
+        }
+        return out
     }
 
     // MARK: - Candidate building / TTI adaptation
