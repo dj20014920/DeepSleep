@@ -198,6 +198,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
+    // 폭 제한 제약(중복 생성 방지용, 한 번만 만든다)
+    private var bubbleMaxWidthConstraint: NSLayoutConstraint!
+    private var bubbleMinWidthConstraint: NSLayoutConstraint!
     
     private var applyAction: (() -> Void)?
     
@@ -277,6 +280,16 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
     }
+
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // 동적 셀 높이 계산의 일관성을 위해 preferredMaxLayoutWidth를 현재 폭으로 고정
+        let currentWidth = messageLabel.bounds.width
+        if currentWidth > 0, messageLabel.preferredMaxLayoutWidth != currentWidth {
+            messageLabel.preferredMaxLayoutWidth = currentWidth
+        }
+    }
     
     // 🎯 채팅 스타일 제약조건 설정 (깔끔한 분리)
     private func setupChatStyleConstraints() {
@@ -290,9 +303,13 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         optionStackBottomConstraint = optionButtonStackView.bottomAnchor.constraint(lessThanOrEqualTo: bubbleView.bottomAnchor, constant: -16)
         optionStackBottomConstraint.priority = .defaultHigh
         
-        // 버블뷰 기본 제약조건 (동적으로 변경될 예정)
+        // 버블뷰 기본 제약조건 (동적으로 위치만 변경 예정)
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
         trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+
+        // 최대/최소 폭 제약은 한 번만 생성하여 재사용한다(중복 생성 금지)
+        bubbleMaxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.8)
+        bubbleMinWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 44)
         
         // 공통 제약조건들 활성화
         NSLayoutConstraint.activate([
@@ -329,6 +346,10 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             thinkingLabel.topAnchor.constraint(equalTo: gifCatView.bottomAnchor, constant: 4),
             thinkingLabel.trailingAnchor.constraint(lessThanOrEqualTo: loadingContainer.trailingAnchor, constant: -16)
         ])
+
+        // 최대/최소 폭 제약 활성화(단일 인스턴스)
+        bubbleMaxWidthConstraint.isActive = true
+        bubbleMinWidthConstraint.isActive = true
         contentView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         
         // 로딩 컨테이너 최소 높이(우선순위 낮춤)로 초기 계산 단계 경고 방지
@@ -507,14 +528,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             trailingConstraint.isActive = true
         }
         
-        // 🎯 채팅 스타일: 최대 너비만 제한, 최소 너비는 텍스트에 맞게
-        let maxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.8)
-        let minWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 44) // 최소 크기만 (아이콘 크기)
-        
-        NSLayoutConstraint.activate([
-            maxWidthConstraint,
-            minWidthConstraint
-        ])
+        // 폭 제약은 초기 1회 생성되어 항상 활성 상태. 중복 생성 방지.
+        bubbleMaxWidthConstraint.isActive = true
+        bubbleMinWidthConstraint.isActive = true
         
         // 기본 메시지 bottom 제약조건 활성화 (버튼이나 옵션이 없는 경우)
         messageLabelBottomConstraint.isActive = true
@@ -784,6 +800,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     override func prepareForReuse() {
         super.prepareForReuse()
         
+        // 스트리밍 오버레이 정리 (잉크 마스크/중복 레이아웃 방지)
+        streamingOverlayLabel?.layer.mask = nil
+        streamingOverlayLabel?.removeFromSuperview()
+        streamingOverlayLabel = nil
+        
         // 🛡️ 동적 제약조건 완전 정리 (중복 방지의 핵심)
         bubbleView.constraints.forEach { constraint in
             if constraint.firstAttribute == .width || constraint.firstAttribute == .centerX {
@@ -825,6 +846,7 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         thinkingLabel.alpha = 0
         currentCatPosition = 0
         loadingContainer.isHidden = true
+        messageLabel.alpha = 1.0
         
         // GIF 재시작을 위한 리셋
         gifCatView.setupGifCat()

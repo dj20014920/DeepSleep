@@ -161,8 +161,8 @@ final class CentralNotificationScheduler {
             return
         }
         
-        // 기존 운세 알림 제거
-        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune])
+        // 기존 운세 알림 제거 (레거시 식별자 포함)
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune, NotificationIdentifier.legacyFortune])
         
         let content = UNMutableNotificationContent()
         content.title = "오늘의 운세를 확인해보세요! 🔮"
@@ -185,7 +185,8 @@ final class CentralNotificationScheduler {
     }
     
     func cancelFortuneNotification() {
-        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune])
+        // 레거시 식별자까지 함께 제거하여 중복 방지
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationIdentifier.fortune, NotificationIdentifier.legacyFortune])
     }
     // MARK: - Clearing delivered notifications & badge
     func clearDeliveredNotificationsAndResetBadge() {
@@ -201,5 +202,8 @@ final class CentralNotificationScheduler {
 // MARK: - Identifiers
 private enum NotificationIdentifier {
     static let timer = "DeepSleep.timer"
-    static let fortune = "Leaflet.fortune"
+    // 운세 알림 식별자: 앱 전역에서 단일 식별자 사용
+    static let fortune = "DeepSleep.fortune"
+    // 레거시 식별자(과거 코드에서 사용되던 값). 중복 알림 방지를 위해 취소 시 함께 제거.
+    static let legacyFortune = "Leaflet.fortune"
 }
