@@ -115,6 +115,18 @@ protocol LlamaCppBinding: Sendable {
         // 접두 프리필 누적 위치(시스템+최근 대화). resume 시 startPos 계산과 일치해야 함.
         private var prefillPos: Int32 = 0
 
+        // MARK: - KV Cache 관리
+        
+        /// KV cache를 클리어하고 prefillPos를 리셋합니다.
+        /// llama_decode 실패 시 시퀀스 위치 불일치를 해결하기 위해 사용됩니다.
+        private func clearKVCache() {
+            guard let ctx = self.ctx else { return }
+            let mem = llama_get_memory(ctx)
+            llama_memory_clear(mem, true)  // data=true: 메타데이터와 데이터 버퍼 모두 클리어
+            prefillPos = 0
+            print("🧹 [ModelLoader] KV cache cleared, prefillPos reset to 0")
+        }
+
         required init(
             modelPath: String,
             context: Int,
@@ -192,6 +204,11 @@ protocol LlamaCppBinding: Sendable {
             useLock.wait()
             defer { useLock.signal() }
             stopRequested = false
+            
+            // 🔑 핵심: generate()는 position 0부터 시작하므로 KV cache를 클리어해야 함
+            // generateResuming()과 달리 이 함수는 "새로운 대화 시작"을 의미
+            clearKVCache()
+            
             // 1) Chat template 적용 → 프롬프트 문자열 생성
             let maxLen = Int32(((system?.utf8.count ?? 0) + input.utf8.count) * 2 + 4096)
             var formatted = [CChar](repeating: 0, count: Int(maxLen))
@@ -258,6 +275,8 @@ protocol LlamaCppBinding: Sendable {
                 batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
             }
             if llama_decode(ctx, batch) != 0 {
+                // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                clearKVCache()
                 throw OnDeviceError.unknown("llama_decode failed (prompt)")
             }
 
@@ -365,6 +384,8 @@ protocol LlamaCppBinding: Sendable {
                 nb.logits[0] = 1
                 if llama_decode(ctx, nb) != 0 {
                     llama_batch_free(nb)
+                    // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                    clearKVCache()
                     throw OnDeviceError.unknown("llama_decode failed (step)")
                 }
                 llama_batch_free(nb)
@@ -424,6 +445,19 @@ protocol LlamaCppBinding: Sendable {
                 return llama_state_set_data(ctx, base, data.count)
             }
             if read <= 0 { throw OnDeviceError.unknown("state_set_data failed") }
+            
+            // 🔑 핵심: KV cache 복원 후 prefillPos 동기화
+            // llama.cpp의 메모리 API를 사용하여 복원된 KV cache의 마지막 위치를 조회
+            let mem = llama_get_memory(ctx)
+            let maxPos = llama_memory_seq_pos_max(mem, 0)  // sequence 0의 최대 위치
+            if maxPos >= 0 {
+                prefillPos = maxPos + 1  // 다음 토큰이 들어갈 위치
+                print("🔄 [ModelLoader] loadState: KV cache 복원 완료, prefillPos = \(prefillPos) (maxPos = \(maxPos))")
+            } else {
+                // 빈 캐시인 경우
+                prefillPos = 0
+                print("🔄 [ModelLoader] loadState: 빈 KV cache, prefillPos = 0")
+            }
         }
 
         // MARK: - Prefix prefill and resume APIs
@@ -477,6 +511,8 @@ protocol LlamaCppBinding: Sendable {
                 batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
             }
             if llama_decode(ctx, batch) != 0 {
+                // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                clearKVCache()
                 throw OnDeviceError.unknown("llama_decode failed (system prefill)")
             }
             prefillPos += nTok
@@ -513,6 +549,8 @@ protocol LlamaCppBinding: Sendable {
                 batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
             }
             if llama_decode(ctx, batch) != 0 {
+                // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                clearKVCache()
                 throw OnDeviceError.unknown("llama_decode failed (prefillText)")
             }
             prefillPos += nTok
@@ -571,6 +609,8 @@ protocol LlamaCppBinding: Sendable {
                 nb.logits[0] = 1
                 if llama_decode(ctx, nb) != 0 {
                     llama_batch_free(nb)
+                    // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                    clearKVCache()
                     throw OnDeviceError.unknown("llama_decode failed (resume inject)")
                 }
                 llama_batch_free(nb)
@@ -637,6 +677,8 @@ protocol LlamaCppBinding: Sendable {
                 nb.logits[0] = 1
                 if llama_decode(ctx, nb) != 0 {
                     llama_batch_free(nb)
+                    // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
+                    clearKVCache()
                     throw OnDeviceError.unknown("llama_decode failed (resume step)")
                 }
                 llama_batch_free(nb)

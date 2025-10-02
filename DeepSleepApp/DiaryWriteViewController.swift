@@ -453,10 +453,9 @@ class DiaryWriteViewController: UIViewController {
             return
         }
         
-        // 요구사항: #Todays_Mood의 일반 채팅을 열고 그 안에서 분석을 요청
-        let chatVC = ChatRouter.chatViewController()
-        chatVC.diaryContext = DiaryContext(from: diaryEntry)
-        chatVC.initialUserText = "일기_분석_모드" // ChatVC에서 개인정보 안내 후 요청 진행
+        // 대나무숲 일기 분석 컨텍스트로 직접 진입 (후속 대화까지 일기 분석 시스템 프롬프트 유지)
+        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: diaryEntry))
+        // 버튼에서 선소비 처리했으므로 ChatVC에서도 재게이트/재카운트하지 않도록 표시
         chatVC.diaryAnalysisPreConsumed = true
         
         chatVC.onPresetApply = { [weak self] preset in

@@ -179,6 +179,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             do {
                 try await OnDeviceAdapter.shared.activate(id: id)
                 print("🚚 모델 프리로드 완료 id=\(id.rawValue)")
+                // 설치됨일 때만 프리워밍(시스템 프롬프트 접두부만 프리필)
+                let sys = UnifiedAIServiceImpl.shared.makeSystemPrompt(
+                    for: .generalConversation, model: .onDevice)
+                await OnDeviceAdapter.shared.prewarm(systemPrompt: sys)
             } catch {
                 print("⚠️ 모델 프리로드 실패: \(error.localizedDescription)")
             }

@@ -100,7 +100,47 @@ public enum AIResponsePostProcessor {
         }
         if s != beforeDuplicate { reasons.append("remove_duplicates") }
 
-        // 6) Final trim
+        // 6) Convert HTML line breaks to newlines (plain text only)
+        //    - 일부 온디바이스/프록시 출력에서 <br>가 줄바꿈 용도로 사용됨 → UI에선 텍스트로 보이므로 변환
+        //    - JSON 응답(프리셋 추천 등)은 변환 금지
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        var isLikelyJSON = false
+        if (!t.isEmpty && ((t.first == "{" && t.last == "}") || (t.first == "[" && t.last == "]"))) {
+            if let data = t.data(using: .utf8), (try? JSONSerialization.jsonObject(with: data)) != nil {
+                isLikelyJSON = true
+            }
+        }
+        if !isLikelyJSON {
+            // 6.1) \n과 <br>가 중복 섞여 있을 때 하나의 개행으로 정규화
+            // ex) "\n<br>\n" → "\n" , "<br>\n" → "\n" , "\n<br>" → "\n"
+            let beforeNorm = s
+            s = s.replacingOccurrences(
+                of: #"(?is)(?:\r\n|\r|\n)?\s*<br\s*/?>\s*(?:\r\n|\r|\n)?"#,
+                with: "\n",
+                options: .regularExpression
+            )
+            if s != beforeNorm { reasons.append("normalize_br_with_newlines") }
+
+            // 6.2) 남은 <br>를 개행으로 변환
+            let beforeBR = s
+            s = s.replacingOccurrences(
+                of: #"(?i)<br\s*/?>"#,
+                with: "\n",
+                options: .regularExpression
+            )
+            if s != beforeBR { reasons.append("convert_br_to_newline") }
+
+            // 6.3) 연속 개행 2개 이상 → 1개로 축약(시/문단 이중 간격 방지)
+            let beforeCollapse = s
+            s = s.replacingOccurrences(
+                of: #"\n{2,}"#,
+                with: "\n",
+                options: .regularExpression
+            )
+            if s != beforeCollapse { reasons.append("collapse_newlines") }
+        }
+
+        // 7) Final trim
         let beforeTrim = s
         s = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if s != beforeTrim { reasons.append("trim_whitespace") }
@@ -243,29 +283,29 @@ public enum AIResponsePostProcessor {
             }
         }
 
-        if !changed { return (s, reasons.isEmpty ? nil : reasons.joined(separator: ",")) }
-        // 4) 한국어 말끝 불완전 감탄사/호응(어?, 응?, 음? 등) 단독 꼬리 제거 (앞부분이 충분히 길 때만)
-        //    - 모델이 장문의 답변 뒤에 습관적으로 짧은 호응을 덧붙이는 UX 저해 케이스 방지
+        // 4) 한국어 말끝 짧은 호응 제거(옵션): 기본 비활성. 사용자가 명시적으로 켜는 경우에만 동작.
         var final = s
-        let minBodyLenForTailStrip = 30
-        let tailCandidates: Set<String> = ["어", "응", "음", "흠", "허", "헉", "아", "엥", "어어", "응응", "음음"]
-        do {
-            let parts = final.components(separatedBy: "\n")
-            if parts.count >= 1 {
-                let head = parts.dropLast().joined(separator: "\n")
-                let last = parts.last!.trimmingCharacters(in: .whitespacesAndNewlines)
-                // 허용된 매우 짧은 호응 + 선택적 구두점만 있는지 검사
-                let strippedPunct = last.replacingOccurrences(of: #"[?!.…\s]"#, with: "", options: .regularExpression)
-                if tailCandidates.contains(strippedPunct), head.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
-                    final = head
-                    reasons.append("strip_tail_interjection")
+        if ConfigReader.bool("AI_STRIP_TAIL_INTERJECTION", default: false) ?? false {
+            let minBodyLenForTailStrip = 30
+            let tailCandidates: Set<String> = ["어", "응", "음", "흠", "허", "헉", "아", "엥", "어어", "응응", "음음"]
+            do {
+                let parts = final.components(separatedBy: "\n")
+                if parts.count >= 1 {
+                    let head = parts.dropLast().joined(separator: "\n")
+                    let last = parts.last!.trimmingCharacters(in: .whitespacesAndNewlines)
+                    // 허용된 매우 짧은 호응 + 선택적 구두점만 있는지 검사
+                    let strippedPunct = last.replacingOccurrences(of: #"[?!.…\s]"#, with: "", options: .regularExpression)
+                    if tailCandidates.contains(strippedPunct), head.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
+                        final = head
+                        reasons.append("strip_tail_interjection")
+                    }
                 }
-            }
-            // 같은 줄(개행 없음)에서도 문장 끝의 단독 호응을 제거
-            if final.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
-                if let r = final.range(of: #"(?:\s|\n)+(?:어|응|음|흠|허|헉|아|엥|어어|응응|음음)\s*[?!.…]?$"#, options: .regularExpression) {
-                    final.removeSubrange(r)
-                    reasons.append("strip_tail_interjection_inline")
+                // 같은 줄(개행 없음)에서도 문장 끝의 단독 호응을 제거
+                if final.trimmingCharacters(in: .whitespacesAndNewlines).count >= minBodyLenForTailStrip {
+                    if let r = final.range(of: #"(?:\s|\n)+(?:어|응|음|흠|허|헉|아|엥|어어|응응|음음)\s*[?!.…]?$"#, options: .regularExpression) {
+                        final.removeSubrange(r)
+                        reasons.append("strip_tail_interjection_inline")
+                    }
                 }
             }
         }

@@ -84,6 +84,8 @@ public enum SpecialTokenSanitizer {
                     // Alternative stop tokens
                     "<|endofturn|>",
                     "<|stop|>",
+                    "<|eom|>",
+                    "<|eom_id|>",
 
                     // Common end tokens
                     "<bos>",
@@ -125,6 +127,8 @@ public enum SpecialTokenSanitizer {
                 return [
                     // 정상적인 턴 종료
                     "<|im_end|>",
+                    "<|eom|>",
+                    "<|eom_id|>",
 
                     // 새 턴 시작 방지 (모든 역할)
                     "<|im_start|>user",
@@ -167,6 +171,7 @@ public enum SpecialTokenSanitizer {
             case .qwenStyle:
                 return [
                     #"<\|im_[^>]*"#,  // <|im_... 로 시작하는 미완성
+                    #"<\|eom[^>]*"#,   // <|eom... 미완성
                     #"[^<]*\|>"#,  // ...|> 로 끝나는 미완성
                     #"<bos[^>]*"#,  // <bos... 미완성
                     #"<eos[^>]*"#,  // <eos... 미완성
@@ -193,6 +198,7 @@ public enum SpecialTokenSanitizer {
                     "<|im_",
                     "<|im",
                     "|>",
+                    "<|eom",
                     "<bos",
                     "<eos",
                 ]

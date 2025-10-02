@@ -16,7 +16,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     private let log = Logger(subsystem: "DeepSleep.OnDevice", category: "Adapter")
     private var remote: RemoteAssetClient
     private let loader: OnDeviceModelLoader
-    
+
     // UTF-8 스트리밍 디코더(바이트 경계 SSOT)
     private var utf8Buffer = UTF8ByteStreamDecoder()
     // 그래펨(문자 클러스터) 경계 보호 버퍼
@@ -144,7 +144,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     }
 
     /// 토큰 스트림에서 UTF-8 인코딩 문제 및 템플릿 토큰 누출 실시간 정리
-    /// 
+    ///
     /// **개선사항:**
     /// - ✅ UTF-8 멀티바이트 경계 안전 처리 (한글 등 문자 손실 방지)
     /// - ✅ 스트리밍 중 U+FFFD 제거 금지 (미완성 바이트 복구 기회 보장)
@@ -158,7 +158,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 2) 그래펨(이모지/결합표/국기) 경계 복구
         let graphemeSafe = graphemeBuffer.process(byteSafe)
         // 3) 템플릿 마커 스트리밍 제거 (경계 넘나드는 조각까지 안전 처리)
-        let templateCleaned = stripTemplateMarkersStreaming(in: graphemeSafe, modelID: modelID)
+        let templateCleaned = self.stripTemplateMarkersStreaming(in: graphemeSafe, modelID: modelID)
         // 4) 특수 토큰 정리 (U+FFFD는 스트리밍 단계에서 제거하지 않음)
         return SpecialTokenSanitizer.cleanStreamingToken(templateCleaned, modelID: modelID)
     }
@@ -178,13 +178,21 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         public let systemPrompt: String?
         public let params: InferenceParams?
         public let recentMessages: [RoleMessage]?
+        public let disableKVCache: Bool
+        public let aiMode: AIMode?  // 🔑 캐시 키 생성에 사용할 AI 모드
+        
         public init(
-            systemPrompt: String? = nil, params: InferenceParams? = nil,
-            recentMessages: [RoleMessage]? = nil
+            systemPrompt: String? = nil,
+            params: InferenceParams? = nil,
+            recentMessages: [RoleMessage]? = nil,
+            disableKVCache: Bool = false,
+            aiMode: AIMode? = nil
         ) {
             self.systemPrompt = systemPrompt
             self.params = params
             self.recentMessages = recentMessages
+            self.disableKVCache = disableKVCache
+            self.aiMode = aiMode
         }
     }
 
@@ -225,7 +233,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                 group.addTask { [remote] in
                     let st = remote.status(fileName: r.fileName)
                     let state: BackgroundAssetState
-                    if st.installed, let url = Self.installedURL(fileName: r.fileName) {
+                    if st.installed, let url = OnDeviceAdapter.installedURL(fileName: r.fileName) {
                         state = .installed(localURL: url)
                     } else if st.progress > 0 {
                         state = .installing(progress: st.progress)
@@ -247,7 +255,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     public func status(for id: OnDeviceModelID) async -> BackgroundAssetState {
         let r = ModelCatalog.record(for: id)
         let st = remote.status(fileName: r.fileName)
-        if st.installed, let url = Self.installedURL(fileName: r.fileName) {
+        if st.installed, let url = OnDeviceAdapter.installedURL(fileName: r.fileName) {
             return .installed(localURL: url)
         }
         if st.progress > 0 {
@@ -342,22 +350,67 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     // MARK: - Thermal-aware preference
     private func preferredAdjustedForThermal(preferred: OnDeviceModelID?) -> OnDeviceModelID? {
         guard policy.thermalMitigation else { return preferred }
-        #if os(iOS)
-            if #available(iOS 11.0, *) {
-                let state = ProcessInfo.processInfo.thermalState
-                switch state {
-                case .serious, .critical:
-                    // 고온 시 가장 경량 모델부터 시도하도록 선호 무시
-                    return ModelCatalog.fallbackOrder.first
-                default:
-                    return preferred
-                }
-            } else {
+#if os(iOS)
+        if #available(iOS 11.0, *) {
+            let state = ProcessInfo.processInfo.thermalState
+            switch state {
+            case .serious, .critical:
+                // 고온 시 가장 경량 모델부터 시도하도록 선호 무시
+                return ModelCatalog.fallbackOrder.first
+            default:
                 return preferred
             }
-        #else
+        } else {
             return preferred
-        #endif
+        }
+#else
+        return preferred
+#endif
+    }
+
+    // MARK: - Prewarm (reduce TTI by pre-filling system prompt KV)
+
+    /// 시스템 프롬프트만 미리 프리필하여 KV 상태를 캐시에 저장한다.
+    /// - 목적: 실제 생성 전에 접두부(시스템) 토큰화를 끝내 TTI를 낮춤.
+    /// - 주의: 최근 대화/유저 입력은 포함하지 않음(가벼운 사전 준비).
+    public func prewarm(systemPrompt: String) async {
+        // 온디바이스 비활성/클라우드 강제면 수행하지 않음
+        if isForcedCloud() || !isOnDeviceEnabled() { return }
+
+        // 대상 모델: 사용자 선호 → 활성 → 폴백
+        let targetID: OnDeviceModelID = {
+            if let p = SettingsManager.shared.preferredOnDeviceModelID { return p }
+            if let a = self.activeModelID { return a }
+            return ModelCatalog.fallbackOrder.first ?? .hcx05b_q4_k_m
+        }()
+
+        // 설치됨일 때만 프리워밍 (다운로드/전환 유발 금지)
+        let st = await status(for: targetID)
+        guard case .installed = st else { return }
+        // 현재 로더가 로드된 경우에만 수행 (활성화는 외부 흐름에서 담당)
+        guard loader.activeModelID == targetID, loader.isLoaded else { return }
+
+        do {
+            guard let io = loader as? (any KVPromptCache.LlamaSessionIO) else { return }
+            let nSys = try io.prefillSystem(systemPrompt)
+            let selectedModelType = SettingsManager.shared.selectedLLM
+            let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
+            let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+            let components = UserRulesManager.shared.personaSignatureComponents(
+                currentMode: .generalConversation,
+                model: mappedModel,
+                conversationTones: userSettingsForTones.conversationTones
+            )
+            let kvKey = KVPromptKeyBuilder.from(
+                modelRaw: targetID.rawValue, personaCompositeHash: components.composite)
+            let _ = await KVPromptCache.shared.saveIfBeneficial(
+                for: kvKey, using: io, nPrefixTokens: nSys)
+            self.log.debug("[Prewarm] success: systemPrompt prefilled (\(nSys) tokens)")
+        } catch {
+            // llama_decode 실패 시 KV cache가 clearKVCache()로 이미 클리어됨
+            // 다음 요청에서 정상 작동하도록 에러 로그만 출력
+            self.log.warning("[Prewarm] failed but KV cache cleared: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Generate (stream)
@@ -384,11 +437,11 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
         // 1) 후보 결정
         let candidates = buildCandidates(preferred: adjustedPreferred)
-        #if DEBUG
-            self.log.info(
-                "🍎 [Adapter] on-device generate start preferred=\(adjustedPreferred?.rawValue ?? "nil", privacy: .public) candidates=\(candidates.map { $0.rawValue }.joined(separator: ","), privacy: .public)"
-            )
-        #endif
+#if DEBUG
+        self.log.info(
+            "🍎 [Adapter] on-device generate start preferred=\(adjustedPreferred?.rawValue ?? "nil", privacy: .public) candidates=\(candidates.map { $0.rawValue }.joined(separator: ","), privacy: .public)"
+        )
+#endif
         var lastError: Error?
 
         for (idx, id) in candidates.enumerated() {
@@ -397,11 +450,11 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                     id: id, input: input, config: config, onToken: onToken)
                 // TTI 정책 카운트 업데이트
                 self.updateTTICounters(id: id, ttiMs: summary.ttiMilliseconds)
-                #if DEBUG
-                    self.log.info(
-                        "🍎 [Adapter] on-device success model=\(id.rawValue, privacy: .public) ttiMs=\(summary.ttiMilliseconds, privacy: .public)"
-                    )
-                #endif
+#if DEBUG
+                self.log.info(
+                    "🍎 [Adapter] on-device success model=\(id.rawValue, privacy: .public) ttiMs=\(summary.ttiMilliseconds, privacy: .public)"
+                )
+#endif
                 // 성공
                 return summary
             } catch {
@@ -470,7 +523,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // Gemma는 system 역할 미지원: system 지시는 초기 user 입력에 내재화
         let systemOriginal: String = {
             if let s = config.systemPrompt,
-                !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+               !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 return s
             }
@@ -497,110 +550,62 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         var ttiMs: Int = -1
 
         do {
-            // 2.5) KV 프롬프트 캐시: 시스템 프롬프트 접두부 재사용 시도
-            // 키 = 모델ID + 페르소나 컴포지트 해시 (AIContextBuilder 내부 로직과 동일 소스 사용)
-            let selectedModelType = SettingsManager.shared.selectedLLM
-            let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
-            let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
-            let components = UserRulesManager.shared.personaSignatureComponents(
-                currentMode: .generalConversation,
-                model: mappedModel,
-                conversationTones: userSettingsForTones.conversationTones
-            )
-            let kvKey = KVPromptKeyBuilder.from(
-                modelRaw: id.rawValue, personaCompositeHash: components.composite)
-
-            // 바인딩이 세션 I/O를 지원하는 경우에만 사용
-            if let io = loader as? (any KVPromptCache.LlamaSessionIO) {
-                let restore = await KVPromptCache.shared.restoreIfPossible(for: kvKey, using: io)
-                // 관측성 강화: RESTORE 결과를 콘솔에도 브릿지(런타임 토글)
-                if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
-                    print(
-                        "[KVCacheBridge] restore result success=\(restore.success) reason=\(restore.reason) key=\(kvKey.prefix(12))…"
-                    )
-                }
-                KVMetricsHook.shared.onRestore(restore)
-                if restore.success {
-                    // 프리필 성공: 캐시의 마지막 위치 다음부터 이어붙이기
-                    // 현재 llama_state에는 시스템 프롬프트까지의 KV가 포함됨
-                    // startPos는 해당 마지막 토큰 위치 + 1
-                    let startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
-                    // 접두부(KV) 이후: 직렬화된 최근 3+3 + 현재 사용자 턴만 주입 후 생성
-                    let resumeInput = recentSerialized + formatUserTurn(inputWithSystem)
-                    try await loader.generateResuming(
-                        input: resumeInput,
-                        systemPrompt: nil,
-                        startPos: startPos,
-                        params: params,
-                        onToken: { delta in
-                            if !emittedFirst {
-                                emittedFirst = true
-                                ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                                self.log.info(
-                                    "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (resume)"
-                                )
-                                self.log.info(
-                                    "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
-                                )
-                            }
-                            // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
-                            let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                            onToken(cleanedDelta)
+            // 스트리밍 정책: 일기 분석 등 민감 컨텍스트에서는 일반대화 캐시 복원을 끕니다.
+            if config.disableKVCache {
+                try await loader.generate(
+                    input: input,
+                    systemPrompt: system,
+                    params: params,
+                    onToken: { delta in
+                        if !emittedFirst {
+                            emittedFirst = true
+                            ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                            self.log.info("⏱️ firstTokenMs=\(ttiMs, privacy: .public) (no-kv)")
+                            self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
                         }
-                    )
-                } else {
-                    // 최초 1회: 시스템 + 직렬화된 최근 3+3을 프리필 후 저장 → 현재 사용자만 이어서 생성
-                    do {
-                        // 모델별 템플릿으로 최근 3+3 직렬화
-                        let recentSerialized: String = {
-                            guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
-                            switch id {
-                            case .amoral_gemma1b_v2_q4km:
-                                return msgs.compactMap { m in
-                                    switch m.role {
-                                    case .user:
-                                        return "<start_of_turn>user\n\(m.content)<end_of_turn>\n"
-                                    case .assistant:
-                                        return "<start_of_turn>model\n\(m.content)<end_of_turn>\n"
-                                    default: return nil
-                                    }
-                                }.joined()
-                            case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
-                                return msgs.compactMap { m in
-                                    switch m.role {
-                                    case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"
-                                    case .assistant:
-                                        return "<|im_start|>assistant\n\(m.content)<|im_end|>\n"
-                                    default: return nil
-                                    }
-                                }.joined()
-                            }
-                        }()
+                        let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                        onToken(cleanedDelta)
+                    }
+                )
+                // 종료 처리(아래와 동일 경로)
+            } else {
+                // 2.5) KV 프롬프트 캐시: 시스템 프롬프트 접두부 재사용 시도
+                // 키 = 모델ID + 페르소나 컴포지트 해시 (AIContextBuilder 내부 로직과 동일 소스 사용)
+                let selectedModelType = SettingsManager.shared.selectedLLM
+                let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
+                let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
+                
+                // 🔑 핵심 개선: config.aiMode를 사용하여 각 모드별 독립적인 캐시 키 생성
+                let currentMode = config.aiMode ?? .generalConversation
+                let components = UserRulesManager.shared.personaSignatureComponents(
+                    currentMode: currentMode,
+                    model: mappedModel,
+                    conversationTones: userSettingsForTones.conversationTones
+                )
+                let kvKey = KVPromptKeyBuilder.from(
+                    modelRaw: id.rawValue, personaCompositeHash: components.composite)
 
-                        let nSys = try io.prefillSystem(system)
-                        let nHist =
-                            recentSerialized.isEmpty ? 0 : (try io.prefillText(recentSerialized))
-                        let nPrefix = nSys + nHist
-
-                        let saved = await KVPromptCache.shared.saveIfBeneficial(
-                            for: kvKey,
-                            using: io,
-                            nPrefixTokens: nPrefix
+                // 바인딩이 세션 I/O를 지원하는 경우에만 사용
+                if let io = loader as? (any KVPromptCache.LlamaSessionIO) {
+                    let restore = await KVPromptCache.shared.restoreIfPossible(for: kvKey, using: io)
+                    // 관측성 강화: RESTORE 결과를 콘솔에도 브릿지(런타임 토글)
+                    if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
+                        print(
+                            "[KVCacheBridge] restore result success=\(restore.success) reason=\(restore.reason) key=\(kvKey.prefix(12))…"
                         )
-                        // 관측성 강화: SAVE 결과를 콘솔에도 브릿지(런타임 토글)
-                        if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
-                            print(
-                                "[KVCacheBridge] save result success=\(saved.success) reason=\(saved.reason) key=\(kvKey.prefix(12))… tokens=\(nPrefix)"
-                            )
-                        }
-                        KVMetricsHook.shared.onSave(saved)
-
-                        // 접두부 프리필 후: 현재 사용자 턴만 템플릿으로 이어붙여 생성(resume)
-                        let templated = formatUserTurn(inputWithSystem)
+                    }
+                    KVMetricsHook.shared.onRestore(restore)
+                    if restore.success {
+                        // 프리필 성공: 캐시의 마지막 위치 다음부터 이어붙이기
+                        // 현재 llama_state에는 시스템 프롬프트까지의 KV가 포함됨
+                        // startPos는 해당 마지막 토큰 위치 + 1
+                        let startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
+                        // 접두부(KV) 이후: 직렬화된 최근 3+3 + 현재 사용자 턴만 주입 후 생성
+                        let resumeInput = recentSerialized + formatUserTurn(inputWithSystem)
                         try await loader.generateResuming(
-                            input: templated,
+                            input: resumeInput,
                             systemPrompt: nil,
-                            startPos: Int32(nPrefix),
+                            startPos: startPos,
                             params: params,
                             onToken: { delta in
                                 if !emittedFirst {
@@ -618,49 +623,122 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                 onToken(cleanedDelta)
                             }
                         )
-                    } catch {
-                        // 프리필 경로 실패 시 전체 경로 폴백
-                        try await loader.generate(
-                            input: input,
-                            systemPrompt: system,
-                            params: params,
-                            onToken: { delta in
-                                if !emittedFirst {
-                                    emittedFirst = true
-                                    ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                                    self.log.info(
-                                        "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (fallback)"
-                                    )
-                                    self.log.info(
-                                        "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
-                                    )
+                    } else {
+                        // 최초 1회: 시스템 + 직렬화된 최근 3+3을 프리필 후 저장 → 현재 사용자만 이어서 생성
+                        do {
+                            // 모델별 템플릿으로 최근 3+3 직렬화
+                            let recentSerialized: String = {
+                                guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
+                                switch id {
+                                case .amoral_gemma1b_v2_q4km:
+                                    return msgs.compactMap { m in
+                                        switch m.role {
+                                        case .user:
+                                            return "<start_of_turn>user\n\(m.content)<end_of_turn>\n"
+                                        case .assistant:
+                                            return "<start_of_turn>model\n\(m.content)<end_of_turn>\n"
+                                        default: return nil
+                                        }
+                                    }.joined()
+                                case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
+                                    return msgs.compactMap { m in
+                                        switch m.role {
+                                        case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"
+                                        case .assistant:
+                                            return "<|im_start|>assistant\n\(m.content)<|im_end|>\n"
+                                        default: return nil
+                                        }
+                                    }.joined()
                                 }
-                                // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
-                                let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                                onToken(cleanedDelta)
+                            }()
+
+                            let nSys = try io.prefillSystem(system)
+                            let nHist =
+                            recentSerialized.isEmpty ? 0 : (try io.prefillText(recentSerialized))
+                            let nPrefix = nSys + nHist
+
+                            let saved = await KVPromptCache.shared.saveIfBeneficial(
+                                for: kvKey,
+                                using: io,
+                                nPrefixTokens: nPrefix
+                            )
+                            // 관측성 강화: SAVE 결과를 콘솔에도 브릿지(런타임 토글)
+                            if ConfigReader.bool("ONDEVICE_KV_LOG_VERBOSE", default: false) ?? false {
+                                print(
+                                    "[KVCacheBridge] save result success=\(saved.success) reason=\(saved.reason) key=\(kvKey.prefix(12))… tokens=\(nPrefix)"
+                                )
                             }
-                        )
+                            KVMetricsHook.shared.onSave(saved)
+
+                            // 접두부 프리필 후: 현재 사용자 턴만 템플릿으로 이어붙여 생성(resume)
+                            let templated = formatUserTurn(inputWithSystem)
+                            try await loader.generateResuming(
+                                input: templated,
+                                systemPrompt: nil,
+                                startPos: Int32(nPrefix),
+                                params: params,
+                                onToken: { delta in
+                                    if !emittedFirst {
+                                        emittedFirst = true
+                                        ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                        self.log.info(
+                                            "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (resume)"
+                                        )
+                                        self.log.info(
+                                            "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                        )
+                                    }
+                                    // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                                    let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                                    onToken(cleanedDelta)
+                                }
+                            )
+                        } catch {
+                            // 프리필 경로 실패 시 전체 경로 폴백
+                            try await loader.generate(
+                                input: input,
+                                systemPrompt: system,
+                                params: params,
+                                onToken: { delta in
+                                    if !emittedFirst {
+                                        emittedFirst = true
+                                        ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                        self.log.info(
+                                            "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (fallback)"
+                                        )
+                                        self.log.info(
+                                            "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                        )
+                                    }
+                                    // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                                    let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                                    onToken(cleanedDelta)
+                                }
+                            )
+                        }
                     }
-                }
-            } else {
-                // 기존 경로 유지
-                try await loader.generate(
-                    input: input,
-                    systemPrompt: system,
-                    params: params
-                ) { delta in
-                    if !emittedFirst {
-                        emittedFirst = true
-                        ttiMs = Int(Date().timeIntervalSince(started) * 1000)
-                        self.log.info(
-                            "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (legacy)"
-                        )
-                        self.log.info(
-                            "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
-                    }
-                    // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
-                    let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                    onToken(cleanedDelta)
+                } else {
+                    // 기존 경로 유지
+                    try await loader.generate(
+                        input: input,
+                        systemPrompt: system,
+                        params: params,
+                        onToken: { delta in
+                            if !emittedFirst {
+                                emittedFirst = true
+                                ttiMs = Int(Date().timeIntervalSince(started) * 1000)
+                                self.log.info(
+                                    "⏱️ firstTokenMs=\(ttiMs, privacy: .public) (legacy)"
+                                )
+                                self.log.info(
+                                    "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
+                                )
+                            }
+                            // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                            let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
+                            onToken(cleanedDelta)
+                        }
+                    )
                 }
             }
         } catch {
@@ -684,25 +762,30 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         var tail = utf8Buffer.flush()
         tail = graphemeBuffer.process(tail) + graphemeBuffer.flush()
         // 템플릿 보류 포함해 최종 정리(보류 잔여는 폐기)
-        tail = stripTemplateMarkersStreaming(in: tail, modelID: id)
-        templateHold.removeAll(keepingCapacity: false)
-        if !tail.isEmpty {
-            let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
-            onToken(cleaned)
-        }
-        // 다음 생성을 위해 버퍼 리셋
-        utf8Buffer.reset()
-        graphemeBuffer.reset()
+        tail = self.stripTemplateMarkersStreaming(in: tail, modelID: id)
+            templateHold.removeAll(keepingCapacity: false)
+            if !tail.isEmpty {
+                let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
+                onToken(cleaned)
+            }
+            // 다음 생성을 위해 버퍼 리셋
+            utf8Buffer.reset()
+            graphemeBuffer.reset()
 
-        let finished = Date()
-        let usedTTI = max(0, ttiMs)
-        return GenerationSummary(
-            modelID: id, ttiMilliseconds: usedTTI, startedAt: started, finishedAt: finished)
+            let finished = Date()
+            let usedTTI = max(0, ttiMs)
+            return GenerationSummary(
+                modelID: id, ttiMilliseconds: usedTTI, startedAt: started, finishedAt: finished)
+        }
     }
+
+
+extension OnDeviceAdapter {
+    // MARK: - Streaming template marker stripping
 
     /// 모델 템플릿 마커(예: Qwen: <|im_start|> .. |>, Gemma: <start_of_turn>) 스트리밍 제거
     /// - 원칙: '<'로 시작해 템플릿 접두와 일치하면 종결('>' 또는 "|>")까지 제거. 없으면 보류.
-    private func stripTemplateMarkersStreaming(in s: String, modelID: OnDeviceModelID) -> String {
+    fileprivate func stripTemplateMarkersStreaming(in s: String, modelID: OnDeviceModelID) -> String {
         if s.isEmpty { return s }
         // 1) 보류분과 결합
         var text = templateHold.isEmpty ? s : (templateHold + s)
@@ -747,10 +830,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
     // MARK: - Candidate building / TTI adaptation
 
-    private func buildCandidates(preferred: OnDeviceModelID?) -> [OnDeviceModelID] {
+    fileprivate func buildCandidates(preferred: OnDeviceModelID?) -> [OnDeviceModelID] {
         // 사용자가 명시적으로 선호 모델을 선택했고, 설정이 엄격 모드를 허용하면 해당 모델만 시도
-        if let p = preferred, ConfigReader.bool("ONDEVICE_STRICT_PREFERRED", default: true) ?? true
-        {
+        if let p = preferred, ConfigReader.bool("ONDEVICE_STRICT_PREFERRED", default: true) ?? true {
             return [p]
         }
         // 기본 순서: 사용자가 고른 모델(있으면) → SSOT fallbackOrder(중복 제거)
@@ -765,15 +847,13 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                 var reordered = [next]
                 for x in order where x != next { reordered.append(x) }
                 order = reordered
-                log.info(
-                    "📉 TTI-adapt: prefer \(next.rawValue, privacy: .public) over \(head.rawValue, privacy: .public)"
-                )
+                log.info("📉 TTI-adapt: prefer \(next.rawValue, privacy: .public) over \(head.rawValue, privacy: .public)")
             }
         }
         return order
     }
 
-    private func updateTTICounters(id: OnDeviceModelID, ttiMs: Int) {
+    fileprivate func updateTTICounters(id: OnDeviceModelID, ttiMs: Int) {
         q.sync {
             if ttiMs > policy.maxTTIMilliseconds {
                 let cur = ttiExceedCount[id] ?? 0
@@ -787,7 +867,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     // MARK: - Utilities
 
     /// Application Support/Models 경로에서 설치된 파일의 URL(존재 시) 반환
-    private static func installedURL(fileName: String) -> URL? {
+    fileprivate static func installedURL(fileName: String) -> URL? {
         guard
             let base = FileManager.default.urls(
                 for: .applicationSupportDirectory, in: .userDomainMask

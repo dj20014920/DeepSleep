@@ -31,7 +31,7 @@ public struct InferenceParams: Sendable, Equatable {
 
     public init(
         context: Int = 2048,
-        threads: Int = 4,
+        threads: Int = 6,
         temperature: Double = 0.8,
         topK: Int = 64,
         topP: Double = 0.95,
@@ -121,19 +121,19 @@ public enum ModelCatalog {
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
     private static let params_hcx05b_q4km: InferenceParams = .init(
-        context: 4096, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 4096, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_hcx05b_q8_0: InferenceParams = .init(
-        context: 8192, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_hyperclova_1p5b_q4km: InferenceParams = .init(
-        context: 16384, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_gemma3_1b_q5km: InferenceParams = .init(
-        context: 8192, threads: 4, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
 

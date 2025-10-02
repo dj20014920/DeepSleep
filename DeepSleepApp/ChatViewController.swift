@@ -79,8 +79,33 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     self.typingLastReflowAt = Date()
                     // 애니메이션 없이 레이아웃 업데이트 (부드러움 유지)
                     UIView.performWithoutAnimation {
-                        self.tableView.beginUpdates()
-                        self.tableView.endUpdates()
+                        // 안전성 검사: tableView가 화면에 표시된 상태인지 확인
+                        guard self.tableView.window != nil else {
+                            #if DEBUG
+                            UnifiedLogger.shared.debug("⚠️ [Typing] tableView가 윈도우에서 분리됨 - reloadRows 스킵", category: .ui)
+                            #endif
+                            return
+                        }
+                        
+                        // 안전성 검사: tableView와 데이터소스 동기화 확인
+                        let tableRowCount = self.tableView.numberOfRows(inSection: 0)
+                        let dataRowCount = self.messages.count
+                        
+                        if tableRowCount == dataRowCount {
+                            // 동기화 확인됨 → reloadRows 안전하게 실행
+                            if let idx = self.messages.firstIndex(where: { $0.id == id }) {
+                                let indexPath = IndexPath(row: idx, section: 0)
+                                self.tableView.reloadRows(at: [indexPath], with: .none)
+                            }
+                        } else {
+                            // 동기화 대기중 → reloadRows 스킵 (크래시 방지)
+                            #if DEBUG
+                            UnifiedLogger.shared.debug(
+                                "⚠️ [Typing] TableView 동기화 대기중 (table:\(tableRowCount) vs data:\(dataRowCount)) - reloadRows 스킵",
+                                category: .ui
+                            )
+                            #endif
+                        }
                         self.scrollToBottom(animated: false)
                     }
                 }
@@ -121,7 +146,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     var onPresetApply: ((SoundPreset) -> Void)?
     private var sessionStartTime: Date?
     private var messageCount = 0
-    private let maxMessages = 150  // ✅ 사용자 요구 반영: 한 화면 유지 최대 150개 (동적 윈도우)
+    private let maxMessages = 80  // ✅ 메모리 최적화: 한 화면 유지 최대 80개 (메모리 압박 방지)
     private var bottomConstraint: NSLayoutConstraint?
     var chatHistory: [(isUser: Bool, message: String)] = []
 
@@ -747,47 +772,86 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
         appendChat(ChatMessage(text: "분석하고 있어요...", sender: .ai, type: .loading))
 
-        Task {
+        // 스트리밍 응답으로 전환(일반 대화와 동일한 타이핑/버블 UX)
+        let aiMode: AIMode = .emotionDiaryAnalysis
+        let content = buildDiaryAnalysisUserContent(diary)
+
+        hasReceivedFirstToken = false
+        currentStreamingMessageId = nil
+        typingTimer?.invalidate(); typingTimer = nil
+        typingBuffer = []; typingAccumulatedText = ""; typingCompletedStream = false
+        typingLastReflowAt = Date(timeIntervalSince1970: 0)
+
+        let stream = SessionManager.shared.sendMessageStream(
+            content: content,
+            mode: aiMode,
+            saveMessages: true,
+            sessionId: nil,
+            tokenConfigOverride: nil
+        )
+
+        currentStreamTask?.cancel()
+        currentStreamTask = Task { [weak self] in
+            guard let self = self else { return }
+            var aggregate = ""
             do {
-                // 정책 고정: 일기 분석은 Gemini로 호출(사용자 모델 설정과 무관)
-                let response = try await SessionManager.shared.sendMessage(
-                    content: diary.content,
-                    model: mapAIModelTypeToAIModel(SettingsManager.shared.selectedLLM),
-                    mode: .emotionDiaryAnalysis,
-                    saveMessages: true
-                )
-
-                // SessionManager 저장은 비활성화했으므로, 여기서만 UI/저장 처리
-                await MainActor.run {
-                    self.removeLastLoadingMessage()
-                    self.handleAIResponse(response)
-
-                    // ✅ 오늘의 일기 분석 기록 저장 (캘린더 ‘대나무숲 친구 답변’에서 사용)
-                    let parsed = self.parseAIResponse(response)
+                for try await piece in stream {
+                    if Task.isCancelled { break }
+                    aggregate += piece.delta
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
+                        if !self.hasReceivedFirstToken {
+                            // 로딩 메시지 제거 (UI 업데이트 없이)
+                            self.removeAllLoadingMessages(updateUI: false)
+                            let aiMsg = ChatMessage(text: "", date: Date(), sender: .ai, type: .bot)
+                            // TableView 즉시 동기화 (타이밍 이슈 방지)
+                            self.appendBatch([aiMsg], allowLoading: true, scrollToBottom: false, immediate: true)
+                            self.currentStreamingMessageId = aiMsg.id
+                            self.hasReceivedFirstToken = true
+                            self.startTypingTimer()
+                        }
+                        if let id = self.currentStreamingMessageId,
+                           let idx = self.messages.firstIndex(where: { $0.id == id }) {
+                            if !piece.delta.isEmpty { self.typingBuffer.append(contentsOf: piece.delta) }
+                            if piece.isComplete {
+                                self.typingCompletedStream = true
+                                self.debouncedReload()
+                            }
+                        }
+                    }
+                }
+                // 스트림 완료 후 후속 처리
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let parsed = self.parseAIResponse(aggregate)
                     SettingsManager.shared.appendDiaryAnalysis(parsed, for: Date())
-                    // ✅ 사용량/지문 반영
                     if !self.diaryAnalysisPreConsumed {
                         DiaryUsagePolicy.markUsedToday(diary)
                         _ = AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
                     }
-
-                    // 분석 결과에 대한 추가 안내 메시지
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.appendChat(
-                            ChatMessage(
-                                text: "💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!", sender: .ai,
-                                type: .bot))
+                        self.appendChat(ChatMessage(text: "💡 이 분석 결과에 대해 더 궁금한 점이 있으면 언제든 질문해주세요!", sender: .ai, type: .bot))
                     }
                 }
             } catch {
-                // 메인 스레드에서 에러 처리
-                await MainActor.run {
-                    self.removeLastLoadingMessage()
-                    self.appendChat(
-                        ChatMessage(text: "❌ 분석에 실패했어요. 잠시 후 다시 시도해주세요.", sender: .ai, type: .bot))
+                await MainActor.run { [weak self] in
+                    self?.removeAllLoadingMessages()
+                    self?.appendChat(ChatMessage(text: "❌ 분석에 실패했어요. 잠시 후 다시 시도해주세요.", sender: .ai, type: .bot))
                 }
             }
         }
+    }
+
+    /// 일기 분석용 사용자 컨텐츠 구성(모델에 명확하게 일기 맥락을 전달)
+    private func buildDiaryAnalysisUserContent(_ diary: DiaryContext) -> String {
+        var lines: [String] = []
+        if let emo = diary.emotion, !emo.isEmpty { lines.append("오늘의 감정: \(emo)") }
+        if let d = diary.date {
+            let df = DateFormatter(); df.locale = Locale(identifier: "ko_KR"); df.dateFormat = "yyyy-MM-dd"
+            lines.append("작성일: \(df.string(from: d))")
+        }
+        lines.append("일기:\n\(diary.content)")
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - 💬 메시지 전송 처리 (리팩토링 완료)
@@ -876,9 +940,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                     await MainActor.run { [weak self] in
                         guard let self = self else { return }
                         if !self.hasReceivedFirstToken {
-                            self.removeAllLoadingMessages()
+                            // 로딩 메시지 제거 (UI 업데이트 없이)
+                            self.removeAllLoadingMessages(updateUI: false)
                             let aiMsg = ChatMessage(text: "", date: Date(), sender: .ai, type: .bot)
-                            self.messages.append(aiMsg)
+                            // TableView 즉시 동기화 (타이밍 이슈 방지)
+                            self.appendBatch([aiMsg], allowLoading: true, scrollToBottom: false, immediate: true)
                             self.currentStreamingMessageId = aiMsg.id
                             self.hasReceivedFirstToken = true
                             // 타이핑 타이머 시작(느리게)
@@ -1142,7 +1208,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     // MARK: - 🔧 Additional Helper Methods
 
     /// 모든 로딩 메시지를 제거합니다 (중앙집중식 처리, 메모리 최적화)
-    private func removeAllLoadingMessages() {
+    /// - Parameter updateUI: UI 업데이트 여부 (기본값: true)
+    private func removeAllLoadingMessages(updateUI: Bool = true) {
         let beforeCount = messages.count
         messages.removeAll { $0.type == .loading }
         let afterCount = messages.count
@@ -1151,12 +1218,14 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         if removedCount > 0 {
             print("🧹 [ChatViewController] 로딩 메시지 \(removedCount)개 제거 완료 - 현재 메시지 수: \(afterCount)")
 
-            // 메모리 최적화: 메인 스레드에서 이미 실행 중인지 확인
-            if Thread.isMainThread {
-                self.debouncedReload()
-            } else {
-                DispatchQueue.main.async {
+            // UI 업데이트가 필요한 경우에만 실행
+            if updateUI {
+                if Thread.isMainThread {
                     self.debouncedReload()
+                } else {
+                    DispatchQueue.main.async {
+                        self.debouncedReload()
+                    }
                 }
             }
         }
@@ -1480,15 +1549,17 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     // MARK: - 📦 Message Batch & Memory Window (Added)
 
-    /// 배치로 메시지를 추가하고 (옵션) 로딩 메시지 중복을 정리한 뒤 메모리 윈도우(150) 적용
+    /// 배치로 메시지를 추가하고 (옵션) 로딩 메시지 중복을 정리한 뒤 메모리 윈도우(100) 적용
     /// - Parameters:
     ///   - newMessages: 추가할 메시지 배열 (이미 정렬: 과거→현재 가정)
     ///   - allowLoading: .loading 타입을 그대로 허용할지
     ///   - scrollToBottom: 추가 후 하단 스크롤 여부 (사용자 메시지/AI 응답 시 true, 과거 페이징은 false)
+    ///   - immediate: 즉시 tableView 업데이트 (true) vs 비동기 debouncedReload (false)
     private func appendBatch(
         _ newMessages: [ChatMessage],
         allowLoading: Bool = true,
-        scrollToBottom: Bool = true
+        scrollToBottom: Bool = true,
+        immediate: Bool = false
     ) {
         guard !newMessages.isEmpty else { return }
 
@@ -1511,9 +1582,30 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         enforceMemoryWindow(reason: "appendBatch")
 
         // 4) UI 갱신
-        debouncedReload()
-        if scrollToBottom {
-            self.scrollToBottom(animated: true)  // self. 명시로 메서드 참조 (파라미터 이름과 충돌 방지)
+        if immediate {
+            // 모든 pending UI 업데이트 취소 (충돌 방지)
+            reloadDebounceWorkItem?.cancel()
+            showLoadingDebounceWorkItem?.cancel()
+            
+            // 안전성 검사: tableView가 화면에 표시된 상태인지 확인
+            guard tableView.window != nil else {
+                #if DEBUG
+                UnifiedLogger.shared.debug("⚠️ [appendBatch] tableView가 윈도우에서 분리됨 - reload 스킵", category: .ui)
+                #endif
+                return
+            }
+            
+            // 즉시 동기 업데이트 (타이밍 이슈 방지)
+            tableView.reloadData()
+            if scrollToBottom {
+                self.scrollToBottom(animated: false)
+            }
+        } else {
+            // 비동기 디바운스 업데이트 (기본 동작)
+            debouncedReload()
+            if scrollToBottom {
+                self.scrollToBottom(animated: true)  // self. 명시로 메서드 참조 (파라미터 이름과 충돌 방지)
+            }
         }
     }
 
@@ -1784,6 +1876,15 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 📝 #Todays_Mood로 진입한 일반 채팅에서 일기 분석을 바로 시작하도록 안내
         // 에페메랄 세션(일기 전용)에서는 기존 플로우(setupInitialMessages)에서 이미 처리되므로 제외
         handlePendingDiaryAnalysisIfNeeded()
+
+        // 🔥 온디바이스 응답 TTI 단축을 위한 가벼운 프리워밍: 시스템 프롬프트만 프리필
+        // - 템플릿/캐시 키는 내부에서 안전하게 처리됨
+        // - 사용자 경험: 최초 델타까지 걸리는 시간을 줄임(특히 0.5B 계열)
+        if SettingsManager.shared.selectedLLM == .onDevice {
+            let mode = determineAIModeFromContext()
+            let sys = UnifiedAIServiceImpl.shared.makeSystemPrompt(for: mode, model: .onDevice)
+            Task.detached { await OnDeviceAdapter.shared.prewarm(systemPrompt: sys) }
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {

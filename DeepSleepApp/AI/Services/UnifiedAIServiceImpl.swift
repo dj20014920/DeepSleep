@@ -427,7 +427,9 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 config: OnDeviceAdapter.StreamConfig(
                     systemPrompt: systemPrompt,
                     params: nil,
-                    recentMessages: roleMessages
+                    recentMessages: roleMessages,
+                    // 일반 대화 외 모드에서는 일반대화용 KV 캐시 복원을 비활성화하여 컨텍스트 오염 방지
+                    disableKVCache: (mode != .generalConversation)
                 )
             ) { delta in buffer += delta }
             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
@@ -702,7 +704,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
         case .emotionDiaryAnalysis:
             return """
-                일기 기반 위로/격려/칭찬/공감대화를 진행하세요 유연하게 응대하세요.
+                일기 기반 위주로 위로/격려/칭찬/공감대화를 진행하세요 유연하게 응대하세요.
                 """
 
         case .taskAdvice, .taskAdviceOverall:

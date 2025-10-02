@@ -1226,10 +1226,7 @@ extension EmotionCalendarViewController {
         // ✅ 사용 횟수 증가 (실제 대화 시작 직전에)
         AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
 
-        // 🛡️ ChatViewController 생성 및 안전한 데이터 설정
-        let chatVC = ChatRouter.chatViewController()
-
-        // 🛡️ 확실한 일기 컨텍스트 생성
+        // 🛡️ 확실한 일기 컨텍스트 생성(안전한 엔트리)
         let safeEntry = EmotionDiary(
             selectedEmotion: verifiedEmotion,
             userMessage: verifiedMessage,
@@ -1237,12 +1234,11 @@ extension EmotionCalendarViewController {
             date: entry.date
         )
 
-        // 🛡️ 여러 방법으로 데이터 전달 (안전성 보장)
-        let diaryContext = DiaryContext(from: safeEntry)
-        chatVC.diaryContext = diaryContext
+        // 🛡️ ChatViewController 생성: 일기 분석 컨텍스트로 직접 진입
+        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: safeEntry))
 
-        // 🛡️ 초기 사용자 텍스트 설정(SSoT 트리거 키)
-        chatVC.initialUserText = "일기_분석_모드"
+        // 🛡️ 버튼/메뉴에서 사용량을 이미 기록했으므로, ChatVC에서 재게이트/재카운트 방지
+        chatVC.diaryAnalysisPreConsumed = true
 
         // 🛡️ 타이틀 통일
         // chatVC.title = "#Todays_Mood"
@@ -1255,9 +1251,9 @@ extension EmotionCalendarViewController {
         // 🛡️ 네비게이션 설정 및 표시
         let navController = UINavigationController(rootViewController: chatVC)
         navController.navigationBar.prefersLargeTitles = false
-        navController.navigationBar.tintColor = .systemBlue
-        navController.modalPresentationStyle = .fullScreen
-        navController.modalTransitionStyle = .coverVertical
+        navController.navigationBar.tintColor = UIColor.systemBlue
+        navController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
+        navController.modalTransitionStyle = UIModalTransitionStyle.coverVertical
 
         present(navController, animated: true) {
             // 🛡️ 표시 완료 후 데이터 전달 재확인
