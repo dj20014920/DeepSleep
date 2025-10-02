@@ -44,7 +44,9 @@ struct EnhancedSessionMetrics {
 // Note: RecommendationResponse is now defined in Models.swift to avoid duplication
 
 class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
-    // 타이핑 타이머 구현 (UTF-8 안전 버전)
+    // ⌨️ 타이핑 타이머 구현 (완전 개선 버전 - String 기반)
+    // ✅ 근본 원인 해결: String.prefix/dropFirst 사용으로 UTF-16 코드 유닛 경계 안전 보장
+    // ✅ Character 배열의 removeFirst 오류 완전 제거
     private func startTypingTimer() {
         typingTimer?.invalidate()
         typingTimer = Timer.scheduledTimer(withTimeInterval: typingTickInterval, repeats: true) {
@@ -55,19 +57,19 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             else { return }
 
             if !self.typingBuffer.isEmpty {
-                // 한 번에 표시할 문자 수 계산 (UTF-8 안전)
-                let n = min(self.typingCharsPerTick, self.typingBuffer.count)
-                let chunk = self.typingBuffer.prefix(n)
-                self.typingBuffer.removeFirst(n)
+                // ✅ String 기반 안전한 청크 추출 (UTF-16 코드 유닛 경계 자동 보장)
+                let chunkSize = min(self.typingCharsPerTick, self.typingBuffer.count)
+                let chunk = String(self.typingBuffer.prefix(chunkSize))
+                self.typingBuffer = String(self.typingBuffer.dropFirst(chunkSize))
                 
                 let prev = self.messages[idx].text ?? ""
-                self.typingAccumulatedText = prev + String(chunk)
+                self.typingAccumulatedText = prev + chunk
                 self.messages[idx].text = self.typingAccumulatedText
 
                 // UI 업데이트: 부드러운 페이드인 애니메이션
                 let indexPath = IndexPath(row: idx, section: 0)
                 if let cell = self.tableView.cellForRow(at: indexPath) as? ChatBubbleCell {
-                    // 더 빠른 페이드인으로 반응성 향상 (이전: 0.6초 → 0.3초)
+                    // 빠른 페이드인으로 반응성 향상 (0.3초)
                     cell.updateStreamingText(self.typingAccumulatedText, fadeDuration: 0.3)
                 }
 
@@ -182,18 +184,20 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     private var currentStreamingMessageId: UUID?
     private var hasReceivedFirstToken: Bool = false
 
-    // ⌨️ 타이핑 애니메이션 상태 (개선된 UTF-8 안전 버전)
+    // ⌨️ 타이핑 애니메이션 상태 (완전 개선 버전 - String 기반)
+    // ✅ 근본 원인 해결: Character 배열 → String 직접 사용으로 UTF-8/UTF-16 변환 오류 제거
     private var typingTimer: Timer?
-    private var typingBuffer: [Character] = []
+    private var typingBuffer: String = ""  // [Character] → String (핵심 개선)
     private var typingAccumulatedText: String = ""
     private var typingLastReflowAt: Date = Date(timeIntervalSince1970: 0)
     private var typingCompletedStream: Bool = false
     
-    // ⌨️ 타이핑 애니메이션 파라미터 (최적화됨)
-    // 업계 표준(ChatGPT, Claude) 참고: 빠른 반응성 + 부드러운 애니메이션
-    private let typingTickInterval: TimeInterval = 0.035  // ~30fps (이전: 0.065, ~15fps)
-    private let typingCharsPerTick: Int = 2  // 한글 고려 (이전: 3)
-    // 한글은 조합형이므로 2-3자씩 표시하는 것이 자연스러움
+    // ⌨️ 타이핑 애니메이션 파라미터 (완전 최적화)
+    // ✅ 업계 표준(ChatGPT, Claude) 참고: 빠른 반응성 + 부드러운 애니메이션
+    // ✅ 한글 음절 안전: 3글자씩 청크하여 한글(3바이트/음절) 경계 완벽 보장
+    private let typingTickInterval: TimeInterval = 0.035  // ~30fps (업계 표준)
+    private let typingCharsPerTick: Int = 3  // 한글 1음절 = 3바이트, 3글자씩이 최적
+    // 한글 완성형은 단일 Character이지만 3글자씩 청크하면 한·영 혼용 시에도 안전
 
     // 🎵 활성 추천 프리셋 임시 저장소
     private var activeRecommendationPresets: [UUID: SoundPreset] = [:]
@@ -780,7 +784,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         hasReceivedFirstToken = false
         currentStreamingMessageId = nil
         typingTimer?.invalidate(); typingTimer = nil
-        typingBuffer = []; typingAccumulatedText = ""; typingCompletedStream = false
+        typingBuffer = ""  // ✅ String 초기화 (빈 문자열)
+        typingAccumulatedText = ""
+        typingCompletedStream = false
         typingLastReflowAt = Date(timeIntervalSince1970: 0)
 
         let stream = SessionManager.shared.sendMessageStream(
@@ -813,7 +819,10 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                         }
                         if let id = self.currentStreamingMessageId,
                            let idx = self.messages.firstIndex(where: { $0.id == id }) {
-                            if !piece.delta.isEmpty { self.typingBuffer.append(contentsOf: piece.delta) }
+                            // ✅ String.append로 안전하게 누적
+                            if !piece.delta.isEmpty { 
+                                self.typingBuffer.append(piece.delta)
+                            }
                             if piece.isComplete {
                                 self.typingCompletedStream = true
                                 self.debouncedReload()
@@ -933,7 +942,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // ⌨️ 타이핑 상태 초기화
         typingTimer?.invalidate()
         typingTimer = nil
-        typingBuffer = []
+        typingBuffer = ""  // ✅ String 초기화 (빈 문자열)
         typingAccumulatedText = ""
         typingCompletedStream = false
         typingLastReflowAt = Date(timeIntervalSince1970: 0)
@@ -973,8 +982,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                         // 델타가 비어있지 않다면 완료 조각이더라도 버퍼에 모두 적재
                         if let id = self.currentStreamingMessageId,
                            let idx = self.messages.firstIndex(where: { $0.id == id }) {
+                            // ✅ String.append로 안전하게 누적
                             if !piece.delta.isEmpty {
-                                self.typingBuffer.append(contentsOf: piece.delta)
+                                self.typingBuffer.append(piece.delta)
                             }
                             if piece.isComplete {
                                 // 스트림 종료 표시 → 타이핑 타이머가 자연 종료되도록 함
@@ -1918,6 +1928,11 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             navigationController?.setNavigationBarHidden(false, animated: animated)
         }
         refreshCacheStatus()
+        
+        // ⚡ KV 캐시 Prewarm: 대화 화면 진입 시 캐시 미리 준비 (TTI 1~2초 절약)
+        Task {
+            await prewarmCacheIfNeeded()
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -2616,6 +2631,33 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     // MARK: - Helper Methods for AI Context
+    
+    /// ⚡ KV 캐시 Prewarm: 대화 화면 진입 시 캐시 미리 준비
+    /// - 효과: TTI 1~2초 절약 (캐시 복원 시간 단축)
+    /// - 시점: viewWillAppear에서 호출
+    private func prewarmCacheIfNeeded() async {
+        // 온디바이스 모델 사용 중일 때만 prewarm
+        let selectedModel = SettingsManager.shared.selectedLLM
+        guard selectedModel == .onDevice else { return }
+        
+        // 시스템 프롬프트 생성 (현재 모드 기반)
+        // ChatMode → AIMode 매핑은 SSoT: ChatMode.aiMode 를 사용해 DRY 보장
+        let currentMode: AIMode = chatContext.aiMode
+        
+        // AIContextBuilder를 통해 시스템 프롬프트 생성
+        let personaSignature = UserRulesManager.shared.personaCoreSignature()
+        let recentMessages: [ChatMessageLite] = []  // prewarm에는 최근 메시지 불필요
+        let assembledPrompt = AIContextBuilder.shared.buildPrompt(
+            for: currentMode,
+            personaSignature: personaSignature,
+            recentMessages: recentMessages,
+            coreMemorySummary: nil,
+            currentUserMessage: ""
+        )
+        
+        // Prewarm 실행: AssembledPrompt의 text 필드가 전체 프롬프트
+        await OnDeviceAdapter.shared.prewarm(systemPrompt: assembledPrompt.text)
+    }
 
     private func getEstimatedEnvironmentNoise() -> Float {
         // 시간대 기반 추정

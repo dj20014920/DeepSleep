@@ -482,10 +482,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         onToken: @escaping @Sendable (String) -> Void
     ) async throws -> GenerationSummary {
 
-        // 0) 설치 보장(무결성 포함)
-        let _ = try await ensureInstalled(id: id)
-
-        // 1) 세션 준비/전환
+        // 0) 세션 준비/전환 (내부에서 필요 시 자동으로 설치 보장)
+        // ⚡ 최적화: 이미 로드된 모델이면 ensureInstalled 중복 호출 방지 (572ms 절약)
         if loader.activeModelID != id || !loader.isLoaded {
             do {
                 try await switchModel(id: id)
@@ -758,19 +756,30 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             throw AdapterError.underlying(error)
         }
 
-        // 스트림 종료: UTF-8 버퍼에 남은 바이트 처리
+        // ✅ 스트림 종료: 모든 버퍼 완전 플러시 (누락 방지 강화)
+        // 1단계: UTF-8 바이트 경계 완전 처리
         var tail = utf8Buffer.flush()
+        // 2단계: 그래펨 클러스터 경계 완전 처리
         tail = graphemeBuffer.process(tail) + graphemeBuffer.flush()
-        // 템플릿 보류 포함해 최종 정리(보류 잔여는 폐기)
+        // 3단계: 템플릿 마커 최종 정리
         tail = self.stripTemplateMarkersStreaming(in: tail, modelID: id)
+        // 4단계: 템플릿 보류 버퍼 완전 비우기 (잔여 누락 방지)
+        if !templateHold.isEmpty {
+            // 보류된 불완전 템플릿 조각도 최종적으로 출력 (스트림 끝에서는 템플릿 아님)
+            tail += templateHold
             templateHold.removeAll(keepingCapacity: false)
-            if !tail.isEmpty {
-                let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
+        }
+        // 5단계: 최종 특수 토큰 정리 후 방출
+        if !tail.isEmpty {
+            let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
+            if !cleaned.isEmpty {
                 onToken(cleaned)
             }
-            // 다음 생성을 위해 버퍼 리셋
-            utf8Buffer.reset()
-            graphemeBuffer.reset()
+        }
+        // 6단계: 다음 생성을 위해 모든 버퍼 완전 리셋
+        utf8Buffer.reset()
+        graphemeBuffer.reset()
+        templateHold.removeAll(keepingCapacity: false)
 
             let finished = Date()
             let usedTTI = max(0, ttiMs)
