@@ -770,7 +770,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             }
         }
 
-        appendChat(ChatMessage(text: "분석하고 있어요...", sender: .ai, type: .loading))
+        // 로딩 메시지 즉시 표시
+        appendChat(ChatMessage(text: "분석하고 있어요...", sender: .ai, type: .loading), immediate: true)
 
         // 스트리밍 응답으로 전환(일반 대화와 동일한 타이핑/버블 UX)
         let aiMode: AIMode = .emotionDiaryAnalysis
@@ -851,6 +852,25 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
             lines.append("작성일: \(df.string(from: d))")
         }
         lines.append("일기:\n\(diary.content)")
+        return lines.joined(separator: "\n")
+    }
+    
+    /// 일기 내용을 채팅 화면에 표시할 형식으로 포맷팅
+    private func formatDiaryForDisplay(_ diary: DiaryContext) -> String {
+        var lines: [String] = []
+        if let emo = diary.emotion, !emo.isEmpty {
+            lines.append("오늘의 감정: \(emo)")
+        }
+        if let d = diary.date {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "ko_KR")
+            df.dateFormat = "yyyy-MM-dd"
+            lines.append("작성일: \(df.string(from: d))")
+        }
+        if !diary.content.isEmpty {
+            lines.append("일기:")
+            lines.append(diary.content)
+        }
         return lines.joined(separator: "\n")
     }
 
@@ -1023,9 +1043,12 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
     }
 
-    /// 🎯 중앙집중형 메시지 추가 메서드 (단일) - 통합 appendBatch(allowLoading/scroll 옵션) 사용
-    private func appendChat(_ message: ChatMessage) {
-        appendBatch([message], allowLoading: true, scrollToBottom: true)
+    /// 🎯 중앙집중형 메시지 추가 메서드 (단일) - 통합 appendBatch(allowLoading/scroll/immediate 옵션) 사용
+    /// - Parameters:
+    ///   - message: 추가할 메시지
+    ///   - immediate: 즉시 UI 업데이트 여부 (기본값: false)
+    private func appendChat(_ message: ChatMessage, immediate: Bool = false) {
+        appendBatch([message], allowLoading: true, scrollToBottom: true, immediate: immediate)
     }
 
     /* DEPRECATED (Merged into unified enforceMemoryWindow below)
@@ -3680,7 +3703,9 @@ extension ChatViewController {
 
     private func setupInitialMessages() {
         if let diary = diaryContext {
-            appendChat(ChatMessage(text: "📝 이 일기를 분석해주세요", sender: .user, type: .user))
+            // 일기 내용을 사용자 메시지로 즉시 표시
+            let diaryContent = formatDiaryForDisplay(diary)
+            appendChat(ChatMessage(text: diaryContent, sender: .user, type: .user), immediate: true)
 
             // ✅ 안전한 옵셔널 처리로 크래시 방지
             let emotionText = diary.emotion ?? "알 수 없는 감정"
@@ -3691,11 +3716,12 @@ extension ChatViewController {
                 어떤 부분이 가장 마음에 남으셨나요? 💭
                 """
 
-            appendChat(ChatMessage(text: initialResponse, sender: .ai, type: .bot))
+            appendChat(ChatMessage(text: initialResponse, sender: .ai, type: .bot), immediate: true)
             requestDiaryAnalysisWithTracking(diary: diary)
 
         } else if let patternData = emotionPatternData, !patternData.isEmpty {
-            appendChat(ChatMessage(text: "📊 최근 감정 패턴을 분석해주세요", sender: .user, type: .user))
+            // 패턴 분석 요청 메시지 즉시 표시
+            appendChat(ChatMessage(text: "📊 최근 감정 패턴을 분석해주세요", sender: .user, type: .user), immediate: true)
 
             let initialResponse = """
                 📈 최근 30일간의 감정 패턴을 분석해드릴게요 😊
@@ -3703,7 +3729,7 @@ extension ChatViewController {
                 패턴을 살펴보고 있어요... 잠시만 기다려주세요! 💭
                 """
 
-            appendChat(ChatMessage(text: initialResponse, sender: .ai, type: .bot))
+            appendChat(ChatMessage(text: initialResponse, sender: .ai, type: .bot), immediate: true)
             requestPatternAnalysisWithTracking(patternData: patternData)
 
         } else if let userText = initialUserText,

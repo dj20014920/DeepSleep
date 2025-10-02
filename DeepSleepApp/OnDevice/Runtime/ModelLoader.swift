@@ -597,24 +597,24 @@ protocol LlamaCppBinding: Sendable {
 
             var curPos = startPos
 
-            // 입력 토큰을 먼저 주입하여 컨텍스트를 최신 위치로 맞춤
-            for i in 0..<Int(nTok) {
+            // 입력 토큰을 배치로 한 번에 주입 (성능 최적화: 토큰별 순차 처리 → 배치 처리)
+            if nTok > 0 {
                 if Task.isCancelled || stopRequested { throw OnDeviceError.generationCancelled }
-                var nb = llama_batch_init(1, 0, 1)
-                nb.n_tokens = 1
-                nb.token[0] = tokens[i]
-                nb.pos[0] = curPos
-                nb.n_seq_id[0] = 1
-                if let seq = nb.seq_id[0] { seq[0] = 0 }
-                nb.logits[0] = 1
-                if llama_decode(ctx, nb) != 0 {
-                    llama_batch_free(nb)
-                    // KV cache 위치 불일치 해결: cache 클리어 후 에러 전파
-                    clearKVCache()
-                    throw OnDeviceError.unknown("llama_decode failed (resume inject)")
+                var batch = llama_batch_init(nTok, 0, 1)
+                defer { llama_batch_free(batch) }
+                batch.n_tokens = nTok
+                for i in 0..<Int(nTok) {
+                    batch.token[i] = tokens[i]
+                    batch.pos[i] = startPos + Int32(i)
+                    batch.n_seq_id[i] = 1
+                    if let seq = batch.seq_id[i] { seq[0] = 0 }
+                    batch.logits[i] = (i == Int(nTok) - 1) ? 1 : 0
                 }
-                llama_batch_free(nb)
-                curPos += 1
+                if llama_decode(ctx, batch) != 0 {
+                    clearKVCache()
+                    throw OnDeviceError.unknown("llama_decode failed (resume batch)")
+                }
+                curPos = startPos + Int32(nTok)
             }
 
             // 생성 루프

@@ -653,9 +653,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                             }()
 
                             let nSys = try io.prefillSystem(system)
-                            let nHist =
-                            recentSerialized.isEmpty ? 0 : (try io.prefillText(recentSerialized))
-                            let nPrefix = nSys + nHist
+                            // 최근 대화는 캐시에 포함하지 않음
+                            // 이유: 매번 변경되어 캐시 히트율이 낮고, 복원 후 배치로 처리하는 것이 더 효율적
+                            let nPrefix = nSys
 
                             let saved = await KVPromptCache.shared.saveIfBeneficial(
                                 for: kvKey,

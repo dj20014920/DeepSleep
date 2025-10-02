@@ -54,9 +54,9 @@ struct UserSettingsModel: Codable {
         var personaLines: [String] = []
         var preferenceLines: [String] = []
 
-        // 기본 정보
+        // 기본 정보 (사용자 정보임을 명시)
         if !nickname.isEmpty {
-            personaLines.append("• 이름: \(nickname)")
+            personaLines.append("• 대화 상대방(사용자) 이름: \(nickname)")
         }
         if let age = age {
             personaLines.append("• 나이: \(age)세")

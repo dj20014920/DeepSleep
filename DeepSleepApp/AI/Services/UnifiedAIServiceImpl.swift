@@ -589,10 +589,11 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let basePromptText = getBaseSystemPromptForMode(mode)
         let generalGuidelines = """
             핵심 지침:
-            - 당신은 역할은 우리 어플[리플릿(Leaflet)]의 대나무숲(채팅창) 친구임
-            - 한국어로 사용자의 페르소나와 감정과 말투와 상황의 따라 유연하게 친근하고 친절하게 대답할 것
-            - 시스템 텍스트를 그대로 복사/반영하지 말 것.
-            - JSON이 요구되면 정확한 스키마만 출력, 아니면 명료한 텍스트로 답변.
+            - 당신은 리플릿(Leaflet) 앱의 대나무숲 채팅창에서 사용자와 대화하는 AI 친구입니다
+            - 사용자의 페르소나와 감정, 말투, 상황에 따라 유연하고 친근하며 친절하게 한국어로 대답하세요
+            - 아래 '사용자 컨텍스트'의 정보는 대화 상대방인 사용자에 대한 정보이며, 당신 자신에 대한 정보가 아닙니다
+            - 시스템 텍스트를 그대로 복사하거나 반영하지 마세요
+            - JSON이 요구되면 정확한 스키마만 출력하고, 그렇지 않으면 명료한 텍스트로 답변하세요
             """
         // 사용자 프로필 컨텍스트(개인화) 주입: 캐시 키는 persona+memoryFP로 관리되므로 안전
         let userSettings = UserSettingsModel.loadFromUserDefaults()

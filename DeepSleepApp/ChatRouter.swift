@@ -30,8 +30,8 @@ enum ChatRouter {
             vc.diaryContext = DiaryContext(from: diary)
             // 호환성: 기존 초기 데이터 필드도 유지(표시 메시지 등에서 사용될 수 있음)
             vc.initialDiaryData = diary
-            // 일기 분석은 신규 에페메랄 세션으로 시작(과거 대화 복원/재개 금지)
-            vc.isEphemeralSession = true
+            // 일기 분석은 기존 대화 히스토리를 유지하며 분석 컨텍스트 추가
+            vc.isEphemeralSession = false
             // 명시적 모드 플래그(선택): 필요 시 내부 분기에서 활용 가능
             vc.initialUserText = "일기_분석_모드"
             
