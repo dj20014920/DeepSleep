@@ -36,11 +36,11 @@
 	<string>$(AI_FREE_MODEL_TEMPERATURE_MIN)</string>
 	<key>AI_GEMINI_MAX_TOKENS_LIMIT</key>
 	<string>$(AI_GEMINI_MAX_TOKENS_LIMIT)</string>
-	<key>AI_GEMINI_TEMPERATURE_ADJUSTMENT</key>
-	<string>$(AI_GEMINI_TEMPERATURE_ADJUSTMENT)</string>
 	<key>AI_GENERAL_CONVERSATION_MAX_TOKENS</key>
-	<string>$(AI_GENERAL_CONVERSATION_MAX_TOKENS)</string>
-	<key>AI_GENERAL_CONVERSATION_TEMPERATURE</key>
+	<integer>1000</integer>
+	<key>AI_ONDEVICE_MAX_TOKENS_LIMIT</key>
+	<integer>1000</integer>
+<key>AI_GENERAL_CONVERSATION_TEMPERATURE</key>
 	<string>$(AI_GENERAL_CONVERSATION_TEMPERATURE)</string>
 	<key>AI_JSON_MODE_TEMPERATURE_MAX</key>
 	<string>$(AI_JSON_MODE_TEMPERATURE_MAX)</string>
@@ -354,8 +354,8 @@
 	<string>$(ONDEVICE_ENABLED)</string>
 	<key>ONDEVICE_FORCE_CLOUD</key>
 	<string>$(ONDEVICE_FORCE_CLOUD)</string>
-	<key>ONDEVICE_MAX_TTI_MS</key>
-	<string>$(ONDEVICE_MAX_TTI_MS)</string>
+	<key>ONDEVICE_MAX_TOKENS</key>
+	<integer>1000</integer>
 	<!-- Metal 강제 비활성화(안정성 목적). 필요 시 false로 전환하면 GPU 레이어 사용 -->
 	<key>ONDEVICE_DISABLE_METAL</key>
 	<true/>
