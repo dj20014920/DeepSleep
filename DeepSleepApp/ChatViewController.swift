@@ -120,8 +120,8 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         }
     }
 
-    // 중복 분석 트리거 방지
-    private var didStartDiaryAnalysis: Bool = false
+    // 중복 분석 트리거 방지 (외부 라우터에서 1회 트리거를 표시하기 위해 internal로 완화)
+    var didStartDiaryAnalysis: Bool = false
     // MARK: - Properties
     private let sessionManager = SessionManager.shared  // 🎯 통합 세션 관리자
     // (정리) 과거 'UsageGate 제거' 주석 제거. SSOT: UsageGate를 통해서만 사용량 확인/증가.
@@ -1801,6 +1801,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
+        ChatRouter.registerCurrentChatVC(self)
         super.viewDidLoad()
 
         // 📊 메모리 프로파일링 시작
@@ -1852,6 +1853,9 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
                 resumeSessionId = overrideId
                 presentResumeInfoAlertIfNeeded()
             }
+        } else {
+            // 에페메랄 세션: 재개/오버라이드 로딩을 명시적으로 차단하여 UI 깜빡임 및 이중 요청 방지
+            UnifiedLogger.shared.debug("🛡️ Ephemeral session - resume/override 로딩 스킵", category: .ui)
         }
 
         // 📊 메모리 사용량 체크
@@ -2885,6 +2889,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     deinit {
+        ChatRouter.unregisterCurrentChatVC(self)
         currentStreamTask?.cancel()
         NotificationCenter.default.removeObserver(self)
         cleanup()
@@ -3983,6 +3988,45 @@ extension ChatViewController {
 
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+}
+
+// MARK: - Public API for Router
+extension ChatViewController {
+    /// 외부(라우터)에서 안전하게 일기 내용을 즉시 표시하고 분석을 시작하는 공개 메서드
+    /// - Note: 기존 setupInitialMessages와 동일한 UX를 즉시 재현하고, 이어서 스트리밍 분석을 단일 경로로 트리거합니다.
+    func presentDiaryAndStartAnalysis(_ diary: DiaryContext) {
+        // 컨텍스트 주입
+        self.chatContext = .emotionDiaryAnalysis
+        self.diaryContext = diary
+        if self.initialDiaryData == nil {
+            self.initialDiaryData = EmotionDiary(
+                selectedEmotion: diary.emotion ?? "",
+                userMessage: diary.content,
+                aiResponse: "",
+                date: diary.date ?? Date()
+            )
+        }
+
+        // 일기 내용을 사용자 메시지로 즉시 표시
+        let diaryContent = formatDiaryForDisplay(diary)
+        appendChat(ChatMessage(text: diaryContent, sender: .user, type: .user), immediate: true)
+
+        // 간단한 인사/안내 메시지
+        let emotionText = diary.emotion ?? "알 수 없는 감정"
+        let initialResponse = """
+                📖 \(emotionText) 이런 기분으로 일기를 써주셨군요 😊
+
+                차근차근 마음 이야기를 나눠볼까요?
+                어떤 부분이 가장 마음에 남으셨나요? 💭
+                """
+        appendChat(ChatMessage(text: initialResponse, sender: .ai, type: .bot), immediate: true)
+
+        // 이중 트리거 방지 플래그
+        if !didStartDiaryAnalysis {
+            didStartDiaryAnalysis = true
+            requestDiaryAnalysisWithTracking(diary: diary)
+        }
     }
 }
 

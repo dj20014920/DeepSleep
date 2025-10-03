@@ -1223,8 +1223,7 @@ extension EmotionCalendarViewController {
             return
         }
 
-        // ✅ 사용 횟수 증가 (실제 대화 시작 직전에)
-        AIUsageManager.shared.recordUsage(for: .diaryAnalysis)
+        // ✅ 사용량 증가는 ChatViewController에서 일관 처리합니다 (중복 증가 방지)
 
         // 🛡️ 확실한 일기 컨텍스트 생성(안전한 엔트리)
         let safeEntry = EmotionDiary(
@@ -1234,33 +1233,8 @@ extension EmotionCalendarViewController {
             date: entry.date
         )
 
-        // 🛡️ ChatViewController 생성: 일기 분석 컨텍스트로 직접 진입
-        let chatVC = ChatRouter.chatViewController(context: .diaryAnalysis(diary: safeEntry))
-
-        // 🛡️ 버튼/메뉴에서 사용량을 이미 기록했으므로, ChatVC에서 재게이트/재카운트 방지
-        chatVC.diaryAnalysisPreConsumed = true
-
-        // 🛡️ 타이틀 통일
-        // chatVC.title = "#Todays_Mood"
-
-        // 🛡️ 프리셋 적용 콜백 설정
-        chatVC.onPresetApply = { [weak self] preset in
-            self?.applyPresetFromCalendar(preset)
-        }
-
-        // 🛡️ 네비게이션 설정 및 표시
-        let navController = UINavigationController(rootViewController: chatVC)
-        navController.navigationBar.prefersLargeTitles = false
-        navController.navigationBar.tintColor = UIColor.systemBlue
-        navController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
-        navController.modalTransitionStyle = UIModalTransitionStyle.coverVertical
-
-        present(navController, animated: true) {
-            // 🛡️ 표시 완료 후 데이터 전달 재확인
-            print("✅ [일기 대화] ChatViewController 표시 완료")
-            print("  - diaryContext 설정됨: \(chatVC.diaryContext != nil)")
-            print("  - initialUserText: \(chatVC.initialUserText ?? "없음")")
-        }
+        // ✅ 기존 채팅창에서 바로 일기 분석 시작 (새 창 생성 금지)
+        ChatRouter.startDiaryAnalysisInExistingChat(from: self, diary: safeEntry)
     }
     private func applyPresetFromCalendar(_ preset: SoundPreset) {
         NotificationCenter.default.post(
