@@ -232,8 +232,6 @@ extension PermissionSettingsViewController: PermissionItemViewDelegate {
             message = "📅 캘린더 권한이 거부되었습니다.\n\n할 일을 시스템 캘린더에 동기화하려면 설정에서 직접 권한을 허용해주세요.\n\n설정 > 개인정보보호 > 캘린더 > 리플릿(Leaflet)"
         case .notification:
             message = "🔔 알림 권한이 거부되었습니다.\n\n할 일 미리 알림을 받으려면 설정에서 직접 권한을 허용해주세요."
-        case .health:
-            message = "❤️ 건강 데이터 권한이 거부되었습니다.\n\n수면 분석 및 마음챙김 데이터를 사용하려면 설정에서 직접 권한을 허용해주세요."
         case .backgroundAudio:
             message = "🎵 백그라운드 오디오는 앱 설정에서 관리됩니다."
         }

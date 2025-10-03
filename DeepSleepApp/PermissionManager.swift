@@ -9,13 +9,11 @@ import Foundation
 import UIKit
 import UserNotifications
 import EventKit
-import HealthKit
 
 /// 🔐 권한 타입 정의
 enum PermissionType: String, CaseIterable {
     case notification = "notification"
     case calendar = "calendar"
-    case health = "health"
     case backgroundAudio = "backgroundAudio"
     
     var displayName: String {
@@ -24,8 +22,7 @@ enum PermissionType: String, CaseIterable {
             return "알림"
         case .calendar:
             return "캘린더"
-        case .health:
-            return "건강 데이터"
+        
         case .backgroundAudio:
             return "백그라운드 오디오"
         }
@@ -37,8 +34,7 @@ enum PermissionType: String, CaseIterable {
             return "할 일 미리 알림, 타이머 알림을 위해 필요합니다"
         case .calendar:
             return "할 일을 iPhone 캘린더 앱과 동기화하여 일정 관리를 도와드립니다. iOS 설정에서 바로 변경 가능합니다."
-        case .health:
-            return "수면 데이터와 마음챙김 분석을 위해 필요합니다. 건강 앱에서 관리됩니다."
+        
         case .backgroundAudio:
             return "수면 사운드를 백그라운드에서 재생하기 위해 필요합니다. 자동으로 설정됩니다."
         }
@@ -50,8 +46,7 @@ enum PermissionType: String, CaseIterable {
             return "🔔"
         case .calendar:
             return "📅"
-        case .health:
-            return "❤️"
+        
         case .backgroundAudio:
             return "🎵"
         }
@@ -113,7 +108,7 @@ class PermissionManager {
     private init() {}
     
     // MARK: - Properties
-    private let healthStore = HKHealthStore()
+    // 건강 권한 지원 제거됨
     private let eventStore = EKEventStore()
     
     // MARK: - Public Methods
@@ -147,8 +142,7 @@ class PermissionManager {
             getNotificationPermissionStatus(completion: completion)
         case .calendar:
             getCalendarPermissionStatus(completion: completion)
-        case .health:
-            getHealthPermissionStatus(completion: completion)
+        
         case .backgroundAudio:
             getBackgroundAudioPermissionStatus(completion: completion)
         }
@@ -161,8 +155,7 @@ class PermissionManager {
             requestNotificationPermission(completion: completion)
         case .calendar:
             requestCalendarPermission(completion: completion)
-        case .health:
-            requestHealthPermission(completion: completion)
+        
         case .backgroundAudio:
             // 백그라운드 오디오는 Info.plist 설정으로 자동 처리
             completion(true)
@@ -278,61 +271,8 @@ private extension PermissionManager {
     }
 }
 
-// MARK: - Private Methods - Health
-private extension PermissionManager {
-    
-    func getHealthPermissionStatus(completion: @escaping (PermissionStatus) -> Void) {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            completion(.restricted)
-            return
-        }
-        
-        // 건강 앱에서는 개별 데이터 타입별로 권한을 확인해야 함
-        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
-        let mindfulType = HKObjectType.categoryType(forIdentifier: .mindfulSession)!
-        
-        let sleepStatus = healthStore.authorizationStatus(for: sleepType)
-        let mindfulStatus = healthStore.authorizationStatus(for: mindfulType)
-        
-        DispatchQueue.main.async {
-            // 둘 중 하나라도 허용되면 authorized로 처리
-            if sleepStatus == .sharingAuthorized || mindfulStatus == .sharingAuthorized {
-                completion(.authorized)
-            } else if sleepStatus == .sharingDenied && mindfulStatus == .sharingDenied {
-                completion(.denied)
-            } else {
-                completion(.notDetermined)
-            }
-        }
-    }
-    
-    func requestHealthPermission(completion: @escaping (Bool) -> Void) {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            completion(false)
-            return
-        }
-        
-        let readTypes: Set<HKObjectType> = [
-            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
-            HKObjectType.categoryType(forIdentifier: .mindfulSession)!
-        ]
-        
-        let writeTypes: Set<HKSampleType> = [
-            HKObjectType.categoryType(forIdentifier: .mindfulSession)!
-        ]
-        
-        healthStore.requestAuthorization(toShare: writeTypes, read: readTypes) { granted, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("🔴 Health permission error: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    completion(granted)
-                }
-            }
-        }
-    }
-}
+// MARK: - Health-related permissions removed
+// 본 앱은 건강(헬스) 권한을 사용하지 않습니다.
 
 // MARK: - Private Methods - Background Audio
 private extension PermissionManager {

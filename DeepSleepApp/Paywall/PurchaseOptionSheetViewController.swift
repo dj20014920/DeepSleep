@@ -30,6 +30,7 @@ final class PurchaseOptionSheetViewController: UIViewController {
     private let priceLabel = UILabel()
     private let trialInfoButton = UIButton(type: .system)
     private let confirmButton = UIButton(type: .system)
+    private let restoreButton = UIButton(type: .system)
     private let cancelButton = UIButton(type: .system)
 
     private var selectedTier: Tier = .pro
@@ -105,7 +106,13 @@ final class PurchaseOptionSheetViewController: UIViewController {
         trialInfoButton.setTitleColor(.link, for: .normal)
         trialInfoButton.addTarget(self, action: #selector(openTrialInfo), for: .touchUpInside)
 
-        [titleLabel, descLabel, benefitsLabel, usageSummaryLabel, tierSegment, termSegment, priceLabel, trialInfoButton, confirmButton, cancelButton].forEach { stack.addArrangedSubview($0) }
+        // 구매 복원(시트 내 진입점 추가)
+        restoreButton.setTitle("구매 복원", for: .normal)
+        restoreButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        restoreButton.setTitleColor(.link, for: .normal)
+        restoreButton.addTarget(self, action: #selector(tapRestore), for: .touchUpInside)
+
+        [titleLabel, descLabel, benefitsLabel, usageSummaryLabel, tierSegment, termSegment, priceLabel, trialInfoButton, confirmButton, restoreButton, cancelButton].forEach { stack.addArrangedSubview($0) }
         view.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -198,6 +205,13 @@ final class PurchaseOptionSheetViewController: UIViewController {
     }
 
     @objc private func tapCancel() { dismiss(animated: true) }
+
+    @objc private func tapRestore() {
+        Task { @MainActor in
+            await StoreKitSubscriptionManager.shared.restore()
+            // 상태 반영되면 시트 유지(사용자가 확인 후 닫도록)
+        }
+    }
 
     @objc private func openTrialInfo() {
         // 웹 문서(/legal/trial)로 이동 — 실제 배포 URL 확정 시 여기만 교체하면 됨

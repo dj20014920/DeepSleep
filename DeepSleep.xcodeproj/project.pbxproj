@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E0SUB0022E9AAAA100000001 /* SubscriptionManagementViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0SUB0012E9AAAA100000001 /* SubscriptionManagementViewController.swift */; };
 		E017980F2E35FF51002F178C /* PerformanceManagementProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */; };
 		E01798102E35FF51002F178C /* UnifiedPerformanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980D2E35FF51002F178C /* UnifiedPerformanceManager.swift */; };
 		E01798112E35FF51002F178C /* PerformanceSystemBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */; };
@@ -142,7 +143,7 @@
 		E084F1F82E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0B22E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift */; };
 		E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */; };
 		E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AA2E33ACB3002F75E6 /* DebugManager.swift */; };
-		E084F1FB2E33ACB3002F75E6 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D12E33ACB3002F75E6 /* HealthKitManager.swift */; };
+
 		E084F1FC2E33ACB3002F75E6 /* OpenAIAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0562E33ACB3002F75E6 /* OpenAIAPIService.swift */; };
 		E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0552E33ACB3002F75E6 /* NaverAPIService.swift */; };
 		E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F12E33ACB3002F75E6 /* SoundPresetCatalog.swift */; };
@@ -287,6 +288,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E0SUB0012E9AAAA100000001 /* SubscriptionManagementViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementViewController.swift; sourceTree = "<group>"; };
 		A000 /* DeepSleep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepSleep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E017980B2E35FF51002F178C /* PerformanceManagementProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceManagementProtocols.swift; sourceTree = "<group>"; };
 		E017980C2E35FF51002F178C /* PerformanceSystemBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceSystemBootstrap.swift; sourceTree = "<group>"; };
@@ -414,7 +416,7 @@
 		E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FortuneGenerator.swift; sourceTree = "<group>"; };
 		E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationCharts.swift; sourceTree = "<group>"; };
 		E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarmonyVisualizationViewController.swift; sourceTree = "<group>"; };
-		E084F0D12E33ACB3002F75E6 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+
 		E084F0D22E33ACB3002F75E6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E084F0D32E33ACB3002F75E6 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		E084F0D52E33ACB3002F75E6 /* LaunchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchViewController.swift; sourceTree = "<group>"; };
@@ -891,7 +893,6 @@
 				E084F0CB2E33ACB3002F75E6 /* FortuneGenerator.swift */,
 				E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */,
 				E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */,
-				E084F0D12E33ACB3002F75E6 /* HealthKitManager.swift */,
 				E084F0D52E33ACB3002F75E6 /* LaunchViewController.swift */,
 				E084F0D62E33ACB3002F75E6 /* LegacyPresetManager.swift */,
 				E09CD6E32E4666D4007C133E /* LogConfiguration.swift */,
@@ -1130,6 +1131,7 @@
 				E0E7BCBF2E561B3800FF7073 /* PaywallPresenter.swift */,
 				E0E7BCC02E561B3800FF7073 /* SubscriptionStatusCenter.swift */,
 				E0E7BCB42E5591CA00FF7073 /* SubscriptionManager.swift */,
+				E0SUB0012E9AAAA100000001 /* SubscriptionManagementViewController.swift */,
 			);
 			path = Subscription;
 			sourceTree = "<group>";
@@ -1474,7 +1476,6 @@
 				E084F1F82E33ACB3002F75E6 /* EmotionAnalysisQuickActionView.swift in Sources */,
 				E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */,
 				E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */,
-				E084F1FB2E33ACB3002F75E6 /* HealthKitManager.swift in Sources */,
 				E0247D5A2E8D54BC003EAD98 /* UTF8ByteStreamDecoder.swift in Sources */,
 				E0247D5B2E8D54BC003EAD98 /* GraphemeStreamBuffer.swift in Sources */,
 				E084F1FC2E33ACB3002F75E6 /* OpenAIAPIService.swift in Sources */,
@@ -1493,6 +1494,7 @@
 				E084F2032E33ACB3002F75E6 /* EditDiaryViewController.swift in Sources */,
 				E084F2042E33ACB3002F75E6 /* EnhancedSoundRecommendationEngine.swift in Sources */,
 				E0B562612E6AC9C100D334F1 /* FriendToneSettingsViewController.swift in Sources */,
+				E0SUB0022E9AAAA100000001 /* SubscriptionManagementViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

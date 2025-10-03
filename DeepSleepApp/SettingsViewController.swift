@@ -163,6 +163,15 @@ class SettingsViewController: UIViewController {
             }
         ))
 
+        // 구독 및 복원
+        userInfoSection.addItem(SettingsItem(
+            title: "구독 및 복원",
+            subtitle: "플랜 변경 · 가격 · 구매 복원",
+            type: .navigation,
+            action: { [weak self] in
+                self?.showSubscriptionManagement()
+            }
+        ))
 
         userInfoSection.addItem(SettingsItem(
             title: "사용 패턴 분석",
@@ -176,7 +185,7 @@ class SettingsViewController: UIViewController {
         // 앱 설정 항목들
         appSettingsSection.addItem(SettingsItem(
             title: "🔐 권한 설정",
-            subtitle: "알림, 캘린더, 건강 데이터 등 앱 권한 관리",
+            subtitle: "알림, 캘린더 등 앱 권한 관리",
             type: .navigation,
             action: { [weak self] in
                 self?.showPermissionSettings()
@@ -389,6 +398,11 @@ extension SettingsViewController {
     private func showPolicyHub() {
         let hubVC = PolicyHubViewController()
         navigationController?.pushViewController(hubVC, animated: true)
+    }
+
+    private func showSubscriptionManagement() {
+        let vc = SubscriptionManagementViewController()
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     private func showOnboardingRestart() {

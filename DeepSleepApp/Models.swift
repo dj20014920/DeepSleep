@@ -678,7 +678,7 @@ public class NeuralNetworkProcessor {
         return data
     }
     
-    /// HealthKit 데이터 분석
+    /// 건강 데이터 분석
     public func analyzeHealthData(_ data: [String: Any]) -> [String: Any] {
         // 건강 데이터 분석 로직
         return data

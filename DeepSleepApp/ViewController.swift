@@ -131,11 +131,6 @@ LegacyPresetManager.shared.migrateLegacyPresetsIfNeeded()
     private func performDelayedInitialization() {
         // 지연 초기화 시작
         
-        // 🆕 애플워치 헬스킷 초기화 (지연)
-        Task {
-            await setupHealthKitIfNeeded()
-        }
-        
         // 프리셋 블록 업데이트 (지연)
         Task {
             await MainActor.run {

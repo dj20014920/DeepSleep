@@ -115,6 +115,11 @@ final class AdsBannerCoordinator {
         autoLoad: Bool = true,
         reserveSpace: Bool = true // 하단 배너 시 컨텐츠 여백(세이프박스) 확보 여부
     ) {
+        // 프리미엄/체험 활성: 배너 비노출
+        if SubscriptionStatusCenter.shared.isPremium {
+            if getHandle(from: viewController) != nil { detachBanner(from: viewController) }
+            return
+        }
         // 이미 같은 포지션으로 붙어 있으면 재사용
         if let existing = getHandle(from: viewController),
             existing.position == position,

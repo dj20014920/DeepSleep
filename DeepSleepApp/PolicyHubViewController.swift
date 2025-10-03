@@ -35,7 +35,7 @@ final class PolicyHubViewController: UITableViewController {
             case .subscriptionManagement: return "App Store 구독 관리 화면으로 이동"
             case .medicalDisclaimer: return "본 앱은 의학적 진단/치료를 대체하지 않습니다"
             case .dataRetentionPolicy: return "30일 압축 / 60일 삭제 · 보호 요일 · 알림 옵트아웃"
-            case .permissionsPolicy: return "캘린더, 알림, 건강 데이터 등 앱 권한 사용 목적"
+            case .permissionsPolicy: return "캘린더, 알림 등 앱 권한 사용 목적"
             case .aiUsagePolicy: return "AI 모델 사용, 데이터 처리, 응답 품질 정책"
             case .securityPolicy: return "API 키 보호, 프록시 서버, 보안 검증 시스템"
             case .contactSupport: return "개발자 피드백, 문의, 버그 신고"

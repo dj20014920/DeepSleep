@@ -169,6 +169,7 @@ final class AdsManager {
         private var didRetryWithTestUnit = false
         private var lastAdSize: AdSize?
         private var deferredLoadScheduled = false
+        private var subStatusToken: NSObjectProtocol?
 
         #if canImport(GoogleMobileAds)
             private var bannerView: BannerView?
@@ -180,6 +181,32 @@ final class AdsManager {
             backgroundColor = .clear
             heightConstraint = heightAnchor.constraint(equalToConstant: 0)
             heightConstraint.isActive = true
+            // 구독 상태 변화 수신 → 프리미엄/체험 활성 시 즉시 숨김
+            subStatusToken = NotificationCenter.default.addObserver(
+                forName: .subscriptionStatusChanged, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.applyPremiumVisibility()
+            }
+            // 최초 상태 반영
+            applyPremiumVisibility()
+        }
+
+        deinit {
+            if let t = subStatusToken { NotificationCenter.default.removeObserver(t) }
+        }
+
+        private func applyPremiumVisibility() {
+            let premium = SubscriptionStatusCenter.shared.isPremium
+            if premium {
+                // 프리미엄: 전역 배너 완전 비노출
+                isHidden = true
+                if heightConstraint.constant != 0 {
+                    heightConstraint.constant = 0
+                    onHeightChange?(0)
+                }
+            } else {
+                isHidden = false
+            }
         }
 
         required init?(coder: NSCoder) {
@@ -187,6 +214,11 @@ final class AdsManager {
         }
 
         func loadBanner(in viewController: UIViewController) {
+            // 프리미엄/체험 활성 시는 로드하지 않음
+            if SubscriptionStatusCenter.shared.isPremium {
+                applyPremiumVisibility()
+                return
+            }
             // Initialize SDK if possible (no-op when SDK absent)
             AdsManager.shared.configureIfPossible()
 
