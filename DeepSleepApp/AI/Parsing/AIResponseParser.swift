@@ -13,6 +13,102 @@ public final class AIResponseParser {
     public static let shared = AIResponseParser()
     private init() {}
 
+    // 기본 폴백 후보들(중복 정의 금지, DRY)
+    private static let basicCandidates: [(name: String, volumes: [Float], reason: String, tags: [String])] = [
+        ("🌊 마음 달래는 소리", [30, 70, 60, 10, 80, 90, 0, 70, 50, 0, 70, 0, 0], "기본 감정별 추천", ["기본", "안정", "릴렉스", "평온"]),
+        ("🌙 달빛 아래 산책",   [20, 60, 40, 0,  55, 35, 10, 40, 20, 0,  30, 0, 0], "야간 휴식에 맞춘 안정적 조합", ["야간", "밤", "수면", "달빛", "잠"]),
+        ("🍃 바람결 위로",     [10, 50, 70, 5,  45, 25, 30, 60, 30, 10, 20, 0, 0], "자연계 사운드 중심의 편안한 밸런스", ["자연", "숲", "바람", "새소리"]),
+        ("☕ 잔잔한 오후",     [0,  40, 30, 0,  35, 20, 20, 30, 20, 20, 20, 0, 0], "오후 집중·휴식 혼합에 최적화", ["오후", "낮", "집중", "차분"])
+    ]
+
+    // 텍스트 키워드에 따라 후보군을 필터링한 뒤, 확실히 랜덤으로 선택
+    private func chooseBasicCandidate(for text: String?) -> (name: String, volumes: [Float], reason: String) {
+        let lower = (text ?? "")
+        let pool = Self.basicCandidates
+        let byNight = pool.filter { $0.tags.contains(where: { ["야간","밤","수면","달빛","잠"].contains($0) }) }
+        let byAfternoon = pool.filter { $0.tags.contains(where: { ["오후","낮","집중"].contains($0) }) }
+        let byNature = pool.filter { $0.tags.contains(where: { ["자연","숲","바람","새소리"].contains($0) }) }
+        var filtered = pool
+        if (lower.contains("야간") || lower.contains("밤") || lower.contains("수면") || lower.contains("달빛") || lower.contains("잠")), !byNight.isEmpty {
+            filtered = byNight
+        } else if (lower.contains("오후") || lower.contains("낮") || lower.contains("집중")), !byAfternoon.isEmpty {
+            filtered = byAfternoon
+        } else if (lower.contains("자연") || lower.contains("숲") || lower.contains("바람")), !byNature.isEmpty {
+            filtered = byNature
+        }
+        let pick = filtered.randomElement() ?? pool.randomElement() ?? pool[0]
+        return (pick.name, pick.volumes, pick.reason)
+    }
+
+    // Markdown/자유텍스트에서 이름과 이유를 추출하는 휴리스틱(비 JSON 대응)
+    private func parseMarkdownHeuristic(from raw: String) -> EnhancedRecommendationResponse? {
+        // 이름 추출: **이름** 또는 "이름:" 패턴 우선
+        var extractedName: String?
+        if let boldName = raw.range(of: #"\*\*([^\*]+)\*\*"#, options: .regularExpression) {
+            let name = String(raw[boldName])
+                .replacingOccurrences(of: "**", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { extractedName = name }
+        }
+        if extractedName == nil, let nameLine = raw.range(of: #"(?m)^\s*이름\s*:\s*(.+)$"#, options: .regularExpression) {
+            let line = String(raw[nameLine])
+            if let colon = line.split(separator: ":", maxSplits: 1).last {
+                let name = colon.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty { extractedName = name }
+            }
+        }
+
+        // 이유 섹션 추출: "간단한 이유:" 및 "감정 패턴" 등
+        func extractBullets(after heading: String) -> [String] {
+            // 정규식: heading 라인 이후의 "- ", "• "로 시작하는 항목 수집(다음 빈 줄/헤딩 전까지)
+            let escapedHeading = NSRegularExpression.escapedPattern(for: heading)
+            let pattern = "(?s)" + escapedHeading + "\\n(?:(?:\\s*[-•]\\s+.+\\n?)+)"
+            guard let range = raw.range(of: pattern, options: .regularExpression) else { return [] }
+            let block = String(raw[range])
+            let lines = block.components(separatedBy: "\n")
+            var items: [String] = []
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("-") || trimmed.hasPrefix("•") {
+                    let content = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
+                    if !content.isEmpty { items.append(String(content)) }
+                }
+            }
+            return items
+        }
+        let simpleReasons = extractBullets(after: "간단한 이유:")
+        let moodReasons = extractBullets(after: "감정 패턴과 상황과의 연결성:")
+
+        // 이유 문자열 구성(명확하게 보이도록 섹션 라벨 포함)
+        var composedReasonParts: [String] = []
+        if !simpleReasons.isEmpty {
+            composedReasonParts.append("간단한 이유:")
+            composedReasonParts.append(contentsOf: simpleReasons.map { "• \($0)" })
+        }
+        if !moodReasons.isEmpty {
+            if !composedReasonParts.isEmpty { composedReasonParts.append("") }
+            composedReasonParts.append("감정 패턴과 상황과의 연결성:")
+            composedReasonParts.append(contentsOf: moodReasons.map { "• \($0)" })
+        }
+        let composedReason = composedReasonParts.joined(separator: "\n")
+
+        // 볼륨/버전은 안전한 폴백에서 선택(키워드 기반 매핑)
+        let candidate = chooseBasicCandidate(for: raw)
+        let volumes = SoundPresetCatalog.applyCompatibilityFilter(to: candidate.volumes)
+        let versions = generateOptimalVersions(volumes: volumes)
+
+        // 이름/이유 중 하나라도 확보된 경우에만 사용
+        if extractedName != nil || !composedReason.isEmpty {
+            return EnhancedRecommendationResponse(
+                presetName: safePresetName(extractedName ?? candidate.name),
+                volumes: volumes,
+                versions: versions,
+                reason: composedReason.isEmpty ? candidate.reason : composedReason
+            )
+        }
+        return nil
+    }
+
     // MARK: - Typed parse hook: Preset Recommendation
     public func parsePresetRecommendation(_ raw: String) -> EnhancedRecommendationResponse? {
         let capped = String(raw.prefix(50_000))
@@ -28,6 +124,8 @@ public final class AIResponseParser {
         // 3) Try heuristic legacy formats for tolerance
         if let legacy = parseNewFormatPreset(from: raw) { return legacy }
         if let legacy12 = parseLegacyFormatPreset(from: raw) { return legacy12 }
+        // 3.5) Try markdown/plain-text heuristic to preserve reasons
+        if let heuristic = parseMarkdownHeuristic(from: raw) { return heuristic }
         // 4) Fallback basic (emotion/time-based)
         return parseBasicFormatPreset()
     }

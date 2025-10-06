@@ -118,21 +118,30 @@ public final class RemoteAssetClient: NSObject {
         private var lastLoggedPctByFile: [String: Int] = [:]
         // 파일명 → 사용자 취소 플래그
         private var userCancelledByFile: Set<String> = []
+        // 파일명 → 시작 중 플래그(레이스 방지: getTask==nil 윈도우 보호)
+        private var startingFiles: Set<String> = []
 
         func markUserCancelled(file: String) { q.sync { userCancelledByFile.insert(file) } }
         func isUserCancelled(file: String) -> Bool { q.sync { userCancelledByFile.contains(file) } }
 
+        func isStarting(file: String) -> Bool { q.sync { startingFiles.contains(file) } }
+        /// 최초 시작 시도(원자적): 이미 시작/진행 중이면 false 반환
+        func beginStartIfNeeded(file: String) -> Bool {
+            q.sync {
+                if taskByFile[file] != nil || startingFiles.contains(file) { return false }
+                startingFiles.insert(file)
+                return true
+            }
+        }
+        func endStart(file: String) { q.sync { startingFiles.remove(file) } }
+
         func getTask(file: String) -> URLSessionDownloadTask? { q.sync { taskByFile[file] } }
         func setTask(file: String, task: URLSessionDownloadTask?) {
-            q.sync {
-                taskByFile[file] = task
-            }
+            q.sync { taskByFile[file] = task }
         }
 
         func getProgress(file: String) -> Double { q.sync { progressByFile[file] ?? 0.0 } }
-        func setProgress(file: String, value: Double) {
-            q.sync { progressByFile[file] = value }
-        }
+        func setProgress(file: String, value: Double) { q.sync { progressByFile[file] = value } }
 
         func getAttempts(file: String) -> Int { q.sync { attemptByFile[file] ?? 0 } }
         func setAttempts(file: String, value: Int) { q.sync { attemptByFile[file] = value } }
@@ -163,9 +172,7 @@ public final class RemoteAssetClient: NSObject {
         func markFinished(file: String) { q.sync { finishedByFile.insert(file) } }
         func isFinished(file: String) -> Bool { q.sync { finishedByFile.contains(file) } }
         func getLastLoggedPct(file: String) -> Int? { q.sync { lastLoggedPctByFile[file] } }
-        func setLastLoggedPct(file: String, value: Int?) {
-            q.sync { lastLoggedPctByFile[file] = value }
-        }
+        func setLastLoggedPct(file: String, value: Int?) { q.sync { lastLoggedPctByFile[file] = value } }
         func clear(file: String) {
             q.sync {
                 taskByFile[file] = nil
@@ -178,6 +185,7 @@ public final class RemoteAssetClient: NSObject {
                 finishedByFile.remove(file)
                 userCancelledByFile.remove(file)
                 lastLoggedPctByFile[file] = nil
+                startingFiles.remove(file)
             }
         }
     }
@@ -250,8 +258,8 @@ public final class RemoteAssetClient: NSObject {
             }
         }
 
-        // 1) 진행 중 작업이 있으면 waiter로 붙기
-        if state.getTask(file: fileName) != nil {
+        // 1) 진행 중 작업이 있으면 waiter로 붙기 (또는 시작 중이면 합류)
+        if state.getTask(file: fileName) != nil || state.isStarting(file: fileName) {
             log.info("🪝 Join existing download for \(fileName, privacy: .public)")
             return try await withCheckedThrowingContinuation { cont in
                 let waiter = Waiter(id: UUID(), progress: progress, continuation: cont)
@@ -259,7 +267,16 @@ public final class RemoteAssetClient: NSObject {
             }
         }
 
-        // 2) 새 다운로드 시작
+        // 2) 새 다운로드 시작: 레이스 방지(원자적 시작 가드)
+        guard state.beginStartIfNeeded(file: fileName) else {
+            // 누군가가 방금 시작했음 → waiter로 붙기
+            log.info("🪝 Join existing (raced) for \(fileName, privacy: .public)")
+            return try await withCheckedThrowingContinuation { cont in
+                let waiter = Waiter(id: UUID(), progress: progress, continuation: cont)
+                state.addWaiter(file: fileName, waiter: waiter)
+            }
+        }
+        
         // waiter 자기 자신 추가(완료 신호 받을 수 있게)
         return try await withCheckedThrowingContinuation { cont in
             let waiter = Waiter(id: UUID(), progress: progress, continuation: cont)
@@ -271,6 +288,7 @@ public final class RemoteAssetClient: NSObject {
             Task { [weak self] in
                 await self?.startOrResumeDownload(
                     fileName: fileName, expectedSha256: expectedSha256)
+                self?.state.endStart(file: fileName)
             }
         }
     }

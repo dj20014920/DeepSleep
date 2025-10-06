@@ -300,6 +300,10 @@ class InputValidationManager {
         var sanitized = input
         
         switch rule {
+        case .aiResponse:
+            // AI 응답 텍스트는 자연어 그대로 보존(개행/이모지 포함)
+            // 보안 검증은 별도 단계에서 이미 수행되며, 여기서는 변형을 금지한다.
+            return input
         case .searchQuery:
             // HTML 엔티티 인코딩
             sanitized = sanitized

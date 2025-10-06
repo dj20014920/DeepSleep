@@ -92,7 +92,7 @@ public enum AIMode: String, CaseIterable, Codable {
                 maxTokens: ConfigReader.int("AI_PRESET_RECOMMENDATION_MAX_TOKENS", default: 400)
                     ?? 400,
                 temperature: ConfigReader.double(
-                    "AI_PRESET_RECOMMENDATION_TEMPERATURE", default: 0.6) ?? 0.6,
+                    "AI_PRESET_RECOMMENDATION_TEMPERATURE", default: 0.85) ?? 0.85,
                 responseFormat: .json
             )
         case .monthlyStatistics:

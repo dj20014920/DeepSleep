@@ -137,9 +137,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         label.lineBreakMode = .byWordWrapping
         label.translatesAutoresizingMaskIntoConstraints = false
         
-        // 🎯 채팅 스타일: 가로 확장을 허용(버블이 80% 상한까지 넓어지게 함)
-        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        label.setContentHuggingPriority(.defaultLow, for: .vertical)
+        // 🎯 채팅 스타일: 콘텐츠에 자연스럽게 맞추고 필요 시에만 확장
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentHuggingPriority(.defaultHigh, for: .vertical)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .vertical)
         
@@ -185,6 +185,7 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     private let loadingTextLabel = UILabel()
     private let typingDotsLabel = UILabel()
     private let thinkingLabel = UILabel() // 생각중... 텍스트
+    private var loadingBottomConstraint: NSLayoutConstraint?
     
     // ✅ 애니메이션 관련 프로퍼티들
     private var catAnimationTimer: Timer?
@@ -201,6 +202,15 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     // 폭 제한 제약(중복 생성 방지용, 한 번만 만든다)
     private var bubbleMaxWidthConstraint: NSLayoutConstraint!
     private var bubbleMinWidthConstraint: NSLayoutConstraint!
+    
+    // 동적 폭 비율 조정(사용자/AI 구분)
+    private func setBubbleMaxWidthMultiplier(_ multiplier: CGFloat) {
+        bubbleMaxWidthConstraint?.isActive = false
+        bubbleMaxWidthConstraint = bubbleView.widthAnchor.constraint(
+            lessThanOrEqualTo: contentView.widthAnchor, multiplier: multiplier
+        )
+        bubbleMaxWidthConstraint.isActive = true
+    }
     
     private var applyAction: (() -> Void)?
     
@@ -304,8 +314,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         leadingConstraint = bubbleView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
         trailingConstraint = bubbleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
 
-        // 최대/최소 폭 제약은 한 번만 생성하여 재사용한다(중복 생성 금지)
-        bubbleMaxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.8)
+        // 최대/최소 폭 제약 기본값(이후 메시지 유형에 따라 동적으로 갱신)
+        bubbleMaxWidthConstraint = bubbleView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.72)
         bubbleMinWidthConstraint = bubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 44)
         
         // 공통 제약조건들 활성화
@@ -516,6 +526,8 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             
             leadingConstraint.isActive = true
             trailingConstraint.isActive = true
+            // 사용자 버블은 약간 더 좁게(가독성 향상)
+            setBubbleMaxWidthMultiplier(0.66)
         } else {
             // 🟩 AI 메시지 (왼쪽 정렬, 텍스트 크기에 맞게)
             leadingConstraint.constant = 16
@@ -525,10 +537,11 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
             
             leadingConstraint.isActive = true
             trailingConstraint.isActive = true
+            // AI 버블은 기본값 유지(0.72)
+            setBubbleMaxWidthMultiplier(0.72)
         }
         
-        // 폭 제약은 초기 1회 생성되어 항상 활성 상태. 중복 생성 방지.
-        bubbleMaxWidthConstraint.isActive = true
+        // 최소 폭 제약은 항상 유지
         bubbleMinWidthConstraint.isActive = true
         
         // 기본 메시지 bottom 제약조건 활성화 (버튼이나 옵션이 없는 경우)
@@ -860,6 +873,12 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     ///   - text: 누적된 전체 텍스트
     ///   - fadeDuration: 페이드 시간(짧게 유지; 기본 0.08s)
     func updateStreamingText(_ text: String, fadeDuration: TimeInterval = 0.25) {
+        // 선행 오버레이 정리(레이스/중복 마스크 방지)
+        if let overlay = streamingOverlayLabel {
+            overlay.layer.mask = nil
+            overlay.removeFromSuperview()
+            streamingOverlayLabel = nil
+        }
         // 동일 텍스트는 무시
         guard messageLabel.text != text else { return }
         let previous = messageLabel.text ?? ""
@@ -943,15 +962,9 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
 
     /// 공통 접두사 길이 계산
     private static func longestCommonPrefixLength(_ a: String, _ b: String) -> Int {
-        let sa = Array(a)
-        let sb = Array(b)
-        let n = min(sa.count, sb.count)
-        var i = 0
-        while i < n {
-            if sa[i] != sb[i] { break }
-            i += 1
-        }
-        return i
+        // 그래펨 경계 안전: 표준 commonPrefix 사용
+        let prefix = a.commonPrefix(with: b)
+        return prefix.count
     }
 
     /// 오버레이용 AttributedText 구성: 기존 부분은 투명, 신규 덩어리만 보이게
@@ -973,16 +986,41 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
     ///   - overlay: 레이아웃 기준 라벨
     /// - Returns: overlay 좌표계의 시작 x
     private func computeStartXForNewlyAdded(fullText: String, baseLen: Int, in overlay: UILabel) -> CGFloat {
-        let prior = String(fullText.prefix(baseLen))
         let maxWidth = overlay.bounds.width
         guard maxWidth > 0 else { return 0 }
-        let size = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
-        let options: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: overlay.font as Any
-        ]
-        let rect = (prior as NSString).boundingRect(with: size, options: options, attributes: attrs, context: nil)
-        return max(0, min(rect.width, maxWidth))
+        guard baseLen > 0, baseLen < fullText.count else { return 0 }
+
+        // fullText의 UTF-16 오프셋 계산 (TextKit 호환)
+        let utf16Count = fullText.utf16.count
+        let charStart = fullText.index(fullText.startIndex, offsetBy: baseLen)
+        guard let utf16Start = charStart.samePosition(in: fullText.utf16) else { return 0 }
+        let utf16Location = fullText.utf16.distance(from: fullText.utf16.startIndex, to: utf16Start)
+        let length = max(0, min(1, utf16Count - utf16Location))
+        guard length > 0 else { return 0 }
+
+        // TextKit 레이아웃으로 첫 신규 글리프의 line-local X를 정확히 계산
+        let attr = NSMutableAttributedString(string: fullText)
+        if let font = overlay.font {
+            attr.addAttribute(.font, value: font, range: NSRange(location: 0, length: utf16Count))
+        }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = overlay.lineBreakMode
+        attr.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: utf16Count))
+
+        let textStorage = NSTextStorage(attributedString: attr)
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: CGSize(width: maxWidth, height: .greatestFiniteMagnitude))
+        textContainer.lineFragmentPadding = 0
+        textContainer.maximumNumberOfLines = 0
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: textContainer)
+
+        let charRange = NSRange(location: utf16Location, length: length)
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
+        guard glyphRange.length > 0 else { return 0 }
+        let glyphRect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphRange.location, length: 1), in: textContainer)
+        return max(0, min(glyphRect.origin.x, maxWidth))
     }
 
     
@@ -996,6 +1034,28 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         
         // "생각중..." 텍스트를 처음부터 표시
         thinkingLabel.alpha = 1.0
+        
+        // 하단 버튼/스택 변경으로 인한 여백 재계산(레이아웃 후 한 번 더 보정)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            // 로딩 중에는 텍스트/버튼 제약이 개입하지 않도록 재보정
+            self.messageLabelBottomConstraint.isActive = false
+            self.messageLabelToButtonConstraint.isActive = false
+            self.applyButtonBottomConstraint.isActive = false
+            self.optionStackBottomConstraint.isActive = false
+            if let c = self.loadingBottomConstraint {
+                var extra: CGFloat = 0
+                if !self.applyButton.isHidden {
+                    extra += max(self.applyButton.bounds.height, 32) + 16
+                }
+                if !self.optionButtonStackView.isHidden {
+                    extra += max(self.optionButtonStackView.bounds.height, 40) + 12
+                }
+                c.constant = -(8 + extra)
+                self.layoutIfNeeded()
+            }
+            self.bubbleView.bringSubviewToFront(self.loadingContainer)
+        }
         
         startCatAnimation()
         // typingDotsAnimation은 제거 - thinkingLabel만 사용
@@ -1083,18 +1143,39 @@ class ChatBubbleCell: UITableViewCell, UIEditMenuInteractionDelegate {
         messageLabel.text = text
         messageLabel.isHidden = true
         
-        // 다른 UI 요소들 숨기기
+        // 다른 UI 요소들 숨기기 + 관련 bottom 제약 비활성화(높이 계산에 개입 금지)
         applyButton.isHidden = true
         optionButtonStackView.isHidden = true
+        messageLabelBottomConstraint.isActive = false
+        messageLabelToButtonConstraint.isActive = false
+        applyButtonBottomConstraint.isActive = false
+        optionStackBottomConstraint.isActive = false
         
         // 로딩 컨테이너만 표시
         loadingContainer.isHidden = false
         loadingContainer.alpha = 1.0
         
-        // ✅ 로딩일 때만 버블이 로딩 컨테이너 크기에 맞춰지도록
-        NSLayoutConstraint.activate([
-            loadingContainer.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8)
-        ])
+        // ✅ 로딩일 때 버블 높이를 로딩 컨테이너 기준으로 계산
+        loadingBottomConstraint?.isActive = false
+        let basePadding: CGFloat = 8
+        var extraPadding: CGFloat = 0
+        if !applyButton.isHidden {
+            let h = max(applyButton.bounds.height, 32)
+            extraPadding += (h + 16)
+        }
+        if !optionButtonStackView.isHidden {
+            // 대략치: 버튼 한 줄(≥32) + 스택 간격 보정
+            let estimated = max(optionButtonStackView.bounds.height, 40)
+            extraPadding += (estimated + 12)
+        }
+        loadingBottomConstraint = loadingContainer.bottomAnchor.constraint(
+            equalTo: bubbleView.bottomAnchor, constant: -(basePadding + extraPadding)
+        )
+        loadingBottomConstraint?.priority = .required
+        loadingBottomConstraint?.isActive = true
+        
+        // 항상 로딩 컨테이너가 최상위로 보이도록
+        bubbleView.bringSubviewToFront(loadingContainer)
         
         // 기존 애니메이션이 있다면 정지
         stopLoadingAnimation()

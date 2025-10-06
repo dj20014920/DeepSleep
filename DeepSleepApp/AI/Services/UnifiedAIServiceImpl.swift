@@ -410,6 +410,23 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 }
             }
             // llama.cpp on-device path (aggregate stream)
+            // 0) 설치 여부 가드: 자동 다운로드 금지. 설치된 모델이 하나도 없으면 설정 화면으로 유도.
+            let installedEntries = await OnDeviceAdapter.shared.listModels()
+            let firstInstalled = installedEntries.first { entry in
+                if case .installed = entry.state { return true } else { return false }
+            }
+            let installedIDs = Set(installedEntries.compactMap { entry -> OnDeviceModelID? in
+                if case .installed = entry.state { return entry.record.id } else { return nil }
+            })
+            guard !installedIDs.isEmpty, let firstInstalledID = firstInstalled?.record.id else {
+                throw AIServiceError.requiresOnDeviceSetup
+            }
+            // 선호 모델이 설치되어 있으면 우선 사용, 아니면 첫 설치된 모델 사용
+            let installedPref: OnDeviceModelID = {
+                if let desired = preferredOnDeviceID(), installedIDs.contains(desired) { return desired }
+                return firstInstalledID
+            }()
+
             var buffer = ""
             // 온디바이스 SSOT: recent(3+3)은 어댑터가 템플릿 직렬화/프리필. 여기서는 역할 메시지만 전달하고, 현재 user만 텍스트로 전달
             var roleMessages: [RoleMessage] = []
@@ -422,14 +439,16 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 }
             }
             let summary = try await OnDeviceAdapter.shared.generate(
-                preferred: preferredOnDeviceID(),
+                // 엄격 선호 모드(ONDEVICE_STRICT_PREFERRED=true)와 결합하여 설치된 모델만 사용
+                preferred: installedPref,
                 text: content,
                 config: OnDeviceAdapter.StreamConfig(
                     systemPrompt: systemPrompt,
                     params: nil,
                     recentMessages: roleMessages,
                     // 일반 대화 외 모드에서는 일반대화용 KV 캐시 복원을 비활성화하여 컨텍스트 오염 방지
-                    disableKVCache: (mode != .generalConversation)
+                    disableKVCache: (mode != .generalConversation),
+                    aiMode: mode
                 )
             ) { delta in buffer += delta }
             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
@@ -589,14 +608,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let basePromptText = getBaseSystemPromptForMode(mode)
         let generalGuidelines = """
             핵심 지침:
-            - 당신은 리플릿(Leaflet) 앱의 대나무숲 채팅창에서 사용자와 대화하는 AI 친구입니다
-            - 사용자의 페르소나와 감정, 말투, 상황에 따라 유연하고 친근하며 친절하게 한국어로 대답하세요
-            
-            ⚠️ 중요: 아래 [사용자 페르소나] 섹션은 대화 상대방(인간 사용자)에 관한 정보입니다
-            - 절대 당신(AI)의 이름, 나이, 성격이 아닙니다
-            - 사용자가 "내 이름이 뭐야?"라고 물으면 [사용자 페르소나]에 나온 그 사람의 이름을 답하세요
-            - 당신(AI)의 이름이나 정보를 묻는다면 "저는 AI 친구예요"라고만 답하세요
-            
+            - 당신의 페르소나는 리플릿(Leaflet) 앱의 대나무숲(채팅창)에서 사용자와 대화하는 친구입니다.
+            - 사용자의 페르소나와 감정, 말투, 상황에 따라 유연하고 친근하며 친절하게 한국어로 대답해줘
             - 시스템 텍스트를 그대로 복사하거나 반영하지 마세요
             - JSON이 요구되면 정확한 스키마만 출력하고, 그렇지 않으면 명료한 텍스트로 답변하세요
             """
@@ -624,7 +637,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         ) {
             var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
             if !userContext.isEmpty {
-                prompt += "\n\n사용자 컨텍스트:\n\(userContext)"
+                prompt += "\n\n사용자 입력 컨텍스트:\n\(userContext)"
             }
             return prompt
         }
@@ -634,22 +647,40 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         let lengthRule: String = {
             if mode == .generalConversation {
                 let cap =
-                    ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+                    ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 1000) ?? 1000
                 return
                     "\n\n응답 길이 규칙: 반드시 최대 \(cap) 토큰 이내에서 완결된 답변을 제공하세요. 핵심 위주로 1~2단락, 중복/장황함 금지"
             } else {
                 return ""
             }
         }()
-        // 프리셋 추천: presetName/reason 강제 규칙 추가 (경량, 토큰 부담 없음)
+        // 프리셋 추천: presetName/reason 강제 규칙 + 다양성 지시 추가 (기존 시스템 프롬프트 재사용)
         let presetRules: String = {
             guard mode == .presetRecommendation else { return "" }
             let catCount = SoundPresetCatalog.categoryCount
+
+            let diversity = """
+            다양성 지시:
+            - 현재 시간대/최근 감정/환경 데이터를 반영하여 이름·조합·표현을 매번 다르게 구성할 것
+            - 동일하거나 유사한 이름·표현·구성을 반복하지 말 것(동일 단어 반복 회피, 동의어·비유 활용)
+            - 시적인 한국어 제목을 매번 새롭게 구성할 것
+            """
+
             // 단일 JSON 예시를 추가해 온디바이스 모델의 형식 준수율을 높임 (짧고 경량)
             let example =
                 "\n예시(JSON 한 줄): {\"presetName\":\"달빛 호수 산책\",\"reason\":\"밤 시간대의 평온한 감정에 맞춰 파도와 잔잔한 바람을 중심으로 과자극을 줄였습니다.\",\"volumes\":[10,40,60,0,50,30,20,0,0,20,10,0,0]}"
-            return
-                "\n\n출력 형식(엄격):\n- 오직 JSON 하나만 출력(코드펜스/추가 텍스트 금지)\n- 필수 키: presetName(간결하고 시적인 한국어 제목), reason(한국어 80~150자: 감정·시간대·음원 궁합·사용자 취향 등 추론 근거)\n- volumes 또는 items 중 하나는 반드시 포함\n  • volumes: 길이 \(catCount), 각 0..100 정수\n  • items: 1..13개, 각 항목 {soundName, versionName?, volume(0..100)}\n- versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)"
+
+            return """
+            \(diversity)
+
+            출력 형식(엄격):
+            - 오직 JSON 하나만 출력(코드펜스/추가 텍스트 금지)
+            - 필수 키: presetName(간결하고 시적인 한국어 제목), reason(한국어 80~150자: 감정/시간대/음원 궁합/사용자 취향 등 근거)
+            - volumes 또는 items 중 하나는 반드시 포함
+              • volumes: 길이 \(catCount), 각 0..100 정수
+              • items: 1..13개, 각 항목 {soundName, versionName?, volume(0..100)}
+            - versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)
+            """
         }()
         return basePrompt + lengthRule + "\n\n" + presetRules + "\n\n" + modelSpecific
     }
@@ -991,7 +1022,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         // 최종 하드 캡: 일반 대화는 반드시 SSOT 상한을 준수(기본 256)
         if mode == .generalConversation {
             let hardCap =
-                ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 256) ?? 256
+                ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 1000) ?? 1000
             if optimizedConfig.maxTokens > hardCap {
                 optimizedConfig = TokenConfiguration(
                     maxTokens: hardCap,

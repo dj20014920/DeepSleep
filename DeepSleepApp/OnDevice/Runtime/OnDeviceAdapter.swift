@@ -32,6 +32,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
     // 동시성 보호(간단 직렬 큐)
     private let q = DispatchQueue(label: "DeepSleep.OnDevice.Adapter", qos: .userInitiated)
+    // 현재 생성 진행 여부(프리워밍과의 충돌 방지용)
+    private var generationInFlight: Bool = false
 
     // MARK: State
     public private(set) var activeModelID: OnDeviceModelID? {
@@ -431,6 +433,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             )
             throw AdapterError.cloudFallbackSuggested
         }
+        // 프리워밍과의 KV pos 충돌 방지: 생성 중 플래그 세팅
+        q.sync { generationInFlight = true }
+        defer { q.sync { generationInFlight = false } }
 
         // 0) 열 완화: 고온 상태에서는 경량 모델 우선 시도
         let adjustedPreferred = preferredAdjustedForThermal(preferred: preferred)
@@ -530,6 +535,11 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 모든 모델에서 systemOriginal을 시스템 프롬프트로 유지하고, 사용자 입력은 템플릿으로 연결한다.
         let system: String = systemOriginal
         let inputWithSystem: String = input
+        // 일반 대화 모드 외에는 KV 캐시 오염을 방지하기 위해 KV 복원을 비활성화
+        var disableKV = config.disableKVCache
+        if config.aiMode != nil && config.aiMode != .generalConversation {
+            disableKV = true
+        }
         // 최근 3+3 직렬화(모델별 템플릿) — SSOT
         let recentSerialized: String = {
             guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
@@ -549,7 +559,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
         do {
             // 스트리밍 정책: 일기 분석 등 민감 컨텍스트에서는 일반대화 캐시 복원을 끕니다.
-            if config.disableKVCache {
+            if disableKV {
                 try await loader.generate(
                     input: input,
                     systemPrompt: system,

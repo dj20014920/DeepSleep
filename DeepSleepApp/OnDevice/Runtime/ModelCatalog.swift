@@ -120,6 +120,7 @@ public enum ModelCatalog {
     public static let bytes_gemma1b_iq4xs = 1_010_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
+
     private static let params_hcx05b_q4km: InferenceParams = .init(
         context: 4096, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
