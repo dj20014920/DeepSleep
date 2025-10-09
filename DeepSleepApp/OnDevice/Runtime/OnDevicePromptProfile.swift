@@ -116,6 +116,7 @@ public enum OnDevicePromptProfile {
         ) {
             switch id {
             case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0, .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
+                // 기본 값 유지(과거 안정 동작): temp 0.7
                 params.temperature = 0.7
                 params.topK = 40
                 params.topP = 0.90

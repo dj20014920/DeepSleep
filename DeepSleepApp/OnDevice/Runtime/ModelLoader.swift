@@ -309,7 +309,7 @@ protocol LlamaCppBinding: Sendable {
                 llama_sampler_chain_add(smpl, llama_sampler_init_top_k(Int32(topK)))
             }
             llama_sampler_chain_add(smpl, llama_sampler_init_top_p(Float(topP), 1))
-            // 반복 억제: last_n=256, repeat=1.2, freq/present=0.0 (경량 모델 안정화)
+            // 반복 억제(기본): last_n=256, repeat=1.2, freq/present=0.0 (경량 모델 안정화)
             llama_sampler_chain_add(smpl, llama_sampler_init_penalties(256, 1.20, 0.0, 0.0))
             llama_sampler_chain_add(smpl, llama_sampler_init_temp(Float(temperature)))
             llama_sampler_chain_add(smpl, llama_sampler_init_dist(1234))
