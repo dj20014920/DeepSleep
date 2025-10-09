@@ -34,6 +34,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     private let q = DispatchQueue(label: "DeepSleep.OnDevice.Adapter", qos: .userInitiated)
     // 현재 생성 진행 여부(프리워밍과의 충돌 방지용)
     private var generationInFlight: Bool = false
+    // 활성화 디바운서: 동시/중복 activate 진입 차단(런치 프리로드 중복 방지)
+    private var activationInProgress: Bool = false
+    private var activatingID: OnDeviceModelID? = nil
 
     // MARK: State
     public private(set) var activeModelID: OnDeviceModelID? {
@@ -318,6 +321,22 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     public func activate(id: OnDeviceModelID) async throws {
         let rec = ModelCatalog.record(for: id)
         let t0 = Date()
+        // 디바운서 가드: 같은 모델에 대한 동시/중복 activate 차단
+        var shouldReturnEarly = false
+        q.sync {
+            if activationInProgress && activatingID == id {
+                shouldReturnEarly = true
+            } else {
+                activationInProgress = true
+                activatingID = id
+            }
+        }
+        if shouldReturnEarly {
+            log.info("🔁 [Adapter] activate ignored (debounced) id=\(rec.id.rawValue, privacy: .public)")
+            return
+        }
+        defer { q.sync { activationInProgress = false; activatingID = nil } }
+
         log.info("⚙️ [Adapter] activate start id=\(rec.id.rawValue, privacy: .public)")
         let url = try await ensureInstalled(id: id)
         // 동일이면 스킵
@@ -335,6 +354,22 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     public func switchModel(id: OnDeviceModelID) async throws {
         let rec = ModelCatalog.record(for: id)
         let t0 = Date()
+        // activate와 동일한 디바운스 정책 적용(동시 교체 방지)
+        var shouldReturnEarly = false
+        q.sync {
+            if activationInProgress && activatingID == id {
+                shouldReturnEarly = true
+            } else {
+                activationInProgress = true
+                activatingID = id
+            }
+        }
+        if shouldReturnEarly {
+            log.info("🔁 [Adapter] switchModel ignored (debounced) id=\(rec.id.rawValue, privacy: .public)")
+            return
+        }
+        defer { q.sync { activationInProgress = false; activatingID = nil } }
+
         log.info("♻️ [Adapter] switchModel start id=\(rec.id.rawValue, privacy: .public)")
         let url = try await ensureInstalled(id: id)
         try await loader.switchModel(to: id, modelURL: url, params: rec.recommended)
@@ -383,7 +418,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         let targetID: OnDeviceModelID = {
             if let p = SettingsManager.shared.preferredOnDeviceModelID { return p }
             if let a = self.activeModelID { return a }
-            return ModelCatalog.fallbackOrder.first ?? .hcx05b_q4_k_m
+            return ModelCatalog.fallbackOrder.first ?? ModelCatalog.defaultModelID
         }()
 
         // 설치됨일 때만 프리워밍 (다운로드/전환 유발 금지)
@@ -535,6 +570,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 모든 모델에서 systemOriginal을 시스템 프롬프트로 유지하고, 사용자 입력은 템플릿으로 연결한다.
         let system: String = systemOriginal
         let inputWithSystem: String = input
+        
+        // HCX 0.5B instruct 계열은 템플릿 echo가 실제 텍스트와 붙어 나오는 경우가 있어, 델타 단계에서 보다 강력하게 필터링 필요
+        // 스트리밍 단계에서는 stripTemplateMarkersStreaming + cleanStreamingToken으로 처리하고, 최종 조립 시점에 한 번 더 보수 정리한다.
         // 일반 대화 모드 외에는 KV 캐시 오염을 방지하기 위해 KV 복원을 비활성화
         var disableKV = config.disableKVCache
         if config.aiMode != nil && config.aiMode != .generalConversation {
@@ -634,31 +672,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                     } else {
                         // 최초 1회: 시스템 + 직렬화된 최근 3+3을 프리필 후 저장 → 현재 사용자만 이어서 생성
                         do {
-                            // 모델별 템플릿으로 최근 3+3 직렬화
-                            let recentSerialized: String = {
-                                guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
-                                switch id {
-                                case .amoral_gemma1b_v2_q4km:
-                                    return msgs.compactMap { m in
-                                        switch m.role {
-                                        case .user:
-                                            return "<start_of_turn>user\n\(m.content)<end_of_turn>\n"
-                                        case .assistant:
-                                            return "<start_of_turn>model\n\(m.content)<end_of_turn>\n"
-                                        default: return nil
-                                        }
-                                    }.joined()
-                                case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
-                                    return msgs.compactMap { m in
-                                        switch m.role {
-                                        case .user: return "<|im_start|>user\n\(m.content)<|im_end|>\n"
-                                        case .assistant:
-                                            return "<|im_start|>assistant\n\(m.content)<|im_end|>\n"
-                                        default: return nil
-                                        }
-                                    }.joined()
-                                }
-                            }()
+                            // 최근 대화 직렬화는 SSOT 유틸을 사용하며, 이 경로에서는 캐시에 포함하지 않으므로 별도 생성/사용하지 않습니다.
 
                             let nSys = try io.prefillSystem(system)
                             // 최근 대화는 캐시에 포함하지 않음

@@ -47,21 +47,21 @@ public enum AIResponseHelpers {
         if let savedModelName = UserDefaults.standard.string(forKey: "selectedOnDeviceModel") {
             // 저장된 모델명을 OnDeviceModelID로 변환
             switch savedModelName {
-            case "amoral_gemma1b_v2_q4km", "amoral-gemma1b-v2-q4km":
-                return .amoral_gemma1b_v2_q4km
-            case "hcx05b_q4_k_m", "hyperclovax-0.5b-q4km":
-                return .hcx05b_q4_k_m
-            case "hcx05b_q8_0", "hyperclovax-0.5b-q8":
-                return .hcx05b_q8_0
-            case "gemma1b_iq4xs", "gemma-1b-iq4xs":
-                return .gemma1b_iq4xs
+            case "amoral_gemma3_1b_v2_q5_k_m", "amoral-gemma3-1B-v2-Q5_K_M.gguf":
+                return .amoral_gemma3_1b_v2_q5_k_m
+            case "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf":
+                return .hyperclovax_seed_text_instruct_0_5b_q4_k_m
+            case "hyperclovax-seed-text-instruct-0.5b-q8_0.gguf":
+                return .hyperclovax_seed_text_instruct_0_5b_q8_0
+            case "hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf":
+                return .hyperclovax_seed_text_instruct_1_5b_q4_k_m
             default:
                 break
             }
         }
 
         // 기본값: HyperCLOVA X 0.5B Q4_K_M (가장 일반적)
-        return .hcx05b_q4_k_m
+        return .hyperclovax_seed_text_instruct_0_5b_q4_k_m
     }
 
     // MARK: - Model Capability Detection
@@ -96,7 +96,7 @@ public enum AIResponseHelpers {
     ///
     /// - Note: API 모델도 기본 온디바이스 모델 ID를 반환하여 일관된 특수 토큰 제거
     public static func modelIDForSanitization(_ model: AIModel) -> OnDeviceModelID {
-        return onDeviceModelID(from: model) ?? .hcx05b_q4_k_m
+        return onDeviceModelID(from: model) ?? .hyperclovax_seed_text_instruct_0_5b_q4_k_m
     }
 
     // MARK: - Display Helpers

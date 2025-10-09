@@ -14,11 +14,13 @@ public enum OnDevicePromptProfile {
     // MARK: - 내부 역할/프로필
 
     /// 템플릿 구분자(SSOT)
-    /// - gemmaStyle: Gemma 3 계열 템플릿
-    /// - qwenStyle: HyperCLOVA 0.5B 계열(Qwen IM 스타일)
+    /// - gemma3Style: Gemma 3 계열 템플릿(HF: <start_of_turn> / <end_of_turn>)
+    /// - hcx05bStyle: HyperCLOVA X Seed 0.5B 계열(HF: <|im_start|> / <|im_end|>)
+    /// - hcx15bStyle: HyperCLOVA X Seed 1.5B 계열(HF: <|im_start|> / <|im_end|>)
     public enum TemplateKind: Sendable {
-        case gemmaStyle
-        case qwenStyle
+        case gemma3Style
+        case hcx05bStyle
+        case hcx15bStyle
     }
 
     /// 대화 역할(간이형). 외부 RoleMessage가 있으면 맵핑 후 사용.
@@ -33,10 +35,12 @@ public enum OnDevicePromptProfile {
     @inlinable
     public static func templateKind(for id: OnDeviceModelID) -> TemplateKind {
         switch id {
-        case .amoral_gemma1b_v2_q4km:
-            return .gemmaStyle
-        case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
-            return .qwenStyle
+        case .amoral_gemma3_1b_v2_q5_k_m:
+            return .gemma3Style
+        case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0:
+            return .hcx05bStyle
+        case .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
+            return .hcx15bStyle
         }
     }
 
@@ -56,10 +60,12 @@ public enum OnDevicePromptProfile {
         @inlinable
         public static func formatUserTurn(_ user: String, for id: OnDeviceModelID) -> String {
             switch templateKind(for: id) {
-            case .gemmaStyle:
-                return "<start_of_turn>user\n\(user)<end_of_turn>\n<start_of_turn>model\n"
-            case .qwenStyle:
-                return "<|im_start|>user\n\(user)<|im_end|>\n<|im_start|>assistant\n"
+            case .gemma3Style:
+                // HF Gemma3 chat_template: '<start_of_turn>role ' + content + '<end_of_turn> ' ; assistant prefix: '<start_of_turn>model '
+                return "<start_of_turn>user \(user)<end_of_turn> <start_of_turn>model "
+            case .hcx05bStyle, .hcx15bStyle:
+                // HF chat_template: '<|im_start|>role ' + content + '<|im_end|> ' ; assistant prefix: '<|im_start|>assistant '
+                return "<|im_start|>user \(user)<|im_end|> <|im_start|>assistant "
             }
         }
 
@@ -72,7 +78,7 @@ public enum OnDevicePromptProfile {
         ) -> String {
             guard !messages.isEmpty else { return "" }
             switch templateKind(for: id) {
-            case .gemmaStyle:
+            case .gemma3Style:
                 return messages.compactMap { (role, content) in
                     switch role {
                     case .user:
@@ -82,13 +88,14 @@ public enum OnDevicePromptProfile {
                     }
                 }
                 .joined()
-            case .qwenStyle:
+            case .hcx05bStyle, .hcx15bStyle:
+                // Align with HF chat_template spacing
                 return messages.compactMap { (role, content) in
                     switch role {
                     case .user:
-                        return "<|im_start|>user\n\(content)<|im_end|>\n"
+                        return "<|im_start|>user \(content)<|im_end|> "
                     case .assistant:
-                        return "<|im_start|>assistant\n\(content)<|im_end|>\n"
+                        return "<|im_start|>assistant \(content)<|im_end|> "
                     }
                 }
                 .joined()
@@ -108,11 +115,11 @@ public enum OnDevicePromptProfile {
             into params: inout InferenceParams
         ) {
             switch id {
-            case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
+            case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0, .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
                 params.temperature = 0.7
                 params.topK = 40
                 params.topP = 0.90
-            case .amoral_gemma1b_v2_q4km:
+            case .amoral_gemma3_1b_v2_q5_k_m:
                 // 그대로 둠(카탈로그 recommended에 따름)
                 break
             }

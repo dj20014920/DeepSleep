@@ -281,7 +281,7 @@ class AISecurityManager {
             // 클라우드 모델: 범용 처리 (Qwen 스타일 적용)
             tokenSanitized = SpecialTokenSanitizer.sanitizeUserInput(
                 emojiProtected,
-                modelID: .hcx05b_q4_k_m  // 범용 기본값
+                modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m  // 범용 기본값
             )
         }
         

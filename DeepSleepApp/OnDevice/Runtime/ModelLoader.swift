@@ -469,6 +469,13 @@ protocol LlamaCppBinding: Sendable {
             useLock.wait()
             defer { useLock.signal() }
             if stopRequested || Task.isCancelled { throw OnDeviceError.generationCancelled }
+            // 새 프리필은 항상 깨끗한 KV에서 시작해야 함: 기존 KV가 남아 있으면 pos 불일치로 실패 가능
+            let mem = llama_get_memory(ctx)
+            let maxPos = llama_memory_seq_pos_max(mem, 0)
+            if maxPos >= 0 {
+                // 기존 시퀀스 존재 → 완전 초기화 후 0부터 시작
+                clearKVCache()
+            }
             // 새로운 프리필 체인 시작 시 접두 위치를 초기화
             prefillPos = 0
 
@@ -573,6 +580,15 @@ protocol LlamaCppBinding: Sendable {
             useLock.wait()
             defer { useLock.signal() }
             if stopRequested || Task.isCancelled { throw OnDeviceError.generationCancelled }
+
+            // 방어적 검증: startPos는 현재 KV의 다음 위치여야 함. 불일치 시 클리어 후 실패시도 방지.
+            let mem = llama_get_memory(ctx)
+            let maxPos = llama_memory_seq_pos_max(mem, 0)
+            if maxPos >= 0 && startPos != maxPos + 1 {
+                // 일관성 위반 → 캐시 초기화로 안전회복 후, 상위에서 full generate로 폴백하도록 에러 전파
+                clearKVCache()
+                throw OnDeviceError.unknown("resume rejected: startPos=\(startPos) expected=\(maxPos+1)")
+            }
 
             // 토큰화
             var tokens = [llama_token](repeating: 0, count: max(16, input.utf8.count * 2))
@@ -871,7 +887,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         // Gemma는 system 역할을 지원하지 않으므로 system 지시는 초기 user 입력에 내재화한다.
         // activeModelID는 상위 로더가 설정하며 여기서 분기 처리한다.
         let isGemma =
-            (self.activeModelID == .amoral_gemma1b_v2_q4km)
+            (self.activeModelID == .amoral_gemma3_1b_v2_q5_k_m)
         let sys: String? = isGemma ? nil : sysOriginal
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
@@ -927,7 +943,7 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
             return SystemPrompts.empathyKR
         }()
         let isGemma =
-            (self.activeModelID == .amoral_gemma1b_v2_q4km)
+            (self.activeModelID == .amoral_gemma3_1b_v2_q5_k_m)
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 

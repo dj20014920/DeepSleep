@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// 🤖 AI 모델 선택 SwiftUI 뷰
 /// 대나무숲 친구(AI 모델)를 선택하는 화면
@@ -28,9 +31,7 @@ struct AIModelSettingsView: View {
                     let isPremium = SubscriptionStatusCenter.shared.isPremium
                     let onDeviceEnabled =
                         ConfigReader.bool("ONDEVICE_ENABLED", default: true) ?? true
-                    let isAppleAvailable: Bool = {
-                        if #available(iOS 26.0, *) { return true } else { return false }
-                    }()
+                    let isAppleAvailable: Bool = AppleFMAdapter.isAvailable
                     let availableModels: [AIModelType] = {
                         let all = AIModelType.allCases.filter { $0 != .testModel }
                         var list = all
@@ -52,6 +53,16 @@ struct AIModelSettingsView: View {
                             isSelected: selectedModel == model,
                             isAppleAvailable: isAppleAvailable,
                             onTap: {
+                                // 카드 탭 시 가용성 검사 → 미가용이면 설정 이동 유도 및 선택 비허용
+                                if model == .apple && !AppleFMAdapter.isAvailable {
+                                    #if canImport(UIKit)
+                                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                       let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+                                        AppleFMAdapter.presentEnableAlert(on: root)
+                                    }
+                                    #endif
+                                    return
+                                }
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     selectedModel = model
                                 }
@@ -89,6 +100,16 @@ struct AIModelSettingsView: View {
     }
 
     private func saveSelection() {
+        // Apple FM 미가용 시 저장 거부하고 설정 유도
+        if selectedModel == .apple && !AppleFMAdapter.isAvailable {
+            #if canImport(UIKit)
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+                AppleFMAdapter.presentEnableAlert(on: root)
+            }
+            #endif
+            return
+        }
         // 단일 진입점으로 원자 저장(+캐시 무효화 브로드캐스트)
         SettingsManager.shared.updateSelectedModelAtomically(selectedModel)
         #if DEBUG

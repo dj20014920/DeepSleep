@@ -905,7 +905,8 @@ public class SessionManager {
 
         let targetSessionId = sessionId ?? getCurrentOrCreateSession().id
         return AsyncThrowingStream { continuation in
-            Task {
+            // 내부 생산 Task를 보관하여 소비자가 스트림을 취소할 때 즉시 중단
+            let producer = Task {
                 do {
                     let aiContext = try await buildAIContext(for: mode, sessionId: targetSessionId)
                     let selectedModel = SettingsManager.shared.selectedAIModel
@@ -920,6 +921,7 @@ public class SessionManager {
                         assembledPrompt: nil
                     )
                     for try await piece in stream {
+                        try Task.checkCancellation()
                         // 모든 조각의 델타를 누적(완료 조각 포함)하여 저장 시 누락 방지
                         aggregate += piece.delta
                         if piece.isComplete {
@@ -948,9 +950,15 @@ public class SessionManager {
                             continuation.yield(piece)
                         }
                     }
+                } catch is CancellationError {
+                    // 소비자 취소로 인한 중단 → 조용히 종료
+                    continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
+            }
+            continuation.onTermination = { @Sendable _ in
+                producer.cancel()
             }
         }
     }

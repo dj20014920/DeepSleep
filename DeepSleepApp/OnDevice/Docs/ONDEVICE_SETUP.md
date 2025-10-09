@@ -1,5 +1,33 @@
 # 온디바이스 LLM 배포·런타임 통합 가이드 (서버 다운로드 전용 · 4모델 SSOT · llama.cpp)
 
+## 🆕 2025-10-08 업데이트: 활성화 디바운스 가드 도입 + 런치 프리로드 단일 경로 원칙
+
+### 🎯 목적
+- 런치 시점 온디바이스 모델 활성화 중복(동시) 진입 방지
+- DRY/KISS 원칙 강화 및 로그 일관성 확보
+
+### 🔧 코드 변경
+- OnDeviceAdapter
+  - activate/switchModel에 디바운서 가드 추가: `activationInProgress` + `activatingID`
+  - 동일 모델에 대한 동시/중복 activate 요청은 무시되고 로그로 표시:  
+    `🔁 [Adapter] activate ignored (debounced) id=...`
+- AppDelegate
+  - 런치 프리로드 Task 중복 제거: “설치됨(installed)”인 경우에만 `activate + prewarm` 1회 수행
+
+### 📐 운영 원칙(가이드 반영)
+- “런치 프리로드는 AppDelegate 단일 경로, 중복 금지”
+  - ChatViewController/LaunchViewController/SceneDelegate에서는 activate 호출 금지(필요 시 prewarm만 허용)
+  - 모델 선택 화면(AIModelSelectionViewController)에서는 사용자 인터랙션에 의해서만 activate/ensureInstalled 수행
+
+### ✅ QA 체크리스트
+- 앱 런치 직후 “⚙️ [Adapter] activate start …” 1회만 출력
+- 동일 시점 중복 활성화 시도 시 “activate ignored (debounced)” 로그 출력 확인
+- 채팅 화면 진입 시에는 prewarm만 수행(activate 미호출)
+
+### 📝 문서 동기화
+- 본 가이드에 운영 원칙과 변경사항 반영
+- 로드맵/가이드 전반에서도 동일 원칙 준수하도록 최신화
+
 ## 🆕 2025-10-02 업데이트: 스트리밍 텍스트 문자 누락 수정
 
 ### 🐛 **문제 및 해결**
@@ -32,6 +60,7 @@
 
 핵심 원칙
 - SSOT: 모델 메타(파일명·SHA256·표시명·권장 파라미터)는 ModelCatalog 단일 출처로만 관리
+- SSOT 파일명만 사용: 접두사 포함 실제 배포 파일명(kexplo_/yeebwn_/cherrydavid_/amoral-*)만 유효. 미접두사/별칭/레거시 파일명 사용 금지(404/sha 불일치 유발).
 - 서버 다운로드 전용: Presign → CDN 순으로 다운로드, 파일 완전성(SHA256) 검증 필수
 - UI 일관: 사용자-facing 이름은 “친근한 별명”으로만 노출
 - KISS/DRY/YAGNI/SOLID: 중복 금지, 스텁/주석 빌드 금지, 꼭 필요한 구현만
@@ -46,8 +75,8 @@
   - SHA256: ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5
   - 표시명: Amoral Gemma 3 1B v2 (Q4_K_M)
   - 별명(노출용): 작은 잼민이
-- ID: qwen05b_q4km
-  - 파일: kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+- ID: hyperclovax_seed_text_instruct_0_5b_q4_k_m
+  - 파일: hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
   - SHA256: 4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d
   - 표시명: HyperCLOVA X Seed 0.5B Instruct (Q4_K_M)
   - 별명(노출용): 작은 클로버

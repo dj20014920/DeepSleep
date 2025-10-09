@@ -26,16 +26,16 @@ import Foundation
 /// **사용 예시:**
 /// ```swift
 /// // 사용자 입력 처리
-/// let safe = SpecialTokenSanitizer.sanitizeUserInput(userText, modelID: .hcx05b_q4_k_m)
+/// let safe = SpecialTokenSanitizer.sanitizeUserInput(userText, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 ///
 /// // AI 출력 처리 (최종)
-/// let clean = SpecialTokenSanitizer.cleanAIOutput(aiResponse, modelID: .hcx05b_q4_k_m)
+/// let clean = SpecialTokenSanitizer.cleanAIOutput(aiResponse, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 ///
 /// // 스트리밍 토큰 처리 (실시간)
-/// let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hcx05b_q4_k_m)
+/// let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 ///
 /// // Stop sequences 가져오기
-/// let stops = SpecialTokenSanitizer.getStopSequences(for: .hcx05b_q4_k_m)
+/// let stops = SpecialTokenSanitizer.getStopSequences(for: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 /// ```
 public enum SpecialTokenSanitizer {
 
@@ -43,13 +43,14 @@ public enum SpecialTokenSanitizer {
 
     /// 모델별 특수 토큰 정의 (SSOT)
     internal enum TokenSet {
-        case gemmaStyle  // Gemma 3 계열
-        case qwenStyle  // HyperCLOVA X / Qwen 계열
+        case gemma3Style  // Gemma 3 계열
+        case hcx05bStyle  // HyperCLOVA X Seed 0.5B 계열
+        case hcx15bStyle  // HyperCLOVA X Seed 1.5B 계열
 
         /// 시스템 레벨 특수 토큰 목록 (모든 토큰 포함)
         var systemTokens: [String] {
             switch self {
-            case .gemmaStyle:
+            case .gemma3Style:
                 return [
                     // Chat template tokens
                     "<start_of_turn>",
@@ -72,7 +73,7 @@ public enum SpecialTokenSanitizer {
                     "<|eot_id|>",
                     "<|end_of_text|>",
                 ]
-            case .qwenStyle:
+            case .hcx05bStyle, .hcx15bStyle:
                 return [
                     // Chat template tokens
                     "<|im_start|>",
@@ -100,7 +101,7 @@ public enum SpecialTokenSanitizer {
         /// 스트리밍 중 즉시 필터링할 토큰 (stop sequences)
         var stopSequences: [String] {
             switch self {
-            case .gemmaStyle:
+            case .gemma3Style:
                 return [
                     // 정상적인 턴 종료
                     "<end_of_turn>",
@@ -123,28 +124,27 @@ public enum SpecialTokenSanitizer {
                     "<|eot_id|>",
                     "<|end_of_text|>",
                 ]
-            case .qwenStyle:
+            case .hcx05bStyle, .hcx15bStyle:
                 return [
-                    // 정상적인 턴 종료
+                    // 정상적인 턴 종료(정확 매칭만)
                     "<|im_end|>",
                     "<|eom|>",
                     "<|eom_id|>",
 
-                    // 새 턴 시작 방지 (모든 역할)
-                    "<|im_start|>user",
-                    "<|im_start|>assistant",
-                    "<|im_start|>system",
+                    // 새 턴 시작 방지 (정확 매칭만) — 역할 뒤 공백 유무 모두 처리
+                    "<|im_start|>user ", "<|im_start|>user",
+                    "<|im_start|>assistant ", "<|im_start|>assistant",
+                    "<|im_start|>system ", "<|im_start|>system",
                     "<|im_start|>",
 
                     // 대체 종료 토큰들
                     "<|endofturn|>",
                     "<|stop|>",
 
-                    // 부분적/깨진 토큰들
-                    "<|im_",
-                    "|>",
+                    // 부분적/깨진 토큰들 — 과도 필터링 제거: "|>" 와 "<|im_"는 델타 정상 텍스트를 훼손 가능성이 높아 제외
+                    // 필요 시 brokenTokenPatterns에서 정규식으로 후단 정리
 
-                    // 공통 종료 토큰들
+                    // 공통 종료 토큰들(정확 매칭)
                     "</s>",
                     "<eos>",
                     "<bos>",
@@ -157,7 +157,7 @@ public enum SpecialTokenSanitizer {
         /// 부분적/깨진 토큰 패턴 (정규식용)
         var brokenTokenPatterns: [String] {
             switch self {
-            case .gemmaStyle:
+            case .gemma3Style:
                 return [
                     #"<start_of_[^>]*"#,  // <start_of_... 로 시작하는 미완성
                     #"<end_of_[^>]*"#,  // <end_of_... 로 시작하는 미완성
@@ -168,11 +168,11 @@ public enum SpecialTokenSanitizer {
                     #"<unk[^>]*"#,  // <unk... 미완성
                     #"<mask[^>]*"#,  // <mask... 미완성
                 ]
-            case .qwenStyle:
+            case .hcx05bStyle, .hcx15bStyle:
                 return [
-                    #"<\|im_[^>]*"#,  // <|im_... 로 시작하는 미완성
+                    #"<\|im_start\|>(user|assistant|system)\s"#, // 정확한 역할 프리픽스까지만 제거
+                    #"<\|im_end\|>?"#,  // <|im_end| 또는 미완성 <|im_end|
                     #"<\|eom[^>]*"#,   // <|eom... 미완성
-                    #"[^<]*\|>"#,  // ...|> 로 끝나는 미완성
                     #"<bos[^>]*"#,  // <bos... 미완성
                     #"<eos[^>]*"#,  // <eos... 미완성
                 ]
@@ -182,7 +182,7 @@ public enum SpecialTokenSanitizer {
         /// 스트리밍 중 나타날 수 있는 부분 패턴 (성능 최적화용)
         var partialPatterns: [String] {
             switch self {
-            case .gemmaStyle:
+            case .gemma3Style:
                 return [
                     "<start_of_",
                     "<end_of_",
@@ -193,7 +193,7 @@ public enum SpecialTokenSanitizer {
                     "<unk",
                     "<mask",
                 ]
-            case .qwenStyle:
+            case .hcx05bStyle, .hcx15bStyle:
                 return [
                     "<|im_",
                     "<|im",
@@ -209,10 +209,12 @@ public enum SpecialTokenSanitizer {
     /// 모델 ID를 TokenSet으로 매핑
     static func tokenSet(for modelID: OnDeviceModelID) -> TokenSet {
         switch modelID {
-        case .amoral_gemma1b_v2_q4km:
-            return .gemmaStyle
-        case .hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs:
-            return .qwenStyle
+        case .amoral_gemma3_1b_v2_q5_k_m:
+            return .gemma3Style
+        case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0:
+            return .hcx05bStyle
+        case .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
+            return .hcx15bStyle
         }
     }
 
@@ -266,8 +268,8 @@ public enum SpecialTokenSanitizer {
         // ><는 이모티콘일 가능성이 높으므로 공백 삽입으로 안전하게 처리
         result = result.replacingOccurrences(of: "><", with: "> <")
 
-        // 3단계: 단독 <| 패턴 이스케이프 (Qwen 스타일의 시작 마커)
-        if tokens == .qwenStyle {
+        // 3단계: 단독 <| 패턴 이스케이프 (Qwen 계열 시작 마커)
+        if tokens == .hcx05bStyle || tokens == .hcx15bStyle {
             result = result.replacingOccurrences(of: "<|", with: "< |")
         }
 
@@ -310,16 +312,18 @@ public enum SpecialTokenSanitizer {
 
         let tokens = tokenSet(for: modelID)
 
-        // 1. Stop sequences 즉시 필터링 (스트리밍 중 즉시 차단)
+        // 1. Stop sequences 즉시 필터링 (정확 매칭만 제거)
         for token in tokens.stopSequences {
-            if cleaned.contains(token) {
+            if cleaned == token {
+                cleaned = ""
+            } else {
                 cleaned = cleaned.replacingOccurrences(of: token, with: "")
             }
         }
 
-        // 2. 부분적 템플릿 토큰 필터링 (스트리밍 중 나타날 수 있음)
+        // 2. 부분적 템플릿 토큰 필터링 — Qwen 계열(hcx05b/hcx15b)은 과도 필터 제거(자연어 훼손 방지)
         for pattern in tokens.partialPatterns {
-            if cleaned.contains(pattern) {
+            if tokens == .gemma3Style, cleaned.contains(pattern) {
                 cleaned = cleaned.replacingOccurrences(of: pattern, with: "")
             }
         }
@@ -574,7 +578,7 @@ public enum SpecialTokenSanitizer {
 extension SpecialTokenSanitizer.TokenSet: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         switch (lhs, rhs) {
-        case (.gemmaStyle, .gemmaStyle), (.qwenStyle, .qwenStyle):
+        case (.gemma3Style, .gemma3Style), (.hcx05bStyle, .hcx05bStyle), (.hcx15bStyle, .hcx15bStyle):
             return true
         default:
             return false

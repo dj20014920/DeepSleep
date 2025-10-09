@@ -13,10 +13,10 @@ import Foundation
 // MARK: - 공통 타입
 
 public enum OnDeviceModelID: String, CaseIterable, Sendable {
-    case amoral_gemma1b_v2_q4km  // Amoral Gemma 3 1B v2 Q5_K_M
-    case hcx05b_q4_k_m           // HyperCLOVA X Seed 0.5B Q4_K_M
-    case gemma1b_iq4xs           // HyperCLOVA X Seed 1.5B Q4_K_M (yeebwn)
-    case hcx05b_q8_0             // HyperCLOVA X Seed 0.5B Q8_0
+    case amoral_gemma3_1b_v2_q5_k_m            // amoral-gemma3-1B-v2-Q5_K_M.gguf
+    case hyperclovax_seed_text_instruct_0_5b_q4_k_m  // hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+    case hyperclovax_seed_text_instruct_0_5b_q8_0    // hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+    case hyperclovax_seed_text_instruct_1_5b_q4_k_m  // hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
 }
 
 public struct InferenceParams: Sendable, Equatable {
@@ -89,7 +89,7 @@ public enum SystemPrompts {
         당신은 한국어로 다정하고 담백하게 공감하는 대화 파트너입니다.
         판단·충고보다 공감 먼저, 존댓말, 과장 없음. 1~3문단.
         마지막에 “제가 제대로 이해했나요?”로 확인 질문 1개.
-        
+
         규칙:
         - 자기소개/반복 인사는 첫 번째 응답에서만 허용하고, 이후 턴에서는 절대 반복하지 않습니다.
         - 매 응답은 사용자의 직전 질문/발언에 직접적으로 답합니다(대답 우선, 자기 설명 금지).
@@ -101,23 +101,22 @@ public enum SystemPrompts {
 
 public enum ModelCatalog {
     // Background Assets: Apple-hosted asset pack IDs (App Store Connect에 등록 필요)
-    public static let packID_amoral_gemma1b_v2_q4km = "pack.model.amoral.gemma1b.v2.q4km"
-    public static let packID_hcx05b_q4km = "pack.model.qwen05b.q4"
-    // public static let packID_qwen15b_q4 = "pack.model.qwen15b.q4"  // 보류
-    public static let packID_hcx05b_q8 = "pack.model.hcx05b.q8"
+    public static let packID_amoral_gemma3_1b_v2_q5_k_m = "pack.model.amoral.gemma3.1b.v2.q5km"
+    public static let packID_hyperclovax_seed_text_instruct_0_5b_q4_k_m = "pack.model.hcx.seed0.5b.q4km"
+    public static let packID_hyperclovax_seed_text_instruct_0_5b_q8_0 = "pack.model.hcx.seed0.5b.q8_0"
+    public static let packID_hyperclovax_seed_text_instruct_1_5b_q4_k_m = "pack.model.hcx.seed1.5b.q4km"
 
     // 정확 파일명(레포·브랜치 변경 시 반드시 동기화)
-    public static let file_amoral_gemma1b_v2_q4km = "amoral-gemma3-1B-v2-Q5_K_M.gguf"
-    // alias 제거: qwen05b_q4km → hcx05b_q4_k_m 통일
-    public static let file_hcx05b_q4_k_m = "kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
-    public static let file_gemma1b_iq4xs = "yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf"
-    public static let file_hcx05b_q8 = "cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
+    public static let file_amoral_gemma3_1b_v2_q5_k_m = "amoral-gemma3-1B-v2-Q5_K_M.gguf"
+    public static let file_hyperclovax_seed_text_instruct_0_5b_q4_k_m = "kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf"
+    public static let file_hyperclovax_seed_text_instruct_0_5b_q8_0 = "cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf"
+    public static let file_hyperclovax_seed_text_instruct_1_5b_q4_k_m = "yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf"
 
     // 참고 크기(Bytes) — 런타임 무결성은 sha256 또는 파일 크기 검증으로 보강
-    public static let bytes_amoral_gemma1b_v2_q4km = 851_000_000
+    public static let bytes_amoral_gemma3_1b_v2_q5_k_m = 851_000_000
     public static let bytes_hcx05b_q4_k_m = 432_000_000
-    public static let bytes_hcx05b_q8 = 726_000_000
-    public static let bytes_gemma1b_iq4xs = 1_010_000_000
+    public static let bytes_hyperclovax_seed_text_instruct_0_5b_q8_0 = 726_000_000
+    public static let bytes_hyperclovax_seed_text_instruct_1_5b_q4_k_m = 1_010_000_000
 
     // 권장 파라미터(아이폰12 A14 4GB 기준 시작점)
 
@@ -142,41 +141,41 @@ public enum ModelCatalog {
     public static func all() -> [ModelRecord] {
         return [
             ModelRecord(
-                id: .amoral_gemma1b_v2_q4km,
+                id: .amoral_gemma3_1b_v2_q5_k_m,
                 displayName: "Amoral Gemma 3 1B v2 (Q5_K_M)",
-                packID: packID_amoral_gemma1b_v2_q4km,
-                fileName: file_amoral_gemma1b_v2_q4km,
-                approxBytes: bytes_amoral_gemma1b_v2_q4km,
+                packID: packID_amoral_gemma3_1b_v2_q5_k_m,
+                fileName: file_amoral_gemma3_1b_v2_q5_k_m,
+                approxBytes: bytes_amoral_gemma3_1b_v2_q5_k_m,
                 sha256Hex: "ed6eafe1b3f056df5d783498316bb553877ebe73ce93c462f6a5cef0218882e5",
                 recommended: params_gemma3_1b_q5km,
-                notes: "고품질 1B Q4_K_M 변형(Amoral v2)."
+                notes: "고품질 1B Q5_K_M 변형(Amoral v2)."
             ),
             ModelRecord(
-                id: .hcx05b_q4_k_m,
+                id: .hyperclovax_seed_text_instruct_0_5b_q4_k_m,
                 displayName: "HyperCLOVA X Seed 0.5B Instruct (Q4_K_M)",
-                packID: packID_hcx05b_q4km,
-                fileName: file_hcx05b_q4_k_m,
+                packID: packID_hyperclovax_seed_text_instruct_0_5b_q4_k_m,
+                fileName: file_hyperclovax_seed_text_instruct_0_5b_q4_k_m,
                 approxBytes: bytes_hcx05b_q4_k_m,
                 sha256Hex: "4b6422a2b57c9f2776c6810b4f60845596dcccbb45798779bb4bc4e4dcab013d",
                 recommended: params_hcx05b_q4km,
                 notes: "한국어 성능 우선(하이퍼클로바)."
             ),
             ModelRecord(
-                id: .gemma1b_iq4xs,
+                id: .hyperclovax_seed_text_instruct_1_5b_q4_k_m,
                 displayName: "HyperCLOVA X Seed 1.5B (Q4_K_M)",
-                packID: packID_hcx05b_q4km,
-                fileName: file_gemma1b_iq4xs,
-                approxBytes: bytes_gemma1b_iq4xs,
+                packID: packID_hyperclovax_seed_text_instruct_1_5b_q4_k_m,
+                fileName: file_hyperclovax_seed_text_instruct_1_5b_q4_k_m,
+                approxBytes: bytes_hyperclovax_seed_text_instruct_1_5b_q4_k_m,
                 sha256Hex: "c5bcc5fad55d6361307fd91e2d0685b1b8cc99e5bc1dd506995fee0ef84d8044",
                 recommended: params_hyperclova_1p5b_q4km,
                 notes: "1.5B Q4_K_M 변형(yeebwn)."
             ),
             ModelRecord(
-                id: .hcx05b_q8_0,
+                id: .hyperclovax_seed_text_instruct_0_5b_q8_0,
                 displayName: "HyperCLOVA X Seed 0.5B Instruct (Q8_0)",
-                packID: packID_hcx05b_q8,
-                fileName: file_hcx05b_q8,
-                approxBytes: bytes_hcx05b_q8,
+                packID: packID_hyperclovax_seed_text_instruct_0_5b_q8_0,
+                fileName: file_hyperclovax_seed_text_instruct_0_5b_q8_0,
+                approxBytes: bytes_hyperclovax_seed_text_instruct_0_5b_q8_0,
                 sha256Hex: "9c9f76a83a112c62b9cba06f5cb3c5cc4e9ce74834d8ac09e81f35d5bd3ac871",
                 recommended: params_hcx05b_q4km,
                 notes: "0.5B Q8_0 변형(정밀도↑, 메모리 여유 시 권장)."
@@ -191,47 +190,52 @@ public enum ModelCatalog {
         return r
     }
 
-    // 사용자 선호를 우선 기본값으로 사용. 미설정 시만 최소용량(.hcx05b_q4_k_m)로 폴백
+    // 사용자 선호를 우선 기본값으로 사용. 미설정 시만 최소용량(.hyperclovax_seed_text_instruct_0_5b_q4_k_m)로 폴백
     public static var defaultModelID: OnDeviceModelID {
         // SSOT 레이어에서는 앱 설정에 의존하지 않는다. 최소 용량 모델로 고정.
-        return .hcx05b_q4_k_m
+        return .hyperclovax_seed_text_instruct_0_5b_q4_k_m
     }
 
     // 비용/성능/한국어 가중 순 후보(좌→우)
     public static var fallbackOrder: [OnDeviceModelID] {
         // 용량 경량→중량 기준으로도 무리가 없게 구성: Q4_K_M(0.5B) → Q8_0(0.5B) → 1.5B(Q4_K_M) → Amoral 1B(Q5_K_M)
-        return [.hcx05b_q4_k_m, .hcx05b_q8_0, .gemma1b_iq4xs, .amoral_gemma1b_v2_q4km]
+        return [
+            .hyperclovax_seed_text_instruct_0_5b_q4_k_m,
+            .hyperclovax_seed_text_instruct_0_5b_q8_0,
+            .hyperclovax_seed_text_instruct_1_5b_q4_k_m,
+            .amoral_gemma3_1b_v2_q5_k_m
+        ]
     }
-    
+
     /// 모델 파일을 저장할 수 있는 모든 가능한 디렉토리 경로를 반환합니다
     /// - Returns: 모델 파일을 찾을 수 있는 디렉토리 경로 배열
     public static func modelDirectories() -> [String] {
         var directories: [String] = []
-        
+
         // 1. Application Support/Models (주 저장소 - OnDeviceAdapter에서 사용)
         if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
             directories.append(appSupport.appendingPathComponent("Models", isDirectory: true).path)
         }
-        
+
         // 2. 개발 환경의 model 폴더 (현재 작업 디렉토리 기준)
         let projectModelPath = FileManager.default.currentDirectoryPath + "/model"
         if FileManager.default.fileExists(atPath: projectModelPath) {
             directories.append(projectModelPath)
         }
-        
+
         // 3. Documents/models 디렉토리
         if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             directories.append(docs.appendingPathComponent("models", isDirectory: true).path)
         }
-        
+
         // 4. 앱 Bundle 리소스
         if let bundle = Bundle.main.resourcePath {
             directories.append(bundle)
         }
-        
+
         return directories
     }
-    
+
     /// 특정 파일명의 모델 파일 경로를 찾습니다
     /// - Parameter fileName: 찾을 모델 파일명
     /// - Returns: 파일이 존재하는 전체 경로 (없으면 nil)
@@ -244,19 +248,19 @@ public enum ModelCatalog {
         }
         return nil
     }
-    
+
     /// 모델의 실제 파일 크기를 동적으로 읽어옵니다 (설치된 경우)
     /// - Parameter id: 온디바이스 모델 ID
     /// - Returns: 실제 파일 크기(bytes). 파일이 없으면 근사치 반환
     public static func actualFileSize(for id: OnDeviceModelID) -> Int {
         let record = ModelCatalog.record(for: id)
-        
+
         // 파일 경로 찾기
         guard let filePath = findModelFile(fileName: record.fileName) else {
             // 파일을 찾을 수 없으면 근사치 반환
             return record.approxBytes
         }
-        
+
         // 파일 크기 읽기
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: filePath)
@@ -267,29 +271,29 @@ public enum ModelCatalog {
             // 오류 발생 시 근사치 반환
             return record.approxBytes
         }
-        
+
         // 기타 경우 근사치 반환
         return record.approxBytes
     }
-    
+
     /// 디렉토리를 스캔하여 설치된 모든 모델 파일과 크기를 반환합니다
     /// - Returns: (모델ID, 파일경로, 실제크기) 튜플 배열
     public static func scanInstalledModels() -> [(OnDeviceModelID, String, Int)] {
         var installedModels: [(OnDeviceModelID, String, Int)] = []
-        
+
         for directory in modelDirectories() {
             guard let files = try? FileManager.default.contentsOfDirectory(atPath: directory) else {
                 continue
             }
-            
+
             // GGUF 파일만 필터링
             let ggufFiles = files.filter { $0.lowercased().hasSuffix(".gguf") }
-            
+
             for fileName in ggufFiles {
                 // 파일명으로 모델 ID 찾기
                 if let modelID = OnDeviceModelID.id(forFileName: fileName) {
                     let filePath = URL(fileURLWithPath: directory).appendingPathComponent(fileName).path
-                    
+
                     // 파일 크기 읽기
                     if let attributes = try? FileManager.default.attributesOfItem(atPath: filePath),
                        let fileSize = attributes[.size] as? Int {
@@ -298,18 +302,18 @@ public enum ModelCatalog {
                 }
             }
         }
-        
+
         // 중복 제거 (같은 모델이 여러 경로에 있을 수 있음 - 첫 번째 것만 사용)
         var uniqueModels: [(OnDeviceModelID, String, Int)] = []
         var seenIDs = Set<OnDeviceModelID>()
-        
+
         for model in installedModels {
             if !seenIDs.contains(model.0) {
                 uniqueModels.append(model)
                 seenIDs.insert(model.0)
             }
         }
-        
+
         return uniqueModels
     }
 }
@@ -320,10 +324,10 @@ extension OnDeviceModelID {
     /// 온디바이스 모델 ID를 친근한 별명으로 변환 (용량 순서 기준)
     public var friendlyNickname: String {
         switch self {
-        case .hcx05b_q4_k_m: return "작은 클로버"      // 432MB (가장 작음)
-        case .hcx05b_q8_0: return "클로버"          // 726MB
-        case .amoral_gemma1b_v2_q4km: return "잼민이"   // 851MB
-        case .gemma1b_iq4xs: return "큰 클로버"      // 1010MB (가장 큼)
+        case .hyperclovax_seed_text_instruct_0_5b_q4_k_m: return "작은 클로버"      // 432MB (가장 작음)
+        case .hyperclovax_seed_text_instruct_0_5b_q8_0: return "클로버"          // 726MB
+        case .amoral_gemma3_1b_v2_q5_k_m: return "잼민이"   // 851MB
+        case .hyperclovax_seed_text_instruct_1_5b_q4_k_m: return "큰 클로버"      // 1010MB (가장 큼)
         }
     }
 
@@ -332,10 +336,10 @@ extension OnDeviceModelID {
     // - 사용 예: 네트워킹/다운로더에서 lastPathComponent로 ID 유추 시
     public static func id(forFileName fileName: String) -> OnDeviceModelID? {
         switch fileName {
-        case ModelCatalog.file_amoral_gemma1b_v2_q4km: return .amoral_gemma1b_v2_q4km
-        case ModelCatalog.file_hcx05b_q4_k_m: return .hcx05b_q4_k_m
-        case ModelCatalog.file_gemma1b_iq4xs: return .gemma1b_iq4xs
-        case ModelCatalog.file_hcx05b_q8: return .hcx05b_q8_0
+        case ModelCatalog.file_amoral_gemma3_1b_v2_q5_k_m: return .amoral_gemma3_1b_v2_q5_k_m
+        case ModelCatalog.file_hyperclovax_seed_text_instruct_0_5b_q4_k_m: return .hyperclovax_seed_text_instruct_0_5b_q4_k_m
+        case ModelCatalog.file_hyperclovax_seed_text_instruct_1_5b_q4_k_m: return .hyperclovax_seed_text_instruct_1_5b_q4_k_m
+        case ModelCatalog.file_hyperclovax_seed_text_instruct_0_5b_q8_0: return .hyperclovax_seed_text_instruct_0_5b_q8_0
         default: return nil
         }
     }
@@ -527,23 +531,20 @@ public struct FallbackPolicy {
         self.thermalMitigation = thermalMitigation
         self.preferKoreanQuality = preferKoreanQuality
     }
+}
 
-    /// 현재 모델에서 다음 후보를 결정(간단 규칙)
-    public func nextCandidate(from current: OnDeviceModelID, cause: String) -> OnDeviceModelID? {
-        switch current {
-        case .gemma1b_iq4xs:
-            // 무거운 모델에서 문제가 생기면 0.5B 계열로 우선 전환
-            return .hcx05b_q4_k_m
-        case .hcx05b_q4_k_m:
-            return .hcx05b_q8_0
-        case .hcx05b_q8_0:
-            return .amoral_gemma1b_v2_q4km
-        case .amoral_gemma1b_v2_q4km:
-            // 더 낮출 수 없음 → 클라우드로(호출 측에서 처리)
-            return nil
-        }
+// 간단한 후보 전환 헬퍼: SSOT fallbackOrder를 기준으로 다음 후보를 반환
+public extension FallbackPolicy {
+    @inlinable
+    func nextCandidate(from current: OnDeviceModelID, cause: String) -> OnDeviceModelID? {
+        let order = ModelCatalog.fallbackOrder
+        guard let idx = order.firstIndex(of: current) else { return nil }
+        let nextIdx = idx + 1
+        return nextIdx < order.count ? order[nextIdx] : nil
     }
 }
+
+
 
 // MARK: - 예시 사용(설정 화면/전환 UX에서)
 //
@@ -551,10 +552,10 @@ public struct FallbackPolicy {
 // let resolver = CatalogResolver(baClient: SystemBackgroundAssetClient()) // iOS18+ 별도 구현체
 // Task {
 //   do {
-//     let url = try await resolver.resolveLocalURL(for: .amoral_gemma1b_v2_q4km) { progress in
+//     let url = try await resolver.resolveLocalURL(for: .amoral_gemma3_1b_v2_q5_k_m) { progress in
 //       print("progress:", progress)
 //     }
-//     try loader.load(modelURL: url, modelID: .amoral_gemma1b_v2_q4km, params: ModelCatalog.record(for: .amoral_gemma1b_v2_q4km).recommended)
+//     try loader.load(modelURL: url, modelID: .amoral_gemma3_1b_v2_q5_k_m, params: ModelCatalog.record(for: .amoral_gemma3_1b_v2_q5_k_m).recommended)
 //   } catch {
 //     // 실패 시 FallbackPolicy에 따라 다음 후보/클라우드로 전환
 //   }

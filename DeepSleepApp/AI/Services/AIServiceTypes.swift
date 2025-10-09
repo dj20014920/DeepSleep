@@ -452,8 +452,6 @@ public enum AIServiceError: Error, LocalizedError {
             return "⚠️ API 오류: \(message)\n(코드: \(code))"
         case .allModelsFailed(let models):
             return "❌ 모든 모델 호출 실패\n시도한 모델: \(models.joined(separator: ", "))"
-        case .requiresOnDeviceSetup:
-            return "친구를 먼저 설정해주세요!\n[친구 선택] 버튼을 눌러 모델을 선택/설치 후 이용할 수 있어요."
         }
     }
 

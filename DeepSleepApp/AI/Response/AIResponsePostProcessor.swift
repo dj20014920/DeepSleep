@@ -77,8 +77,9 @@ public enum AIResponsePostProcessor {
         // 4) Clean up UTF-8 encoding issues and corrupted characters
         let beforeEncoding = s
         // Remove common UTF-8 replacement characters and broken sequences
-        s = s.replacingOccurrences(of: "���", with: "")  // UTF-8 replacement character
-        s = s.replacingOccurrences(of: "\u{FFFD}", with: "")  // Unicode replacement character
+        // 스트리밍 단계에서 U+FFFD는 보존되므로, 최종 단계에서도 무조건 제거하지 않음.
+        // 최종 출력에서는 SpecialTokenSanitizer.cleanAIOutput가 U+FFFD를 안전하게 처리하므로 여기서는 중복 제거 금지.
+        // (이중 제거로 인해 문맥 일부가 사라지거나 공백 정규화가 과하게 일어날 수 있음)
         if s != beforeEncoding { reasons.append("fix_encoding") }
 
         // 5) Remove duplicate content patterns (like repeated responses)

@@ -1,3 +1,32 @@
+## 2025-10-08 업데이트: 온디바이스 활성화 디바운서 가드 + 런치 프리로드 단일 경로 원칙
+
+### 🎯 목적
+- 런치 시점 온디바이스 모델 활성화의 동시/중복 진입 방지
+- DRY/KISS 원칙 강화 및 로그/동작 일관성 확립
+
+### 🔧 코드 변경
+- OnDeviceAdapter
+  - activate/switchModel에 디바운서 가드 추가: activationInProgress + activatingID
+  - 동일 모델에 대한 동시/중복 activate 요청은 무시되며 로그로 표시:
+    - "🔁 [Adapter] activate ignored (debounced) id=…"
+- AppDelegate
+  - 런치 프리로드 Task 중복 제거
+  - “설치됨(installed)” 상태일 때만 activate + prewarm을 1회 수행
+
+### 📐 운영 원칙(SSOT/DRY 반영)
+- “런치 프리로드는 AppDelegate 단일 경로, 중복 금지”
+  - ChatViewController/LaunchViewController/SceneDelegate에서는 activate 호출 금지(필요 시 prewarm만 허용)
+  - AIModelSelectionViewController에서는 사용자 인터랙션에 의해서만 activate/ensureInstalled 수행
+
+### ✅ QA 체크리스트
+- 앱 런치 직후 “⚙️ [Adapter] activate start …” 1회만 출력
+- 동일 시점 중복 활성화 시도 시 “activate ignored (debounced)” 로그 출력 확인
+- 채팅 화면 진입 시에는 prewarm만 수행(activate 미호출)
+
+### 📝 문서/가이드 동기화
+- 본 로드맵 및 OnDevice 가이드(ONDEVICE_SETUP.md)에 운영 원칙과 변경사항 반영 완료
+- 이후 변경 시에도 본 원칙을 기준으로 단일 경로만 유지
+
 ## 2025-10-03 업데이트: 프리셋 추천 다양성 지시 추가 · 폴백 랜덤화 보장
 
 ### 🎯 목적
@@ -1198,14 +1227,66 @@ $1
 
 ### 서버(Cloudflare Worker) 배포 및 연동
 - 엔드포인트: https://emozleep-presign.vinny4920-081.workers.dev/presign
-- 계약: GET /presign?file=<파일명.gguf> → 200 JSON {url} 또는 302 Location
+- 계약: GET /presign?file=&lt;파일명.gguf&gt; → 200 JSON {url} 또는 302 Location
 - CDN 기본: https://cdn.emozleep.space/models
+- SSOT 파일명만 사용: 접두사 포함 실제 배포 파일명(kexplo_/yeebwn_/cherrydavid_/amoral-*)만 유효. 미접두사/별칭/레거시 파일명 사용 금지(404/sha 불일치 유발).
 - 배포 상태: wrangler 배포 완료(운영 URL 동작 확인)
 - 인증(선택): PRESIGN_TOKEN 설정 시 Bearer 인증 필요
 - 앱 연동(AppDelegate): 런치/백그라운드 재진입 시 RemoteAssetClient.reconfigureRemote(presign, cdn, bgSessionId)
 - 레포 위치: scripts/emozleep-presign-worker/{wrangler.toml, src/index.ts}
 - 테스트 예시:
   - curl 'https://emozleep-presign.vinny4920-081.workers.dev/presign?file=cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf'
+
+#### SSOT 파일명 매핑(워커 권장)
+- 목적: 구버전/수동 호출에서도 미접두사 파일명으로 요청 시 접두사 포함 SSOT 파일명으로 정규화하여 404를 방지합니다.
+- 규칙: 요청값이 SSOT(접두사 포함)면 그대로 통과, 미접두사면 아래 매핑표로 변환 후 응답합니다.
+
+```ts
+// Cloudflare Worker (index.ts) — SSOT filename normalization
+export default {
+  async fetch(req: Request, env: any) {
+    const url = new URL(req.url);
+    if (url.pathname !== "/presign") {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const requested = url.searchParams.get("file");
+    if (!requested) {
+      return new Response("Missing 'file' query", { status: 400 });
+    }
+
+    const CDN_BASE = env.CDN_BASE || "https://cdn.emozleep.space/models";
+
+    // Non-SSOT → SSOT filename mapping (idempotent)
+    const MAP: Record<string, string> = {
+      // HyperCLOVA X Seed 0.5B Q4_K_M
+      "hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf":
+        "kexplo_hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf",
+      // HyperCLOVA X Seed 1.5B Q4_K_M
+      "hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf":
+        "yeebwn_hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf",
+      // HyperCLOVA X Seed 0.5B Q8_0
+      "hyperclovax-seed-text-instruct-0.5b-q8_0.gguf":
+        "cherrydavid_hyperclovax-seed-text-instruct-0.5b-q8_0.gguf",
+    };
+
+    // Normalize to SSOT
+    const ssot = MAP[requested] || requested;
+
+    // Option A: 200 JSON
+    return new Response(JSON.stringify({ url: `${CDN_BASE}/${ssot}` }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    });
+
+    // Option B: redirect style (enable one or the other)
+    // return Response.redirect(`${CDN_BASE}/${ssot}`, 302);
+  },
+};
+```
 
 #### 환경 변수 설정(운영) — R2 S3/배포 [설정 완료]
 - 환경 구성(세션/런타임):

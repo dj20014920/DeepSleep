@@ -306,13 +306,13 @@ let response = try await aiService.sendMessage(
 사용 예시
 ```swift
 // 사용자 입력(보안)
-let safe = SpecialTokenSanitizer.sanitizeUserInput(userText, modelID: .hcx05b_q4_k_m)
+let safe = SpecialTokenSanitizer.sanitizeUserInput(userText, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 
 // 스트리밍 실시간 정화
-let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hcx05b_q4_k_m)
+let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 
 // 최종 출력 정화
-let final = SpecialTokenSanitizer.cleanAIOutput(aiOutput, modelID: .amoral_gemma1b_v2_q4km)
+let final = SpecialTokenSanitizer.cleanAIOutput(aiOutput, modelID: .amoral_gemma3_1b_v2_q5_k_m)
 ```
 
 DRY 적용 지점

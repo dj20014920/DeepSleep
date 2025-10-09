@@ -8,7 +8,7 @@ final class StreamingUTF8AndSanitizerTests: XCTestCase {
         let delta = "멍�청이, 치� 샐러드"
 
         // when: 스트리밍 단계 정화를 수행
-        let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hcx05b_q4_k_m)
+        let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 
         // then: 스트리밍 단계에서는 U+FFFD를 제거하지 않는다 (원형 유지)
         XCTAssertEqual(cleaned, delta)
@@ -20,7 +20,7 @@ final class StreamingUTF8AndSanitizerTests: XCTestCase {
         let output = "테스트 � " + nfd
 
         // when: 최종 출력 정화
-        let cleaned = SpecialTokenSanitizer.cleanAIOutput(output, modelID: .hcx05b_q4_k_m)
+        let cleaned = SpecialTokenSanitizer.cleanAIOutput(output, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 
         // then: U+FFFD는 공백으로 치환되고, NFD는 NFC로 정규화되어 "한글"이 된다
         XCTAssertFalse(cleaned.contains("�"))
@@ -35,7 +35,7 @@ final class StreamingUTF8AndSanitizerTests: XCTestCase {
         let delta = "안녕하세요 <|im_start|>assistant 오늘의 일정은 |> 점검입니다."
 
         // when
-        let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hcx05b_q4_k_m)
+        let cleaned = SpecialTokenSanitizer.cleanStreamingToken(delta, modelID: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
 
         // then: stop/partial 토큰이 제거되어야 함 (의미 텍스트는 남음)
         XCTAssertFalse(cleaned.contains("<|im_start|>"))

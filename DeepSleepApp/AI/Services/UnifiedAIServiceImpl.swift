@@ -384,7 +384,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                         "🍎 Apple FM complete durationMs=\(ms) provider=applefm key=\(comps.coreHash.prefix(8)):\(mode.rawValue):onDevice:\(comps.toneHash.prefix(8)):\(sysDigest.prefix(8)) poolEnabled=\(AppleFMSessionPool.isEnabled)"
                     )
                     let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(text)
+                    let activeID = OnDeviceAdapter.shared.activeModelID ?? ModelCatalog.defaultModelID
+            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(text, modelID: activeID)
                     let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                         response: sanitized,
                         history: context?.conversationHistory,
@@ -452,7 +453,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 )
             ) { delta in buffer += delta }
             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(buffer)
+            let activeID = OnDeviceAdapter.shared.activeModelID ?? ModelCatalog.defaultModelID
+            let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(buffer, modelID: activeID)
             let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                 response: sanitized,
                 history: context?.conversationHistory,
@@ -510,7 +512,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     )
                     // Post-process
                     let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(resp.content)
+                    let activeID = OnDeviceAdapter.shared.activeModelID ?? ModelCatalog.defaultModelID
+                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(resp.content, modelID: activeID)
                     let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                         response: sanitized,
                         history: context?.conversationHistory,

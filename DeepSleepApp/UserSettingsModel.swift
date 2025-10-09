@@ -56,23 +56,23 @@ struct UserSettingsModel: Codable {
 
         // 기본 정보 (명확하게 "인간 사용자"임을 표시)
         if !nickname.isEmpty {
-            personaLines.append("• 인간 사용자의 이름: \(nickname)")
+            personaLines.append("• 사용자의 이름: \(nickname)")
         }
         if let age = age {
-            personaLines.append("• 인간 사용자의 나이: \(age)세")
+            personaLines.append("• 사용자의 나이: \(age)세")
         }
         if !personalityDescription.isEmpty {
-            personaLines.append("• 인간 사용자의 자기소개: \(personalityDescription)")
+            personaLines.append("• 사용자의 자기소개: \(personalityDescription)")
         }
         if !personalityTraits.isEmpty {
-            personaLines.append("• 인간 사용자의 성격 특성: \(personalityTraits.joined(separator: ", "))")
+            personaLines.append("• 사용자의 성격 특성: \(personalityTraits.joined(separator: ", "))")
         }
         if !conversationTones.isEmpty {
-            personaLines.append("• 인간 사용자가 선호하는 대화 스타일: \(conversationTones.joined(separator: ", "))")
+            personaLines.append("• 사용자가 선호하는 대화 스타일: \(conversationTones.joined(separator: ", "))")
         }
         if !preferredFriendTones.isEmpty {
             let tones = preferredFriendTones.map { $0.displayName }.joined(separator: ", ")
-            personaLines.append("• 인간 사용자가 선호하는 AI 친구 말투: \(tones)")
+            personaLines.append("• 사용자가 선호하는 AI 말투: \(tones)")
         }
 
         // MBTI: 축별로 선택된 경우에만 자연어로 해석하여 전달(문자 라벨 I/E/N/S/T/F/P/J는 사용하지 않음)
@@ -90,33 +90,33 @@ struct UserSettingsModel: Codable {
             mbtiDescriptors.append(mbti.pj == .p ? "유연한/탐색형" : "계획형/결정형")
         }
         if !mbtiDescriptors.isEmpty {
-            personaLines.append("• 인간 사용자가 선호하는 AI 친구 성향: \(mbtiDescriptors.joined(separator: ", "))")
+            personaLines.append("• 사용자가 선호하는 AI 친구 성향: \(mbtiDescriptors.joined(separator: ", "))")
             let guide = mbti.guidelineSnippet().trimmingCharacters(in: .whitespacesAndNewlines)
             if !guide.isEmpty {
                 // 가이드를 'AI(당신)가 따라야 할 응답 스타일'로 명확화
-                personaLines.append("• 당신(AI)이 따라야 할 응답 스타일 가이드:\n\(guide)")
+                personaLines.append("• 당신이 따라야 할 응답 스타일 가이드:\n\(guide)")
             }
         }
 
         // 선호도: 기본값과 다른 경우에만 포함
         // 기본값 가정: conversationStyle=.balanced, emotionalSensitivity=.medium, aiResponseLength=.medium, aiPersonality=.empathetic
         if conversationStyle != .balanced {
-            preferenceLines.append("• 인간 사용자가 선호하는 대화 스타일: \(conversationStyle.description)")
+            preferenceLines.append("• 사용자가 선호하는 대화 스타일: \(conversationStyle.description)")
         }
         if emotionalSensitivity != .medium {
-            preferenceLines.append("• 인간 사용자의 감정 민감도: \(emotionalSensitivity.description)")
+            preferenceLines.append("• 사용자의 감정 민감도: \(emotionalSensitivity.description)")
         }
         if aiResponseLength != .medium {
-            preferenceLines.append("• 당신(AI)의 응답 길이 설정: \(aiResponseLength.description)")
+            preferenceLines.append("• 당신의 응답 길이 설정: \(aiResponseLength.description)")
         }
         if aiPersonality != .empathetic {
-            preferenceLines.append("• 당신(AI)의 성격 설정: \(aiPersonality.description)")
+            preferenceLines.append("• 당신의 성격 설정: \(aiPersonality.description)")
         }
         if !musicPreferences.isEmpty {
-            preferenceLines.append("• 인간 사용자가 선호하는 음악: \(musicPreferences.map { $0.description }.joined(separator: ", "))")
+            preferenceLines.append("• 사용자가 선호하는 음악: \(musicPreferences.map { $0.description }.joined(separator: ", "))")
         }
         if !soundPreferences.isEmpty {
-            preferenceLines.append("• 인간 사용자가 선호하는 소리: \(soundPreferences.map { $0.description }.joined(separator: ", "))")
+            preferenceLines.append("• 사용자가 선호하는 소리: \(soundPreferences.map { $0.description }.joined(separator: ", "))")
         }
 
         // 섹션 조립: 내용이 있을 때만 섹션 헤더를 추가

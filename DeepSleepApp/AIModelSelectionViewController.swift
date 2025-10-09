@@ -73,10 +73,10 @@ class AIModelSelectionViewController: UIViewController {
         super.viewDidDisappear(animated)
         Task { [weak self] in
             guard let self = self else { return }
-            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-            let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
-            let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-            let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma3_1b_v2_q5_k_m)
+            let s2 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
+            let s3 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_1_5b_q4_k_m)
+            let s4 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q8_0)
             let installing = [s1, s2, s3, s4].contains { state in
                 if case .installing = state { return true } else { return false }
             }
@@ -193,28 +193,28 @@ class AIModelSelectionViewController: UIViewController {
                 strengths: String, bestFor: String
             )] = [
                 (
-                    type: .onDevice, id: .amoral_gemma1b_v2_q4km,
+                    type: .onDevice, id: .amoral_gemma3_1b_v2_q5_k_m,
                     personality: "개인정보 보호와 저지연 대화",
                     specialties: ["온디바이스 처리", "저지연 응답", "백그라운드 설치/재개", "무결성 검증"],
                     strengths: "네트워크 품질과 무관하게 안정적이고 빠른 대화",
                     bestFor: "빠른 반응, 오프라인/저연결, 프라이버시"
                 ),
                 (
-                    type: .gemini, id: .gemma1b_iq4xs,
+                    type: .gemini, id: .hyperclovax_seed_text_instruct_1_5b_q4_k_m,
                     personality: "자유롭고 창의적인 성격",
                     specialties: ["상상력 풍부한 조언", "예술적 표현", "새로운 관점", "재미있는 대화"],
                     strengths: "독특하고 창의적인 시각으로 새로운 해결책을 제시",
                     bestFor: "창의적 고민, 예술적 영감, 색다른 관점"
                 ),
                 (
-                    type: .gpt4, id: .hcx05b_q8_0,
+                    type: .gpt4, id: .hyperclovax_seed_text_instruct_0_5b_q8_0,
                     personality: "밝고 적극적인 성격",
                     specialties: ["빠른 분석", "실용적 조언", "목표 설정", "동기부여"],
                     strengths: "신속하고 명확한 답변으로 즉시 도움",
                     bestFor: "빠른 상담, 일상 조언, 스트레스 해소"
                 ),
                 (
-                    type: .naver, id: .hcx05b_q4_k_m,
+                    type: .naver, id: .hyperclovax_seed_text_instruct_0_5b_q4_k_m,
                     personality: "정겨우면서도 현실적인 성격",
                     specialties: ["한국 문화 이해", "현실적 조언", "공감 대화", "진솔한 소통"],
                     strengths: "한국인의 정서/문화를 깊이 이해하고 현실적 조언",
@@ -464,10 +464,10 @@ class AIModelSelectionViewController: UIViewController {
             guard let self = self, let card = self.onDeviceCardRef else { return }
             Task { [weak self] in
                 guard let self = self else { return }
-                let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-                let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
-                let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-                let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+                let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma3_1b_v2_q5_k_m)
+                let s2 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
+                let s3 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_1_5b_q4_k_m)
+                let s4 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q8_0)
                 var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
                 // UX: 사용자가 탭한 모델만 진행률을 보이도록 필터링 (초보자 혼동 방지)
                 if let focus = self.focusInstallingID {
@@ -565,10 +565,10 @@ class AIModelSelectionViewController: UIViewController {
         guard let card = self.onDeviceCardRef else { return }
         Task { [weak self] in
             guard let self = self else { return }
-            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma1b_v2_q4km)
-            let s2 = await OnDeviceAdapter.shared.status(for: .hcx05b_q4_k_m)
-            let s3 = await OnDeviceAdapter.shared.status(for: .gemma1b_iq4xs)
-            let s4 = await OnDeviceAdapter.shared.status(for: .hcx05b_q8_0)
+            let s1 = await OnDeviceAdapter.shared.status(for: .amoral_gemma3_1b_v2_q5_k_m)
+            let s2 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
+            let s3 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_1_5b_q4_k_m)
+            let s4 = await OnDeviceAdapter.shared.status(for: .hyperclovax_seed_text_instruct_0_5b_q8_0)
             var entries = self.buildOnDeviceProgressEntries(s1: s1, s2: s2, s3: s3, s4: s4)
                 // UX: 사용자가 탭한 모델만 진행률을 보이도록 필터링 (초보자 혼동 방지)
                 if let focus = self.focusInstallingID {
@@ -602,22 +602,22 @@ class AIModelSelectionViewController: UIViewController {
         s4: BackgroundAssetState
     ) -> [(String, Double, OnDeviceModelID)] {
         var entries: [(String, Double, OnDeviceModelID)] = []
-        let r1 = ModelCatalog.record(for: .amoral_gemma1b_v2_q4km)
-        let r2 = ModelCatalog.record(for: .hcx05b_q4_k_m)
-        let r3 = ModelCatalog.record(for: .gemma1b_iq4xs)
-        let r4 = ModelCatalog.record(for: .hcx05b_q8_0)
+        let r1 = ModelCatalog.record(for: .amoral_gemma3_1b_v2_q5_k_m)
+        let r2 = ModelCatalog.record(for: .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
+        let r3 = ModelCatalog.record(for: .hyperclovax_seed_text_instruct_1_5b_q4_k_m)
+        let r4 = ModelCatalog.record(for: .hyperclovax_seed_text_instruct_0_5b_q8_0)
 
         if case .installing(let p) = s1 {
-            entries.append((OnDeviceModelID.amoral_gemma1b_v2_q4km.friendlyNickname, p, .amoral_gemma1b_v2_q4km))
+            entries.append((OnDeviceModelID.amoral_gemma3_1b_v2_q5_k_m.friendlyNickname, p, .amoral_gemma3_1b_v2_q5_k_m))
         }
         if case .installing(let p) = s2 {
-            entries.append((OnDeviceModelID.hcx05b_q4_k_m.friendlyNickname, p, .hcx05b_q4_k_m))
+            entries.append((OnDeviceModelID.hyperclovax_seed_text_instruct_0_5b_q4_k_m.friendlyNickname, p, .hyperclovax_seed_text_instruct_0_5b_q4_k_m))
         }
         if case .installing(let p) = s3 {
-            entries.append((OnDeviceModelID.gemma1b_iq4xs.friendlyNickname, p, .gemma1b_iq4xs))
+            entries.append((OnDeviceModelID.hyperclovax_seed_text_instruct_1_5b_q4_k_m.friendlyNickname, p, .hyperclovax_seed_text_instruct_1_5b_q4_k_m))
         }
         if case .installing(let p) = s4 {
-            entries.append((OnDeviceModelID.hcx05b_q8_0.friendlyNickname, p, .hcx05b_q8_0))
+            entries.append((OnDeviceModelID.hyperclovax_seed_text_instruct_0_5b_q8_0.friendlyNickname, p, .hyperclovax_seed_text_instruct_0_5b_q8_0))
         }
         return entries
     }
@@ -650,10 +650,10 @@ class AIModelSelectionViewController: UIViewController {
         // createModelCards와 동일한 로직으로 선택 상태 복원
         // 각 카드가 어떤 온디바이스 모델 ID에 매핑되는지 확인해야 함
         let mappings: [(type: AIModelType, id: OnDeviceModelID)] = [
-            (.onDevice, .amoral_gemma1b_v2_q4km),
-            (.gemini, .gemma1b_iq4xs),
-            (.gpt4, .hcx05b_q8_0),
-            (.naver, .hcx05b_q4_k_m)
+            (.onDevice, .amoral_gemma3_1b_v2_q5_k_m),
+            (.gemini, .hyperclovax_seed_text_instruct_1_5b_q4_k_m),
+            (.gpt4, .hyperclovax_seed_text_instruct_0_5b_q8_0),
+            (.naver, .hyperclovax_seed_text_instruct_0_5b_q4_k_m)
         ]
 
         // 모든 카드의 선택 상태 업데이트
