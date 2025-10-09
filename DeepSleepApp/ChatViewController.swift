@@ -1914,14 +1914,7 @@ class ChatViewController: UIViewController, UIGestureRecognizerDelegate {
         // 에페메랄 세션(일기 전용)에서는 기존 플로우(setupInitialMessages)에서 이미 처리되므로 제외
         handlePendingDiaryAnalysisIfNeeded()
 
-        // 🔥 온디바이스 응답 TTI 단축을 위한 가벼운 프리워밍: 시스템 프롬프트만 프리필
-        // - 템플릿/캐시 키는 내부에서 안전하게 처리됨
-        // - 사용자 경험: 최초 델타까지 걸리는 시간을 줄임(특히 0.5B 계열)
-        if SettingsManager.shared.selectedLLM == .onDevice {
-            let mode = determineAIModeFromContext()
-            let sys = UnifiedAIServiceImpl.shared.makeSystemPrompt(for: mode, model: .onDevice)
-            Task.detached { await OnDeviceAdapter.shared.prewarm(systemPrompt: sys) }
-        }
+        // Prewarm는 viewWillAppear()의 prewarmCacheIfNeeded()에서만 1회 수행 (중복 방지)
     }
 
     override func viewWillAppear(_ animated: Bool) {

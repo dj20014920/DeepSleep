@@ -137,11 +137,10 @@ final class StoreKitSubscriptionManager {
         var premiumUntil: Date?
         var hasPremium = false
         for await ent in Transaction.currentEntitlements {
-            if case .autoRenewable = ent.productType {
-                hasPremium = true
-                premiumUntil = ent.expirationDate
-                await ProxyTierReporter.report(passiveFrom: ent)
-            }
+                if case .autoRenewable = ent.productType {
+                    hasPremium = true
+                    premiumUntil = ent.expirationDate
+                }
         }
         if hasPremium {
             SubscriptionStatusCenter.shared.update(state: .active(premiumUntil: premiumUntil))
@@ -166,7 +165,7 @@ final class StoreKitSubscriptionManager {
         if case .autoRenewable = transaction.productType {
             SubscriptionStatusCenter.shared.update(state: .active(premiumUntil: transaction.expirationDate))
         }
-        await ProxyTierReporter.report(passiveFrom: transaction)
+        // 프록시 리포팅 제거
     }
 }
 
@@ -174,4 +173,3 @@ final class StoreKitSubscriptionManager {
 extension Notification.Name {
     static let iapProductsUpdated = Notification.Name("iapProductsUpdated")
 }
-

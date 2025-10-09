@@ -358,10 +358,11 @@ public final class RemoteAssetClient: NSObject {
     // MARK: - Download Orchestration
 
     private func remoteURL(for fileName: String) async -> URL? {
+
         log.info(
             "🌐 Resolving remote URL for \(fileName, privacy: .public) presign=\(self.cfg.presignEndpoint?.absoluteString ?? "nil", privacy: .public) cdn=\(self.cfg.cdnBaseURL?.absoluteString ?? "nil", privacy: .public)"
         )
-        // 1) presign 우선
+        // 1) presign 우선 (서버 presign 사용 안 함: 현재는 비활성화됨)
         if let presignBase = cfg.presignEndpoint {
             if var comp = URLComponents(url: presignBase, resolvingAgainstBaseURL: false) {
                 var query = comp.queryItems ?? []
@@ -414,6 +415,115 @@ public final class RemoteAssetClient: NSObject {
         // 재시도 루프는 delegate에서 관리(에러/무결성 실패 시 재스케줄)
         // 첫 task 생성(또는 resumeData 기반)
         scheduleDownloadTask(fileName: fileName, url: url)
+    }
+
+    // R2 S3 Presign 제거됨(키 미주입, CDN 고정 경로만 사용)
+    /* private func presignR2IfConfigured(fileName: String) -> URL? {
+        guard
+            let endpoint = ConfigReader.string("ONDEVICE_S3_ENDPOINT"), !endpoint.isEmpty,
+            let bucket = ConfigReader.string("ONDEVICE_S3_BUCKET"), !bucket.isEmpty,
+            let accessKey = ConfigReader.string("ONDEVICE_S3_ACCESS_KEY"), !accessKey.isEmpty,
+            let secretKey = ConfigReader.string("ONDEVICE_S3_SECRET_KEY"), !secretKey.isEmpty
+        else { return nil }
+        let region = ConfigReader.string("ONDEVICE_S3_REGION") ?? "auto"
+        let prefix = ConfigReader.string("ONDEVICE_S3_PREFIX") ?? "models"
+        guard let host = URL(string: endpoint)?.host else { return nil }
+
+        // Canonical values
+        let amzDate = Self.rfc3339Date()
+        let dateStamp = String(amzDate.prefix(8))
+        let service = "s3"
+        let keyPath = "/\(bucket)/\(prefix)/\(fileName)"
+
+        // Query params for presign
+        var query: [(String, String)] = []
+        let algorithm = "AWS4-HMAC-SHA256"
+        let signedHeaders = "host"
+        let credentialScope = "\(dateStamp)/\(region)/\(service)/aws4_request"
+        let credential = "\(accessKey)/\(credentialScope)"
+        let expires = "600" // 10 minutes
+        query.append(("X-Amz-Algorithm", algorithm))
+        query.append(("X-Amz-Credential", credential.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? credential))
+        query.append(("X-Amz-Date", amzDate))
+        query.append(("X-Amz-Expires", expires))
+        query.append(("X-Amz-SignedHeaders", signedHeaders))
+
+        // Canonical request
+        let canonicalQuery = query
+            .map { "\($0.0)=\($0.1)" }
+            .sorted()
+            .joined(separator: "&")
+        let canonicalHeaders = "host:\(host)\n"
+        let payloadHash = "UNSIGNED-PAYLOAD"
+        let canonicalRequest = [
+            "GET",
+            keyPath,
+            canonicalQuery,
+            canonicalHeaders,
+            signedHeaders,
+            payloadHash,
+        ].joined(separator: "\n")
+
+        // String to sign
+        let canonicalRequestHash = Self.sha256Hex(canonicalRequest)
+        let stringToSign = [
+            algorithm,
+            amzDate,
+            credentialScope,
+            canonicalRequestHash,
+        ].joined(separator: "\n")
+
+        // Signature key
+        let kDate = Self.hmacSHA256(key: Data(("AWS4" + secretKey).utf8), data: Data(dateStamp.utf8))
+        let kRegion = Self.hmacSHA256(key: kDate, data: Data(region.utf8))
+        let kService = Self.hmacSHA256(key: kRegion, data: Data(service.utf8))
+        let kSigning = Self.hmacSHA256(key: kService, data: Data("aws4_request".utf8))
+        let signature = Self.hmacSHA256Hex(key: kSigning, data: Data(stringToSign.utf8))
+
+        // Final URL
+        var comps = URLComponents()
+        comps.scheme = "https"
+        comps.host = host
+        comps.path = keyPath
+        var items = query.map { URLQueryItem(name: $0.0, value: $0.1) }
+        items.append(URLQueryItem(name: "X-Amz-Signature", value: signature))
+        comps.queryItems = items
+        return comps.url
+    }
+
+    */
+    private static func rfc3339Date() -> String {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = TimeZone(secondsFromGMT: 0)
+        fmt.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return fmt.string(from: Date())
+    }
+
+    private static func sha256Hex(_ s: String) -> String {
+        let data = Data(s.utf8)
+        #if canImport(CryptoKit)
+        let digest = CryptoKit.SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+        #else
+        // Fallback(간단 구현 필요 시): 여기서는 CryptoKit 사용을 전제
+        return ""
+        #endif
+    }
+
+    private static func hmacSHA256(key: Data, data: Data) -> Data {
+        #if canImport(CryptoKit)
+        let keySym = CryptoKit.SymmetricKey(data: key)
+        let sig = CryptoKit.HMAC<CryptoKit.SHA256>.authenticationCode(for: data, using: keySym)
+        return Data(sig)
+        #else
+        return Data()
+        #endif
+    }
+
+    private static func hmacSHA256Hex(key: Data, data: Data) -> String { 
+        let d = hmacSHA256(key: key, data: data)
+        return d.map { String(format: "%02x", $0) }.joined()
     }
 
     private func scheduleDownloadTask(fileName: String, url: URL, withResumeData: Data? = nil) {

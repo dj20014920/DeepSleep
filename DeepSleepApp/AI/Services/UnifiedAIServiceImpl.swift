@@ -36,15 +36,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // Idempotency/inflight dedup
     private var isSending: Bool = false
     private var inflightKeys = Set<String>()
-
-    // 개별 AI 서비스들
-    private var claudeService: ClaudeAPIService?
-    private var openAIService: OpenAIAPIService?
-    private var geminiService: GeminiAPIService?
-    private var naverService: NaverAPIService?
-
-    // 무료 모델 서비스 (OpenRouter)
-    private var freeModelService: OpenRouterFallbackManager?
+    // 클라우드 서비스 제거(온디바이스 전용)
 
     private var modelChangedObserver: Any?
     private var requestCounter: Int = 0
@@ -58,36 +50,7 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
     }
 
-    // MARK: - 🔑 API 키 관리
-
-    /// API 키를 구성에서 안전하게 조회
-    private func getAPIKey(for model: AIModel) -> String? {
-        let keyName: String
-
-        switch model {
-        case .claude:
-            keyName = "CLAUDE_API_KEY"
-        case .openAI:
-            keyName = "OPEN_AI_4oMINI_API_KEY"
-        case .gemini:
-            keyName = "GEMINI_API_KEY"
-        case .naver:
-            keyName = "NAVER_CLOUD_API_KEY"
-        case .freeModel:
-            keyName = "OPENROUTER_API_KEY"
-        case .onDevice:
-            // 온디바이스 모델은 API 키가 필요하지 않음
-            return nil
-        }
-
-        guard let apiKey = ConfigReader.string(keyName),
-            !apiKey.isEmpty
-        else {
-            return nil
-        }
-
-        return apiKey
-    }
+    // MARK: - 🔑 API 키 관리 (제거됨: 온디바이스만 사용)
 
     deinit {
         if let obs = modelChangedObserver {
@@ -98,92 +61,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
     // MARK: - 🔧 서비스 초기화
 
     private func initializeServices() {
-        // 프록시 모드에서는 원칙적으로 서버가 단일 진실(SSOT)입니다.
-        // 그러나 개발 환경(DEBUG)에서는 프록시 장애/인증 실패 시를 대비해
-        // 안전 폴백 경로를 활성화합니다.
-        if EnvironmentConfig.shared.useProxy {
-            #if DEBUG
-                // 1) 무료 모델 폴백 초기화(있을 경우)
-                if getAPIKey(for: .freeModel) != nil {
-                    freeModelService = OpenRouterFallbackManager.shared
-                    print("🛟 [UnifiedAIService] DEBUG 프록시 모드: freeModelService 초기화(안전 폴백)")
-                } else {
-                    freeModelService = nil
-                    print("⚠️ [UnifiedAIService] DEBUG 프록시 모드: OPENROUTER_API_KEY 미설정 (무료 폴백 비활성)")
-                }
-                // 2) 로컬 직접 서비스도 초기화해 '직접 폴백' 경로 유지(프록시 실패 시에만 사용)
-                if let claudeKey = getAPIKey(for: .claude) {
-                    claudeService = ClaudeAPIService(apiKey: claudeKey)
-                }
-                if let openAIKey = getAPIKey(for: .openAI) {
-                    openAIService = OpenAIAPIService(apiKey: openAIKey)
-                }
-                // Vertex-Gemini는 항상 프록시 경유. 로컬 직접 Gemini 폴백은 비활성화한다.
-                geminiService = nil
-                if let naverKey = getAPIKey(for: .naver) {
-                    naverService = NaverAPIService(apiKey: naverKey)
-                }
-                print(
-                    "ℹ️ [UnifiedAIService] DEBUG 프록시 모드: direct Gemini fallback 비활성화 (Vertex via proxy)"
-                )
-                // 주의: 실제 호출은 항상 프록시 우선이며, 아래 sendMessageInternal에서 프록시 실패 시에만 사용됩니다.
-                return
-            #else
-                // Release: 프록시 모드에서는 클라이언트 키를 사용하지 않음(보안/심사).
-                claudeService = nil
-                openAIService = nil
-                geminiService = nil
-                naverService = nil
-                freeModelService = nil
-                return
-            #endif
-        }
-        // 프록시 미사용: 로컬 서비스를 정상 초기화
-        // Claude 서비스 초기화
-        if let claudeKey = getAPIKey(for: .claude) {
-            claudeService = ClaudeAPIService(apiKey: claudeKey)
-            // Claude API 서비스 초기화됨
-        }
-
-        // OpenAI 서비스 초기화
-        if let openAIKey = getAPIKey(for: .openAI) {
-            openAIService = OpenAIAPIService(apiKey: openAIKey)
-            // OpenAI API 서비스 초기화됨
-        }
-
-        // Gemini 서비스 초기화
-        if let geminiKey = getAPIKey(for: .gemini) {
-            geminiService = GeminiAPIService(apiKey: geminiKey)
-            // Gemini API 서비스 초기화됨
-        }
-
-        // Naver 서비스 초기화
-        if let naverKey = getAPIKey(for: .naver) {
-            naverService = NaverAPIService(apiKey: naverKey)
-            // Naver API 서비스 초기화됨
-        }
-
-        // OpenRouter 무료 모델 서비스 초기화 (API 키 검증)
-        if getAPIKey(for: .freeModel) != nil {
-            freeModelService = OpenRouterFallbackManager.shared
-            // OpenRouter 무료 모델 서비스 초기화됨
-        } else {
-            print("❌ [UnifiedAIService] OpenRouter API 키를 찾을 수 없습니다.")
-        }
+        // 온디바이스만 사용: 별도 초기화 없음
     }
 
     // MARK: - 📊 사용 가능한 모델 확인
 
     /// 사용 가능한 AI 모델 목록 (fallback 순서대로)
     var availableModels: [AIModel] {
-        var models: [AIModel] = []
-        if claudeService != nil { models.append(.claude) }
-        if openAIService != nil { models.append(.openAI) }
-        if geminiService != nil { models.append(.gemini) }
-        if naverService != nil { models.append(.naver) }
-        if freeModelService != nil { models.append(.freeModel) }
-        models.append(.onDevice)
-        return models
+        // 온디바이스만 지원하도록 단순화
+        return [.onDevice]
     }
 
     // MARK: - Public API (UnifiedAIService)
@@ -260,12 +146,14 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                                 full,
                                 modelID: modelID
                             )
-                            let (processed, _) =
+                            var (processed, _) =
                                 AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                                     response: sanitized,
                                     history: context?.conversationHistory,
                                     nickname: nickname
                                 )
+                            // ✅ 정확 중복(문장 2회) 보수 제거
+                            processed = Self.collapseDuplicateEcho(processed)
                             continuation.yield(
                                 AIStreamResponse(
                                     id: UUID().uuidString,
@@ -455,11 +343,13 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             let nickname = UserSettingsModel.loadFromUserDefaults().nickname
             let activeID = OnDeviceAdapter.shared.activeModelID ?? ModelCatalog.defaultModelID
             let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(buffer, modelID: activeID)
-            let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
+            var (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
                 response: sanitized,
                 history: context?.conversationHistory,
                 nickname: nickname
             )
+            // ✅ 정확 중복(문장 2회) 보수 제거
+            processed = Self.collapseDuplicateEcho(processed)
             // Console log full model response (llama.cpp)
             print(
                 "📝 [AIResp] provider=llama.cpp model=\(OnDeviceAdapter.shared.activeModelID?.rawValue ?? "unknown") ttiMs=\(summary.ttiMilliseconds) chars=\(processed.count)\n\(processed)"
@@ -477,69 +367,41 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             )
         }
 
-        // Proxy path or direct provider services
-        if EnvironmentConfig.shared.useProxy || freeModelService != nil
-            || hasAnyDirectServiceAvailable()
-        {
-            do {
-                if EnvironmentConfig.shared.useProxy {
-                    let proxyURL = try resolveProxyBaseURL()
-                    let personaCoreKey = UserRulesManager.shared.personaCoreSignature()
-                    let resp = try await sendViaProxy(
-                        messages: {
-                            var roleMessages: [RoleMessage] = [
-                                RoleMessage(role: .system, content: systemPrompt)
-                            ]
-                            if let history = context?.conversationHistory, !history.isEmpty {
-                                let recent = Self.selectBalancedRecent(
-                                    history, userMax: 3, assistantMax: 3)
-                                for turn in recent {
-                                    roleMessages.append(
-                                        RoleMessage(
-                                            role: turn.role, content: turn.content,
-                                            ts: turn.timestamp))
-                                }
-                            }
-                            roleMessages.append(RoleMessage(role: .user, content: content))
-                            return roleMessages
-                        }(),
-                        mode: mode,
-                        preferred: model,
-                        proxyURL: proxyURL,
-                        tokenConfig: effCfg,
-                        policyMeta: nil,
-                        personaCoreKey: personaCoreKey
-                    )
-                    // Post-process
-                    let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-                    let activeID = OnDeviceAdapter.shared.activeModelID ?? ModelCatalog.defaultModelID
-                    let (sanitized, _) = AIResponsePostProcessor.sanitizeArtifacts(resp.content, modelID: activeID)
-                    let (processed, _) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-                        response: sanitized,
-                        history: context?.conversationHistory,
-                        nickname: nickname
-                    )
-                    return AIResponse(
-                        id: resp.id, model: resp.model, mode: resp.mode, content: processed,
-                        metadata: resp.metadata, usage: resp.usage, timestamp: resp.timestamp,
-                        processingTime: resp.processingTime
-                    )
-                } else {
-                    // Direct local services fallback
-                    return try await sendDirectBypassingProxy(
-                        content: content,
-                        preferredModel: model,
-                        mode: mode,
-                        context: context,
-                        assembledPrompt: assembledPrompt
-                    )
-                }
-            } catch {
-                throw error
-            }
-        }
-
+        // 클라우드/프록시 경로 제거됨: 온디바이스 외 모델은 지원하지 않음
         throw AIServiceError.modelUnavailable(model: model)
+    }
+
+    // MARK: - Output post-fix helpers
+    /// 짧은 응답에서 동일 문장을 2회 연속 출력하는 경우(템플릿 경계 반복)를 보수적으로 제거한다.
+    private static func collapseDuplicateEcho(_ s: String) -> String {
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 8 && trimmed.count <= 200 else { return s }
+        // 1) 정확 절반 비교
+        if trimmed.count % 2 == 0 {
+            let mid = trimmed.index(trimmed.startIndex, offsetBy: trimmed.count / 2)
+            let first = String(trimmed[..<mid]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let second = String(trimmed[mid...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if normalize(first) == normalize(second) { return first }
+        }
+        // 2) 첫 문장 x2 패턴
+        if let end = firstSentenceEnd(in: trimmed) {
+            let sent = String(trimmed[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let rest = String(trimmed[end...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !sent.isEmpty, normalize(rest) == normalize(sent) { return sent }
+        }
+        return s
+    }
+
+    private static func normalize(_ s: String) -> String {
+        s.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "\n", with: "")
+    }
+
+    private static func firstSentenceEnd(in s: String) -> String.Index? {
+        let puncts: [Character] = [".", "!", "?", "…"]
+        if let idx = s.firstIndex(where: { puncts.contains($0) }) {
+            return s.index(after: idx)
+        }
+        return nil
     }
 
     // Context invalidation on model change
@@ -1108,465 +970,10 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         }
     #endif
 
-    /// DEBUG 전용: 로컬 직접 서비스 사용 가능 여부
-    private func hasAnyDirectServiceAvailable() -> Bool {
-        return claudeService != nil || openAIService != nil || geminiService != nil
-            || naverService != nil
-    }
-
-    /// DEBUG 전용: 프록시 우회하여 로컬 서비스로 직접 전송(안전 폴백)
-    /// - 주의: EnvironmentConfig.shared.useProxy가 true여도 이 경로는 프록시를 사용하지 않습니다.
-    private func sendDirectBypassingProxy(
-        content: String,
-        preferredModel: AIModel,
-        mode: AIMode,
-        context: AIContext?,
-        assembledPrompt: String?
-    ) async throws -> AIResponse {
-        // 최적 모델 선택(기본 선호 존중)
-        let model = getOptimalModelForMode(mode: mode, userPreferred: preferredModel)
-        // 시스템 프롬프트
-        let systemPrompt: String = {
-            if let assembled = assembledPrompt, !assembled.isEmpty { return assembled }
-            return generateOptimizedSystemPrompt(for: mode, model: model)
-        }()
-        // 역할 기반 메시지 구성
-        var roleMessages: [RoleMessage] = [RoleMessage(role: .system, content: systemPrompt)]
-        if assembledPrompt == nil, let history = context?.conversationHistory, !history.isEmpty {
-            let recent = Array(history.suffix(16))
-            for turn in recent {
-                roleMessages.append(
-                    RoleMessage(role: turn.role, content: turn.content, ts: turn.timestamp))
-            }
-        }
-        // Gemma on-device는 별도 분기에서 system 내재화 처리됨. 여기서는 항상 user 추가.
-        roleMessages.append(RoleMessage(role: .user, content: content))
-        // 모델별 직접 호출
-        let tokenCfg = optimizeTokenConfigForModel(
-            mode.recommendedTokenConfig, model: model, mode: mode)
-        let response: AIResponse
-        switch model {
-        case .claude:
-            guard let service = claudeService else {
-                throw AIServiceError.modelUnavailable(model: .claude)
-            }
-            response = try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-        case .openAI:
-            guard let service = openAIService else {
-                throw AIServiceError.modelUnavailable(model: .openAI)
-            }
-            response = try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-        case .gemini:
-            guard let service = geminiService else {
-                throw AIServiceError.modelUnavailable(model: .gemini)
-            }
-            response = try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-        case .naver:
-            guard let service = naverService else {
-                throw AIServiceError.modelUnavailable(model: .naver)
-            }
-            response = try await service.sendMessages(
-                messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-        case .onDevice:
-            // Reuse the core on-device path with explicit assembled system prompt
-            return try await sendMessageInternal(
-                content,
-                .onDevice,
-                mode,
-                context,
-                tokenCfg,
-                systemPrompt
-            )
-        case .freeModel:
-            // freeModelService가 없으므로, 차선인 Gemini/OpenAI/Claude/Naver 순으로 선택
-            if let svc = geminiService {
-                return try await svc.sendMessages(
-                    messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-            } else if let svc = openAIService {
-                return try await svc.sendMessages(
-                    messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-            } else if let svc = claudeService {
-                return try await svc.sendMessages(
-                    messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-            } else if let svc = naverService {
-                return try await svc.sendMessages(
-                    messages: roleMessages, mode: mode, tokenConfig: tokenCfg)
-            } else {
-                throw AIServiceError.modelUnavailable(model: .freeModel)
-            }
-        }
-        // 출력 후처리(인사 제거)
-        let nickname = UserSettingsModel.loadFromUserDefaults().nickname
-        let (processedText, reason) = AIResponsePostProcessor.stripRepetitiveGreetingIfNeeded(
-            response: response.content,
-            history: context?.conversationHistory,
-            nickname: nickname
-        )
-        if let r = reason {
-            print("✂️ [UnifiedAIService] Direct fallback: leading greeting stripped (\(r))")
-        }
-        var addInfo = response.metadata.additionalInfo
-        addInfo["fallback"] = true
-        addInfo["fallback_path"] = "direct_local"
-        let newMeta = ResponseMetadata(
-            emotionAnalysis: response.metadata.emotionAnalysis,
-            recommendations: response.metadata.recommendations,
-            confidenceScore: response.metadata.confidenceScore,
-            additionalInfo: addInfo
-        )
-        return AIResponse(
-            id: response.id,
-            model: model,
-            mode: response.mode,
-            content: processedText,
-            metadata: newMeta,
-            usage: response.usage,
-            timestamp: response.timestamp,
-            processingTime: response.processingTime
-        )
-    }
+    // 클라우드/프록시 관련 보조 함수 제거됨(온디바이스 전용)
 }
 
 // MARK: - Proxy inline call
-extension UnifiedAIServiceImpl {
-    /// PROXY_BASE_URL 정규화 및 엄격 검증
-    private func resolveProxyBaseURL() throws -> URL {
-        let raw = EnvironmentConfig.shared.proxyBaseURL.trimmingCharacters(
-            in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else {
-            throw AIServiceError.configurationError("PROXY_BASE_URL_INVALID")
-        }
-        let normalized: String = {
-            if raw.lowercased().hasPrefix("http://") || raw.lowercased().hasPrefix("https://") {
-                return raw
-            }
-            return "https://" + raw
-        }()
-        guard let url = URL(string: normalized),
-            let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
-            let host = url.host, !host.isEmpty
-        else {
-            throw AIServiceError.configurationError("PROXY_BASE_URL_INVALID")
-        }
-        return url
-    }
-
-    private func providerCacheTTLSeconds(for mode: AIMode) -> Int {
-        // Gemini는 공급자 최대 TTL이 1시간이므로 서버가 자동 연장한다.
-        // 앱은 1시간 요청을 유지해 UX/보안에 영향 없이 단순화.
-        switch mode {
-        case .emotionDiaryAnalysis, .presetRecommendation:
-            return 3600
-        default:
-            return 3600
-        }
-    }
-
-    private func sendViaProxy(
-        messages: [RoleMessage], mode: AIMode, preferred: AIModel, proxyURL: URL,
-        tokenConfig: TokenConfiguration, policyMeta: [String: String]?,
-        personaCoreKey: String
-    ) async throws -> AIResponse {
-        #if DEBUG
-            let perf = PerfTrace(flow: "ProxyCall")
-            perf.with(extra: "provider", preferred.rawValue)
-                .with(extra: "mode", mode.rawValue)
-                .with(extra: "sysLen", String(messages.first?.content.count ?? 0))
-                .with(extra: "userLen", String(messages.last?.content.count ?? 0))
-            perf.mark("build:req")
-        #endif
-        var body: [String: Any] = [
-            "model": mapPreferredModelForProxy(preferred),
-            "messages": messages.map { ["role": $0.role.rawValue, "content": $0.content] },
-            "mode": mode.rawValue,
-        ]
-        if let pm = policyMeta, !pm.isEmpty { body["policy"] = pm }
-        // Generation parameters (optionally used by the proxy)
-        body["temperature"] = tokenConfig.temperature
-        body["maxTokens"] = tokenConfig.maxTokens
-        if let v = tokenConfig.topP { body["topP"] = v }
-        if let v = tokenConfig.frequencyPenalty { body["frequencyPenalty"] = v }
-        if let v = tokenConfig.presencePenalty { body["presencePenalty"] = v }
-        if let rf = tokenConfig.responseFormat { body["responseFormat"] = rf.rawValue }
-
-        // Strict JSON for preset recommendation: enforce MIME + schema to maximize parse success and minimize retries
-        if mode == .presetRecommendation {
-            body["responseMimeType"] = "application/json"
-            body["responseSchema"] = Self.buildPresetRecommendationSchema()
-        }
-
-        // 서버 공급자 캐싱 활성화
-        // 주의: 캐시 키를 클라이언트에서 강제 지정하지 않는다.
-        //       서버가 system 텍스트와 모델을 해시하여 모드별/프롬프트별로 안전하게 분리된 캐시를 생성한다.
-        // 클라이언트 측 지난 7일 사용량 기반 동적 임계 힌트 계산
-        let clientAssistant7d = SessionManager.shared.countAssistantMessages(lastNDays: 7)
-        let clientMinOverride: Int? = {
-            // 근사 맵핑: 사용량이 많을수록 캐시 생성 임계를 낮춰 재사용 기대를 반영
-            if clientAssistant7d >= 100 { return 512 }
-            if clientAssistant7d >= 50 { return 640 }
-            if clientAssistant7d >= 20 { return 768 }
-            return nil
-        }()
-        var providerCaching: [String: Any] = [
-            "enable": true,
-            "strategy": "auto",
-            "ttlSeconds": providerCacheTTLSeconds(for: mode),
-            // SSOT: 서버 캐시 키 힌트(안정키). 모드 차원을 포함하여 캐시 오염 방지.
-            "cacheKey": "\(personaCoreKey):\(mode.rawValue)",
-        ]
-        if let override = clientMinOverride {
-            providerCaching["clientMinTokensOverride"] = override
-        }
-        body["providerCaching"] = providerCaching
-        // New: providerCaching config log
-        if let ov = clientMinOverride {
-            print(
-                "🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) clientMinTokensOverride=\(ov) (7d assistant msgs=\(clientAssistant7d))"
-            )
-        } else {
-            print(
-                "🧱 [ProviderCaching] enable=true strategy=auto ttlSeconds=\(providerCacheTTLSeconds(for: mode)) clientMinTokensOverride=nil (7d assistant msgs=\(clientAssistant7d))"
-            )
-        }
-        // 서버 캐시 무효화 이벤트가 보류되어 있으면 1회성으로 헤더 전송
-        let contextInvalidation = AIContextManager.shared.consumeInvalidationReasonForHeader()
-
-        // Compose client idempotency key (same scheme as sendMessage)
-        let contentConcat = messages.last?.content ?? ""
-        let contentHash = SHA256.hash(data: Data(contentConcat.utf8)).compactMap {
-            String(format: "%02x", $0)
-        }.joined()
-        // Idempotency key: 64-char hex SHA256 of (mode + personaCore + SHA256(content))
-        let personaKeyForIdem = personaCoreKey
-        let baseForIdem = mode.rawValue + personaKeyForIdem + contentHash
-        let idemKey = String(
-            SHA256.hash(data: Data(baseForIdem.utf8)).compactMap { String(format: "%02x", $0) }
-                .joined().prefix(64))
-
-        // 서명/요청 생성: 서명에 사용한 ts/nonce와 헤더의 ts/nonce를 반드시 동일하게 유지
-        // 추정 가능한 캐시 prefix 토큰(시스템/페르소나/불변 컨텍스트) — 간단 근사(4자≈1토큰)
-        let estimatedCacheableTokens: Int = {
-            if let first = (body["messages"] as? [[String: Any]])?.first,
-                (first["role"] as? String)?.lowercased() == "system",
-                let sys = first["content"] as? String
-            {
-                return max(0, sys.count / 4)
-            }
-            return 0
-        }()
-        func makeRequest(ts: String, nonce: String?, signature: String) throws -> URLRequest {
-            var r = URLRequest(url: proxyURL.appendingPathComponent("v1/chat"))
-            r.httpMethod = "POST"
-            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            r.setValue(ProxyAuthConfig.origin, forHTTPHeaderField: "Origin")
-            r.setValue(uid, forHTTPHeaderField: "X-Emozleep-UID")
-            r.setValue(tier, forHTTPHeaderField: "X-Emozleep-Tier")
-            r.setValue(ts, forHTTPHeaderField: "X-Emozleep-Timestamp")
-            if let n = nonce { r.setValue(n, forHTTPHeaderField: "X-Emozleep-Nonce") }
-            // Mode hint for server-side per-feature policy enforcement
-            r.setValue(mode.rawValue, forHTTPHeaderField: "X-Emozleep-Mode")
-            if let inv = contextInvalidation, !inv.isEmpty {
-                r.setValue(inv, forHTTPHeaderField: "X-Context-Invalidation")
-            }
-            // Pass idempotency key for server-side dedup
-            r.setValue(idemKey, forHTTPHeaderField: "X-Idempotency-Key")
-            r.setValue(signature, forHTTPHeaderField: "X-Emozleep-Sig")
-            // Provider cache 힌트(선택): 서버 SSOT 정책 하에서 참고용
-            if estimatedCacheableTokens > 0 {
-                r.setValue(
-                    String(estimatedCacheableTokens),
-                    forHTTPHeaderField: "X-Estimated-Cacheable-Tokens")
-            }
-            r.setValue("bypass-if-small", forHTTPHeaderField: "X-Cache-Hint")
-            r.httpBody = try JSONSerialization.data(withJSONObject: body)
-            return r
-        }
-        func header(_ http: HTTPURLResponse, _ key: String) -> String? {
-            // 대/소문자 무시 헤더 조회
-            for (k, v) in http.allHeaderFields {
-                if let ks = (k as? String), ks.caseInsensitiveCompare(key) == .orderedSame {
-                    return String(describing: v)
-                }
-            }
-            return nil
-        }
-
-        // Prepare common header values (uid/tier만 고정, ts/nonce는 시도별 갱신)
-        let uid: String = await MainActor.run {
-            UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
-        }
-        let tier: String = {
-            switch StoreKitSubscriptionManager.shared.currentTier {
-            case .free: return "free"
-            case .pro: return "pro"
-            case .max: return "max"
-            }
-        }()
-
-        // Device secret 확보: Keychain → 없으면 enroll 호출. DEBUG에서는 마지막 폴백 허용
-        print("🔐 [UnifiedAIService] 프록시 인증 준비 - UID: \(uid), Tier: \(tier)")
-        var effectiveSecret: String
-        do {
-            effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(
-                uid: uid, proxyBase: proxyURL)
-            print("✅ [UnifiedAIService] 시크릿 확보 성공")
-        } catch {
-            print("⚠️ [UnifiedAIService] ProxyAuthClient 실패: \(error)")
-            #if DEBUG
-                let fallback = EnvironmentConfig.shared.clientProxyHmacSecret
-                if !fallback.isEmpty {
-                    print("🔄 [UnifiedAIService] DEBUG 모드: CLIENT_PROXY_HMAC_SECRET 폴백 사용")
-                    effectiveSecret = fallback
-                } else {
-                    print("❌ [UnifiedAIService] CLIENT_PROXY_HMAC_SECRET도 비어있음")
-                    throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING")
-                }
-            #else
-                print("❌ [UnifiedAIService] 프로덕션 모드: 시크릿 없음")
-                throw AIServiceError.configurationError("PROXY_DEVICE_SECRET_MISSING")
-            #endif
-        }
-
-        let start = Date()
-        let useNonce = EnvironmentConfig.shared.proxyAuthUseNonce
-        var attempt = 0
-        var data: Data = Data()
-        var http: HTTPURLResponse!
-        while attempt < 2 {
-            let curTs = String(Int64(Date().timeIntervalSince1970 * 1000))
-            let curNonce =
-                useNonce
-                ? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() : nil
-            let sigMessage = ProxyAuthSigner.composeSigningMessage(
-                ts: curTs, uid: uid, tier: tier, nonce: curNonce)
-            print("🔏 [UnifiedAIService] 서명 생성 - Message: \(sigMessage)")
-            let signature = ProxyAuthSigner.hmacSHA256Hex(
-                message: sigMessage, secret: effectiveSecret)
-            let req = try makeRequest(ts: curTs, nonce: curNonce, signature: signature)
-            print(
-                "📤 [UnifiedAIService] 프록시 요청 전송(attempt=\(attempt+1)): \(proxyURL.absoluteString)/v1/chat"
-            )
-            let result = try await URLSession.shared.data(for: req)
-            #if DEBUG
-                perf.mark("net:await")
-            #endif
-            data = result.0
-            if let r = result.1 as? HTTPURLResponse {
-                http = r
-            } else {
-                print("❌ [UnifiedAIService] 프록시 응답이 HTTP가 아님")
-                throw AIServiceError.serverError(statusCode: -1)
-            }
-            print("📥 [UnifiedAIService] 프록시 응답: HTTP \(http.statusCode)")
-            if (200...299).contains(http.statusCode) {
-                break
-            }
-            if http.statusCode == 401 && attempt == 0 {
-                print("↻ [UnifiedAIService] 401 감지 → 시크릿 삭제 후 재등록 시도")
-                ProxySecretStore.delete(for: uid)
-                ProxyAuthClient.invalidateMemoryCache(for: uid)
-                effectiveSecret = try await ProxyAuthClient.loadSecretOrEnroll(
-                    uid: uid, proxyBase: proxyURL)
-                attempt += 1
-                continue
-            }
-            // 그 외 오류는 기존 처리로 전달
-            break
-        }
-
-        guard (200...299).contains(http.statusCode) else {
-            let code = http.statusCode
-            if code == 401 {
-                print("❌ [UnifiedAIService] 401 인증 실패 - 시크릿이 잘못되었거나 만료됨")
-            } else if code == 403 {
-                print("❌ [UnifiedAIService] 403 권한 없음 - Origin 또는 티어 문제")
-            } else {
-                print("❌ [UnifiedAIService] 프록시 오류: \(code)")
-            }
-            throw AIServiceError.serverError(statusCode: code)
-        }
-        #if DEBUG
-            perf.mark("parse:headers")
-        #endif
-        struct ProxyResp: Codable {
-            let provider: String
-            let content: String
-        }
-        let proxy = try JSONDecoder().decode(ProxyResp.self, from: data)
-        #if DEBUG
-            perf.mark("parse:body")
-        #endif
-
-        // 정책/프로바이더/캐시 헤더 파싱
-        if let st = header(http, "Server-Timing") {
-            print("⏱️ [Server-Timing] \(st)")
-        }
-        let polRemaining = header(http, "X-Policy-Remaining")
-        let polResetAt = header(http, "X-Policy-ResetAt")
-        let polTier = header(http, "X-Policy-Tier")
-        let claudeLeft = header(http, "X-Policy-Claude-Remaining")
-        let providerHdr = header(http, "X-Provider")
-        let cacheProv = header(http, "X-Cache-Provider")
-        let cacheAction = header(http, "X-Cache-Action")
-        let cacheTTL = header(http, "X-Cache-TTL")
-        let cacheTokens = header(http, "X-Cache-Tokens")
-        let canaryHdr = header(http, "X-Canary")
-        let idemStatus = header(http, "X-Idempotency-Status")
-
-        #if DEBUG
-            if !Self.hasLoggedCacheHeaderSample {
-                print(
-                    "🧪 [CacheHeaders] provider=\(cacheProv ?? "-") action=\(cacheAction ?? "-") ttl=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-")"
-                )
-                Self.hasLoggedCacheHeaderSample = true
-            }
-        #endif
-
-        // New: one-line call summary for proxy path
-        let ms = Int(Date().timeIntervalSince(start) * 1000)
-        let providerUsed = proxy.provider
-        let preferredName = preferred.rawValue
-        let cacheUsed = (cacheAction?.lowercased() == "read")
-        let serverFallback = (providerHdr ?? providerUsed) != preferredName
-        print(
-            "🎯 [AICallSummary] path=proxy provider=\(providerUsed) xProvider=\(providerHdr ?? "-") preferred=\(preferredName) mode=\(mode.rawValue) durationMs=\(ms) cacheProvider=\(cacheProv ?? "-") cacheAction=\(cacheAction ?? "-") cacheUsed=\(cacheUsed) cacheTTL=\(cacheTTL ?? "-") tokens=\(cacheTokens ?? "-") canary=\(canaryHdr ?? "-") idempotency=\(idemStatus ?? "-") policyTier=\(polTier ?? "-") remaining=\(polRemaining ?? "-") resetAt=\(polResetAt ?? "-") fallback=\(serverFallback)"
-        )
-        if let xProv = providerHdr, xProv != providerUsed {
-            print(
-                "⚠️ [AICallSummary] provider header mismatch: body=\(providerUsed) header=\(xProv)")
-        }
-        #if DEBUG
-            perf.end("done")
-        #endif
-
-        var addInfo: [String: Any] = ["provider": proxy.provider]
-        if let r = polRemaining { addInfo["policyRemaining"] = r }
-        if let r = polResetAt { addInfo["policyResetAt"] = r }
-        if let r = polTier { addInfo["policyTier"] = r }
-        if let r = claudeLeft { addInfo["claudeRemaining"] = r }
-        if let r = providerHdr { addInfo["providerHeader"] = r }
-        if let r = cacheProv { addInfo["cacheProvider"] = r }
-        if let r = cacheAction { addInfo["cacheAction"] = r }
-        if let r = cacheTTL { addInfo["cacheTTL"] = r }
-        if let r = cacheTokens { addInfo["cacheTokens"] = r }
-        if let r = canaryHdr { addInfo["canary"] = r }
-        if let r = idemStatus { addInfo["idempotency"] = r }
-
-        let usage = TokenUsage(
-            promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0)
-        let meta = ResponseMetadata(
-            emotionAnalysis: nil, recommendations: nil, confidenceScore: 0.0,
-            additionalInfo: addInfo)
-        return AIResponse(
-            id: UUID().uuidString, model: preferred, mode: mode, content: proxy.content,
-            metadata: meta, usage: usage, timestamp: Date(),
-            processingTime: Int(Date().timeIntervalSince(start) * 1000))
-    }
-}
-
 /// 20요청마다 메트릭 요약 로그를 출력 (ContextMetrics 단일 출처 사용)
 private func emitMetricsSummaryLog() {
     let summary = ContextMetrics.shared.oneLineSummary()
@@ -1578,16 +985,7 @@ private func emitMetricsSummaryLog() {
 
 /// 프록시 서버가 기대하는 모델 식별자 문자열로 매핑
 /// - 단일 출처: AIModel → 서버 체인(openrouter/gemini/openai/naver/claude)
-private func mapPreferredModelForProxy(_ preferred: AIModel) -> String {
-    switch preferred {
-    case .gemini: return "gemini"
-    case .openAI: return "openai"
-    case .claude: return "claude"
-    case .naver: return "naver"
-    case .freeModel: return "openrouter"  // 통합 무료 모델은 서버에서 openrouter로 시작
-    case .onDevice: return "ondevice"  // 참고: 프록시 경로에서는 사용되지 않음
-    }
-}
+// 프록시 매핑 제거됨(온디바이스 전용)
 
 // MARK: - Recent turns selector (3+3 균형 선택)
 extension UnifiedAIServiceImpl {

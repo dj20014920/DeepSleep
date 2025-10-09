@@ -164,7 +164,7 @@ public final class StoreKitSubscriptionManager: NSObject {
             let transaction = try checkVerified(verification)
             await transaction.finish()
             await refreshEntitlements()
-            await ProxyTierReporter.report(passiveFrom: transaction)
+            // 프록시 리포팅 제거
         case .userCancelled:
             return
         case .pending:
@@ -224,7 +224,7 @@ public final class StoreKitSubscriptionManager: NSObject {
                             if let p = SubscriptionProduct(rawValue: transaction.productID) {
                                 newActiveProducts.insert(p)
                             }
-                            await ProxyTierReporter.report(passiveFrom: transaction)
+                            // 프록시 리포팅 제거
                         } else {
                             anyExpiredAt = max(anyExpiredAt ?? exp, exp)
                         }
@@ -234,7 +234,7 @@ public final class StoreKitSubscriptionManager: NSObject {
                         if let p = SubscriptionProduct(rawValue: transaction.productID) {
                             newActiveProducts.insert(p)
                         }
-                        await ProxyTierReporter.report(passiveFrom: transaction)
+                        // 프록시 리포팅 제거
                     }
                 }
             } catch {

@@ -119,12 +119,12 @@ public class SettingsManager {
     /// 사용 가능한 모든 AI 모델의 목록입니다.
     /// 향후 OS 버전에 따라 동적으로 온디바이스 모델을 포함하거나 제외할 수 있습니다.
     var availableAIModels: [AIModelType] {
-        // 모든 모델 사용 가능
-        return AIModelType.allCases
+        // 온디바이스만 선택 가능(Apple FM 포함)
+        return [.onDevice, .apple]
     }
 
     /// 사용자가 선택한 AI 모델(AIModelType) 저장값
-    /// 기본값은 Gemini 입니다.
+    /// 기본값은 온디바이스 입니다.
     var selectedLLM: AIModelType {
         get {
             // 이전 버전 호환성: LLMServiceType 값을 AIModelType으로 변환
@@ -135,13 +135,14 @@ public class SettingsManager {
                     if normalized.rawValue != rawValue {
                         userDefaults.set(normalized.rawValue, forKey: Keys.selectedLLM)
                     }
-                    return normalized
+                    // 클라우드 유형이 저장되어 있더라도 온디바이스로 강제 치유
+                    return (normalized == .apple || normalized == .onDevice) ? normalized : .onDevice
                 }
                 // 1) 직접 매핑 실패 시, 기본값으로 자체 치유
-                userDefaults.set(AIModelType.gemini.rawValue, forKey: Keys.selectedLLM)
-                return .gemini
+                userDefaults.set(AIModelType.onDevice.rawValue, forKey: Keys.selectedLLM)
+                return .onDevice
             }
-            return .gemini  // 기본 모델
+            return .onDevice  // 기본 모델
         }
         set {
             // 새로운 모델의 rawValue를 UserDefaults에 저장

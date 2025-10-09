@@ -1,5 +1,7 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
+> 2025-10 업데이트: 앱은 100% 온디바이스로 전환되었으며, 본 문서는 아카이브(참고용)로만 유지됩니다. iOS 클라이언트는 프록시/워커를 사용하지 않습니다. 모델 다운로드는 공개 CDN(URL-only)로 수행됩니다.
+
 ## 2025-09-24 동기화: 온디바이스 템플릿/스톱 규약 및 UI 이름 정렬
 
 본 섹션은 iOS 온디바이스 모델 실행 흐름과 서버/문서 간 표시명/로그의 일관성 유지를 위해 추가되었습니다. 모델 템플릿/스톱 시퀀스, 카드 UI 표기, 로그 라벨 기준을 단일 진실(SSOT: ModelCatalog/OnDevicePromptProfile)에 맞춰 정리합니다.
@@ -34,10 +36,10 @@
   - 다운로드 진행 로그: 모델 ID(raw) 대신 displayName으로 출력(예: "📈 [Adapter] Gemma 3 1B (Q4_0) 25%")
   - 진행률 라벨: 파일명 대신 카탈로그 표시명을 우선 사용, 파일명은 디버그용 부표기로만 사용
 
-- Presign/CDN 정합성(변경 없음)
-  - Presign: 200 JSON {url} 또는 302/303/307/308 Location 허용
-  - CDN Base: https://cdn.emozleep.space/models
+- CDN 정합성(현재 사용)
+  - CDN Base: https://cdn.emozleep.space/models (URL-only 다운로드)
   - 4개 GGUF가 모두 200 응답 및 sha256(ModelCatalog) 일치해야 정상
+  - Presign(워커 경유)은 더 이상 사용하지 않음
 
 
 최종 업데이트: 2025-09-12

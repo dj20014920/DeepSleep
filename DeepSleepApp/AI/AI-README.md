@@ -10,11 +10,11 @@ AI/
 │   ├── AIServiceTypes.swift                  # 공통 타입 및 에러 정의
 │   ├── UnifiedAIService.swift               # 통합 인터페이스 프로토콜
 │   ├── UnifiedAIServiceImpl.swift           # 통합 서비스 구현체 (730라인)
-│   ├── OpenRouterFallbackManager.swift      # 🆕 무료 모델 폴백 시스템 (25개 모델)
-│   ├── ClaudeAPIService.swift               # Claude API 서비스
-│   ├── OpenAIAPIService.swift               # OpenAI API 서비스
-│   ├── GeminiAPIService.swift               # Gemini API 서비스
-│   ├── NaverAPIService.swift                # Naver API 서비스
+
+
+
+
+
 │   ├── UnifiedAIServiceTests.swift          # 테스트 유틸리티
 │   ├── UnifiedAIServiceExample.swift        # 사용 예시
 │   └── README.md                            # 상세 가이드
@@ -24,18 +24,12 @@ AI/
 
 ## 🚀 주요 기능
 
-### 통합 AI 서비스 (2025-08-08 최신 업데이트)
-- **5개 AI 모델 통합**: Claude, OpenAI GPT-4o Mini, Google Gemini, Naver HyperCLOVA X, **🆕 통합 무료 모델**
-- **통합 무료 모델 시스템**: 25개 OpenRouter 무료 모델의 순차적 폴백
-  - **Tier 1**: DeepSeek R1, Qwen 2.5 Coder 32B (O3급 성능)
-  - **Tier 2**: Llama 3.3 70B, Mistral Small (고성능 중형)
-  - **Tier 3**: Gemini 2.0 Flash, NVIDIA Nemotron (실험적)
-  - **Tier 4-6**: 중형/경량 백업 모델들 (총 25개)
-- **지능형 순차 폴백**: 한국어 대화 + JSON 파싱 최적화 순서
+### 온디바이스 AI 서비스 (최신)
+- **온디바이스 전용**: Apple Foundation Models / llama.cpp 경로만 사용
+- **모델 다운로드**: 공개 CDN(URL-only, 키 미주입)에서 모델 파일을 내려받아 설치
 - **11가지 AI 모드**: 일반 대화, 감정 분석, 할일 조언, 프리셋 추천 등
-- **자동 Fallback**: 모델 실패 시 가장 저렴한 모델로 자동 전환
-- **보안 통합**: AISecurityManager와 완전 통합
-- **비용 최적화**: 실시간 비용 계산 및 모니터링
+- **통합 보안/최적화**: AISecurityManager, AIContextManager(3시간 TTL), TokenOptimizer 등 중앙화
+- **네트워크 의존 최소화**: 추론은 기기 내에서 수행(오프라인 친화)
 
 ## 🔧 사용법
 
@@ -44,7 +38,7 @@ AI/
 let aiService = UnifiedAIServiceImpl.shared
 let response = try await aiService.sendMessage(
     content: "안녕하세요",
-    model: .claude,
+    model: .onDevice,
     mode: .generalConversation,
     context: AIContext(userId: "user123", sessionId: "session1"),
     tokenConfig: nil
@@ -52,17 +46,15 @@ let response = try await aiService.sendMessage(
 print(response.content)
 ```
 
-### 🆕 통합 무료 모델 사용
+### 온디바이스 사용 예시
 ```swift
-// 25개 무료 모델을 순차적으로 시도
 let response = try await aiService.sendMessage(
     content: "한국어로 대답해주세요",
-    model: .freeModel,  // 통합된 무료 모델
+    model: .onDevice,
     mode: .generalConversation,
     context: context,
     tokenConfig: nil
 )
-// DeepSeek R1 → Qwen 2.5 → Llama 3.3 → ... 순서로 자동 시도
 ```
 
 ### 감정 분석
@@ -76,21 +68,15 @@ let response = try await aiService.sendMessage(
 )
 ```
 
-### 프리셋 추천 (외부 모델: 아이템 리스트 방식)
+### 프리셋 추천 (온디바이스)
 ```swift
 let response = try await aiService.sendMessage(
     content: "사용자 페르소나/최근 대화 기반으로 사운드 조합 추천",
-    model: .gemini, // Gemini 2.0 Flash-Lite 권장
+    model: .onDevice,
     mode: .presetRecommendation,
     context: context
 )
-// 모델은 아래 JSON 스키마로만 응답합니다
-// {
-//   "presetName": string?,
-//   "items": [ {"soundName": string, "versionName": string?, "volume": number(0..100)} ],
-//   "reason": string,
-//   "confidence": number(0..1)?
-// }
+// 중앙 파서(AIResponseParser.parsePresetRecommendation)로 파싱합니다.
 ```
 
 🆕 2025-09-03 업데이트: 프리셋 추천 파서/서버/저장 정책
@@ -100,12 +86,10 @@ let response = try await aiService.sendMessage(
 
 ## 📊 시스템 플로우
 
-### Proxy-first 아키텍처 (USE_PROXY=YES)
-- 클라이언트는 항상 프록시의 /v1/chat으로 전송합니다
-- 서버는 티어/레이트리밋/모델 라우팅/비용 정책을 적용하고, 응답 헤더에 정책 정보를 담아 반환합니다
-  - X-Policy-Remaining, X-Policy-ResetAt, X-Policy-Tier, X-Policy-Claude-Remaining, X-Provider
-- iOS 클라이언트는 위 정책 헤더를 파싱하여 UI/로깅에 반영하고, 로컬 중복 제한 로직은 사용하지 않습니다(SSOT)
-- 🆕 iOS는 generation 파라미터를 함께 전송합니다(선택): temperature, maxTokens, topP, frequencyPenalty, presencePenalty, responseFormat. 서버가 수용하면 공급자별 파라미터로 매핑, 미수용이면 무해하게 무시됩니다.
+### 온디바이스 아키텍처 (URL-only 다운로드)
+- 추론은 100% 기기 내에서 수행됩니다.
+- 모델 다운로드는 공개 CDN `ONDEVICE_CDN_BASE/{filename}`로만 수행(키/시크릿 미주입).
+- 시스템 프롬프트/컨텍스트 조립은 AIContextBuilder/AIContextManager에서 중앙 관리(3시간 TTL 캐시).
 
 ### 서버측 컨텍스트 캐싱(2025-09-04)
 - 기본 경로: Vertex REST(aiplatform) + OAuth(서비스 계정). 폴백: GL API + API Key.

@@ -453,7 +453,8 @@ if loader.activeModelID != id || !loader.isLoaded {
   - AIServiceTypes: AIServiceError.requiresOnDeviceSetup 추가(사용자 안내 메시지 포함)
 
 서버(Cloudflare Workers) 스냅샷(아카이브)
-- 대상: emozleep-production(프록시), emozleep-presign(모델 다운로드)
+- 상태: 2025-10 온디바이스 전환으로 프록시/프리사인 경로는 더 이상 사용하지 않습니다(문서용 아카이브만 유지).
+- 대상(과거): emozleep-production(프록시), emozleep-presign(모델 다운로드)
 - 수집 내역(메타데이터):
   - emoczleep-production.deployments.json / versions.json
   - emozleep-presign.deployments.json
@@ -462,11 +463,11 @@ if loader.activeModelID != id || !loader.isLoaded {
 - 스크립트 번들 다운로드: 현재 환경의 Bearer 추출 경로 부재로 메타만 스냅샷. 토큰 파일 경로 확보 시 script artifact도 저장 가능
 
 검증 체크리스트
-- [ ] Free 사용자: 모든 모드에서 on-device 경로 사용(프록시 미경유). 미설치/iOS<18 시 requiresOnDeviceSetup → “친구 선택” 화면 이동
-- [ ] Pro/Max/Trial: 기존 정책/한도 유지, 클라우드 모델 정상 사용
-- [ ] 온보딩: 기본 모델 on-device, 3번째 페이지 카피 노출 확인
-- [ ] 모델 선택 화면: Free는 온디바이스만 선택 가능(타 모델 탭 → 결제 유도)
-- [ ] 프록시: Free 경로가 서버를 우회하는 시나리오에서 정책 헤더(X-Policy-*) 의존이 없는지 UI 연동 재확인
+- [x] 모든 사용자: 모든 모드에서 온디바이스 경로 사용(프록시 미경유)
+- [x] 온보딩/설정: 기본 모델 on-device, 선택 UI 동작 확인
+- [x] 모델 선택 화면: 미설치 → 다운로드 진행(공개 CDN URL), 완료 후 자동 활성화 및 토스트
+- [x] 대화: 설치/활성화 후 즉시 대화 가능(오프라인 친화)
+- [x] 사용량/정책: 클라우드 정책 헤더(X-Policy-*) 의존 제거, UsageGate 로컬 기준만 사용
 
 운영 메모
 - Free 강제 on-device에 따라 서버 측 티어/쿼터 헤더를 UI에 반영하던 경로는 Free에서는 의미가 축소됨(서버 미경유 케이스). 남은 횟수/리셋 표시는 클라이언트 UsageGate/UsageLimitManager 기준 유지
@@ -501,9 +502,9 @@ if loader.activeModelID != id || !loader.isLoaded {
 - 헤더 노출(워커): `X-Cache-Policy-Min`(적용된 공급자 바닥), `X-Cache-Client-Override`(클라이언트 하향 요청값) 추가.
 
 요약(현재 상태)
-- 클라이언트: 프리셋 추천 파이프라인이 DRY하게 중앙 파서(AIResponseParser.parsePresetRecommendation)를 사용. ChatViewController는 해당 훅으로 파싱하고, Gemini 우선 → 실패 시 OpenAI(Structured Outputs/JSON 스키마) 폴백을 수행. 토큰 절약을 위해 시간대 기반 Top‑K(최대 5개) 사운드 캡슐만 프롬프트에 포함. 추천 사용량 카운트는 파싱 성공 시에만 증가.
-- 서버(Cloudflare Worker): preset_recommendation 모드에서 STRICT_JSON_ONLY=1일 때 최소한 JSON MIME(application/json)을 강제. 클라이언트가 responseSchema를 제공하면 OpenAI/Anthropic에서 JSON Schema 기반 구조화 출력이 적용됨. 엄격 JSON 모드에서는 OpenRouter 경로 제외(STRICT_JSON_SKIP_OPENROUTER=1). 폴백 체인(엄격 JSON 시): gemini → openai → claude → naver.
-- 배포: dev 환경 배포 완료. URL: https://emozleep.vinny4920-081.workers.dev (Current Version ID: 647eacbc-d70e-49a9-81d4-1df423ee49f3). dev 기본 CANARY_PERCENT=100, production 오버라이드는 wrangler.toml에서 5%로 설정됨(명시적 배포 필요).
+- 클라이언트: 프리셋 추천 파이프라인이 DRY하게 중앙 파서(AIResponseParser.parsePresetRecommendation)를 사용. 모든 추론은 온디바이스에서 수행.
+- 서버: 프록시/워커 경로는 사용하지 않음(문서용 아카이브만 유지).
+- 모델 다운로드: 공개 CDN(ONDEVICE_CDN_BASE)에서 URL-only로 내려받아 설치.
 
 검증 체크리스트(9/03)
 - [ ] 앱에서 preset_recommendation 요청 → 응답 헤더 X-Strict-JSON가 존재하고 JSON만 반환되는지 확인

@@ -138,10 +138,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>CLAUDE_API_KEY</key>
-	<string>$(CLAUDE_API_KEY)</string>
-	<key>CLIENT_PROXY_HMAC_SECRET</key>
-	<string>$(CLIENT_PROXY_HMAC_SECRET)</string>
+
+
 	<key>DEBUG_MODE</key>
 	<string>$(DEBUG_MODE)</string>
 	<key>DEFAULT_GLOBAL_VOLUME</key>
@@ -166,8 +164,7 @@
 	<string>$(FEEDBACK_VISUALIZATION_LIMIT)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>$(ADMOB_APP_ID)</string>
-	<key>GEMINI_API_KEY</key>
-	<string>$(GEMINI_API_KEY)</string>
+
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LEARNING_PROGRESS_SESSION_LIMIT</key>
@@ -210,24 +207,14 @@
 	<integer>350</integer>
 	<key>MOCK_AI_RESPONSES</key>
 	<string>$(MOCK_AI_RESPONSES)</string>
-	<key>NAVER_CLOUD_API_KEY</key>
-	<string>$(NAVER_CLOUD_API_KEY)</string>
-	<key>NAVER_CLOUD_API_SECRET</key>
-	<string>$(NAVER_CLOUD_API_SECRET)</string>
+
 	<key>NSCalendarsUsageDescription</key>
 	<string>This app integrates your todos with the system calendar to help you stay organized. You can manage todo events and sync your schedule. You can change this anytime in Calendar permissions.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app sends you reminders for your todos and timer notifications to help you stay on track. You can manage notifications in Settings.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>이 식별자는 개인 맞춤 광고 제공, 부정행위 방지 및 서비스 품질 개선을 위해 사용됩니다.</string>
-	<key>OPENROUTER_API_KEY</key>
-	<string>$(OPENROUTER_API_KEY)</string>
-	<key>OPEN_AI_4oMINI_API_KEY</key>
-	<string>$(OPEN_AI_4oMINI_API_KEY)</string>
-	<key>PROXY_AUTH_USE_NONCE</key>
-	<string>$(PROXY_AUTH_USE_NONCE)</string>
-	<key>PROXY_BASE_URL</key>
-	<string>$(PROXY_BASE_URL)</string>
+
 	<key>RECENT_BEHAVIOR_EVENTS_LIMIT</key>
 	<string>$(RECENT_BEHAVIOR_EVENTS_LIMIT)</string>
 	<key>RECENT_FEEDBACK_FOR_RECOMMENDATION_LIMIT</key>
@@ -338,8 +325,7 @@
 	<string>$(USAGE_ANALYTICS_SESSION_LIMIT)</string>
 	<key>USER_PROFILE_SESSION_LIMIT</key>
 	<string>$(USER_PROFILE_SESSION_LIMIT)</string>
-	<key>USE_PROXY</key>
-	<string>$(USE_PROXY)</string>
+
 	<key>VERBOSE_LOGGING</key>
 	<string>$(VERBOSE_LOGGING)</string>
 	<key>VISUALIZATION_DATA_SESSION_LIMIT</key>
@@ -352,6 +338,9 @@
 	<string>$(ONDEVICE_FORCE_CLOUD)</string>
 	<key>ONDEVICE_MAX_TOKENS</key>
 	<integer>1000</integer>
+	<!-- CDN direct base (URL only) -->
+	<key>ONDEVICE_CDN_BASE</key>
+	<string>$(ONDEVICE_CDN_BASE)</string>
 	<!-- Metal 강제 비활성화(안정성 목적). 필요 시 false로 전환하면 GPU 레이어 사용 -->
 	<key>ONDEVICE_DISABLE_METAL</key>
 	<true/>

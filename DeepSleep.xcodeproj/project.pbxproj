@@ -42,21 +42,21 @@
 		E084F1802E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FF2E33ACB3002F75E6 /* UserFriendlyErrorHandler.swift */; };
 		E084F1812E33ACB3002F75E6 /* ChatRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F09F2E33ACB3002F75E6 /* ChatRouter.swift */; };
 		E084F1822E33ACB3002F75E6 /* UsageAnalyticsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FB2E33ACB3002F75E6 /* UsageAnalyticsViewController.swift */; };
-		E084F1832E33ACB3002F75E6 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0532E33ACB3002F75E6 /* ClaudeAPIService.swift */; };
+
 		E084F1842E33ACB3002F75E6 /* UserDefaults+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FE2E33ACB3002F75E6 /* UserDefaults+Extensions.swift */; };
 		E084F1852E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BA2E33ACB3002F75E6 /* EmotionDiaryDisplayCell.swift */; };
 		E084F1862E33ACB3002F75E6 /* TodoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F72E33ACB3002F75E6 /* TodoManager.swift */; };
-		E084F1872E33ACB3002F75E6 /* APIConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0942E33ACB3002F75E6 /* APIConnectionValidator.swift */; };
+
 		E084F1882E33ACB3002F75E6 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0822E33ACB3002F75E6 /* HapticManager.swift */; };
 		E084F1892E33ACB3002F75E6 /* EmotionDiaryViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BE2E33ACB3002F75E6 /* EmotionDiaryViewController+TableView.swift */; };
-		E084F18E2E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */; };
+
 		E084F18F2E33ACB3002F75E6 /* ViewController+EmotionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1022E33ACB3002F75E6 /* ViewController+EmotionSelector.swift */; };
 		E084F1912E33ACB3002F75E6 /* StubViewControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F32E33ACB3002F75E6 /* StubViewControllers.swift */; };
 		E084F1932E33ACB3002F75E6 /* PersonaMemoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0612E33ACB3002F75E6 /* PersonaMemoryManager.swift */; };
 		E084F1942E33ACB3002F75E6 /* TypingIndicatorCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F05F2E33ACB3002F75E6 /* TypingIndicatorCell.swift */; };
 		E084F1952E33ACB3002F75E6 /* UserRulesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0632E33ACB3002F75E6 /* UserRulesManager.swift */; };
 		E084F1962E33ACB3002F75E6 /* CommonUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A12E33ACB3002F75E6 /* CommonUtilities.swift */; };
-		E084F1972E33ACB3002F75E6 /* APIHealthChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0952E33ACB3002F75E6 /* APIHealthChecker.swift */; };
+
 		E084F1982E33ACB3002F75E6 /* UserBasicInfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0FC2E33ACB3002F75E6 /* UserBasicInfoViewController.swift */; };
 		E084F19A2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0BD2E33ACB3002F75E6 /* EmotionDiaryViewController+Insights.swift */; };
 		E084F19B2E33ACB3002F75E6 /* TodaysFortuneViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F52E33ACB3002F75E6 /* TodaysFortuneViewController.swift */; };
@@ -64,7 +64,7 @@
 		E084F19E2E33ACB3002F75E6 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EA2E33ACB3002F75E6 /* SettingsViewController.swift */; };
 		E084F19F2E33ACB3002F75E6 /* LegacyPresetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D62E33ACB3002F75E6 /* LegacyPresetManager.swift */; };
 		E084F1A02E33ACB3002F75E6 /* ConversationSaveHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A72E33ACB3002F75E6 /* ConversationSaveHelper.swift */; };
-		E084F1A22E33ACB3002F75E6 /* APIKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0962E33ACB3002F75E6 /* APIKeyManager.swift */; };
+
 		E084F1A32E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0CF2E33ACB3002F75E6 /* HarmonyVisualizationCharts.swift */; };
 		E084F1A42E33ACB3002F75E6 /* InputValidationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0682E33ACB3002F75E6 /* InputValidationManager.swift */; };
 		E084F1A52E33ACB3002F75E6 /* LRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D72E33ACB3002F75E6 /* LRUCache.swift */; };
@@ -74,7 +74,7 @@
 		E084F1AA2E33ACB3002F75E6 /* SharedCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EB2E33ACB3002F75E6 /* SharedCore.swift */; };
 		E084F1AC2E33ACB3002F75E6 /* TokenTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F82E33ACB3002F75E6 /* TokenTracker.swift */; };
 		E084F1AD2E33ACB3002F75E6 /* CoreDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A82E33ACB3002F75E6 /* CoreDataModels.swift */; };
-		E084F1AE2E33ACB3002F75E6 /* GeminiAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0542E33ACB3002F75E6 /* GeminiAPIService.swift */; };
+
 		E084F1AF2E33ACB3002F75E6 /* PersonaSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F08A2E33ACB3002F75E6 /* PersonaSettingsView.swift */; };
 		E084F1B02E33ACB3002F75E6 /* SoundHarmonyAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0EF2E33ACB3002F75E6 /* SoundHarmonyAnalyzer.swift */; };
 		E084F1B12E33ACB3002F75E6 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F1012E33ACB3002F75E6 /* ViewController.swift */; };
@@ -144,8 +144,8 @@
 		E084F1F92E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0D02E33ACB3002F75E6 /* HarmonyVisualizationViewController.swift */; };
 		E084F1FA2E33ACB3002F75E6 /* DebugManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AA2E33ACB3002F75E6 /* DebugManager.swift */; };
 
-		E084F1FC2E33ACB3002F75E6 /* OpenAIAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0562E33ACB3002F75E6 /* OpenAIAPIService.swift */; };
-		E084F1FD2E33ACB3002F75E6 /* NaverAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0552E33ACB3002F75E6 /* NaverAPIService.swift */; };
+
+
 		E084F1FF2E33ACB3002F75E6 /* SoundPresetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0F12E33ACB3002F75E6 /* SoundPresetCatalog.swift */; };
 		E084F2002E33ACB3002F75E6 /* ConsoleLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0A62E33ACB3002F75E6 /* ConsoleLogger.swift */; };
 		E084F2012E33ACB3002F75E6 /* EmotionAnalysisChatViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E084F0AE2E33ACB3002F75E6 /* EmotionAnalysisChatViewController.swift */; };
@@ -186,8 +186,8 @@
 		E098403F2E60B789005F5AD0 /* EmotionNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */; };
 		E09B92C42E73D4280090439A /* PerfTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09B92C32E73D4280090439A /* PerfTrace.swift */; };
 		E09B92C72E73FE050090439A /* PurchaseOptionSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09B92C62E73FE050090439A /* PurchaseOptionSheetViewController.swift */; };
-		E09CD6DD2E45DD91007C133E /* FreeAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */; };
-		E09CD6DE2E45DD91007C133E /* OpenRouterFallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */; };
+
+
 		E09CD6E12E45E048007C133E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = E09CD6E02E45E048007C133E /* .gitignore */; };
 		E09CD6E42E4666D4007C133E /* LogConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E32E4666D4007C133E /* LogConfiguration.swift */; };
 		E09CD6E72E466707007C133E /* MemoryProfiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09CD6E52E466707007C133E /* MemoryProfiler.swift */; };
@@ -206,15 +206,15 @@
 		E0B562282E616FA000D334F1 /* SubscriptionTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562272E616FA000D334F1 /* SubscriptionTier.swift */; };
 		E0B5622B2E61778500D334F1 /* GlobalGradientTicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */; };
 		E0B5622C2E61778500D334F1 /* GradientAnimationSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */; };
-		E0B562302E61909A00D334F1 /* ProxyTierReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */; };
-		E0B562322E6190CA00D334F1 /* ProxySecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */; };
-		E0B562382E645BD200D334F1 /* ProxyAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */; };
+
+
+
 		E0B5623B2E647EF500D334F1 /* AIResponsePostProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */; };
 		E0B5623D2E647EFE00D334F1 /* BrandingCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5623C2E647EFE00D334F1 /* BrandingCopy.swift */; };
 		E0B562412E647F1200D334F1 /* OnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562402E647F1200D334F1 /* OnboardingManager.swift */; };
 		E0B562432E647F1A00D334F1 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */; };
 		E0B562452E6488F800D334F1 /* FeatureTutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */; };
-		E0B562472E64B1BB00D334F1 /* ProxyAuthConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562462E64B1BB00D334F1 /* ProxyAuthConfig.swift */; };
+
 		E0B562492E65649600D334F1 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B562482E65649600D334F1 /* PermissionManager.swift */; };
 		E0B5624B2E65649F00D334F1 /* PermissionSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */; };
 		E0B5624D2E6567BB00D334F1 /* TodayEmotionCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */; };
@@ -317,10 +317,10 @@
 		E084F04E2E33ACB3002F75E6 /* AIErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIErrorHandler.swift; sourceTree = "<group>"; };
 		E084F0502E33ACB3002F75E6 /* AICallLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICallLogger.swift; sourceTree = "<group>"; };
 		E084F0522E33ACB3002F75E6 /* AIServiceTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIServiceTypes.swift; sourceTree = "<group>"; };
-		E084F0532E33ACB3002F75E6 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
-		E084F0542E33ACB3002F75E6 /* GeminiAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAPIService.swift; sourceTree = "<group>"; };
-		E084F0552E33ACB3002F75E6 /* NaverAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaverAPIService.swift; sourceTree = "<group>"; };
-		E084F0562E33ACB3002F75E6 /* OpenAIAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIAPIService.swift; sourceTree = "<group>"; };
+
+
+
+
 		E084F0572E33ACB3002F75E6 /* UnifiedAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedAIService.swift; sourceTree = "<group>"; };
 		E084F0582E33ACB3002F75E6 /* UnifiedAIServiceImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedAIServiceImpl.swift; sourceTree = "<group>"; };
 		E084F05A2E33ACB3002F75E6 /* AI-README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "AI-README.md"; sourceTree = "<group>"; };
@@ -367,9 +367,9 @@
 		E084F0912E33ACB3002F75E6 /* AISecurityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISecurityManager.swift; sourceTree = "<group>"; };
 		E084F0922E33ACB3002F75E6 /* AIUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageManager.swift; sourceTree = "<group>"; };
 		E084F0932E33ACB3002F75E6 /* AnalysisInitExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisInitExtensions.swift; sourceTree = "<group>"; };
-		E084F0942E33ACB3002F75E6 /* APIConnectionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConnectionValidator.swift; sourceTree = "<group>"; };
-		E084F0952E33ACB3002F75E6 /* APIHealthChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIHealthChecker.swift; sourceTree = "<group>"; };
-		E084F0962E33ACB3002F75E6 /* APIKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyManager.swift; sourceTree = "<group>"; };
+
+
+
 		E084F0972E33ACB3002F75E6 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		E084F0982E33ACB3002F75E6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		E084F09A2E33ACB3002F75E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -462,7 +462,7 @@
 		E084F1042E33ACB3002F75E6 /* ViewController+PresetBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+PresetBlocks.swift"; sourceTree = "<group>"; };
 		E084F1052E33ACB3002F75E6 /* ViewController+SliderControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+SliderControls.swift"; sourceTree = "<group>"; };
 		E084F1062E33ACB3002F75E6 /* ViewController+Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Utilities.swift"; sourceTree = "<group>"; };
-		E084F1072E33ACB3002F75E6 /* ZeroTokenAPIChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeroTokenAPIChecker.swift; sourceTree = "<group>"; };
+
 		E084F1182E33ACB3002F75E6 /* README 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README 2.md"; sourceTree = "<group>"; };
 		E084F2DD2E33EEE1002F75E6 /* DEEPSLEEP_COMPREHENSIVE_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_COMPREHENSIVE_GUIDE.md; sourceTree = "<group>"; };
 		E0899C7E2E584E27006AD307 /* EmotionAnalysisServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionAnalysisServiceProtocol.swift; sourceTree = "<group>"; };
@@ -474,8 +474,8 @@
 		E098403E2E60B789005F5AD0 /* EmotionNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmotionNormalizer.swift; sourceTree = "<group>"; };
 		E09B92C32E73D4280090439A /* PerfTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfTrace.swift; sourceTree = "<group>"; };
 		E09B92C62E73FE050090439A /* PurchaseOptionSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseOptionSheetViewController.swift; sourceTree = "<group>"; };
-		E09CD6DA2E45DD91007C133E /* FreeAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeAIModels.swift; sourceTree = "<group>"; };
-		E09CD6DB2E45DD91007C133E /* OpenRouterFallbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterFallbackManager.swift; sourceTree = "<group>"; };
+
+
 		E09CD6E02E45E048007C133E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		E09CD6E32E4666D4007C133E /* LogConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogConfiguration.swift; sourceTree = "<group>"; };
 		E09CD6E52E466707007C133E /* MemoryProfiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfiler.swift; sourceTree = "<group>"; };
@@ -495,16 +495,16 @@
 		E0B562272E616FA000D334F1 /* SubscriptionTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTier.swift; sourceTree = "<group>"; };
 		E0B562292E61778500D334F1 /* GlobalGradientTicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalGradientTicker.swift; sourceTree = "<group>"; };
 		E0B5622A2E61778500D334F1 /* GradientAnimationSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientAnimationSpec.swift; sourceTree = "<group>"; };
-		E0B5622F2E61909A00D334F1 /* ProxyTierReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyTierReporter.swift; sourceTree = "<group>"; };
-		E0B562312E6190CA00D334F1 /* ProxySecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxySecretStore.swift; sourceTree = "<group>"; };
+
+
 		E0B562362E643AE900D334F1 /* DEEPSLEEP_FROXYSERVER.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEEPSLEEP_FROXYSERVER.md; sourceTree = "<group>"; };
-		E0B562372E645BD200D334F1 /* ProxyAuthSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyAuthSigner.swift; sourceTree = "<group>"; };
+
 		E0B562392E647EF500D334F1 /* AIResponsePostProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponsePostProcessor.swift; sourceTree = "<group>"; };
 		E0B5623C2E647EFE00D334F1 /* BrandingCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandingCopy.swift; sourceTree = "<group>"; };
 		E0B562402E647F1200D334F1 /* OnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingManager.swift; sourceTree = "<group>"; };
 		E0B562422E647F1A00D334F1 /* OnboardingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewController.swift; sourceTree = "<group>"; };
 		E0B562442E6488F800D334F1 /* FeatureTutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureTutorialManager.swift; sourceTree = "<group>"; };
-		E0B562462E64B1BB00D334F1 /* ProxyAuthConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyAuthConfig.swift; sourceTree = "<group>"; };
+
 		E0B562482E65649600D334F1 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		E0B5624A2E65649F00D334F1 /* PermissionSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionSettingsViewController.swift; sourceTree = "<group>"; };
 		E0B5624C2E6567BB00D334F1 /* TodayEmotionCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayEmotionCell.swift; sourceTree = "<group>"; };

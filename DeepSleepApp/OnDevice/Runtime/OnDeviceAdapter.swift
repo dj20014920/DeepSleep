@@ -645,7 +645,14 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         // 프리필 성공: 캐시의 마지막 위치 다음부터 이어붙이기
                         // 현재 llama_state에는 시스템 프롬프트까지의 KV가 포함됨
                         // startPos는 해당 마지막 토큰 위치 + 1
-                        let startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
+                        // 메타의 nPrefixTokens 대신 엔진의 실제 위치에서 파생(메타/페이로드 불일치 방지)
+                        let startPos: Int32
+                        do {
+                            startPos = Int32(try io.currentKVPosition())
+                        } catch {
+                            // 예외 발생 시 메타로 폴백(구버전 호환)
+                            startPos = Int32((restore.entry?.nPrefixTokens ?? 0))
+                        }
                         // 접두부(KV) 이후: 직렬화된 최근 3+3 + 현재 사용자 턴만 주입 후 생성
                         let resumeInput = recentSerialized + formatUserTurn(inputWithSystem)
                         try await loader.generateResuming(
@@ -694,10 +701,12 @@ public final class OnDeviceAdapter: @unchecked Sendable {
 
                             // 접두부 프리필 후: 현재 사용자 턴만 템플릿으로 이어붙여 생성(resume)
                             let templated = formatUserTurn(inputWithSystem)
+                            // startPos는 엔진에서 직접 조회하여 일관성 확보
+                            let startPos = Int32(try io.currentKVPosition())
                             try await loader.generateResuming(
                                 input: templated,
                                 systemPrompt: nil,
-                                startPos: Int32(nPrefix),
+                                startPos: startPos,
                                 params: params,
                                 onToken: { delta in
                                     if !emittedFirst {

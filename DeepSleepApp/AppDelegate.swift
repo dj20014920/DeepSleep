@@ -81,7 +81,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         initializeSubscriptionSystem()
 
         // 💯 완전 토큰 소모 제로 API 체크
-        performZeroTokenAPICheck()
+        // 클라우드 API 상태 점검 제거 (온디바이스 전용)
 
         // SoundManager 초기화 (내부에서 오디오 세션 설정)
         _ = SoundManager.shared  // SoundManager.shared를 호출하여 초기화 유도
@@ -122,22 +122,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             print("📱 iOS 12 이하 - Fallback UI 설정")
         }
 
-        // 프록시 인증 메모리 캐시 워밍(앱 시작 시 1회)
-        Task.detached {
-            [
-                useProxy = EnvironmentConfig.shared.useProxy,
-                base = EnvironmentConfig.shared.proxyBaseURL
-            ] in
-            guard useProxy, let url = URL(string: base),
-                let uid = UIDevice.current.identifierForVendor?.uuidString
-            else { return }
-            do {
-                _ = try await ProxyAuthClient.loadSecretOrEnroll(uid: uid, proxyBase: url)
-                print("✅ [AppLaunch] Proxy secret warmed in memory")
-            } catch {
-                print("⚠️ [AppLaunch] Proxy secret warm-up failed: \(error)")
-            }
-        }
+        // 프록시 인증/워밍 제거 (온디바이스 전용)
 
         // BGTask 등록 (iOS13+)
         if #available(iOS 13.0, *) {
@@ -154,22 +139,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 앱 실행 직후 전달된 알림과 배지 초기화
         CentralNotificationScheduler.shared.clearDeliveredNotificationsAndResetBadge()
 
-        // On-device model remote endpoints injection (HTTP downloader)
-        // NOTE: Prefer presignEndpoint if available; otherwise use CDN fallback.
-        // //mltodo Replace with real endpoints from remote config.
-        // Cloudflare Worker presign + CDN 베이스를 앱 런치 시 주입
-        if let presign = URL(string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"),
-            let cdn = URL(string: "https://cdn.emozleep.space/models")
-        {
+        // CDN(정적 URL)만 사용해 모델 다운로드 경로 구성 (키 미주입 안전 경로)
+        if let base = ConfigReader.string("ONDEVICE_CDN_BASE"),
+           !base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let cdn = URL(string: base) {
             OnDeviceAdapter.shared.reconfigureRemote(
-                presignEndpoint: presign,
+                presignEndpoint: nil,
                 cdnBaseURL: cdn,
                 backgroundSessionID: "com.deepsleep.models.bg",
                 cancelOngoing: false
             )
-            // 카탈로그 외 모델 파일 정리(한 번 실행)
-            _ = OnDeviceAdapter.shared.purgeObsoleteInstalledFiles()
         }
+        // 카탈로그 외 파일 정리(한 번 실행)
+        _ = OnDeviceAdapter.shared.purgeObsoleteInstalledFiles()
 
         // ✅ 앱 실행 시 1회 온디바이스 선호 모델 프리로드(설치된 경우에만)
         Task {
@@ -204,11 +186,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler: @escaping () -> Void
     ) {
         // RemoteAssetClient가 사용하는 백그라운드 세션 식별자와 일치하도록 재구성
+        let base = ConfigReader.string("ONDEVICE_CDN_BASE")
+        let cdn = (base?.isEmpty == false) ? URL(string: base!) : nil
         OnDeviceAdapter.shared.reconfigureRemote(
-            presignEndpoint: URL(
-                string: "https://emozleep-presign.vinny4920-081.workers.dev/presign"
-            ),
-            cdnBaseURL: URL(string: "https://cdn.emozleep.space/models"),
+            presignEndpoint: nil,
+            cdnBaseURL: cdn,
             backgroundSessionID: identifier,
             cancelOngoing: false
         )
@@ -566,78 +548,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     // MARK: - API 초기화 및 연결 테스트
 
-    /// 완전 토큰 소모 제로 API 상태 확인
-    private func performZeroTokenAPICheck() {
-        // 프록시 모드에서는 API 키 검증을 생략(키 불필요), 네트워크 상태만 기본적으로 신뢰
-        if EnvironmentConfig.shared.useProxy {
-            print("🔌 [Proxy] 프록시 모드 활성화 → API 키 체크 생략")
-            if EnvironmentConfig.shared.proxyBaseURL.isEmpty {
-                print("⚠️ [Proxy] PROXY_BASE_URL이 비어 있습니다. Secrets.xcconfig/Info.plist를 확인하세요.")
-            }
-            print("📱 [메인 UI] 앱 메인 화면으로 진행...")
-            return
-        }
-
-        // API 상태 확인 (토큰 소모 없음)
-        // 1단계: 즉시 빠른 체크 (로컬 Info.plist 기반)
-        let hasValidKeys: Bool = {
-            return
-                ((ConfigReader.string("GEMINI_API_KEY")?.isEmpty == false)
-                || (ConfigReader.string("OPEN_AI_4oMINI_API_KEY")?.isEmpty == false)
-                || (ConfigReader.string("CLAUDE_API_KEY")?.isEmpty == false)
-                || (ConfigReader.string("NAVER_CLOUD_API_KEY")?.isEmpty == false)
-                || (ConfigReader.string("OPENROUTER_API_KEY")?.isEmpty == false))
-        }()
-        let recommendedAPI: String? = hasValidKeys ? "gemini" : nil
-
-        if hasValidKeys {
-            print("✅ [즉시 결과] API 사용 준비 완료!")
-            if let recommended = recommendedAPI { print("🏆 [권장 API] \(recommended)") }
-            Task {
-                await ZeroTokenAPIChecker.shared.performZeroTokenCheck()
-                print("🎉 [최종 완료] 모든 상태 확인 완료 (토큰 소모 0개)")
-            }
-        } else {
-            print("⚠️ [즉시 결과] API 키 설정이 필요합니다")
-            showAPISetupGuidance()
-        }
-
-        print("📱 [메인 UI] 앱 메인 화면으로 진행...")
-    }
-
-    /// API 설정 안내 표시
-    private func showAPISetupGuidance() {
-        print("\n" + "📘" + " API 설정 가이드:")
-        print("   1. Secrets.xcconfig 파일을 확인하세요")
-        print("   2. API 키가 올바른 형식인지 확인하세요")
-        print("   3. 네트워크 연결을 확인하세요")
-        print("   4. API 키 잔액을 확인하세요")
-        print("")
-
-        // 사용자에게 설정 안내 알림 (선택적)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.scheduleAPISetupNotification()
-        }
-    }
-
-    /// API 설정 안내 알림 스케줄링
-    private func scheduleAPISetupNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "리플릿(Leaflet) API 설정 필요"
-        content.body = "AI 기능을 사용하기 위해 API 키 설정이 필요합니다."
-        content.sound = UNNotificationSound.default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "api-setup-guidance",
-            content: content,
-            trigger: trigger
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ API 설정 알림 스케줄 실패: \(error.localizedDescription)")
-            }
-        }
-    }
+    // 클라우드 API 상태 확인/가이드 로직 제거 (온디바이스 전용)
 }

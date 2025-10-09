@@ -1831,18 +1831,18 @@ extension SessionManager {
     /// 감정 분석 전용 AI 호출
     public func analyzeEmotion(content: String) async throws -> String {
         let prompt = "다음 텍스트의 감정을 분석해주세요: \(content)"
-        return try await sendMessage(content: prompt, model: .claude)
+        return try await sendMessage(content: prompt, model: .onDevice)
     }
 
     /// 프리셋 추천 전용 AI 호출
     public func recommendPreset(emotion: String, context: String) async throws -> String {
         let prompt = "감정: \(emotion), 상황: \(context)에 맞는 음악 프리셋을 추천해주세요."
-        return try await sendMessage(content: prompt, model: .openAI)
+        return try await sendMessage(content: prompt, model: .onDevice)
     }
 
     /// 일반 채팅 AI 호출
     public func chat(message: String) async throws -> String {
-        return try await sendMessage(content: message, model: .claude)
+        return try await sendMessage(content: message, model: .onDevice)
     }
 
     // MARK: - Cache Synchronization System

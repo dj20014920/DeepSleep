@@ -91,9 +91,8 @@ protocol LlamaCppBinding: Sendable {
 }
 
 #if canImport(llama) || canImport(LlamaCpp) || canImport(LlamaFramework)
-    // MARK: - 실제 llama.cpp 바인딩 (예시 스텁)
-    // - 실제 API 타입/이니셜라이저/옵션 이름은 통합 시점에 맞춰 구현하세요.
-    final class LlamaCppBindingImpl: LlamaCppBinding, KVPromptCache.LlamaSessionIO {
+    // MARK: - 실제 llama.cpp 바인딩
+    final class LlamaCppBindingImpl: LlamaCppBinding {
         private(set) var isLoaded: Bool = false
         private(set) var modelPath: String = ""
 
@@ -125,6 +124,16 @@ protocol LlamaCppBinding: Sendable {
             llama_memory_clear(mem, true)  // data=true: 메타데이터와 데이터 버퍼 모두 클리어
             prefillPos = 0
             print("🧹 [ModelLoader] KV cache cleared, prefillPos reset to 0")
+        }
+
+        /// 현재 엔진의 KV 캐시 끝 위치(다음 토큰이 들어갈 위치)를 반환
+        /// - 반환값: 마지막 토큰 위치 + 1 (비어있으면 0)
+        func getCurrentKVPosition() -> Int32 {
+            guard let ctx = self.ctx else { return 0 }
+            let mem = llama_get_memory(ctx)
+            let maxPos = llama_memory_seq_pos_max(mem, 0)
+            if maxPos >= 0 { return maxPos + 1 }
+            return 0
         }
 
         required init(
@@ -175,6 +184,16 @@ protocol LlamaCppBinding: Sendable {
                     "<|im_start|>",  // OpenAI 스타일 시작 토큰
                 ]
                 for lit in candidates {
+                    var tmp = [llama_token](repeating: 0, count: 8)
+                    lit.withCString { cstr in
+                        let n = llama_tokenize(
+                            v, cstr, Int32(strlen(cstr)), &tmp, Int32(tmp.count), false, true)
+                        if n == 1 { self.stopTokenSet.insert(tmp[0]) }
+                    }
+                }
+                // 추가: Qwen/HyperCLOVA 계열 종료 토큰 보강
+                let extraStops = ["<|endofturn|>", "<|stop|>"]
+                for lit in extraStops {
                     var tmp = [llama_token](repeating: 0, count: 8)
                     lit.withCString { cstr in
                         let n = llama_tokenize(
@@ -362,12 +381,12 @@ protocol LlamaCppBinding: Sendable {
                         }
                     }
                     if stopByLiteral {
-                        // 마지막에 누적된 stop 리터럴은 사용자에게 스트리밍하지 않도록 잘라낸 후 전달
-                        var trimmed = accText
+                        // 이미 이전 델타는 송신됨 → 현재 델타에서 stop 리터럴만 제거하여 남은 부분만 송신
+                        var lastDelta = deltaStr
                         for lit in self.stopLiterals {
-                            trimmed = trimmed.replacingOccurrences(of: lit, with: "")
+                            lastDelta = lastDelta.replacingOccurrences(of: lit, with: "")
                         }
-                        if !trimmed.isEmpty { onToken(trimmed) }
+                        if !lastDelta.isEmpty { onToken(lastDelta) }
                         break
                     } else {
                         onToken(deltaStr)
@@ -638,6 +657,8 @@ protocol LlamaCppBinding: Sendable {
             let maxGen: Int32 = Int32(ConfigReader.int("ONDEVICE_MAX_TOKENS", default: 128) ?? 128)
             var accText = ""
             var stopByLiteral = false
+            // 바이트 경계 안전 디코더(재개 모드에서도 동일 적용)
+            var utf8Decoder = UTF8ByteStreamDecoder()
             while n_gen < maxGen {
                 if Task.isCancelled || stopRequested {
                     throw OnDeviceError.generationCancelled
@@ -649,21 +670,27 @@ protocol LlamaCppBinding: Sendable {
                 }
                 if reachedEnd { break }
 
+                // 토큰을 바이트로 변환 후 UTF-8 경계에서만 안전하게 디코딩
                 var tmp = [CChar](repeating: 0, count: 8)
                 let rc = llama_token_to_piece(vocab, new_id, &tmp, Int32(tmp.count), 0, false)
-                var delta = ""
+                var deltaStr = ""
                 if rc < 0 {
                     let need = max(8, -Int(rc))
                     tmp = [CChar](repeating: 0, count: need)
-                    _ = llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false)
-                    delta = String(cString: tmp + [0])
+                    let used = Int(llama_token_to_piece(vocab, new_id, &tmp, Int32(need), 0, false))
+                    if used > 0 {
+                        let bytes = tmp.prefix(used).map { UInt8(bitPattern: $0) }
+                        deltaStr = utf8Decoder.processBytes(bytes)
+                    }
                 } else if rc > 0 {
                     let used = Int(rc)
-                    if used < tmp.count { tmp[used] = 0 }
-                    delta = String(cString: tmp)
+                    if used > 0 {
+                        let bytes = tmp.prefix(used).map { UInt8(bitPattern: $0) }
+                        deltaStr = utf8Decoder.processBytes(bytes)
+                    }
                 }
-                if !delta.isEmpty {
-                    accText += delta
+                if !deltaStr.isEmpty {
+                    accText += deltaStr
                     if !self.stopLiterals.isEmpty {
                         for lit in self.stopLiterals {
                             if accText.contains(lit) {
@@ -673,14 +700,15 @@ protocol LlamaCppBinding: Sendable {
                         }
                     }
                     if stopByLiteral {
-                        var trimmed = accText
+                        // 이미 이전 델타는 송신됨 → 현재 델타에서 stop 리터럴만 제거하여 남은 부분만 송신
+                        var lastDelta = deltaStr
                         for lit in self.stopLiterals {
-                            trimmed = trimmed.replacingOccurrences(of: lit, with: "")
+                            lastDelta = lastDelta.replacingOccurrences(of: lit, with: "")
                         }
-                        if !trimmed.isEmpty { onToken(trimmed) }
+                        if !lastDelta.isEmpty { onToken(lastDelta) }
                         break
                     } else {
-                        onToken(delta)
+                        onToken(deltaStr)
                     }
                 }
 
@@ -702,6 +730,9 @@ protocol LlamaCppBinding: Sendable {
                 curPos += 1
                 n_gen += 1
             }
+            // 남은 바이트 플러시
+            let tail = utf8Decoder.flush()
+            if !tail.isEmpty { onToken(tail) }
         }
     }
 #endif
@@ -892,17 +923,8 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 
-        // 1st-token 시간 측정
-        let t0 = CFAbsoluteTimeGetCurrent()
-        var emittedFirst = false
-        let wrappedOnToken: @Sendable (String) -> Void = { delta in
-            if !emittedFirst {
-                emittedFirst = true
-                let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
-                os_log("⏱️ firstTokenMs=%{public}d", log: self.log, type: .info, ms)
-            }
-            onToken(delta)
-        }
+        // 어댑터 계층에서 1st-token 로그를 집계하므로 여기서는 로그를 남기지 않는다.
+        let wrappedOnToken: @Sendable (String) -> Void = { delta in onToken(delta) }
 
         // 실제 엔진 호출은 동기 API로 감싸두고, Task 취소 여부는 내부/외부에서 모두 주기 확인
         try Task.checkCancellation()
@@ -947,20 +969,10 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         let effectiveInput: String =
             isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
 
-        // 1st-token 시간 측정
-        let t0 = CFAbsoluteTimeGetCurrent()
-        var emittedFirst = false
         // 스트리밍 바이트→UTF-8 안전 디코더(재개 모드에서도 동일 적용)
         var utf8Decoder = UTF8ByteStreamDecoder()
-
-        let wrappedOnToken: @Sendable (String) -> Void = { _ in
-            if !emittedFirst {
-                emittedFirst = true
-                let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
-                os_log("⏱️ firstTokenMs=%{public}d (resume)", log: self.log, type: .info, ms)
-            }
-            // 실제 텍스트 전달은 아래 바이트 경계 처리 클로저에서 수행
-        }
+        // 어댑터 계층에서 1st-token 로그를 집계하므로 여기서는 로그를 남기지 않는다.
+        let wrappedOnToken: @Sendable (String) -> Void = { _ in /* no-op for logs */ }
         try Task.checkCancellation()
         try await withTaskCancellationHandler {
         } operation: {
@@ -1077,6 +1089,12 @@ extension LlamaModelLoader: KVPromptCache.LlamaSessionIO {
     public func prefillText(_ text: String) throws -> Int {
         guard let eng = self.state.engine else { throw OnDeviceError.engineNotInitialized }
         return try eng.prefillText(text)
+    }
+    public func currentKVPosition() throws -> Int {
+        guard let eng = self.state.engine as? LlamaCppBindingImpl else {
+            throw OnDeviceError.engineNotInitialized
+        }
+        return Int(eng.getCurrentKVPosition())
     }
 }
 

@@ -347,6 +347,24 @@ class AIModelSelectionViewController: UIViewController {
             case .notInstalled:
                 fallthrough
             case .installing(let _):
+                // CDN 설정 누락 가드: 설정이 없으면 다운로드를 시작하지 않고 안내만 표시
+                let cdnConfigured: Bool = {
+                    if let base = ConfigReader.string("ONDEVICE_CDN_BASE") {
+                        return base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                    }
+                    return false
+                }()
+                guard cdnConfigured else {
+                    let warn = UIAlertController(
+                        title: "모델 다운로드 설정 필요",
+                        message: "모델 파일 CDN 경로(ONDEVICE_CDN_BASE)가 비어 있어 다운로드를 시작할 수 없어요. 배포 환경 또는 설정에서 CDN을 지정한 뒤 다시 시도해 주세요.",
+                        preferredStyle: .alert
+                    )
+                    warn.addAction(UIAlertAction(title: "확인", style: .default))
+                    self.present(warn, animated: true)
+                    return
+                }
+
                 let alert = UIAlertController(
                     title: "친구를 불러올까요?",
                     message: "친구를 불러올까요?",
