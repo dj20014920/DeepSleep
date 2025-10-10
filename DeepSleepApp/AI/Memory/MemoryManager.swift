@@ -33,11 +33,43 @@ public final class MemoryManager {
     private var memories: [CoreMemory] = []
     private var tier: MemoryTier = .free
 
-    private init() {}
+    // 영속화 키 (UserDefaults)
+    private let storeKey = "core_memories_v1"
+
+    private init() {
+        // 앱 시작 시 저장된 핵심기억 복원
+        loadFromStore()
+    }
 
     public func setTier(_ tier: MemoryTier) {
         queue.async(flags: .barrier) { [weak self] in
             self?.tier = tier
+        }
+    }
+
+    // MARK: - Persistence (UserDefaults JSON)
+    private func persistToStore() {
+        let snapshot: [CoreMemory] = queue.sync { memories }
+        do {
+            let data = try JSONEncoder().encode(snapshot)
+            UserDefaults.standard.set(data, forKey: storeKey)
+        } catch {
+            // 저장 실패는 앱 동작에 치명적이지 않으므로 로그만 남김
+            print("[MemoryManager] persist failed: \(error)")
+        }
+    }
+
+    private func loadFromStore() {
+        guard let data = UserDefaults.standard.data(forKey: storeKey) else { return }
+        do {
+            let loaded = try JSONDecoder().decode([CoreMemory].self, from: data)
+            queue.async(flags: .barrier) { [weak self] in
+                self?.memories = loaded
+            }
+            // flush to ensure 이후 즉시 일관된 스냅샷 제공
+            queue.sync(flags: .barrier) {}
+        } catch {
+            print("[MemoryManager] load failed: \(error)")
         }
     }
 
@@ -59,6 +91,8 @@ public final class MemoryManager {
         }
         queue.sync(flags: .barrier) {} // flush
         if added {
+            // 변경 저장 후 컨텍스트 캐시 무효화
+            persistToStore()
             AIContextManager.shared.clearCache(reason: .coreMemoryUpdated, caller: "MemoryManager.add")
         }
         return added
@@ -76,6 +110,7 @@ public final class MemoryManager {
         }
         queue.sync(flags: .barrier) {}
         if removed {
+            persistToStore()
             AIContextManager.shared.clearCache(reason: .coreMemoryUpdated, caller: "MemoryManager.remove")
         }
         return removed
@@ -92,6 +127,7 @@ public final class MemoryManager {
         }
         queue.sync(flags: .barrier) {}
         AIContextManager.shared.clearCache(reason: .coreMemoryUpdated, caller: "MemoryManager.resetAll")
+        persistToStore()
     }
 
     // 간단 요약: 중요도/시간 순으로 상위 N개를 합성(실제 서비스에서는 경량 모델 호출 가능)

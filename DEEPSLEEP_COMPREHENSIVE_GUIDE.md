@@ -1,5 +1,41 @@
 # DeepSleep Comprehensive Guide
 
+### 🆕 2025-10-10 업데이트: 핵심기억 영속화 및 3+3 컨텍스트 최신화
+
+**무엇이 바뀜**
+- 핵심기억(CoreMemory) 영속화 추가 → 앱 재시작 후에도 Memory 요약이 유지되어 첫 대화 컨텍스트 품질 보장
+- 세션별 메시지 조회 정렬 보정 → 항상 “최신” 대화에서 균형 3+3 구성
+
+**변경 파일**
+- `DeepSleepApp/AI/Memory/MemoryManager.swift` (영속화)
+  - `loadFromStore()`: 앱 시작 시 UserDefaults(JSON)에서 복원
+  - `persistToStore()`: add/remove/reset 시 저장
+  - 메모리 변경 시 `AIContextManager.clearCache(.coreMemoryUpdated)` 호출 유지
+- `DeepSleepApp/SessionManager.swift:660` (정렬 보정)
+  - 최신 우선(내림차순)으로 fetch + 반환 시 시간순(오름차순) 재정렬
+  - limit 지정 시에도 “최신 N개” 보장 → 3+3 선별 안정화
+
+**운영·검증 로그 예시**
+```
+🔍 [AIContextManager] getSystemPrompt …
+📦 [AIContextManager] Cache found: age=…s ageValid=true
+✅ [AIContextManager] Cache HIT (length=…)
+
+✅ [KVCache] RESTORE OK (bytes=…, tokens=…)
+💾 [KVCache] SAVED (bytes=…, tokens=…)
+
+🔄 [SessionManager] 균형잡힌 대화 구성: 사용자 3개, AI 3개
+```
+
+**효과**
+- 첫 메시지부터 핵심기억 요약이 포함되어 응답 일관성↑
+- 긴 대화/재시작 환경에서도 3+3 유지로 맥락 안정성↑
+- 모델 전환(Q4↔Q8) 시 캐시 재사용으로 TTI·firstTokenMs 체감 안정
+
+**선택 개선(비차단)**
+- 동일 스코프 내 `personaCoreSignature()` 1회 공유로 로그 노이즈 감소 가능(기능 영향 없음)
+
+
 ### 🆕 2025-10-02 업데이트: 페르소나 혼동 오류 수정 + 스트리밍 텍스트 문자 누락 완전 수정
 
 ---

@@ -1485,4 +1485,45 @@ override func viewWillAppear(_ animated: Bool) {
 - 다음 대화 시도에서 자동 복구
 
 ---
+## 2025-10-10 업데이트: 핵심기억 영속화 + 3+3 컨텍스트 최신화 + 캐시/전환 검증
 
+### 🎯 목적
+- 앱 재시작 후에도 핵심기억(CoreMemory) 요약이 유지되도록 영속화하여 첫 대화 컨텍스트 품질 보장
+- 긴 대화에서도 항상 “최근” 대화에서 3+3을 구성하도록 조회 로직 보정
+- 모델 전환(Q4↔Q8) 및 시스템 프롬프트 캐시/온디바이스 KV 캐시의 UX 일관성 검증
+
+### ✨ 주요 변경사항
+1) 핵심기억 영속화(UserDefaults/JSON)
+- 경로: DeepSleepApp/AI/Memory/MemoryManager.swift:1
+- 내용: 앱 시작 시 loadFromStore()로 복원, add/remove/reset 시 persistToStore() 저장
+- 캐시 무효화: 메모리 변경 시 AIContextManager.clearCache(reason: .coreMemoryUpdated)
+
+2) 세션별 메시지 조회 보정(최신 우선)
+- 경로: DeepSleepApp/SessionManager.swift:660
+- 변경: fetch 시 timestamp 내림차순 + fetchLimit 적용 → 반환 전 오름차순 재정렬
+- 효과: limit가 있어도 “최신 N개” 보장 → 항상 최신 대화에서 3+3 선별
+
+3) 캐시/전환 경로 검증(로그 기준)
+- 시스템 프롬프트 캐시: 3시간 TTL, 구성요소(composite/core/mode/model/tone) 동일 시 HIT
+- 모델 전환(Q4↔Q8): AIContextManager 캐시 HIT 유지, on-device KV 캐시 SAVE/RESTORE 정상
+- 예시 로그:
+  - 🔍 [AIContextManager] getSystemPrompt … → 📦 Cache found … → ✅ Cache HIT
+  - ✅ [KVCache] RESTORE OK … / 💾 [KVCache] SAVED …
+
+### 🔧 코드 변경 요약
+- MemoryManager
+  - storeKey(core_memories_v1) 추가, loadFromStore/persistToStore 구현
+  - add/remove/reset에서 persistToStore 호출 및 캐시 무효화 유지
+- SessionManager
+  - getChatMessages(forSessionId:limit:) 정렬 보정(내림차순 페치 → 오름차순 반환)
+
+### ✅ 검증 결과(요약)
+- 재시작 직후 첫 대화에서도 Memory 블록에 핵심기억 요약 반영됨
+- 긴 대화에서도 “🔄 균형잡힌 대화 구성: 사용자 3, AI 3” 안정적으로 유지
+- 모델 전환 간 firstTokenMs·TTI 변동 최소, 캐시 재사용 로그 일관
+
+### 📌 비고/선택 개선(비차단)
+- personaCoreSignature 다중 로그는 캐시(1시간)로 비용 미미. 필요시 동일 스코프 내 1회 계산 공유로 로그 노이즈 감소 가능(선택).
+- UI AutoLayout 경고는 컨텍스트/캐시에 영향 없음. 후속 정리 가능.
+
+---

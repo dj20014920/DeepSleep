@@ -1,3 +1,23 @@
+## 2025-10-10 업데이트: 핵심기억 영속화 + 3+3 컨텍스트 안정화(메인앱 공통 반영)
+
+### 🎯 목적
+- 재시작 후 첫 대화에서도 일관된 Memory 요약 제공(핵심기억 영속화)
+- 긴 대화에서도 "최근" 기준으로 3+3을 안정적으로 구성
+
+### 🔧 변경 요약
+- MemoryManager(UserDefaults/JSON) 영속화 추가: 앱 시작 시 복원, 변경 시 저장 + 컨텍스트 캐시 무효화
+- SessionManager.getChatMessages 정렬 보정: 최신 우선 페치 → 반환 시 시간순 재정렬(최신 N 보장)
+
+### 📁 파일
+- DeepSleepApp/AI/Memory/MemoryManager.swift
+- DeepSleepApp/SessionManager.swift:660
+
+### ✅ 검증
+- 시스템 프롬프트 캐시 HIT 유지, on-device KV SAVE/RESTORE 정상
+- 모델 전환(Q4↔Q8) 간 firstTokenMs 안정
+
+---
+
 ## 2025-12-20 업데이트: KV 캐시 최적화 완료 - TTI 성능 극대화
 
 ### 🎯 **목적**

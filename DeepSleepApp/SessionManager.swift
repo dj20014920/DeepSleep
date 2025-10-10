@@ -656,18 +656,18 @@ public class SessionManager {
         }
     }
 
-    /// 특정 세션의 모든 채팅 메시지 조회 (시간순)
-    public func getChatMessages(forSessionId sessionId: String, limit: Int? = nil)
-        -> [StoredChatMessage]
-    {
-        let request: NSFetchRequest<StoredChatMessageEntity> =
-            StoredChatMessageEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)]
+    /// 특정 세션의 채팅 메시지 조회
+    /// - Note: limit가 지정된 경우 최신 메시지를 우선적으로 가져온 뒤, 반환 시 시간순(오름차순)으로 정렬합니다.
+    public func getChatMessages(forSessionId sessionId: String, limit: Int? = nil) -> [StoredChatMessage] {
+        let request: NSFetchRequest<StoredChatMessageEntity> = StoredChatMessageEntity.fetchRequest()
+        // 최신 우선으로 페치하여 fetchLimit가 있을 때 최신 N개를 보장
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.predicate = NSPredicate(format: "session.id == %@", sessionId as CVarArg)
         if let limit = limit { request.fetchLimit = limit }
         do {
+            // 1) 최신 우선으로 가져오기 (내림차순)
             let fetched = try context.fetch(request)
-            // 동일 타임스탬프 동률 정렬(역할 → UUID)로 결정성 보장
+            // 2) 반환 전 시간순(오름차순) + 동률 시 역할(user<assistant<system) + UUID로 결정성 보장
             let roleRank: (String?) -> Int = { role in
                 switch role ?? "user" {
                 case "user": return 0
