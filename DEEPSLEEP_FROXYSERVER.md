@@ -1,6 +1,6 @@
 # DeepSleep 프록시 서버(Cloudflare Workers) — 운영 가이드 (프로덕션)
 
-> 2025-10 업데이트: 앱은 100% 온디바이스로 전환되었으며, 본 문서는 아카이브(참고용)로만 유지됩니다. iOS 클라이언트는 프록시/워커를 사용하지 않습니다. 모델 다운로드는 공개 CDN(URL-only)로 수행됩니다.
+> 2025-10 업데이트: 앱은 100% 온디바이스로 전환되었으며, 모델 파일 다운로드는 Cloudflare Workers 기반 presign 엔드포인트만 사용합니다(presign-only). iOS 클라이언트는 API 프록시를 사용하지 않으며, presign 이외의 클라우드 호출은 없습니다. 공개 r2.dev CDN 폴백은 제거되었습니다.
 
 ## 2025-09-24 동기화: 온디바이스 템플릿/스톱 규약 및 UI 이름 정렬
 
@@ -36,10 +36,16 @@
   - 다운로드 진행 로그: 모델 ID(raw) 대신 displayName으로 출력(예: "📈 [Adapter] Gemma 3 1B (Q4_0) 25%")
   - 진행률 라벨: 파일명 대신 카탈로그 표시명을 우선 사용, 파일명은 디버그용 부표기로만 사용
 
-- CDN 정합성(현재 사용)
-  - CDN Base: https://cdn.emozleep.space/models (URL-only 다운로드)
-  - 4개 GGUF가 모두 200 응답 및 sha256(ModelCatalog) 일치해야 정상
-  - Presign(워커 경유)은 더 이상 사용하지 않음
+## Presign 계약(클라이언트 ↔ Workers)
+
+- 엔드포인트: `GET /presign?file=<파일명.gguf>`
+- 응답(권장): `200 application/json` 본문에 `{"url":"https://cdn.emozleep.space/models/<파일명>.gguf"}`
+- 대안: `302 Location: https://cdn.emozleep.space/models/<파일명>.gguf` (필요 시)
+- 주의: iOS 클라이언트는 presign-only 정책이며, presign 실패 시 폴백하지 않습니다.
+
+## CDN 정합성(서버 측 검증)
+- CDN Base(서버 내부 참조): https://cdn.emozleep.space/models
+- 4개 GGUF가 모두 200 응답 및 sha256(ModelCatalog) 일치해야 정상
 
 
 최종 업데이트: 2025-09-12

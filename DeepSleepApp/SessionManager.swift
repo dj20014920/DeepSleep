@@ -943,6 +943,8 @@ public class SessionManager {
                                         sessionId: targetSessionId, userMessage: content,
                                         aiResponse: aiResponse, mode: mode)
                                 }
+                                // ✅ 사용량 카운트 증가(성공적인 응답이 저장되는 경우에만)
+                                self.usageGate.incrementUsage(for: mode)
                             }
                             continuation.yield(piece)
                             continuation.finish()
@@ -1061,6 +1063,8 @@ public class SessionManager {
                 aiResponse: response,
                 mode: mode
             )
+            // ✅ 사용량 카운트 증가(성공적으로 응답을 저장한 경우)
+            usageGate.incrementUsage(for: mode)
         }
 
         print("✅ [SessionManager] AI 호출 완료 - 응답 길이: \(response.content.count)자")

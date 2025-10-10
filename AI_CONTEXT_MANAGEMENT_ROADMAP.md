@@ -1527,3 +1527,49 @@ override func viewWillAppear(_ animated: Bool) {
 - UI AutoLayout 경고는 컨텍스트/캐시에 영향 없음. 후속 정리 가능.
 
 ---
+## 2025-10-10 업데이트: 모델 다운로드 presign-only 전환 · CDN 폴백 제거 · 사용량/대화 품질 개선 동기화
+
+### 🎯 목적
+- 모델 다운로드 경로를 프리사인(Cloudflare Workers) 전용으로 단순화하고, 잘못된 CDN 베이스로 인한 `https:파일명` URL 문제를 근본 차단
+- UI/런타임의 CDN 의존 가드를 presign 기반으로 치환하여 일관성 확보
+- 사용량 카운트 미증가 문제와 초소형(0.5B) 모델의 주제 이탈/헛소리를 개선
+
+### 🔧 코드 변경 요약
+- RemoteAssetClient (네트워크 계층)
+  - `remoteURL()`을 presign-only 정책으로 변경. presign 실패 시 즉시 오류 반환(CDN 폴백 제거)
+  - 기존 `Join existing download` 분기에서 `.suspended` 태스크를 자동 `resume()`하도록 보강
+- OnDeviceAdapter (초기화)
+  - presign/CDN 값을 Info/xcconfig에서 읽되, 잘못된 값(예: `https:`)은 버리고 presign만 사용
+  - r2.dev 공개 폴백 완전 제거
+- AppDelegate
+  - 런치/백그라운드 재구성에서 presign만 주입(CDN 주입 로직 삭제)
+- AIModelSelectionViewController
+  - "CDN 필요" 가드를 "presign 필요" 가드로 교체(얼럿 문구 포함)
+- SessionManager
+  - 성공 응답이 저장되는 경우에 한해 `UsageGate.incrementUsage(for:)` 호출(일반 대화 사용량 증가 고정)
+- OnDevicePromptProfile
+  - 0.5B 계열 샘플링 보수화(temp 0.55, topP 0.85, topK 30) / 1.5B는 temp 0.65
+- ModelCatalog.SystemPrompts
+  - ‘너의 이름은’ 모호성 방지 규칙 추가(이름 문의는 영화보다 우선 답변 + 짧은 의도 확인)
+
+### 🧪 기대 로그(정상 플로우)
+- `🌐 Resolving remote URL … presign=https://…/presign cdn=nil`
+- `🔐 Presign HTTP 200 …`
+- `🌐 Using presigned URL for …: https://cdn.emozleep.space/models/<file>.gguf`
+- `📈 … (25/50/75%)` → `✅ Download finished … sha256=일치`
+
+### 🚨 트러블슈팅 체크리스트
+- presign 엔드포인트(ONDEVICE_PRESIGN_ENDPOINT) 미설정 시: 모델 선택 화면에서 presign 필요 얼럿
+- presign 200이 아닌 경우: Workers 로그 확인, JSON 본문에 `{"url": "https://…"}` 포함 여부 점검
+- "Join existing download"에서 진행 안 될 때: 한 번 `cancelInstall(id:)` 후 재시도(또는 앱 재실행)
+
+### 📄 변경 파일(주요)
+- `DeepSleepApp/OnDevice/Networking/RemoteAssetClient.swift`
+- `DeepSleepApp/OnDevice/Runtime/OnDeviceAdapter.swift`
+- `DeepSleepApp/AppDelegate.swift`
+- `DeepSleepApp/AIModelSelectionViewController.swift`
+- `DeepSleepApp/SessionManager.swift`
+- `DeepSleepApp/OnDevice/Runtime/OnDevicePromptProfile.swift`
+- `DeepSleepApp/OnDevice/Runtime/ModelCatalog.swift`
+
+---

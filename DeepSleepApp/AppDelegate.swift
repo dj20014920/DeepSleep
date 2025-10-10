@@ -139,13 +139,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // 앱 실행 직후 전달된 알림과 배지 초기화
         CentralNotificationScheduler.shared.clearDeliveredNotificationsAndResetBadge()
 
-        // CDN(정적 URL)만 사용해 모델 다운로드 경로 구성 (키 미주입 안전 경로)
-        if let base = ConfigReader.string("ONDEVICE_CDN_BASE"),
-           !base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           let cdn = URL(string: base) {
+        // presign 전용 구성(프로덕션): presign이 있으면 주입, 없으면 기본값 유지
+        if let ep = ConfigReader.string("ONDEVICE_PRESIGN_ENDPOINT"),
+           let url = URL(string: ep), url.scheme?.lowercased() == "https", url.host != nil {
             OnDeviceAdapter.shared.reconfigureRemote(
-                presignEndpoint: nil,
-                cdnBaseURL: cdn,
+                presignEndpoint: url,
+                cdnBaseURL: nil,
                 backgroundSessionID: "com.deepsleep.models.bg",
                 cancelOngoing: false
             )
@@ -186,11 +185,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler: @escaping () -> Void
     ) {
         // RemoteAssetClient가 사용하는 백그라운드 세션 식별자와 일치하도록 재구성
-        let base = ConfigReader.string("ONDEVICE_CDN_BASE")
-        let cdn = (base?.isEmpty == false) ? URL(string: base!) : nil
+        let presign = ConfigReader.string("ONDEVICE_PRESIGN_ENDPOINT").flatMap { URL(string: $0) }
         OnDeviceAdapter.shared.reconfigureRemote(
-            presignEndpoint: nil,
-            cdnBaseURL: cdn,
+            presignEndpoint: presign,
+            cdnBaseURL: nil,
             backgroundSessionID: identifier,
             cancelOngoing: false
         )

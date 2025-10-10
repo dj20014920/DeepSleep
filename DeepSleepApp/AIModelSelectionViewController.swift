@@ -347,17 +347,17 @@ class AIModelSelectionViewController: UIViewController {
             case .notInstalled:
                 fallthrough
             case .installing(let _):
-                // CDN 설정 누락 가드: 설정이 없으면 다운로드를 시작하지 않고 안내만 표시
-                let cdnConfigured: Bool = {
-                    if let base = ConfigReader.string("ONDEVICE_CDN_BASE") {
-                        return base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                // presign 설정 누락 가드: presign이 없으면 다운로드를 시작하지 않고 안내만 표시(프로덕션 정책)
+                let presignConfigured: Bool = {
+                    if let ep = ConfigReader.string("ONDEVICE_PRESIGN_ENDPOINT") {
+                        return ep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                     }
                     return false
                 }()
-                guard cdnConfigured else {
+                guard presignConfigured else {
                     let warn = UIAlertController(
                         title: "모델 다운로드 설정 필요",
-                        message: "모델 파일 CDN 경로(ONDEVICE_CDN_BASE)가 비어 있어 다운로드를 시작할 수 없어요. 배포 환경 또는 설정에서 CDN을 지정한 뒤 다시 시도해 주세요.",
+                        message: "프리사인 엔드포인트(ONDEVICE_PRESIGN_ENDPOINT)가 비어 있어 다운로드를 시작할 수 없어요. 배포 환경에서 presign 엔드포인트를 지정한 뒤 다시 시도해 주세요.",
                         preferredStyle: .alert
                     )
                     warn.addAction(UIAlertAction(title: "확인", style: .default))

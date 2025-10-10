@@ -132,3 +132,34 @@ if loader.activeModelID != id || !loader.isLoaded {
 ---
 
 ## 2025-09-17 동기화: Free 티어 온디바이스 전용 · 온보딩 카피 · 프록시 스냅샷
+## 2025-10-10 업데이트: presign-only 다운로드 · 사용량/품질 개선(서브앱 공통)
+
+### 🎯 목적
+- 모델 다운로드를 presign(Cloudflare Workers) 전용으로 단순화(CDN 폴백 제거)
+- 일반 대화 사용량 증가 고정 및 초소형 모델 품질 개선
+
+### 🔧 변경 요약
+- RemoteAssetClient: presign-only. 실패 시 즉시 오류 반환(폴백 없음)
+- OnDeviceAdapter: 초기화 시 presign만 주입, CDN 폴백 제거
+- AppDelegate: 런치/백그라운드 재구성에서 presign만 사용
+- AIModelSelectionViewController: CDN 가드 제거 → presign 가드로 교체(얼럿 문구 업데이트)
+- SessionManager: 성공 응답 저장 시 `UsageGate.incrementUsage(for:)` 호출
+- OnDevicePromptProfile: 0.5B 샘플링 보수화(temp 0.55, topP 0.85, topK 30)
+- ModelCatalog.SystemPrompts: ‘너의 이름은’ 모호성 방지 규칙 추가
+
+### 🧪 기대 로그
+- `🌐 Resolving remote URL … presign=https://…/presign cdn=nil`
+- `🔐 Presign HTTP 200 …`
+- `🌐 Using presigned URL for …: https://cdn.emozleep.space/models/<file>.gguf`
+- `📈 … (25/50/75%)` → `✅ Download finished … sha256=일치`
+
+### 📁 관련 파일
+- DeepSleepApp/OnDevice/Networking/RemoteAssetClient.swift
+- DeepSleepApp/OnDevice/Runtime/OnDeviceAdapter.swift
+- DeepSleepApp/AppDelegate.swift
+- DeepSleepApp/AIModelSelectionViewController.swift
+- DeepSleepApp/SessionManager.swift
+- DeepSleepApp/OnDevice/Runtime/OnDevicePromptProfile.swift
+- DeepSleepApp/OnDevice/Runtime/ModelCatalog.swift
+
+---

@@ -261,6 +261,10 @@ public final class RemoteAssetClient: NSObject {
         // 1) 진행 중 작업이 있으면 waiter로 붙기 (또는 시작 중이면 합류)
         if state.getTask(file: fileName) != nil || state.isStarting(file: fileName) {
             log.info("🪝 Join existing download for \(fileName, privacy: .public)")
+            // 안전 조치: 기존 태스크가 일시중지 상태라면 재개 시도
+            if let task = state.getTask(file: fileName) {
+                if task.state == .suspended { task.resume() }
+            }
             return try await withCheckedThrowingContinuation { cont in
                 let waiter = Waiter(id: UUID(), progress: progress, continuation: cont)
                 state.addWaiter(file: fileName, waiter: waiter)
@@ -358,41 +362,41 @@ public final class RemoteAssetClient: NSObject {
     // MARK: - Download Orchestration
 
     private func remoteURL(for fileName: String) async -> URL? {
+        // presign 전용 정책(프로덕션): presign만 사용하고, 실패 시 폴백하지 않음
+        let resolvedPresign: URL? = {
+            if let p = cfg.presignEndpoint, p.scheme?.lowercased() == "https", p.host != nil { return p }
+            // 방어적 기본값(운영 presign 고정): 구성 누락/오류 시 자동 사용
+            return URL(string: "https://emozleep-presign.vinny4920-081.workers.dev/presign")
+        }()
 
         log.info(
-            "🌐 Resolving remote URL for \(fileName, privacy: .public) presign=\(self.cfg.presignEndpoint?.absoluteString ?? "nil", privacy: .public) cdn=\(self.cfg.cdnBaseURL?.absoluteString ?? "nil", privacy: .public)"
+            "🌐 Resolving remote URL for \(fileName, privacy: .public) presign=\(resolvedPresign?.absoluteString ?? "nil", privacy: .public) cdn=nil"
         )
-        // 1) presign 우선 (서버 presign 사용 안 함: 현재는 비활성화됨)
-        if let presignBase = cfg.presignEndpoint {
-            if var comp = URLComponents(url: presignBase, resolvingAgainstBaseURL: false) {
-                var query = comp.queryItems ?? []
-                query.append(URLQueryItem(name: "file", value: fileName))
-                comp.queryItems = query
-                if let reqURL = comp.url {
-                    do {
-                        if let u = try await fetchPresignURL(endpoint: reqURL) {
-                            log.info(
-                                "🌐 Using presigned URL for \(fileName, privacy: .public): \(u.absoluteString, privacy: .public)"
-                            )
-                            return u
-                        }
-                    } catch {
-                        log.error(
-                            "🔐 Presign failed: \(error.localizedDescription, privacy: .public)")
-                        // continue to CDN
-                    }
-                }
+
+        guard let presignBase = resolvedPresign,
+              var comp = URLComponents(url: presignBase, resolvingAgainstBaseURL: false)
+        else {
+            log.error("🌐 Failed to resolve presign endpoint (nil or invalid)")
+            return nil
+        }
+        var query = comp.queryItems ?? []
+        query.append(URLQueryItem(name: "file", value: fileName))
+        comp.queryItems = query
+        guard let reqURL = comp.url else {
+            log.error("🌐 Failed to build presign request URL")
+            return nil
+        }
+        do {
+            if let u = try await fetchPresignURL(endpoint: reqURL) {
+                log.info(
+                    "🌐 Using presigned URL for \(fileName, privacy: .public): \(u.absoluteString, privacy: .public)"
+                )
+                return u
             }
+        } catch {
+            log.error("🔐 Presign failed: \(error.localizedDescription, privacy: .public)")
         }
-        // 2) CDN 고정 경로
-        if let base = cfg.cdnBaseURL {
-            let u = base.appendingPathComponent(fileName, isDirectory: false)
-            log.info(
-                "🌐 Using CDN URL for \(fileName, privacy: .public): \(u.absoluteString, privacy: .public)"
-            )
-            return u
-        }
-        log.error("🌐 Failed to resolve remote URL for \(fileName, privacy: .public)")
+        log.error("🌐 Failed to resolve remote URL for \(fileName, privacy: .public) via presign-only policy")
         return nil
     }
 

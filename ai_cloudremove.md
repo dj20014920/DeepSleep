@@ -1,6 +1,6 @@
 # AI 클라우드/프록시 완전 제거 리팩토링 보고서
 
-본 문서는 DeepSleep 앱에서 과거 클라우드 기반 AI(Claude 3.5, OpenAI GPT-4o mini, HyperCLOVA X, Gemini 등) 및 프록시 서버(emozleep-presign/Cloudflare Workers) 연계 코드를 전면 제거하고, 100% 온디바이스 경로로 전환한 변경사항을 정리한 것입니다.
+본 문서는 DeepSleep 앱에서 과거 클라우드 기반 AI(Claude 3.5, OpenAI GPT-4o mini, HyperCLOVA X, Gemini 등) 호출을 제거하고, 100% 온디바이스 경로로 전환한 변경사항을 정리한 것입니다. 모델 파일 다운로드는 Cloudflare Workers 기반 presign 엔드포인트를 통해서만 수행합니다(presign-only). 앱은 키/시크릿을 보관하지 않으며, 공개 CDN(r2.dev 등) 폴백은 사용하지 않습니다.
 
 ## 목표
 - 모든 AI 메시지 처리 경로를 온디바이스(Apple Foundation Models / llama.cpp) 단일 경로로 통일
@@ -30,8 +30,8 @@
 ### 2) 앱 초기화/네트워킹 경로 정리
 - 수정: `DeepSleepApp/AppDelegate.swift`
   - 프록시 시크릿 워밍(ProxyAuthClient) 제거
-  - presign/CDN 엔드포인트 주입 제거
-  - BG URLSession 이벤트 핸드오버에서 presign/cdn을 `nil`로 설정(세션 ID 유지)
+  - presign-only 주입(ONDEVICE_PRESIGN_ENDPOINT), CDN 주입 제거
+  - BG URLSession 이벤트 핸드오버에서도 presign만 재주입
   - ZeroToken/APIs 상태 점검 루틴 전체 제거(온디바이스만 사용하므로 불필요)
 
 ### 3) 기본 모델/모델 선택 UI 정책
@@ -80,10 +80,10 @@
 
 ---
 
-## 다운로드 경로 구성 (URL만 사용)
-- Info.plist(xcconfig)에서 `ONDEVICE_CDN_BASE`만 설정하면 됩니다. 키/시크릿 주입 없음.
-  - 예: `https://cdn.emozleep.space/models` 또는 `https://081a9810680543ee912eb54ae15876a3.r2.cloudflarestorage.com/deepsleep-models/models`
-- 앱 런치 시 자동으로 CDN 베이스를 주입하고, 각 파일은 `ONDEVICE_CDN_BASE/{filename}`로 다운로드됩니다.
+## 다운로드 경로 구성 (presign-only)
+- Info.plist(xcconfig)에서 `ONDEVICE_PRESIGN_ENDPOINT`를 설정합니다. 예: `https://<workers-domain>/presign`
+- presign 계약: `GET /presign?file=<파일명.gguf>` → 200 JSON `{"url":"https://cdn.emozleep.space/models/<파일명>.gguf"}`
+- 앱은 presign 실패 시 폴백하지 않으며, CDN 베이스(ONDEVICE_CDN_BASE)는 사용하지 않습니다.
 
 ## CDN 링크 검증 결과
 - Base: `https://cdn.emozleep.space/models`
@@ -154,5 +154,5 @@
 
 ## 메모
 - 온디바이스 모델 파일이 미설치인 경우, 자동 다운로드는 시도하지 않습니다(의도). 설치 유도 UX는 AIModelSelectionViewController 내에서만 동작합니다.
-- 설정 누락 시(ONDEVICE_CDN_BASE 비어 있음), 친구 선택 시 즉시 경고 다이얼로그를 표시하고 다운로드는 시작되지 않습니다. 운영환경에서 반드시 값을 지정하세요.
-- 원하시면 presign/CDN을 완전히 삭제하는 방향으로 RemoteAssetClient/ModelCatalog 관련 문서도 함께 정리 가능합니다.
+- 설정 누락 시(ONDEVICE_PRESIGN_ENDPOINT 비어 있음), 친구 선택 시 presign 필요 얼럿을 표시하고 다운로드를 시작하지 않습니다.
+- RemoteAssetClient는 presign-only로 동작합니다.

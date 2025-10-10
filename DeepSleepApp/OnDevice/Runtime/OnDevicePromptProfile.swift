@@ -115,9 +115,15 @@ public enum OnDevicePromptProfile {
             into params: inout InferenceParams
         ) {
             switch id {
-            case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0, .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
-                // 기본 값 유지(과거 안정 동작): temp 0.7
-                params.temperature = 0.7
+            case .hyperclovax_seed_text_instruct_0_5b_q4_k_m, .hyperclovax_seed_text_instruct_0_5b_q8_0:
+                // 0.5B 계열: 헛소리/주제 이탈을 줄이기 위해 더 보수적으로 조정
+                // 온디바이스 소형 모델에서 경험적으로 temp 0.55 / topP 0.85 / topK 30이 안정적
+                params.temperature = 0.55
+                params.topK = 30
+                params.topP = 0.85
+            case .hyperclovax_seed_text_instruct_1_5b_q4_k_m:
+                // 1.5B: 약간 보수적으로만 조정(품질/창의성 균형)
+                params.temperature = 0.65
                 params.topK = 40
                 params.topP = 0.90
             case .amoral_gemma3_1b_v2_q5_k_m:

@@ -45,8 +45,34 @@ public final class OnDeviceAdapter: @unchecked Sendable {
     }
 
     private init() {
-        // HTTP(S) 원격 자산 클라이언트
-        self.remote = RemoteAssetClient()
+        // HTTP(S) 원격 자산 클라이언트 (Info.plist/xcconfig 기반 설정 주입 + 방어적 정규화)
+        let cdnBaseString = ConfigReader.string("ONDEVICE_CDN_BASE") ?? ""
+        let presignString = ConfigReader.string("ONDEVICE_PRESIGN_ENDPOINT") ?? ""
+        let sanitizeHTTPS: (String) -> URL? = { s in
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty, let u = URL(string: t), u.scheme?.lowercased() == "https", u.host != nil else {
+                return nil
+            }
+            return u
+        }
+        // 1) presign 우선: 구성값 → 유효하지 않으면 공식 presign 기본값으로 폴백
+        let presignURL = sanitizeHTTPS(presignString)
+            ?? URL(string: "https://emozleep-presign.vinny4920-081.workers.dev/presign")
+        // 2) CDN 베이스: 프로덕션에서는 presign만 사용. 구성값이 유효하지 않으면 사용하지 않음(폴백 제거)
+        let cdnURL = sanitizeHTTPS(cdnBaseString) // nil이면 CDN 폴백 비활성화
+
+        log.info("🌐 OnDevice CDN base: \(cdnURL?.absoluteString ?? "nil", privacy: .public)")
+        log.info("🔐 OnDevice presign: \(presignURL?.absoluteString ?? "nil", privacy: .public)")
+
+        let racCfg = RemoteAssetClient.Config(
+            presignEndpoint: presignURL,
+            cdnBaseURL: cdnURL,
+            backgroundSessionID: "com.deepsleep.models.bg",
+            maxAttempts: 3,
+            backoffSchedule: [1.0, 2.0, 4.0],
+            userAgent: "DeepSleep/RemoteAssetClient"
+        )
+        self.remote = RemoteAssetClient(config: racCfg)
         // llama.cpp 기반 로더(조건부 컴파일된 바인딩 사용)
         self.loader = LlamaModelLoader()
         // 원격 설정 반영하여 정책 동기화
@@ -139,7 +165,16 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             self.log.error(
                 "❌ 모델 재활성화 실패: \(modelToActivate.rawValue) - \(error.localizedDescription)")
 
-            // 재시도 로직: 5초 후 다시 시도
+            // 설치되지 않은 경우에는 재시도하지 않음
+            if let e = error as? AdapterError {
+                switch e {
+                case .noInstalledModel, .notAvailableForOS:
+                    return
+                default:
+                    break
+                }
+            }
+            // 재시도 로직: 5초 후 다시 시도 (일시적 실패에 한정)
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                 Task {
                     await self.handleModelReactivation(notification: notification)
@@ -338,7 +373,12 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         defer { q.sync { activationInProgress = false; activatingID = nil } }
 
         log.info("⚙️ [Adapter] activate start id=\(rec.id.rawValue, privacy: .public)")
-        let url = try await ensureInstalled(id: id)
+        // 자동 다운로드 금지: 설치된 경우에만 활성화 진행
+        let st = await status(for: id)
+        guard case .installed(let url) = st else {
+            log.info("⛔️ [Adapter] activate skipped (not installed) id=\(rec.id.rawValue, privacy: .public)")
+            throw AdapterError.noInstalledModel
+        }
         // 동일이면 스킵
         if loader.activeModelID == id, loader.isLoaded {
             log.info("🔁 Already active: \(rec.displayName, privacy: .public)")
@@ -371,7 +411,12 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         defer { q.sync { activationInProgress = false; activatingID = nil } }
 
         log.info("♻️ [Adapter] switchModel start id=\(rec.id.rawValue, privacy: .public)")
-        let url = try await ensureInstalled(id: id)
+        // 자동 다운로드 금지: 설치된 경우에만 스위치 진행
+        let st = await status(for: id)
+        guard case .installed(let url) = st else {
+            log.info("⛔️ [Adapter] switchModel skipped (not installed) id=\(rec.id.rawValue, privacy: .public)")
+            throw AdapterError.noInstalledModel
+        }
         try await loader.switchModel(to: id, modelURL: url, params: rec.recommended)
         let ms = Int(Date().timeIntervalSince(t0) * 1000)
         log.info("♻️ Switched: \(rec.displayName, privacy: .public) took=\(ms, privacy: .public)ms")
@@ -522,8 +567,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         onToken: @escaping @Sendable (String) -> Void
     ) async throws -> GenerationSummary {
 
-        // 0) 세션 준비/전환 (내부에서 필요 시 자동으로 설치 보장)
-        // ⚡ 최적화: 이미 로드된 모델이면 ensureInstalled 중복 호출 방지 (572ms 절약)
+        // 0) 세션 준비/전환 (다운로드 유발 금지: 설치된 경우에만 시도)
         if loader.activeModelID != id || !loader.isLoaded {
             do {
                 try await switchModel(id: id)
@@ -534,9 +578,12 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                 print(
                     "🛟 [OnDeviceAdapter] switchModel failed (\(error.localizedDescription)). Retrying with gpuLayers=0"
                 )
-                // 직접 로드 경로로 재시도
+                // 직접 로드 경로로 재시도 (설치된 경우에만)
                 let rec = ModelCatalog.record(for: id)
-                let url = try await ensureInstalled(id: id)
+                let st = await status(for: id)
+                guard case .installed(let url) = st else {
+                    throw AdapterError.noInstalledModel
+                }
                 try loader.load(modelURL: url, modelID: id, params: fallback)
             }
         }
