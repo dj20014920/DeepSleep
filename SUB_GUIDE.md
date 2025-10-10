@@ -11,7 +11,7 @@
 ## 1. 구독 티어 및 상품
 - 티어: Free / Pro / Max
   - Free: 기본 기능, 일부 사용량/기능 제한
-  - Pro: 확장 한도 + 대나무숲 친구(모델) 선택 가능
+  - Pro: 확장 한도
   - Max: 고급 분석/독점 사운드팩/우선 지원(점진 도입)
 - 상품(Product IDs)
   - Pro 월간: `com.emozleep.pro.monthly`
@@ -25,13 +25,12 @@
 
 ### 1-b. 사용 한도(SSOT)
 - 모든 한도는 Secrets.xcconfig의 `AI_LIMITS_*_{FREE,PRO,MAX}` 키로만 관리합니다(DAILY_* 미사용).
-- 기본값(앱표기 기준):
-  - 채팅: Free 50 / Pro 100 / Max 150
-  - 프리셋 추천: Free 3 / Pro 5 / Max 7
-- 감정 일기 분석: Free 3 / Pro 5 / Max 5
-  - 일기당 1회/일: 동일 일기는 하루 1회만 분석 가능(지문 기반; 앱 클라이언트의 DiaryUsagePolicy가 집행)
-  - 할일 조언(개별): Free 3 / Pro 6 / Max 10 (각 할 일 1회: `AI_LIMITS_TODO_ADVICE_EACH=1`)
-  - 할일 조언(전체): Free 1 / Pro 3 / Max 3
+- 기본값(앱 표기 기준):
+  - 일일 채팅: Free 50 / Pro 130 / Max 250
+  - 프리셋 추천: Free 5 / Pro 30 / Max 50
+  - 할일 조언(개별): Free 5 / Pro 20 / Max 50
+  - 할일 조언(오늘 전체): Free 1 / Pro 3 / Max 5
+  - 감정 일기 분석(“이 일기 이야기하기”): Free 5 / Pro 7 / Max 10
   - 기타: 월간 통계 1(주간 게이트 병행), 운세/감정분석/리포트는 0(미사용)
 
 키 목록(예):
@@ -88,9 +87,9 @@ Subscriptions auto-renew unless canceled at least 24 hours before the end of the
 
 ### 6-b. 간단 설명(앱 표준 카피)
 - 요약(예):
-  - 일일 채팅: 무료 50회 · Pro 100회 · Max 150회
-  - 대나무숲 친구(모델) 선택 가능
-  - 프리셋 3→5/7, 할일조언 3→6/10
+  - 일일 채팅: 무료 50회 · Pro 130회 · Max 250회
+  - 프리셋 5→30/50, 할일조언 5→20/50
+  - 오늘 전체 조언 1→3/5, 일기 이야기 5→7/10
 
 ## 7. 개발/운영 설정
 - 로컬(시뮬레이터/개발): Xcode Scheme → StoreKit Configuration=`DeepSleep.storekit`

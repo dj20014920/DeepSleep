@@ -7,22 +7,21 @@ final class TodoAdviceTierLimitTests: XCTestCase {
         UsageLimitManager.shared.resetAllUsageForTesting()
     }
 
-    func testFreeTierHasThreeIndividualAdvicePerDay() {
+    func testFreeTierHasFiveIndividualAdvicePerDay() {
         // Given: Free tier
         SubscriptionStatusCenter.shared.update(isPremium: false, expiration: nil)
         // When
         let status = UsageLimitManager.shared.canUseAIFeature(.taskAdvice)
         // Then
-        XCTAssertEqual(status.dailyLimit, 3, "Free tier should have 3 individual advices per day")
+        XCTAssertEqual(status.dailyLimit, 5, "Free tier should have 5 individual advices per day")
     }
 
-    func testPremiumTierHasSevenIndividualAdvicePerDay() {
+    func testPremiumTierHasTwentyIndividualAdvicePerDay() {
         // Given: Premium tier
         SubscriptionStatusCenter.shared.update(isPremium: true, expiration: nil)
         // When
         let status = UsageLimitManager.shared.canUseAIFeature(.taskAdvice)
         // Then
-        XCTAssertEqual(status.dailyLimit, 7, "Premium tier should have 7 individual advices per day")
+        XCTAssertEqual(status.dailyLimit, 20, "Premium tier should have 20 individual advices per day")
     }
 }
-

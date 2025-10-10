@@ -32,6 +32,7 @@ final class PurchaseOptionSheetViewController: UIViewController {
     private let confirmButton = UIButton(type: .system)
     private let restoreButton = UIButton(type: .system)
     private let cancelButton = UIButton(type: .system)
+    private let legalNoticeLabel = UILabel()
 
     private var selectedTier: Tier = .pro
     private var selectedTerm: Term = .monthly
@@ -112,7 +113,24 @@ final class PurchaseOptionSheetViewController: UIViewController {
         restoreButton.setTitleColor(.link, for: .normal)
         restoreButton.addTarget(self, action: #selector(tapRestore), for: .touchUpInside)
 
-        [titleLabel, descLabel, benefitsLabel, usageSummaryLabel, tierSegment, termSegment, priceLabel, trialInfoButton, confirmButton, restoreButton, cancelButton].forEach { stack.addArrangedSubview($0) }
+        // 하단 자동갱신 고지 레이블
+        legalNoticeLabel.font = .systemFont(ofSize: 11)
+        legalNoticeLabel.textColor = .secondaryLabel
+        legalNoticeLabel.numberOfLines = 0
+        legalNoticeLabel.textAlignment = .left
+
+        [titleLabel,
+         descLabel,
+         benefitsLabel,
+         usageSummaryLabel,
+         tierSegment,
+         termSegment,
+         priceLabel,
+         trialInfoButton,
+         confirmButton,
+         restoreButton,
+         cancelButton,
+         legalNoticeLabel].forEach { stack.addArrangedSubview($0) }
         view.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -129,6 +147,8 @@ final class PurchaseOptionSheetViewController: UIViewController {
         benefitsLabel.text = SubscriptionUIMessageFormatter.summaryBenefitsKO()
         updateUsageSummary()
         updatePrice()
+        // 하단 자동갱신/취소 고지 표준 카피
+        legalNoticeLabel.text = SubscriptionUIMessageFormatter.autoRenewNoticeKO()
     }
 
     private func updateTrialLabel() {
@@ -171,6 +191,7 @@ final class PurchaseOptionSheetViewController: UIViewController {
     }
 
     private func updateUsageSummary() {
+        // 1) 일일 채팅 한도
         let free = ConfigReader.int("AI_LIMITS_CHAT") ?? 0
         let pro  = ConfigReader.int("AI_LIMITS_CHAT_PRO") ?? 0
         let max  = ConfigReader.int("AI_LIMITS_CHAT_MAX") ?? 0
@@ -179,14 +200,27 @@ final class PurchaseOptionSheetViewController: UIViewController {
         if pro  > 0 { parts.append("Pro \(pro)회") }
         if max  > 0 { parts.append("Max \(max)회") }
         let chatLine = parts.isEmpty ? "일일 채팅: 구성 필요" : ("일일 채팅: " + parts.joined(separator: " · "))
+
+        // 2) 프리셋 추천 및 할일 조언(개별)
         let presetF = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_FREE") ?? 0
         let presetP = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_PRO") ?? 0
         let presetM = ConfigReader.int("AI_LIMITS_PRESET_RECOMMENDATION_MAX") ?? 0
         let todoF = ConfigReader.int("AI_LIMITS_TODO_ADVICE_FREE") ?? 0
         let todoP = ConfigReader.int("AI_LIMITS_TODO_ADVICE_PRO") ?? 0
         let todoM = ConfigReader.int("AI_LIMITS_TODO_ADVICE_MAX") ?? 0
-        let diffLine = "프리셋 \(presetF)→\(presetP)/\(presetM), 할일조언 \(todoF)→\(todoP)/\(todoM)"
-        usageSummaryLabel.text = [chatLine, "대나무숲 친구(모델) 선택 가능", diffLine].joined(separator: "\n")
+        let presetsLine = "프리셋 \(presetF)→\(presetP)/\(presetM), 할일조언 \(todoF)→\(todoP)/\(todoM)"
+
+        // 3) 오늘 전체 조언 & 일기 이야기하기(대나무숲)
+        let overallF = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_FREE") ?? 0
+        let overallP = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_PRO") ?? 0
+        let overallM = ConfigReader.int("AI_LIMITS_TODO_OVERALL_ADVICE_MAX") ?? 0
+        let diaryF = ConfigReader.int("AI_LIMITS_DIARY_ANALYSIS_FREE") ?? 0
+        let diaryP = ConfigReader.int("AI_LIMITS_DIARY_ANALYSIS_PRO") ?? 0
+        let diaryM = ConfigReader.int("AI_LIMITS_DIARY_ANALYSIS_MAX") ?? 0
+        let extrasLine = "오늘 전체 조언 \(overallF)→\(overallP)/\(overallM), 일기 이야기 \(diaryF)→\(diaryP)/\(diaryM)"
+
+        // 한 화면 요약
+        usageSummaryLabel.text = [chatLine, presetsLine, extrasLine].joined(separator: "\n")
     }
 
     @objc private func tapConfirm() {

@@ -44,9 +44,9 @@ public enum SubscriptionUIMessageFormatter {
     }
 
     /// 페이월/결제 시트: 혜택 요약(상단 짧은 문구)
-    /// 요구사항에 따라 '일일 대화 상한 · 프리셋 · 할 일 조언 · 대화 모델 선택'만 노출
+    /// 요구사항에 따라 '일일 대화 상한 · 프리셋 · 할 일 조언'만 노출(모델 선택 문구 제거)
     public static func summaryBenefitsKO() -> String {
-        return "일일 대화 상한 • 프리셋 • 할 일 조언 • 모델 선택"
+        return "일일 대화 상한 • 프리셋 • 할 일 조언"
     }
 
     /// 페이월: 하단 자동갱신/취소 고지(KO)
