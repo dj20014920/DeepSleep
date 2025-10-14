@@ -125,15 +125,15 @@ public enum ModelCatalog {
         embeddingHBM: nil
     )
     private static let params_hcx05b_q8_0: InferenceParams = .init(
-        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 4096, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_hyperclova_1p5b_q4km: InferenceParams = .init(
-        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 4096, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
     private static let params_gemma3_1b_q5km: InferenceParams = .init(
-        context: 8192, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
+        context: 4096, threads: 6, temperature: 0.75, topK: 40, topP: 0.90, gpuLayers: nil,
         embeddingHBM: nil
     )
 

@@ -127,8 +127,10 @@ public enum OnDevicePromptProfile {
                 params.topK = 40
                 params.topP = 0.90
             case .amoral_gemma3_1b_v2_q5_k_m:
-                // 그대로 둠(카탈로그 recommended에 따름)
-                break
+                // Gemma3 1B: 에코/나열형 감소 + 안정성 향상
+                params.temperature = 0.70
+                params.topK = max(40, params.topK)
+                params.topP = min(0.85, params.topP)
             }
         }
 

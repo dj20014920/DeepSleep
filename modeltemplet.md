@@ -1,5 +1,7 @@
-1. kexplo/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q4_K_M-GGUF
-hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+허깅페이스에 등록된 문서 기준 내용임 참고할 것
+1. kexplo/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q4_K_M-GGUF - https://huggingface.co/kexplo/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q4_K_M-GGUF?show_file_info=hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf
+
+hyperclovax-seed-text-instruct-0.5b-q4_k_m.gguf 
 432 MB
 
 version    3
@@ -40,7 +42,8 @@ tokenizer.ggml.padding_token_id    100257
 tokenizer.ggml.add_space_prefix    false
 tokenizer.chat_template    {% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}{% for message in messages %}{{'<|im_start|>' + message['role'] + ' ' + message['content'] + '<|im_end|>' + ' '}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant ' }}{% endif %}
 
-2. cherryDavid/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q8_0-GGUF
+2. cherryDavid/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q8_0-GGUF -https://huggingface.co/cherryDavid/HyperCLOVAX-SEED-Text-Instruct-0.5B-Q8_0-GGUF?show_file_info=hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
+
 hyperclovax-seed-text-instruct-0.5b-q8_0.gguf
 726 MB
 
@@ -82,7 +85,8 @@ tokenizer.ggml.padding_token_id    100257
 tokenizer.ggml.add_space_prefix    false
 tokenizer.chat_template    {% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}{% for message in messages %}{{'<|im_start|>' + message['role'] + ' ' + message['content'] + '<|im_end|>' + ' '}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant ' }}{% endif %}
 
-3.soob3123/amoral-gemma3-1B-v2-gguf
+3.soob3123/amoral-gemma3-1B-v2-gguf - https://huggingface.co/soob3123/amoral-gemma3-1B-v2-gguf?show_file_info=amoral-gemma3-1B-v2-Q5_K_M.gguf
+
 amoral-gemma3-1B-v2-Q5_K_M.gguf
 851 MB
 
@@ -127,7 +131,8 @@ tokenizer.ggml.add_eos_token    false
 tokenizer.ggml.add_space_prefix    false
 tokenizer.chat_template    {{ bos_token }} {%- if messages[0]['role'] == 'system' -%} {%- if messages[0]['content'] is string -%} {%- set first_user_prefix = messages[0]['content'] + ' ' -%} {%- else -%} {%- set first_user_prefix = messages[0]['content'][0]['text'] + ' ' -%} {%- endif -%} {%- set loop_messages = messages[1:] -%} {%- else -%} {%- set first_user_prefix = "" -%} {%- set loop_messages = messages -%} {%- endif -%} {%- for message in loop_messages -%} {%- if (message['role'] == 'user') != (loop.index0 % 2 == 0) -%} {{ raise_exception("Conversation roles must alternate user/assistant/user/assistant/...") }} {%- endif -%} {%- if (message['role'] == 'assistant') -%} {%- set role = "model" -%} {%- else -%} {%- set role = message['role'] -%} {%- endif -%} {{ '<start_of_turn>' + role + ' ' + (first_user_prefix if loop.first else "") }} {%- if message['content'] is string -%} {{ message['content'] | trim }} {%- elif message['content'] is iterable -%} {%- for item in message['content'] -%} {%- if item['type'] == 'image' -%} {{ '<start_of_image>' }} {%- elif item['type'] == 'text' -%} {{ item['text'] | trim }} {%- endif -%} {%- endfor -%} {%- else -%} {{ raise_exception("Invalid content type") }} {%- endif -%} {{ '<end_of_turn> ' }} {%- endfor -%} {%- if add_generation_prompt -%} {{ '<start_of_turn>model ' }} {%- endif -%}
 
-4.yeebwn/HyperCLOVAX-SEED-Text-Instruct-1.5B-Q4_K_M-GGUF
+4.yeebwn/HyperCLOVAX-SEED-Text-Instruct-1.5B-Q4_K_M-GGUF - https://huggingface.co/yeebwn/HyperCLOVAX-SEED-Text-Instruct-1.5B-Q4_K_M-GGUF?show_file_info=hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
+
 hyperclovax-seed-text-instruct-1.5b-q4_k_m.gguf
 1.01 GB
 

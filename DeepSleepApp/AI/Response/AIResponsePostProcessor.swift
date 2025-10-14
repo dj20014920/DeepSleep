@@ -74,6 +74,45 @@ public enum AIResponsePostProcessor {
         // 3) 레거시 마커 제거는 이제 SpecialTokenSanitizer가 처리하므로 제거됨
         // (하위 호환성을 위해 legacyStripTemplateMarkers 함수는 유지)
 
+        // 3.5) 첫머리 자기소개/이름 고정 멘트 제거 (불필요한 페르소나 노출 억제)
+        // - 예: "저는 한국어 AI입니다.", "제 이름은 김철수입니다.", "저는 철수라는 이름을 가진 AI입니다"
+        // - 첫 1~2줄에서만 보수적으로 제거하며, 과도한 삭제를 피함
+        if !s.isEmpty {
+            let lines = s.components(separatedBy: "\n")
+            var edited = lines
+            let maxScan = min(2, lines.count)
+            var removed = 0
+            let introPatterns: [String] = [
+                #"^\s*(?:제\s*이름은)\s*[^\n]{1,30}\s*입니다[.!?]*\s*$"#,
+                #"^\s*(?:저는)\s*[^\n]{1,40}\s*입니다[.!?]*\s*$"#,
+                #"^\s*[^\n]{0,20}이름을\s*가진\s*AI입니다[.!?]*\s*$"#,
+                #"^\s*저는\s*한국어\s*AI입니다[.!?]*\s*$"#,
+            ]
+            if maxScan > 0 {
+                for i in 0..<maxScan {
+                    let ln = edited[i].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if ln.isEmpty { continue }
+                    for pat in introPatterns {
+                        if let re = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) {
+                            let ns = ln as NSString
+                            let range = NSRange(location: 0, length: ns.length)
+                            if re.firstMatch(in: ln, options: [], range: range) != nil {
+                                edited[i] = ""
+                                removed += 1
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+            if removed > 0 {
+                let filtered = edited.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                let before = s
+                s = filtered.joined(separator: "\n")
+                if s != before { reasons.append("strip_self_intro") }
+            }
+        }
+
         // 4) Clean up UTF-8 encoding issues and corrupted characters
         let beforeEncoding = s
         // Remove common UTF-8 replacement characters and broken sequences

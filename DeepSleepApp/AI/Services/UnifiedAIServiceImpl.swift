@@ -238,10 +238,25 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             return "### Recent\n" + lines.joined(separator: "\n")
         }()
 
+        // 📌 사용자 입력 보안 정화 (클라우드/AFM/일반 공통 경로)
+        let sanitizedForGeneric: String = {
+            let sec = AISecurityManager.shared.validateAndSanitizeInput(
+                content,
+                userId: context?.userId ?? "anonymous"
+            )
+            switch sec {
+            case .approved(let clean): return clean
+            case .flagged(_, let clean): return clean
+            case .rejected(let reason):
+                // 상위에서 에러 메시지로 처리
+                return "[BLOCKED_INPUT: \(reason)]"
+            }
+        }()
+
         let contentWithRecent: String = {
-            if model == .onDevice { return content }  // on-device는 user 텍스트만 전달
-            if recentBlock.isEmpty { return "### User\n\(content)" }
-            return recentBlock + "\n\n### User\n" + content
+            if model == .onDevice { return sanitizedForGeneric }  // on-device는 user 텍스트만 전달
+            if recentBlock.isEmpty { return "### User\n\(sanitizedForGeneric)" }
+            return recentBlock + "\n\n### User\n" + sanitizedForGeneric
         }()
 
         // Token config optimization
@@ -327,10 +342,24 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                     )
                 }
             }
+            // ✅ 입력 보안: 모델별 정화/검증 후 전송
+            let activeIDForSanitize: OnDeviceModelID = installedPref
+            let sec = AISecurityManager.shared.validateAndSanitizeInput(
+                content,
+                userId: context?.userId ?? "anonymous",
+                modelID: activeIDForSanitize
+            )
+            let safeUserText: String
+            switch sec {
+            case .approved(let clean): safeUserText = clean
+            case .flagged(_, let clean): safeUserText = clean
+            case .rejected(let reason): throw AIServiceError.contentFiltered(reason: reason)
+            }
+
             let summary = try await OnDeviceAdapter.shared.generate(
                 // 엄격 선호 모드(ONDEVICE_STRICT_PREFERRED=true)와 결합하여 설치된 모델만 사용
                 preferred: installedPref,
-                text: content,
+                text: safeUserText,
                 config: OnDeviceAdapter.StreamConfig(
                     systemPrompt: systemPrompt,
                     params: nil,
@@ -470,17 +499,18 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
 
     /// 모드와 모델에 맞는 시스템 프롬프트 생성
     private func generateOptimizedSystemPrompt(for mode: AIMode, model: AIModel) -> String {
+        // Gemma3(on-device) 전용: 일반 대화에서만 시스템 프롬프트 완전 비움
+        if model == .onDevice,
+           let active = OnDeviceAdapter.shared.activeModelID,
+           active == .amoral_gemma3_1b_v2_q5_k_m,
+           mode == .generalConversation {
+            return ""
+        }
         let basePromptText = getBaseSystemPromptForMode(mode)
-        let generalGuidelines = """
-            핵심 지침:
-            - 당신의 페르소나는 리플릿(Leaflet) 앱의 대나무숲(채팅창)에서 사용자와 대화하는 친구입니다.
-            - 사용자의 페르소나와 감정, 말투, 상황에 따라 유연하고 친근하며 친절하게 한국어로 대답해줘
-            - 시스템 텍스트를 그대로 복사하거나 반영하지 마세요
-            - JSON이 요구되면 정확한 스키마만 출력하고, 그렇지 않으면 명료한 텍스트로 답변하세요
-            """
+        let generalGuidelines = makeGeneralGuidelines(for: mode, model: model)
         // 사용자 프로필 컨텍스트(개인화) 주입: 캐시 키는 persona+memoryFP로 관리되므로 안전
         let userSettings = UserSettingsModel.loadFromUserDefaults()
-        let userContext = userSettings.generateAIContext()
+        var userContext = userSettings.generateAIContext()
 
         // 🔄 리팩터: components 기반 캐시 키 사용 (memory 요약 비포함)
         let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
@@ -500,10 +530,15 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
                 toneHash: components.toneHash
             )
         ) {
-            var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
-            if !userContext.isEmpty {
-                prompt += "\n\n사용자 입력 컨텍스트:\n\(userContext)"
+            // Gemma3 계열은 시스템/사용자 컨텍스트 에코 위험을 낮추기 위해 민감한 컨텍스트를 제거
+            if model == .onDevice {
+                if let active = OnDeviceAdapter.shared.activeModelID, active == .amoral_gemma3_1b_v2_q5_k_m {
+                    userContext = ""  // PII/말투/MBTI 등 노출 방지: 런타임 파라미터 튜닝으로 대체
+                }
             }
+
+            var prompt = "\(basePromptText)\n\n\(generalGuidelines)"
+            if !userContext.isEmpty { prompt += "\n\n사용자 입력 컨텍스트:\n\(userContext)" }
             return prompt
         }
         /// 모델별 특화 최적화 지침은 런타임에 덧붙임 (캐시 키에 포함되지 않음)
@@ -511,6 +546,8 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
         // 일반 대화 모드에서는 토큰 상한 내 완결 지시를 명시적으로 추가하여 모델이 스스로 마무리하도록 유도
         let lengthRule: String = {
             if mode == .generalConversation {
+                // 온디바이스(특히 Gemma3)에서는 길이 규칙 문구 자체가 에코되는 사례가 있어 생략
+                if model == .onDevice { return "" }
                 let cap =
                     ConfigReader.int("AI_GENERAL_CONVERSATION_MAX_TOKENS", default: 1000) ?? 1000
                 return
@@ -547,7 +584,39 @@ public class UnifiedAIServiceImpl: UnifiedAIService {
             - versions가 있으면 길이 \(catCount)이며 각 항목은 해당 카테고리 버전 인덱스 범위 내 정수\(example)
             """
         }()
-        return basePrompt + lengthRule + "\n\n" + presetRules + "\n\n" + modelSpecific
+        // 온디바이스 모델은 일부 템플릿/토크나이저에서 시스템 텍스트 에코 가능성이 있어
+        // 모델별 최적화 지침(짧은 한국어 문구)을 시스템 프롬프트에 포함하지 않습니다.
+        // 해당 최적화는 온디바이스 경로에서는 SamplingTuning/Runtime 파라미터로 대체합니다.
+        let includeModelSpecific = (model != .onDevice)
+        let finalPrompt = basePrompt
+            + lengthRule
+            + "\n\n" + presetRules
+            + (includeModelSpecific ? ("\n\n" + modelSpecific) : "")
+        return finalPrompt
+    }
+
+    private func makeGeneralGuidelines(for mode: AIMode, model: AIModel) -> String {
+        if model == .onDevice, mode == .generalConversation {
+            // Gemma3는 지시 에코 경향이 강하므로, 활성 모델이 Gemma3인 경우 전면 제거
+            if let active = OnDeviceAdapter.shared.activeModelID, active == .amoral_gemma3_1b_v2_q5_k_m {
+                return "" // 프롬프트 없이도 충분히 응답 생성 가능
+            }
+            // 그 외 온디바이스 모델: 기존 상세 지침 유지(UX 유지)
+            return """
+                핵심 지침:
+                - 자연스러운 한국어로 짧고 명확하게 대화 상대의 질문에 답하세요.
+                - 시스템/템플릿 문구, "요청"/"응답" 같은 표현을 반복하거나 설명하지 마세요.
+                - 현재 대화 맥락에 집중하세요.
+                """
+        }
+
+        return """
+            핵심 지침:
+            - 당신의 페르소나는 리플릿(Leaflet) 앱의 대나무숲(채팅창)에서 사용자와 대화하는 친구입니다.
+            - 사용자의 페르소나와 감정, 말투, 상황에 따라 유연하고 친근하며 친절하게 한국어로 대답해줘
+            - 시스템 텍스트를 그대로 복사하거나 반영하지 마세요
+            - JSON이 요구되면 정확한 스키마만 출력하고, 그렇지 않으면 명료한 텍스트로 답변하세요
+            """
     }
 
     // MARK: - Strict JSON Schema Builders

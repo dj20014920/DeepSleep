@@ -54,25 +54,35 @@ struct UserSettingsModel: Codable {
         var personaLines: [String] = []
         var preferenceLines: [String] = []
 
-        // 기본 정보 (명확하게 "인간 사용자"임을 표시)
-        if !nickname.isEmpty {
-            personaLines.append("• 사용자의 이름: \(nickname)")
+        // 공통 유틸: 공백 정리 후 비어있을 때 제외
+        func cleaned(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        func cleanedList(_ arr: [String]) -> [String] { arr.map { cleaned($0) }.filter { !$0.isEmpty } }
+
+        // 기본 정보 (명확하게 "인간 사용자"임을 표시) — 입력된 경우에만 포함
+        let nn = cleaned(nickname)
+        if !nn.isEmpty {
+            personaLines.append("• 사용자의 이름: \(nn)")
         }
-        if let age = age {
+        if let age = age, age > 0 {
             personaLines.append("• 사용자의 나이: \(age)세")
         }
-        if !personalityDescription.isEmpty {
-            personaLines.append("• 사용자의 자기소개: \(personalityDescription)")
+        let desc = cleaned(personalityDescription)
+        if !desc.isEmpty {
+            personaLines.append("• 사용자의 자기소개: \(desc)")
         }
-        if !personalityTraits.isEmpty {
-            personaLines.append("• 사용자의 성격 특성: \(personalityTraits.joined(separator: ", "))")
+        let traits = cleanedList(personalityTraits)
+        if !traits.isEmpty {
+            personaLines.append("• 사용자의 성격 특성: \(traits.joined(separator: ", "))")
         }
-        if !conversationTones.isEmpty {
-            personaLines.append("• 사용자가 선호하는 대화 스타일: \(conversationTones.joined(separator: ", "))")
+        let tonesClean = cleanedList(conversationTones)
+        if !tonesClean.isEmpty {
+            personaLines.append("• 사용자가 선호하는 대화 스타일: \(tonesClean.joined(separator: ", "))")
         }
         if !preferredFriendTones.isEmpty {
-            let tones = preferredFriendTones.map { $0.displayName }.joined(separator: ", ")
-            personaLines.append("• 사용자가 선호하는 AI 말투: \(tones)")
+            let tones = preferredFriendTones.map { $0.displayName }.map { cleaned($0) }.filter { !$0.isEmpty }
+            if !tones.isEmpty {
+                personaLines.append("• 사용자가 선호하는 AI 말투: \(tones.joined(separator: ", "))")
+            }
         }
 
         // MBTI: 축별로 선택된 경우에만 자연어로 해석하여 전달(문자 라벨 I/E/N/S/T/F/P/J는 사용하지 않음)
@@ -101,16 +111,20 @@ struct UserSettingsModel: Codable {
         // 선호도: 기본값과 다른 경우에만 포함
         // 기본값 가정: conversationStyle=.balanced, emotionalSensitivity=.medium, aiResponseLength=.medium, aiPersonality=.empathetic
         if conversationStyle != .balanced {
-            preferenceLines.append("• 사용자가 선호하는 대화 스타일: \(conversationStyle.description)")
+            let val = cleaned(conversationStyle.description)
+            if !val.isEmpty { preferenceLines.append("• 사용자가 선호하는 대화 스타일: \(val)") }
         }
         if emotionalSensitivity != .medium {
-            preferenceLines.append("• 사용자의 감정 민감도: \(emotionalSensitivity.description)")
+            let val = cleaned(emotionalSensitivity.description)
+            if !val.isEmpty { preferenceLines.append("• 사용자의 감정 민감도: \(val)") }
         }
         if aiResponseLength != .medium {
-            preferenceLines.append("• 당신의 응답 길이 설정: \(aiResponseLength.description)")
+            let val = cleaned(aiResponseLength.description)
+            if !val.isEmpty { preferenceLines.append("• 당신의 응답 길이 설정: \(val)") }
         }
         if aiPersonality != .empathetic {
-            preferenceLines.append("• 당신의 성격 설정: \(aiPersonality.description)")
+            let val = cleaned(aiPersonality.description)
+            if !val.isEmpty { preferenceLines.append("• 당신의 성격 설정: \(val)") }
         }
         if !musicPreferences.isEmpty {
             preferenceLines.append("• 사용자가 선호하는 음악: \(musicPreferences.map { $0.description }.joined(separator: ", "))")

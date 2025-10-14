@@ -204,7 +204,7 @@
 	<key>MEMORY_CHECK_INTERVAL</key>
 	<string>$(MEMORY_CHECK_INTERVAL)</string>
 	<key>MEMORY_WARN_THRESHOLD_MB</key>
-	<integer>350</integer>
+	<string>$(MEMORY_WARN_THRESHOLD_MB)</string>
 	<key>MOCK_AI_RESPONSES</key>
 	<string>$(MOCK_AI_RESPONSES)</string>
 

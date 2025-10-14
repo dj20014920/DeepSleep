@@ -472,9 +472,17 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 현재 로더가 로드된 경우에만 수행 (활성화는 외부 흐름에서 담당)
         guard loader.activeModelID == targetID, loader.isLoaded else { return }
 
+        // 🔒 Gemma3 계열은 시스템 프롬프트 에코 위험이 있어 프리워밍(접두 KV 프리필)을 비활성화
+        if targetID == .amoral_gemma3_1b_v2_q5_k_m {
+            self.log.debug("[Prewarm] skipped for Gemma3 (echo risk)")
+            return
+        }
+
         do {
             guard let io = loader as? (any KVPromptCache.LlamaSessionIO) else { return }
-            let nSys = try io.prefillSystem(systemPrompt)
+            // 시스템 프롬프트를 모델별로 정화하여 혼입된 템플릿 마커/레이블을 제거한 뒤 프리필한다.
+            let sanitized = SpecialTokenSanitizer.sanitizeSystemForModel(systemPrompt, modelID: targetID)
+            let nSys = try io.prefillSystem(sanitized)
             let selectedModelType = SettingsManager.shared.selectedLLM
             let mappedModel = AIContextSignature.mapModel(from: selectedModelType)
             let userSettingsForTones = UserSettingsModel.loadFromUserDefaults()
@@ -605,18 +613,29 @@ public final class OnDeviceAdapter: @unchecked Sendable {
             into: &params, disableMetal: disableMetal)
         OnDevicePromptProfile.SamplingTuning.applyConservativeDefaults(for: id, into: &params)
         // 시스템 프롬프트: 옵셔널/빈 문자열 안전 처리 → 항상 비옵셔널(String)
-        // Gemma는 system 역할 미지원: system 지시는 초기 user 입력에 내재화
+        // Gemma는 system 역할 미지원: system은 엔진에 전달하지 않음(내재화 금지)
         let systemOriginal: String = {
-            if let s = config.systemPrompt,
-               !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            {
-                return s
+            if let s = config.systemPrompt {
+                // Gemma3는 빈 시스템 프롬프트를 허용하여 에코를 원천 방지
+                if id == .amoral_gemma3_1b_v2_q5_k_m { return s }
+                if !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
             }
             return SystemPrompts.empathyKR
         }()
-        // 모든 모델에서 systemOriginal을 시스템 프롬프트로 유지하고, 사용자 입력은 템플릿으로 연결한다.
-        let system: String = systemOriginal
-        let inputWithSystem: String = input
+        // 모델별 시스템 프롬프트 정화 후, Gemma3는 시스템 안내를 첫 user 턴에 내재화
+        let systemSanitized: String = SpecialTokenSanitizer.sanitizeSystemForModel(systemOriginal, modelID: id)
+        let (inputWithSystem, systemForEngine): (String, String?) = {
+            if id == .amoral_gemma3_1b_v2_q5_k_m {
+                let sys = systemSanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+                if sys.isEmpty {
+                    return (input, nil)
+                } else {
+                    return (sys + "\n\n" + input, nil)
+                }
+            } else {
+                return (input, systemSanitized)
+            }
+        }()
         
         // HCX 0.5B instruct 계열은 템플릿 echo가 실제 텍스트와 붙어 나오는 경우가 있어, 델타 단계에서 보다 강력하게 필터링 필요
         // 스트리밍 단계에서는 stripTemplateMarkersStreaming + cleanStreamingToken으로 처리하고, 최종 조립 시점에 한 번 더 보수 정리한다.
@@ -625,6 +644,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         if config.aiMode != nil && config.aiMode != .generalConversation {
             disableKV = true
         }
+        // 🔒 Gemma3: 시스템 프롬프트 에코 위험 → KV 복원/저장 비활성화 강제
+        if id == .amoral_gemma3_1b_v2_q5_k_m { disableKV = true }
+        // (HCX 등 다른 모델은 그대로 KV 사용)
         // 최근 3+3 직렬화(모델별 템플릿) — SSOT
         let recentSerialized: String = {
             guard let msgs = config.recentMessages, !msgs.isEmpty else { return "" }
@@ -641,13 +663,75 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         let started = Date()
         var emittedFirst = false
         var ttiMs: Int = -1
+        // Gemma3 전용: 시스템 지시문 에코 억제 (강화 버전)
+        // - 전체 시스템 프롬프트의 의미 있는 청크 + 핵심 지시 문구를 블록리스트에 포함
+        let echoBlocklist: [String] = {
+            if id == .amoral_gemma3_1b_v2_q5_k_m {
+                guard !systemOriginal.isEmpty else { return [] }
+                var list: [String] = []
+
+                // 1) 전체 시스템 프롬프트를 앞/뒤 청크로 분할하여 등록 (너무 길 경우)
+                if systemOriginal.count <= 300 {
+                    list.append(systemOriginal)
+                } else {
+                    list.append(String(systemOriginal.prefix(150)))
+                    list.append(String(systemOriginal.suffix(150)))
+                }
+
+                // 2) 정화된 시스템 프롬프트의 앞 청크도 추가(다르면)
+                if systemSanitized != systemOriginal, !systemSanitized.isEmpty {
+                    let cleanedPrefix = String(systemSanitized.prefix(150))
+                    list.append(cleanedPrefix)
+                }
+
+                // 3) 반복적으로 에코되는 핵심 지시 문구(정확 문구 중심)
+                list.append(contentsOf: [
+                    "요청/응답 같은 표현을 반복하거나 설명하지 마세요",
+                    "현재 대화 맥락에 집중하세요",
+                    "핵심 지침:",
+                    "시스템/템플릿 문구",
+                    "### User",
+                    "### Recent",
+                    "<start_of_turn>",
+                    "<end_of_turn>",
+                    "user\n",
+                    "model\n"
+                ])
+
+                return list.filter { !$0.isEmpty }
+            }
+            return []
+        }()
+        @inline(__always)
+        func suppressEchoes(_ s: String) -> String {
+            guard !s.isEmpty, !echoBlocklist.isEmpty else { return s }
+            var out = s
+            for pattern in echoBlocklist where !pattern.isEmpty {
+                if let re = try? NSRegularExpression(
+                    pattern: NSRegularExpression.escapedPattern(for: pattern),
+                    options: [.caseInsensitive]
+                ) {
+                    let range = NSRange(location: 0, length: out.utf16.count)
+                    let replaced = re.stringByReplacingMatches(in: out, options: [], range: range, withTemplate: "")
+                    if replaced != out {
+                        self.log.warning("[EchoGuard] suppressed echo (\(pattern.prefix(24))…)")
+                        out = replaced
+                    }
+                }
+            }
+            // 과도한 줄바꿈/공백 정리
+            if out.contains("\n\n\n") {
+                out = out.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
+            }
+            return out.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         do {
             // 스트리밍 정책: 일기 분석 등 민감 컨텍스트에서는 일반대화 캐시 복원을 끕니다.
             if disableKV {
                 try await loader.generate(
-                    input: input,
-                    systemPrompt: system,
+                    input: inputWithSystem,
+                    systemPrompt: systemForEngine,
                     params: params,
                     onToken: { delta in
                         if !emittedFirst {
@@ -657,7 +741,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                             self.log.info("⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]")
                         }
                         let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                        onToken(cleanedDelta)
+                        let finalDelta = suppressEchoes(cleanedDelta)
+                        if !finalDelta.isEmpty { onToken(finalDelta) }
                     }
                 )
                 // 종료 처리(아래와 동일 경로)
@@ -720,7 +805,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                 }
                                 // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
                                 let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                                onToken(cleanedDelta)
+                                let finalDelta = suppressEchoes(cleanedDelta)
+                                if !finalDelta.isEmpty { onToken(finalDelta) }
                             }
                         )
                     } else {
@@ -728,7 +814,7 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                         do {
                             // 최근 대화 직렬화는 SSOT 유틸을 사용하며, 이 경로에서는 캐시에 포함하지 않으므로 별도 생성/사용하지 않습니다.
 
-                            let nSys = try io.prefillSystem(system)
+                            let nSys = try io.prefillSystem(systemForEngine ?? "")
                             // 최근 대화는 캐시에 포함하지 않음
                             // 이유: 매번 변경되어 캐시 히트율이 낮고, 복원 후 배치로 처리하는 것이 더 효율적
                             let nPrefix = nSys
@@ -768,14 +854,15 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                     }
                                     // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
                                     let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                                    onToken(cleanedDelta)
+                                    let finalDelta = suppressEchoes(cleanedDelta)
+                                    if !finalDelta.isEmpty { onToken(finalDelta) }
                                 }
                             )
                         } catch {
                             // 프리필 경로 실패 시 전체 경로 폴백
                             try await loader.generate(
-                                input: input,
-                                systemPrompt: system,
+                                input: inputWithSystem,
+                                systemPrompt: systemForEngine,
                                 params: params,
                                 onToken: { delta in
                                     if !emittedFirst {
@@ -788,9 +875,10 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                                             "⏱️ TTI=\(ttiMs, privacy: .public)ms [\(id.rawValue, privacy: .public)]"
                                         )
                                     }
-                                    // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
+                                    // UTF-8 인코딩 문제 해결 + 템플릿/시스템 에코 정리
                                     let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                                    onToken(cleanedDelta)
+                                    let finalDelta = suppressEchoes(cleanedDelta)
+                                    if !finalDelta.isEmpty { onToken(finalDelta) }
                                 }
                             )
                         }
@@ -798,8 +886,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                 } else {
                     // 기존 경로 유지
                     try await loader.generate(
-                        input: input,
-                        systemPrompt: system,
+                        input: inputWithSystem,
+                        systemPrompt: systemForEngine,
                         params: params,
                         onToken: { delta in
                             if !emittedFirst {
@@ -814,7 +902,8 @@ public final class OnDeviceAdapter: @unchecked Sendable {
                             }
                             // UTF-8 인코딩 문제 해결 및 템플릿 토큰 정리
                             let cleanedDelta = self.cleanTokenDelta(delta, modelID: id)
-                            onToken(cleanedDelta)
+                            let finalDelta = suppressEchoes(cleanedDelta)
+                            if !finalDelta.isEmpty { onToken(finalDelta) }
                         }
                     )
                 }
@@ -852,8 +941,9 @@ public final class OnDeviceAdapter: @unchecked Sendable {
         // 5단계: 최종 특수 토큰 정리 후 방출
         if !tail.isEmpty {
             let cleaned = SpecialTokenSanitizer.cleanStreamingToken(tail, modelID: id)
-            if !cleaned.isEmpty {
-                onToken(cleaned)
+            let finalCleaned = suppressEchoes(cleaned)
+            if !finalCleaned.isEmpty {
+                onToken(finalCleaned)
             }
         }
         // 6단계: 다음 생성을 위해 모든 버퍼 완전 리셋

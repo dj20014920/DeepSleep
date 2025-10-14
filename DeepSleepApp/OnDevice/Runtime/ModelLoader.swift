@@ -909,19 +909,15 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
             throw OnDeviceError.engineNotInitialized
         }
 
-        let sysOriginal: String = {
+        // Gemma3는 시스템 역할 미지원: systemPrompt가 비어있거나 nil이면 엔진에 전달하지 않음
+        let sys: String? = {
             if let s = systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return s
             }
+            if state.activeID == .amoral_gemma3_1b_v2_q5_k_m { return nil }
             return SystemPrompts.empathyKR
         }()
-        // Gemma는 system 역할을 지원하지 않으므로 system 지시는 초기 user 입력에 내재화한다.
-        // activeModelID는 상위 로더가 설정하며 여기서 분기 처리한다.
-        let isGemma =
-            (self.activeModelID == .amoral_gemma3_1b_v2_q5_k_m)
-        let sys: String? = isGemma ? nil : sysOriginal
-        let effectiveInput: String =
-            isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
+        let effectiveInput: String = input
 
         // 어댑터 계층에서 1st-token 로그를 집계하므로 여기서는 로그를 남기지 않는다.
         let wrappedOnToken: @Sendable (String) -> Void = { delta in onToken(delta) }
@@ -957,17 +953,16 @@ public final class LlamaModelLoader: OnDeviceModelLoader {
         guard let eng = state.engine, eng.isLoaded else {
             throw OnDeviceError.engineNotInitialized
         }
-        // Gemma는 system 역할 미지원 → resume에서도 동일 정책 적용
-        let sysOriginal: String = {
+        // resume에서는 이미 KV에 접두 시스템이 반영되어 있을 수 있으므로 systemPrompt는 상위에서 nil로 전달됨
+        // Gemma3는 재개 시에도 시스템 역할 미지원. 빈/nil이면 전달하지 않음
+        let sys: String? = {
             if let s = systemPrompt, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return s
             }
+            if state.activeID == .amoral_gemma3_1b_v2_q5_k_m { return nil }
             return SystemPrompts.empathyKR
         }()
-        let isGemma =
-            (self.activeModelID == .amoral_gemma3_1b_v2_q5_k_m)
-        let effectiveInput: String =
-            isGemma ? ((sysOriginal.isEmpty ? input : sysOriginal + "\n\n" + input)) : input
+        let effectiveInput: String = input
 
         // 스트리밍 바이트→UTF-8 안전 디코더(재개 모드에서도 동일 적용)
         var utf8Decoder = UTF8ByteStreamDecoder()

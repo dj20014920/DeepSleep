@@ -61,6 +61,13 @@ public enum SpecialTokenSanitizer {
                     "<start_of_turn>system",
                     "<start_of_image>",
 
+                    // HCX-style tokens that may leak from mixed-corpa training
+                    "<|im_start|>",
+                    "<|im_end|>",
+                    "<|im_start|>user",
+                    "<|im_start|>assistant",
+                    "<|im_start|>system",
+
                     // Special tokens from tokenizer
                     "<bos>",
                     "<eos>",
@@ -123,6 +130,17 @@ public enum SpecialTokenSanitizer {
                     "<bos>",
                     "<|eot_id|>",
                     "<|end_of_text|>",
+                    // HCX-style markers to stop early when they appear in Gemma output
+                    "<|im_end|>",
+                    "<|im_start|>",
+                    // Gemma3 에코 억제: 시스템 지시 핵심 키워드가 응답에 등장하면 즉시 중단
+                    // (한국어 일반 대화에서 드물게 쓰이는 키워드 위주로 선정)
+                    "핵심 지침:",
+                    "요청/응답 같은 표현을 반복하거나 설명하지 마세요",
+                    "현재 대화 맥락에 집중하세요",
+                    "시스템/템플릿 문구",
+                    "### User",
+                    "### Recent",
                 ]
             case .hcx05bStyle, .hcx15bStyle:
                 return [
@@ -247,11 +265,6 @@ public enum SpecialTokenSanitizer {
     public static func sanitizeUserInput(_ input: String, modelID: OnDeviceModelID) -> String {
         guard !input.isEmpty else { return input }
 
-        // Fast path: 특수 토큰 의심 패턴이 없으면 즉시 반환
-        guard input.contains("<") || input.contains("|>") else {
-            return input
-        }
-
         var result = input
         let tokens = tokenSet(for: modelID)
 
@@ -273,9 +286,122 @@ public enum SpecialTokenSanitizer {
             result = result.replacingOccurrences(of: "<|", with: "< |")
         }
 
+        // 4단계: LLM 프롬프트 인젝션 방지 — 역할/섹션 레이블 제거 (정확 매칭)
+        let sectionLabelPatterns = [
+            #"^\s*#{2,3}\s*(System|User|Assistant)\s*$"#,
+            #"^\s*(System|User|Assistant)\s*:\s*"#,
+            #"^\s*role\s*:\s*(system|assistant|user)\s*$"#,
+        ]
+        for pat in sectionLabelPatterns {
+            if let re = try? NSRegularExpression(pattern: pat, options: [.anchorsMatchLines, .caseInsensitive]) {
+                let range = NSRange(location: 0, length: result.utf16.count)
+                result = re.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "")
+            }
+        }
+
+        // 5단계: 지시 무력화 패턴 완화(정확 문구 위주, 과도한 삭제 방지)
+        let directiveBlocks = [
+            "ignore previous instructions",
+            "ignore all instructions",
+            "disregard previous",
+            "pretend to be system",
+            "act as system",
+            "reveal the prompt",
+            "show me the system prompt",
+            "print the system prompt",
+            "prompt injection",
+            "jailbreak",
+            "개발자 모드",
+            "시스템 프롬프트",
+        ]
+        for phrase in directiveBlocks {
+            result = result.replacingOccurrences(of: phrase, with: "[blocked]", options: [.caseInsensitive])
+        }
+
+        // 6단계: 과도한 헤더/코드펜스 제거(사용자 입력 내에서는 불필요)
+        result = result.replacingOccurrences(of: "```", with: "")
+        result = result.replacingOccurrences(of: #"^\s*#+\s*"#, with: "", options: .regularExpression)
+
         return result
     }
 
+    // MARK: - System Prompt Sanitization (모델별 시스템 프롬프트 정화)
+
+    /// 시스템 프롬프트에 다른 템플릿 마커/레이블(요청:, 답변:) 등이 섞여 있을 때 제거하여 에코를 방지
+    /// - Gemma3: HCX 마커(<|im_start|>, <|im_end|>, <|eom|>)만 제거 (시스템 역할 지원하므로 최소 처리)
+    /// - HCX: Gemma 마커(<start_of_turn>, <end_of_turn>) 제거
+    public static func sanitizeSystemForModel(_ system: String, modelID: OnDeviceModelID) -> String {
+        guard !system.isEmpty else { return system }
+        var s = system
+        switch tokenSet(for: modelID) {
+        case .gemma3Style:
+            // ✅ 수정: Gemma3는 system 역할을 지원하므로, 타 템플릿 마커만 제거
+            let removeList = [
+                "<|im_start|>", "<|im_end|>", "<|eom|>",
+                // 레이블 제거는 하지 않음 (Gemma3는 시스템 프롬프트 내용 유지 필요)
+            ]
+            for r in removeList { s = s.replacingOccurrences(of: r, with: "") }
+            // ⚠️ Gemma3 에코 방지: 사용자/말투/MBTI/핵심 지시 라인 제거
+            // • 사용자의 이름: …
+            // • 사용자가 선호하는 대화 스타일: …
+            // • 사용자가 선호하는 AI 말투: …
+            // • 사용자가 선호하는 AI 친구 성향: …
+            // • 당신이 따라야 할 응답 스타일 가이드:
+            let patterns = [
+                #"^\s*•\s*사용자의 이름:\s*.*$"#,
+                #"^\s*•\s*사용자가 선호하는 대화 스타일:\s*.*$"#,
+                #"^\s*•\s*사용자가 선호하는 AI 말투:\s*.*$"#,
+                #"^\s*•\s*사용자가 선호하는 AI 친구 성향:\s*.*$"#,
+                #"^\s*•\s*당신이 따라야 할 응답 스타일 가이드:\s*.*$"#,
+                #"^\s*핵심 지침:\s*$"#,
+                #"요청/응답 같은 표현을 반복하거나 설명하지 마세요"#,
+                #"현재 대화 맥락에 집중하세요"#,
+                #"시스템/템플릿 문구"#,
+            ]
+            let lines = s.components(separatedBy: "\n")
+            let filtered = lines.filter { line in
+                for p in patterns {
+                    if let re = try? NSRegularExpression(pattern: p, options: [.anchorsMatchLines]) {
+                        let r = NSRange(location: 0, length: line.utf16.count)
+                        if re.firstMatch(in: line, options: [], range: r) != nil { return false }
+                    }
+                }
+                return true
+            }
+            s = filtered.joined(separator: "\n")
+        case .hcx05bStyle, .hcx15bStyle:
+            let removeList = [
+                "<start_of_turn>", "<end_of_turn>", "<bos>", "<eos>",
+            ]
+            for r in removeList { s = s.replacingOccurrences(of: r, with: "") }
+        }
+        // 코드 펜스/주석/마크다운 헤더/HTML 주석 제거 및 레이블 제거
+        // 1) 코드 펜스 정리
+        s = s.replacingOccurrences(of: "```", with: "")
+        // 2) 라인 단위 처리: 주석과 선행 레이블 제거
+        let filtered = s.components(separatedBy: "\n").compactMap { ln -> String? in
+            let t = ln.trimmingCharacters(in: .whitespaces)
+            // 개발자 주석/헤더/HTML 주석 라인 제거
+            if t.hasPrefix("///") || t.hasPrefix("//") || t.hasPrefix("# ") || t == "#" { return nil }
+            if t.hasPrefix("<!--") && t.hasSuffix("-->") { return nil }
+            // 특정 설명성 문구 제거(유출 보고 사례)
+            if t.contains("모델별 특화 최적화 지침") { return nil }
+            // 레이블 접두 제거
+            if t.hasPrefix("요청:") {
+                return String(t.dropFirst("요청:".count)).trimmingCharacters(in: .whitespaces)
+            }
+            if t.hasPrefix("답변:") {
+                return String(t.dropFirst("답변:".count)).trimmingCharacters(in: .whitespaces)
+            }
+            return ln
+        }
+        s = filtered.joined(separator: "\n")
+        // 과도한 공백 정리
+        s = s.replacingOccurrences(of: "\r", with: "")
+        s = s.replacingOccurrences(of: "\t", with: " ")
+        while s.contains("  ") { s = s.replacingOccurrences(of: "  ", with: " ") }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     // MARK: - Streaming Token Cleaning (스트리밍 실시간 정화)
 
     /// **스트리밍 토큰 실시간 정화 (UTF-8 안전 버전)**

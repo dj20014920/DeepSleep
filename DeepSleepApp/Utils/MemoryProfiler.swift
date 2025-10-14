@@ -9,12 +9,18 @@ class MemoryProfiler {
     private var baselineMemory: Float = 0
     
     // 경고 임계치(MB). Secrets.xcconfig의 MEMORY_WARN_THRESHOLD_MB 값 사용
-    /// - 기본값: 700MB (아이폰12 기준, 에뮬레이터는 더 높게 측정됨)
+    // 기본값을 동적으로 계산해 온디바이스 LLM 사용 시 과도한 경고를 방지합니다.
+    // - 총 RAM의 ~38%를 기준으로 하되 900~1600MB 범위로 클램핑합니다.
+    // - Secrets.xcconfig(Info.plist) 값이 있으면 최우선 사용합니다.
     private lazy var thresholdMB: Float = {
-        if let v = ConfigReader.double("MEMORY_WARN_THRESHOLD_MB") { 
-            return Float(v) 
+        if let v = ConfigReader.double("MEMORY_WARN_THRESHOLD_MB") {
+            return Float(v)
         }
-        return 700  // 아이폰12 기준 기본값
+        let totalBytes = ProcessInfo.processInfo.physicalMemory
+        let totalMB = Float(totalBytes) / 1024.0 / 1024.0
+        // 동적 기준: 38% (iPhone 12 4GB ≈ 1550MB), 900~1600MB로 안전 범위 제한
+        let dynamic = max(900, min(1600, totalMB * 0.38))
+        return dynamic
     }()
     
     private init() {}

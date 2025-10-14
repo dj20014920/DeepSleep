@@ -204,6 +204,7 @@
 - 모든 템플릿 마커/특수 토큰/STOP 시퀀스 관리는 `SpecialTokenSanitizer`로 중앙화되었습니다.
 - `OnDevicePromptProfile.stopSequences(for:)`는 내부적으로 `SpecialTokenSanitizer.getStopSequences(for:)`를 호출합니다.
 - 스트리밍 델타 정화는 `OnDeviceAdapter.cleanTokenDelta`가 `SpecialTokenSanitizer.cleanStreamingToken`에 위임합니다.
+ - 시스템 프롬프트는 `prewarm()` 및 `generate()` 진입 시 `SpecialTokenSanitizer.sanitizeSystemForModel(_, modelID:)`로 정화되어, 이종 템플릿 마커(HCX: `<|im_*|>`, Gemma: `<start_of_turn>`, 라벨: `요청:/답변:`) 혼입으로 인한 에코를 원천 차단합니다.
 - 일반 텍스트/이모티콘은 Fast-path 및 이모티콘 보존(>< 포함) 정책으로 영향이 최소화됩니다.
 
 ## 2025-12-20 업데이트: KV 캐시 최적화 완료 - TTI 성능 극대화
@@ -276,4 +277,7 @@ let nPrefix = nSys
 - 비침투적: 기존 로직 영향 없음
 - 비동기: UI 블로킹 없음
 - 자동 복구: 실패 시에도 정상 플로우 보장
+
+
+> 주의: Gemma3 계열(amoral_gemma3_1b_v2_q5_k_m)은 system 역할을 지원하지 않아 시스템 프롬프트를 사용자 입력에 내재화하지 않습니다. 지시문 에코를 방지하기 위해 Prewarm(prefillSystem) 및 KV 캐시 사용을 비활성화합니다.
 
